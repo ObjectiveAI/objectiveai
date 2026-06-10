@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.tags.apply.Path",
+  "type": "string",
+  "enum": [
+    "agents/tags/apply"
+  ]
+}

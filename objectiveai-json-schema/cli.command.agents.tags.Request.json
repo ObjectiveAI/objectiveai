@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.tags.Request",
+  "anyOf": [
+    {
+      "title": "Lookup",
+      "$ref": "cli.command.agents.tags.lookup.Request"
+    },
+    {
+      "title": "LookupRequestSchema",
+      "$ref": "cli.command.agents.tags.lookup.request_schema.Request"
+    },
+    {
+      "title": "LookupResponseSchema",
+      "$ref": "cli.command.agents.tags.lookup.response_schema.Request"
+    },
+    {
+      "title": "Apply",
+      "$ref": "cli.command.agents.tags.apply.Request"
+    },
+    {
+      "title": "ApplyRequestSchema",
+      "$ref": "cli.command.agents.tags.apply.request_schema.Request"
+    },
+    {
+      "title": "ApplyResponseSchema",
+      "$ref": "cli.command.agents.tags.apply.response_schema.Request"
+    }
+  ]
+}

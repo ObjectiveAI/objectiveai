@@ -1,0 +1,44 @@
+{
+  "title": "cli.command.agents.tags.lookup.LookupState",
+  "description": "2-state result of a successful tag-name lookup. `Grouped`\nsurfaces the tag's `tag_groups` membership — the group id, the\nresolved `AgentSpec` the group carries, and the parent lineage\n— so callers can see what would happen on spawn-by-tag without\nfiring one. The third \"not registered\" possibility is\nrepresented at the [`Response`] level via [`Response::Absent`],\nnot as a variant here.",
+  "anyOf": [
+    {
+      "title": "Bound",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "bound"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Grouped",
+      "type": "object",
+      "properties": {
+        "agent_spec": {
+          "$ref": "cli.command.agents.spawn.AgentSpec"
+        },
+        "parent_agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "grouped"
+          ]
+        },
+        "tag_group_id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        }
+      }
+    }
+  ]
+}

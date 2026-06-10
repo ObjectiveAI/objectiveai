@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.instances.get.Path",
+  "type": "string",
+  "enum": [
+    "agents/instances/get"
+  ]
+}

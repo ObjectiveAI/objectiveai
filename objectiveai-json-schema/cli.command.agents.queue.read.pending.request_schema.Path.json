@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.queue.read.pending.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/queue/read/pending/request_schema"
+  ]
+}

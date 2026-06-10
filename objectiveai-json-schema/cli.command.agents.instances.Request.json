@@ -2,16 +2,16 @@
   "title": "cli.command.agents.instances.Request",
   "anyOf": [
     {
-      "title": "Me",
-      "$ref": "cli.command.agents.instances.me.Request"
+      "title": "Get",
+      "$ref": "cli.command.agents.instances.get.Request"
     },
     {
-      "title": "MeRequestSchema",
-      "$ref": "cli.command.agents.instances.me.request_schema.Request"
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.agents.instances.get.request_schema.Request"
     },
     {
-      "title": "MeResponseSchema",
-      "$ref": "cli.command.agents.instances.me.response_schema.Request"
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.agents.instances.get.response_schema.Request"
     },
     {
       "title": "List",

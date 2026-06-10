@@ -1,0 +1,62 @@
+{
+  "title": "cli.command.agents.logs.read.all.Target",
+  "description": "One queue-read target. Either direct `(parent, instance)` (parent\ndefaults to the cli's own `Config.agent_instance_hierarchy` when\nomitted), a tag name the cli resolves at handler time, or `me`\n(the caller's own `Config.agent_instance_hierarchy`, with no child\nleaf appended). Shared with `agents read pending` via re-export.\n\nDocker-style `key=value,key=value` wire form on the CLI:\n  `--target instance=L`           (direct; parent defaults to ctx)\n  `--target instance=L,parent=P`  (direct; explicit parent)\n  `--target tag=T`                (tag; cli resolves via the tags tier)\n  `--target me`                   (the caller's own AIH; bare valueless key)",
+  "anyOf": [
+    {
+      "title": "Direct",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "direct"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Optional lineage prefix. `None` ⇒ cli substitutes\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Me",
+      "description": "The caller's own `Config.agent_instance_hierarchy`, verbatim.\nCLI wire form is the bare valueless key `me` (docker\n`readonly`-style), mutually exclusive with the other keys.",
+      "type": "object",
+      "properties": {
+        "by": {
+          "type": "string",
+          "enum": [
+            "me"
+          ]
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "title": "cli.command.agents.tags.apply.Target",
+  "anyOf": [
+    {
+      "title": "AgentInstance",
+      "description": "`tag → AIH`. Storage gets the resolved AIH =\n`{parent}/{agent_instance}`.",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent_instance"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Optional parent scope. `None` ⇒ cli substitutes\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Agent",
+      "description": "`tag → new tag_group`. Creates a fresh row in `tag_groups`\ncarrying the resolved AgentSpec + parent, then a `tags`\nrow pointing at it. Multiple subsequent\n`Target::AgentTag` applies can join the new tag's group.",
+      "type": "object",
+      "properties": {
+        "agent_spec": {
+          "$ref": "cli.command.agents.spawn.AgentSpec"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Optional parent scope. `None` ⇒ cli substitutes\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "AgentTag",
+      "description": "Clone an existing tag's resolution under `--name`. BOUND\nsource copies the hierarchy; GROUPED source joins the same\n`tag_group`. `parent_agent_instance_hierarchy` is forbidden\nhere (the source's parent — via its group — is inherited).",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent_tag"
+          ]
+        }
+      }
+    }
+  ]
+}

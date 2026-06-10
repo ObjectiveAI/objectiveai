@@ -232,9 +232,11 @@ pub enum Response {
     /// The queue row reached a live agent (the API stamped its id
     /// onto an assistant chunk's `request_message_ids`) before
     /// any other race finalized.
+    #[schemars(title = "Delivered")]
     Delivered,
     /// The target's tag wasn't bound at call time (PENDING /
     /// ABSENT). The message was deferred into the queue.
+    #[schemars(title = "Enqueued")]
     Enqueued {
         id: i64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -249,6 +251,7 @@ pub enum Response {
     /// `ResponseItem::Id` first. Same payload as spawn's
     /// `ResponseItem::Id(String)` — the bare
     /// `agent_instance_hierarchy` string the runner just minted.
+    #[schemars(title = "Id")]
     Id { agent_instance_hierarchy: String },
 }
 
@@ -260,7 +263,9 @@ pub enum Response {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.message.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Delivered")]
     Delivered,
+    #[schemars(title = "Enqueued")]
     Enqueued {
         id: i64,
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -270,12 +275,14 @@ pub enum ResponseItem {
         #[schemars(extend("omitempty" = true))]
         agent_tag: Option<String>,
     },
+    #[schemars(title = "Id")]
     Id { agent_instance_hierarchy: String },
     /// Newtype-of-struct under an internally-tagged enum: the
     /// chunk's own fields land at the top level of the JSON, with
     /// `"type":"chunk"` injected. Wire shape equivalent to spawn's
     /// `ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`
     /// discriminator.
+    #[schemars(title = "Chunk")]
     Chunk(AgentCompletionChunk),
 }
 

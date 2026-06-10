@@ -1,0 +1,125 @@
+{
+  "title": "cli.command.agents.tags.apply.Response",
+  "description": "Apply response. Each variant carries the freshly-applied state\nso callers don't need a follow-up lookup.",
+  "anyOf": [
+    {
+      "title": "AgentInstance",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "type": "string"
+        },
+        "agent_instance_hierarchy": {
+          "description": "`{parent}/{agent_instance}`.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent_instance"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "parent_agent_instance_hierarchy": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Agent",
+      "type": "object",
+      "properties": {
+        "agent_spec": {
+          "$ref": "cli.command.agents.spawn.AgentSpec"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent"
+          ]
+        },
+        "name": {
+          "type": "string"
+        },
+        "parent_agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "tag_group_id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        }
+      }
+    },
+    {
+      "title": "AgentTag",
+      "description": "Wire shape mirrors the resolved source state:\n`{\"by\":\"agent_tag\",\"name\":...,\"agent_tag\":...,\"state\":\"bound\"|\"grouped\", …}`.",
+      "anyOf": [
+        {
+          "title": "Bound",
+          "type": "object",
+          "properties": {
+            "agent_instance_hierarchy": {
+              "type": "string"
+            },
+            "agent_tag": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "enum": [
+                "agent_tag"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "bound"
+              ]
+            }
+          }
+        },
+        {
+          "title": "Grouped",
+          "type": "object",
+          "properties": {
+            "agent_spec": {
+              "$ref": "cli.command.agents.spawn.AgentSpec"
+            },
+            "agent_tag": {
+              "type": "string"
+            },
+            "by": {
+              "type": "string",
+              "enum": [
+                "agent_tag"
+              ]
+            },
+            "name": {
+              "type": "string"
+            },
+            "parent_agent_instance_hierarchy": {
+              "type": "string"
+            },
+            "state": {
+              "type": "string",
+              "enum": [
+                "grouped"
+              ]
+            },
+            "tag_group_id": {
+              "type": "integer",
+              "minimum": -9223372036854775808,
+              "maximum": 9223372036854775807
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,44 @@
+{
+  "title": "cli.command.agents.tags.apply.AgentTagResolution",
+  "description": "Snapshot of the source tag's resolution at the moment\n`--agent-tag` looked it up. The handler reproduces this state\nunder the caller's `--name`. Self-contained on this leaf — not\nshared with `tags::lookup`'s `LookupState` so each leaf's\nschema stays decoupled.",
+  "anyOf": [
+    {
+      "title": "Bound",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "bound"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Grouped",
+      "type": "object",
+      "properties": {
+        "agent_spec": {
+          "$ref": "cli.command.agents.spawn.AgentSpec"
+        },
+        "parent_agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "state": {
+          "type": "string",
+          "enum": [
+            "grouped"
+          ]
+        },
+        "tag_group_id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        }
+      }
+    }
+  ]
+}

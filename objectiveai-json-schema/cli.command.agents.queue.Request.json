@@ -1,0 +1,21 @@
+{
+  "title": "cli.command.agents.queue.Request",
+  "anyOf": [
+    {
+      "title": "Delete",
+      "$ref": "cli.command.agents.queue.delete.Request"
+    },
+    {
+      "title": "DeleteRequestSchema",
+      "$ref": "cli.command.agents.queue.delete.request_schema.Request"
+    },
+    {
+      "title": "DeleteResponseSchema",
+      "$ref": "cli.command.agents.queue.delete.response_schema.Request"
+    },
+    {
+      "title": "Read",
+      "$ref": "cli.command.agents.queue.read.Request"
+    }
+  ]
+}

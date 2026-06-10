@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.agents.queue.read.pending.QueuePart",
+  "description": "One row inside a `ResponseItem` block — a\n`message_queue_contents` entry. The `id` is the\n`message_queue_contents.id`, which you pass to\n`agents queue read id <n>` to drill into the body.\n`timestamp_queued` is on the enclosing block, not here\n(one block = one `message_queue` parent row, sharing one\n`enqueued_at`).",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "type": {
+      "$ref": "cli.command.agents.logs.read.all.ClientNotificationPartType"
+    }
+  }
+}

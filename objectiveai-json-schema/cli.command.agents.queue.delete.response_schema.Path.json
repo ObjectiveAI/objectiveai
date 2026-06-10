@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.queue.delete.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/queue/delete/response_schema"
+  ]
+}
