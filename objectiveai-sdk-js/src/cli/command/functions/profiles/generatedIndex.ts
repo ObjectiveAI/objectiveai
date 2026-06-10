@@ -4,4 +4,3 @@ export * from "./get/index";
 export * from "./list/index";
 export * from "./publish/index";
 export * from "./request";
-export * from "./responseItem";

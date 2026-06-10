@@ -6,23 +6,22 @@ from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.agents.get.request import Request as CliCommandAgentsGetRequest
 from objectiveai_sdk.cli.command.agents.get.request_schema.request import Request as CliCommandAgentsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.get.response_schema.request import Request as CliCommandAgentsGetResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.instances.request import Request as CliCommandAgentsInstancesRequest
 from objectiveai_sdk.cli.command.agents.list.request import Request as CliCommandAgentsListRequest
-from objectiveai_sdk.cli.command.agents.me.request import Request as CliCommandAgentsMeRequest
-from objectiveai_sdk.cli.command.agents.me.request_schema.request import Request as CliCommandAgentsMeRequestSchemaRequest
-from objectiveai_sdk.cli.command.agents.me.response_schema.request import Request as CliCommandAgentsMeResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.list.request_schema.request import Request as CliCommandAgentsListRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.list.response_schema.request import Request as CliCommandAgentsListResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.logs.read.request import Request as CliCommandAgentsLogsReadRequest
 from objectiveai_sdk.cli.command.agents.message.request import Request as CliCommandAgentsMessageRequest
 from objectiveai_sdk.cli.command.agents.message.request_schema.request import Request as CliCommandAgentsMessageRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.message.response_schema.request import Request as CliCommandAgentsMessageResponseSchemaRequest
-from objectiveai_sdk.cli.command.agents.message_queue.request import Request as CliCommandAgentsMessageQueueRequest
 from objectiveai_sdk.cli.command.agents.publish.request import Request as CliCommandAgentsPublishRequest
 from objectiveai_sdk.cli.command.agents.publish.request_schema.request import Request as CliCommandAgentsPublishRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.publish.response_schema.request import Request as CliCommandAgentsPublishResponseSchemaRequest
-from objectiveai_sdk.cli.command.agents.read.request import Request as CliCommandAgentsReadRequest
+from objectiveai_sdk.cli.command.agents.queue.request import Request as CliCommandAgentsQueueRequest
 from objectiveai_sdk.cli.command.agents.spawn.request import Request as CliCommandAgentsSpawnRequest
 from objectiveai_sdk.cli.command.agents.spawn.request_schema.request import Request as CliCommandAgentsSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.spawn.response_schema.request import Request as CliCommandAgentsSpawnResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.request import Request as CliCommandAgentsTagsRequest
-from objectiveai_sdk.cli.command.agents.tasks.request import Request as CliCommandAgentsTasksRequest
 
 
 class RequestGet(RootModel):
@@ -43,28 +42,34 @@ class RequestGetResponseSchema(RootModel):
     root: CliCommandAgentsGetResponseSchemaRequest
 
 
+class RequestInstances(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Instances'})
+
+    root: CliCommandAgentsInstancesRequest
+
+
 class RequestList(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'List'})
 
     root: CliCommandAgentsListRequest
 
 
-class RequestMe(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Me'})
+class RequestListRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ListRequestSchema'})
 
-    root: CliCommandAgentsMeRequest
-
-
-class RequestMeRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'MeRequestSchema'})
-
-    root: CliCommandAgentsMeRequestSchemaRequest
+    root: CliCommandAgentsListRequestSchemaRequest
 
 
-class RequestMeResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'MeResponseSchema'})
+class RequestListResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ListResponseSchema'})
 
-    root: CliCommandAgentsMeResponseSchemaRequest
+    root: CliCommandAgentsListResponseSchemaRequest
+
+
+class RequestLogs(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Logs'})
+
+    root: CliCommandAgentsLogsReadRequest
 
 
 class RequestMessage(RootModel):
@@ -103,16 +108,10 @@ class RequestPublishResponseSchema(RootModel):
     root: CliCommandAgentsPublishResponseSchemaRequest
 
 
-class RequestMessageQueue(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'MessageQueue'})
+class RequestQueue(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Queue'})
 
-    root: CliCommandAgentsMessageQueueRequest
-
-
-class RequestRead(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Read'})
-
-    root: CliCommandAgentsReadRequest
+    root: CliCommandAgentsQueueRequest
 
 
 class RequestSpawn(RootModel):
@@ -139,14 +138,8 @@ class RequestTags(RootModel):
     root: CliCommandAgentsTagsRequest
 
 
-class RequestTasks(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tasks'})
-
-    root: CliCommandAgentsTasksRequest
-
-
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestList, RequestMe, RequestMeRequestSchema, RequestMeResponseSchema, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestMessageQueue, RequestRead, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags, RequestTasks]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags]
 

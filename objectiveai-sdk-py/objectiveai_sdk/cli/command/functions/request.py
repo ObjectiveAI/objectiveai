@@ -3,11 +3,10 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.cli.command.functions.executions.create.request import Request as CliCommandFunctionsExecutionsCreateRequest
+from objectiveai_sdk.cli.command.functions.execute.request import Request as CliCommandFunctionsExecuteRequest
 from objectiveai_sdk.cli.command.functions.get.request import Request as CliCommandFunctionsGetRequest
 from objectiveai_sdk.cli.command.functions.get.request_schema.request import Request as CliCommandFunctionsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.functions.get.response_schema.request import Request as CliCommandFunctionsGetResponseSchemaRequest
-from objectiveai_sdk.cli.command.functions.inventions.request import Request as CliCommandFunctionsInventionsRequest
 from objectiveai_sdk.cli.command.functions.list.request import Request as CliCommandFunctionsListRequest
 from objectiveai_sdk.cli.command.functions.list.request_schema.request import Request as CliCommandFunctionsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.functions.list.response_schema.request import Request as CliCommandFunctionsListResponseSchemaRequest
@@ -17,10 +16,10 @@ from objectiveai_sdk.cli.command.functions.publish.request_schema.request import
 from objectiveai_sdk.cli.command.functions.publish.response_schema.request import Request as CliCommandFunctionsPublishResponseSchemaRequest
 
 
-class RequestExecutions(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Executions'})
+class RequestExecute(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Execute'})
 
-    root: CliCommandFunctionsExecutionsCreateRequest
+    root: CliCommandFunctionsExecuteRequest
 
 
 class RequestGet(RootModel):
@@ -39,12 +38,6 @@ class RequestGetResponseSchema(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'GetResponseSchema'})
 
     root: CliCommandFunctionsGetResponseSchemaRequest
-
-
-class RequestInventions(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Inventions'})
-
-    root: CliCommandFunctionsInventionsRequest
 
 
 class RequestList(RootModel):
@@ -92,5 +85,5 @@ class RequestPublishResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.functions.Request')
 
-    root: Union[RequestExecutions, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInventions, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestProfiles, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema]
+    root: Union[RequestExecute, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestProfiles, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema]
 

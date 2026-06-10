@@ -6,6 +6,8 @@ import { CliCommandToolsGetPathSchema } from "./path";
 export const CliCommandToolsGetRequestSchema = z.object({
   jq: z.string().nullable().optional(),
   name: z.string(),
+  owner: z.string(),
   path_type: CliCommandToolsGetPathSchema,
+  version: z.string(),
 }).meta({ title: "cli.command.tools.get.Request" });
 export type CliCommandToolsGetRequest = z.infer<typeof CliCommandToolsGetRequestSchema>;

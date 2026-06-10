@@ -20,7 +20,8 @@ selection), but when `top_logprobs` is used, votes may be probability
 distributions."""
     model_config = ConfigDict(title='vector.completions.response.Vote')
 
-    agent: str = Field(..., description='The agent that produced this vote (content-addressed ID).')
+    agent_full_id: str = Field(..., description="WF-level id of the agent that produced this vote — concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes.")
+    agent_id: str = Field(..., description="Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's.")
     flat_swarm_index: int = Field(..., description='Flattened index accounting for agent counts in the swarm.', ge=0, le=18446744073709551615)
     from_cache: Optional[bool] = Field(None, description='If true, this vote was retrieved from cache rather than generated fresh.', json_schema_extra={'omitempty': True})
     prompt_id: str = Field(..., description='Content hash of the request messages (for caching/deduplication).')

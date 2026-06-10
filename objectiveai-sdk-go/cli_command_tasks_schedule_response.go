@@ -7,12 +7,15 @@ import (
 	"fmt"
 )
 
-// `id` is the stable identifier `"{name}-{db_id}"` — the
-// user-supplied `--name` joined to the row id from
-// `tasks.sqlite`'s `schedules` table. Same shape `list` and
-// `run` use to identify rows on the wire.
+// The created schedule's user-facing identity: its `--name`, the
+// caller hierarchy it was registered under, and the version this call
+// minted (`1` on first creation, `max + 1` per `--overwrite` — each
+// version is its own row; older versions are shadowed but kept for
+// per-version run history).
 type CliCommandTasksScheduleResponse struct {
-	ID string `json:"id"`
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Name string `json:"name"`
+	Version uint64 `json:"version" validate:"min=0,max=18446744073709551615"`
 }
 
 func (CliCommandTasksScheduleResponse) SchemaTitle() string { return "cli.command.tasks.schedule.Response" }
@@ -25,7 +28,7 @@ func (v *CliCommandTasksScheduleResponse) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id"} {
+	for _, key := range []string{"agent_instance_hierarchy", "name", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandTasksScheduleResponse: missing required field %q", key)
 		}

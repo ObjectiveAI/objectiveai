@@ -8,16 +8,13 @@ import (
 )
 
 type CliCommandTasksRunRequest struct {
-	// Literal hierarchy scope. Mutually exclusive with `tag`.
-	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
-	// Cap descent depth from the scope root. `None` = unlimited.
-	Depth *uint64 `json:"depth,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	Jq *string `json:"jq"`
 	PathType CliCommandTasksRunPath `json:"path_type"`
-	// Tag name; resolved BOUND-only at handler time. PENDING /
-	// ABSENT raise structured errors. Mutually exclusive with
-	// `agent_instance_hierarchy`.
-	Tag *string `json:"tag,omitempty"`
+	// Stream every item every fired task emits (each a
+	// [`ValueResponseItem`]). When false — the default — each task
+	// yields exactly one [`SuccessResponseItem`] summary instead; the
+	// full output still lands in `tasks_logs` either way.
+	StreamAll bool `json:"stream_all"`
 }
 
 func (CliCommandTasksRunRequest) SchemaTitle() string { return "cli.command.tasks.run.Request" }
@@ -30,7 +27,7 @@ func (v *CliCommandTasksRunRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type"} {
+	for _, key := range []string{"path_type", "stream_all"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandTasksRunRequest: missing required field %q", key)
 		}

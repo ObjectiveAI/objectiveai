@@ -4,4 +4,3 @@ export * from "./agentCompletionChunk";
 export * from "./innerError";
 export * from "./object";
 export * from "./vectorCompletionChunk";
-export * from "./vectorCompletionChunkLog";

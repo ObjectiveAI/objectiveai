@@ -317,51 +317,93 @@ async function agentsGetResponseSchemaExecuteJq(request, jq) {
   }
   return first;
 }
-var CliCommandAgentsListActiveResponseItemSchema = zod.z.object({
-  agent_id: zod.z.string(),
-  last_log: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.agents.list.active.ResponseItem" });
+var CliCommandAgentsInstancesListResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string().describe("Full hierarchy of this agent instance."),
+  logged: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total `logs.messages` rows for this agent over all time."),
+  queued: zod.z.number().int().min(0).max(18446744073709552e3).describe("Active `message_queue` rows targeting this agent \u2014 counting\nboth direct-AIH rows and rows whose tag is bound to this AIH."),
+  tags: zod.z.array(zod.z.string()).describe("Tag names currently bound to this AIH, newest-bound first."),
+  timestamp_active: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Timestamp of the most recent `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
+  timestamp_spawned: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Timestamp of the first `logs.messages` row for this agent.\n`None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional()
+}).describe("One discovered agent instance under a target. Aggregated from the\n`logs.messages`, `message_queue`, and `tags` tiers.").meta({ title: "cli.command.agents.instances.list.ResponseItem" });
 
-// src/viewer/command/agents/list/active.ts
-function agentsListActiveExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/active" }), zod.z.union([CliErrorSchema, CliCommandAgentsListActiveResponseItemSchema]));
+// src/viewer/command/agents/instances/get.ts
+function agentsInstancesGetExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/get" }), zod.z.union([CliErrorSchema, CliCommandAgentsInstancesListResponseItemSchema]));
 }
-function agentsListActiveExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/active" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+function agentsInstancesGetExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
 }
-async function agentsListActiveRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/active/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsInstancesGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list active request_schema: cli produced no output before the end marker");
+    throw new Error("agents instances get request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListActiveRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/active/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsInstancesGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list active request_schema: cli produced no output before the end marker");
+    throw new Error("agents instances get request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListActiveResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/active/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsInstancesGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list active response_schema: cli produced no output before the end marker");
+    throw new Error("agents instances get response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListActiveResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/active/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsInstancesGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list active response_schema: cli produced no output before the end marker");
+    throw new Error("agents instances get response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-var CliCommandAgentsListAvailableResponseFavoriteSchema = zod.z.union([zod.z.object({
+function agentsInstancesListExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/list" }), zod.z.union([CliErrorSchema, CliCommandAgentsInstancesListResponseItemSchema]));
+}
+function agentsInstancesListExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsInstancesListRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents instances list request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsInstancesListRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents instances list request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsInstancesListResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/instances/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents instances list response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsInstancesListResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/instances/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents instances list response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsListResponseFavoriteSchema = zod.z.union([zod.z.object({
   commit: zod.z.string().nullable().optional(),
   name: zod.z.string(),
   note: zod.z.string(),
@@ -379,126 +421,157 @@ var CliCommandAgentsListAvailableResponseFavoriteSchema = zod.z.union([zod.z.obj
   name: zod.z.string(),
   note: zod.z.string(),
   remote: zod.z.literal("mock")
-}).meta({ "variantTitle": "Mock" })]).meta({ title: "cli.command.agents.list.available.ResponseFavorite" });
+}).meta({ "variantTitle": "Mock" })]).meta({ title: "cli.command.agents.list.ResponseFavorite" });
 
-// src/cli/command/agents/list/available/responseItem.ts
-var CliCommandAgentsListAvailableResponseItemSchema = zod.z.union([CliCommandAgentsListAvailableResponseFavoriteSchema.meta({ "title": "cli.command.agents.list.available.ResponseFavorite", "variantTitle": "Favorite" }), RemotePathSchema.meta({ "title": "RemotePath", "variantTitle": "Item" })]).meta({ title: "cli.command.agents.list.available.ResponseItem" });
+// src/cli/command/agents/list/responseItem.ts
+var CliCommandAgentsListResponseItemSchema = zod.z.union([CliCommandAgentsListResponseFavoriteSchema.meta({ "title": "cli.command.agents.list.ResponseFavorite", "variantTitle": "Favorite" }), RemotePathSchema.meta({ "title": "RemotePath", "variantTitle": "Item" })]).meta({ title: "cli.command.agents.list.ResponseItem" });
 
-// src/viewer/command/agents/list/available.ts
-function agentsListAvailableExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/available" }), zod.z.union([CliErrorSchema, CliCommandAgentsListAvailableResponseItemSchema]));
+// src/viewer/command/agents/list.ts
+function agentsListExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list" }), zod.z.union([CliErrorSchema, CliCommandAgentsListResponseItemSchema]));
 }
-function agentsListAvailableExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/available" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+function agentsListExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
 }
-async function agentsListAvailableRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/available/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsListRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list available request_schema: cli produced no output before the end marker");
+    throw new Error("agents list request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListAvailableRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/available/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsListRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list available request_schema: cli produced no output before the end marker");
+    throw new Error("agents list request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListAvailableResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/available/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsListResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list available response_schema: cli produced no output before the end marker");
+    throw new Error("agents list response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsListAvailableResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/available/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsListResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents list available response_schema: cli produced no output before the end marker");
+    throw new Error("agents list response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-var CliCommandAgentsMeResponseSchema = zod.z.object({
-  agent_full_id: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  agent_id: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+var CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema = zod.z.enum(["refusal", "reasoning", "tool_call", "text", "image", "audio", "video", "file"]).describe("Type tag for one `AssistantResponse` part \u2014 the table-kind of\nthe underlying `assistant_response_*` row.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePartType" });
+
+// src/cli/command/agents/logs/read/all/assistantResponsePart.ts
+var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = zod.z.object({
+  function_name: zod.z.string().describe("`function.name` for `type = tool_call` rows\n(`logs.assistant_response_tool_calls.function_name`).\nEmpty string for non-tool-call rows. Surfaced here so\ncallers can dedupe tool calls by name without a per-row\n`agents logs read id` round-trip."),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema
+}).describe("One row inside an `AssistantResponse` block.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePart" });
+var CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema = zod.z.enum(["text", "image", "audio", "video", "file"]).describe("Type tag for one `ClientNotification` part \u2014 the table-kind of\nthe underlying `message_queue_*` content row.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPartType" });
+
+// src/cli/command/agents/logs/read/all/clientNotificationPart.ts
+var CliCommandAgentsLogsReadAllClientNotificationPartSchema = zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` to fetch the consumed\n`message_queue_contents` body.'),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."timestamp"` \u2014 when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.'),
+  type: CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema
+}).describe("One row inside a `ClientNotification` block \u2014 a consumed\n`message_queue_contents` entry. `timestamp_queued` is on the\nenclosing block (it lives on `message_queue.enqueued_at`, not\nper-content); only the per-row consumption timestamp is here.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPart" });
+var CliCommandAgentsLogsReadAllToolResponsePartTypeSchema = zod.z.enum(["container", "text", "image", "audio", "video", "file"]).describe("Type tag for one `ToolResponse` part. `Container` is the\n`tool_response` head row (carries `tool_call_id`); the other\nfive are content slots.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePartType" });
+
+// src/cli/command/agents/logs/read/all/toolResponsePart.ts
+var CliCommandAgentsLogsReadAllToolResponsePartSchema = zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: CliCommandAgentsLogsReadAllToolResponsePartTypeSchema
+}).describe("One row inside a `ToolResponse` block.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePart" });
+
+// src/cli/command/agents/logs/read/all/responseItem.ts
+var CliCommandAgentsLogsReadAllResponseItemSchema = zod.z.union([zod.z.object({
   agent_instance_hierarchy: zod.z.string(),
-  agent_remote: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  agent_tags: zod.z.array(zod.z.string()).describe("Every tag currently BOUND to `agent_instance_hierarchy`,\nnewest-bound first. Empty `[]` when the cli's hierarchy\ncarries no tags. Always emitted so callers can rely on the\nfield being present.")
-}).meta({ title: "cli.command.agents.me.Response" });
-
-// src/viewer/command/agents/me.ts
-async function agentsMeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/me" }), zod.z.union([CliErrorSchema, CliCommandAgentsMeResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/me" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/me/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/me/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/me/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/me/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents me response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsMessageResponseSchema = zod.z.union([zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string().describe("AIH of the caller who issued the request \u2014 from\n`logs.agent_completion_requests.sender_*`."),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("agent_completion_request")
+}).meta({ "variantTitle": "AgentCompletionRequest" }), zod.z.object({
   agent_instance_hierarchy: zod.z.string(),
-  response_id: zod.z.string()
-}).meta({ "variantTitle": "Queued" }), zod.z.object({
-  agent_instance_hierarchy: zod.z.string()
-}).meta({ "variantTitle": "Delivered" })]).meta({ title: "cli.command.agents.message.Response" });
-var AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema = zod.z.object({
-  arguments: zod.z.string().nullable().describe("The arguments being streamed (accumulated across deltas).").meta({ omitempty: true }).optional(),
-  name: zod.z.string().nullable().describe("The function name (only present in the first delta).").meta({ omitempty: true }).optional()
-}).describe("Function call details in a streaming tool call.").meta({ title: "agent.completions.message.AssistantToolCallFunctionDelta" });
-var AgentCompletionsMessageAssistantToolCallTypeSchema = zod.z.literal("function").describe("A function call.").meta({ title: "agent.completions.message.AssistantToolCallType" });
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("vector_completion_request")
+}).meta({ "variantTitle": "VectorCompletionRequest" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("function_execution_request")
+}).meta({ "variantTitle": "FunctionExecutionRequest" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  key: zod.z.string().nullable().describe("Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.").meta({ omitempty: true }).optional(),
+  parts: zod.z.array(CliCommandAgentsLogsReadAllClientNotificationPartSchema),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string().describe("AIH of the enqueuer \u2014 from `message_queue.sender_*`\njoined through `message_queue_contents.id`."),
+  timestamp_queued: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`timestamp_delivered` still records its own\nconsumption moment)."),
+  type: zod.z.literal("client_notification")
+}).meta({ "variantTitle": "ClientNotification" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  parts: zod.z.array(CliCommandAgentsLogsReadAllAssistantResponsePartSchema),
+  response_id: zod.z.string(),
+  type: zod.z.literal("assistant_response")
+}).describe("Agent emissions \u2014 the agent IS the producer of these\nrows, so there's no separate sender. The\n`agent_instance_hierarchy` field IS the sender.").meta({ "variantTitle": "AssistantResponse" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  parts: zod.z.array(CliCommandAgentsLogsReadAllToolResponsePartSchema),
+  response_id: zod.z.string(),
+  type: zod.z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for assistant/tool\nblocks; `(class, agent_instance_hierarchy, response_id,\nsender, message_queue_id)` for `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
 
-// src/agent/completions/message/assistantToolCallDelta.ts
-var AgentCompletionsMessageAssistantToolCallDeltaSchema = zod.z.object({
-  function: AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema.nullable().describe("The function call details.").meta({ omitempty: true }).optional(),
-  id: zod.z.string().nullable().describe("The unique ID of this tool call.").meta({ omitempty: true }).optional(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3).describe("The index of this tool call."),
-  type: AgentCompletionsMessageAssistantToolCallTypeSchema.nullable().describe('The type of tool call (always "function").').meta({ omitempty: true }).optional()
-}).describe("A tool call delta in a streaming response.").meta({ title: "agent.completions.message.AssistantToolCallDelta" });
+// src/viewer/command/agents/logs/read/all.ts
+function agentsLogsReadAllExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/all" }), zod.z.union([CliErrorSchema, CliCommandAgentsLogsReadAllResponseItemSchema]));
+}
+function agentsLogsReadAllExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/all" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsLogsReadAllRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read all request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadAllRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read all request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadAllResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read all response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadAllResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read all response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
 var AgentCompletionsMessageFileSchema = zod.z.object({
   file_data: zod.z.string().nullable().describe("Base64-encoded file data.").meta({ omitempty: true }).optional(),
   file_id: zod.z.string().nullable().describe("The ID of a previously uploaded file.").meta({ omitempty: true }).optional(),
@@ -519,8 +592,17 @@ var AgentCompletionsMessageInputAudioSchema = zod.z.object({
 var AgentCompletionsMessageVideoUrlSchema = zod.z.object({
   url: zod.z.string().describe("The URL of the video.")
 }).describe("A video URL for multimodal input.").meta({ title: "agent.completions.message.VideoUrl" });
+var AgentCompletionsMessageAssistantToolCallFunctionSchema = zod.z.object({
+  arguments: zod.z.string().describe("The arguments to pass to the function, as a JSON string."),
+  name: zod.z.string().describe("The name of the function to call.")
+}).describe("Details of a function call made by the assistant.").meta({ title: "agent.completions.message.AssistantToolCallFunction" });
 
-// src/agent/completions/message/richContentPart.ts
+// src/agent/completions/message/assistantToolCall.ts
+var AgentCompletionsMessageAssistantToolCallSchema = zod.z.object({
+  function: AgentCompletionsMessageAssistantToolCallFunctionSchema.describe("The function being called."),
+  id: zod.z.string().describe("The unique ID of this tool call."),
+  type: zod.z.literal("function")
+}).describe("A function call with an ID and function details.").meta({ title: "agent.completions.message.AssistantToolCall" });
 var AgentCompletionsMessageRichContentPartSchema = zod.z.union([zod.z.object({
   text: zod.z.string(),
   type: zod.z.literal("text")
@@ -543,673 +625,59 @@ var AgentCompletionsMessageRichContentPartSchema = zod.z.union([zod.z.object({
 
 // src/agent/completions/message/richContent.ts
 var AgentCompletionsMessageRichContentSchema = zod.z.union([zod.z.string().describe("Plain text content.").meta({ "variantTitle": "Text" }), zod.z.array(AgentCompletionsMessageRichContentPartSchema).describe("Multi-part content (text, images, audio, video, files).").meta({ "variantTitle": "Parts" })]).describe("Rich content for user/assistant messages (supports multimodal input).").meta({ title: "agent.completions.message.RichContent" });
-var AgentCompletionsResponseAssistantRoleSchema = zod.z.literal("assistant").describe("The assistant role.").meta({ title: "agent.completions.response.AssistantRole" });
-var AgentCompletionsResponseFinishReasonSchema = zod.z.union([zod.z.literal("stop").describe("The model reached a natural stop point or stop sequence.").meta({ "variantTitle": "Stop" }), zod.z.literal("length").describe("The model reached the maximum token limit.").meta({ "variantTitle": "Length" }), zod.z.literal("tool_calls").describe("The model decided to call one or more tools.").meta({ "variantTitle": "ToolCalls" }), zod.z.literal("content_filter").describe("The response was filtered due to content policy.").meta({ "variantTitle": "ContentFilter" }), zod.z.literal("error").describe("An error occurred during generation.").meta({ "variantTitle": "Error" })]).describe("The reason the model stopped generating.").meta({ title: "agent.completions.response.FinishReason" });
-var AgentCompletionsResponseTopLogprobSchema = zod.z.object({
-  bytes: zod.z.array(zod.z.number().int().min(0).max(255)).nullable().describe("The raw bytes of the token.").optional(),
-  logprob: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).nullable().describe("The log probability of this token.").optional(),
-  token: zod.z.string().describe("The token string.")
-}).describe("A top alternative token with its log probability.").meta({ title: "agent.completions.response.TopLogprob" });
 
-// src/agent/completions/response/logprob.ts
-var AgentCompletionsResponseLogprobSchema = zod.z.object({
-  bytes: zod.z.array(zod.z.number().int().min(0).max(255)).nullable().describe("The raw bytes of the token.").optional(),
-  logprob: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The log probability of this token."),
-  token: zod.z.string().describe("The token string."),
-  top_logprobs: zod.z.array(AgentCompletionsResponseTopLogprobSchema).describe("The top alternative tokens and their log probabilities.")
-}).describe("Log probability information for a single token.").meta({ title: "agent.completions.response.Logprob" });
+// src/agent/completions/message/assistantMessage.ts
+var AgentCompletionsMessageAssistantMessageSchema = zod.z.object({
+  content: AgentCompletionsMessageRichContentSchema.nullable().describe("The message content, if any.").meta({ omitempty: true }).optional(),
+  name: zod.z.string().nullable().describe("Optional name for the assistant.").meta({ omitempty: true }).optional(),
+  reasoning: zod.z.string().nullable().describe("Reasoning content from models that support chain-of-thought.").meta({ omitempty: true }).optional(),
+  refusal: zod.z.string().nullable().describe("Refusal message if the model declined to respond.").meta({ omitempty: true }).optional(),
+  tool_calls: zod.z.array(AgentCompletionsMessageAssistantToolCallSchema).nullable().describe("Tool calls made by the assistant.").meta({ omitempty: true }).optional()
+}).describe("An assistant message (model's previous response).").meta({ title: "agent.completions.message.AssistantMessage" });
+var AgentCompletionsMessageSimpleContentPartSchema = zod.z.object({
+  text: zod.z.string().describe("The text content."),
+  type: zod.z.literal("text")
+}).describe("A text part.").meta({ title: "agent.completions.message.SimpleContentPart" });
 
-// src/agent/completions/response/logprobs.ts
-var AgentCompletionsResponseLogprobsSchema = zod.z.object({
-  content: zod.z.array(AgentCompletionsResponseLogprobSchema).nullable().describe("Log probabilities for content tokens.").optional(),
-  refusal: zod.z.array(AgentCompletionsResponseLogprobSchema).nullable().describe("Log probabilities for refusal tokens.").optional()
-}).describe("Log probabilities for generated tokens.").meta({ title: "agent.completions.response.Logprobs" });
-var AgentCompletionsResponseCompletionTokensDetailsSchema = zod.z.object({
-  accepted_prediction_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens from accepted predictions (speculative decoding).").meta({ omitempty: true }).optional(),
-  audio_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Audio output tokens.").meta({ omitempty: true }).optional(),
-  reasoning_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens used for reasoning/thinking.").meta({ omitempty: true }).optional(),
-  rejected_prediction_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens from rejected predictions (speculative decoding).").meta({ omitempty: true }).optional()
-}).describe("Detailed breakdown of completion token usage.").meta({ title: "agent.completions.response.CompletionTokensDetails" });
-var AgentCompletionsResponseCostDetailsSchema = zod.z.object({
-  upstream_inference_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by the immediate upstream (e.g., OpenRouter)."),
-  upstream_upstream_inference_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by the upstream's upstream (e.g., the actual model provider).")
-}).describe("Detailed cost breakdown.").meta({ title: "agent.completions.response.CostDetails" });
-var AgentCompletionsResponsePromptTokensDetailsSchema = zod.z.object({
-  audio_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Audio input tokens.").meta({ omitempty: true }).optional(),
-  cache_write_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens written to cache.").meta({ omitempty: true }).optional(),
-  cached_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens served from cache.").meta({ omitempty: true }).optional(),
-  video_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Video input tokens.").meta({ omitempty: true }).optional()
-}).describe("Detailed breakdown of prompt token usage.").meta({ title: "agent.completions.response.PromptTokensDetails" });
+// src/agent/completions/message/simpleContent.ts
+var AgentCompletionsMessageSimpleContentSchema = zod.z.union([zod.z.string().describe("Plain text content.").meta({ "variantTitle": "Text" }), zod.z.array(AgentCompletionsMessageSimpleContentPartSchema).describe("Multi-part text content.").meta({ "variantTitle": "Parts" })]).describe("Simple text content for system/developer messages.").meta({ title: "agent.completions.message.SimpleContent" });
 
-// src/agent/completions/response/upstreamUsage.ts
-var AgentCompletionsResponseUpstreamUsageSchema = zod.z.object({
-  completion_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Number of tokens in the completion."),
-  completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Detailed breakdown of completion tokens.").meta({ omitempty: true }).optional(),
-  cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The cost charged by ObjectiveAI for this request."),
-  cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Detailed cost breakdown.").meta({ omitempty: true }).optional(),
-  cost_multiplier: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The multiplier applied to compute ObjectiveAI's charge."),
-  is_byok: zod.z.boolean().describe("Whether this request used Bring Your Own Key (BYOK)."),
-  prompt_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Number of tokens in the prompt."),
-  prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Detailed breakdown of prompt tokens.").meta({ omitempty: true }).optional(),
-  total_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged."),
-  total_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total tokens (prompt + completion).")
-}).describe("Token usage and cost information from an upstream provider.\n\nThis is the per-assistant-response usage yielded by upstream clients.\nIt includes upstream-specific fields like `cost_multiplier` and `is_byok`.").meta({ title: "agent.completions.response.UpstreamUsage" });
-
-// src/agent/completions/response/streaming/assistantResponseChunk.ts
-var AgentCompletionsResponseStreamingAssistantResponseChunkSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentSchema.nullable().meta({ omitempty: true }).optional(),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  finish_reason: AgentCompletionsResponseFinishReasonSchema.nullable().optional(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  logprobs: AgentCompletionsResponseLogprobsSchema.nullable().meta({ omitempty: true }).optional(),
-  model: zod.z.string(),
-  provider: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  reasoning: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  refusal: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  role: AgentCompletionsResponseAssistantRoleSchema,
-  service_tier: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  system_fingerprint: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(AgentCompletionsMessageAssistantToolCallDeltaSchema).nullable().meta({ omitempty: true }).optional(),
-  upstream_id: zod.z.string(),
-  usage: AgentCompletionsResponseUpstreamUsageSchema.nullable().describe("Upstream usage for this assistant response (set by upstream clients).").meta({ omitempty: true }).optional()
-}).describe("A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.").meta({ title: "agent.completions.response.streaming.AssistantResponseChunk" });
+// src/agent/completions/message/developerMessage.ts
+var AgentCompletionsMessageDeveloperMessageSchema = zod.z.object({
+  content: AgentCompletionsMessageSimpleContentSchema.describe("The message content."),
+  name: zod.z.string().nullable().describe("Optional name for the message author.").meta({ omitempty: true }).optional()
+}).describe("A developer message.").meta({ title: "agent.completions.message.DeveloperMessage" });
+var AgentCompletionsMessageSystemMessageSchema = zod.z.object({
+  content: AgentCompletionsMessageSimpleContentSchema.describe("The message content."),
+  name: zod.z.string().nullable().describe("Optional name for the message author.").meta({ omitempty: true }).optional()
+}).describe("A system message setting context or instructions.").meta({ title: "agent.completions.message.SystemMessage" });
 var AgentCompletionsMessageToolResponseMetadataSchema = zod.z.object({
   notifications: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Count of pending notifications the proxy drained and prepended\nto the tool response's `content` before returning. Only set\nwhen at least one notification was drained.").meta({ omitempty: true }).optional()
 }).describe("Vendor-extension metadata attached to a tool response. The\n`objectiveai-mcp-proxy` populates known keys (currently\n`notifications`); the SDK lossy-decodes the MCP `_meta` bag into\nthis typed shape. Unknown keys are dropped.").meta({ title: "agent.completions.message.ToolResponseMetadata" });
-var AgentCompletionsResponseToolRoleSchema = zod.z.literal("tool").meta({ title: "agent.completions.response.ToolRole" });
 
-// src/agent/completions/response/toolResponse.ts
-var AgentCompletionsResponseToolResponseSchema = zod.z.object({
+// src/agent/completions/message/toolMessage.ts
+var AgentCompletionsMessageToolMessageSchema = zod.z.object({
   content: AgentCompletionsMessageRichContentSchema.describe("The content of the tool response."),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
   metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().describe("Optional vendor-extension metadata, populated by\n`objectiveai-mcp-proxy` via MCP's `_meta` extension bag.").meta({ omitempty: true }).optional(),
-  role: AgentCompletionsResponseToolRoleSchema,
   tool_call_id: zod.z.string().describe("The ID of the tool call this message responds to.")
-}).describe("A tool message containing the result of a tool call.").meta({ title: "agent.completions.response.ToolResponse" });
+}).describe("A tool message containing the result of a tool call.").meta({ title: "agent.completions.message.ToolMessage" });
+var AgentCompletionsMessageUserMessageSchema = zod.z.object({
+  content: AgentCompletionsMessageRichContentSchema.describe("The message content (supports text, images, audio, video, files)."),
+  name: zod.z.string().nullable().describe("Optional name for the user.").meta({ omitempty: true }).optional()
+}).describe("A user message from the end user.").meta({ title: "agent.completions.message.UserMessage" });
 
-// src/agent/completions/response/streaming/messageChunk.ts
-var AgentCompletionsResponseStreamingMessageChunkSchema = zod.z.union([AgentCompletionsResponseStreamingAssistantResponseChunkSchema.meta({ "title": "agent.completions.response.streaming.AssistantResponseChunk", "variantTitle": "Assistant" }), AgentCompletionsResponseToolResponseSchema.meta({ "title": "agent.completions.response.ToolResponse", "variantTitle": "Tool" })]).meta({ title: "agent.completions.response.streaming.MessageChunk" });
-var AgentCompletionsResponseStreamingObjectSchema = zod.z.literal("agent.completion.chunk").describe("A agent completion chunk object.").meta({ title: "agent.completions.response.streaming.Object" });
-var AgentCompletionsResponseUsageSchema = zod.z.object({
-  completion_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total tokens generated across all assistant responses."),
-  completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Breakdown of completion tokens (reasoning, audio, etc.) if available.").meta({ omitempty: true }).optional(),
-  cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by ObjectiveAI for this request."),
-  cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Breakdown of upstream and upstream_upstream costs if available.").meta({ omitempty: true }).optional(),
-  prompt_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total prompt tokens across all assistant responses."),
-  prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Breakdown of prompt tokens (cached, audio, etc.) if available.").meta({ omitempty: true }).optional(),
-  total_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
-  total_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Sum of completion and prompt tokens.")
-}).describe('Aggregated token and cost usage for an agent completion.\n\nThis is the "primary" usage type that aggregates across all upstream\nassistant responses within a single agent completion.').meta({ title: "agent.completions.response.Usage" });
-var AgentUpstreamSchema = zod.z.union([zod.z.literal("unknown").describe("Unknown Upstream.").meta({ "variantTitle": "Unknown" }), zod.z.literal("openrouter").describe("OpenRouter Upstream.").meta({ "variantTitle": "Openrouter" }), zod.z.literal("claude_agent_sdk").describe("Claude Agent SDK Upstream.").meta({ "variantTitle": "ClaudeAgentSdk" }), zod.z.literal("codex_sdk").describe("Codex SDK Upstream.").meta({ "variantTitle": "CodexSdk" }), zod.z.literal("mock").describe("Mock Upstream.").meta({ "variantTitle": "Mock" })]).describe("Supported agent upstreams.").meta({ title: "agent.Upstream" });
-var ErrorResponseErrorSchema = zod.z.object({
-  code: zod.z.number().int().min(0).max(65535).describe("The HTTP status code of the error response."),
-  message: JsonValueSchema.describe("The error message or details as a JSON value.")
-}).describe("An error returned by the ObjectiveAI API.\n\nThis struct represents an API error response containing an HTTP status\ncode and a message. The message can be any JSON value, allowing for\nboth simple string errors and structured error objects.").meta({ title: "error.ResponseError" });
-
-// src/agent/completions/response/streaming/agentCompletionChunk.ts
-var AgentCompletionsResponseStreamingAgentCompletionChunkSchema = zod.z.object({
-  agent_full_id: zod.z.string().describe("WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request."),
-  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot."),
-  agent_instance_hierarchy: zod.z.string().describe("Full agent instance hierarchy for this completion's slot \u2014\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot."),
-  agent_remote: RemotePathSchema.nullable().describe("`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.").meta({ omitempty: true }).optional(),
-  continuation: zod.z.string().nullable().describe("Continuation state for multi-turn conversations (only present in the final chunk).").meta({ omitempty: true }).optional(),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().describe("Error details if this completion failed.").meta({ omitempty: true }).optional(),
-  id: zod.z.string(),
-  messages: zod.z.array(AgentCompletionsResponseStreamingMessageChunkSchema),
-  messages_queued: zod.z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. Only\nset when `continuation` is also set \u2014 the caller acts on it by\nissuing the continuation. Absent when nothing is queued, when\nthere is no continuation to act on, or when the peek failed\n(the failure is surfaced via `error`).").meta({ omitempty: true }).optional(),
-  object: AgentCompletionsResponseStreamingObjectSchema.describe('The object type (always "agent.completion.chunk").'),
-  upstream: AgentUpstreamSchema.describe("Upstream provider"),
-  usage: AgentCompletionsResponseUsageSchema.nullable().describe("Token usage (only present in the final chunk).").meta({ omitempty: true }).optional()
-}).describe("A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.").meta({ title: "agent.completions.response.streaming.AgentCompletionChunk" });
-
-// src/cli/command/agents/message/responseItem.ts
-var CliCommandAgentsMessageResponseItemSchema = zod.z.union([AgentCompletionsResponseStreamingAgentCompletionChunkSchema.meta({ "title": "agent.completions.response.streaming.AgentCompletionChunk", "variantTitle": "Chunk" }), zod.z.object({
-  agent_instance_hierarchy: zod.z.string(),
-  response_id: zod.z.string()
-}).meta({ "variantTitle": "Queued" }), zod.z.object({
-  agent_instance_hierarchy: zod.z.string()
-}).meta({ "variantTitle": "Delivered" })]).describe("Streamed-mode wire shape for `agents message`. Emitted as one\nJSON-line per item on the cli's stdout when\n`Request::dangerous_advanced.stream = Some(true)`. Untagged shape\nis forward-compatible with [`Response`]: in stream mode, item 0 is\nalways a `Queued` or `Delivered` variant carrying the same fields\nas the unary `Response::Queued` / `Response::Delivered`. Under the\n`Queued` path with streaming on, item 0 is followed by zero or\nmore `Chunk` items until the spawned instance-runner's stdout\nEOFs.").meta({ title: "cli.command.agents.message.ResponseItem" });
-
-// src/viewer/command/agents/message.ts
-function agentsMessageExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "agents/message" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageResponseItemSchema]));
-}
-function agentsMessageExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "agents/message" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsMessageExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "agents/message" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "agents/message" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsMessageQueueAddResponseSchema = zod.z.object({
-  agent_instance_hierarchy: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
-}).describe("`id` is the row id from `tags.sqlite`'s `prompts` table. Exactly\none of `agent_instance_hierarchy` / `agent_tag` is set, matching\nthe chosen [`Target`] variant \xC3\xA2\xE2\u201A\xAC\xE2\u20AC\x9D `agent_instance_hierarchy` is\nthe **resolved** `{parent}/{instance}` for Direct mode.").meta({ title: "cli.command.agents.message_queue.add.Response" });
-
-// src/viewer/command/agents/message_queue/add.ts
-async function agentsMessageQueueAddExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/add" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageQueueAddResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueAddExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/add" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueAddRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueAddRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueAddResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueAddResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue add response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsMessageQueueDeleteResponseSchema = zod.z.object({
-  agent_instance_hierarchy: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  content: AgentCompletionsMessageRichContentSchema,
-  enqueued_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  key: zod.z.string().nullable().describe("Idempotency token, if the dropped row had one.").meta({ omitempty: true }).optional()
-}).describe("What was deleted. Carries every column of the original\n`prompts` row so the caller can confirm the drop:\nexactly one of `agent_instance_hierarchy` / `agent_tag` is set\n(matching the original target), `enqueued_at` is the original\nunix-seconds timestamp, and `content` is the reconstructed\n`RichContent` body.").meta({ title: "cli.command.agents.message_queue.delete.Response" });
-
-// src/viewer/command/agents/message_queue/delete.ts
-async function agentsMessageQueueDeleteExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/delete" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageQueueDeleteResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeleteExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/delete" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeleteRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/delete/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeleteRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/delete/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeleteResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/delete/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeleteResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/delete/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue delete response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsMessageQueueDeliverResponseItemSchema = zod.z.object({
-  agent_instance_hierarchy: zod.z.string(),
-  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  item: CliCommandAgentsMessageResponseItemSchema
-}).describe("One item from one of the fanned-out `agents message` calls,\naugmented with the resolved target that produced it.\n\n`item` is the inner `agents::message::ResponseItem` \u2014\n`Queued` / `Delivered` / `Chunk`. `agent_instance_hierarchy`\nis the resolved hierarchy the delivery was addressed to;\n`agent_tag` is `Some` only when the underlying queue row was\nTag-addressed (with the tag now resolved to that hierarchy\nvia the BOUND lookup).").meta({ title: "cli.command.agents.message_queue.deliver.ResponseItem" });
-
-// src/viewer/command/agents/message_queue/deliver.ts
-function agentsMessageQueueDeliverExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/deliver" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageQueueDeliverResponseItemSchema]));
-}
-function agentsMessageQueueDeliverExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/deliver" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsMessageQueueDeliverRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/deliver/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue deliver request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeliverRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/deliver/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue deliver request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeliverResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/deliver/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue deliver response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueDeliverResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/deliver/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue deliver response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/id" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageRichContentPartSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/id" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadIdResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read id response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsReadAllResponseContentSchema = zod.z.union([zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).meta({ "variantTitle": "One" }), zod.z.array(zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)).meta({ "variantTitle": "Many" })]).meta({ title: "cli.command.agents.read.all.ResponseContent" });
-
-// src/cli/command/agents/message_queue/read/pending/responseItem.ts
-var CliCommandAgentsMessageQueueReadPendingResponseItemSchema = zod.z.union([zod.z.object({
-  agent_instance: zod.z.string(),
-  by: zod.z.literal("agent_instance"),
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  key: zod.z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.\nSkipped from the wire shape when `None`.").meta({ omitempty: true }).optional()
-}).meta({ "variantTitle": "AgentInstance" }), zod.z.union([zod.z.object({
-  agent_instance_hierarchy: zod.z.string(),
-  agent_tag: zod.z.string(),
-  by: zod.z.literal("tag"),
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  key: zod.z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),
-  state: zod.z.literal("bound")
-}).meta({ "variantTitle": "Bound" }), zod.z.object({
-  agent_full_id: zod.z.string(),
-  agent_tag: zod.z.string(),
-  by: zod.z.literal("tag"),
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  key: zod.z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),
-  parent_agent_instance_hierarchy: zod.z.string(),
-  state: zod.z.literal("pending")
-}).meta({ "variantTitle": "Pending" })]).describe('2-state result of a successful tag-name lookup. PENDING surfaces\nthe pre-spawn `(parent, agent_full_id)` pair so callers can see\nwhy the tag exists without a hierarchy yet. The third "not\nregistered" possibility is represented at the [`Response`]\nlevel via [`Response::Absent`], not as a variant here.').meta({ "variantTitle": "Tag" })]).describe('One queued prompt. Direct rows carry only the bare\n`agent_instance` (= leaf segment of the hierarchy); Tag rows\ncarry the literal tag name and flatten the joined 2-state\nstatus onto the same JSON object \xC3\u0192\xC6\u2019\xC3\u201A\xC2\xA2\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u201A\xAC\xC5\xA1\xC3\u201A\xC2\xAC\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u20AC\u0161\xC2\xAC\xC3\u201A\xC2\x9D yielding e.g.\n`{"by":"tag","id":42,"agent_tag":"foo","state":"bound","agent_instance_hierarchy":"\xC3\u0192\xC6\u2019\xC3\u201A\xC2\xA2\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u201A\xAC\xC5\xA1\xC3\u201A\xC2\xAC\xC3\u0192\xE2\u20AC\u0161\xC3\u201A\xC2\xA6",\n"content":17}` (single-part) or `\xC3\u0192\xC6\u2019\xC3\u201A\xC2\xA2\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u201A\xAC\xC5\xA1\xC3\u201A\xC2\xAC\xC3\u0192\xE2\u20AC\u0161\xC3\u201A\xC2\xA6"content":[17,18,19]"` (multi-\npart) rather than nesting the state under its own object.\n\nBoth variants carry the resolved content body as a\n[`super::super::super::read::all::ResponseContent`] \xC3\u0192\xC6\u2019\xC3\u201A\xC2\xA2\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u201A\xAC\xC5\xA1\xC3\u201A\xC2\xAC\xC3\u0192\xC2\xA2\xC3\xA2\xE2\u20AC\u0161\xC2\xAC\xC3\u201A\xC2\x9D `One(i64)` for a\nsingle-part `RichContent::Text` (or single-element\n`RichContent::Parts`), `Many(Vec<i64>)` for multi-part payloads.\nEach id is a `prompt_contents.id` resolvable via\n`agents message-queue read id`.').meta({ title: "cli.command.agents.message_queue.read.pending.ResponseItem" });
-
-// src/viewer/command/agents/message_queue/read/pending.ts
-function agentsMessageQueueReadPendingExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/pending" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageQueueReadPendingResponseItemSchema]));
-}
-function agentsMessageQueueReadPendingExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/pending" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsMessageQueueReadPendingRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read pending request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadPendingRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read pending request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadPendingResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message-queue/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read pending response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsMessageQueueReadPendingResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message-queue/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents message_queue read pending response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsPublishResponseSchema = zod.z.object({
-  sha: zod.z.string()
-}).meta({ title: "cli.command.agents.publish.Response" });
-
-// src/viewer/command/agents/publish.ts
-async function agentsPublishExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish" }), zod.z.union([CliErrorSchema, CliCommandAgentsPublishResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsPublishExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsPublishRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsPublishRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsPublishResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsPublishResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents publish response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsReadAllResponseQueueMessageSchema = zod.z.union([zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  type: zod.z.literal("developer")
-}).meta({ "variantTitle": "Developer" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  type: zod.z.literal("system")
-}).meta({ "variantTitle": "System" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  type: zod.z.literal("user")
-}).meta({ "variantTitle": "User" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema.nullable().meta({ omitempty: true }).optional(),
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  reasoning: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  refusal: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)).nullable().meta({ omitempty: true }).optional(),
-  type: zod.z.literal("assistant")
-}).meta({ "variantTitle": "Assistant" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  tool_call_id: zod.z.string(),
-  type: zod.z.literal("tool")
-}).meta({ "variantTitle": "Tool" })]).meta({ title: "cli.command.agents.read.all.ResponseQueueMessage" });
-
-// src/cli/command/agents/read/all/responseQueueItem.ts
-var CliCommandAgentsReadAllResponseQueueItemSchema = zod.z.union([zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema.nullable().meta({ omitempty: true }).optional(),
-  reasoning: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  refusal: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)).nullable().meta({ omitempty: true }).optional(),
-  type: zod.z.literal("assistant_response")
-}).meta({ "variantTitle": "AssistantResponse" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  tool_call_id: zod.z.string(),
-  type: zod.z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), zod.z.object({
-  content: CliCommandAgentsReadAllResponseContentSchema,
-  type: zod.z.literal("notification")
-}).meta({ "variantTitle": "Notification" }), zod.z.object({
-  messages: zod.z.array(CliCommandAgentsReadAllResponseQueueMessageSchema),
-  type: zod.z.literal("agent_completion_request")
-}).meta({ "variantTitle": "AgentCompletionRequest" }), zod.z.object({
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: zod.z.literal("function_execution_request")
-}).meta({ "variantTitle": "FunctionExecutionRequest" }), zod.z.object({
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: zod.z.literal("function_invention_recursive_request")
-}).meta({ "variantTitle": "FunctionInventionRecursiveRequest" })]).meta({ title: "cli.command.agents.read.all.ResponseQueueItem" });
-
-// src/cli/command/agents/read/all/responseItem.ts
-var CliCommandAgentsReadAllResponseItemSchema = zod.z.object({
-  agent_id: zod.z.string(),
-  items: zod.z.array(CliCommandAgentsReadAllResponseQueueItemSchema)
-}).meta({ title: "cli.command.agents.read.all.ResponseItem" });
-
-// src/viewer/command/agents/read/all.ts
-function agentsReadAllExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/all" }), zod.z.union([CliErrorSchema, CliCommandAgentsReadAllResponseItemSchema]));
-}
-function agentsReadAllExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/all" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsReadAllRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents read all request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsReadAllRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents read all request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsReadAllResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents read all response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsReadAllResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents read all response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var AgentCompletionsMessageAssistantToolCallFunctionSchema = zod.z.object({
-  arguments: zod.z.string().describe("The arguments to pass to the function, as a JSON string."),
-  name: zod.z.string().describe("The name of the function to call.")
-}).describe("Details of a function call made by the assistant.").meta({ title: "agent.completions.message.AssistantToolCallFunction" });
-
-// src/agent/completions/message/assistantToolCall.ts
-var AgentCompletionsMessageAssistantToolCallSchema = zod.z.object({
-  function: AgentCompletionsMessageAssistantToolCallFunctionSchema.describe("The function being called."),
-  id: zod.z.string().describe("The unique ID of this tool call."),
-  type: zod.z.literal("function")
-}).describe("A function call with an ID and function details.").meta({ title: "agent.completions.message.AssistantToolCall" });
-var LogReferenceTagSchema = zod.z.literal("reference").describe('Constant `"reference"` discriminator \u2014 the `"type"` field on every\n`LogReference` variant.').meta({ title: "LogReferenceTag" });
-
-// src/logReference.ts
-var LogReferenceSchema = zod.z.object({
-  path: zod.z.string().describe("Relative on-disk path of the referenced file (under\n`${config_base_dir}/logs/`). Skipped when empty \u2014 the no-data\nsentinel case used by some wrappers when the inner chunk has\nno content to log.").meta({ omitempty: true }),
-  type: LogReferenceTagSchema
-}).describe("Plain on-disk pointer (`type` + `path` only).").meta({ title: "LogReference" });
-
-// src/agent/completions/message/richContentLog.ts
-var AgentCompletionsMessageRichContentLogSchema = zod.z.union([LogReferenceSchema.meta({ "title": "LogReference", "variantTitle": "Reference" }), zod.z.array(LogReferenceSchema).meta({ "variantTitle": "Parts" })]).meta({ title: "agent.completions.message.RichContentLog" });
-
-// src/agent/completions/message/assistantMessageLog.ts
-var AgentCompletionsMessageAssistantMessageLogSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentLogSchema.nullable().meta({ omitempty: true }).optional(),
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  reasoning: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  refusal: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(LogReferenceSchema).nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.message.AssistantMessageLog" });
-var AgentCompletionsMessageSimpleContentLogSchema = zod.z.union([LogReferenceSchema.meta({ "title": "LogReference", "variantTitle": "Reference" }), zod.z.array(LogReferenceSchema).meta({ "variantTitle": "Parts" })]).meta({ title: "agent.completions.message.SimpleContentLog" });
-
-// src/agent/completions/message/developerMessageLog.ts
-var AgentCompletionsMessageDeveloperMessageLogSchema = zod.z.object({
-  content: AgentCompletionsMessageSimpleContentLogSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.message.DeveloperMessageLog" });
-var AgentCompletionsMessageSystemMessageLogSchema = zod.z.object({
-  content: AgentCompletionsMessageSimpleContentLogSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.message.SystemMessageLog" });
-var AgentCompletionsMessageToolMessageLogSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentLogSchema,
-  metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().meta({ omitempty: true }).optional(),
-  tool_call_id: zod.z.string()
-}).meta({ title: "agent.completions.message.ToolMessageLog" });
-var AgentCompletionsMessageUserMessageLogSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentLogSchema,
-  name: zod.z.string().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.message.UserMessageLog" });
-
-// src/agent/completions/message/messageLog.ts
-var AgentCompletionsMessageMessageLogSchema = zod.z.union([AgentCompletionsMessageDeveloperMessageLogSchema.and(zod.z.object({
+// src/agent/completions/message/message.ts
+var AgentCompletionsMessageMessageSchema = zod.z.union([AgentCompletionsMessageDeveloperMessageSchema.and(zod.z.object({
   role: zod.z.literal("developer")
-})).meta({ "variantTitle": "Developer" }), AgentCompletionsMessageSystemMessageLogSchema.and(zod.z.object({
+})).describe("A developer message (similar to system, but from the developer).").meta({ "variantTitle": "Developer" }), AgentCompletionsMessageSystemMessageSchema.and(zod.z.object({
   role: zod.z.literal("system")
-})).meta({ "variantTitle": "System" }), AgentCompletionsMessageUserMessageLogSchema.and(zod.z.object({
+})).describe("A system message setting context or instructions.").meta({ "variantTitle": "System" }), AgentCompletionsMessageUserMessageSchema.and(zod.z.object({
   role: zod.z.literal("user")
-})).meta({ "variantTitle": "User" }), AgentCompletionsMessageAssistantMessageLogSchema.and(zod.z.object({
+})).describe("A user message from the end user.").meta({ "variantTitle": "User" }), AgentCompletionsMessageAssistantMessageSchema.and(zod.z.object({
   role: zod.z.literal("assistant")
-})).meta({ "variantTitle": "Assistant" }), AgentCompletionsMessageToolMessageLogSchema.and(zod.z.object({
+})).describe("An assistant message (model's previous response).").meta({ "variantTitle": "Assistant" }), AgentCompletionsMessageToolMessageSchema.and(zod.z.object({
   role: zod.z.literal("tool")
-})).meta({ "variantTitle": "Tool" })]).meta({ title: "agent.completions.message.MessageLog" });
+})).describe("A tool message containing the result of a tool call.").meta({ "variantTitle": "Tool" })]).describe("A message in the conversation.").meta({ title: "agent.completions.message.Message" });
 var AgentCompletionsRequestProviderDataCollectionSchema = zod.z.union([zod.z.literal("deny").describe("Do not allow data collection.").meta({ "variantTitle": "Deny" }), zod.z.literal("allow").describe("Allow data collection.").meta({ "variantTitle": "Allow" })]).describe("Data collection policy for providers.").meta({ title: "agent.completions.request.ProviderDataCollection" });
 var AgentCompletionsRequestProviderMaxPriceSchema = zod.z.object({
   audio: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).nullable().describe("Maximum price per audio second.").meta({ omitempty: true }).optional(),
@@ -1231,6 +699,28 @@ var AgentCompletionsRequestProviderSchema = zod.z.object({
   sort: AgentCompletionsRequestProviderSortSchema.nullable().describe("How to sort/prioritize providers.").meta({ omitempty: true }).optional(),
   zdr: zod.z.boolean().nullable().describe("Whether to use zero data retention providers only.").meta({ omitempty: true }).optional()
 }).describe("Provider routing and selection preferences.").meta({ title: "agent.completions.request.Provider" });
+var AgentCompletionsRequestResponseFormatSchema = zod.z.union([zod.z.object({
+  type: zod.z.literal("text")
+}).describe("Plain text response (default).").meta({ "variantTitle": "Text" }), zod.z.object({
+  type: zod.z.literal("json_object")
+}).describe("Response must be valid JSON.").meta({ "variantTitle": "JsonObject" }), zod.z.object({
+  schema: zod.z.record(zod.z.string(), JsonValueSchema).describe("The JSON Schema definition."),
+  type: zod.z.literal("json_schema")
+}).describe("Response must conform to a JSON schema.").meta({ "variantTitle": "JsonSchema" }), zod.z.object({
+  grammar: zod.z.string(),
+  type: zod.z.literal("grammar")
+}).describe("Response must conform to a grammar.").meta({ "variantTitle": "Grammar" }), zod.z.object({
+  type: zod.z.literal("python")
+}).describe("Response must be valid Python code.").meta({ "variantTitle": "Python" }), zod.z.object({
+  description: zod.z.string().describe("A description of the tool."),
+  name: zod.z.string().describe("The name of the tool."),
+  required: zod.z.boolean().nullable().describe("Whether the tool MUST be called.").meta({ omitempty: true }).optional(),
+  schema: zod.z.record(zod.z.string(), JsonValueSchema).describe("The JSON Schema definition."),
+  type: zod.z.literal("tool_call")
+}).describe("The final assistant message will contain this tool call").meta({ "variantTitle": "ToolCall" })]).describe("The format of the model's response.").meta({ title: "agent.completions.request.ResponseFormat" });
+
+// src/agent/completions/request/responseFormatParam.ts
+var AgentCompletionsRequestResponseFormatParamSchema = zod.z.union([AgentCompletionsRequestResponseFormatSchema.describe("A single response format applied to all agents.").meta({ "title": "agent.completions.request.ResponseFormat", "variantTitle": "Single" }), zod.z.record(zod.z.string(), AgentCompletionsRequestResponseFormatSchema).describe("Per-agent response formats, keyed by agent ID.").meta({ "variantTitle": "PerAgent" })]).describe("Either a single response format or a per-agent map.").meta({ title: "agent.completions.request.ResponseFormatParam" });
 var AgentClaudeAgentSdkEffortSchema = zod.z.union([zod.z.literal("low").describe("Minimal output, concise responses.").meta({ "variantTitle": "Low" }), zod.z.literal("medium").describe("Balanced output (default, normalized away during preparation).").meta({ "variantTitle": "Medium" }), zod.z.literal("high").describe("Detailed output with thorough explanations.").meta({ "variantTitle": "High" }), zod.z.literal("xhigh").describe("Extra-high effort, above `High` but below `Max`.").meta({ "variantTitle": "Xhigh" }), zod.z.literal("max").describe("Maximum effort, most detailed output possible.").meta({ "variantTitle": "Max" })]).describe("The effort level for model output.\n\nThis setting hints to the model how detailed its responses should be.").meta({ title: "agent.claude_agent_sdk.Effort" });
 var AgentClaudeAgentSdkOutputModeSchema = zod.z.literal("instruction").describe("The model is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.").meta({ title: "agent.claude_agent_sdk.OutputMode" });
 var AgentClaudeAgentSdkUpstreamSchema = zod.z.literal("claude_agent_sdk").describe("Claude Agent SDK upstream marker.").meta({ title: "agent.claude_agent_sdk.Upstream" });
@@ -1319,52 +809,6 @@ var AgentMockAgentBaseSchema = zod.z.object({
   top_logprobs: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Number of top log probabilities to return (2-20).\n\n**Vector completions only.** Ignored for agent completions.").meta({ omitempty: true }).optional(),
   upstream: AgentMockUpstreamSchema.describe("The upstream provider marker.")
 }).describe("The base configuration for a Mock Agent (without computed ID).").meta({ title: "agent.mock.AgentBase" });
-var AgentCompletionsMessageAssistantMessageSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentSchema.nullable().describe("The message content, if any.").meta({ omitempty: true }).optional(),
-  name: zod.z.string().nullable().describe("Optional name for the assistant.").meta({ omitempty: true }).optional(),
-  reasoning: zod.z.string().nullable().describe("Reasoning content from models that support chain-of-thought.").meta({ omitempty: true }).optional(),
-  refusal: zod.z.string().nullable().describe("Refusal message if the model declined to respond.").meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(AgentCompletionsMessageAssistantToolCallSchema).nullable().describe("Tool calls made by the assistant.").meta({ omitempty: true }).optional()
-}).describe("An assistant message (model's previous response).").meta({ title: "agent.completions.message.AssistantMessage" });
-var AgentCompletionsMessageSimpleContentPartSchema = zod.z.object({
-  text: zod.z.string().describe("The text content."),
-  type: zod.z.literal("text")
-}).describe("A text part.").meta({ title: "agent.completions.message.SimpleContentPart" });
-
-// src/agent/completions/message/simpleContent.ts
-var AgentCompletionsMessageSimpleContentSchema = zod.z.union([zod.z.string().describe("Plain text content.").meta({ "variantTitle": "Text" }), zod.z.array(AgentCompletionsMessageSimpleContentPartSchema).describe("Multi-part text content.").meta({ "variantTitle": "Parts" })]).describe("Simple text content for system/developer messages.").meta({ title: "agent.completions.message.SimpleContent" });
-
-// src/agent/completions/message/developerMessage.ts
-var AgentCompletionsMessageDeveloperMessageSchema = zod.z.object({
-  content: AgentCompletionsMessageSimpleContentSchema.describe("The message content."),
-  name: zod.z.string().nullable().describe("Optional name for the message author.").meta({ omitempty: true }).optional()
-}).describe("A developer message.").meta({ title: "agent.completions.message.DeveloperMessage" });
-var AgentCompletionsMessageSystemMessageSchema = zod.z.object({
-  content: AgentCompletionsMessageSimpleContentSchema.describe("The message content."),
-  name: zod.z.string().nullable().describe("Optional name for the message author.").meta({ omitempty: true }).optional()
-}).describe("A system message setting context or instructions.").meta({ title: "agent.completions.message.SystemMessage" });
-var AgentCompletionsMessageToolMessageSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentSchema.describe("The content of the tool response."),
-  metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().describe("Optional vendor-extension metadata, populated by\n`objectiveai-mcp-proxy` via MCP's `_meta` extension bag.").meta({ omitempty: true }).optional(),
-  tool_call_id: zod.z.string().describe("The ID of the tool call this message responds to.")
-}).describe("A tool message containing the result of a tool call.").meta({ title: "agent.completions.message.ToolMessage" });
-var AgentCompletionsMessageUserMessageSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentSchema.describe("The message content (supports text, images, audio, video, files)."),
-  name: zod.z.string().nullable().describe("Optional name for the user.").meta({ omitempty: true }).optional()
-}).describe("A user message from the end user.").meta({ title: "agent.completions.message.UserMessage" });
-
-// src/agent/completions/message/message.ts
-var AgentCompletionsMessageMessageSchema = zod.z.union([AgentCompletionsMessageDeveloperMessageSchema.and(zod.z.object({
-  role: zod.z.literal("developer")
-})).describe("A developer message (similar to system, but from the developer).").meta({ "variantTitle": "Developer" }), AgentCompletionsMessageSystemMessageSchema.and(zod.z.object({
-  role: zod.z.literal("system")
-})).describe("A system message setting context or instructions.").meta({ "variantTitle": "System" }), AgentCompletionsMessageUserMessageSchema.and(zod.z.object({
-  role: zod.z.literal("user")
-})).describe("A user message from the end user.").meta({ "variantTitle": "User" }), AgentCompletionsMessageAssistantMessageSchema.and(zod.z.object({
-  role: zod.z.literal("assistant")
-})).describe("An assistant message (model's previous response).").meta({ "variantTitle": "Assistant" }), AgentCompletionsMessageToolMessageSchema.and(zod.z.object({
-  role: zod.z.literal("tool")
-})).describe("A tool message containing the result of a tool call.").meta({ "variantTitle": "Tool" })]).describe("A message in the conversation.").meta({ title: "agent.completions.message.Message" });
 var AgentOpenrouterContextCompressionSchema = zod.z.literal("middle-out").describe("Middle-out compression \u2014 drops content from the middle of the\nconversation when the request would otherwise exceed the\nmodel's context window. The only engine documented today.\n\nIntentionally no `#[schemars(title)]` here: the builder's\nsingle-variant-anyOf flatten merges the variant's title onto\nthe parent schema, clobbering the enum's `agent.openrouter\n.ContextCompression` rename. Add a per-variant title only\nonce a second variant lands.").meta({ title: "agent.openrouter.ContextCompression" });
 var AgentOpenrouterOutputModeSchema = zod.z.union([zod.z.literal("instruction").describe("The model is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.").meta({ "variantTitle": "Instruction" }), zod.z.literal("json_schema").describe("A JSON schema response format is used with an enum of possible keys.\n\nRequires model support for structured JSON output.").meta({ "variantTitle": "JsonSchema" }), zod.z.literal("tool_call").describe("A forced tool call with an argument schema containing possible keys.\n\nRequires model support for tool/function calling.").meta({ "variantTitle": "ToolCall" })]).describe("The method used to constrain LLM output to valid response keys.\n\nIn vector completions, the model must select from a predefined set of\nresponses. This enum controls *how* that constraint is enforced.\n\n**Note:** This setting is only relevant for vector completions and is\ncompletely ignored for agent completions.").meta({ title: "agent.openrouter.OutputMode" });
 var AgentOpenrouterProviderQuantizationSchema = zod.z.union([zod.z.literal("int4").describe("4-bit integer quantization.").meta({ "variantTitle": "Int4" }), zod.z.literal("int8").describe("8-bit integer quantization.").meta({ "variantTitle": "Int8" }), zod.z.literal("fp4").describe("4-bit floating point quantization.").meta({ "variantTitle": "Fp4" }), zod.z.literal("fp6").describe("6-bit floating point quantization.").meta({ "variantTitle": "Fp6" }), zod.z.literal("fp8").describe("8-bit floating point quantization.").meta({ "variantTitle": "Fp8" }), zod.z.literal("fp16").describe("16-bit floating point (half precision).").meta({ "variantTitle": "Fp16" }), zod.z.literal("bf16").describe("16-bit brain floating point.").meta({ "variantTitle": "Bf16" }), zod.z.literal("fp32").describe("32-bit floating point (full precision).").meta({ "variantTitle": "Fp32" }), zod.z.literal("unknown").describe("Unknown quantization level.").meta({ "variantTitle": "Unknown" })]).describe("Model quantization levels for provider filtering.\n\nQuantization reduces model precision to decrease memory usage and\nincrease inference speed, potentially at the cost of output quality.").meta({ title: "agent.openrouter.ProviderQuantization" });
@@ -1447,66 +891,16 @@ var RemotePathCommitOptionalSchema = zod.z.union([zod.z.object({
 // src/agent/inlineAgentBaseWithFallbacksOrRemoteCommitOptional.ts
 var AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema = zod.z.union([AgentInlineAgentBaseWithFallbacksSchema.meta({ "title": "agent.InlineAgentBaseWithFallbacks", "variantTitle": "AgentBase" }), RemotePathCommitOptionalSchema.meta({ "title": "RemotePathCommitOptional", "variantTitle": "Remote" })]).describe("Like [`InlineAgentBaseWithFallbacksOrRemote`] but with optional commit.\nUsed in request types where commit resolution happens server-side.").meta({ title: "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional" });
 
-// src/agent/completions/request/agentCompletionCreateParamsLog.ts
-var AgentCompletionsRequestAgentCompletionCreateParamsLogSchema = zod.z.object({
-  agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema,
-  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  messages: zod.z.array(LogReferenceSchema),
-  provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
-  response_format: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  stream: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.request.AgentCompletionCreateParamsLog" });
-var AgentCompletionsResponseStreamingRoleSchema = zod.z.enum(["assistant", "tool"]).describe("The role of a referenced response-side message envelope \u2014 matches\nthe `role` tag serialized inside the referenced file\n(`AssistantResponseChunkLog` / `ToolResponseLog`).").meta({ title: "agent.completions.response.streaming.Role" });
-
-// src/agent/completions/response/streaming/logReference.ts
-var AgentCompletionsResponseStreamingLogReferenceSchema = zod.z.object({
-  index: zod.z.number().int().min(0).max(18446744073709552e3).describe("The message's index within the completion \u2014 the message-index\nargument to the role-specific read commands."),
-  path: zod.z.string().meta({ omitempty: true }),
-  role: AgentCompletionsResponseStreamingRoleSchema.describe("Which role subdir the file lives in, i.e. which command family\nreads it."),
-  type: LogReferenceTagSchema
-}).meta({ title: "agent.completions.response.streaming.LogReference" });
-
-// src/agent/completions/response/streaming/agentCompletionChunkLog.ts
-var AgentCompletionsResponseStreamingAgentCompletionChunkLogSchema = zod.z.object({
-  agent_full_id: zod.z.string(),
-  agent_id: zod.z.string(),
-  agent_instance_hierarchy: zod.z.string(),
-  agent_remote: RemotePathSchema.nullable().meta({ omitempty: true }).optional(),
-  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
-  id: zod.z.string(),
-  messages: zod.z.array(AgentCompletionsResponseStreamingLogReferenceSchema),
-  messages_queued: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  object: AgentCompletionsResponseStreamingObjectSchema,
-  upstream: AgentUpstreamSchema,
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.response.streaming.AgentCompletionChunkLog" });
-var AgentCompletionsResponseStreamingAssistantResponseChunkLogSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentLogSchema.nullable().meta({ omitempty: true }).optional(),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  finish_reason: AgentCompletionsResponseFinishReasonSchema.nullable().optional(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  logprobs: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  model: zod.z.string(),
-  provider: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  reasoning: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  refusal: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  role: AgentCompletionsResponseAssistantRoleSchema,
-  service_tier: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  system_fingerprint: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  tool_calls: zod.z.array(LogReferenceSchema).nullable().meta({ omitempty: true }).optional(),
-  upstream_id: zod.z.string(),
-  usage: AgentCompletionsResponseUpstreamUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "agent.completions.response.streaming.AssistantResponseChunkLog" });
-var AgentCompletionsResponseToolResponseLogSchema = zod.z.object({
-  content: AgentCompletionsMessageRichContentLogSchema,
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().meta({ omitempty: true }).optional(),
-  role: AgentCompletionsResponseToolRoleSchema,
-  tool_call_id: zod.z.string()
-}).meta({ title: "agent.completions.response.ToolResponseLog" });
+// src/agent/completions/request/agentCompletionCreateParams.ts
+var AgentCompletionsRequestAgentCompletionCreateParamsSchema = zod.z.object({
+  agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.describe("The agent to use (inline Agent or stored ID)."),
+  continuation: zod.z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
+  messages: zod.z.array(AgentCompletionsMessageMessageSchema).describe("The conversation messages."),
+  provider: AgentCompletionsRequestProviderSchema.nullable().describe("Provider routing preferences.").meta({ omitempty: true }).optional(),
+  response_format: AgentCompletionsRequestResponseFormatParamSchema.nullable().describe("Output format constraints (text, JSON, or JSON schema).").meta({ omitempty: true }).optional(),
+  seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Random seed for deterministic generation.").meta({ omitempty: true }).optional(),
+  stream: zod.z.boolean().nullable().describe("Whether to stream the response.").meta({ omitempty: true }).optional()
+}).describe("Parameters for creating a agent completion.").meta({ title: "agent.completions.request.AgentCompletionCreateParams" });
 var FunctionsExecutionsRequestReasoningSchema = zod.z.object({
   agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema
 }).meta({ title: "functions.executions.request.Reasoning" });
@@ -1517,7 +911,7 @@ var FunctionsExecutionsRequestStrategySchema = zod.z.union([zod.z.object({
   rounds: zod.z.number().int().min(0).max(4294967295).nullable().describe("How many sequential rounds of comparison").optional(),
   type: zod.z.literal("swiss_system")
 }).describe("Vector").meta({ "variantTitle": "SwissSystem" })]).meta({ title: "functions.executions.request.Strategy" });
-var FunctionsExpressionInputValueLogSchema = zod.z.union([LogReferenceSchema.meta({ "title": "LogReference", "variantTitle": "Reference" }), zod.z.record(zod.z.string(), LogReferenceSchema).meta({ "variantTitle": "Object" }), zod.z.array(LogReferenceSchema).meta({ "variantTitle": "Array" })]).meta({ title: "functions.expression.InputValueLog" });
+var FunctionsExpressionInputValueSchema = zod.z.union([AgentCompletionsMessageRichContentPartSchema.describe("Rich content (image, audio, video, file).").meta({ "title": "agent.completions.message.RichContentPart", "variantTitle": "RichContentPart" }), zod.z.record(zod.z.string(), zod.z.lazy(() => FunctionsExpressionInputValueSchema)).describe("An object with string keys.").meta({ "variantTitle": "Object" }), zod.z.array(zod.z.lazy(() => FunctionsExpressionInputValueSchema)).describe("An array of values.").meta({ "variantTitle": "Array" }), zod.z.string().describe("A string value.").meta({ "variantTitle": "String" }), zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("An integer value.").meta({ "variantTitle": "Integer" }), zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("A floating-point number.").meta({ "variantTitle": "Number" }), zod.z.boolean().describe("A boolean value.").meta({ "variantTitle": "Boolean" })]).describe("A concrete input value (post-compilation).\n\nRepresents any JSON-like value that can be passed to a Function,\nincluding rich content types (images, audio, video, files).").meta({ title: "functions.expression.InputValue" });
 var FunctionsExpressionSpecialSchema = zod.z.union([zod.z.literal("input").describe("Returns the params input as-is.").meta({ "variantTitle": "Input" }), zod.z.literal("output").describe("Returns the params output as-is.").meta({ "variantTitle": "Output" }), zod.z.literal("task_output_l1_normalized").describe("L1-normalizes the output. Scalar/Err pass through.\nVector: L1 normalize. Vectors: L1 normalize each.").meta({ "variantTitle": "TaskOutputL1Normalized" }), zod.z.literal("task_output_weighted_sum").describe("Weighted sum of the output. Vector \u2192 Scalar. Vectors \u2192 Vector.").meta({ "variantTitle": "TaskOutputWeightedSum" }), zod.z.literal("input_items_output_length").describe("Returns the length of input['items'] as u64").meta({ "variantTitle": "InputItemsOutputLength" }), zod.z.literal("input_items_optional_context_split").describe("Splits an input containing items and optionally context into multiple inputs").meta({ "variantTitle": "InputItemsOptionalContextSplit" }), zod.z.literal("input_items_optional_context_merge").describe("Merges multiple inputs containing items and optionally context into a single input").meta({ "variantTitle": "InputItemsOptionalContextMerge" })]).describe("Predefined expression behaviors that require no user-authored code.").meta({ title: "functions.expression.Special" });
 
 // src/functions/expression/expression.ts
@@ -1917,14 +1311,14 @@ var FunctionsInlineProfileSchema = zod.z.union([zod.z.lazy(() => FunctionsInline
 // src/functions/inlineProfileOrRemoteCommitOptional.ts
 var FunctionsInlineProfileOrRemoteCommitOptionalSchema = zod.z.union([FunctionsInlineProfileSchema.meta({ "title": "functions.InlineProfile", "variantTitle": "Inline" }), RemotePathCommitOptionalSchema.meta({ "title": "RemotePathCommitOptional", "variantTitle": "Remote" })]).describe("A profile specification that is either an inline profile definition\nor a remote path reference.").meta({ title: "functions.InlineProfileOrRemoteCommitOptional" });
 
-// src/functions/executions/request/functionExecutionCreateParamsLog.ts
-var FunctionsExecutionsRequestFunctionExecutionCreateParamsLogSchema = zod.z.object({
-  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
+// src/functions/executions/request/functionExecutionCreateParams.ts
+var FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema = zod.z.object({
+  continuation: zod.z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
   from_cache: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema,
-  input: FunctionsExpressionInputValueLogSchema,
-  invert: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  profile: FunctionsInlineProfileOrRemoteCommitOptionalSchema,
+  function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema.describe("The function to execute (inline definition or remote path)."),
+  input: FunctionsExpressionInputValueSchema,
+  invert: zod.z.boolean().nullable().describe('If `true`, invert every output in the streamed response *after* the\ninner function has finished computing \u2014 scalar outputs become\n`1 - x`, vector outputs are reversed in place. The expression\nevaluator inside the function still sees the original scores; only\nthe chunks delivered to the client (and the aggregated response\npassed to the usage handler) are inverted. Useful when a function\nis naturally written to score "lower is better" but the consumer\nwants "higher is better", or vice versa.').meta({ omitempty: true }).optional(),
+  profile: FunctionsInlineProfileOrRemoteCommitOptionalSchema.describe("The profile to use (inline definition or remote path)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
   reasoning: FunctionsExecutionsRequestReasoningSchema.nullable().meta({ omitempty: true }).optional(),
   retry_token: zod.z.string().nullable().meta({ omitempty: true }).optional(),
@@ -1932,290 +1326,7 @@ var FunctionsExecutionsRequestFunctionExecutionCreateParamsLogSchema = zod.z.obj
   split: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
   strategy: FunctionsExecutionsRequestStrategySchema.nullable().meta({ omitempty: true }).optional(),
   stream: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.executions.request.FunctionExecutionCreateParamsLog" });
-var FunctionsExpressionTaskOutputSchema = zod.z.union([zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("A single scalar score.").meta({ "variantTitle": "Scalar" }), zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)).describe("A vector of scores.").meta({ "variantTitle": "Vector" }), zod.z.array(zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22))).describe("Multiple vectors of scores (from mapped tasks).").meta({ "variantTitle": "Vectors" }), zod.z.object({
-  error: JsonValueSchema
-}).describe("An error occurred during execution.").meta({ "variantTitle": "Err" })]).describe("Owned task output variants.").meta({ title: "functions.expression.TaskOutput" });
-
-// src/functions/executions/response/output.ts
-var FunctionsExecutionsResponseOutputSchema = zod.z.object({
-  output: FunctionsExpressionTaskOutputSchema
-}).describe("Wrapper for function execution output, distinguishing between\na null output value and a missing output.").meta({ title: "functions.executions.response.Output" });
-var FunctionsExecutionsResponseStreamingObjectSchema = zod.z.enum(["scalar.function.execution.chunk", "vector.function.execution.chunk"]).meta({ title: "functions.executions.response.streaming.Object" });
-var FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReferenceSchema = zod.z.object({
-  error: JsonValueSchema.meta({ omitempty: true }),
-  path: zod.z.string().meta({ omitempty: true }),
-  type: LogReferenceTagSchema
-}).meta({ title: "functions.executions.response.streaming.reasoning_summary_log_reference.LogReference" });
-var FunctionsExecutionsResponseStreamingFunctionExecutionTaskLogReferenceLogReferenceSchema = zod.z.object({
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  path: zod.z.string().meta({ omitempty: true }),
-  split_index: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
-  swiss_pool_index: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
-  swiss_round: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
-  task_index: zod.z.number().int().min(0).max(18446744073709552e3),
-  task_path: zod.z.array(zod.z.number().int().min(0).max(18446744073709552e3)),
-  type: LogReferenceTagSchema
-}).meta({ title: "functions.executions.response.streaming.function_execution_task_log_reference.LogReference" });
-var FunctionsExecutionsResponseStreamingVectorCompletionTaskLogReferenceLogReferenceSchema = zod.z.object({
-  error: JsonValueSchema.meta({ omitempty: true }),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  path: zod.z.string().meta({ omitempty: true }),
-  task_index: zod.z.number().int().min(0).max(18446744073709552e3),
-  task_path: zod.z.array(zod.z.number().int().min(0).max(18446744073709552e3)),
-  type: LogReferenceTagSchema
-}).meta({ title: "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference" });
-
-// src/functions/executions/response/streaming/task_log_reference/logReference.ts
-var FunctionsExecutionsResponseStreamingTaskLogReferenceLogReferenceSchema = zod.z.union([FunctionsExecutionsResponseStreamingFunctionExecutionTaskLogReferenceLogReferenceSchema.meta({ "title": "functions.executions.response.streaming.function_execution_task_log_reference.LogReference", "variantTitle": "FunctionExecution" }), FunctionsExecutionsResponseStreamingVectorCompletionTaskLogReferenceLogReferenceSchema.meta({ "title": "functions.executions.response.streaming.vector_completion_task_log_reference.LogReference", "variantTitle": "VectorCompletion" })]).meta({ title: "functions.executions.response.streaming.task_log_reference.LogReference" });
-
-// src/functions/executions/response/streaming/functionExecutionChunkLog.ts
-var FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
-  function: RemotePathSchema.nullable().optional(),
-  id: zod.z.string(),
-  object: FunctionsExecutionsResponseStreamingObjectSchema,
-  output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
-  profile: RemotePathSchema.nullable().optional(),
-  reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryLogReferenceLogReferenceSchema.nullable().describe("Appended at the end to match the legacy on-disk order: the\nold code inserted `reasoning` via `Map::insert` AFTER all\nthe shell fields, putting it at the tail of the object.").meta({ omitempty: true }).optional(),
-  retry_token: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  tasks: zod.z.array(FunctionsExecutionsResponseStreamingTaskLogReferenceLogReferenceSchema),
-  tasks_errors: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.executions.response.streaming.FunctionExecutionChunkLog" });
-var FunctionsInventionsPromptsStepPromptTypeSchema = zod.z.enum(["alpha.scalar.branch.function", "alpha.scalar.leaf.function", "alpha.vector.branch.function", "alpha.vector.leaf.function"]).describe("The type of invention state a prompt applies to.").meta({ title: "functions.inventions.prompts.StepPromptType" });
-
-// src/functions/inventions/prompts/stepPromptExpression.ts
-var FunctionsInventionsPromptsStepPromptExpressionSchema = zod.z.object({
-  type: zod.z.array(FunctionsInventionsPromptsStepPromptTypeSchema),
-  value: zod.z.union([FunctionsExpressionExpressionSchema.describe("An expression (JMESPath or Starlark) to evaluate.").meta({ "title": "functions.expression.Expression", "variantTitle": "Expression" }), zod.z.string().describe("A literal value.").meta({ "variantTitle": "Value" })]).describe('A value that can be either a literal or an expression.\n\nThis allows Function definitions to mix static values with dynamic\nexpressions. During compilation, expressions are evaluated while\nliteral values pass through unchanged.\n\n# Example\n\nLiteral value:\n```json\n"hello world"\n```\n\nJMESPath expression:\n```json\n{"$jmespath": "input.greeting"}\n```\n\nStarlark expression:\n```json\n{"$starlark": "input[\'greeting\']"}\n```')
-}).describe("A prompt for a single invention step, applicable to one or more state types.").meta({ title: "functions.inventions.prompts.StepPromptExpression" });
-
-// src/functions/inventions/prompts/inlinePrompt.ts
-var FunctionsInventionsPromptsInlinePromptSchema = zod.z.object({
-  description_step: zod.z.array(FunctionsInventionsPromptsStepPromptExpressionSchema),
-  essay_step: zod.z.array(FunctionsInventionsPromptsStepPromptExpressionSchema),
-  essay_tasks_step: zod.z.array(FunctionsInventionsPromptsStepPromptExpressionSchema),
-  input_schema_step: zod.z.array(FunctionsInventionsPromptsStepPromptExpressionSchema),
-  tasks_step: zod.z.array(FunctionsInventionsPromptsStepPromptExpressionSchema)
-}).describe("Inline invention prompt configuration for all steps.").meta({ title: "functions.inventions.prompts.InlinePrompt" });
-
-// src/functions/inventions/prompts/inlinePromptOrRemoteCommitOptional.ts
-var FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema = zod.z.union([FunctionsInventionsPromptsInlinePromptSchema.meta({ "title": "functions.inventions.prompts.InlinePrompt", "variantTitle": "Inline" }), RemotePathCommitOptionalSchema.meta({ "title": "RemotePathCommitOptional", "variantTitle": "Remote" })]).describe("A prompt specification that is either an inline prompt definition\nor a remote path reference.").meta({ title: "functions.inventions.prompts.InlinePromptOrRemoteCommitOptional" });
-var RemoteSchema = zod.z.union([zod.z.literal("github").describe("GitHub repository.").meta({ "variantTitle": "Github" }), zod.z.literal("filesystem").describe("Local filesystem.").meta({ "variantTitle": "Filesystem" }), zod.z.literal("mock").describe("Mock (for testing).").meta({ "variantTitle": "Mock" })]).describe("The remote source where a function, profile, or agent is hosted.").meta({ title: "Remote" });
-
-// src/functions/inventions/recursive/request/functionInventionRecursiveCreateParamsLog.ts
-var FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema = zod.z.object({
-  agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema,
-  continuation: LogReferenceSchema.nullable().meta({ omitempty: true }).optional(),
-  max_step_retries: zod.z.number().int().min(0).max(4294967295).nullable().meta({ omitempty: true }).optional(),
-  overwrite: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  prompt: FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema,
-  provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
-  remote: RemoteSchema,
-  seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  state: LogReferenceSchema,
-  stream: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.recursive.request.FunctionInventionRecursiveCreateParamsLog" });
-var FunctionsInventionsRecursiveResponseStreamingObjectSchema = zod.z.enum(["alpha.scalar.function.invention.recursive.chunk", "alpha.vector.function.invention.recursive.chunk"]).meta({ title: "functions.inventions.recursive.response.streaming.Object" });
-var IndexedLogReferenceSchema = zod.z.object({
-  error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  path: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  type: LogReferenceTagSchema
-}).describe("`LogReference` for log files keyed by an `index` \u2014 used by\nper-agent / per-invention completion wrappers that need to preserve\ntheir position within a parent collection (a vector completion's\nswarm-index, an invention's per-invention index, etc.).\n\nCarries an optional `error` so that wrappers around inner streams\nwhich errored before producing an ID-bearing chunk still surface\nwhat went wrong at that index. Exactly one of `path` (the resolved\nlog file) or `error` (the upstream failure) will be populated in\npractice \u2014 both `None` would mean the wrapper has nothing to say.").meta({ title: "IndexedLogReference" });
-
-// src/functions/inventions/recursive/response/streaming/functionInventionRecursiveChunkLog.ts
-var FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkLogSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string(),
-  inventions: zod.z.array(IndexedLogReferenceSchema),
-  inventions_errors: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  object: FunctionsInventionsRecursiveResponseStreamingObjectSchema,
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunkLog" });
-var FunctionsInventionsStateAlphaScalarBranchStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  description: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay_tasks: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  input_schema: FunctionsExpressionObjectInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  readme: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  spec: zod.z.string(),
-  tasks: zod.z.array(FunctionsAlphaScalarBranchTaskExpressionSchema).nullable().meta({ omitempty: true }).optional(),
-  tasks_length: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.state.AlphaScalarBranchState" });
-var FunctionsInventionsStateAlphaScalarLeafStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  description: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay_tasks: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  input_schema: FunctionsExpressionObjectInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  readme: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  spec: zod.z.string(),
-  tasks: zod.z.array(FunctionsAlphaScalarLeafTaskExpressionSchema).nullable().meta({ omitempty: true }).optional(),
-  tasks_length: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.state.AlphaScalarLeafState" });
-var FunctionsInventionsStateAlphaScalarStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  input_schema: FunctionsExpressionObjectInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  spec: zod.z.string()
-}).meta({ title: "functions.inventions.state.AlphaScalarState" });
-var FunctionsInventionsStateAlphaVectorBranchStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  description: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay_tasks: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  readme: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  spec: zod.z.string(),
-  tasks: zod.z.array(FunctionsAlphaVectorBranchTaskExpressionSchema).nullable().meta({ omitempty: true }).optional(),
-  tasks_length: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.state.AlphaVectorBranchState" });
-var FunctionsInventionsStateAlphaVectorLeafStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  description: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  essay_tasks: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  readme: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  spec: zod.z.string(),
-  tasks: zod.z.array(FunctionsAlphaVectorLeafTaskExpressionSchema).nullable().meta({ omitempty: true }).optional(),
-  tasks_length: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.state.AlphaVectorLeafState" });
-var FunctionsInventionsStateAlphaVectorStateSchema = zod.z.object({
-  depth: zod.z.number().int().min(0).max(18446744073709552e3),
-  input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema.nullable().meta({ omitempty: true }).optional(),
-  max_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  max_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_branch_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  min_leaf_width: zod.z.number().int().min(0).max(18446744073709552e3),
-  name: zod.z.string(),
-  spec: zod.z.string()
-}).meta({ title: "functions.inventions.state.AlphaVectorState" });
-
-// src/functions/inventions/state/paramsState.ts
-var FunctionsInventionsStateParamsStateSchema = zod.z.union([FunctionsInventionsStateAlphaScalarBranchStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.scalar.branch.function")
-})).meta({ "variantTitle": "AlphaScalarBranch" }), FunctionsInventionsStateAlphaScalarLeafStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.scalar.leaf.function")
-})).meta({ "variantTitle": "AlphaScalarLeaf" }), FunctionsInventionsStateAlphaVectorBranchStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.vector.branch.function")
-})).meta({ "variantTitle": "AlphaVectorBranch" }), FunctionsInventionsStateAlphaVectorLeafStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.vector.leaf.function")
-})).meta({ "variantTitle": "AlphaVectorLeaf" }), FunctionsInventionsStateAlphaScalarStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.scalar.function")
-})).meta({ "variantTitle": "AlphaScalar" }), FunctionsInventionsStateAlphaVectorStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.vector.function")
-})).meta({ "variantTitle": "AlphaVector" })]).meta({ title: "functions.inventions.state.ParamsState" });
-
-// src/functions/inventions/state/paramsStateOrRemoteCommitOptional.ts
-var FunctionsInventionsStateParamsStateOrRemoteCommitOptionalSchema = zod.z.union([FunctionsInventionsStateParamsStateSchema.meta({ "title": "functions.inventions.state.ParamsState", "variantTitle": "ParamsState" }), RemotePathCommitOptionalSchema.meta({ "title": "RemotePathCommitOptional", "variantTitle": "Remote" })]).describe("A state specification that is either an inline ParamsState definition\nor a remote path reference.").meta({ title: "functions.inventions.state.ParamsStateOrRemoteCommitOptional" });
-
-// src/functions/inventions/request/functionInventionCreateParams.ts
-var FunctionsInventionsRequestFunctionInventionCreateParamsSchema = zod.z.object({
-  agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema,
-  continuation: zod.z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  max_step_retries: zod.z.number().int().min(0).max(4294967295).nullable().describe("Maximum number of retries per invention step.\nEach step is one agent completion (which itself may loop internally\nvia tool calls). If the step's validation still fails after the\nagent loop ends, the step is retried up to this many times.\nDefaults to 3 if not specified.").meta({ omitempty: true }).optional(),
-  overwrite: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  prompt: FunctionsInventionsPromptsInlinePromptOrRemoteCommitOptionalSchema,
-  provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
-  remote: RemoteSchema.nullable().meta({ omitempty: true }).optional(),
-  seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
-  state: FunctionsInventionsStateParamsStateOrRemoteCommitOptionalSchema,
-  stream: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.request.FunctionInventionCreateParams" });
-var FunctionsAlphaScalarRemoteFunctionSchema = zod.z.union([zod.z.object({
-  description: zod.z.string(),
-  input_schema: FunctionsExpressionObjectInputSchemaSchema,
-  tasks: zod.z.array(FunctionsAlphaScalarBranchTaskExpressionSchema),
-  type: zod.z.literal("alpha.scalar.branch.function")
-}).meta({ "variantTitle": "Branch" }), zod.z.object({
-  description: zod.z.string(),
-  input_schema: FunctionsExpressionObjectInputSchemaSchema,
-  tasks: zod.z.array(FunctionsAlphaScalarLeafTaskExpressionSchema),
-  type: zod.z.literal("alpha.scalar.leaf.function")
-}).meta({ "variantTitle": "Leaf" })]).meta({ title: "functions.alpha_scalar.RemoteFunction" });
-var FunctionsAlphaVectorRemoteFunctionSchema = zod.z.union([zod.z.object({
-  description: zod.z.string(),
-  input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema,
-  tasks: zod.z.array(FunctionsAlphaVectorBranchTaskExpressionSchema),
-  type: zod.z.literal("alpha.vector.branch.function")
-}).meta({ "variantTitle": "Branch" }), zod.z.object({
-  description: zod.z.string(),
-  input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema,
-  tasks: zod.z.array(FunctionsAlphaVectorLeafTaskExpressionSchema),
-  type: zod.z.literal("alpha.vector.leaf.function")
-}).meta({ "variantTitle": "Leaf" })]).meta({ title: "functions.alpha_vector.RemoteFunction" });
-
-// src/functions/alphaRemoteFunction.ts
-var FunctionsAlphaRemoteFunctionSchema = zod.z.union([FunctionsAlphaScalarRemoteFunctionSchema.meta({ "title": "functions.alpha_scalar.RemoteFunction", "variantTitle": "Scalar" }), FunctionsAlphaVectorRemoteFunctionSchema.meta({ "title": "functions.alpha_vector.RemoteFunction", "variantTitle": "Vector" })]).meta({ title: "functions.AlphaRemoteFunction" });
-var FunctionsRemoteFunctionSchema = zod.z.union([zod.z.object({
-  description: zod.z.string().describe("Human-readable description of what the function does."),
-  input_schema: FunctionsExpressionInputSchemaSchema.describe("JSON Schema defining the expected input structure."),
-  tasks: zod.z.array(FunctionsTaskExpressionSchema).describe("The list of tasks to execute. Tasks with a `map` expression are\nexpanded into multiple instances. Each instance is compiled with\n`map` set to the current integer index.\nReceives: `input`, `map` (if mapped)."),
-  type: zod.z.literal("scalar.function")
-}).describe("Produces a single score in [0, 1].").meta({ "variantTitle": "Scalar" }), zod.z.object({
-  description: zod.z.string().describe("Human-readable description of what the function does."),
-  input_merge: FunctionsExpressionExpressionSchema.describe("Expression transforming an array of inputs computed by `input_split`\ninto a single Input object for the Function.\nReceives: `input` (as an array)."),
-  input_schema: FunctionsExpressionInputSchemaSchema.describe("JSON Schema defining the expected input structure."),
-  input_split: FunctionsExpressionExpressionSchema.describe("Expression transforming input into an input array of the output_length\nWhen the Function is executed with any input from the array,\nThe output_length should be 1.\nReceives: `input`."),
-  output_length: FunctionsExpressionExpressionSchema.describe("Expression computing the expected output vector length for task outputs.\nReceives: `input`."),
-  tasks: zod.z.array(FunctionsTaskExpressionSchema).describe("The list of tasks to execute. Tasks with a `map` expression are\nexpanded into multiple instances. Each instance is compiled with\n`map` set to the current integer index.\nReceives: `input`, `map` (if mapped)."),
-  type: zod.z.literal("vector.function")
-}).describe("Produces a vector of scores that sums to 1.").meta({ "variantTitle": "Vector" })]).describe("A remote function with full metadata.\n\nRemote functions are stored as `function.json` in repositories and\nreferenced by `remote/owner/repository`. They include documentation fields\nthat inline functions lack.").meta({ title: "functions.RemoteFunction" });
-
-// src/functions/fullRemoteFunction.ts
-var FunctionsFullRemoteFunctionSchema = zod.z.union([FunctionsAlphaRemoteFunctionSchema.meta({ "title": "functions.AlphaRemoteFunction", "variantTitle": "Alpha" }), FunctionsRemoteFunctionSchema.meta({ "title": "functions.RemoteFunction", "variantTitle": "Standard" })]).meta({ title: "functions.FullRemoteFunction" });
-var FunctionsInventionsResponseStreamingObjectSchema = zod.z.enum(["alpha.scalar.function.invention.chunk", "alpha.vector.function.invention.chunk"]).meta({ title: "functions.inventions.response.streaming.Object" });
-var FunctionsInventionsStateStateSchema = zod.z.union([FunctionsInventionsStateAlphaScalarBranchStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.scalar.branch.function")
-})).meta({ "variantTitle": "AlphaScalarBranch" }), FunctionsInventionsStateAlphaScalarLeafStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.scalar.leaf.function")
-})).meta({ "variantTitle": "AlphaScalarLeaf" }), FunctionsInventionsStateAlphaVectorBranchStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.vector.branch.function")
-})).meta({ "variantTitle": "AlphaVectorBranch" }), FunctionsInventionsStateAlphaVectorLeafStateSchema.and(zod.z.object({
-  type: zod.z.literal("alpha.vector.leaf.function")
-})).meta({ "variantTitle": "AlphaVectorLeaf" })]).meta({ title: "functions.inventions.state.State" });
-
-// src/functions/inventions/response/streaming/functionInventionChunkLog.ts
-var FunctionsInventionsResponseStreamingFunctionInventionChunkLogSchema = zod.z.object({
-  completions: zod.z.array(IndexedLogReferenceSchema),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
-  function: FunctionsFullRemoteFunctionSchema.nullable().meta({ omitempty: true }).optional(),
-  id: zod.z.string(),
-  object: FunctionsInventionsResponseStreamingObjectSchema,
-  path: RemotePathSchema.nullable().meta({ omitempty: true }).optional(),
-  state: FunctionsInventionsStateStateSchema.nullable().meta({ omitempty: true }).optional(),
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.response.streaming.FunctionInventionChunkLog" });
+}).describe("Parameters for creating a function execution.").meta({ title: "functions.executions.request.FunctionExecutionCreateParams" });
 var SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema = zod.z.union([SwarmInlineSwarmBaseSchema.meta({ "title": "swarm.InlineSwarmBase", "variantTitle": "SwarmBase" }), RemotePathCommitOptionalSchema.meta({ "title": "RemotePathCommitOptional", "variantTitle": "Remote" })]).describe("Like [`InlineSwarmBaseOrRemote`] but with optional commit.\nUsed in request types where commit resolution happens server-side.").meta({ title: "swarm.InlineSwarmBaseOrRemoteCommitOptional" });
 
 // src/vector/completions/request/vectorCompletionCreateParams.ts
@@ -2230,235 +1341,676 @@ var VectorCompletionsRequestVectorCompletionCreateParamsSchema = zod.z.object({
   stream: zod.z.boolean().nullable().describe("Whether to stream the response.").meta({ omitempty: true }).optional(),
   swarm: SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema.describe("The Swarm of agents to use.")
 }).describe("Parameters for creating a vector completion.\n\nVector completions run multiple agent completions (one per LLM in the\nswarm), force each to vote for one of the predefined responses, and\ncombine votes using the provided profile weights to produce final scores.").meta({ title: "vector.completions.request.VectorCompletionCreateParams" });
-var VectorCompletionsResponseStreamingObjectSchema = zod.z.literal("vector.completion.chunk").describe("A streaming vector completion chunk.").meta({ title: "vector.completions.response.streaming.Object" });
-var VectorCompletionsResponseVoteSchema = zod.z.object({
-  agent_full_id: zod.z.string().describe("WF-level id of the agent that produced this vote \u2014 concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes."),
-  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's."),
-  flat_swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Flattened index accounting for agent counts in the swarm."),
-  from_cache: zod.z.boolean().nullable().describe("If true, this vote was retrieved from cache rather than generated fresh.").meta({ omitempty: true }).optional(),
-  prompt_id: zod.z.string().describe("Content hash of the request messages (for caching/deduplication)."),
-  responses_ids: zod.z.array(zod.z.string()).describe("Content hashes of each response option in the request."),
-  retry: zod.z.boolean().nullable().describe("If true, this vote was reused from a previous request via the `retry`\nparameter. All fields reflect the original request's values.").meta({ omitempty: true }).optional(),
-  swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Index of the agent configuration within the swarm."),
-  vote: zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)).describe("The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0."),
-  weight: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The weight applied to this vote when computing final scores.")
-}).describe("A single LLM's vote in a vector completion.\n\nEach LLM in the swarm produces a vote indicating which response(s) it\nselected. Votes are weighted according to the profile and combined to\nproduce the final scores.\n\n# Vote Format\n\nThe `vote` field is a vector of decimals corresponding to the responses\nin the request. Typically one element is 1.0 and the rest are 0.0 (discrete\nselection), but when `top_logprobs` is used, votes may be probability\ndistributions.").meta({ title: "vector.completions.response.Vote" });
 
-// src/vector/completions/response/streaming/vectorCompletionChunkLog.ts
-var VectorCompletionsResponseStreamingVectorCompletionChunkLogSchema = zod.z.object({
-  completions: zod.z.array(IndexedLogReferenceSchema),
+// src/cli/command/agents/logs/read/id/response.ts
+var CliCommandAgentsLogsReadIdResponseSchema = zod.z.union([zod.z.object({
+  body: AgentCompletionsRequestAgentCompletionCreateParamsSchema,
+  created_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  type: zod.z.literal("agent_completion_request")
+}).meta({ "variantTitle": "AgentCompletionRequest" }), zod.z.object({
+  body: VectorCompletionsRequestVectorCompletionCreateParamsSchema,
+  created_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  type: zod.z.literal("vector_completion_request")
+}).meta({ "variantTitle": "VectorCompletionRequest" }), zod.z.object({
+  body: FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema,
+  created_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  type: zod.z.literal("function_execution_request")
+}).meta({ "variantTitle": "FunctionExecutionRequest" }), zod.z.object({
+  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  tool_call_id: zod.z.string(),
+  type: zod.z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" }), zod.z.object({
+  arguments: zod.z.string(),
+  function_name: zod.z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
+  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  tool_call_id: zod.z.string(),
+  tool_call_index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("response_tool_calls")
+}).meta({ "variantTitle": "ResponseToolCalls" }), zod.z.object({
+  type: zod.z.literal("text")
+}).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(zod.z.object({
+  type: zod.z.literal("image")
+})).meta({ "variantTitle": "Image" }), AgentCompletionsMessageInputAudioSchema.and(zod.z.object({
+  type: zod.z.literal("audio")
+})).meta({ "variantTitle": "Audio" }), AgentCompletionsMessageVideoUrlSchema.and(zod.z.object({
+  type: zod.z.literal("video")
+})).meta({ "variantTitle": "Video" }), AgentCompletionsMessageFileSchema.and(zod.z.object({
+  type: zod.z.literal("file")
+})).meta({ "variantTitle": "File" })]).describe('Resolved payload for one `logs.messages."index"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string \u2014 matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe five non-content variants render as JSONL with their full\ntyped body so callers can introspect request-blob /\ntool-response / tool-call metadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock').meta({ title: "cli.command.agents.logs.read.id.Response" });
+
+// src/viewer/command/agents/logs/read/id.ts
+async function agentsLogsReadIdExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/id" }), zod.z.union([CliErrorSchema, CliCommandAgentsLogsReadIdResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadIdExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/id" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadIdRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadIdRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadIdResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadIdResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read id response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+function agentsLogsReadPendingExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/pending" }), zod.z.union([CliErrorSchema, CliCommandAgentsLogsReadAllResponseItemSchema]));
+}
+function agentsLogsReadPendingExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/pending" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsLogsReadPendingRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read pending request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadPendingRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read pending request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadPendingResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read pending response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadPendingResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read pending response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsLogsReadSubscribeAgentsInactiveTagSchema = zod.z.literal("agents_inactive").describe('Single-variant enum whose lone variant serializes as the\nliteral string `"agents_inactive"`. Construct as\n`AgentsInactiveTag::AgentsInactive`; the surrounding\n`ResponseItem::AgentsInactive(_)` carries it.').meta({ title: "cli.command.agents.logs.read.subscribe.AgentsInactiveTag" });
+
+// src/cli/command/agents/logs/read/subscribe/responseItem.ts
+var CliCommandAgentsLogsReadSubscribeResponseItemSchema = zod.z.union([CliCommandAgentsLogsReadAllResponseItemSchema.meta({ "title": "cli.command.agents.logs.read.all.ResponseItem", "variantTitle": "Item" }), CliCommandAgentsLogsReadSubscribeAgentsInactiveTagSchema.meta({ "title": "cli.command.agents.logs.read.subscribe.AgentsInactiveTag", "variantTitle": "AgentsInactive" })]).describe('Subscribe\'s wire shape. Either a real parts-grouped block\n(the EXACT same enum `read all` / `read pending` emit) OR\nthe literal string `"agents_inactive"`. `#[serde(untagged)]`\nso the `Item` arm passes through transparently \u2014 JSONL\nconsumers see either a block JSON object or a bare string.').meta({ title: "cli.command.agents.logs.read.subscribe.ResponseItem" });
+
+// src/viewer/command/agents/logs/read/subscribe.ts
+function agentsLogsReadSubscribeExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/subscribe" }), zod.z.union([CliErrorSchema, CliCommandAgentsLogsReadSubscribeResponseItemSchema]));
+}
+function agentsLogsReadSubscribeExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsLogsReadSubscribeRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read subscribe request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadSubscribeRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read subscribe request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadSubscribeResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/logs/read/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read subscribe response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsLogsReadSubscribeResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/logs/read/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents logs read subscribe response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsMessageResponseSchema = zod.z.union([zod.z.object({
+  type: zod.z.literal("delivered")
+}).describe("The queue row reached a live agent (the API stamped its id\nonto an assistant chunk's `request_message_ids`) before\nany other race finalized.").meta({ "variantTitle": "Delivered" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("enqueued")
+}).describe("The target's tag wasn't bound at call time (PENDING /\nABSENT). The message was deferred into the queue.").meta({ "variantTitle": "Enqueued" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  type: zod.z.literal("id")
+}).describe("The stream=false path re-execed itself as a detached\nsubprocess (stream=true) and the subprocess yielded a\n`ResponseItem::Id` first. Same payload as spawn's\n`ResponseItem::Id(String)` \u2014 the bare\n`agent_instance_hierarchy` string the runner just minted.").meta({ "variantTitle": "Id" })]).describe('Unary response (stream=false). Exactly one of these per call.\nInternally tagged via `type`; bare unit variant `Delivered`\nserializes as `{"type":"delivered"}`.').meta({ title: "cli.command.agents.message.Response" });
+var AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema = zod.z.object({
+  arguments: zod.z.string().nullable().describe("The arguments being streamed (accumulated across deltas).").meta({ omitempty: true }).optional(),
+  name: zod.z.string().nullable().describe("The function name (only present in the first delta).").meta({ omitempty: true }).optional()
+}).describe("Function call details in a streaming tool call.").meta({ title: "agent.completions.message.AssistantToolCallFunctionDelta" });
+var AgentCompletionsMessageAssistantToolCallTypeSchema = zod.z.literal("function").describe("A function call.").meta({ title: "agent.completions.message.AssistantToolCallType" });
+
+// src/agent/completions/message/assistantToolCallDelta.ts
+var AgentCompletionsMessageAssistantToolCallDeltaSchema = zod.z.object({
+  function: AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema.nullable().describe("The function call details.").meta({ omitempty: true }).optional(),
+  id: zod.z.string().nullable().describe("The unique ID of this tool call.").meta({ omitempty: true }).optional(),
+  index: zod.z.number().int().min(0).max(18446744073709552e3).describe("The index of this tool call."),
+  type: AgentCompletionsMessageAssistantToolCallTypeSchema.nullable().describe('The type of tool call (always "function").').meta({ omitempty: true }).optional()
+}).describe("A tool call delta in a streaming response.").meta({ title: "agent.completions.message.AssistantToolCallDelta" });
+var AgentCompletionsResponseAssistantRoleSchema = zod.z.literal("assistant").describe("The assistant role.").meta({ title: "agent.completions.response.AssistantRole" });
+var AgentCompletionsResponseFinishReasonSchema = zod.z.union([zod.z.literal("stop").describe("The model reached a natural stop point or stop sequence.").meta({ "variantTitle": "Stop" }), zod.z.literal("length").describe("The model reached the maximum token limit.").meta({ "variantTitle": "Length" }), zod.z.literal("tool_calls").describe("The model decided to call one or more tools.").meta({ "variantTitle": "ToolCalls" }), zod.z.literal("content_filter").describe("The response was filtered due to content policy.").meta({ "variantTitle": "ContentFilter" }), zod.z.literal("error").describe("An error occurred during generation.").meta({ "variantTitle": "Error" })]).describe("The reason the model stopped generating.").meta({ title: "agent.completions.response.FinishReason" });
+var AgentCompletionsResponseTopLogprobSchema = zod.z.object({
+  bytes: zod.z.array(zod.z.number().int().min(0).max(255)).nullable().describe("The raw bytes of the token.").optional(),
+  logprob: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).nullable().describe("The log probability of this token.").optional(),
+  token: zod.z.string().describe("The token string.")
+}).describe("A top alternative token with its log probability.").meta({ title: "agent.completions.response.TopLogprob" });
+
+// src/agent/completions/response/logprob.ts
+var AgentCompletionsResponseLogprobSchema = zod.z.object({
+  bytes: zod.z.array(zod.z.number().int().min(0).max(255)).nullable().describe("The raw bytes of the token.").optional(),
+  logprob: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The log probability of this token."),
+  token: zod.z.string().describe("The token string."),
+  top_logprobs: zod.z.array(AgentCompletionsResponseTopLogprobSchema).describe("The top alternative tokens and their log probabilities.")
+}).describe("Log probability information for a single token.").meta({ title: "agent.completions.response.Logprob" });
+
+// src/agent/completions/response/logprobs.ts
+var AgentCompletionsResponseLogprobsSchema = zod.z.object({
+  content: zod.z.array(AgentCompletionsResponseLogprobSchema).nullable().describe("Log probabilities for content tokens.").optional(),
+  refusal: zod.z.array(AgentCompletionsResponseLogprobSchema).nullable().describe("Log probabilities for refusal tokens.").optional()
+}).describe("Log probabilities for generated tokens.").meta({ title: "agent.completions.response.Logprobs" });
+var AgentCompletionsResponseCompletionTokensDetailsSchema = zod.z.object({
+  accepted_prediction_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens from accepted predictions (speculative decoding).").meta({ omitempty: true }).optional(),
+  audio_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Audio output tokens.").meta({ omitempty: true }).optional(),
+  reasoning_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens used for reasoning/thinking.").meta({ omitempty: true }).optional(),
+  rejected_prediction_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens from rejected predictions (speculative decoding).").meta({ omitempty: true }).optional()
+}).describe("Detailed breakdown of completion token usage.").meta({ title: "agent.completions.response.CompletionTokensDetails" });
+var AgentCompletionsResponseCostDetailsSchema = zod.z.object({
+  upstream_inference_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by the immediate upstream (e.g., OpenRouter)."),
+  upstream_upstream_inference_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by the upstream's upstream (e.g., the actual model provider).")
+}).describe("Detailed cost breakdown.").meta({ title: "agent.completions.response.CostDetails" });
+var AgentCompletionsResponsePromptTokensDetailsSchema = zod.z.object({
+  audio_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Audio input tokens.").meta({ omitempty: true }).optional(),
+  cache_write_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens written to cache.").meta({ omitempty: true }).optional(),
+  cached_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Tokens served from cache.").meta({ omitempty: true }).optional(),
+  video_tokens: zod.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Video input tokens.").meta({ omitempty: true }).optional()
+}).describe("Detailed breakdown of prompt token usage.").meta({ title: "agent.completions.response.PromptTokensDetails" });
+
+// src/agent/completions/response/upstreamUsage.ts
+var AgentCompletionsResponseUpstreamUsageSchema = zod.z.object({
+  completion_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Number of tokens in the completion."),
+  completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Detailed breakdown of completion tokens.").meta({ omitempty: true }).optional(),
+  cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The cost charged by ObjectiveAI for this request."),
+  cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Detailed cost breakdown.").meta({ omitempty: true }).optional(),
+  cost_multiplier: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The multiplier applied to compute ObjectiveAI's charge."),
+  is_byok: zod.z.boolean().describe("Whether this request used Bring Your Own Key (BYOK)."),
+  prompt_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Number of tokens in the prompt."),
+  prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Detailed breakdown of prompt tokens.").meta({ omitempty: true }).optional(),
+  total_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Total cost including ObjectiveAI's charge plus all upstream charges.\nFor BYOK requests, ObjectiveAI only charges the cost_multiplier difference,\nbut total_cost still includes what the upstream provider charged."),
+  total_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total tokens (prompt + completion).")
+}).describe("Token usage and cost information from an upstream provider.\n\nThis is the per-assistant-response usage yielded by upstream clients.\nIt includes upstream-specific fields like `cost_multiplier` and `is_byok`.").meta({ title: "agent.completions.response.UpstreamUsage" });
+
+// src/agent/completions/response/streaming/assistantResponseChunk.ts
+var AgentCompletionsResponseStreamingAssistantResponseChunkSchema = zod.z.object({
+  content: AgentCompletionsMessageRichContentSchema.nullable().meta({ omitempty: true }).optional(),
   created: zod.z.number().int().min(0).max(18446744073709552e3),
+  finish_reason: AgentCompletionsResponseFinishReasonSchema.nullable().optional(),
+  index: zod.z.number().int().min(0).max(18446744073709552e3),
+  logprobs: AgentCompletionsResponseLogprobsSchema.nullable().meta({ omitempty: true }).optional(),
+  model: zod.z.string(),
+  provider: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  reasoning: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  refusal: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  request_message_ids: zod.z.array(zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)).nullable().describe("`message_queue_contents.id`s the API consumed to seed this\nturn's request. Stamped onto the first assistant chunk the\nAPI emits downstream \u2014 when set, the consumer owns these\nrows. Kinds are resolved CLI-side at write time (SQL CASE\nagainst `message_queue_contents.kind`), so the wire stays\n`i64`-only. Both `None` and `Some(empty)` are skipped on\nserialize.").meta({ omitempty: true }).optional(),
+  role: AgentCompletionsResponseAssistantRoleSchema,
+  service_tier: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  system_fingerprint: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  tool_calls: zod.z.array(AgentCompletionsMessageAssistantToolCallDeltaSchema).nullable().meta({ omitempty: true }).optional(),
+  upstream_id: zod.z.string(),
+  usage: AgentCompletionsResponseUpstreamUsageSchema.nullable().describe("Upstream usage for this assistant response (set by upstream clients).").meta({ omitempty: true }).optional()
+}).describe("A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.").meta({ title: "agent.completions.response.streaming.AssistantResponseChunk" });
+var AgentCompletionsResponseToolRoleSchema = zod.z.literal("tool").meta({ title: "agent.completions.response.ToolRole" });
+
+// src/agent/completions/response/toolResponse.ts
+var AgentCompletionsResponseToolResponseSchema = zod.z.object({
+  content: AgentCompletionsMessageRichContentSchema.describe("The content of the tool response."),
+  index: zod.z.number().int().min(0).max(18446744073709552e3),
+  metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().describe("Optional vendor-extension metadata, populated by\n`objectiveai-mcp-proxy` via MCP's `_meta` extension bag.").meta({ omitempty: true }).optional(),
+  request_message_ids: zod.z.array(zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)).nullable().describe("Mirrors `AssistantResponseChunk.request_message_ids` \u2014\nthe consumed `message_queue_contents.id`s. Currently never\npopulated (the API stamps the assistant chunk instead);\nthe field exists so the wire shape is symmetric across\nthe two `MessageChunk` variants. Both `None` and\n`Some(empty)` are skipped on serialize.").meta({ omitempty: true }).optional(),
+  role: AgentCompletionsResponseToolRoleSchema,
+  tool_call_id: zod.z.string().describe("The ID of the tool call this message responds to.")
+}).describe("A tool message containing the result of a tool call.").meta({ title: "agent.completions.response.ToolResponse" });
+
+// src/agent/completions/response/streaming/messageChunk.ts
+var AgentCompletionsResponseStreamingMessageChunkSchema = zod.z.union([AgentCompletionsResponseStreamingAssistantResponseChunkSchema.meta({ "title": "agent.completions.response.streaming.AssistantResponseChunk", "variantTitle": "Assistant" }), AgentCompletionsResponseToolResponseSchema.meta({ "title": "agent.completions.response.ToolResponse", "variantTitle": "Tool" })]).meta({ title: "agent.completions.response.streaming.MessageChunk" });
+var AgentCompletionsResponseStreamingObjectSchema = zod.z.literal("agent.completion.chunk").describe("A agent completion chunk object.").meta({ title: "agent.completions.response.streaming.Object" });
+var AgentCompletionsResponseUsageSchema = zod.z.object({
+  completion_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total tokens generated across all assistant responses."),
+  completion_tokens_details: AgentCompletionsResponseCompletionTokensDetailsSchema.nullable().describe("Breakdown of completion tokens (reasoning, audio, etc.) if available.").meta({ omitempty: true }).optional(),
+  cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Cost charged by ObjectiveAI for this request."),
+  cost_details: AgentCompletionsResponseCostDetailsSchema.nullable().describe("Breakdown of upstream and upstream_upstream costs if available.").meta({ omitempty: true }).optional(),
+  prompt_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Total prompt tokens across all assistant responses."),
+  prompt_tokens_details: AgentCompletionsResponsePromptTokensDetailsSchema.nullable().describe("Breakdown of prompt tokens (cached, audio, etc.) if available.").meta({ omitempty: true }).optional(),
+  total_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
+  total_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Sum of completion and prompt tokens.")
+}).describe('Aggregated token and cost usage for an agent completion.\n\nThis is the "primary" usage type that aggregates across all upstream\nassistant responses within a single agent completion.').meta({ title: "agent.completions.response.Usage" });
+var AgentUpstreamSchema = zod.z.union([zod.z.literal("unknown").describe("Unknown Upstream.").meta({ "variantTitle": "Unknown" }), zod.z.literal("openrouter").describe("OpenRouter Upstream.").meta({ "variantTitle": "Openrouter" }), zod.z.literal("claude_agent_sdk").describe("Claude Agent SDK Upstream.").meta({ "variantTitle": "ClaudeAgentSdk" }), zod.z.literal("codex_sdk").describe("Codex SDK Upstream.").meta({ "variantTitle": "CodexSdk" }), zod.z.literal("mock").describe("Mock Upstream.").meta({ "variantTitle": "Mock" })]).describe("Supported agent upstreams.").meta({ title: "agent.Upstream" });
+var ErrorResponseErrorSchema = zod.z.object({
+  code: zod.z.number().int().min(0).max(65535).describe("The HTTP status code of the error response."),
+  message: JsonValueSchema.describe("The error message or details as a JSON value.")
+}).describe("An error returned by the ObjectiveAI API.\n\nThis struct represents an API error response containing an HTTP status\ncode and a message. The message can be any JSON value, allowing for\nboth simple string errors and structured error objects.").meta({ title: "error.ResponseError" });
+
+// src/agent/completions/response/streaming/agentCompletionChunk.ts
+var AgentCompletionsResponseStreamingAgentCompletionChunkSchema = zod.z.object({
+  agent_full_id: zod.z.string().describe("WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request."),
+  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot."),
+  agent_instance_hierarchy: zod.z.string().describe("Full agent instance hierarchy for this completion's slot \u2014\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot."),
+  agent_remote: RemotePathSchema.nullable().describe("`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.").meta({ omitempty: true }).optional(),
+  continuation: zod.z.string().nullable().describe("Continuation state for multi-turn conversations (only present in the final chunk).").meta({ omitempty: true }).optional(),
+  created: zod.z.number().int().min(0).max(18446744073709552e3),
+  error: ErrorResponseErrorSchema.nullable().describe("Error details if this completion failed.").meta({ omitempty: true }).optional(),
   id: zod.z.string(),
-  object: VectorCompletionsResponseStreamingObjectSchema,
-  scores: zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)),
-  swarm: zod.z.string(),
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional(),
-  votes: zod.z.array(VectorCompletionsResponseVoteSchema),
-  weights: zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22))
-}).meta({ title: "vector.completions.response.streaming.VectorCompletionChunkLog" });
+  messages: zod.z.array(AgentCompletionsResponseStreamingMessageChunkSchema),
+  messages_queued: zod.z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. Only\nset when `continuation` is also set \u2014 the caller acts on it by\nissuing the continuation. Absent when nothing is queued, when\nthere is no continuation to act on, or when the peek failed\n(the failure is surfaced via `error`).").meta({ omitempty: true }).optional(),
+  object: AgentCompletionsResponseStreamingObjectSchema.describe('The object type (always "agent.completion.chunk").'),
+  upstream: AgentUpstreamSchema.describe("Upstream provider"),
+  usage: AgentCompletionsResponseUsageSchema.nullable().describe("Token usage (only present in the final chunk).").meta({ omitempty: true }).optional()
+}).describe("A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.").meta({ title: "agent.completions.response.streaming.AgentCompletionChunk" });
 
-// src/cli/command/agents/read/id/response.ts
-var CliCommandAgentsReadIdResponseSchema = zod.z.union([zod.z.object({
-  type: zod.z.literal("agents_completions_response"),
-  value: AgentCompletionsResponseStreamingAgentCompletionChunkLogSchema
-}).meta({ "variantTitle": "AgentsCompletionsResponse" }), zod.z.object({
-  type: zod.z.literal("agents_completions_request"),
-  value: AgentCompletionsRequestAgentCompletionCreateParamsLogSchema
-}).meta({ "variantTitle": "AgentsCompletionsRequest" }), zod.z.object({
-  type: zod.z.literal("agents_completions_response_messages_assistant"),
-  value: AgentCompletionsResponseStreamingAssistantResponseChunkLogSchema
-}).meta({ "variantTitle": "AgentsCompletionsResponseMessagesAssistant" }), zod.z.object({
-  type: zod.z.literal("agents_completions_response_messages_tool"),
-  value: AgentCompletionsResponseToolResponseLogSchema
-}).meta({ "variantTitle": "AgentsCompletionsResponseMessagesTool" }), zod.z.object({
-  type: zod.z.literal("agents_completions_request_messages"),
-  value: AgentCompletionsMessageMessageLogSchema
-}).meta({ "variantTitle": "AgentsCompletionsRequestMessages" }), zod.z.object({
-  type: zod.z.literal("agents_completions_response_messages_assistant_logprobs"),
-  value: AgentCompletionsResponseLogprobsSchema
-}).meta({ "variantTitle": "AgentsCompletionsResponseMessagesAssistantLogprobs" }), zod.z.object({
-  type: zod.z.literal("agents_completions_response_messages_assistant_tool_calls"),
-  value: AgentCompletionsMessageAssistantToolCallDeltaSchema
-}).meta({ "variantTitle": "AgentsCompletionsResponseMessagesAssistantToolCalls" }), zod.z.object({
-  type: zod.z.literal("agents_completions_request_messages_assistant_tool_calls"),
-  value: AgentCompletionsMessageAssistantToolCallSchema
-}).meta({ "variantTitle": "AgentsCompletionsRequestMessagesAssistantToolCalls" }), zod.z.object({
-  type: zod.z.literal("vector_completions_response"),
-  value: VectorCompletionsResponseStreamingVectorCompletionChunkLogSchema
-}).meta({ "variantTitle": "VectorCompletionsResponse" }), zod.z.object({
-  type: zod.z.literal("vector_completions_request"),
-  value: VectorCompletionsRequestVectorCompletionCreateParamsSchema
-}).meta({ "variantTitle": "VectorCompletionsRequest" }), zod.z.object({
-  type: zod.z.literal("functions_executions_response"),
-  value: FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema
-}).meta({ "variantTitle": "FunctionsExecutionsResponse" }), zod.z.object({
-  type: zod.z.literal("functions_executions_request"),
-  value: FunctionsExecutionsRequestFunctionExecutionCreateParamsLogSchema
-}).meta({ "variantTitle": "FunctionsExecutionsRequest" }), zod.z.object({
-  type: zod.z.literal("functions_inventions_response"),
-  value: FunctionsInventionsResponseStreamingFunctionInventionChunkLogSchema
-}).meta({ "variantTitle": "FunctionsInventionsResponse" }), zod.z.object({
-  type: zod.z.literal("functions_inventions_request"),
-  value: FunctionsInventionsRequestFunctionInventionCreateParamsSchema
-}).meta({ "variantTitle": "FunctionsInventionsRequest" }), zod.z.object({
-  type: zod.z.literal("functions_inventions_recursive_response"),
-  value: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkLogSchema
-}).meta({ "variantTitle": "FunctionsInventionsRecursiveResponse" }), zod.z.object({
-  type: zod.z.literal("functions_inventions_recursive_request"),
-  value: FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema
-}).meta({ "variantTitle": "FunctionsInventionsRecursiveRequest" }), zod.z.object({
-  type: zod.z.literal("text"),
-  value: zod.z.string()
-}).meta({ "variantTitle": "Text" }), zod.z.object({
-  type: zod.z.literal("image"),
-  value: AgentCompletionsMessageImageUrlSchema
-}).meta({ "variantTitle": "Image" }), zod.z.object({
-  type: zod.z.literal("audio"),
-  value: AgentCompletionsMessageInputAudioSchema
-}).meta({ "variantTitle": "Audio" }), zod.z.object({
-  type: zod.z.literal("video"),
-  value: AgentCompletionsMessageVideoUrlSchema
-}).meta({ "variantTitle": "Video" }), zod.z.object({
-  type: zod.z.literal("file"),
-  value: AgentCompletionsMessageFileSchema
-}).meta({ "variantTitle": "File" })]).meta({ title: "cli.command.agents.read.id.Response" });
+// src/cli/command/agents/message/responseItem.ts
+var CliCommandAgentsMessageResponseItemSchema = zod.z.union([zod.z.object({
+  type: zod.z.literal("delivered")
+}).meta({ "variantTitle": "Delivered" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("enqueued")
+}).meta({ "variantTitle": "Enqueued" }), zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  type: zod.z.literal("id")
+}).meta({ "variantTitle": "Id" }), AgentCompletionsResponseStreamingAgentCompletionChunkSchema.and(zod.z.object({
+  type: zod.z.literal("chunk")
+})).describe('Newtype-of-struct under an internally-tagged enum: the\nchunk\'s own fields land at the top level of the JSON, with\n`"type":"chunk"` injected. Wire shape equivalent to spawn\'s\n`ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`\ndiscriminator.').meta({ "variantTitle": "Chunk" })]).describe("Streamed response (stream=true). The cli yields a sequence of\nthese. Same `Delivered` / `Enqueued` / `Id` first-item\nsemantics as [`Response`]; the spawn-take-over branch adds\nstreaming `Chunk` items after the initial `Id`.").meta({ title: "cli.command.agents.message.ResponseItem" });
 
-// src/viewer/command/agents/read/id.ts
-async function agentsReadIdExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/id" }), zod.z.union([CliErrorSchema, CliCommandAgentsReadIdResponseSchema]));
+// src/viewer/command/agents/message.ts
+function agentsMessageExecuteStreaming(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "agents/message" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageResponseItemSchema]));
+}
+function agentsMessageExecuteStreamingJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "agents/message" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsMessageExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "agents/message" }), zod.z.union([CliErrorSchema, CliCommandAgentsMessageResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id: cli produced no output before the end marker");
+    throw new Error("agents message: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadIdExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/id" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsMessageExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "agents/message" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id: cli produced no output before the end marker");
+    throw new Error("agents message: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadIdRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsMessageRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id request_schema: cli produced no output before the end marker");
+    throw new Error("agents message request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadIdRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsMessageRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id request_schema: cli produced no output before the end marker");
+    throw new Error("agents message request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadIdResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsMessageResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/message/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id response_schema: cli produced no output before the end marker");
+    throw new Error("agents message response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadIdResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsMessageResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/message/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read id response_schema: cli produced no output before the end marker");
+    throw new Error("agents message response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-var CliCommandAgentsReadPendingResponseItemSchema = zod.z.object({
-  agent_id: zod.z.string(),
-  items: zod.z.array(CliCommandAgentsReadAllResponseQueueItemSchema)
-}).meta({ title: "cli.command.agents.read.pending.ResponseItem" });
+var CliCommandAgentsPublishResponseSchema = zod.z.object({
+  sha: zod.z.string()
+}).meta({ title: "cli.command.agents.publish.Response" });
 
-// src/viewer/command/agents/read/pending.ts
-function agentsReadPendingExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/pending" }), zod.z.union([CliErrorSchema, CliCommandAgentsReadPendingResponseItemSchema]));
-}
-function agentsReadPendingExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/pending" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsReadPendingRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+// src/viewer/command/agents/publish.ts
+async function agentsPublishExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish" }), zod.z.union([CliErrorSchema, CliCommandAgentsPublishResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read pending request_schema: cli produced no output before the end marker");
+    throw new Error("agents publish: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadPendingRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsPublishExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read pending request_schema: cli produced no output before the end marker");
+    throw new Error("agents publish: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadPendingResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsPublishRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read pending response_schema: cli produced no output before the end marker");
+    throw new Error("agents publish request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadPendingResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsPublishRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read pending response_schema: cli produced no output before the end marker");
+    throw new Error("agents publish request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-var CliCommandAgentsReadSubscribeResponseItemSchema = zod.z.union([zod.z.object({
-  agent_id: zod.z.string(),
-  items: zod.z.array(CliCommandAgentsReadAllResponseQueueItemSchema)
-}).meta({ "variantTitle": "Items" }), zod.z.object({
-  agent_id: zod.z.string()
-}).meta({ "variantTitle": "Inactive" })]).meta({ title: "cli.command.agents.read.subscribe.ResponseItem" });
+async function agentsPublishResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/publish/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents publish response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsPublishResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/publish/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents publish response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsQueueDeleteResponseSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_tag: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  content: AgentCompletionsMessageRichContentSchema,
+  enqueued_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  key: zod.z.string().nullable().describe("Idempotency token, if the dropped row had one.").meta({ omitempty: true }).optional()
+}).describe("What was deleted. Carries every column of the original\n`prompts` row so the caller can confirm the drop:\nexactly one of `agent_instance_hierarchy` / `agent_tag` is set\n(matching the original target), `enqueued_at` is the original\nunix-seconds timestamp, and `content` is the reconstructed\n`RichContent` body.").meta({ title: "cli.command.agents.queue.delete.Response" });
 
-// src/viewer/command/agents/read/subscribe.ts
-function agentsReadSubscribeExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/subscribe" }), zod.z.union([CliErrorSchema, CliCommandAgentsReadSubscribeResponseItemSchema]));
-}
-function agentsReadSubscribeExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsReadSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+// src/viewer/command/agents/queue/delete.ts
+async function agentsQueueDeleteExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/delete" }), zod.z.union([CliErrorSchema, CliCommandAgentsQueueDeleteResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read subscribe request_schema: cli produced no output before the end marker");
+    throw new Error("agents queue delete: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsQueueDeleteExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/delete" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read subscribe request_schema: cli produced no output before the end marker");
+    throw new Error("agents queue delete: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/read/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsQueueDeleteRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/delete/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read subscribe response_schema: cli produced no output before the end marker");
+    throw new Error("agents queue delete request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsReadSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/read/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsQueueDeleteRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/delete/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents read subscribe response_schema: cli produced no output before the end marker");
+    throw new Error("agents queue delete request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueDeleteResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/delete/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue delete response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueDeleteResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/delete/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue delete response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsQueueDeliverAgentActiveTypeSchema = zod.z.literal("AgentActive").meta({ title: "cli.command.agents.queue.deliver.AgentActiveType" });
+
+// src/cli/command/agents/queue/deliver/agentActiveResponseItem.ts
+var CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  type: CliCommandAgentsQueueDeliverAgentActiveTypeSchema
+}).describe("This agent's lock was held by a live owner \u2014 it is already active\nand will drain its own queue; nothing was spawned for it.").meta({ title: "cli.command.agents.queue.deliver.AgentActiveResponseItem" });
+var CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema = zod.z.literal("AgentSpawned").meta({ title: "cli.command.agents.queue.deliver.AgentSpawnedType" });
+
+// src/cli/command/agents/queue/deliver/agentSpawnedResponseItem.ts
+var CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  type: CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema
+}).describe("This agent's lock was won and its spawn has started; its output\nfollows as [`ValueResponseItem`]s (in `stream_spawns` mode).").meta({ title: "cli.command.agents.queue.deliver.AgentSpawnedResponseItem" });
+var CliCommandAgentsQueueDeliverAllAgentsActiveSchema = zod.z.literal("AllAgentsActive").describe('Every target has resolved to active-or-spawned. Wire shape is the\nbare string `"AllAgentsActive"` (a one-variant enum \u2014 a unit\nvariant in the untagged [`ResponseItem`] would serialize as\n`null`, not the marker string). The detached default mode stops\nreading its child at this item.').meta({ title: "cli.command.agents.queue.deliver.AllAgentsActive" });
+var CliCommandAgentsQueueDeliverValueResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string().describe("The delivered agent's `agent_instance_hierarchy`."),
+  value: JsonValueSchema.describe("The typed root item the spawn emitted.")
+}).describe("One output item from one delivered agent's spawn stream. `value`\nis the typed root [`crate::cli::command::ResponseItem`] (the spawn\nitem wrapped at the root) \u2014 boxed because the root union\ntransitively contains *this* type (`agents \u2192 queue \u2192 deliver`),\nand boxing is what makes the recursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union \u2014 that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.").meta({ title: "cli.command.agents.queue.deliver.ValueResponseItem" });
+
+// src/cli/command/agents/queue/deliver/responseItem.ts
+var CliCommandAgentsQueueDeliverResponseItemSchema = zod.z.union([CliCommandAgentsQueueDeliverValueResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.ValueResponseItem", "variantTitle": "Value" }), CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.AgentActiveResponseItem", "variantTitle": "AgentActive" }), CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.AgentSpawnedResponseItem", "variantTitle": "AgentSpawned" }), CliCommandAgentsQueueDeliverAllAgentsActiveSchema.meta({ "title": "cli.command.agents.queue.deliver.AllAgentsActive", "variantTitle": "AllAgentsActive" })]).describe('One stream item from `agents queue deliver`. Untagged \u2014 the\nvariants are disjoint on the wire: `Value` requires `value`,\n`AgentActive` / `AgentSpawned` carry distinct `type` markers, and\n`AllAgentsActive` is the bare string `"AllAgentsActive"`.').meta({ title: "cli.command.agents.queue.deliver.ResponseItem" });
+
+// src/viewer/command/agents/queue/deliver.ts
+function agentsQueueDeliverExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/deliver" }), zod.z.union([CliErrorSchema, CliCommandAgentsQueueDeliverResponseItemSchema]));
+}
+function agentsQueueDeliverExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/deliver" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsQueueDeliverRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/deliver/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue deliver request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueDeliverRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/deliver/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue deliver request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueDeliverResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/deliver/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue deliver response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueDeliverResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/deliver/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue deliver response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/id" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageRichContentPartSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/id" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/id/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadIdResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/id/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read id response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandAgentsQueueReadPendingQueuePartSchema = zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema
+}).describe("One row inside a `ResponseItem` block \u2014 a\n`message_queue_contents` entry. The `id` is the\n`message_queue_contents.id`, which you pass to\n`agents queue read id <n>` to drill into the body.\n`timestamp_queued` is on the enclosing block, not here\n(one block = one `message_queue` parent row, sharing one\n`enqueued_at`).").meta({ title: "cli.command.agents.queue.read.pending.QueuePart" });
+
+// src/cli/command/agents/queue/read/pending/responseItem.ts
+var CliCommandAgentsQueueReadPendingResponseItemSchema = zod.z.union([zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  by: zod.z.literal("agent_instance_hierarchy"),
+  delete_id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.id` \u2014 the row-level id this block\nrepresents. Pass to `agents queue delete <id>` to\nsoft-flip the entire row (all parts) in one call.\nDistinct from each `QueuePart.id` (which is a\n`message_queue_contents.id` for drilling into one\ncontent slot via `agents queue read id`)."),
+  key: zod.z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),
+  parts: zod.z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
+  sender_agent_instance_hierarchy: zod.z.string().describe("AIH of the caller who enqueued \u2014 from\n`message_queue.sender_*`."),
+  timestamp_queued: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.")
+}).meta({ "variantTitle": "AgentInstanceHierarchy" }), zod.z.object({
+  agent_tag: zod.z.string(),
+  by: zod.z.literal("tag"),
+  delete_id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.id`. Pass to `agents queue delete <id>`."),
+  key: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  parts: zod.z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
+  sender_agent_instance_hierarchy: zod.z.string(),
+  timestamp_queued: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
+}).meta({ "variantTitle": "Tag" })]).describe("One pending `message_queue` row, with its content rows\ngrouped as `parts`. Two variants \u2014 direct AIH target or tag\ntarget \u2014 both flat (no nested `LookupState`).").meta({ title: "cli.command.agents.queue.read.pending.ResponseItem" });
+
+// src/viewer/command/agents/queue/read/pending.ts
+function agentsQueueReadPendingExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/pending" }), zod.z.union([CliErrorSchema, CliCommandAgentsQueueReadPendingResponseItemSchema]));
+}
+function agentsQueueReadPendingExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/pending" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function agentsQueueReadPendingRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read pending request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadPendingRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/pending/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read pending request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadPendingResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/queue/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read pending response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function agentsQueueReadPendingResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/queue/read/pending/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("agents queue read pending response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -2519,58 +2071,83 @@ async function agentsSpawnResponseSchemaExecuteJq(request, jq) {
   }
   return first;
 }
-var CliCommandAgentsTagsAddResponseSchema = zod.z.object({
-  agent_full_id: zod.z.string(),
-  name: zod.z.string(),
-  parent_agent_instance_hierarchy: zod.z.string().describe("Resolved parent scope \u2014 filled in with the cli's own\n`Config.agent_instance_hierarchy` when the caller did not\nsupply one.")
-}).meta({ title: "cli.command.agents.tags.add.Response" });
+var CliCommandAgentsSpawnAgentSpecSchema = zod.z.union([AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.meta({ "title": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional", "variantTitle": "Resolved" }), zod.z.string().meta({ "variantTitle": "Favorite" })]).describe("CLI-surface form for the `--agent` / `--agent-inline` argument: either\na fully resolved inline-or-remote spec, or a bare favorite name that\nthe CLI resolves to one of those at handler time. Untagged: an inline\nagent object or a remote-path object deserializes into `Resolved`; a\nbare JSON string lands on `Favorite`.").meta({ title: "cli.command.agents.spawn.AgentSpec" });
 
-// src/viewer/command/agents/tags/add.ts
-async function agentsTagsAddExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/add" }), zod.z.union([CliErrorSchema, CliCommandAgentsTagsAddResponseSchema]));
+// src/cli/command/agents/tags/apply/response.ts
+var CliCommandAgentsTagsApplyResponseSchema = zod.z.union([zod.z.object({
+  agent_instance: zod.z.string(),
+  agent_instance_hierarchy: zod.z.string().describe("`{parent}/{agent_instance}`."),
+  by: zod.z.literal("agent_instance"),
+  name: zod.z.string(),
+  parent_agent_instance_hierarchy: zod.z.string()
+}).meta({ "variantTitle": "AgentInstance" }), zod.z.object({
+  agent_spec: CliCommandAgentsSpawnAgentSpecSchema,
+  by: zod.z.literal("agent"),
+  name: zod.z.string(),
+  parent_agent_instance_hierarchy: zod.z.string(),
+  tag_group_id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
+}).meta({ "variantTitle": "Agent" }), zod.z.union([zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  agent_tag: zod.z.string(),
+  by: zod.z.literal("agent_tag"),
+  name: zod.z.string(),
+  state: zod.z.literal("bound")
+}).meta({ "variantTitle": "Bound" }), zod.z.object({
+  agent_spec: CliCommandAgentsSpawnAgentSpecSchema,
+  agent_tag: zod.z.string(),
+  by: zod.z.literal("agent_tag"),
+  name: zod.z.string(),
+  parent_agent_instance_hierarchy: zod.z.string(),
+  state: zod.z.literal("grouped"),
+  tag_group_id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
+}).meta({ "variantTitle": "Grouped" })]).describe('Wire shape mirrors the resolved source state:\n`{"by":"agent_tag","name":...,"agent_tag":...,"state":"bound"|"grouped", \u2026}`.').meta({ "variantTitle": "AgentTag" })]).describe("Apply response. Each variant carries the freshly-applied state\nso callers don't need a follow-up lookup.").meta({ title: "cli.command.agents.tags.apply.Response" });
+
+// src/viewer/command/agents/tags/apply.ts
+async function agentsTagsApplyExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/apply" }), zod.z.union([CliErrorSchema, CliCommandAgentsTagsApplyResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add: cli produced no output before the end marker");
+    throw new Error("agents tags apply: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsTagsAddExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/add" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsTagsApplyExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/apply" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add: cli produced no output before the end marker");
+    throw new Error("agents tags apply: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsTagsAddRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsTagsApplyRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/apply/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add request_schema: cli produced no output before the end marker");
+    throw new Error("agents tags apply request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsTagsAddRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsTagsApplyRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/apply/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add request_schema: cli produced no output before the end marker");
+    throw new Error("agents tags apply request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsTagsAddResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsTagsApplyResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tags/apply/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add response_schema: cli produced no output before the end marker");
+    throw new Error("agents tags apply response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function agentsTagsAddResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function agentsTagsApplyResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tags/apply/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("agents tags add response_schema: cli produced no output before the end marker");
+    throw new Error("agents tags apply response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -2603,152 +2180,6 @@ async function agentsTagsLookupResponseSchemaExecuteJq(request, jq) {
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("agents tags lookup response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsTasksListResponseItemSchema = zod.z.object({
-  agent_instance_hierarchy: zod.z.string(),
-  command: zod.z.array(zod.z.string()),
-  created_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  description: zod.z.string(),
-  id: zod.z.string().describe('Stable identifier \u2014 `"{name}-{db_id}"` where `name` is the\n`--name` passed to `agents tasks schedule` and `db_id` is\nthe row id from `schedules`. Same shape `agents tasks run`\ntags each emitted item with.'),
-  interval: zod.z.string().nullable().describe('`None` for a oneshot; `Some("30s" / "1h" / "1d12h" / \u2026)`\nfor a recurring schedule, formatted as humantime so the\nlist output reads naturally without a unit-conversion\nstep at the consumer. The CLI parser accepts the same\nshape on `agents tasks schedule --interval`.').meta({ omitempty: true }).optional(),
-  last_ran_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Unix seconds of the most recent invocation. `None` until\nthe runner has fired this schedule at least once.").meta({ omitempty: true }).optional()
-}).describe("One schedule row.").meta({ title: "cli.command.agents.tasks.list.ResponseItem" });
-
-// src/viewer/command/agents/tasks/list.ts
-function agentsTasksListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/list" }), zod.z.union([CliErrorSchema, CliCommandAgentsTasksListResponseItemSchema]));
-}
-function agentsTasksListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsTasksListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsTasksRunResponseItemSchema = zod.z.object({
-  id: zod.z.string(),
-  value: JsonValueSchema
-}).describe("One output item from one fired schedule's in-process stream.\n`id` is the source schedule's stable identifier, formatted\n`\"{name}-{db_id}\"` so it's both human-readable (the user-\nsupplied `--name` from `schedule`) and globally unique (the\nrow id from `schedules`). `value` is the typed root\n[`crate::cli::command::ResponseItem`] emitted by the scheduled\ncli leaf \u2014 boxed because the root union transitively contains\n*this* variant (`agents \u2192 tasks \u2192 run`), and boxing is what\nmakes the recursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union \u2014 that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.").meta({ title: "cli.command.agents.tasks.run.ResponseItem" });
-
-// src/viewer/command/agents/tasks/run.ts
-function agentsTasksRunExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/run" }), zod.z.union([CliErrorSchema, CliCommandAgentsTasksRunResponseItemSchema]));
-}
-function agentsTasksRunExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/run" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function agentsTasksRunRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/run/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks run request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksRunRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/run/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks run request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksRunResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/run/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks run response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksRunResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/run/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks run response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandAgentsTasksScheduleResponseSchema = zod.z.object({
-  id: zod.z.string()
-}).describe('`id` is the stable identifier `"{name}-{db_id}"` \u2014 the\nuser-supplied `--name` joined to the row id from\n`tasks.sqlite`\'s `schedules` table. Same shape `list` and\n`run` use to identify rows on the wire.').meta({ title: "cli.command.agents.tasks.schedule.Response" });
-
-// src/viewer/command/agents/tasks/schedule.ts
-async function agentsTasksScheduleExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/schedule" }), zod.z.union([CliErrorSchema, CliCommandAgentsTasksScheduleResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksScheduleExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/schedule" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksScheduleRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/schedule/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksScheduleRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/schedule/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksScheduleResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "agents/tasks/schedule/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function agentsTasksScheduleResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "agents/tasks/schedule/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("agents tasks schedule response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -3264,155 +2695,6 @@ async function configFunctionsGetResponseSchemaExecuteJq(request, jq) {
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("config functions get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandConfigFunctionsInventionsGetResponseSchema = zod.z.object({
-  remote: RemoteSchema
-}).meta({ title: "cli.command.config.functions.inventions.get.Response" });
-
-// src/viewer/command/config/functions/inventions/get.ts
-async function configFunctionsInventionsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/get" }), zod.z.union([CliErrorSchema, CliCommandConfigFunctionsInventionsGetResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/remote/get" }), zod.z.union([CliErrorSchema, RemoteSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/remote/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/remote/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/remote/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/remote/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/remote/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/functions/inventions/remote/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/functions/inventions/remote/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/remote/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/remote/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/functions/inventions/remote/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function configFunctionsInventionsRemoteSetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/functions/inventions/remote/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("config functions inventions remote set response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -4887,6 +4169,77 @@ async function configViewerSignatureSetResponseSchemaExecuteJq(request, jq) {
   }
   return first;
 }
+var CliCommandDbQueryColumnSchema = zod.z.object({
+  name: zod.z.string(),
+  type: zod.z.string()
+}).describe('One result column. `r#type` is the Postgres `pg_type.typname`\n(e.g. `"int8"`, `"text"`, `"jsonb"`, `"timestamptz"`). Callers\nneeding precision/scale/array-element-type can inspect the\nname; richer typeinfo is deferred.').meta({ title: "cli.command.db.query.Column" });
+
+// src/cli/command/db/query/response.ts
+var CliCommandDbQueryResponseSchema = zod.z.object({
+  columns: zod.z.array(CliCommandDbQueryColumnSchema).describe("Result columns in select-list order. Empty for no-row\nstatements (SET / LISTEN / DO)."),
+  command_tag: zod.z.string().describe('Wire-protocol-style command tag \u2014 e.g. `"SELECT 5"`,\n`"SHOW 1"`, `"EXPLAIN 12"`, `"SET 0"`. Synthesized from\n`{leading_keyword} {row_count}` since sqlx 0.8 doesn\'t\nexpose the wire-protocol `CommandComplete` tag; close\nenough for telemetry / display.'),
+  rows: zod.z.array(zod.z.array(JsonValueSchema)).describe("One inner Vec per row, length matches `columns.len()`.\nEach cell is a `serde_json::Value` produced by the CLI's\nper-cell `pg_value_to_json` decoder. Common type\nencodings: text/uuid/timestamps as JSON String, numeric\nas String (preserving precision), bytea as base64 String,\njson/jsonb passthrough as Value, arrays recurse. Empty\nwhen the statement returns no rows (no-row command OR a\nSELECT with no matches)."),
+  truncated: zod.z.boolean().describe('Always `false` in the current design \u2014 over-budget\nresponses return `TokenBudgetExceeded` rather than a\npartial result. Reserved on the wire so a future "soft\ntruncation" mode can be added without a shape break.')
+}).describe("Unary response from `db query`.").meta({ title: "cli.command.db.query.Response" });
+
+// src/viewer/command/db/query.ts
+async function dbQueryExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "db/query" }), zod.z.union([CliErrorSchema, CliCommandDbQueryResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function dbQueryExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "db/query" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function dbQueryRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "db/query/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function dbQueryRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "db/query/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function dbQueryResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "db/query/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function dbQueryResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "db/query/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("db query response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var FunctionsExpressionTaskOutputSchema = zod.z.union([zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("A single scalar score.").meta({ "variantTitle": "Scalar" }), zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)).describe("A vector of scores.").meta({ "variantTitle": "Vector" }), zod.z.array(zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22))).describe("Multiple vectors of scores (from mapped tasks).").meta({ "variantTitle": "Vectors" }), zod.z.object({
+  error: JsonValueSchema
+}).describe("An error occurred during execution.").meta({ "variantTitle": "Err" })]).describe("Owned task output variants.").meta({ title: "functions.expression.TaskOutput" });
+
+// src/functions/executions/response/output.ts
+var FunctionsExecutionsResponseOutputSchema = zod.z.object({
+  output: FunctionsExpressionTaskOutputSchema
+}).describe("Wrapper for function execution output, distinguishing between\na null output value and a missing output.").meta({ title: "functions.executions.response.Output" });
+var FunctionsExecutionsResponseStreamingObjectSchema = zod.z.enum(["scalar.function.execution.chunk", "vector.function.execution.chunk"]).meta({ title: "functions.executions.response.streaming.Object" });
 var FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema = zod.z.object({
   agent_full_id: zod.z.string().describe("WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request."),
   agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot."),
@@ -4938,6 +4291,19 @@ var VectorCompletionsResponseStreamingAgentCompletionChunkSchema = zod.z.object(
   upstream: AgentUpstreamSchema.describe("Upstream provider"),
   usage: AgentCompletionsResponseUsageSchema.nullable().describe("Token usage (only present in the final chunk).").meta({ omitempty: true }).optional()
 }).describe("A streaming agent completion chunk from a single agent within a vector completion.\n\nThe `index` field is used to correlate chunks belonging to the same\nunderlying completion when accumulating via [`push`](Self::push).").meta({ title: "vector.completions.response.streaming.AgentCompletionChunk" });
+var VectorCompletionsResponseStreamingObjectSchema = zod.z.literal("vector.completion.chunk").describe("A streaming vector completion chunk.").meta({ title: "vector.completions.response.streaming.Object" });
+var VectorCompletionsResponseVoteSchema = zod.z.object({
+  agent_full_id: zod.z.string().describe("WF-level id of the agent that produced this vote \u2014 concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes."),
+  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's."),
+  flat_swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Flattened index accounting for agent counts in the swarm."),
+  from_cache: zod.z.boolean().nullable().describe("If true, this vote was retrieved from cache rather than generated fresh.").meta({ omitempty: true }).optional(),
+  prompt_id: zod.z.string().describe("Content hash of the request messages (for caching/deduplication)."),
+  responses_ids: zod.z.array(zod.z.string()).describe("Content hashes of each response option in the request."),
+  retry: zod.z.boolean().nullable().describe("If true, this vote was reused from a previous request via the `retry`\nparameter. All fields reflect the original request's values.").meta({ omitempty: true }).optional(),
+  swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Index of the agent configuration within the swarm."),
+  vote: zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)).describe("The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0."),
+  weight: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The weight applied to this vote when computing final scores.")
+}).describe("A single LLM's vote in a vector completion.\n\nEach LLM in the swarm produces a vote indicating which response(s) it\nselected. Votes are weighted according to the profile and combined to\nproduce the final scores.\n\n# Vote Format\n\nThe `vote` field is a vector of decimals corresponding to the responses\nin the request. Typically one element is 1.0 and the rest are 0.0 (discrete\nselection), but when `top_logprobs` is used, votes may be probability\ndistributions.").meta({ title: "vector.completions.response.Vote" });
 
 // src/functions/executions/response/streaming/vectorCompletionTaskChunk.ts
 var FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema = zod.z.object({
@@ -4975,118 +4341,118 @@ var FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema = zod.z.obj
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "functions.executions.response.streaming.FunctionExecutionChunk" });
 
-// src/cli/command/functions/executions/create/standard/responseItem.ts
-var CliCommandFunctionsExecutionsCreateStandardResponseItemSchema = zod.z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.executions.create.standard.ResponseItem" });
+// src/cli/command/functions/execute/standard/responseItem.ts
+var CliCommandFunctionsExecuteStandardResponseItemSchema = zod.z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.execute.standard.ResponseItem" });
 
-// src/viewer/command/functions/executions/create/standard.ts
-function functionsExecutionsCreateStandardExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/executions/create/standard" }), zod.z.union([CliErrorSchema, CliCommandFunctionsExecutionsCreateStandardResponseItemSchema]));
+// src/viewer/command/functions/execute/standard.ts
+function functionsExecuteStandardExecuteStreaming(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/execute/standard" }), zod.z.union([CliErrorSchema, CliCommandFunctionsExecuteStandardResponseItemSchema]));
 }
-function functionsExecutionsCreateStandardExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/executions/create/standard" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+function functionsExecuteStandardExecuteStreamingJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/execute/standard" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
 }
-async function functionsExecutionsCreateStandardExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/executions/create/standard" }), zod.z.union([CliErrorSchema, zod.z.string()]));
+async function functionsExecuteStandardExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/execute/standard" }), zod.z.union([CliErrorSchema, zod.z.string()]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard: cli produced no output before the end marker");
+    throw new Error("functions execute standard: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateStandardExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/executions/create/standard" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteStandardExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/execute/standard" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard: cli produced no output before the end marker");
+    throw new Error("functions execute standard: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateStandardRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/executions/create/standard/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteStandardRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/execute/standard/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard request_schema: cli produced no output before the end marker");
+    throw new Error("functions execute standard request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateStandardRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/executions/create/standard/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteStandardRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/execute/standard/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard request_schema: cli produced no output before the end marker");
+    throw new Error("functions execute standard request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateStandardResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/executions/create/standard/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteStandardResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/execute/standard/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard response_schema: cli produced no output before the end marker");
+    throw new Error("functions execute standard response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateStandardResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/executions/create/standard/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteStandardResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/execute/standard/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create standard response_schema: cli produced no output before the end marker");
+    throw new Error("functions execute standard response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-var CliCommandFunctionsExecutionsCreateSwissSystemResponseItemSchema = zod.z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.executions.create.swiss_system.ResponseItem" });
+var CliCommandFunctionsExecuteSwissSystemResponseItemSchema = zod.z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.execute.swiss_system.ResponseItem" });
 
-// src/viewer/command/functions/executions/create/swiss_system.ts
-function functionsExecutionsCreateSwissSystemExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/executions/create/swiss_system" }), zod.z.union([CliErrorSchema, CliCommandFunctionsExecutionsCreateSwissSystemResponseItemSchema]));
+// src/viewer/command/functions/execute/swiss_system.ts
+function functionsExecuteSwissSystemExecuteStreaming(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/execute/swiss_system" }), zod.z.union([CliErrorSchema, CliCommandFunctionsExecuteSwissSystemResponseItemSchema]));
 }
-function functionsExecutionsCreateSwissSystemExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/executions/create/swiss_system" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+function functionsExecuteSwissSystemExecuteStreamingJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/execute/swiss_system" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
 }
-async function functionsExecutionsCreateSwissSystemExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/executions/create/swiss_system" }), zod.z.union([CliErrorSchema, zod.z.string()]));
+async function functionsExecuteSwissSystemExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/execute/swiss_system" }), zod.z.union([CliErrorSchema, zod.z.string()]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateSwissSystemExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/executions/create/swiss_system" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteSwissSystemExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/execute/swiss_system" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateSwissSystemRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/executions/create/swiss_system/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteSwissSystemRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/execute/swiss_system/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system request_schema: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateSwissSystemRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/executions/create/swiss_system/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteSwissSystemRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/execute/swiss_system/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system request_schema: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateSwissSystemResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/executions/create/swiss_system/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteSwissSystemResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/execute/swiss_system/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system response_schema: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function functionsExecutionsCreateSwissSystemResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/executions/create/swiss_system/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function functionsExecuteSwissSystemResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/execute/swiss_system/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("functions executions create swiss_system response_schema: cli produced no output before the end marker");
+    throw new Error("functions execute swiss_system response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -5138,270 +4504,6 @@ async function functionsGetResponseSchemaExecuteJq(request, jq) {
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("functions get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var FunctionsInventionsResponseStreamingAgentCompletionChunkSchema = zod.z.object({
-  agent_full_id: zod.z.string().describe("WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request."),
-  agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot."),
-  agent_instance_hierarchy: zod.z.string().describe("Full agent instance hierarchy for this completion's slot \u2014\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot."),
-  agent_remote: RemotePathSchema.nullable().describe("`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.").meta({ omitempty: true }).optional(),
-  continuation: zod.z.string().nullable().describe("Continuation state for multi-turn conversations (only present in the final chunk).").meta({ omitempty: true }).optional(),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().describe("Error details if this completion failed.").meta({ omitempty: true }).optional(),
-  id: zod.z.string(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  messages: zod.z.array(AgentCompletionsResponseStreamingMessageChunkSchema),
-  messages_queued: zod.z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. Only\nset when `continuation` is also set \u2014 the caller acts on it by\nissuing the continuation. Absent when nothing is queued, when\nthere is no continuation to act on, or when the peek failed\n(the failure is surfaced via `error`).").meta({ omitempty: true }).optional(),
-  object: AgentCompletionsResponseStreamingObjectSchema.describe('The object type (always "agent.completion.chunk").'),
-  upstream: AgentUpstreamSchema.describe("Upstream provider"),
-  usage: AgentCompletionsResponseUsageSchema.nullable().describe("Token usage (only present in the final chunk).").meta({ omitempty: true }).optional()
-}).describe("A chunk of a streaming agent completion response.\n\nMultiple chunks are received via Server-Sent Events and can be\naccumulated into a complete [`AgentCompletion`](response::unary::AgentCompletion)\nusing the [`push`](Self::push) method.").meta({ title: "functions.inventions.response.streaming.AgentCompletionChunk" });
-
-// src/functions/inventions/recursive/response/streaming/functionInventionChunk.ts
-var FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunkSchema = zod.z.object({
-  completions: zod.z.array(FunctionsInventionsResponseStreamingAgentCompletionChunkSchema),
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  error: ErrorResponseErrorSchema.nullable().meta({ omitempty: true }).optional(),
-  function: FunctionsFullRemoteFunctionSchema.nullable().meta({ omitempty: true }).optional(),
-  id: zod.z.string(),
-  index: zod.z.number().int().min(0).max(18446744073709552e3),
-  object: FunctionsInventionsResponseStreamingObjectSchema,
-  path: RemotePathSchema.nullable().meta({ omitempty: true }).optional(),
-  state: FunctionsInventionsStateStateSchema.nullable().meta({ omitempty: true }).optional(),
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.recursive.response.streaming.FunctionInventionChunk" });
-
-// src/functions/inventions/recursive/response/streaming/functionInventionRecursiveChunk.ts
-var FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string(),
-  inventions: zod.z.array(FunctionsInventionsRecursiveResponseStreamingFunctionInventionChunkSchema),
-  inventions_errors: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
-  object: FunctionsInventionsRecursiveResponseStreamingObjectSchema,
-  usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
-}).meta({ title: "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk" });
-
-// src/cli/command/functions/inventions/recursive/create/alpha_scalar/responseItem.ts
-var CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItemSchema = zod.z.union([FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema.meta({ "title": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.inventions.recursive.create.alpha_scalar.ResponseItem" });
-
-// src/viewer/command/functions/inventions/recursive/create/alpha_scalar.ts
-function functionsInventionsRecursiveCreateAlphaScalarExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/alpha_scalar" }), zod.z.union([CliErrorSchema, CliCommandFunctionsInventionsRecursiveCreateAlphaScalarResponseItemSchema]));
-}
-function functionsInventionsRecursiveCreateAlphaScalarExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/alpha_scalar" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function functionsInventionsRecursiveCreateAlphaScalarExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/alpha_scalar" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaScalarExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/alpha_scalar" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/alpha_scalar/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/alpha_scalar/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/alpha_scalar/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/alpha_scalar/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_scalar response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandFunctionsInventionsRecursiveCreateAlphaVectorResponseItemSchema = zod.z.union([FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema.meta({ "title": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.inventions.recursive.create.alpha_vector.ResponseItem" });
-
-// src/viewer/command/functions/inventions/recursive/create/alpha_vector.ts
-function functionsInventionsRecursiveCreateAlphaVectorExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/alpha_vector" }), zod.z.union([CliErrorSchema, CliCommandFunctionsInventionsRecursiveCreateAlphaVectorResponseItemSchema]));
-}
-function functionsInventionsRecursiveCreateAlphaVectorExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/alpha_vector" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function functionsInventionsRecursiveCreateAlphaVectorExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/alpha_vector" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaVectorExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/alpha_vector" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/alpha_vector/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/alpha_vector/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/alpha_vector/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/alpha_vector/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create alpha_vector response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItemSchema = zod.z.union([FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema.meta({ "title": "functions.inventions.recursive.response.streaming.FunctionInventionRecursiveChunk", "variantTitle": "Chunk" }), zod.z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.inventions.recursive.create.remote.ResponseItem" });
-
-// src/viewer/command/functions/inventions/recursive/create/remote.ts
-function functionsInventionsRecursiveCreateRemoteExecuteStreaming(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/remote" }), zod.z.union([CliErrorSchema, CliCommandFunctionsInventionsRecursiveCreateRemoteResponseItemSchema]));
-}
-function functionsInventionsRecursiveCreateRemoteExecuteStreamingJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: { ...request.dangerous_advanced ?? {}, stream: true }, path_type: "functions/inventions/recursive/create/remote" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function functionsInventionsRecursiveCreateRemoteExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/remote" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateRemoteExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, dangerous_advanced: request.dangerous_advanced ? { ...request.dangerous_advanced, stream: void 0 } : request.dangerous_advanced, path_type: "functions/inventions/recursive/create/remote" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateRemoteRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/remote/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateRemoteRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/remote/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateRemoteResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/recursive/create/remote/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsRecursiveCreateRemoteResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/recursive/create/remote/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions recursive create remote response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var FunctionsInventionsStateGetFunctionInventionStateResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response from retrieving a function invention state.").meta({ title: "functions.inventions.state.GetFunctionInventionStateResponse" });
-
-// src/viewer/command/functions/inventions/state/get.ts
-async function functionsInventionsStateGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/state/get" }), zod.z.union([CliErrorSchema, FunctionsInventionsStateGetFunctionInventionStateResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsStateGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/state/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsStateGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/state/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsStateGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/state/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsStateGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "functions/inventions/state/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function functionsInventionsStateGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "functions/inventions/state/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("functions inventions state get response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -5683,4060 +4785,6 @@ async function functionsPublishResponseSchemaExecuteJq(request, jq) {
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("functions publish response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/get" }), zod.z.union([CliErrorSchema, AgentCompletionsRequestAgentCompletionCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/audio/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageInputAudioSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/audio/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/file/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageFileSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/file/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/image/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageImageUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/image/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/text/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/text/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/video/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageVideoUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/video/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/messages/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/messages/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request messages video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/audio/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageInputAudioSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/audio/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/file/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageFileSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/file/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/image/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageImageUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/image/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/text/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/text/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/video/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageVideoUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/video/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/notifications/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/notifications/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request notifications video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsRequestAgentCompletionCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsRequestSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/clear.ts
-async function logsAgentsCompletionsResponseClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseContinuationsClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.continuations.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/continuations/clear.ts
-async function logsAgentsCompletionsResponseContinuationsClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseContinuationsClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/subscribe" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/continuations/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/continuations/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response continuations subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/get" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseStreamingAgentCompletionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseListResponseItemSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string()
-}).meta({ title: "cli.command.logs.agents.completions.response.list.ResponseItem" });
-
-// src/viewer/command/logs/agents/completions/response/list.ts
-function logsAgentsCompletionsResponseListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/list" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseListResponseItemSchema]));
-}
-function logsAgentsCompletionsResponseListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function logsAgentsCompletionsResponseListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.audio.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/audio/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageInputAudioSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageInputAudioSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/audio/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant audio subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.file.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/file/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageFileSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageFileSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/file/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant file subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/get" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseStreamingAssistantResponseChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.image.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/image/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageImageUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageImageUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/image/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant image subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.logprobs.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/logprobs/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseLogprobsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseLogprobsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/logprobs/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant logprobs subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.reasoning.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/reasoning/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/reasoning/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant reasoning subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.refusal.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/refusal/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/refusal/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant refusal subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseStreamingAssistantResponseChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/text/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/text/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.tool_calls.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/tool_calls/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageAssistantToolCallDeltaSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageAssistantToolCallDeltaSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/tool_calls/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant tool_calls subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.assistant.video.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/assistant/video/clear.ts
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageVideoUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageVideoUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/assistant/video/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages assistant video subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/audio/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageInputAudioSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/audio/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/audio/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/audio/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool audio get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsAgentsCompletionsResponseMessagesToolClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.agents.completions.response.messages.tool.clear.Response" });
-
-// src/viewer/command/logs/agents/completions/response/messages/tool/clear.ts
-async function logsAgentsCompletionsResponseMessagesToolClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsAgentsCompletionsResponseMessagesToolClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/file/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageFileSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/file/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/file/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/file/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool file get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/get" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseToolResponseLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/image/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageImageUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/image/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/image/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/image/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool image get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseToolResponseLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/text/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/text/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/text/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/text/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool text get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/video/get" }), zod.z.union([CliErrorSchema, AgentCompletionsMessageVideoUrlSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/video/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/video/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/messages/tool/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/messages/tool/video/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response messages tool video get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/subscribe" }), zod.z.union([CliErrorSchema, AgentCompletionsResponseStreamingAgentCompletionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/agents/completions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsAgentsCompletionsResponseSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/agents/completions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs agents completions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.clear.Response" });
-
-// src/viewer/command/logs/clear.ts
-async function logsClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/get" }), zod.z.union([CliErrorSchema, FunctionsExecutionsRequestFunctionExecutionCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/subscribe" }), zod.z.union([CliErrorSchema, FunctionsExecutionsRequestFunctionExecutionCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsRequestSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsExecutionsResponseClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.functions.executions.response.clear.Response" });
-
-// src/viewer/command/logs/functions/executions/response/clear.ts
-async function logsFunctionsExecutionsResponseClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsExecutionsResponseClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/get" }), zod.z.union([CliErrorSchema, FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsExecutionsResponseListResponseItemSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string()
-}).meta({ title: "cli.command.logs.functions.executions.response.list.ResponseItem" });
-
-// src/viewer/command/logs/functions/executions/response/list.ts
-function logsFunctionsExecutionsResponseListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/list" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsExecutionsResponseListResponseItemSchema]));
-}
-function logsFunctionsExecutionsResponseListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function logsFunctionsExecutionsResponseListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsExecutionsResponseRetryTokensClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.functions.executions.response.retry_tokens.clear.Response" });
-
-// src/viewer/command/logs/functions/executions/response/retry_tokens/clear.ts
-async function logsFunctionsExecutionsResponseRetryTokensClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsExecutionsResponseRetryTokensClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/get" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/subscribe" }), zod.z.union([CliErrorSchema, zod.z.string()]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/retry_tokens/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/retry_tokens/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response retry_tokens subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/subscribe" }), zod.z.union([CliErrorSchema, FunctionsExecutionsResponseStreamingFunctionExecutionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/executions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsExecutionsResponseSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/executions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions executions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/get" }), zod.z.union([CliErrorSchema, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/subscribe" }), zod.z.union([CliErrorSchema, FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsInventionsRecursiveResponseClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.functions.inventions.recursive.response.clear.Response" });
-
-// src/viewer/command/logs/functions/inventions/recursive/response/clear.ts
-async function logsFunctionsInventionsRecursiveResponseClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsInventionsRecursiveResponseClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/get" }), zod.z.union([CliErrorSchema, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsInventionsRecursiveResponseListResponseItemSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string()
-}).meta({ title: "cli.command.logs.functions.inventions.recursive.response.list.ResponseItem" });
-
-// src/viewer/command/logs/functions/inventions/recursive/response/list.ts
-function logsFunctionsInventionsRecursiveResponseListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/list" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsInventionsRecursiveResponseListResponseItemSchema]));
-}
-function logsFunctionsInventionsRecursiveResponseListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function logsFunctionsInventionsRecursiveResponseListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/subscribe" }), zod.z.union([CliErrorSchema, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/recursive/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/recursive/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions recursive response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/get" }), zod.z.union([CliErrorSchema, FunctionsInventionsRequestFunctionInventionCreateParamsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/subscribe" }), zod.z.union([CliErrorSchema, FunctionsInventionsRequestFunctionInventionCreateParamsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsRequestSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsInventionsResponseClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.functions.inventions.response.clear.Response" });
-
-// src/viewer/command/logs/functions/inventions/response/clear.ts
-async function logsFunctionsInventionsResponseClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsInventionsResponseClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/get" }), zod.z.union([CliErrorSchema, FunctionsInventionsResponseStreamingFunctionInventionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsFunctionsInventionsResponseListResponseItemSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string()
-}).meta({ title: "cli.command.logs.functions.inventions.response.list.ResponseItem" });
-
-// src/viewer/command/logs/functions/inventions/response/list.ts
-function logsFunctionsInventionsResponseListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/list" }), zod.z.union([CliErrorSchema, CliCommandLogsFunctionsInventionsResponseListResponseItemSchema]));
-}
-function logsFunctionsInventionsResponseListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function logsFunctionsInventionsResponseListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/subscribe" }), zod.z.union([CliErrorSchema, FunctionsInventionsResponseStreamingFunctionInventionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/functions/inventions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsFunctionsInventionsResponseSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/functions/inventions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs functions inventions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/get" }), zod.z.union([CliErrorSchema, VectorCompletionsRequestVectorCompletionCreateParamsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/subscribe" }), zod.z.union([CliErrorSchema, VectorCompletionsRequestVectorCompletionCreateParamsSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsRequestSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/request/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions request subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsVectorCompletionsResponseClearResponseSchema = zod.z.object({
-  count: zod.z.number().int().min(0).max(18446744073709552e3)
-}).meta({ title: "cli.command.logs.vector.completions.response.clear.Response" });
-
-// src/viewer/command/logs/vector/completions/response/clear.ts
-async function logsVectorCompletionsResponseClearExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/clear" }), zod.z.union([CliErrorSchema, CliCommandLogsVectorCompletionsResponseClearResponseSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseClearExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/clear" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseClearRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseClearRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/clear/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseClearResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseClearResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/clear/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response clear response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/get" }), zod.z.union([CliErrorSchema, VectorCompletionsResponseStreamingVectorCompletionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseGetResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response get response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-var CliCommandLogsVectorCompletionsResponseListResponseItemSchema = zod.z.object({
-  created: zod.z.number().int().min(0).max(18446744073709552e3),
-  id: zod.z.string()
-}).meta({ title: "cli.command.logs.vector.completions.response.list.ResponseItem" });
-
-// src/viewer/command/logs/vector/completions/response/list.ts
-function logsVectorCompletionsResponseListExecute(request) {
-  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/list" }), zod.z.union([CliErrorSchema, CliCommandLogsVectorCompletionsResponseListResponseItemSchema]));
-}
-function logsVectorCompletionsResponseListExecuteJq(request, jq) {
-  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-}
-async function logsVectorCompletionsResponseListRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseListRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response list request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseListResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseListResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response list response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/subscribe" }), zod.z.union([CliErrorSchema, VectorCompletionsResponseStreamingVectorCompletionChunkLogSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/subscribe" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeRequestSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/subscribe/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe request_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "logs/vector/completions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe response_schema: cli produced no output before the end marker");
-  }
-  return first;
-}
-async function logsVectorCompletionsResponseSubscribeResponseSchemaExecuteJq(request, jq) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "logs/vector/completions/response/subscribe/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
-  const first = await stream.first();
-  if (first === void 0) {
-    throw new Error("logs vector completions response subscribe response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -10295,9 +5343,187 @@ async function swarmsPublishResponseSchemaExecuteJq(request, jq) {
   }
   return first;
 }
+var CliCommandTasksListPluginSchema = zod.z.object({
+  owner: zod.z.string(),
+  repository: zod.z.string(),
+  version: zod.z.string()
+}).describe("The plugin that registered a schedule. All three fields are present\ntogether or the whole object is absent (the `schedules` table\nenforces all-or-nothing on its `plugin_*` columns).").meta({ title: "cli.command.tasks.list.Plugin" });
+
+// src/cli/command/tasks/list/responseItem.ts
+var CliCommandTasksListResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  command: zod.z.array(zod.z.string()),
+  created_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  description: zod.z.string(),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("The `schedules` row id. Monotonic; pass the highest `id` from a\npage as the next request's `after_id` to paginate forward."),
+  interval: zod.z.string().nullable().describe('`None` for a oneshot; `Some("30s" / "1h" / "1d12h" / \u2026)`\nfor a recurring schedule, formatted as humantime so the\nlist output reads naturally without a unit-conversion\nstep at the consumer. The CLI parser accepts the same\nshape on `agents tasks schedule --interval`.').meta({ omitempty: true }).optional(),
+  last_ran_at: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Unix seconds of the most recent invocation \u2014 this row's newest\n`tasks_runs` entry. `None` until the runner has fired this\nversion at least once (runs are tracked per-version).").meta({ omitempty: true }).optional(),
+  name: zod.z.string().describe("The `--name` passed to `agents tasks schedule`. Unique per\n`agent_instance_hierarchy`."),
+  plugin: CliCommandTasksListPluginSchema.nullable().describe("The plugin that registered this schedule (its `(owner,\nrepository, version)` coordinate), or `None` when it was not\nscheduled by a plugin.").meta({ omitempty: true }).optional(),
+  version: zod.z.number().int().min(0).max(18446744073709552e3).describe("This row's version: `1` for a freshly scheduled task,\n`max + 1` for each `tasks schedule --overwrite` (each version\nis its own row; only the newest lists).")
+}).describe("One schedule row.").meta({ title: "cli.command.tasks.list.ResponseItem" });
+
+// src/viewer/command/tasks/list.ts
+function tasksListExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/list" }), zod.z.union([CliErrorSchema, CliCommandTasksListResponseItemSchema]));
+}
+function tasksListExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/list" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function tasksListRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks list request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksListRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/list/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks list request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksListResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks list response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksListResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/list/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks list response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandTasksRunSuccessResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string().describe("The source schedule's `agent_instance_hierarchy`."),
+  name: zod.z.string().describe("The source schedule's `--name`."),
+  plugin: CliCommandTasksListPluginSchema.nullable().describe("The plugin that registered the source schedule, if any.").meta({ omitempty: true }).optional(),
+  success: zod.z.boolean().describe("Whether the task's stream completed without a trailing error."),
+  version: zod.z.number().int().min(0).max(18446744073709552e3).describe("The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).")
+}).describe("One per-task completion summary (default mode): the same schedule\nidentity as [`ValueResponseItem`], with `success` in lieu of\n`value`. `success` is `false` iff the task's FINAL emitted item was\nan error (a task that emitted nothing is a success). The task's\nfull output is in `tasks_logs` regardless.").meta({ title: "cli.command.tasks.run.SuccessResponseItem" });
+var CliCommandTasksRunValueResponseItemSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string().describe("The source schedule's `agent_instance_hierarchy`."),
+  name: zod.z.string().describe("The source schedule's `--name`."),
+  plugin: CliCommandTasksListPluginSchema.nullable().describe("The plugin that registered the source schedule, if any.").meta({ omitempty: true }).optional(),
+  value: JsonValueSchema.describe("The typed root item emitted by the scheduled command."),
+  version: zod.z.number().int().min(0).max(18446744073709552e3).describe("The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).")
+}).describe("One output item from one fired schedule's in-process stream\n(`stream_all` mode). The first four fields identify the source\nschedule; `value` is the typed root\n[`crate::cli::command::ResponseItem`] emitted by the scheduled cli\nleaf \u2014 boxed because the root union transitively contains *this*\ntype (`agents \u2192 tasks \u2192 run`), and boxing is what makes the\nrecursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union \u2014 that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.").meta({ title: "cli.command.tasks.run.ValueResponseItem" });
+
+// src/cli/command/tasks/run/responseItem.ts
+var CliCommandTasksRunResponseItemSchema = zod.z.union([CliCommandTasksRunValueResponseItemSchema.meta({ "title": "cli.command.tasks.run.ValueResponseItem", "variantTitle": "Value" }), CliCommandTasksRunSuccessResponseItemSchema.meta({ "title": "cli.command.tasks.run.SuccessResponseItem", "variantTitle": "Success" })]).describe("One stream item from `tasks run`. Untagged \u2014 the variants'\nrequired fields (`value` vs `success`) are disjoint, so the wire\nshape is just the inner object. Which variant flows is decided by\nthe request's `stream_all`: `true` streams every emitted item as a\n[`ValueResponseItem`]; `false` (default) yields exactly one\n[`SuccessResponseItem`] per task when its stream completes.").meta({ title: "cli.command.tasks.run.ResponseItem" });
+
+// src/viewer/command/tasks/run.ts
+function tasksRunExecute(request) {
+  return new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/run" }), zod.z.union([CliErrorSchema, CliCommandTasksRunResponseItemSchema]));
+}
+function tasksRunExecuteJq(request, jq) {
+  return new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/run" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+}
+async function tasksRunRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/run/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks run request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksRunRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/run/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks run request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksRunResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/run/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks run response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksRunResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/run/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks run response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandTasksScheduleResponseSchema = zod.z.object({
+  agent_instance_hierarchy: zod.z.string(),
+  name: zod.z.string(),
+  version: zod.z.number().int().min(0).max(18446744073709552e3)
+}).describe("The created schedule's user-facing identity: its `--name`, the\ncaller hierarchy it was registered under, and the version this call\nminted (`1` on first creation, `max + 1` per `--overwrite` \u2014 each\nversion is its own row; older versions are shadowed but kept for\nper-version run history).").meta({ title: "cli.command.tasks.schedule.Response" });
+
+// src/viewer/command/tasks/schedule.ts
+async function tasksScheduleExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/schedule" }), zod.z.union([CliErrorSchema, CliCommandTasksScheduleResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksScheduleExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/schedule" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksScheduleRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/schedule/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksScheduleRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/schedule/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksScheduleResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "tasks/schedule/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function tasksScheduleResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "tasks/schedule/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tasks schedule response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandToolsGetExecSchema = zod.z.object({
+  linux: zod.z.array(zod.z.string()),
+  macos: zod.z.array(zod.z.string()),
+  windows: zod.z.array(zod.z.string())
+}).describe("Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder\n(where `objectiveai.json` lives).").meta({ title: "cli.command.tools.get.Exec" });
+
+// src/cli/command/tools/get/responseManifest.ts
 var CliCommandToolsGetResponseManifestSchema = zod.z.object({
   description: zod.z.string(),
-  exec: zod.z.string(),
+  exec: CliCommandToolsGetExecSchema,
   name: zod.z.string(),
   owner: zod.z.string(),
   source: zod.z.string(),
@@ -10844,58 +6070,52 @@ exports.agentsGetRequestSchemaExecute = agentsGetRequestSchemaExecute;
 exports.agentsGetRequestSchemaExecuteJq = agentsGetRequestSchemaExecuteJq;
 exports.agentsGetResponseSchemaExecute = agentsGetResponseSchemaExecute;
 exports.agentsGetResponseSchemaExecuteJq = agentsGetResponseSchemaExecuteJq;
-exports.agentsListActiveExecute = agentsListActiveExecute;
-exports.agentsListActiveExecuteJq = agentsListActiveExecuteJq;
-exports.agentsListActiveRequestSchemaExecute = agentsListActiveRequestSchemaExecute;
-exports.agentsListActiveRequestSchemaExecuteJq = agentsListActiveRequestSchemaExecuteJq;
-exports.agentsListActiveResponseSchemaExecute = agentsListActiveResponseSchemaExecute;
-exports.agentsListActiveResponseSchemaExecuteJq = agentsListActiveResponseSchemaExecuteJq;
-exports.agentsListAvailableExecute = agentsListAvailableExecute;
-exports.agentsListAvailableExecuteJq = agentsListAvailableExecuteJq;
-exports.agentsListAvailableRequestSchemaExecute = agentsListAvailableRequestSchemaExecute;
-exports.agentsListAvailableRequestSchemaExecuteJq = agentsListAvailableRequestSchemaExecuteJq;
-exports.agentsListAvailableResponseSchemaExecute = agentsListAvailableResponseSchemaExecute;
-exports.agentsListAvailableResponseSchemaExecuteJq = agentsListAvailableResponseSchemaExecuteJq;
-exports.agentsMeExecute = agentsMeExecute;
-exports.agentsMeExecuteJq = agentsMeExecuteJq;
-exports.agentsMeRequestSchemaExecute = agentsMeRequestSchemaExecute;
-exports.agentsMeRequestSchemaExecuteJq = agentsMeRequestSchemaExecuteJq;
-exports.agentsMeResponseSchemaExecute = agentsMeResponseSchemaExecute;
-exports.agentsMeResponseSchemaExecuteJq = agentsMeResponseSchemaExecuteJq;
+exports.agentsInstancesGetExecute = agentsInstancesGetExecute;
+exports.agentsInstancesGetExecuteJq = agentsInstancesGetExecuteJq;
+exports.agentsInstancesGetRequestSchemaExecute = agentsInstancesGetRequestSchemaExecute;
+exports.agentsInstancesGetRequestSchemaExecuteJq = agentsInstancesGetRequestSchemaExecuteJq;
+exports.agentsInstancesGetResponseSchemaExecute = agentsInstancesGetResponseSchemaExecute;
+exports.agentsInstancesGetResponseSchemaExecuteJq = agentsInstancesGetResponseSchemaExecuteJq;
+exports.agentsInstancesListExecute = agentsInstancesListExecute;
+exports.agentsInstancesListExecuteJq = agentsInstancesListExecuteJq;
+exports.agentsInstancesListRequestSchemaExecute = agentsInstancesListRequestSchemaExecute;
+exports.agentsInstancesListRequestSchemaExecuteJq = agentsInstancesListRequestSchemaExecuteJq;
+exports.agentsInstancesListResponseSchemaExecute = agentsInstancesListResponseSchemaExecute;
+exports.agentsInstancesListResponseSchemaExecuteJq = agentsInstancesListResponseSchemaExecuteJq;
+exports.agentsListExecute = agentsListExecute;
+exports.agentsListExecuteJq = agentsListExecuteJq;
+exports.agentsListRequestSchemaExecute = agentsListRequestSchemaExecute;
+exports.agentsListRequestSchemaExecuteJq = agentsListRequestSchemaExecuteJq;
+exports.agentsListResponseSchemaExecute = agentsListResponseSchemaExecute;
+exports.agentsListResponseSchemaExecuteJq = agentsListResponseSchemaExecuteJq;
+exports.agentsLogsReadAllExecute = agentsLogsReadAllExecute;
+exports.agentsLogsReadAllExecuteJq = agentsLogsReadAllExecuteJq;
+exports.agentsLogsReadAllRequestSchemaExecute = agentsLogsReadAllRequestSchemaExecute;
+exports.agentsLogsReadAllRequestSchemaExecuteJq = agentsLogsReadAllRequestSchemaExecuteJq;
+exports.agentsLogsReadAllResponseSchemaExecute = agentsLogsReadAllResponseSchemaExecute;
+exports.agentsLogsReadAllResponseSchemaExecuteJq = agentsLogsReadAllResponseSchemaExecuteJq;
+exports.agentsLogsReadIdExecute = agentsLogsReadIdExecute;
+exports.agentsLogsReadIdExecuteJq = agentsLogsReadIdExecuteJq;
+exports.agentsLogsReadIdRequestSchemaExecute = agentsLogsReadIdRequestSchemaExecute;
+exports.agentsLogsReadIdRequestSchemaExecuteJq = agentsLogsReadIdRequestSchemaExecuteJq;
+exports.agentsLogsReadIdResponseSchemaExecute = agentsLogsReadIdResponseSchemaExecute;
+exports.agentsLogsReadIdResponseSchemaExecuteJq = agentsLogsReadIdResponseSchemaExecuteJq;
+exports.agentsLogsReadPendingExecute = agentsLogsReadPendingExecute;
+exports.agentsLogsReadPendingExecuteJq = agentsLogsReadPendingExecuteJq;
+exports.agentsLogsReadPendingRequestSchemaExecute = agentsLogsReadPendingRequestSchemaExecute;
+exports.agentsLogsReadPendingRequestSchemaExecuteJq = agentsLogsReadPendingRequestSchemaExecuteJq;
+exports.agentsLogsReadPendingResponseSchemaExecute = agentsLogsReadPendingResponseSchemaExecute;
+exports.agentsLogsReadPendingResponseSchemaExecuteJq = agentsLogsReadPendingResponseSchemaExecuteJq;
+exports.agentsLogsReadSubscribeExecute = agentsLogsReadSubscribeExecute;
+exports.agentsLogsReadSubscribeExecuteJq = agentsLogsReadSubscribeExecuteJq;
+exports.agentsLogsReadSubscribeRequestSchemaExecute = agentsLogsReadSubscribeRequestSchemaExecute;
+exports.agentsLogsReadSubscribeRequestSchemaExecuteJq = agentsLogsReadSubscribeRequestSchemaExecuteJq;
+exports.agentsLogsReadSubscribeResponseSchemaExecute = agentsLogsReadSubscribeResponseSchemaExecute;
+exports.agentsLogsReadSubscribeResponseSchemaExecuteJq = agentsLogsReadSubscribeResponseSchemaExecuteJq;
 exports.agentsMessageExecute = agentsMessageExecute;
 exports.agentsMessageExecuteJq = agentsMessageExecuteJq;
 exports.agentsMessageExecuteStreaming = agentsMessageExecuteStreaming;
 exports.agentsMessageExecuteStreamingJq = agentsMessageExecuteStreamingJq;
-exports.agentsMessageQueueAddExecute = agentsMessageQueueAddExecute;
-exports.agentsMessageQueueAddExecuteJq = agentsMessageQueueAddExecuteJq;
-exports.agentsMessageQueueAddRequestSchemaExecute = agentsMessageQueueAddRequestSchemaExecute;
-exports.agentsMessageQueueAddRequestSchemaExecuteJq = agentsMessageQueueAddRequestSchemaExecuteJq;
-exports.agentsMessageQueueAddResponseSchemaExecute = agentsMessageQueueAddResponseSchemaExecute;
-exports.agentsMessageQueueAddResponseSchemaExecuteJq = agentsMessageQueueAddResponseSchemaExecuteJq;
-exports.agentsMessageQueueDeleteExecute = agentsMessageQueueDeleteExecute;
-exports.agentsMessageQueueDeleteExecuteJq = agentsMessageQueueDeleteExecuteJq;
-exports.agentsMessageQueueDeleteRequestSchemaExecute = agentsMessageQueueDeleteRequestSchemaExecute;
-exports.agentsMessageQueueDeleteRequestSchemaExecuteJq = agentsMessageQueueDeleteRequestSchemaExecuteJq;
-exports.agentsMessageQueueDeleteResponseSchemaExecute = agentsMessageQueueDeleteResponseSchemaExecute;
-exports.agentsMessageQueueDeleteResponseSchemaExecuteJq = agentsMessageQueueDeleteResponseSchemaExecuteJq;
-exports.agentsMessageQueueDeliverExecute = agentsMessageQueueDeliverExecute;
-exports.agentsMessageQueueDeliverExecuteJq = agentsMessageQueueDeliverExecuteJq;
-exports.agentsMessageQueueDeliverRequestSchemaExecute = agentsMessageQueueDeliverRequestSchemaExecute;
-exports.agentsMessageQueueDeliverRequestSchemaExecuteJq = agentsMessageQueueDeliverRequestSchemaExecuteJq;
-exports.agentsMessageQueueDeliverResponseSchemaExecute = agentsMessageQueueDeliverResponseSchemaExecute;
-exports.agentsMessageQueueDeliverResponseSchemaExecuteJq = agentsMessageQueueDeliverResponseSchemaExecuteJq;
-exports.agentsMessageQueueReadIdExecute = agentsMessageQueueReadIdExecute;
-exports.agentsMessageQueueReadIdExecuteJq = agentsMessageQueueReadIdExecuteJq;
-exports.agentsMessageQueueReadIdRequestSchemaExecute = agentsMessageQueueReadIdRequestSchemaExecute;
-exports.agentsMessageQueueReadIdRequestSchemaExecuteJq = agentsMessageQueueReadIdRequestSchemaExecuteJq;
-exports.agentsMessageQueueReadIdResponseSchemaExecute = agentsMessageQueueReadIdResponseSchemaExecute;
-exports.agentsMessageQueueReadIdResponseSchemaExecuteJq = agentsMessageQueueReadIdResponseSchemaExecuteJq;
-exports.agentsMessageQueueReadPendingExecute = agentsMessageQueueReadPendingExecute;
-exports.agentsMessageQueueReadPendingExecuteJq = agentsMessageQueueReadPendingExecuteJq;
-exports.agentsMessageQueueReadPendingRequestSchemaExecute = agentsMessageQueueReadPendingRequestSchemaExecute;
-exports.agentsMessageQueueReadPendingRequestSchemaExecuteJq = agentsMessageQueueReadPendingRequestSchemaExecuteJq;
-exports.agentsMessageQueueReadPendingResponseSchemaExecute = agentsMessageQueueReadPendingResponseSchemaExecute;
-exports.agentsMessageQueueReadPendingResponseSchemaExecuteJq = agentsMessageQueueReadPendingResponseSchemaExecuteJq;
 exports.agentsMessageRequestSchemaExecute = agentsMessageRequestSchemaExecute;
 exports.agentsMessageRequestSchemaExecuteJq = agentsMessageRequestSchemaExecuteJq;
 exports.agentsMessageResponseSchemaExecute = agentsMessageResponseSchemaExecute;
@@ -10906,30 +6126,30 @@ exports.agentsPublishRequestSchemaExecute = agentsPublishRequestSchemaExecute;
 exports.agentsPublishRequestSchemaExecuteJq = agentsPublishRequestSchemaExecuteJq;
 exports.agentsPublishResponseSchemaExecute = agentsPublishResponseSchemaExecute;
 exports.agentsPublishResponseSchemaExecuteJq = agentsPublishResponseSchemaExecuteJq;
-exports.agentsReadAllExecute = agentsReadAllExecute;
-exports.agentsReadAllExecuteJq = agentsReadAllExecuteJq;
-exports.agentsReadAllRequestSchemaExecute = agentsReadAllRequestSchemaExecute;
-exports.agentsReadAllRequestSchemaExecuteJq = agentsReadAllRequestSchemaExecuteJq;
-exports.agentsReadAllResponseSchemaExecute = agentsReadAllResponseSchemaExecute;
-exports.agentsReadAllResponseSchemaExecuteJq = agentsReadAllResponseSchemaExecuteJq;
-exports.agentsReadIdExecute = agentsReadIdExecute;
-exports.agentsReadIdExecuteJq = agentsReadIdExecuteJq;
-exports.agentsReadIdRequestSchemaExecute = agentsReadIdRequestSchemaExecute;
-exports.agentsReadIdRequestSchemaExecuteJq = agentsReadIdRequestSchemaExecuteJq;
-exports.agentsReadIdResponseSchemaExecute = agentsReadIdResponseSchemaExecute;
-exports.agentsReadIdResponseSchemaExecuteJq = agentsReadIdResponseSchemaExecuteJq;
-exports.agentsReadPendingExecute = agentsReadPendingExecute;
-exports.agentsReadPendingExecuteJq = agentsReadPendingExecuteJq;
-exports.agentsReadPendingRequestSchemaExecute = agentsReadPendingRequestSchemaExecute;
-exports.agentsReadPendingRequestSchemaExecuteJq = agentsReadPendingRequestSchemaExecuteJq;
-exports.agentsReadPendingResponseSchemaExecute = agentsReadPendingResponseSchemaExecute;
-exports.agentsReadPendingResponseSchemaExecuteJq = agentsReadPendingResponseSchemaExecuteJq;
-exports.agentsReadSubscribeExecute = agentsReadSubscribeExecute;
-exports.agentsReadSubscribeExecuteJq = agentsReadSubscribeExecuteJq;
-exports.agentsReadSubscribeRequestSchemaExecute = agentsReadSubscribeRequestSchemaExecute;
-exports.agentsReadSubscribeRequestSchemaExecuteJq = agentsReadSubscribeRequestSchemaExecuteJq;
-exports.agentsReadSubscribeResponseSchemaExecute = agentsReadSubscribeResponseSchemaExecute;
-exports.agentsReadSubscribeResponseSchemaExecuteJq = agentsReadSubscribeResponseSchemaExecuteJq;
+exports.agentsQueueDeleteExecute = agentsQueueDeleteExecute;
+exports.agentsQueueDeleteExecuteJq = agentsQueueDeleteExecuteJq;
+exports.agentsQueueDeleteRequestSchemaExecute = agentsQueueDeleteRequestSchemaExecute;
+exports.agentsQueueDeleteRequestSchemaExecuteJq = agentsQueueDeleteRequestSchemaExecuteJq;
+exports.agentsQueueDeleteResponseSchemaExecute = agentsQueueDeleteResponseSchemaExecute;
+exports.agentsQueueDeleteResponseSchemaExecuteJq = agentsQueueDeleteResponseSchemaExecuteJq;
+exports.agentsQueueDeliverExecute = agentsQueueDeliverExecute;
+exports.agentsQueueDeliverExecuteJq = agentsQueueDeliverExecuteJq;
+exports.agentsQueueDeliverRequestSchemaExecute = agentsQueueDeliverRequestSchemaExecute;
+exports.agentsQueueDeliverRequestSchemaExecuteJq = agentsQueueDeliverRequestSchemaExecuteJq;
+exports.agentsQueueDeliverResponseSchemaExecute = agentsQueueDeliverResponseSchemaExecute;
+exports.agentsQueueDeliverResponseSchemaExecuteJq = agentsQueueDeliverResponseSchemaExecuteJq;
+exports.agentsQueueReadIdExecute = agentsQueueReadIdExecute;
+exports.agentsQueueReadIdExecuteJq = agentsQueueReadIdExecuteJq;
+exports.agentsQueueReadIdRequestSchemaExecute = agentsQueueReadIdRequestSchemaExecute;
+exports.agentsQueueReadIdRequestSchemaExecuteJq = agentsQueueReadIdRequestSchemaExecuteJq;
+exports.agentsQueueReadIdResponseSchemaExecute = agentsQueueReadIdResponseSchemaExecute;
+exports.agentsQueueReadIdResponseSchemaExecuteJq = agentsQueueReadIdResponseSchemaExecuteJq;
+exports.agentsQueueReadPendingExecute = agentsQueueReadPendingExecute;
+exports.agentsQueueReadPendingExecuteJq = agentsQueueReadPendingExecuteJq;
+exports.agentsQueueReadPendingRequestSchemaExecute = agentsQueueReadPendingRequestSchemaExecute;
+exports.agentsQueueReadPendingRequestSchemaExecuteJq = agentsQueueReadPendingRequestSchemaExecuteJq;
+exports.agentsQueueReadPendingResponseSchemaExecute = agentsQueueReadPendingResponseSchemaExecute;
+exports.agentsQueueReadPendingResponseSchemaExecuteJq = agentsQueueReadPendingResponseSchemaExecuteJq;
 exports.agentsSpawnExecute = agentsSpawnExecute;
 exports.agentsSpawnExecuteJq = agentsSpawnExecuteJq;
 exports.agentsSpawnExecuteStreaming = agentsSpawnExecuteStreaming;
@@ -10938,34 +6158,16 @@ exports.agentsSpawnRequestSchemaExecute = agentsSpawnRequestSchemaExecute;
 exports.agentsSpawnRequestSchemaExecuteJq = agentsSpawnRequestSchemaExecuteJq;
 exports.agentsSpawnResponseSchemaExecute = agentsSpawnResponseSchemaExecute;
 exports.agentsSpawnResponseSchemaExecuteJq = agentsSpawnResponseSchemaExecuteJq;
-exports.agentsTagsAddExecute = agentsTagsAddExecute;
-exports.agentsTagsAddExecuteJq = agentsTagsAddExecuteJq;
-exports.agentsTagsAddRequestSchemaExecute = agentsTagsAddRequestSchemaExecute;
-exports.agentsTagsAddRequestSchemaExecuteJq = agentsTagsAddRequestSchemaExecuteJq;
-exports.agentsTagsAddResponseSchemaExecute = agentsTagsAddResponseSchemaExecute;
-exports.agentsTagsAddResponseSchemaExecuteJq = agentsTagsAddResponseSchemaExecuteJq;
+exports.agentsTagsApplyExecute = agentsTagsApplyExecute;
+exports.agentsTagsApplyExecuteJq = agentsTagsApplyExecuteJq;
+exports.agentsTagsApplyRequestSchemaExecute = agentsTagsApplyRequestSchemaExecute;
+exports.agentsTagsApplyRequestSchemaExecuteJq = agentsTagsApplyRequestSchemaExecuteJq;
+exports.agentsTagsApplyResponseSchemaExecute = agentsTagsApplyResponseSchemaExecute;
+exports.agentsTagsApplyResponseSchemaExecuteJq = agentsTagsApplyResponseSchemaExecuteJq;
 exports.agentsTagsLookupRequestSchemaExecute = agentsTagsLookupRequestSchemaExecute;
 exports.agentsTagsLookupRequestSchemaExecuteJq = agentsTagsLookupRequestSchemaExecuteJq;
 exports.agentsTagsLookupResponseSchemaExecute = agentsTagsLookupResponseSchemaExecute;
 exports.agentsTagsLookupResponseSchemaExecuteJq = agentsTagsLookupResponseSchemaExecuteJq;
-exports.agentsTasksListExecute = agentsTasksListExecute;
-exports.agentsTasksListExecuteJq = agentsTasksListExecuteJq;
-exports.agentsTasksListRequestSchemaExecute = agentsTasksListRequestSchemaExecute;
-exports.agentsTasksListRequestSchemaExecuteJq = agentsTasksListRequestSchemaExecuteJq;
-exports.agentsTasksListResponseSchemaExecute = agentsTasksListResponseSchemaExecute;
-exports.agentsTasksListResponseSchemaExecuteJq = agentsTasksListResponseSchemaExecuteJq;
-exports.agentsTasksRunExecute = agentsTasksRunExecute;
-exports.agentsTasksRunExecuteJq = agentsTasksRunExecuteJq;
-exports.agentsTasksRunRequestSchemaExecute = agentsTasksRunRequestSchemaExecute;
-exports.agentsTasksRunRequestSchemaExecuteJq = agentsTasksRunRequestSchemaExecuteJq;
-exports.agentsTasksRunResponseSchemaExecute = agentsTasksRunResponseSchemaExecute;
-exports.agentsTasksRunResponseSchemaExecuteJq = agentsTasksRunResponseSchemaExecuteJq;
-exports.agentsTasksScheduleExecute = agentsTasksScheduleExecute;
-exports.agentsTasksScheduleExecuteJq = agentsTasksScheduleExecuteJq;
-exports.agentsTasksScheduleRequestSchemaExecute = agentsTasksScheduleRequestSchemaExecute;
-exports.agentsTasksScheduleRequestSchemaExecuteJq = agentsTasksScheduleRequestSchemaExecuteJq;
-exports.agentsTasksScheduleResponseSchemaExecute = agentsTasksScheduleResponseSchemaExecute;
-exports.agentsTasksScheduleResponseSchemaExecuteJq = agentsTasksScheduleResponseSchemaExecuteJq;
 exports.configAgentsFavoritesAddExecute = configAgentsFavoritesAddExecute;
 exports.configAgentsFavoritesAddExecuteJq = configAgentsFavoritesAddExecuteJq;
 exports.configAgentsFavoritesAddRequestSchemaExecute = configAgentsFavoritesAddRequestSchemaExecute;
@@ -11026,24 +6228,6 @@ exports.configFunctionsGetRequestSchemaExecute = configFunctionsGetRequestSchema
 exports.configFunctionsGetRequestSchemaExecuteJq = configFunctionsGetRequestSchemaExecuteJq;
 exports.configFunctionsGetResponseSchemaExecute = configFunctionsGetResponseSchemaExecute;
 exports.configFunctionsGetResponseSchemaExecuteJq = configFunctionsGetResponseSchemaExecuteJq;
-exports.configFunctionsInventionsGetExecute = configFunctionsInventionsGetExecute;
-exports.configFunctionsInventionsGetExecuteJq = configFunctionsInventionsGetExecuteJq;
-exports.configFunctionsInventionsGetRequestSchemaExecute = configFunctionsInventionsGetRequestSchemaExecute;
-exports.configFunctionsInventionsGetRequestSchemaExecuteJq = configFunctionsInventionsGetRequestSchemaExecuteJq;
-exports.configFunctionsInventionsGetResponseSchemaExecute = configFunctionsInventionsGetResponseSchemaExecute;
-exports.configFunctionsInventionsGetResponseSchemaExecuteJq = configFunctionsInventionsGetResponseSchemaExecuteJq;
-exports.configFunctionsInventionsRemoteGetExecute = configFunctionsInventionsRemoteGetExecute;
-exports.configFunctionsInventionsRemoteGetExecuteJq = configFunctionsInventionsRemoteGetExecuteJq;
-exports.configFunctionsInventionsRemoteGetRequestSchemaExecute = configFunctionsInventionsRemoteGetRequestSchemaExecute;
-exports.configFunctionsInventionsRemoteGetRequestSchemaExecuteJq = configFunctionsInventionsRemoteGetRequestSchemaExecuteJq;
-exports.configFunctionsInventionsRemoteGetResponseSchemaExecute = configFunctionsInventionsRemoteGetResponseSchemaExecute;
-exports.configFunctionsInventionsRemoteGetResponseSchemaExecuteJq = configFunctionsInventionsRemoteGetResponseSchemaExecuteJq;
-exports.configFunctionsInventionsRemoteSetExecute = configFunctionsInventionsRemoteSetExecute;
-exports.configFunctionsInventionsRemoteSetExecuteJq = configFunctionsInventionsRemoteSetExecuteJq;
-exports.configFunctionsInventionsRemoteSetRequestSchemaExecute = configFunctionsInventionsRemoteSetRequestSchemaExecute;
-exports.configFunctionsInventionsRemoteSetRequestSchemaExecuteJq = configFunctionsInventionsRemoteSetRequestSchemaExecuteJq;
-exports.configFunctionsInventionsRemoteSetResponseSchemaExecute = configFunctionsInventionsRemoteSetResponseSchemaExecute;
-exports.configFunctionsInventionsRemoteSetResponseSchemaExecuteJq = configFunctionsInventionsRemoteSetResponseSchemaExecuteJq;
 exports.configFunctionsProfilesFavoritesAddExecute = configFunctionsProfilesFavoritesAddExecute;
 exports.configFunctionsProfilesFavoritesAddExecuteJq = configFunctionsProfilesFavoritesAddExecuteJq;
 exports.configFunctionsProfilesFavoritesAddRequestSchemaExecute = configFunctionsProfilesFavoritesAddRequestSchemaExecute;
@@ -11218,58 +6402,34 @@ exports.configViewerSignatureSetRequestSchemaExecute = configViewerSignatureSetR
 exports.configViewerSignatureSetRequestSchemaExecuteJq = configViewerSignatureSetRequestSchemaExecuteJq;
 exports.configViewerSignatureSetResponseSchemaExecute = configViewerSignatureSetResponseSchemaExecute;
 exports.configViewerSignatureSetResponseSchemaExecuteJq = configViewerSignatureSetResponseSchemaExecuteJq;
-exports.functionsExecutionsCreateStandardExecute = functionsExecutionsCreateStandardExecute;
-exports.functionsExecutionsCreateStandardExecuteJq = functionsExecutionsCreateStandardExecuteJq;
-exports.functionsExecutionsCreateStandardExecuteStreaming = functionsExecutionsCreateStandardExecuteStreaming;
-exports.functionsExecutionsCreateStandardExecuteStreamingJq = functionsExecutionsCreateStandardExecuteStreamingJq;
-exports.functionsExecutionsCreateStandardRequestSchemaExecute = functionsExecutionsCreateStandardRequestSchemaExecute;
-exports.functionsExecutionsCreateStandardRequestSchemaExecuteJq = functionsExecutionsCreateStandardRequestSchemaExecuteJq;
-exports.functionsExecutionsCreateStandardResponseSchemaExecute = functionsExecutionsCreateStandardResponseSchemaExecute;
-exports.functionsExecutionsCreateStandardResponseSchemaExecuteJq = functionsExecutionsCreateStandardResponseSchemaExecuteJq;
-exports.functionsExecutionsCreateSwissSystemExecute = functionsExecutionsCreateSwissSystemExecute;
-exports.functionsExecutionsCreateSwissSystemExecuteJq = functionsExecutionsCreateSwissSystemExecuteJq;
-exports.functionsExecutionsCreateSwissSystemExecuteStreaming = functionsExecutionsCreateSwissSystemExecuteStreaming;
-exports.functionsExecutionsCreateSwissSystemExecuteStreamingJq = functionsExecutionsCreateSwissSystemExecuteStreamingJq;
-exports.functionsExecutionsCreateSwissSystemRequestSchemaExecute = functionsExecutionsCreateSwissSystemRequestSchemaExecute;
-exports.functionsExecutionsCreateSwissSystemRequestSchemaExecuteJq = functionsExecutionsCreateSwissSystemRequestSchemaExecuteJq;
-exports.functionsExecutionsCreateSwissSystemResponseSchemaExecute = functionsExecutionsCreateSwissSystemResponseSchemaExecute;
-exports.functionsExecutionsCreateSwissSystemResponseSchemaExecuteJq = functionsExecutionsCreateSwissSystemResponseSchemaExecuteJq;
+exports.dbQueryExecute = dbQueryExecute;
+exports.dbQueryExecuteJq = dbQueryExecuteJq;
+exports.dbQueryRequestSchemaExecute = dbQueryRequestSchemaExecute;
+exports.dbQueryRequestSchemaExecuteJq = dbQueryRequestSchemaExecuteJq;
+exports.dbQueryResponseSchemaExecute = dbQueryResponseSchemaExecute;
+exports.dbQueryResponseSchemaExecuteJq = dbQueryResponseSchemaExecuteJq;
+exports.functionsExecuteStandardExecute = functionsExecuteStandardExecute;
+exports.functionsExecuteStandardExecuteJq = functionsExecuteStandardExecuteJq;
+exports.functionsExecuteStandardExecuteStreaming = functionsExecuteStandardExecuteStreaming;
+exports.functionsExecuteStandardExecuteStreamingJq = functionsExecuteStandardExecuteStreamingJq;
+exports.functionsExecuteStandardRequestSchemaExecute = functionsExecuteStandardRequestSchemaExecute;
+exports.functionsExecuteStandardRequestSchemaExecuteJq = functionsExecuteStandardRequestSchemaExecuteJq;
+exports.functionsExecuteStandardResponseSchemaExecute = functionsExecuteStandardResponseSchemaExecute;
+exports.functionsExecuteStandardResponseSchemaExecuteJq = functionsExecuteStandardResponseSchemaExecuteJq;
+exports.functionsExecuteSwissSystemExecute = functionsExecuteSwissSystemExecute;
+exports.functionsExecuteSwissSystemExecuteJq = functionsExecuteSwissSystemExecuteJq;
+exports.functionsExecuteSwissSystemExecuteStreaming = functionsExecuteSwissSystemExecuteStreaming;
+exports.functionsExecuteSwissSystemExecuteStreamingJq = functionsExecuteSwissSystemExecuteStreamingJq;
+exports.functionsExecuteSwissSystemRequestSchemaExecute = functionsExecuteSwissSystemRequestSchemaExecute;
+exports.functionsExecuteSwissSystemRequestSchemaExecuteJq = functionsExecuteSwissSystemRequestSchemaExecuteJq;
+exports.functionsExecuteSwissSystemResponseSchemaExecute = functionsExecuteSwissSystemResponseSchemaExecute;
+exports.functionsExecuteSwissSystemResponseSchemaExecuteJq = functionsExecuteSwissSystemResponseSchemaExecuteJq;
 exports.functionsGetExecute = functionsGetExecute;
 exports.functionsGetExecuteJq = functionsGetExecuteJq;
 exports.functionsGetRequestSchemaExecute = functionsGetRequestSchemaExecute;
 exports.functionsGetRequestSchemaExecuteJq = functionsGetRequestSchemaExecuteJq;
 exports.functionsGetResponseSchemaExecute = functionsGetResponseSchemaExecute;
 exports.functionsGetResponseSchemaExecuteJq = functionsGetResponseSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaScalarExecute = functionsInventionsRecursiveCreateAlphaScalarExecute;
-exports.functionsInventionsRecursiveCreateAlphaScalarExecuteJq = functionsInventionsRecursiveCreateAlphaScalarExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaScalarExecuteStreaming = functionsInventionsRecursiveCreateAlphaScalarExecuteStreaming;
-exports.functionsInventionsRecursiveCreateAlphaScalarExecuteStreamingJq = functionsInventionsRecursiveCreateAlphaScalarExecuteStreamingJq;
-exports.functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecute = functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecute;
-exports.functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecuteJq = functionsInventionsRecursiveCreateAlphaScalarRequestSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecute = functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecute;
-exports.functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecuteJq = functionsInventionsRecursiveCreateAlphaScalarResponseSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaVectorExecute = functionsInventionsRecursiveCreateAlphaVectorExecute;
-exports.functionsInventionsRecursiveCreateAlphaVectorExecuteJq = functionsInventionsRecursiveCreateAlphaVectorExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaVectorExecuteStreaming = functionsInventionsRecursiveCreateAlphaVectorExecuteStreaming;
-exports.functionsInventionsRecursiveCreateAlphaVectorExecuteStreamingJq = functionsInventionsRecursiveCreateAlphaVectorExecuteStreamingJq;
-exports.functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecute = functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecute;
-exports.functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecuteJq = functionsInventionsRecursiveCreateAlphaVectorRequestSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecute = functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecute;
-exports.functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecuteJq = functionsInventionsRecursiveCreateAlphaVectorResponseSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateRemoteExecute = functionsInventionsRecursiveCreateRemoteExecute;
-exports.functionsInventionsRecursiveCreateRemoteExecuteJq = functionsInventionsRecursiveCreateRemoteExecuteJq;
-exports.functionsInventionsRecursiveCreateRemoteExecuteStreaming = functionsInventionsRecursiveCreateRemoteExecuteStreaming;
-exports.functionsInventionsRecursiveCreateRemoteExecuteStreamingJq = functionsInventionsRecursiveCreateRemoteExecuteStreamingJq;
-exports.functionsInventionsRecursiveCreateRemoteRequestSchemaExecute = functionsInventionsRecursiveCreateRemoteRequestSchemaExecute;
-exports.functionsInventionsRecursiveCreateRemoteRequestSchemaExecuteJq = functionsInventionsRecursiveCreateRemoteRequestSchemaExecuteJq;
-exports.functionsInventionsRecursiveCreateRemoteResponseSchemaExecute = functionsInventionsRecursiveCreateRemoteResponseSchemaExecute;
-exports.functionsInventionsRecursiveCreateRemoteResponseSchemaExecuteJq = functionsInventionsRecursiveCreateRemoteResponseSchemaExecuteJq;
-exports.functionsInventionsStateGetExecute = functionsInventionsStateGetExecute;
-exports.functionsInventionsStateGetExecuteJq = functionsInventionsStateGetExecuteJq;
-exports.functionsInventionsStateGetRequestSchemaExecute = functionsInventionsStateGetRequestSchemaExecute;
-exports.functionsInventionsStateGetRequestSchemaExecuteJq = functionsInventionsStateGetRequestSchemaExecuteJq;
-exports.functionsInventionsStateGetResponseSchemaExecute = functionsInventionsStateGetResponseSchemaExecute;
-exports.functionsInventionsStateGetResponseSchemaExecuteJq = functionsInventionsStateGetResponseSchemaExecuteJq;
 exports.functionsListExecute = functionsListExecute;
 exports.functionsListExecuteJq = functionsListExecuteJq;
 exports.functionsListRequestSchemaExecute = functionsListRequestSchemaExecute;
@@ -11302,504 +6462,6 @@ exports.functionsPublishResponseSchemaExecute = functionsPublishResponseSchemaEx
 exports.functionsPublishResponseSchemaExecuteJq = functionsPublishResponseSchemaExecuteJq;
 exports.invokeCliRequest = invokeCliRequest;
 exports.listen = listen2;
-exports.logsAgentsCompletionsRequestGetExecute = logsAgentsCompletionsRequestGetExecute;
-exports.logsAgentsCompletionsRequestGetExecuteJq = logsAgentsCompletionsRequestGetExecuteJq;
-exports.logsAgentsCompletionsRequestGetRequestSchemaExecute = logsAgentsCompletionsRequestGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestGetResponseSchemaExecute = logsAgentsCompletionsRequestGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesAudioGetExecute = logsAgentsCompletionsRequestMessagesAudioGetExecute;
-exports.logsAgentsCompletionsRequestMessagesAudioGetExecuteJq = logsAgentsCompletionsRequestMessagesAudioGetExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecute = logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestMessagesAudioGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecute = logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestMessagesAudioGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesFileGetExecute = logsAgentsCompletionsRequestMessagesFileGetExecute;
-exports.logsAgentsCompletionsRequestMessagesFileGetExecuteJq = logsAgentsCompletionsRequestMessagesFileGetExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecute = logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestMessagesFileGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecute = logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestMessagesFileGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesImageGetExecute = logsAgentsCompletionsRequestMessagesImageGetExecute;
-exports.logsAgentsCompletionsRequestMessagesImageGetExecuteJq = logsAgentsCompletionsRequestMessagesImageGetExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecute = logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestMessagesImageGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecute = logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestMessagesImageGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesTextGetExecute = logsAgentsCompletionsRequestMessagesTextGetExecute;
-exports.logsAgentsCompletionsRequestMessagesTextGetExecuteJq = logsAgentsCompletionsRequestMessagesTextGetExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecute = logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestMessagesTextGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecute = logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestMessagesTextGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesVideoGetExecute = logsAgentsCompletionsRequestMessagesVideoGetExecute;
-exports.logsAgentsCompletionsRequestMessagesVideoGetExecuteJq = logsAgentsCompletionsRequestMessagesVideoGetExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecute = logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestMessagesVideoGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecute = logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestMessagesVideoGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetExecute = logsAgentsCompletionsRequestNotificationsAudioGetExecute;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetExecuteJq = logsAgentsCompletionsRequestNotificationsAudioGetExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecute = logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsAudioGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecute = logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsAudioGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsFileGetExecute = logsAgentsCompletionsRequestNotificationsFileGetExecute;
-exports.logsAgentsCompletionsRequestNotificationsFileGetExecuteJq = logsAgentsCompletionsRequestNotificationsFileGetExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecute = logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsFileGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecute = logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsFileGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsImageGetExecute = logsAgentsCompletionsRequestNotificationsImageGetExecute;
-exports.logsAgentsCompletionsRequestNotificationsImageGetExecuteJq = logsAgentsCompletionsRequestNotificationsImageGetExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecute = logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsImageGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecute = logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsImageGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsTextGetExecute = logsAgentsCompletionsRequestNotificationsTextGetExecute;
-exports.logsAgentsCompletionsRequestNotificationsTextGetExecuteJq = logsAgentsCompletionsRequestNotificationsTextGetExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecute = logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsTextGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecute = logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsTextGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetExecute = logsAgentsCompletionsRequestNotificationsVideoGetExecute;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetExecuteJq = logsAgentsCompletionsRequestNotificationsVideoGetExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecute = logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsVideoGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecute = logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecuteJq = logsAgentsCompletionsRequestNotificationsVideoGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestSubscribeExecute = logsAgentsCompletionsRequestSubscribeExecute;
-exports.logsAgentsCompletionsRequestSubscribeExecuteJq = logsAgentsCompletionsRequestSubscribeExecuteJq;
-exports.logsAgentsCompletionsRequestSubscribeRequestSchemaExecute = logsAgentsCompletionsRequestSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsRequestSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsRequestSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsRequestSubscribeResponseSchemaExecute = logsAgentsCompletionsRequestSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsRequestSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsRequestSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseClearExecute = logsAgentsCompletionsResponseClearExecute;
-exports.logsAgentsCompletionsResponseClearExecuteJq = logsAgentsCompletionsResponseClearExecuteJq;
-exports.logsAgentsCompletionsResponseClearRequestSchemaExecute = logsAgentsCompletionsResponseClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseClearResponseSchemaExecute = logsAgentsCompletionsResponseClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsClearExecute = logsAgentsCompletionsResponseContinuationsClearExecute;
-exports.logsAgentsCompletionsResponseContinuationsClearExecuteJq = logsAgentsCompletionsResponseContinuationsClearExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecute = logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecute = logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsGetExecute = logsAgentsCompletionsResponseContinuationsGetExecute;
-exports.logsAgentsCompletionsResponseContinuationsGetExecuteJq = logsAgentsCompletionsResponseContinuationsGetExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecute = logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecute = logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeExecute = logsAgentsCompletionsResponseContinuationsSubscribeExecute;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeExecuteJq = logsAgentsCompletionsResponseContinuationsSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseContinuationsSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseGetExecute = logsAgentsCompletionsResponseGetExecute;
-exports.logsAgentsCompletionsResponseGetExecuteJq = logsAgentsCompletionsResponseGetExecuteJq;
-exports.logsAgentsCompletionsResponseGetRequestSchemaExecute = logsAgentsCompletionsResponseGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseGetResponseSchemaExecute = logsAgentsCompletionsResponseGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseListExecute = logsAgentsCompletionsResponseListExecute;
-exports.logsAgentsCompletionsResponseListExecuteJq = logsAgentsCompletionsResponseListExecuteJq;
-exports.logsAgentsCompletionsResponseListRequestSchemaExecute = logsAgentsCompletionsResponseListRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseListRequestSchemaExecuteJq = logsAgentsCompletionsResponseListRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseListResponseSchemaExecute = logsAgentsCompletionsResponseListResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseListResponseSchemaExecuteJq = logsAgentsCompletionsResponseListResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearExecute = logsAgentsCompletionsResponseMessagesAssistantAudioClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetExecute = logsAgentsCompletionsResponseMessagesAssistantAudioGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantAudioSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearExecute = logsAgentsCompletionsResponseMessagesAssistantClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearExecute = logsAgentsCompletionsResponseMessagesAssistantFileClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetExecute = logsAgentsCompletionsResponseMessagesAssistantFileGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantFileSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetExecute = logsAgentsCompletionsResponseMessagesAssistantGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearExecute = logsAgentsCompletionsResponseMessagesAssistantImageClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetExecute = logsAgentsCompletionsResponseMessagesAssistantImageGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantImageSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantLogprobsSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantReasoningSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantRefusalSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetExecute = logsAgentsCompletionsResponseMessagesAssistantTextGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantTextGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantTextGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantTextGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantToolCallsSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearExecute = logsAgentsCompletionsResponseMessagesAssistantVideoClearExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetExecute = logsAgentsCompletionsResponseMessagesAssistantVideoGetExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecute = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesAssistantVideoSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetExecute = logsAgentsCompletionsResponseMessagesToolAudioGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetExecuteJq = logsAgentsCompletionsResponseMessagesToolAudioGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolAudioGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolAudioGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolClearExecute = logsAgentsCompletionsResponseMessagesToolClearExecute;
-exports.logsAgentsCompletionsResponseMessagesToolClearExecuteJq = logsAgentsCompletionsResponseMessagesToolClearExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolClearRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolClearResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetExecute = logsAgentsCompletionsResponseMessagesToolFileGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetExecuteJq = logsAgentsCompletionsResponseMessagesToolFileGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolFileGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolFileGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolGetExecute = logsAgentsCompletionsResponseMessagesToolGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolGetExecuteJq = logsAgentsCompletionsResponseMessagesToolGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetExecute = logsAgentsCompletionsResponseMessagesToolImageGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetExecuteJq = logsAgentsCompletionsResponseMessagesToolImageGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolImageGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolImageGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeExecute = logsAgentsCompletionsResponseMessagesToolSubscribeExecute;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeExecuteJq = logsAgentsCompletionsResponseMessagesToolSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolSubscribeResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetExecute = logsAgentsCompletionsResponseMessagesToolTextGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetExecuteJq = logsAgentsCompletionsResponseMessagesToolTextGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolTextGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolTextGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetExecute = logsAgentsCompletionsResponseMessagesToolVideoGetExecute;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetExecuteJq = logsAgentsCompletionsResponseMessagesToolVideoGetExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecute = logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolVideoGetRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecute = logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecuteJq = logsAgentsCompletionsResponseMessagesToolVideoGetResponseSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseSubscribeExecute = logsAgentsCompletionsResponseSubscribeExecute;
-exports.logsAgentsCompletionsResponseSubscribeExecuteJq = logsAgentsCompletionsResponseSubscribeExecuteJq;
-exports.logsAgentsCompletionsResponseSubscribeRequestSchemaExecute = logsAgentsCompletionsResponseSubscribeRequestSchemaExecute;
-exports.logsAgentsCompletionsResponseSubscribeRequestSchemaExecuteJq = logsAgentsCompletionsResponseSubscribeRequestSchemaExecuteJq;
-exports.logsAgentsCompletionsResponseSubscribeResponseSchemaExecute = logsAgentsCompletionsResponseSubscribeResponseSchemaExecute;
-exports.logsAgentsCompletionsResponseSubscribeResponseSchemaExecuteJq = logsAgentsCompletionsResponseSubscribeResponseSchemaExecuteJq;
-exports.logsClearExecute = logsClearExecute;
-exports.logsClearExecuteJq = logsClearExecuteJq;
-exports.logsClearRequestSchemaExecute = logsClearRequestSchemaExecute;
-exports.logsClearRequestSchemaExecuteJq = logsClearRequestSchemaExecuteJq;
-exports.logsClearResponseSchemaExecute = logsClearResponseSchemaExecute;
-exports.logsClearResponseSchemaExecuteJq = logsClearResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsRequestGetExecute = logsFunctionsExecutionsRequestGetExecute;
-exports.logsFunctionsExecutionsRequestGetExecuteJq = logsFunctionsExecutionsRequestGetExecuteJq;
-exports.logsFunctionsExecutionsRequestGetRequestSchemaExecute = logsFunctionsExecutionsRequestGetRequestSchemaExecute;
-exports.logsFunctionsExecutionsRequestGetRequestSchemaExecuteJq = logsFunctionsExecutionsRequestGetRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsRequestGetResponseSchemaExecute = logsFunctionsExecutionsRequestGetResponseSchemaExecute;
-exports.logsFunctionsExecutionsRequestGetResponseSchemaExecuteJq = logsFunctionsExecutionsRequestGetResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsRequestSubscribeExecute = logsFunctionsExecutionsRequestSubscribeExecute;
-exports.logsFunctionsExecutionsRequestSubscribeExecuteJq = logsFunctionsExecutionsRequestSubscribeExecuteJq;
-exports.logsFunctionsExecutionsRequestSubscribeRequestSchemaExecute = logsFunctionsExecutionsRequestSubscribeRequestSchemaExecute;
-exports.logsFunctionsExecutionsRequestSubscribeRequestSchemaExecuteJq = logsFunctionsExecutionsRequestSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsRequestSubscribeResponseSchemaExecute = logsFunctionsExecutionsRequestSubscribeResponseSchemaExecute;
-exports.logsFunctionsExecutionsRequestSubscribeResponseSchemaExecuteJq = logsFunctionsExecutionsRequestSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseClearExecute = logsFunctionsExecutionsResponseClearExecute;
-exports.logsFunctionsExecutionsResponseClearExecuteJq = logsFunctionsExecutionsResponseClearExecuteJq;
-exports.logsFunctionsExecutionsResponseClearRequestSchemaExecute = logsFunctionsExecutionsResponseClearRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseClearRequestSchemaExecuteJq = logsFunctionsExecutionsResponseClearRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseClearResponseSchemaExecute = logsFunctionsExecutionsResponseClearResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseClearResponseSchemaExecuteJq = logsFunctionsExecutionsResponseClearResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseGetExecute = logsFunctionsExecutionsResponseGetExecute;
-exports.logsFunctionsExecutionsResponseGetExecuteJq = logsFunctionsExecutionsResponseGetExecuteJq;
-exports.logsFunctionsExecutionsResponseGetRequestSchemaExecute = logsFunctionsExecutionsResponseGetRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseGetRequestSchemaExecuteJq = logsFunctionsExecutionsResponseGetRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseGetResponseSchemaExecute = logsFunctionsExecutionsResponseGetResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseGetResponseSchemaExecuteJq = logsFunctionsExecutionsResponseGetResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseListExecute = logsFunctionsExecutionsResponseListExecute;
-exports.logsFunctionsExecutionsResponseListExecuteJq = logsFunctionsExecutionsResponseListExecuteJq;
-exports.logsFunctionsExecutionsResponseListRequestSchemaExecute = logsFunctionsExecutionsResponseListRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseListRequestSchemaExecuteJq = logsFunctionsExecutionsResponseListRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseListResponseSchemaExecute = logsFunctionsExecutionsResponseListResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseListResponseSchemaExecuteJq = logsFunctionsExecutionsResponseListResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensClearExecute = logsFunctionsExecutionsResponseRetryTokensClearExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensClearExecuteJq = logsFunctionsExecutionsResponseRetryTokensClearExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecute = logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensClearRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecute = logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensClearResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensGetExecute = logsFunctionsExecutionsResponseRetryTokensGetExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensGetExecuteJq = logsFunctionsExecutionsResponseRetryTokensGetExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecute = logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensGetRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecute = logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensGetResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeExecute = logsFunctionsExecutionsResponseRetryTokensSubscribeExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeExecuteJq = logsFunctionsExecutionsResponseRetryTokensSubscribeExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecute = logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecute = logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecuteJq = logsFunctionsExecutionsResponseRetryTokensSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseSubscribeExecute = logsFunctionsExecutionsResponseSubscribeExecute;
-exports.logsFunctionsExecutionsResponseSubscribeExecuteJq = logsFunctionsExecutionsResponseSubscribeExecuteJq;
-exports.logsFunctionsExecutionsResponseSubscribeRequestSchemaExecute = logsFunctionsExecutionsResponseSubscribeRequestSchemaExecute;
-exports.logsFunctionsExecutionsResponseSubscribeRequestSchemaExecuteJq = logsFunctionsExecutionsResponseSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsExecutionsResponseSubscribeResponseSchemaExecute = logsFunctionsExecutionsResponseSubscribeResponseSchemaExecute;
-exports.logsFunctionsExecutionsResponseSubscribeResponseSchemaExecuteJq = logsFunctionsExecutionsResponseSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestGetExecute = logsFunctionsInventionsRecursiveRequestGetExecute;
-exports.logsFunctionsInventionsRecursiveRequestGetExecuteJq = logsFunctionsInventionsRecursiveRequestGetExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecute = logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveRequestGetRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecute = logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveRequestGetResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeExecute = logsFunctionsInventionsRecursiveRequestSubscribeExecute;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeExecuteJq = logsFunctionsInventionsRecursiveRequestSubscribeExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecute = logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveRequestSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecute = logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveRequestSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseClearExecute = logsFunctionsInventionsRecursiveResponseClearExecute;
-exports.logsFunctionsInventionsRecursiveResponseClearExecuteJq = logsFunctionsInventionsRecursiveResponseClearExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecute = logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseClearRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecute = logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseClearResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseGetExecute = logsFunctionsInventionsRecursiveResponseGetExecute;
-exports.logsFunctionsInventionsRecursiveResponseGetExecuteJq = logsFunctionsInventionsRecursiveResponseGetExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecute = logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseGetRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecute = logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseGetResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseListExecute = logsFunctionsInventionsRecursiveResponseListExecute;
-exports.logsFunctionsInventionsRecursiveResponseListExecuteJq = logsFunctionsInventionsRecursiveResponseListExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseListRequestSchemaExecute = logsFunctionsInventionsRecursiveResponseListRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseListRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseListRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseListResponseSchemaExecute = logsFunctionsInventionsRecursiveResponseListResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseListResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseListResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeExecute = logsFunctionsInventionsRecursiveResponseSubscribeExecute;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeExecuteJq = logsFunctionsInventionsRecursiveResponseSubscribeExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecute = logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecute = logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecute;
-exports.logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecuteJq = logsFunctionsInventionsRecursiveResponseSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRequestGetExecute = logsFunctionsInventionsRequestGetExecute;
-exports.logsFunctionsInventionsRequestGetExecuteJq = logsFunctionsInventionsRequestGetExecuteJq;
-exports.logsFunctionsInventionsRequestGetRequestSchemaExecute = logsFunctionsInventionsRequestGetRequestSchemaExecute;
-exports.logsFunctionsInventionsRequestGetRequestSchemaExecuteJq = logsFunctionsInventionsRequestGetRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRequestGetResponseSchemaExecute = logsFunctionsInventionsRequestGetResponseSchemaExecute;
-exports.logsFunctionsInventionsRequestGetResponseSchemaExecuteJq = logsFunctionsInventionsRequestGetResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsRequestSubscribeExecute = logsFunctionsInventionsRequestSubscribeExecute;
-exports.logsFunctionsInventionsRequestSubscribeExecuteJq = logsFunctionsInventionsRequestSubscribeExecuteJq;
-exports.logsFunctionsInventionsRequestSubscribeRequestSchemaExecute = logsFunctionsInventionsRequestSubscribeRequestSchemaExecute;
-exports.logsFunctionsInventionsRequestSubscribeRequestSchemaExecuteJq = logsFunctionsInventionsRequestSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsRequestSubscribeResponseSchemaExecute = logsFunctionsInventionsRequestSubscribeResponseSchemaExecute;
-exports.logsFunctionsInventionsRequestSubscribeResponseSchemaExecuteJq = logsFunctionsInventionsRequestSubscribeResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseClearExecute = logsFunctionsInventionsResponseClearExecute;
-exports.logsFunctionsInventionsResponseClearExecuteJq = logsFunctionsInventionsResponseClearExecuteJq;
-exports.logsFunctionsInventionsResponseClearRequestSchemaExecute = logsFunctionsInventionsResponseClearRequestSchemaExecute;
-exports.logsFunctionsInventionsResponseClearRequestSchemaExecuteJq = logsFunctionsInventionsResponseClearRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseClearResponseSchemaExecute = logsFunctionsInventionsResponseClearResponseSchemaExecute;
-exports.logsFunctionsInventionsResponseClearResponseSchemaExecuteJq = logsFunctionsInventionsResponseClearResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseGetExecute = logsFunctionsInventionsResponseGetExecute;
-exports.logsFunctionsInventionsResponseGetExecuteJq = logsFunctionsInventionsResponseGetExecuteJq;
-exports.logsFunctionsInventionsResponseGetRequestSchemaExecute = logsFunctionsInventionsResponseGetRequestSchemaExecute;
-exports.logsFunctionsInventionsResponseGetRequestSchemaExecuteJq = logsFunctionsInventionsResponseGetRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseGetResponseSchemaExecute = logsFunctionsInventionsResponseGetResponseSchemaExecute;
-exports.logsFunctionsInventionsResponseGetResponseSchemaExecuteJq = logsFunctionsInventionsResponseGetResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseListExecute = logsFunctionsInventionsResponseListExecute;
-exports.logsFunctionsInventionsResponseListExecuteJq = logsFunctionsInventionsResponseListExecuteJq;
-exports.logsFunctionsInventionsResponseListRequestSchemaExecute = logsFunctionsInventionsResponseListRequestSchemaExecute;
-exports.logsFunctionsInventionsResponseListRequestSchemaExecuteJq = logsFunctionsInventionsResponseListRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseListResponseSchemaExecute = logsFunctionsInventionsResponseListResponseSchemaExecute;
-exports.logsFunctionsInventionsResponseListResponseSchemaExecuteJq = logsFunctionsInventionsResponseListResponseSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseSubscribeExecute = logsFunctionsInventionsResponseSubscribeExecute;
-exports.logsFunctionsInventionsResponseSubscribeExecuteJq = logsFunctionsInventionsResponseSubscribeExecuteJq;
-exports.logsFunctionsInventionsResponseSubscribeRequestSchemaExecute = logsFunctionsInventionsResponseSubscribeRequestSchemaExecute;
-exports.logsFunctionsInventionsResponseSubscribeRequestSchemaExecuteJq = logsFunctionsInventionsResponseSubscribeRequestSchemaExecuteJq;
-exports.logsFunctionsInventionsResponseSubscribeResponseSchemaExecute = logsFunctionsInventionsResponseSubscribeResponseSchemaExecute;
-exports.logsFunctionsInventionsResponseSubscribeResponseSchemaExecuteJq = logsFunctionsInventionsResponseSubscribeResponseSchemaExecuteJq;
-exports.logsVectorCompletionsRequestGetExecute = logsVectorCompletionsRequestGetExecute;
-exports.logsVectorCompletionsRequestGetExecuteJq = logsVectorCompletionsRequestGetExecuteJq;
-exports.logsVectorCompletionsRequestGetRequestSchemaExecute = logsVectorCompletionsRequestGetRequestSchemaExecute;
-exports.logsVectorCompletionsRequestGetRequestSchemaExecuteJq = logsVectorCompletionsRequestGetRequestSchemaExecuteJq;
-exports.logsVectorCompletionsRequestGetResponseSchemaExecute = logsVectorCompletionsRequestGetResponseSchemaExecute;
-exports.logsVectorCompletionsRequestGetResponseSchemaExecuteJq = logsVectorCompletionsRequestGetResponseSchemaExecuteJq;
-exports.logsVectorCompletionsRequestSubscribeExecute = logsVectorCompletionsRequestSubscribeExecute;
-exports.logsVectorCompletionsRequestSubscribeExecuteJq = logsVectorCompletionsRequestSubscribeExecuteJq;
-exports.logsVectorCompletionsRequestSubscribeRequestSchemaExecute = logsVectorCompletionsRequestSubscribeRequestSchemaExecute;
-exports.logsVectorCompletionsRequestSubscribeRequestSchemaExecuteJq = logsVectorCompletionsRequestSubscribeRequestSchemaExecuteJq;
-exports.logsVectorCompletionsRequestSubscribeResponseSchemaExecute = logsVectorCompletionsRequestSubscribeResponseSchemaExecute;
-exports.logsVectorCompletionsRequestSubscribeResponseSchemaExecuteJq = logsVectorCompletionsRequestSubscribeResponseSchemaExecuteJq;
-exports.logsVectorCompletionsResponseClearExecute = logsVectorCompletionsResponseClearExecute;
-exports.logsVectorCompletionsResponseClearExecuteJq = logsVectorCompletionsResponseClearExecuteJq;
-exports.logsVectorCompletionsResponseClearRequestSchemaExecute = logsVectorCompletionsResponseClearRequestSchemaExecute;
-exports.logsVectorCompletionsResponseClearRequestSchemaExecuteJq = logsVectorCompletionsResponseClearRequestSchemaExecuteJq;
-exports.logsVectorCompletionsResponseClearResponseSchemaExecute = logsVectorCompletionsResponseClearResponseSchemaExecute;
-exports.logsVectorCompletionsResponseClearResponseSchemaExecuteJq = logsVectorCompletionsResponseClearResponseSchemaExecuteJq;
-exports.logsVectorCompletionsResponseGetExecute = logsVectorCompletionsResponseGetExecute;
-exports.logsVectorCompletionsResponseGetExecuteJq = logsVectorCompletionsResponseGetExecuteJq;
-exports.logsVectorCompletionsResponseGetRequestSchemaExecute = logsVectorCompletionsResponseGetRequestSchemaExecute;
-exports.logsVectorCompletionsResponseGetRequestSchemaExecuteJq = logsVectorCompletionsResponseGetRequestSchemaExecuteJq;
-exports.logsVectorCompletionsResponseGetResponseSchemaExecute = logsVectorCompletionsResponseGetResponseSchemaExecute;
-exports.logsVectorCompletionsResponseGetResponseSchemaExecuteJq = logsVectorCompletionsResponseGetResponseSchemaExecuteJq;
-exports.logsVectorCompletionsResponseListExecute = logsVectorCompletionsResponseListExecute;
-exports.logsVectorCompletionsResponseListExecuteJq = logsVectorCompletionsResponseListExecuteJq;
-exports.logsVectorCompletionsResponseListRequestSchemaExecute = logsVectorCompletionsResponseListRequestSchemaExecute;
-exports.logsVectorCompletionsResponseListRequestSchemaExecuteJq = logsVectorCompletionsResponseListRequestSchemaExecuteJq;
-exports.logsVectorCompletionsResponseListResponseSchemaExecute = logsVectorCompletionsResponseListResponseSchemaExecute;
-exports.logsVectorCompletionsResponseListResponseSchemaExecuteJq = logsVectorCompletionsResponseListResponseSchemaExecuteJq;
-exports.logsVectorCompletionsResponseSubscribeExecute = logsVectorCompletionsResponseSubscribeExecute;
-exports.logsVectorCompletionsResponseSubscribeExecuteJq = logsVectorCompletionsResponseSubscribeExecuteJq;
-exports.logsVectorCompletionsResponseSubscribeRequestSchemaExecute = logsVectorCompletionsResponseSubscribeRequestSchemaExecute;
-exports.logsVectorCompletionsResponseSubscribeRequestSchemaExecuteJq = logsVectorCompletionsResponseSubscribeRequestSchemaExecuteJq;
-exports.logsVectorCompletionsResponseSubscribeResponseSchemaExecute = logsVectorCompletionsResponseSubscribeResponseSchemaExecute;
-exports.logsVectorCompletionsResponseSubscribeResponseSchemaExecuteJq = logsVectorCompletionsResponseSubscribeResponseSchemaExecuteJq;
 exports.mcpKillExecute = mcpKillExecute;
 exports.mcpKillExecuteJq = mcpKillExecuteJq;
 exports.mcpKillRequestSchemaExecute = mcpKillRequestSchemaExecute;
@@ -11860,6 +6522,24 @@ exports.swarmsPublishRequestSchemaExecute = swarmsPublishRequestSchemaExecute;
 exports.swarmsPublishRequestSchemaExecuteJq = swarmsPublishRequestSchemaExecuteJq;
 exports.swarmsPublishResponseSchemaExecute = swarmsPublishResponseSchemaExecute;
 exports.swarmsPublishResponseSchemaExecuteJq = swarmsPublishResponseSchemaExecuteJq;
+exports.tasksListExecute = tasksListExecute;
+exports.tasksListExecuteJq = tasksListExecuteJq;
+exports.tasksListRequestSchemaExecute = tasksListRequestSchemaExecute;
+exports.tasksListRequestSchemaExecuteJq = tasksListRequestSchemaExecuteJq;
+exports.tasksListResponseSchemaExecute = tasksListResponseSchemaExecute;
+exports.tasksListResponseSchemaExecuteJq = tasksListResponseSchemaExecuteJq;
+exports.tasksRunExecute = tasksRunExecute;
+exports.tasksRunExecuteJq = tasksRunExecuteJq;
+exports.tasksRunRequestSchemaExecute = tasksRunRequestSchemaExecute;
+exports.tasksRunRequestSchemaExecuteJq = tasksRunRequestSchemaExecuteJq;
+exports.tasksRunResponseSchemaExecute = tasksRunResponseSchemaExecute;
+exports.tasksRunResponseSchemaExecuteJq = tasksRunResponseSchemaExecuteJq;
+exports.tasksScheduleExecute = tasksScheduleExecute;
+exports.tasksScheduleExecuteJq = tasksScheduleExecuteJq;
+exports.tasksScheduleRequestSchemaExecute = tasksScheduleRequestSchemaExecute;
+exports.tasksScheduleRequestSchemaExecuteJq = tasksScheduleRequestSchemaExecuteJq;
+exports.tasksScheduleResponseSchemaExecute = tasksScheduleResponseSchemaExecute;
+exports.tasksScheduleResponseSchemaExecuteJq = tasksScheduleResponseSchemaExecuteJq;
 exports.toolsGetExecute = toolsGetExecute;
 exports.toolsGetExecuteJq = toolsGetExecuteJq;
 exports.toolsGetRequestSchemaExecute = toolsGetRequestSchemaExecute;

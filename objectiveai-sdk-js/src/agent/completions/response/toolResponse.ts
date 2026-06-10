@@ -9,6 +9,7 @@ export const AgentCompletionsResponseToolResponseSchema = z.object({
   content: AgentCompletionsMessageRichContentSchema.describe("The content of the tool response."),
   index: z.number().int().min(0).max(18446744073709552000),
   metadata: AgentCompletionsMessageToolResponseMetadataSchema.nullable().describe("Optional vendor-extension metadata, populated by\n`objectiveai-mcp-proxy` via MCP's `_meta` extension bag.").meta({ omitempty: true }).optional(),
+  request_message_ids: z.array(z.number().int().min(-9223372036854776000).max(9223372036854776000)).nullable().describe("Mirrors `AssistantResponseChunk.request_message_ids` —\nthe consumed `message_queue_contents.id`s. Currently never\npopulated (the API stamps the assistant chunk instead);\nthe field exists so the wire shape is symmetric across\nthe two `MessageChunk` variants. Both `None` and\n`Some(empty)` are skipped on serialize.").meta({ omitempty: true }).optional(),
   role: AgentCompletionsResponseToolRoleSchema,
   tool_call_id: z.string().describe("The ID of the tool call this message responds to."),
 }).describe("A tool message containing the result of a tool call.").meta({ title: "agent.completions.response.ToolResponse" });

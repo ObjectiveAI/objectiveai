@@ -11,6 +11,9 @@ type CliCommandAgentsQueueRequest struct {
 	Delete *CliCommandAgentsQueueDeleteRequest 
 	DeleteRequestSchema *CliCommandAgentsQueueDeleteRequestSchemaRequest 
 	DeleteResponseSchema *CliCommandAgentsQueueDeleteResponseSchemaRequest 
+	Deliver *CliCommandAgentsQueueDeliverRequest 
+	DeliverRequestSchema *CliCommandAgentsQueueDeliverRequestSchemaRequest 
+	DeliverResponseSchema *CliCommandAgentsQueueDeliverResponseSchemaRequest 
 	Read *CliCommandAgentsQueueReadRequest 
 }
 
@@ -23,6 +26,15 @@ func (v CliCommandAgentsQueueRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.DeleteResponseSchema != nil {
 		return json.Marshal(v.DeleteResponseSchema)
+	}
+	if v.Deliver != nil {
+		return json.Marshal(v.Deliver)
+	}
+	if v.DeliverRequestSchema != nil {
+		return json.Marshal(v.DeliverRequestSchema)
+	}
+	if v.DeliverResponseSchema != nil {
+		return json.Marshal(v.DeliverResponseSchema)
 	}
 	if v.Read != nil {
 		return json.Marshal(v.Read)
@@ -65,6 +77,39 @@ func (v *CliCommandAgentsQueueRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandAgentsQueueDeliverRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.Deliver = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueDeliverRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.DeliverRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueDeliverResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.DeliverResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandAgentsQueueReadRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsQueueRequest{}
@@ -83,6 +128,9 @@ func (v CliCommandAgentsQueueRequest) Validate() error {
 	if v.Delete != nil { count++ }
 	if v.DeleteRequestSchema != nil { count++ }
 	if v.DeleteResponseSchema != nil { count++ }
+	if v.Deliver != nil { count++ }
+	if v.DeliverRequestSchema != nil { count++ }
+	if v.DeliverResponseSchema != nil { count++ }
 	if v.Read != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsQueueRequest: exactly one variant must be set, got %d", count)

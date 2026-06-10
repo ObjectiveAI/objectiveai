@@ -10,7 +10,6 @@ export * from "./logprob";
 export * from "./logprobs";
 export * from "./promptTokensDetails";
 export * from "./toolResponse";
-export * from "./toolResponseLog";
 export * from "./toolRole";
 export * from "./topLogprob";
 export * from "./upstreamUsage";

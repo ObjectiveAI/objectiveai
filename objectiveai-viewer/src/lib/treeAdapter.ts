@@ -27,7 +27,7 @@ function remotePathToString(path: RemotePath): string | null {
 
 function adaptVote(v: VectorCompletionsResponseVote): InputVote {
   return {
-    model: v.agent,
+    model: v.agent_full_id,
     vote: v.vote,
     weight: v.weight,
     ensemble_index: v.swarm_index,

@@ -12,5 +12,7 @@ class Request(BaseModel):
     args: list[str]
     jq: Optional[str] = None
     name: str
+    owner: str
     path_type: Path
+    version: str
 

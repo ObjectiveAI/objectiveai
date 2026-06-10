@@ -9,7 +9,6 @@ class MessageTargetDirect(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Direct'})
 
     agent_instance: str = Field(..., description='Leaf id of the target agent.')
-    agent_tag: Optional[str] = Field(None, description='Optional tag to bind to the resolved\n`{parent}/{agent_instance}` hierarchy.', json_schema_extra={'omitempty': True})
     by: Literal['direct']
     parent_agent_instance_hierarchy: Optional[str] = Field(None, description='Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.', json_schema_extra={'omitempty': True})
 
@@ -24,14 +23,12 @@ class MessageTargetTag(BaseModel):
 class MessageTarget(RootModel):
     """Mutually-exclusive addressing for an `agents message` call.
 
-`Direct` is the default — the CLI composes
-`{parent}/{agent_instance}` (parent defaults to
-`Config.agent_instance_hierarchy` when omitted) and optionally
-binds `agent_tag` to that hierarchy as a side effect.
-
-`Tag` resolves the named tag to its bound hierarchy via the
-tags DB and addresses that hierarchy directly. PENDING and
-ABSENT tags are rejected with structured errors at handler time."""
+`Direct` composes `{parent}/{agent_instance}` (parent defaults to
+`Config.agent_instance_hierarchy` when omitted) and operates
+against that hierarchy. `Tag` is resolved against the tags DB at
+call time: a BOUND tag becomes effectively a Direct target,
+while PENDING / ABSENT falls back to pure enqueue against the
+tag name."""
     model_config = ConfigDict(title='cli.command.agents.message.MessageTarget')
 
     root: Union[MessageTargetDirect, MessageTargetTag]

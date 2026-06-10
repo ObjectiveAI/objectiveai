@@ -21,12 +21,18 @@ type CliCommandTasksScheduleRequest struct {
 	// invocations.
 	IntervalSeconds *uint64 `json:"interval_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	Jq *string `json:"jq"`
-	// User-facing identifier. Globally unique — a second
-	// `schedule` with the same name fails the
-	// `schedules.name` UNIQUE constraint. `agents tasks run`
-	// tags every streamed output line with this name so the
-	// caller can attribute output to its source schedule.
+	// User-facing identifier. Unique per agent instance hierarchy —
+	// a second `schedule` with the same `(name, aih)` fails the
+	// `schedules` UNIQUE constraint unless `overwrite` is set.
+	// `agents tasks run` tags every streamed output line with this
+	// name so the caller can attribute output to its source schedule.
 	Name string `json:"name"`
+	// Shadow an existing `(name, agent_instance_hierarchy)` schedule
+	// instead of erroring on collision: a NEW row is inserted with
+	// `version = max + 1`. Older versions never list or run again but
+	// are kept so run history stays per-version; the new version has
+	// no runs yet, so it fires fresh.
+	Overwrite bool `json:"overwrite"`
 	PathType CliCommandTasksSchedulePath `json:"path_type"`
 }
 
@@ -40,7 +46,7 @@ func (v *CliCommandTasksScheduleRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"command", "description", "name", "path_type"} {
+	for _, key := range []string{"command", "description", "name", "overwrite", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandTasksScheduleRequest: missing required field %q", key)
 		}

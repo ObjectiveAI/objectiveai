@@ -18,6 +18,7 @@ export const AgentCompletionsResponseStreamingAssistantResponseChunkSchema = z.o
   provider: z.string().nullable().meta({ omitempty: true }).optional(),
   reasoning: z.string().nullable().meta({ omitempty: true }).optional(),
   refusal: z.string().nullable().meta({ omitempty: true }).optional(),
+  request_message_ids: z.array(z.number().int().min(-9223372036854776000).max(9223372036854776000)).nullable().describe("`message_queue_contents.id`s the API consumed to seed this\nturn's request. Stamped onto the first assistant chunk the\nAPI emits downstream — when set, the consumer owns these\nrows. Kinds are resolved CLI-side at write time (SQL CASE\nagainst `message_queue_contents.kind`), so the wire stays\n`i64`-only. Both `None` and `Some(empty)` are skipped on\nserialize.").meta({ omitempty: true }).optional(),
   role: AgentCompletionsResponseAssistantRoleSchema,
   service_tier: z.string().nullable().meta({ omitempty: true }).optional(),
   system_fingerprint: z.string().nullable().meta({ omitempty: true }).optional(),

@@ -3,9 +3,9 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.cli.command.agents.tags.add.request import Request as CliCommandAgentsTagsAddRequest
-from objectiveai_sdk.cli.command.agents.tags.add.request_schema.request import Request as CliCommandAgentsTagsAddRequestSchemaRequest
-from objectiveai_sdk.cli.command.agents.tags.add.response_schema.request import Request as CliCommandAgentsTagsAddResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.tags.apply.request import Request as CliCommandAgentsTagsApplyRequest
+from objectiveai_sdk.cli.command.agents.tags.apply.request_schema.request import Request as CliCommandAgentsTagsApplyRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.tags.apply.response_schema.request import Request as CliCommandAgentsTagsApplyResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.lookup.request import Request as CliCommandAgentsTagsLookupRequest
 from objectiveai_sdk.cli.command.agents.tags.lookup.request_schema.request import Request as CliCommandAgentsTagsLookupRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.lookup.response_schema.request import Request as CliCommandAgentsTagsLookupResponseSchemaRequest
@@ -29,26 +29,26 @@ class RequestLookupResponseSchema(RootModel):
     root: CliCommandAgentsTagsLookupResponseSchemaRequest
 
 
-class RequestAdd(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Add'})
+class RequestApply(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Apply'})
 
-    root: CliCommandAgentsTagsAddRequest
-
-
-class RequestAddRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AddRequestSchema'})
-
-    root: CliCommandAgentsTagsAddRequestSchemaRequest
+    root: CliCommandAgentsTagsApplyRequest
 
 
-class RequestAddResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AddResponseSchema'})
+class RequestApplyRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ApplyRequestSchema'})
 
-    root: CliCommandAgentsTagsAddResponseSchemaRequest
+    root: CliCommandAgentsTagsApplyRequestSchemaRequest
+
+
+class RequestApplyResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ApplyResponseSchema'})
+
+    root: CliCommandAgentsTagsApplyResponseSchemaRequest
 
 
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.tags.Request')
 
-    root: Union[RequestLookup, RequestLookupRequestSchema, RequestLookupResponseSchema, RequestAdd, RequestAddRequestSchema, RequestAddResponseSchema]
+    root: Union[RequestLookup, RequestLookupRequestSchema, RequestLookupResponseSchema, RequestApply, RequestApplyRequestSchema, RequestApplyResponseSchema]
 

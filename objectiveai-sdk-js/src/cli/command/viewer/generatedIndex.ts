@@ -5,4 +5,3 @@ export * from "./kill/index";
 export * from "./send/index";
 export * from "./spawn/index";
 export * from "./request";
-export * from "./response";

@@ -4,11 +4,10 @@ import { z } from "zod";
 
 export const CliCommandAgentsMessageMessageTargetSchema = z.union([z.object({
   agent_instance: z.string().describe("Leaf id of the target agent."),
-  agent_tag: z.string().nullable().describe("Optional tag to bind to the resolved\n`{parent}/{agent_instance}` hierarchy.").meta({ omitempty: true }).optional(),
   by: z.literal("direct"),
   parent_agent_instance_hierarchy: z.string().nullable().describe("Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.").meta({ omitempty: true }).optional(),
 }).meta({"variantTitle":"Direct"}), z.object({
   agent_tag: z.string(),
   by: z.literal("tag"),
-}).meta({"variantTitle":"Tag"})]).describe("Mutually-exclusive addressing for an `agents message` call.\n\n`Direct` is the default — the CLI composes\n`{parent}/{agent_instance}` (parent defaults to\n`Config.agent_instance_hierarchy` when omitted) and optionally\nbinds `agent_tag` to that hierarchy as a side effect.\n\n`Tag` resolves the named tag to its bound hierarchy via the\ntags DB and addresses that hierarchy directly. PENDING and\nABSENT tags are rejected with structured errors at handler time.").meta({ title: "cli.command.agents.message.MessageTarget" });
+}).meta({"variantTitle":"Tag"})]).describe("Mutually-exclusive addressing for an `agents message` call.\n\n`Direct` composes `{parent}/{agent_instance}` (parent defaults to\n`Config.agent_instance_hierarchy` when omitted) and operates\nagainst that hierarchy. `Tag` is resolved against the tags DB at\ncall time: a BOUND tag becomes effectively a Direct target,\nwhile PENDING / ABSENT falls back to pure enqueue against the\ntag name.").meta({ title: "cli.command.agents.message.MessageTarget" });
 export type CliCommandAgentsMessageMessageTarget = z.infer<typeof CliCommandAgentsMessageMessageTargetSchema>;

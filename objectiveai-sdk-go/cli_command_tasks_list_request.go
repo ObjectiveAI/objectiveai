@@ -8,17 +8,12 @@ import (
 )
 
 type CliCommandTasksListRequest struct {
-	// Subtree root for the hierarchy filter. When omitted (and
-	// `tag` is also `None`), the handler substitutes the cli's
-	// own `Config.agent_instance_hierarchy`. Mutually exclusive
-	// with `tag`.
-	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
-	// Row count limit for pagination. `None` = unlimited.
+	// Skip rows with `schedules.id <= after_id`. Use the highest
+	// `id` from a previous page to paginate forward.
+	AfterID *int64 `json:"after_id,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// Per-target row cap — each target's query returns at most this
+	// many rows (ascending id, after `after_id`). `None` = unlimited.
 	Count *uint64 `json:"count,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
-	// Maximum descent depth from the hierarchy root. `0` = the
-	// hierarchy itself only; `1` = direct children; `None` =
-	// unlimited recursion.
-	Depth *uint64 `json:"depth,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Show only schedules NOT currently runnable — fired
 	// oneshots (visible briefly before the runner deletes
 	// them) and interval rows that are cooling down. Mutually
@@ -27,8 +22,6 @@ type CliCommandTasksListRequest struct {
 	// Filter to recurring rows only. Mutually exclusive with `oneshot`.
 	Interval bool `json:"interval"`
 	Jq *string `json:"jq"`
-	// Row offset for pagination. Defaults to 0.
-	Offset *uint64 `json:"offset,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Filter to oneshot rows only. Mutually exclusive with `interval`.
 	Oneshot bool `json:"oneshot"`
 	PathType CliCommandTasksListPath `json:"path_type"`
@@ -36,10 +29,11 @@ type CliCommandTasksListRequest struct {
 	// have never fired, and interval rows whose interval has
 	// elapsed. Mutually exclusive with `exhausted`.
 	Pending bool `json:"pending"`
-	// Tag name; resolved against `tags.sqlite` BOUND-only at
-	// handler time. PENDING / ABSENT lookups return an error.
-	// Mutually exclusive with `agent_instance_hierarchy`.
-	Tag *string `json:"tag,omitempty"`
+	// One or more targets to list schedules for. Each resolves to a
+	// single AIH (`me` → the cli's own; `instance=L[,parent=P]`;
+	// `tag=T` BOUND-only — PENDING / ABSENT error), and rows whose
+	// `agent_instance_hierarchy` equals any resolved AIH are returned.
+	Targets []CliCommandAgentsLogsReadAllTarget `json:"targets"`
 }
 
 func (CliCommandTasksListRequest) SchemaTitle() string { return "cli.command.tasks.list.Request" }
@@ -52,7 +46,7 @@ func (v *CliCommandTasksListRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"exhausted", "interval", "oneshot", "path_type", "pending"} {
+	for _, key := range []string{"exhausted", "interval", "oneshot", "path_type", "pending", "targets"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandTasksListRequest: missing required field %q", key)
 		}

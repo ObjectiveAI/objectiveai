@@ -13,20 +13,30 @@ type CliCommandTasksListResponseItem struct {
 	Command []string `json:"command"`
 	CreatedAt int64 `json:"created_at" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Description string `json:"description"`
-	// Stable identifier — `"{name}-{db_id}"` where `name` is the
-	// `--name` passed to `agents tasks schedule` and `db_id` is
-	// the row id from `schedules`. Same shape `agents tasks run`
-	// tags each emitted item with.
-	ID string `json:"id"`
+	// The `schedules` row id. Monotonic; pass the highest `id` from a
+	// page as the next request's `after_id` to paginate forward.
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	// `None` for a oneshot; `Some("30s" / "1h" / "1d12h" / …)`
 	// for a recurring schedule, formatted as humantime so the
 	// list output reads naturally without a unit-conversion
 	// step at the consumer. The CLI parser accepts the same
 	// shape on `agents tasks schedule --interval`.
 	Interval *string `json:"interval,omitempty"`
-	// Unix seconds of the most recent invocation. `None` until
-	// the runner has fired this schedule at least once.
+	// Unix seconds of the most recent invocation — this row's newest
+	// `tasks_runs` entry. `None` until the runner has fired this
+	// version at least once (runs are tracked per-version).
 	LastRanAt *int64 `json:"last_ran_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// The `--name` passed to `agents tasks schedule`. Unique per
+	// `agent_instance_hierarchy`.
+	Name string `json:"name"`
+	// The plugin that registered this schedule (its `(owner,
+	// repository, version)` coordinate), or `None` when it was not
+	// scheduled by a plugin.
+	Plugin *CliCommandTasksListPlugin `json:"plugin,omitempty"`
+	// This row's version: `1` for a freshly scheduled task,
+	// `max + 1` for each `tasks schedule --overwrite` (each version
+	// is its own row; only the newest lists).
+	Version uint64 `json:"version" validate:"min=0,max=18446744073709551615"`
 }
 
 func (CliCommandTasksListResponseItem) SchemaTitle() string { return "cli.command.tasks.list.ResponseItem" }
@@ -39,7 +49,7 @@ func (v *CliCommandTasksListResponseItem) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "command", "created_at", "description", "id"} {
+	for _, key := range []string{"agent_instance_hierarchy", "command", "created_at", "description", "id", "name", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandTasksListResponseItem: missing required field %q", key)
 		}

@@ -12,8 +12,7 @@ type CliCommandAgentsQueueReadPendingRequest struct {
 	// the highest `id` from a previous page to paginate forward.
 	AfterID *int64 `json:"after_id,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Jq *string `json:"jq"`
-	// Cap on rows scanned per target. Defaults to 1000 server-side
-	// when omitted.
+	// Cap on rows scanned per target. `None` = unlimited.
 	Limit *int64 `json:"limit,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	PathType CliCommandAgentsQueueReadPendingPath `json:"path_type"`
 	Targets []CliCommandAgentsLogsReadAllTarget `json:"targets"`

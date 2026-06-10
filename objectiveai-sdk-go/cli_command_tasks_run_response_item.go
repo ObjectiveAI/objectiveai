@@ -7,47 +7,61 @@ import (
 	"fmt"
 )
 
-// One output item from one fired schedule's in-process stream.
-// `id` is the source schedule's stable identifier, formatted
-// `"{name}-{db_id}"` so it's both human-readable (the user-
-// supplied `--name` from `schedule`) and globally unique (the
-// row id from `schedules`). `value` is the typed root
-// [`crate::cli::command::ResponseItem`] emitted by the scheduled
-// cli leaf — boxed because the root union transitively contains
-// *this* variant (`agents → tasks → run`), and boxing is what
-// makes the recursion sized.
-//
-// The `value` field's JSON schema is opaqued to `serde_json::Value`
-// (renders as bare `{}` aka JsonValue) so the published schema
-// doesn't inline the entire root union — that's the TS7056 blowup
-// the root and tier aggregates dodge by being `json_schema_ignore`.
-// Downstream SDKs see `value: JsonValue` on the typed `execute`
-// path; consumers that want to peer inside parse it case-by-case.
+// One stream item from `tasks run`. Untagged — the variants'
+// required fields (`value` vs `success`) are disjoint, so the wire
+// shape is just the inner object. Which variant flows is decided by
+// the request's `stream_all`: `true` streams every emitted item as a
+// [`ValueResponseItem`]; `false` (default) yields exactly one
+// [`SuccessResponseItem`] per task when its stream completes.
 type CliCommandTasksRunResponseItem struct {
-	ID string `json:"id"`
-	Value JsonValue `json:"value"`
+	Value *CliCommandTasksRunValueResponseItem 
+	Success *CliCommandTasksRunSuccessResponseItem 
 }
 
-func (CliCommandTasksRunResponseItem) SchemaTitle() string { return "cli.command.tasks.run.ResponseItem" }
-func (v CliCommandTasksRunResponseItem) Validate() error {
-	return variantValidator.Struct(v)
+func (v CliCommandTasksRunResponseItem) MarshalJSON() ([]byte, error) {
+	if v.Value != nil {
+		return json.Marshal(v.Value)
+	}
+	if v.Success != nil {
+		return json.Marshal(v.Success)
+	}
+	return []byte("null"), nil
 }
 
 func (v *CliCommandTasksRunResponseItem) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"id", "value"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandTasksRunResponseItem: missing required field %q", key)
+	{
+		var try CliCommandTasksRunValueResponseItem
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandTasksRunResponseItem{}
+			candidate.Value = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
 		}
 	}
-	type Alias CliCommandTasksRunResponseItem
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
+	{
+		var try CliCommandTasksRunSuccessResponseItem
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandTasksRunResponseItem{}
+			candidate.Success = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
 	}
-	*v = CliCommandTasksRunResponseItem(alias)
-	return nil
+	return fmt.Errorf("data did not match any variant of CliCommandTasksRunResponseItem")
 }
+
+func (v CliCommandTasksRunResponseItem) Validate() error {
+	count := 0
+	if v.Value != nil { count++ }
+	if v.Success != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("CliCommandTasksRunResponseItem: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (CliCommandTasksRunResponseItem) SchemaTitle() string { return "cli.command.tasks.run.ResponseItem" }
+

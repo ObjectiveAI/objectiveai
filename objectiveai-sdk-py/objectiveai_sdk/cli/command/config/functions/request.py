@@ -7,7 +7,6 @@ from objectiveai_sdk.cli.command.config.functions.favorites.request import Reque
 from objectiveai_sdk.cli.command.config.functions.get.request import Request as CliCommandConfigFunctionsGetRequest
 from objectiveai_sdk.cli.command.config.functions.get.request_schema.request import Request as CliCommandConfigFunctionsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.config.functions.get.response_schema.request import Request as CliCommandConfigFunctionsGetResponseSchemaRequest
-from objectiveai_sdk.cli.command.config.functions.inventions.request import Request as CliCommandConfigFunctionsInventionsRequest
 from objectiveai_sdk.cli.command.config.functions.profiles.request import Request as CliCommandConfigFunctionsProfilesRequest
 
 
@@ -35,12 +34,6 @@ class RequestFavorites(RootModel):
     root: CliCommandConfigFunctionsFavoritesRequest
 
 
-class RequestInventions(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Inventions'})
-
-    root: CliCommandConfigFunctionsInventionsRequest
-
-
 class RequestProfiles(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Profiles'})
 
@@ -50,5 +43,5 @@ class RequestProfiles(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.config.functions.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestFavorites, RequestInventions, RequestProfiles]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestFavorites, RequestProfiles]
 

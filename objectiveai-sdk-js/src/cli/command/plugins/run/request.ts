@@ -7,6 +7,8 @@ export const CliCommandPluginsRunRequestSchema = z.object({
   args: z.array(z.string()),
   jq: z.string().nullable().optional(),
   name: z.string(),
+  owner: z.string(),
   path_type: CliCommandPluginsRunPathSchema,
+  version: z.string(),
 }).meta({ title: "cli.command.plugins.run.Request" });
 export type CliCommandPluginsRunRequest = z.infer<typeof CliCommandPluginsRunRequestSchema>;

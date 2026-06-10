@@ -3,10 +3,17 @@
 import { z } from "zod";
 import { AgentCompletionsResponseStreamingAgentCompletionChunkSchema } from "../../../../agent/completions/response/streaming/agentCompletionChunk";
 
-export const CliCommandAgentsMessageResponseItemSchema = z.union([AgentCompletionsResponseStreamingAgentCompletionChunkSchema.meta({"title":"agent.completions.response.streaming.AgentCompletionChunk","variantTitle":"Chunk"}), z.object({
+export const CliCommandAgentsMessageResponseItemSchema = z.union([z.object({
+  type: z.literal("delivered"),
+}).meta({"variantTitle":"Delivered"}), z.object({
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_tag: z.string().nullable().meta({ omitempty: true }).optional(),
+  id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  type: z.literal("enqueued"),
+}).meta({"variantTitle":"Enqueued"}), z.object({
   agent_instance_hierarchy: z.string(),
-  response_id: z.string(),
-}).meta({"variantTitle":"Queued"}), z.object({
-  agent_instance_hierarchy: z.string(),
-}).meta({"variantTitle":"Delivered"})]).describe("Streamed-mode wire shape for `agents message`. Emitted as one\nJSON-line per item on the cli's stdout when\n`Request::dangerous_advanced.stream = Some(true)`. Untagged shape\nis forward-compatible with [`Response`]: in stream mode, item 0 is\nalways a `Queued` or `Delivered` variant carrying the same fields\nas the unary `Response::Queued` / `Response::Delivered`. Under the\n`Queued` path with streaming on, item 0 is followed by zero or\nmore `Chunk` items until the spawned instance-runner's stdout\nEOFs.").meta({ title: "cli.command.agents.message.ResponseItem" });
+  type: z.literal("id"),
+}).meta({"variantTitle":"Id"}), AgentCompletionsResponseStreamingAgentCompletionChunkSchema.and(z.object({
+  type: z.literal("chunk"),
+})).describe("Newtype-of-struct under an internally-tagged enum: the\nchunk's own fields land at the top level of the JSON, with\n`\"type\":\"chunk\"` injected. Wire shape equivalent to spawn's\n`ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`\ndiscriminator.").meta({"variantTitle":"Chunk"})]).describe("Streamed response (stream=true). The cli yields a sequence of\nthese. Same `Delivered` / `Enqueued` / `Id` first-item\nsemantics as [`Response`]; the spawn-take-over branch adds\nstreaming `Chunk` items after the initial `Id`.").meta({ title: "cli.command.agents.message.ResponseItem" });
 export type CliCommandAgentsMessageResponseItem = z.infer<typeof CliCommandAgentsMessageResponseItemSchema>;
