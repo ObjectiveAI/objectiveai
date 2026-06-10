@@ -1,12 +1,19 @@
-﻿//! `agents list active` — async handler stub.
+﻿//! `agents instances list` — enumerate agent instances under one or
+//! more targets, reporting per-agent aggregates (tags, queued count,
+//! spawn/active timestamps, total logged messages).
 
 use crate::cli::command::CommandRequest;
+
+/// Reuse the shared `--target` enum (`instance=L[,parent=P]`, `tag=T`,
+/// `me`) from `agents logs read all`. Each target resolves to an AIH
+/// whose descendants this command lists.
+pub use super::super::logs::read::all::Target;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.instances.list.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub parent_agent_instance_hierarchy: Option<String>,
+    pub targets: Vec<Target>,
     pub jq: Option<String>,
 }
 
@@ -24,8 +31,9 @@ impl CommandRequest for Request {
             "instances".to_string(),
             "list".to_string(),
         ];
-        if let Some(p) = &self.parent_agent_instance_hierarchy {
-            argv.push(p.clone());
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -35,17 +43,39 @@ impl CommandRequest for Request {
     }
 }
 
+/// One discovered agent instance under a target. Aggregated from the
+/// `logs.messages`, `message_queue`, and `tags` tiers.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.instances.list.ResponseItem")]
 pub struct ResponseItem {
-    pub agent_id: String,
-    pub last_log: u64,
+    /// Full hierarchy of this agent instance.
+    pub agent_instance_hierarchy: String,
+    /// Tag names currently bound to this AIH, newest-bound first.
+    pub tags: Vec<String>,
+    /// Active `message_queue` rows targeting this agent — counting
+    /// both direct-AIH rows and rows whose tag is bound to this AIH.
+    pub queued: u64,
+    /// Timestamp of the first `logs.messages` row for this agent.
+    /// `None` when the agent has no logs yet (queue-only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub timestamp_spawned: Option<i64>,
+    /// Timestamp of the most recent `logs.messages` row for this
+    /// agent. `None` when the agent has no logs yet (queue-only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub timestamp_active: Option<i64>,
+    /// Total `logs.messages` rows for this agent over all time.
+    pub logged: u64,
 }
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Filter to active agents under this caller lineage. Omit for all.
-    pub parent_agent_instance_hierarchy: Option<String>,
+    /// One or more `--target instance=L[,parent=P]` entries. Also
+    /// accepts `--target tag=T` and `--target me`. Lists every agent
+    /// whose AIH is a descendant of each resolved target.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -71,8 +101,18 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsInstancesList,
-            parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
+            path_type: Path::AgentsInstancesList,
+            targets,
             jq: args.jq,
         })
     }
