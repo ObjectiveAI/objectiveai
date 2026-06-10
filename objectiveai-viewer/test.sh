@@ -2,11 +2,12 @@
 # Runs objectiveai-viewer tests.
 # Output is captured to .logs/test/objectiveai-viewer.txt.
 #
-# The viewer tests need the workspace's shared API server, so this
-# script expects OBJECTIVEAI_TEST_PORT to be set in the environment
-# (the root test.sh does this). When invoked standalone without the
-# port, the integration tests print a "skipping" line and pass; only
-# the in-src tests run.
+# The viewer's `cli_command` integration test needs the workspace's
+# API server. If OBJECTIVEAI_TEST_PORT is already set (e.g. the root
+# test.sh shares one across suites) this script inherits it; otherwise
+# it spawns its own via test-spawn-api-server.sh and reaps it on exit
+# (kill+wait, resilient to Ctrl-C / SIGTERM). Either way the
+# integration test runs.
 #
 # Usage:
 #   bash objectiveai-viewer/test.sh
@@ -22,6 +23,20 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 NEXTEST="$REPO_ROOT/bin/cargo-nextest"
 
 mkdir -p "$LOG_DIR"
+
+# Reap the api server we spawn (if any). SERVER_PID stays empty when a
+# parent harness provided OBJECTIVEAI_TEST_PORT, so the trap leaves the
+# parent's server alone. kill+wait guarantees no orphaned objectiveai-api
+# process survives a standalone run; trapping INT/TERM (not just EXIT)
+# keeps cleanup resilient to Ctrl-C / kill.
+SERVER_PID=""
+cleanup() {
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
 
 # Parse flags
 CARGO_ARGS=()
@@ -52,6 +67,17 @@ fi
 CLI_BIN="$CLI_TARGET_DIR/debug/objectiveai-cli"
 if [ -f "$CLI_BIN.exe" ]; then CLI_BIN="$CLI_BIN.exe"; fi
 export OBJECTIVEAI_CLI_BINARY="$CLI_BIN"
+
+# Spawn ONE test api server only if a parent harness hasn't already
+# provided OBJECTIVEAI_TEST_PORT (the root test.sh shares one across
+# all suites). Capture the pid so the cleanup trap can reap it on exit.
+if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
+  read -r PORT SERVER_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE") || {
+    echo "$MODULE: FATAL — failed to spawn API server (see $LOG_FILE)" >&2
+    exit 1
+  }
+  export OBJECTIVEAI_TEST_PORT="$PORT"
+fi
 
 # --lib --tests: skip the bin target. Tauri's deps (tauri, windows,
 # encoding_rs, objectiveai_mcp_proxy) can't be linked under cargo test's

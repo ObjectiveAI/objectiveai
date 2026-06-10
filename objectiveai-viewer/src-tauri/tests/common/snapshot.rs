@@ -8,7 +8,7 @@
 //! collected-and-normalized output to a single `String`, then calls
 //! [`assert_snapshot`]:
 //!
-//! - When `UPDATE_VIEWER_SNAPSHOTS=1` is set, the file is rewritten
+//! - When `UPDATE_SNAPSHOTS=1` is set, the file is rewritten
 //!   to match the new output (creating parent dirs if needed).
 //! - Otherwise, the file's contents are read via `include_str!`
 //!   (passed in by the caller, so the test binary embeds the
@@ -23,13 +23,13 @@
 use std::fs;
 use std::path::Path;
 
-const UPDATE_ENV_VAR: &str = "UPDATE_VIEWER_SNAPSHOTS";
+const UPDATE_ENV_VAR: &str = "UPDATE_SNAPSHOTS";
 
 /// Compare `actual` (already serialized + normalized) against
 /// `expected` (the result of `include_str!` on the snapshot file).
 ///
 /// On mismatch:
-/// - If `UPDATE_VIEWER_SNAPSHOTS=1`, rewrite `path` with `actual` and
+/// - If `UPDATE_SNAPSHOTS=1`, rewrite `path` with `actual` and
 ///   succeed.
 /// - Otherwise panic with a clear-enough message; the test reporter
 ///   prints the diff (large snapshots are unavoidable here — better
@@ -51,7 +51,7 @@ pub fn assert_snapshot(actual: &str, path: &str, expected: &str) {
     let actual = actual.trim_end_matches('\n');
     if actual != expected {
         panic!(
-            "snapshot mismatch at {path}\n\n--- expected ---\n{expected}\n\n--- actual ---\n{actual}\n\nRerun with UPDATE_VIEWER_SNAPSHOTS=1 to regenerate."
+            "snapshot mismatch at {path}\n\n--- expected ---\n{expected}\n\n--- actual ---\n{actual}\n\nRerun with UPDATE_SNAPSHOTS=1 to regenerate."
         );
     }
 }
