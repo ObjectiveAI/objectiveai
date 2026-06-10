@@ -105,7 +105,7 @@ for attempt in 1 2 3 4 5; do
     pg_installed=1
     break
   fi
-  echo "prepare.sh: postgres install attempt $attempt failed; retrying" >&2
+  echo "prepare.sh: postgres install attempt $attempt did not complete; retrying" >&2
   rm -rf "$SHARED"
   sleep "$attempt"   # 1s, 2s, 3s, 4s — widening grace for the scanner
 done

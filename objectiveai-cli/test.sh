@@ -19,7 +19,17 @@ RUNTIME_DIR="$SCRIPT_DIR/.objectiveai-tests"
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
 
-# Tear-down: clean up the api-spawn port file only.
+# Tear-down: reap the api server we spawned (if any).
+#
+# Mirrors the root `test.sh`: when this suite spawns its OWN api
+# server (no `OBJECTIVEAI_TEST_PORT` inherited from a parent
+# harness), it owns that server's lifetime and must kill it on
+# exit — otherwise every standalone run leaks one long-lived
+# `objectiveai-api` process (the server never self-terminates,
+# and the pre-run sweep can't catch it because it runs from
+# `target/`, not `$RUNTIME_DIR`). `SERVER_PID` stays empty when
+# we inherit a parent's port, so the trap leaves the parent's
+# server alone.
 #
 # We deliberately do NOT wipe $RUNTIME_DIR on exit: keeping the
 # staged tree around after a failed test makes post-mortem
@@ -28,13 +38,11 @@ mkdir -p "$LOG_DIR"
 # the one and only place anything in this repo should wipe
 # .objectiveai-tests/ — nothing in prepare.sh, the test code,
 # or any other script should touch it.
-#
-# We also don't kill child processes here — leaked processes at
-# script exit are a harness bug to fix, not papered over.
-PORT_FILE=""
+SERVER_PID=""
 cleanup() {
-  if [ -n "$PORT_FILE" ]; then
-    rm -f "$PORT_FILE"
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
@@ -133,20 +141,23 @@ cp -R "$SCRIPT_DIR/objectiveai-tests" "$RUNTIME_DIR"
 bash "$RUNTIME_DIR/prepare.sh" >>"$LOG_FILE" 2>&1 &
 PREP_PID=$!
 
-# Spawn the test api server in parallel — unless a parent harness has
-# already provided `OBJECTIVEAI_TEST_PORT` (e.g. the root `test.sh`
-# shares one server across all suites).
+# Spawn ONE test api server — unless a parent harness has already
+# provided `OBJECTIVEAI_TEST_PORT` (e.g. the root `test.sh` shares a
+# single server across all suites), in which case we inherit it and
+# spawn nothing.
+#
+# `test-spawn-api-server.sh` prints "<port> <pid>" once the server
+# is accepting connections, then returns while the server keeps
+# running in the background. We capture BOTH: the port to point the
+# tests at, and the pid so the cleanup trap can reap our server on
+# exit. Same `read … < <(…)` shape the root `test.sh` uses. prepare.sh
+# is already building in the background (PREP_PID), so this readiness
+# wait overlaps with staging.
 if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
-  PORT_FILE="$(mktemp)"
-  bash "$REPO_ROOT/test-spawn-api-server.sh" > "$PORT_FILE" 2>>"$LOG_FILE" &
-  SPAWN_PID=$!
-  wait "$SPAWN_PID"
-  # test-spawn-api-server.sh prints "<port> <pid>"; we only need the
-  # port. The api server keeps running in the background and is
-  # expected to clean itself up (or be reaped by a parent harness).
-  read -r PORT _ < "$PORT_FILE"
-  rm -f "$PORT_FILE"
-  PORT_FILE=""
+  read -r PORT SERVER_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE") || {
+    echo "$MODULE: FATAL — failed to spawn API server (see $LOG_FILE)" >&2
+    exit 1
+  }
   export OBJECTIVEAI_TEST_PORT="$PORT"
 fi
 
@@ -157,14 +168,30 @@ wait "$PREP_PID"
 # in the root Cargo.toml. Output is appended to $LOG_FILE so any
 # prepare-step or api-spawn errors that landed there survive.
 if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
-  PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  TOTAL=$((PASSED + FAILED))
+  NEXTEST_OK=1
+else
+  NEXTEST_OK=0
+fi
+
+# Parse counts from nextest's own summary line ONLY, e.g.
+#   "Summary [ 72.9s] 146 tests run: 146 passed (16 leaky), 0 skipped"
+#   "Summary [ ... ] 148 tests run: 146 passed, 2 failed, 0 skipped"
+# Anchoring on the "N tests run:" line is essential: the rest of
+# $LOG_FILE carries cargo build output and prepare.sh diagnostics
+# (e.g. a postgres-install retry note) that also contain the words
+# "passed"/"failed" and would otherwise be miscounted as test
+# results. `tail -1` takes the final run's summary; `|| true` keeps
+# `set -o pipefail` from aborting when grep finds no match.
+SUMMARY_LINE="$(grep -E '[0-9]+ tests run:' "$LOG_FILE" | tail -1 || true)"
+PASSED=$(printf '%s\n' "$SUMMARY_LINE" | sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p')
+FAILED=$(printf '%s\n' "$SUMMARY_LINE" | sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p')
+PASSED=${PASSED:-0}
+FAILED=${FAILED:-0}
+TOTAL=$((PASSED + FAILED))
+
+if [ "$NEXTEST_OK" -eq 1 ]; then
   echo "$MODULE: PASS $PASSED/$TOTAL"
 else
-  PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  TOTAL=$((PASSED + FAILED))
   if [ "$TOTAL" -gt 0 ]; then
     echo "$MODULE: FAIL $PASSED/$TOTAL"
   else
