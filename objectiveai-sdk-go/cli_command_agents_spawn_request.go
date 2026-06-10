@@ -8,16 +8,23 @@ import (
 )
 
 type CliCommandAgentsSpawnRequest struct {
-	Agent CliCommandAgentsSpawnAgentSpec `json:"agent"`
-	// Optional tag name to bind to the spawned agent's
-	// `agent_instance_hierarchy` on first chunk. See
-	// `agents tags` for the storage model.
-	AgentTag *string `json:"agent_tag,omitempty"`
+	// How to resolve the agent for this spawn: either a directly-
+	// specified `AgentSpec` (`--agent` / `--agent-inline`) or a
+	// reference to an existing tag (`--agent-tag`). When a tag is
+	// used, the conduit injects the tag at construction time so
+	// every conduit read fires the tag-group upgrade — flipping
+	// every tag in the group to BOUND on the spawn's
+	// `agent_instance_hierarchy`.
+	Agent CliCommandAgentsSpawnAgentResolution `json:"agent"`
 	DangerousAdvanced *CliCommandAgentsSpawnRequestDangerousAdvanced `json:"dangerous_advanced"`
 	Jq *string `json:"jq"`
+	// Initial user message. The CLI turns it into a single
+	// `Message::User` at the head of the `messages` array on the
+	// API call. Same wire shape as `agents message`'s
+	// `RequestMessage` — `Simple`, `Inline(RichContent)`,
+	// `File`, `PythonInline`, `PythonFile`.
+	Message CliCommandAgentsMessageRequestMessage `json:"message"`
 	PathType CliCommandAgentsSpawnPath `json:"path_type"`
-	Prompt CliCommandAgentsSpawnRequestPrompt `json:"prompt"`
-	Seed *int64 `json:"seed" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 }
 
 func (CliCommandAgentsSpawnRequest) SchemaTitle() string { return "cli.command.agents.spawn.Request" }
@@ -30,7 +37,7 @@ func (v *CliCommandAgentsSpawnRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "path_type", "prompt"} {
+	for _, key := range []string{"agent", "message", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsSpawnRequest: missing required field %q", key)
 		}

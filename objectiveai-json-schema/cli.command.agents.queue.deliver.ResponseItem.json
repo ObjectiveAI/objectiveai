@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.agents.queue.deliver.ResponseItem",
+  "description": "One stream item from `agents queue deliver`. Untagged — the\nvariants are disjoint on the wire: `Value` requires `value`,\n`AgentActive` / `AgentSpawned` carry distinct `type` markers, and\n`AllAgentsActive` is the bare string `\"AllAgentsActive\"`.",
+  "anyOf": [
+    {
+      "title": "Value",
+      "$ref": "cli.command.agents.queue.deliver.ValueResponseItem"
+    },
+    {
+      "title": "AgentActive",
+      "$ref": "cli.command.agents.queue.deliver.AgentActiveResponseItem"
+    },
+    {
+      "title": "AgentSpawned",
+      "$ref": "cli.command.agents.queue.deliver.AgentSpawnedResponseItem"
+    },
+    {
+      "title": "AllAgentsActive",
+      "$ref": "cli.command.agents.queue.deliver.AllAgentsActive"
+    }
+  ]
+}

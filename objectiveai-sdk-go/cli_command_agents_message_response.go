@@ -7,33 +7,11 @@ import (
 	"fmt"
 )
 
-type CliCommandAgentsMessageResponseQueued struct {
-	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	ResponseID string `json:"response_id"`
-}
-
-func (v *CliCommandAgentsMessageResponseQueued) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"agent_instance_hierarchy", "response_id"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsMessageResponseQueued: missing required field %q", key)
-		}
-	}
-	type Alias CliCommandAgentsMessageResponseQueued
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliCommandAgentsMessageResponseQueued(alias)
-	return nil
-}
-func (CliCommandAgentsMessageResponseQueued) SchemaVariantTitle() string { return "Queued" }
-
+// The queue row reached a live agent (the API stamped its id
+// onto an assistant chunk's `request_message_ids`) before
+// any other race finalized.
 type CliCommandAgentsMessageResponseDelivered struct {
-	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Type string `json:"type" validate:"oneof=delivered"`
 }
 
 func (v *CliCommandAgentsMessageResponseDelivered) UnmarshalJSON(data []byte) error {
@@ -41,7 +19,7 @@ func (v *CliCommandAgentsMessageResponseDelivered) UnmarshalJSON(data []byte) er
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy"} {
+	for _, key := range []string{"type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsMessageResponseDelivered: missing required field %q", key)
 		}
@@ -56,33 +34,98 @@ func (v *CliCommandAgentsMessageResponseDelivered) UnmarshalJSON(data []byte) er
 }
 func (CliCommandAgentsMessageResponseDelivered) SchemaVariantTitle() string { return "Delivered" }
 
+// The target's tag wasn't bound at call time (PENDING /
+// ABSENT). The message was deferred into the queue.
+type CliCommandAgentsMessageResponseEnqueued struct {
+	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
+	AgentTag *string `json:"agent_tag,omitempty"`
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=enqueued"`
+}
+
+func (v *CliCommandAgentsMessageResponseEnqueued) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsMessageResponseEnqueued: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsMessageResponseEnqueued
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsMessageResponseEnqueued(alias)
+	return nil
+}
+func (CliCommandAgentsMessageResponseEnqueued) SchemaVariantTitle() string { return "Enqueued" }
+
+// The stream=false path re-execed itself as a detached
+// subprocess (stream=true) and the subprocess yielded a
+// `ResponseItem::Id` first. Same payload as spawn's
+// `ResponseItem::Id(String)` — the bare
+// `agent_instance_hierarchy` string the runner just minted.
+type CliCommandAgentsMessageResponseID struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Type string `json:"type" validate:"oneof=id"`
+}
+
+func (v *CliCommandAgentsMessageResponseID) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsMessageResponseID: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsMessageResponseID
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsMessageResponseID(alias)
+	return nil
+}
+func (CliCommandAgentsMessageResponseID) SchemaVariantTitle() string { return "Id" }
+
+// Unary response (stream=false). Exactly one of these per call.
+// Internally tagged via `type`; bare unit variant `Delivered`
+// serializes as `{"type":"delivered"}`.
 type CliCommandAgentsMessageResponse struct {
-	Queued *CliCommandAgentsMessageResponseQueued `outerObject:"true"`
+	// The queue row reached a live agent (the API stamped its id
+	// onto an assistant chunk's `request_message_ids`) before
+	// any other race finalized.
 	Delivered *CliCommandAgentsMessageResponseDelivered `outerObject:"true"`
+	// The target's tag wasn't bound at call time (PENDING /
+	// ABSENT). The message was deferred into the queue.
+	Enqueued *CliCommandAgentsMessageResponseEnqueued `outerObject:"true"`
+	// The stream=false path re-execed itself as a detached
+	// subprocess (stream=true) and the subprocess yielded a
+	// `ResponseItem::Id` first. Same payload as spawn's
+	// `ResponseItem::Id(String)` — the bare
+	// `agent_instance_hierarchy` string the runner just minted.
+	ID *CliCommandAgentsMessageResponseID `outerObject:"true" variantTitle:"Id"`
 }
 
 func (v CliCommandAgentsMessageResponse) MarshalJSON() ([]byte, error) {
-	if v.Queued != nil {
-		return json.Marshal(v.Queued)
-	}
 	if v.Delivered != nil {
 		return json.Marshal(v.Delivered)
+	}
+	if v.Enqueued != nil {
+		return json.Marshal(v.Enqueued)
+	}
+	if v.ID != nil {
+		return json.Marshal(v.ID)
 	}
 	return []byte("null"), nil
 }
 
 func (v *CliCommandAgentsMessageResponse) UnmarshalJSON(data []byte) error {
-	{
-		var try CliCommandAgentsMessageResponseQueued
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsMessageResponse{}
-			candidate.Queued = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try CliCommandAgentsMessageResponseDelivered
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -94,13 +137,36 @@ func (v *CliCommandAgentsMessageResponse) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsMessageResponseEnqueued
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsMessageResponse{}
+			candidate.Enqueued = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsMessageResponseID
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsMessageResponse{}
+			candidate.ID = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsMessageResponse")
 }
 
 func (v CliCommandAgentsMessageResponse) Validate() error {
 	count := 0
-	if v.Queued != nil { count++ }
 	if v.Delivered != nil { count++ }
+	if v.Enqueued != nil { count++ }
+	if v.ID != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsMessageResponse: exactly one variant must be set, got %d", count)
 	}

@@ -9,7 +9,7 @@ import (
 
 type CliCommandToolsGetResponseManifest struct {
 	Description string `json:"description"`
-	Exec string `json:"exec"`
+	Exec CliCommandToolsGetExec `json:"exec"`
 	Name string `json:"name"`
 	Owner string `json:"owner"`
 	Source string `json:"source"`

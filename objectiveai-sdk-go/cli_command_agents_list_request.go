@@ -8,118 +8,31 @@ import (
 )
 
 type CliCommandAgentsListRequest struct {
-	Active *CliCommandAgentsListActiveRequest 
-	ActiveRequestSchema *CliCommandAgentsListActiveRequestSchemaRequest 
-	ActiveResponseSchema *CliCommandAgentsListActiveResponseSchemaRequest 
-	Available *CliCommandAgentsListAvailableRequest 
-	AvailableRequestSchema *CliCommandAgentsListAvailableRequestSchemaRequest 
-	AvailableResponseSchema *CliCommandAgentsListAvailableResponseSchemaRequest 
+	Jq *string `json:"jq"`
+	PathType CliCommandAgentsListPath `json:"path_type"`
+	Source CliCommandAgentsListRequestSource `json:"source"`
 }
 
-func (v CliCommandAgentsListRequest) MarshalJSON() ([]byte, error) {
-	if v.Active != nil {
-		return json.Marshal(v.Active)
-	}
-	if v.ActiveRequestSchema != nil {
-		return json.Marshal(v.ActiveRequestSchema)
-	}
-	if v.ActiveResponseSchema != nil {
-		return json.Marshal(v.ActiveResponseSchema)
-	}
-	if v.Available != nil {
-		return json.Marshal(v.Available)
-	}
-	if v.AvailableRequestSchema != nil {
-		return json.Marshal(v.AvailableRequestSchema)
-	}
-	if v.AvailableResponseSchema != nil {
-		return json.Marshal(v.AvailableResponseSchema)
-	}
-	return []byte("null"), nil
+func (CliCommandAgentsListRequest) SchemaTitle() string { return "cli.command.agents.list.Request" }
+func (v CliCommandAgentsListRequest) Validate() error {
+	return variantValidator.Struct(v)
 }
 
 func (v *CliCommandAgentsListRequest) UnmarshalJSON(data []byte) error {
-	{
-		var try CliCommandAgentsListActiveRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.Active = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"path_type", "source"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsListRequest: missing required field %q", key)
 		}
 	}
-	{
-		var try CliCommandAgentsListActiveRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.ActiveRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
+	type Alias CliCommandAgentsListRequest
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
 	}
-	{
-		var try CliCommandAgentsListActiveResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.ActiveResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsListAvailableRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.Available = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsListAvailableRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.AvailableRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsListAvailableResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsListRequest{}
-			candidate.AvailableResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("data did not match any variant of CliCommandAgentsListRequest")
+	*v = CliCommandAgentsListRequest(alias)
+	return nil
 }
-
-func (v CliCommandAgentsListRequest) Validate() error {
-	count := 0
-	if v.Active != nil { count++ }
-	if v.ActiveRequestSchema != nil { count++ }
-	if v.ActiveResponseSchema != nil { count++ }
-	if v.Available != nil { count++ }
-	if v.AvailableRequestSchema != nil { count++ }
-	if v.AvailableResponseSchema != nil { count++ }
-	if count != 1 {
-		return fmt.Errorf("CliCommandAgentsListRequest: exactly one variant must be set, got %d", count)
-	}
-	return variantValidator.Struct(v)
-}
-func (CliCommandAgentsListRequest) SchemaTitle() string { return "cli.command.agents.list.Request" }
-

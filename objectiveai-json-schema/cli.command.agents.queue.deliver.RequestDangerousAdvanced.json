@@ -1,0 +1,18 @@
+{
+  "title": "cli.command.agents.queue.deliver.RequestDangerousAdvanced",
+  "type": "object",
+  "properties": {
+    "stream_spawns": {
+      "description": "Run the delivery in-process and stream every spawned agent's\noutput to completion. Unset/false re-execs a detached child\nwith this set and returns at its `AllAgentsActive` marker.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

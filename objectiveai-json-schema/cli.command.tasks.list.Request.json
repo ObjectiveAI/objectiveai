@@ -2,11 +2,13 @@
   "title": "cli.command.tasks.list.Request",
   "type": "object",
   "properties": {
-    "agent_instance_hierarchy": {
-      "description": "Subtree root for the hierarchy filter. When omitted (and\n`tag` is also `None`), the handler substitutes the cli's\nown `Config.agent_instance_hierarchy`. Mutually exclusive\nwith `tag`.",
+    "after_id": {
+      "description": "Skip rows with `schedules.id <= after_id`. Use the highest\n`id` from a previous page to paginate forward.",
       "anyOf": [
         {
-          "type": "string"
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
         },
         {
           "type": "null"
@@ -15,21 +17,7 @@
       "omitempty": true
     },
     "count": {
-      "description": "Row count limit for pagination. `None` = unlimited.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "depth": {
-      "description": "Maximum descent depth from the hierarchy root. `0` = the\nhierarchy itself only; `1` = direct children; `None` =\nunlimited recursion.",
+      "description": "Per-target row cap — each target's query returns at most this\nmany rows (ascending id, after `after_id`). `None` = unlimited.",
       "anyOf": [
         {
           "type": "integer",
@@ -60,20 +48,6 @@
         }
       ]
     },
-    "offset": {
-      "description": "Row offset for pagination. Defaults to 0.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "oneshot": {
       "description": "Filter to oneshot rows only. Mutually exclusive with `interval`.",
       "type": "boolean"
@@ -85,17 +59,12 @@
       "description": "Show only schedules currently runnable — oneshots that\nhave never fired, and interval rows whose interval has\nelapsed. Mutually exclusive with `exhausted`.",
       "type": "boolean"
     },
-    "tag": {
-      "description": "Tag name; resolved against `tags.sqlite` BOUND-only at\nhandler time. PENDING / ABSENT lookups return an error.\nMutually exclusive with `agent_instance_hierarchy`.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+    "targets": {
+      "description": "One or more targets to list schedules for. Each resolves to a\nsingle AIH (`me` → the cli's own; `instance=L[,parent=P]`;\n`tag=T` BOUND-only — PENDING / ABSENT error), and rows whose\n`agent_instance_hierarchy` equals any resolved AIH are returned.",
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.agents.logs.read.all.Target"
+      }
     }
   }
 }

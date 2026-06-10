@@ -1,0 +1,37 @@
+{
+  "title": "cli.command.tasks.run.SuccessResponseItem",
+  "description": "One per-task completion summary (default mode): the same schedule\nidentity as [`ValueResponseItem`], with `success` in lieu of\n`value`. `success` is `false` iff the task's FINAL emitted item was\nan error (a task that emitted nothing is a success). The task's\nfull output is in `tasks_logs` regardless.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "description": "The source schedule's `agent_instance_hierarchy`.",
+      "type": "string"
+    },
+    "name": {
+      "description": "The source schedule's `--name`.",
+      "type": "string"
+    },
+    "plugin": {
+      "description": "The plugin that registered the source schedule, if any.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.tasks.list.Plugin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "success": {
+      "description": "Whether the task's stream completed without a trailing error.",
+      "type": "boolean"
+    },
+    "version": {
+      "description": "The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

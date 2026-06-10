@@ -38,8 +38,12 @@
       ]
     },
     "name": {
-      "description": "User-facing identifier. Globally unique — a second\n`schedule` with the same name fails the\n`schedules.name` UNIQUE constraint. `agents tasks run`\ntags every streamed output line with this name so the\ncaller can attribute output to its source schedule.",
+      "description": "User-facing identifier. Unique per agent instance hierarchy —\na second `schedule` with the same `(name, aih)` fails the\n`schedules` UNIQUE constraint unless `overwrite` is set.\n`agents tasks run` tags every streamed output line with this\nname so the caller can attribute output to its source schedule.",
       "type": "string"
+    },
+    "overwrite": {
+      "description": "Shadow an existing `(name, agent_instance_hierarchy)` schedule\ninstead of erroring on collision: a NEW row is inserted with\n`version = max + 1`. Older versions never list or run again but\nare kept so run history stays per-version; the new version has\nno runs yet, so it fires fresh.",
+      "type": "boolean"
     },
     "path_type": {
       "$ref": "cli.command.tasks.schedule.Path"

@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.agents.queue.deliver.ValueResponseItem",
+  "description": "One output item from one delivered agent's spawn stream. `value`\nis the typed root [`crate::cli::command::ResponseItem`] (the spawn\nitem wrapped at the root) — boxed because the root union\ntransitively contains *this* type (`agents → queue → deliver`),\nand boxing is what makes the recursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union — that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "description": "The delivered agent's `agent_instance_hierarchy`.",
+      "type": "string"
+    },
+    "value": {
+      "description": "The typed root item the spawn emitted."
+    }
+  }
+}

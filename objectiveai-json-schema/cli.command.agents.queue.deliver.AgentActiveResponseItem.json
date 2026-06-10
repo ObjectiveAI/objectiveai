@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.queue.deliver.AgentActiveResponseItem",
+  "description": "This agent's lock was held by a live owner — it is already active\nand will drain its own queue; nothing was spawned for it.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "cli.command.agents.queue.deliver.AgentActiveType"
+    }
+  }
+}

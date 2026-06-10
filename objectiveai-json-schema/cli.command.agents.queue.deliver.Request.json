@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.queue.deliver.Request",
+  "type": "object",
+  "properties": {
+    "dangerous_advanced": {
+      "anyOf": [
+        {
+          "$ref": "cli.command.agents.queue.deliver.RequestDangerousAdvanced"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.queue.deliver.Path"
+    }
+  }
+}

@@ -10,9 +10,6 @@ import (
 type CliCommandAgentsMessageMessageTargetDirect struct {
 	// Leaf id of the target agent.
 	AgentInstance string `json:"agent_instance"`
-	// Optional tag to bind to the resolved
-	// `{parent}/{agent_instance}` hierarchy.
-	AgentTag *string `json:"agent_tag,omitempty"`
 	By string `json:"by" validate:"oneof=direct"`
 	// Lineage prefix to prepend to `agent_instance`. When
 	// `None`, the CLI substitutes its own
@@ -67,14 +64,12 @@ func (CliCommandAgentsMessageMessageTargetTag) SchemaVariantTitle() string { ret
 
 // Mutually-exclusive addressing for an `agents message` call.
 //
-// `Direct` is the default — the CLI composes
-// `{parent}/{agent_instance}` (parent defaults to
-// `Config.agent_instance_hierarchy` when omitted) and optionally
-// binds `agent_tag` to that hierarchy as a side effect.
-//
-// `Tag` resolves the named tag to its bound hierarchy via the
-// tags DB and addresses that hierarchy directly. PENDING and
-// ABSENT tags are rejected with structured errors at handler time.
+// `Direct` composes `{parent}/{agent_instance}` (parent defaults to
+// `Config.agent_instance_hierarchy` when omitted) and operates
+// against that hierarchy. `Tag` is resolved against the tags DB at
+// call time: a BOUND tag becomes effectively a Direct target,
+// while PENDING / ABSENT falls back to pure enqueue against the
+// tag name.
 type CliCommandAgentsMessageMessageTarget struct {
 	Direct *CliCommandAgentsMessageMessageTargetDirect `outerObject:"true"`
 	Tag *CliCommandAgentsMessageMessageTargetTag `outerObject:"true"`

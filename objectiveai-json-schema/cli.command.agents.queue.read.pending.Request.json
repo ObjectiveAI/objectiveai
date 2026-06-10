@@ -27,7 +27,7 @@
       ]
     },
     "limit": {
-      "description": "Cap on rows scanned per target. Defaults to 1000 server-side\nwhen omitted.",
+      "description": "Cap on rows scanned per target. `None` = unlimited.",
       "anyOf": [
         {
           "type": "integer",

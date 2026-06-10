@@ -32,48 +32,51 @@ func (v *CliCommandAgentsTagsLookupLookupStateBound) UnmarshalJSON(data []byte) 
 }
 func (CliCommandAgentsTagsLookupLookupStateBound) SchemaVariantTitle() string { return "Bound" }
 
-type CliCommandAgentsTagsLookupLookupStatePending struct {
-	AgentFullID string `json:"agent_full_id"`
+type CliCommandAgentsTagsLookupLookupStateGrouped struct {
+	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
 	ParentAgentInstanceHierarchy string `json:"parent_agent_instance_hierarchy"`
-	State string `json:"state" validate:"oneof=pending"`
+	State string `json:"state" validate:"oneof=grouped"`
+	TagGroupID int64 `json:"tag_group_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 }
 
-func (v *CliCommandAgentsTagsLookupLookupStatePending) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsTagsLookupLookupStateGrouped) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_full_id", "parent_agent_instance_hierarchy", "state"} {
+	for _, key := range []string{"agent_spec", "parent_agent_instance_hierarchy", "state", "tag_group_id"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsTagsLookupLookupStatePending: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsTagsLookupLookupStateGrouped: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsTagsLookupLookupStatePending
+	type Alias CliCommandAgentsTagsLookupLookupStateGrouped
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsTagsLookupLookupStatePending(alias)
+	*v = CliCommandAgentsTagsLookupLookupStateGrouped(alias)
 	return nil
 }
-func (CliCommandAgentsTagsLookupLookupStatePending) SchemaVariantTitle() string { return "Pending" }
+func (CliCommandAgentsTagsLookupLookupStateGrouped) SchemaVariantTitle() string { return "Grouped" }
 
-// 2-state result of a successful tag-name lookup. PENDING surfaces
-// the pre-spawn `(parent, agent_full_id)` pair so callers can see
-// why the tag exists without a hierarchy yet. The third "not
-// registered" possibility is represented at the [`Response`]
-// level via [`Response::Absent`], not as a variant here.
+// 2-state result of a successful tag-name lookup. `Grouped`
+// surfaces the tag's `tag_groups` membership — the group id, the
+// resolved `AgentSpec` the group carries, and the parent lineage
+// — so callers can see what would happen on spawn-by-tag without
+// firing one. The third "not registered" possibility is
+// represented at the [`Response`] level via [`Response::Absent`],
+// not as a variant here.
 type CliCommandAgentsTagsLookupLookupState struct {
 	Bound *CliCommandAgentsTagsLookupLookupStateBound `outerObject:"true"`
-	Pending *CliCommandAgentsTagsLookupLookupStatePending `outerObject:"true"`
+	Grouped *CliCommandAgentsTagsLookupLookupStateGrouped `outerObject:"true"`
 }
 
 func (v CliCommandAgentsTagsLookupLookupState) MarshalJSON() ([]byte, error) {
 	if v.Bound != nil {
 		return json.Marshal(v.Bound)
 	}
-	if v.Pending != nil {
-		return json.Marshal(v.Pending)
+	if v.Grouped != nil {
+		return json.Marshal(v.Grouped)
 	}
 	return []byte("null"), nil
 }
@@ -91,10 +94,10 @@ func (v *CliCommandAgentsTagsLookupLookupState) UnmarshalJSON(data []byte) error
 		}
 	}
 	{
-		var try CliCommandAgentsTagsLookupLookupStatePending
+		var try CliCommandAgentsTagsLookupLookupStateGrouped
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsTagsLookupLookupState{}
-			candidate.Pending = &try
+			candidate.Grouped = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -107,7 +110,7 @@ func (v *CliCommandAgentsTagsLookupLookupState) UnmarshalJSON(data []byte) error
 func (v CliCommandAgentsTagsLookupLookupState) Validate() error {
 	count := 0
 	if v.Bound != nil { count++ }
-	if v.Pending != nil { count++ }
+	if v.Grouped != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsTagsLookupLookupState: exactly one variant must be set, got %d", count)
 	}

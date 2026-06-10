@@ -22,6 +22,14 @@ type AgentCompletionsResponseStreamingAssistantResponseChunk struct {
 	Provider *string `json:"provider,omitempty"`
 	Reasoning *string `json:"reasoning,omitempty"`
 	Refusal *string `json:"refusal,omitempty"`
+	// `message_queue_contents.id`s the API consumed to seed this
+	// turn's request. Stamped onto the first assistant chunk the
+	// API emits downstream — when set, the consumer owns these
+	// rows. Kinds are resolved CLI-side at write time (SQL CASE
+	// against `message_queue_contents.kind`), so the wire stays
+	// `i64`-only. Both `None` and `Some(empty)` are skipped on
+	// serialize.
+	RequestMessageIds *[]int64 `json:"request_message_ids,omitempty" validate:"omitempty,dive,min=-9223372036854775808,max=9223372036854775807"`
 	Role AgentCompletionsResponseAssistantRole `json:"role"`
 	ServiceTier *string `json:"service_tier,omitempty"`
 	SystemFingerprint *string `json:"system_fingerprint,omitempty"`

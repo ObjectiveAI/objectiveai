@@ -2,32 +2,6 @@
   "title": "cli.command.tasks.run.Request",
   "type": "object",
   "properties": {
-    "agent_instance_hierarchy": {
-      "description": "Literal hierarchy scope. Mutually exclusive with `tag`.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "depth": {
-      "description": "Cap descent depth from the scope root. `None` = unlimited.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "jq": {
       "anyOf": [
         {
@@ -41,17 +15,9 @@
     "path_type": {
       "$ref": "cli.command.tasks.run.Path"
     },
-    "tag": {
-      "description": "Tag name; resolved BOUND-only at handler time. PENDING /\nABSENT raise structured errors. Mutually exclusive with\n`agent_instance_hierarchy`.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+    "stream_all": {
+      "description": "Stream every item every fired task emits (each a\n[`ValueResponseItem`]). When false — the default — each task\nyields exactly one [`SuccessResponseItem`] summary instead; the\nfull output still lands in `tasks_logs` either way.",
+      "type": "boolean"
     }
   }
 }

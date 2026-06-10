@@ -3,6 +3,11 @@
 package objectiveai
 
 type CliCommandAgentsSpawnRequestDangerousAdvanced struct {
+	// Deterministic seed for the upstream model's RNG (mock
+	// agents in particular). Plumbed onto
+	// `AgentCompletionCreateParams.seed`. `None` here ⇒ the
+	// api picks; tests should always pin a value.
+	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Stream *bool `json:"stream,omitempty"`
 }
 

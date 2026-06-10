@@ -10,11 +10,12 @@ import (
 type CliCommandRequest struct {
 	Agents *CliCommandAgentsRequest 
 	Config *CliCommandConfigRequest 
+	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
-	Logs *CliCommandLogsRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
 	Swarms *CliCommandSwarmsRequest 
+	Tasks *CliCommandTasksRequest 
 	Tools *CliCommandToolsRequest 
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
@@ -29,11 +30,11 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.Config != nil {
 		return json.Marshal(v.Config)
 	}
+	if v.Db != nil {
+		return json.Marshal(v.Db)
+	}
 	if v.Functions != nil {
 		return json.Marshal(v.Functions)
-	}
-	if v.Logs != nil {
-		return json.Marshal(v.Logs)
 	}
 	if v.MCP != nil {
 		return json.Marshal(v.MCP)
@@ -43,6 +44,9 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
+	}
+	if v.Tasks != nil {
+		return json.Marshal(v.Tasks)
 	}
 	if v.Tools != nil {
 		return json.Marshal(v.Tools)
@@ -86,10 +90,10 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandFunctionsRequest
+		var try CliCommandDbRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.Functions = &try
+			candidate.Db = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -97,10 +101,10 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandLogsRequest
+		var try CliCommandFunctionsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.Logs = &try
+			candidate.Functions = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -134,6 +138,17 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.Swarms = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandTasksRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Tasks = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -202,11 +217,12 @@ func (v CliCommandRequest) Validate() error {
 	count := 0
 	if v.Agents != nil { count++ }
 	if v.Config != nil { count++ }
+	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
-	if v.Logs != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
 	if v.Swarms != nil { count++ }
+	if v.Tasks != nil { count++ }
 	if v.Tools != nil { count++ }
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }

@@ -11,9 +11,9 @@ type CliCommandAgentsTagsRequest struct {
 	Lookup *CliCommandAgentsTagsLookupRequest 
 	LookupRequestSchema *CliCommandAgentsTagsLookupRequestSchemaRequest 
 	LookupResponseSchema *CliCommandAgentsTagsLookupResponseSchemaRequest 
-	Add *CliCommandAgentsTagsAddRequest 
-	AddRequestSchema *CliCommandAgentsTagsAddRequestSchemaRequest 
-	AddResponseSchema *CliCommandAgentsTagsAddResponseSchemaRequest 
+	Apply *CliCommandAgentsTagsApplyRequest 
+	ApplyRequestSchema *CliCommandAgentsTagsApplyRequestSchemaRequest 
+	ApplyResponseSchema *CliCommandAgentsTagsApplyResponseSchemaRequest 
 }
 
 func (v CliCommandAgentsTagsRequest) MarshalJSON() ([]byte, error) {
@@ -26,14 +26,14 @@ func (v CliCommandAgentsTagsRequest) MarshalJSON() ([]byte, error) {
 	if v.LookupResponseSchema != nil {
 		return json.Marshal(v.LookupResponseSchema)
 	}
-	if v.Add != nil {
-		return json.Marshal(v.Add)
+	if v.Apply != nil {
+		return json.Marshal(v.Apply)
 	}
-	if v.AddRequestSchema != nil {
-		return json.Marshal(v.AddRequestSchema)
+	if v.ApplyRequestSchema != nil {
+		return json.Marshal(v.ApplyRequestSchema)
 	}
-	if v.AddResponseSchema != nil {
-		return json.Marshal(v.AddResponseSchema)
+	if v.ApplyResponseSchema != nil {
+		return json.Marshal(v.ApplyResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -73,10 +73,10 @@ func (v *CliCommandAgentsTagsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsTagsAddRequest
+		var try CliCommandAgentsTagsApplyRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsTagsRequest{}
-			candidate.Add = &try
+			candidate.Apply = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -84,10 +84,10 @@ func (v *CliCommandAgentsTagsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsTagsAddRequestSchemaRequest
+		var try CliCommandAgentsTagsApplyRequestSchemaRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsTagsRequest{}
-			candidate.AddRequestSchema = &try
+			candidate.ApplyRequestSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -95,10 +95,10 @@ func (v *CliCommandAgentsTagsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsTagsAddResponseSchemaRequest
+		var try CliCommandAgentsTagsApplyResponseSchemaRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsTagsRequest{}
-			candidate.AddResponseSchema = &try
+			candidate.ApplyResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -113,9 +113,9 @@ func (v CliCommandAgentsTagsRequest) Validate() error {
 	if v.Lookup != nil { count++ }
 	if v.LookupRequestSchema != nil { count++ }
 	if v.LookupResponseSchema != nil { count++ }
-	if v.Add != nil { count++ }
-	if v.AddRequestSchema != nil { count++ }
-	if v.AddResponseSchema != nil { count++ }
+	if v.Apply != nil { count++ }
+	if v.ApplyRequestSchema != nil { count++ }
+	if v.ApplyResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsTagsRequest: exactly one variant must be set, got %d", count)
 	}

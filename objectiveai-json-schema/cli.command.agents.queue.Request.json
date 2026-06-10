@@ -14,6 +14,18 @@
       "$ref": "cli.command.agents.queue.delete.response_schema.Request"
     },
     {
+      "title": "Deliver",
+      "$ref": "cli.command.agents.queue.deliver.Request"
+    },
+    {
+      "title": "DeliverRequestSchema",
+      "$ref": "cli.command.agents.queue.deliver.request_schema.Request"
+    },
+    {
+      "title": "DeliverResponseSchema",
+      "$ref": "cli.command.agents.queue.deliver.response_schema.Request"
+    },
+    {
       "title": "Read",
       "$ref": "cli.command.agents.queue.read.Request"
     }

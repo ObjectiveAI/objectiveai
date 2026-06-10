@@ -1,0 +1,36 @@
+{
+  "title": "cli.command.tasks.run.ValueResponseItem",
+  "description": "One output item from one fired schedule's in-process stream\n(`stream_all` mode). The first four fields identify the source\nschedule; `value` is the typed root\n[`crate::cli::command::ResponseItem`] emitted by the scheduled cli\nleaf — boxed because the root union transitively contains *this*\ntype (`agents → tasks → run`), and boxing is what makes the\nrecursion sized.\n\nThe `value` field's JSON schema is opaqued to `serde_json::Value`\n(renders as bare `{}` aka JsonValue) so the published schema\ndoesn't inline the entire root union — that's the TS7056 blowup\nthe root and tier aggregates dodge by being `json_schema_ignore`.\nDownstream SDKs see `value: JsonValue` on the typed `execute`\npath; consumers that want to peer inside parse it case-by-case.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "description": "The source schedule's `agent_instance_hierarchy`.",
+      "type": "string"
+    },
+    "name": {
+      "description": "The source schedule's `--name`.",
+      "type": "string"
+    },
+    "plugin": {
+      "description": "The plugin that registered the source schedule, if any.",
+      "anyOf": [
+        {
+          "$ref": "cli.command.tasks.list.Plugin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "value": {
+      "description": "The typed root item emitted by the scheduled command."
+    },
+    "version": {
+      "description": "The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

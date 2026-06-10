@@ -7,33 +7,8 @@ import (
 	"fmt"
 )
 
-type CliCommandAgentsMessageResponseItemQueued struct {
-	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	ResponseID string `json:"response_id"`
-}
-
-func (v *CliCommandAgentsMessageResponseItemQueued) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"agent_instance_hierarchy", "response_id"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsMessageResponseItemQueued: missing required field %q", key)
-		}
-	}
-	type Alias CliCommandAgentsMessageResponseItemQueued
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliCommandAgentsMessageResponseItemQueued(alias)
-	return nil
-}
-func (CliCommandAgentsMessageResponseItemQueued) SchemaVariantTitle() string { return "Queued" }
-
 type CliCommandAgentsMessageResponseItemDelivered struct {
-	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Type string `json:"type" validate:"oneof=delivered"`
 }
 
 func (v *CliCommandAgentsMessageResponseItemDelivered) UnmarshalJSON(data []byte) error {
@@ -41,7 +16,7 @@ func (v *CliCommandAgentsMessageResponseItemDelivered) UnmarshalJSON(data []byte
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy"} {
+	for _, key := range []string{"type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsMessageResponseItemDelivered: missing required field %q", key)
 		}
@@ -56,57 +31,129 @@ func (v *CliCommandAgentsMessageResponseItemDelivered) UnmarshalJSON(data []byte
 }
 func (CliCommandAgentsMessageResponseItemDelivered) SchemaVariantTitle() string { return "Delivered" }
 
-// Streamed-mode wire shape for `agents message`. Emitted as one
-// JSON-line per item on the cli's stdout when
-// `Request::dangerous_advanced.stream = Some(true)`. Untagged shape
-// is forward-compatible with [`Response`]: in stream mode, item 0 is
-// always a `Queued` or `Delivered` variant carrying the same fields
-// as the unary `Response::Queued` / `Response::Delivered`. Under the
-// `Queued` path with streaming on, item 0 is followed by zero or
-// more `Chunk` items until the spawned instance-runner's stdout
-// EOFs.
+type CliCommandAgentsMessageResponseItemEnqueued struct {
+	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
+	AgentTag *string `json:"agent_tag,omitempty"`
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=enqueued"`
+}
+
+func (v *CliCommandAgentsMessageResponseItemEnqueued) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsMessageResponseItemEnqueued: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsMessageResponseItemEnqueued
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsMessageResponseItemEnqueued(alias)
+	return nil
+}
+func (CliCommandAgentsMessageResponseItemEnqueued) SchemaVariantTitle() string { return "Enqueued" }
+
+type CliCommandAgentsMessageResponseItemID struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Type string `json:"type" validate:"oneof=id"`
+}
+
+func (v *CliCommandAgentsMessageResponseItemID) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsMessageResponseItemID: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsMessageResponseItemID
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsMessageResponseItemID(alias)
+	return nil
+}
+func (CliCommandAgentsMessageResponseItemID) SchemaVariantTitle() string { return "Id" }
+
+// Newtype-of-struct under an internally-tagged enum: the
+// chunk's own fields land at the top level of the JSON, with
+// `"type":"chunk"` injected. Wire shape equivalent to spawn's
+// `ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`
+// discriminator.
+type CliCommandAgentsMessageResponseItemChunk struct {
+	AgentCompletionsResponseStreamingAgentCompletionChunk
+	Type string `json:"type" validate:"oneof=chunk"`
+}
+
+func (v *CliCommandAgentsMessageResponseItemChunk) UnmarshalJSON(data []byte) error {
+	if err := json.Unmarshal(data, &v.AgentCompletionsResponseStreamingAgentCompletionChunk); err != nil {
+		return err
+	}
+	var local struct {
+		Type string `json:"type"`
+	}
+	if err := json.Unmarshal(data, &local); err != nil {
+		return err
+	}
+	v.Type = local.Type
+	return nil
+}
+
+func (v CliCommandAgentsMessageResponseItemChunk) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(v.AgentCompletionsResponseStreamingAgentCompletionChunk)
+	if err != nil {
+		return nil, err
+	}
+	var merged map[string]json.RawMessage
+	json.Unmarshal(base, &merged)
+	if raw, err := json.Marshal(v.Type); err == nil {
+		merged["type"] = raw
+	}
+	return json.Marshal(merged)
+}
+func (CliCommandAgentsMessageResponseItemChunk) SchemaVariantTitle() string { return "Chunk" }
+
+// Streamed response (stream=true). The cli yields a sequence of
+// these. Same `Delivered` / `Enqueued` / `Id` first-item
+// semantics as [`Response`]; the spawn-take-over branch adds
+// streaming `Chunk` items after the initial `Id`.
 type CliCommandAgentsMessageResponseItem struct {
-	Chunk *AgentCompletionsResponseStreamingAgentCompletionChunk 
-	Queued *CliCommandAgentsMessageResponseItemQueued `outerObject:"true"`
 	Delivered *CliCommandAgentsMessageResponseItemDelivered `outerObject:"true"`
+	Enqueued *CliCommandAgentsMessageResponseItemEnqueued `outerObject:"true"`
+	ID *CliCommandAgentsMessageResponseItemID `outerObject:"true" variantTitle:"Id"`
+	// Newtype-of-struct under an internally-tagged enum: the
+	// chunk's own fields land at the top level of the JSON, with
+	// `"type":"chunk"` injected. Wire shape equivalent to spawn's
+	// `ResponseItem::Chunk(AgentCompletionChunk)` plus the `type`
+	// discriminator.
+	Chunk *CliCommandAgentsMessageResponseItemChunk `outerObject:"true"`
 }
 
 func (v CliCommandAgentsMessageResponseItem) MarshalJSON() ([]byte, error) {
-	if v.Chunk != nil {
-		return json.Marshal(v.Chunk)
-	}
-	if v.Queued != nil {
-		return json.Marshal(v.Queued)
-	}
 	if v.Delivered != nil {
 		return json.Marshal(v.Delivered)
+	}
+	if v.Enqueued != nil {
+		return json.Marshal(v.Enqueued)
+	}
+	if v.ID != nil {
+		return json.Marshal(v.ID)
+	}
+	if v.Chunk != nil {
+		return json.Marshal(v.Chunk)
 	}
 	return []byte("null"), nil
 }
 
 func (v *CliCommandAgentsMessageResponseItem) UnmarshalJSON(data []byte) error {
-	{
-		var try AgentCompletionsResponseStreamingAgentCompletionChunk
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsMessageResponseItem{}
-			candidate.Chunk = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsMessageResponseItemQueued
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsMessageResponseItem{}
-			candidate.Queued = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try CliCommandAgentsMessageResponseItemDelivered
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -118,14 +165,48 @@ func (v *CliCommandAgentsMessageResponseItem) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsMessageResponseItemEnqueued
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsMessageResponseItem{}
+			candidate.Enqueued = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsMessageResponseItemID
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsMessageResponseItem{}
+			candidate.ID = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsMessageResponseItemChunk
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsMessageResponseItem{}
+			candidate.Chunk = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsMessageResponseItem")
 }
 
 func (v CliCommandAgentsMessageResponseItem) Validate() error {
 	count := 0
-	if v.Chunk != nil { count++ }
-	if v.Queued != nil { count++ }
 	if v.Delivered != nil { count++ }
+	if v.Enqueued != nil { count++ }
+	if v.ID != nil { count++ }
+	if v.Chunk != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsMessageResponseItem: exactly one variant must be set, got %d", count)
 	}

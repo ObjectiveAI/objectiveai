@@ -10,7 +10,6 @@ func init() {
 		OrderedMap[string, FunctionsExpressionInputValue]{},
 		OrderedMap[string, FunctionsExpressionInputValueExpressionObjectValue]{},
 		OrderedMap[string, JsonValue]{},
-		OrderedMap[string, LogReference]{},
 		OrderedMap[string, int64]{},
 		OrderedMap[string, string]{},
 	)

@@ -15,6 +15,13 @@ type AgentCompletionsResponseToolResponse struct {
 	// Optional vendor-extension metadata, populated by
 	// `objectiveai-mcp-proxy` via MCP's `_meta` extension bag.
 	Metadata *AgentCompletionsMessageToolResponseMetadata `json:"metadata,omitempty"`
+	// Mirrors `AssistantResponseChunk.request_message_ids` —
+	// the consumed `message_queue_contents.id`s. Currently never
+	// populated (the API stamps the assistant chunk instead);
+	// the field exists so the wire shape is symmetric across
+	// the two `MessageChunk` variants. Both `None` and
+	// `Some(empty)` are skipped on serialize.
+	RequestMessageIds *[]int64 `json:"request_message_ids,omitempty" validate:"omitempty,dive,min=-9223372036854775808,max=9223372036854775807"`
 	Role AgentCompletionsResponseToolRole `json:"role"`
 	// The ID of the tool call this message responds to.
 	ToolCallID string `json:"tool_call_id"`

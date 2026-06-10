@@ -61,47 +61,48 @@ func (v *CliCommandAgentsTagsLookupResponseTagBound) UnmarshalJSON(data []byte) 
 }
 func (CliCommandAgentsTagsLookupResponseTagBound) SchemaVariantTitle() string { return "Bound" }
 
-type CliCommandAgentsTagsLookupResponseTagPending struct {
-	AgentFullID string `json:"agent_full_id"`
+type CliCommandAgentsTagsLookupResponseTagGrouped struct {
+	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
 	By string `json:"by" validate:"oneof=tag"`
 	ParentAgentInstanceHierarchy string `json:"parent_agent_instance_hierarchy"`
-	State string `json:"state" validate:"oneof=pending"`
+	State string `json:"state" validate:"oneof=grouped"`
+	TagGroupID int64 `json:"tag_group_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 }
 
-func (v *CliCommandAgentsTagsLookupResponseTagPending) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsTagsLookupResponseTagGrouped) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_full_id", "by", "parent_agent_instance_hierarchy", "state"} {
+	for _, key := range []string{"agent_spec", "by", "parent_agent_instance_hierarchy", "state", "tag_group_id"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsTagsLookupResponseTagPending: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsTagsLookupResponseTagGrouped: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsTagsLookupResponseTagPending
+	type Alias CliCommandAgentsTagsLookupResponseTagGrouped
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsTagsLookupResponseTagPending(alias)
+	*v = CliCommandAgentsTagsLookupResponseTagGrouped(alias)
 	return nil
 }
-func (CliCommandAgentsTagsLookupResponseTagPending) SchemaVariantTitle() string { return "Pending" }
+func (CliCommandAgentsTagsLookupResponseTagGrouped) SchemaVariantTitle() string { return "Grouped" }
 
 // A successful tag → state lookup. Flattens the 2-state
 // status onto the same JSON object — yielding e.g.
 // `{"by":"tag","state":"bound","agent_instance_hierarchy":"…"}`.
 type CliCommandAgentsTagsLookupResponseTag struct {
 	Bound *CliCommandAgentsTagsLookupResponseTagBound `outerObject:"true"`
-	Pending *CliCommandAgentsTagsLookupResponseTagPending `outerObject:"true"`
+	Grouped *CliCommandAgentsTagsLookupResponseTagGrouped `outerObject:"true"`
 }
 
 func (v CliCommandAgentsTagsLookupResponseTag) MarshalJSON() ([]byte, error) {
 	if v.Bound != nil {
 		return json.Marshal(v.Bound)
 	}
-	if v.Pending != nil {
-		return json.Marshal(v.Pending)
+	if v.Grouped != nil {
+		return json.Marshal(v.Grouped)
 	}
 	return []byte("null"), nil
 }
@@ -119,10 +120,10 @@ func (v *CliCommandAgentsTagsLookupResponseTag) UnmarshalJSON(data []byte) error
 		}
 	}
 	{
-		var try CliCommandAgentsTagsLookupResponseTagPending
+		var try CliCommandAgentsTagsLookupResponseTagGrouped
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsTagsLookupResponseTag{}
-			candidate.Pending = &try
+			candidate.Grouped = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -135,7 +136,7 @@ func (v *CliCommandAgentsTagsLookupResponseTag) UnmarshalJSON(data []byte) error
 func (v CliCommandAgentsTagsLookupResponseTag) Validate() error {
 	count := 0
 	if v.Bound != nil { count++ }
-	if v.Pending != nil { count++ }
+	if v.Grouped != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsTagsLookupResponseTag: exactly one variant must be set, got %d", count)
 	}

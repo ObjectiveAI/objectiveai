@@ -1,10 +1,18 @@
 {
   "title": "cli.command.tasks.schedule.Response",
-  "description": "`id` is the stable identifier `\"{name}-{db_id}\"` — the\nuser-supplied `--name` joined to the row id from\n`tasks.sqlite`'s `schedules` table. Same shape `list` and\n`run` use to identify rows on the wire.",
+  "description": "The created schedule's user-facing identity: its `--name`, the\ncaller hierarchy it was registered under, and the version this call\nminted (`1` on first creation, `max + 1` per `--overwrite` — each\nversion is its own row; older versions are shadowed but kept for\nper-version run history).",
   "type": "object",
   "properties": {
-    "id": {
+    "agent_instance_hierarchy": {
       "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
     }
   }
 }

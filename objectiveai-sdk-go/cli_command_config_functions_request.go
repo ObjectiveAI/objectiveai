@@ -12,7 +12,6 @@ type CliCommandConfigFunctionsRequest struct {
 	GetRequestSchema *CliCommandConfigFunctionsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandConfigFunctionsGetResponseSchemaRequest 
 	Favorites *CliCommandConfigFunctionsFavoritesRequest 
-	Inventions *CliCommandConfigFunctionsInventionsRequest 
 	Profiles *CliCommandConfigFunctionsProfilesRequest 
 }
 
@@ -28,9 +27,6 @@ func (v CliCommandConfigFunctionsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Favorites != nil {
 		return json.Marshal(v.Favorites)
-	}
-	if v.Inventions != nil {
-		return json.Marshal(v.Inventions)
 	}
 	if v.Profiles != nil {
 		return json.Marshal(v.Profiles)
@@ -84,17 +80,6 @@ func (v *CliCommandConfigFunctionsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandConfigFunctionsInventionsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandConfigFunctionsRequest{}
-			candidate.Inventions = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandConfigFunctionsProfilesRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandConfigFunctionsRequest{}
@@ -114,7 +99,6 @@ func (v CliCommandConfigFunctionsRequest) Validate() error {
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
 	if v.Favorites != nil { count++ }
-	if v.Inventions != nil { count++ }
 	if v.Profiles != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandConfigFunctionsRequest: exactly one variant must be set, got %d", count)

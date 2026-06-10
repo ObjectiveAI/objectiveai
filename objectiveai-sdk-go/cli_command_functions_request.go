@@ -8,11 +8,10 @@ import (
 )
 
 type CliCommandFunctionsRequest struct {
-	Executions *CliCommandFunctionsExecutionsCreateRequest 
+	Execute *CliCommandFunctionsExecuteRequest 
 	Get *CliCommandFunctionsGetRequest 
 	GetRequestSchema *CliCommandFunctionsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandFunctionsGetResponseSchemaRequest 
-	Inventions *CliCommandFunctionsInventionsRequest 
 	List *CliCommandFunctionsListRequest 
 	ListRequestSchema *CliCommandFunctionsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandFunctionsListResponseSchemaRequest 
@@ -23,8 +22,8 @@ type CliCommandFunctionsRequest struct {
 }
 
 func (v CliCommandFunctionsRequest) MarshalJSON() ([]byte, error) {
-	if v.Executions != nil {
-		return json.Marshal(v.Executions)
+	if v.Execute != nil {
+		return json.Marshal(v.Execute)
 	}
 	if v.Get != nil {
 		return json.Marshal(v.Get)
@@ -34,9 +33,6 @@ func (v CliCommandFunctionsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.GetResponseSchema != nil {
 		return json.Marshal(v.GetResponseSchema)
-	}
-	if v.Inventions != nil {
-		return json.Marshal(v.Inventions)
 	}
 	if v.List != nil {
 		return json.Marshal(v.List)
@@ -64,10 +60,10 @@ func (v CliCommandFunctionsRequest) MarshalJSON() ([]byte, error) {
 
 func (v *CliCommandFunctionsRequest) UnmarshalJSON(data []byte) error {
 	{
-		var try CliCommandFunctionsExecutionsCreateRequest
+		var try CliCommandFunctionsExecuteRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandFunctionsRequest{}
-			candidate.Executions = &try
+			candidate.Execute = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -101,17 +97,6 @@ func (v *CliCommandFunctionsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandFunctionsRequest{}
 			candidate.GetResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandFunctionsInventionsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandFunctionsRequest{}
-			candidate.Inventions = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -200,11 +185,10 @@ func (v *CliCommandFunctionsRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandFunctionsRequest) Validate() error {
 	count := 0
-	if v.Executions != nil { count++ }
+	if v.Execute != nil { count++ }
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
-	if v.Inventions != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }

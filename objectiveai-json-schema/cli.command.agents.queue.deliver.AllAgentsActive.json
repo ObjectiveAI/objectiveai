@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.agents.queue.deliver.AllAgentsActive",
+  "description": "Every target has resolved to active-or-spawned. Wire shape is the\nbare string `\"AllAgentsActive\"` (a one-variant enum — a unit\nvariant in the untagged [`ResponseItem`] would serialize as\n`null`, not the marker string). The detached default mode stops\nreading its child at this item.",
+  "type": "string",
+  "enum": [
+    "AllAgentsActive"
+  ]
+}

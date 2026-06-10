@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.queue.deliver.AgentSpawnedResponseItem",
+  "description": "This agent's lock was won and its spawn has started; its output\nfollows as [`ValueResponseItem`]s (in `stream_spawns` mode).",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "cli.command.agents.queue.deliver.AgentSpawnedType"
+    }
+  }
+}

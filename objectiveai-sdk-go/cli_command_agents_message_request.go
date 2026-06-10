@@ -8,11 +8,26 @@ import (
 )
 
 type CliCommandAgentsMessageRequest struct {
-	DangerousAdvanced *CliCommandAgentsMessageRequestDangerousAdvanced `json:"dangerous_advanced"`
+	// `Some(true)` → in-process streaming delivery / spawn.
+	// `None | Some(false)` → detached subprocess re-exec for the
+	// spawn-take-over case; the call returns the first item of
+	// that child's stream. Ignored when `enqueue.is_some()` — the
+	// enqueue path yields a single-item stream identical to its
+	// unary response.
+	DangerousAdvanced *CliCommandAgentsMessageRequestDangerousAdvanced `json:"dangerous_advanced,omitempty"`
+	// `None` (default) → run the full delivery flow (resolve
+	// target, lock-race, spawn-takeover). `Some(_)` →
+	// short-circuit straight into the queue against the target;
+	// no lookup, no race, no spawn. With `Keyed { key }`, any
+	// pre-existing row scoped to the same target + key is deleted
+	// before insert.
+	Enqueue *CliCommandAgentsMessageEnqueueMode `json:"enqueue,omitempty"`
 	Jq *string `json:"jq"`
+	// Required payload. The eventual enqueue / delivery / spawn
+	// always carries this exact `RichContent` as its single
+	// user message.
 	Message CliCommandAgentsMessageRequestMessage `json:"message"`
 	PathType CliCommandAgentsMessagePath `json:"path_type"`
-	Seed *int64 `json:"seed" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Target CliCommandAgentsMessageMessageTarget `json:"target"`
 }
 

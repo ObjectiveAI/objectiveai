@@ -20,8 +20,17 @@ import (
 // selection), but when `top_logprobs` is used, votes may be probability
 // distributions.
 type VectorCompletionsResponseVote struct {
-	// The agent that produced this vote (content-addressed ID).
-	Agent string `json:"agent"`
+	// WF-level id of the agent that produced this vote — concatenation
+	// of the primary agent's id with all fallback ids (see
+	// `InlineAgentWithFallbacks::full_id`). Same for every slot in the
+	// same WF request and deterministic across api processes.
+	AgentFullID string `json:"agent_full_id"`
+	// Leaf agent id of the slot that produced this vote (matches the
+	// `agent_id` on the corresponding
+	// [`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).
+	// When fallbacks fired, this is the fallback's id rather than the
+	// primary's.
+	AgentID string `json:"agent_id"`
 	// Flattened index accounting for agent counts in the swarm.
 	FlatSwarmIndex uint64 `json:"flat_swarm_index" validate:"min=0,max=18446744073709551615"`
 	// If true, this vote was retrieved from cache rather than generated fresh.
@@ -52,7 +61,7 @@ func (v *VectorCompletionsResponseVote) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent", "flat_swarm_index", "prompt_id", "responses_ids", "swarm_index", "vote", "weight"} {
+	for _, key := range []string{"agent_full_id", "agent_id", "flat_swarm_index", "prompt_id", "responses_ids", "swarm_index", "vote", "weight"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("VectorCompletionsResponseVote: missing required field %q", key)
 		}

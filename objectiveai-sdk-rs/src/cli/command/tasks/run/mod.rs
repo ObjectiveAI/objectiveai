@@ -73,7 +73,9 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.tasks.run.ResponseItem")]
 pub enum ResponseItem {
+    #[schemars(title = "Value")]
     Value(ValueResponseItem),
+    #[schemars(title = "Success")]
     Success(SuccessResponseItem),
 }
 

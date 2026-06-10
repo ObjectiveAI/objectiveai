@@ -10,7 +10,9 @@ import (
 type CliCommandPluginsGetRequest struct {
 	Jq *string `json:"jq"`
 	Name string `json:"name"`
+	Owner string `json:"owner"`
 	PathType CliCommandPluginsGetPath `json:"path_type"`
+	Version string `json:"version"`
 }
 
 func (CliCommandPluginsGetRequest) SchemaTitle() string { return "cli.command.plugins.get.Request" }
@@ -23,7 +25,7 @@ func (v *CliCommandPluginsGetRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"name", "path_type"} {
+	for _, key := range []string{"name", "owner", "path_type", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandPluginsGetRequest: missing required field %q", key)
 		}
