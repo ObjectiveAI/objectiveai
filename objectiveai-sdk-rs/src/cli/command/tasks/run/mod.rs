@@ -61,12 +61,13 @@ impl CommandRequest for Request {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.run.ResponseItem")]
 pub struct ResponseItem {
-    /// The source schedule's `schedules` row id.
-    pub id: i64,
     /// The source schedule's `agent_instance_hierarchy`.
     pub agent_instance_hierarchy: String,
     /// The source schedule's `--name`.
     pub name: String,
+    /// The source schedule's version (`1` on first creation,
+    /// incremented per `schedule --overwrite`).
+    pub version: u64,
     /// The plugin that registered the source schedule, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

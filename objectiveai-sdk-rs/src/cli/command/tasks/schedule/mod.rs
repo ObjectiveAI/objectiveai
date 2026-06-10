@@ -39,9 +39,11 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub interval_seconds: Option<u64>,
-    /// Replace an existing `(name, agent_instance_hierarchy)` row
-    /// instead of erroring on collision. Each overwrite bumps the
-    /// row's `version` (starts at 1) and resets its run state.
+    /// Shadow an existing `(name, agent_instance_hierarchy)` schedule
+    /// instead of erroring on collision: a NEW row is inserted with
+    /// `version = max + 1`. Older versions never list or run again but
+    /// are kept so run history stays per-version; the new version has
+    /// no runs yet, so it fires fresh.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub overwrite: bool,
     pub jq: Option<String>,
@@ -92,14 +94,17 @@ impl CommandRequest for Request {
     }
 }
 
-/// `id` is the stable identifier `"{name}-{db_id}"` — the
-/// user-supplied `--name` joined to the row id from
-/// `tasks.sqlite`'s `schedules` table. Same shape `list` and
-/// `run` use to identify rows on the wire.
+/// The created schedule's user-facing identity: its `--name`, the
+/// caller hierarchy it was registered under, and the version this call
+/// minted (`1` on first creation, `max + 1` per `--overwrite` — each
+/// version is its own row; older versions are shadowed but kept for
+/// per-version run history).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.schedule.Response")]
 pub struct Response {
-    pub id: String,
+    pub name: String,
+    pub agent_instance_hierarchy: String,
+    pub version: u64,
 }
 
 #[derive(clap::Args)]
@@ -128,9 +133,10 @@ pub struct Args {
     /// delete the row. Mutually exclusive with `--interval`.
     #[arg(long)]
     pub oneshot: bool,
-    /// Replace an existing `(name, agent-instance-hierarchy)`
-    /// schedule instead of erroring on collision. Bumps the row's
-    /// `version` (starting at 1) and resets its run state.
+    /// Shadow an existing `(name, agent-instance-hierarchy)` schedule
+    /// instead of erroring on collision: inserts a NEW version
+    /// (`max + 1`) that supersedes the old ones. Old versions keep
+    /// their run history but never list or run again.
     #[arg(long)]
     pub overwrite: bool,
     /// jq filter applied to the JSON output.

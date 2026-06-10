@@ -4,9 +4,12 @@
 //! `me` / `instance=L[,parent=P]` / `tag=T`). Each resolves to an AIH
 //! and the listing returns the schedule rows whose
 //! `agent_instance_hierarchy` equals it — exact match, no subtree
-//! descent. `--oneshot` / `--interval` filter by kind; `--pending` /
-//! `--exhausted` filter by readiness; `--after-id` / `--count`
-//! paginate forward by ascending row id.
+//! descent. Only the NEWEST version of each `(name, aih)` lists;
+//! `--overwrite`-shadowed versions stay on disk (per-version run
+//! history) but never surface here. `--oneshot` / `--interval` filter
+//! by kind; `--pending` / `--exhausted` filter by readiness (derived
+//! from the schedule's newest `tasks_runs` entry); `--after-id` /
+//! `--count` paginate forward by ascending row id.
 
 use crate::cli::command::CommandRequest;
 
@@ -123,8 +126,9 @@ pub struct ResponseItem {
     pub command: Vec<String>,
     pub description: String,
     pub created_at: i64,
-    /// Unix seconds of the most recent invocation. `None` until
-    /// the runner has fired this schedule at least once.
+    /// Unix seconds of the most recent invocation — this row's newest
+    /// `tasks_runs` entry. `None` until the runner has fired this
+    /// version at least once (runs are tracked per-version).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub last_ran_at: Option<i64>,
@@ -136,8 +140,9 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub interval: Option<String>,
-    /// Overwrite count: `1` for a freshly scheduled row, incremented
-    /// each time `tasks schedule --overwrite` replaced it.
+    /// This row's version: `1` for a freshly scheduled task,
+    /// `max + 1` for each `tasks schedule --overwrite` (each version
+    /// is its own row; only the newest lists).
     pub version: u64,
     /// The plugin that registered this schedule (its `(owner,
     /// repository, version)` coordinate), or `None` when it was not

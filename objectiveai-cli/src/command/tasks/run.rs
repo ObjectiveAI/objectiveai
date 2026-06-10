@@ -1,15 +1,25 @@
 //! `agents tasks run` — fire every pending schedule in the caller's
-//! own subtree.
+//! own subtree, recording a run row and a full output log per firing.
 //!
 //! Scope is fixed to the caller's own AIH
 //! (`ctx.config.agent_instance_hierarchy`) plus every descendant.
-//! `db::tasks::collect_and_mark_pending` captures the pending rows
-//! transactionally (bumping `last_ran_at` and deleting fired oneshots
-//! up front), then each row's stored argv is dispatched through the
-//! root `crate::run` — the same entry the binary and `plugins run`'s
-//! nested-command path use — in parallel. Per-task streams are merged
-//! via [`futures::stream::SelectAll`]; each item is wrapped with the
-//! source schedule's `id` so callers can attribute output.
+//! `db::tasks::claim_pending` atomically selects the pending rows AND
+//! inserts their `tasks_runs` rows (advisory-locked, so concurrent
+//! `tasks run` callers never double-fire a schedule); each claimed
+//! row's stored argv is then dispatched through the root `crate::run`
+//! — the same entry the binary and `plugins run`'s nested-command path
+//! use — in parallel. Per-task streams are merged via
+//! [`futures::stream::SelectAll`]; each item is wrapped with the
+//! source schedule's identity (`name` / `aih` / `version` / `plugin`).
+//!
+//! A log-writer listener is spawned at the top of `execute` with an
+//! unbounded receiver; the final stream wrapper sends every yielded
+//! envelope (with its claim's `run_id`, which rides next to the item
+//! internally and never hits the wire) into the channel, and the
+//! listener appends each to `tasks_logs` as it arrives. After the
+//! merge is exhausted the wrapper drops the sender and awaits the
+//! listener so every log line is durably written before the stream
+//! ends.
 //!
 //! Each task runs with the schedule's captured identity
 //! (`apply_agent_arguments`) and the plugin that registered it
@@ -32,13 +42,27 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
+/// Internal merge item: each task's stream is tagged with its claim's
+/// `run_id` so the final wrapper can hand every line to the log writer
+/// — the id rides next to the item and never appears on the wire.
+type TaggedStream =
+    Pin<Box<dyn Stream<Item = (i64, Result<ResponseItem, Error>)> + Send>>;
+
 pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+    // The log-writer listener: spawned up front with an unbounded
+    // receiver. It appends each (run_id, line) to `tasks_logs` as they
+    // come in, and exits once every sender has dropped.
+    let (log_tx, log_rx) = tokio::sync::mpsc::unbounded_channel::<(i64, String)>();
+    let writer = tokio::spawn(log_writer_loop(ctx.db.clone(), log_rx));
+
     // Scope is the caller's own AIH plus all descendants — no params.
     let parent = ctx.config.agent_instance_hierarchy.clone();
 
-    let rows = db::tasks::collect_and_mark_pending(&ctx.db, &parent).await?;
+    let rows = db::tasks::claim_pending(&ctx.db, &parent).await?;
 
     if rows.is_empty() {
+        // Nothing claimed → nothing to log. `log_tx` drops here and
+        // the writer exits on its own.
         return Ok(Box::pin(futures::stream::empty()));
     }
 
@@ -52,9 +76,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
         let ctx = ctx.clone();
         async move {
             let meta = TaskMeta {
-                id: row.id,
+                run_id: row.run_id,
                 agent_instance_hierarchy: row.agent_instance_hierarchy.clone(),
                 name: row.name.clone(),
+                version: row.version as u64,
                 plugin: row.plugin.clone().map(|p| Plugin {
                     owner: p.owner,
                     repository: p.repository,
@@ -69,37 +94,85 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 
     let mut select_all = futures::stream::SelectAll::new();
     for (meta, result) in results {
+        let run_id = meta.run_id;
         match result {
             Ok(stream) => {
                 let tagged = stream.map(move |r| {
-                    r.map(|value| ResponseItem {
-                        id: meta.id,
-                        agent_instance_hierarchy: meta.agent_instance_hierarchy.clone(),
-                        name: meta.name.clone(),
-                        plugin: meta.plugin.clone(),
-                        value: Box::new(value),
-                    })
+                    (
+                        run_id,
+                        r.map(|value| ResponseItem {
+                            agent_instance_hierarchy: meta
+                                .agent_instance_hierarchy
+                                .clone(),
+                            name: meta.name.clone(),
+                            version: meta.version,
+                            plugin: meta.plugin.clone(),
+                            value: Box::new(value),
+                        }),
+                    )
                 });
-                select_all.push(Box::pin(tagged) as ItemStream);
+                select_all.push(Box::pin(tagged) as TaggedStream);
             }
             Err(e) => {
-                let once: ItemStream =
-                    Box::pin(futures::stream::once(async move { Err(e) }));
+                let once: TaggedStream =
+                    Box::pin(futures::stream::once(async move { (run_id, Err(e)) }));
                 select_all.push(once);
             }
         }
     }
 
-    Ok(Box::pin(select_all))
+    // The wrapper: forward every merged item to the caller AND send
+    // each Ok envelope (serialized, keyed by its run_id) to the log
+    // writer. Once the merge is exhausted, drop the sender and wait
+    // for the listener to finish draining its queue so every line is
+    // durably in `tasks_logs` before the stream ends.
+    let stream = async_stream::stream! {
+        let mut merged = select_all;
+        while let Some((run_id, item)) = merged.next().await {
+            if let Ok(envelope) = &item {
+                if let Ok(line) = serde_json::to_string(envelope) {
+                    // A dead writer (an earlier insert failed) must
+                    // not stop the user-facing stream — its error
+                    // surfaces from the join below.
+                    let _ = log_tx.send((run_id, line));
+                }
+            }
+            yield item;
+        }
+        drop(log_tx);
+        match writer.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => yield Err(e),
+            Err(_) => yield Err(Error::WriterPanic),
+        }
+    };
+
+    Ok(Box::pin(stream))
+}
+
+/// Drain the log channel into `tasks_logs` — one INSERT per emitted
+/// item, written as they come in. Returns once every sender has
+/// dropped and the queue is empty; a failed INSERT exits early and the
+/// error surfaces as the run stream's trailing item.
+async fn log_writer_loop(
+    pool: crate::db::Pool,
+    mut rx: tokio::sync::mpsc::UnboundedReceiver<(i64, String)>,
+) -> Result<(), Error> {
+    while let Some((run_id, value)) = rx.recv().await {
+        db::tasks::insert_task_log(&pool, run_id, &value).await?;
+    }
+    Ok(())
 }
 
 /// Envelope metadata for one fired schedule, cloned out of its
 /// `RunRow` before `run_one` consumes the row, then stamped onto every
-/// item that task emits.
+/// item that task emits. `run_id` tags items internally for the log
+/// writer and never appears on the wire envelope.
 struct TaskMeta {
-    id: i64,
+    run_id: i64,
     agent_instance_hierarchy: String,
     name: String,
+    version: u64,
     plugin: Option<Plugin>,
 }
 
