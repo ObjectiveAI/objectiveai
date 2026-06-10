@@ -31,11 +31,21 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
+    let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
     let exe = ctx
         .filesystem
-        .resolve_plugin(&request.name)
+        .resolve_plugin(&request.owner, &request.name, &request.version)
         .await
-        .ok_or_else(|| Error::PluginNotFound(request.name.clone()))?;
+        .ok_or_else(|| Error::PluginNotFound(coord.clone()))?;
+
+    // Config for both the plugin binary and any nested
+    // (plugin-originated) commands it invokes: stamped with this
+    // plugin's coordinate so a nested command's `Context` resolves
+    // `ctx.plugin = Some(PluginPath)` from the threaded env vars.
+    let mut cli_config = ctx.config.clone();
+    cli_config.plugin_owner = Some(request.owner.clone());
+    cli_config.plugin_repository = Some(request.name.clone());
+    cli_config.plugin_version = Some(request.version.clone());
 
     let mut cmd = Command::new(&exe);
     cmd.args(&request.args)
@@ -43,7 +53,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    crate::spawn::apply_config_env(&mut cmd, &ctx.config);
+    crate::spawn::apply_config_env(&mut cmd, &cli_config);
 
     let mut child = cmd.spawn().map_err(Error::PluginSpawn)?;
     let stdout = child.stdout.take().expect("stdout was piped");
@@ -52,7 +62,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let plugin_stdin: Arc<Mutex<ChildStdin>> = Arc::new(Mutex::new(stdin));
 
     let mut events = spawn_pipe_reader(stdout, stderr);
-    let cli_config = ctx.config.clone();
 
     let stream = async_stream::stream! {
         let mut command_tasks: Vec<(Option<String>, JoinHandle<i32>)> = Vec::new();

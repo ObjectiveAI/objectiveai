@@ -1,6 +1,0 @@
-{
-  "description": "E2E test fixture",
-  "version": "0.0.1",
-  "owner": "objectiveai",
-  "exec": "hello-tool"
-}

@@ -1,29 +1,27 @@
 //! Tool discovery on the local filesystem.
 //!
-//! Tools live at `<base_dir>/tools/` with manifests as `<name>.json`
-//! and executables as `<exec>` alongside, both at the same level — no
-//! per-tool subdirectory. [`Client::resolve_tool`] reads the manifest
-//! and joins `manifest.exec` onto the tools directory to produce the
-//! executable path.
+//! Tools live at `<base_dir>/tools/<owner>/<name>/<version>/` with the
+//! manifest as `objectiveai.json` inside the version folder. The
+//! manifest's `exec` is a per-OS command vector; at run time the
+//! current platform's vector is appended with the caller's args and
+//! invoked with CWD = the version folder.
 
 use std::path::{Path, PathBuf};
 
 use super::super::Client;
-use super::{Manifest, ManifestWithNameAndSource};
+use super::{Exec, Manifest, ManifestWithNameAndSource};
 
-/// Two-step parse: try `ManifestWithNameAndSource` first, then fall
-/// back to a bare `Manifest` with `name = file_stem` and
-/// `source = absolute_path`. Returns `None` on missing / unreadable /
+/// Parse an on-disk `objectiveai.json` (a bare [`Manifest`]) into a
+/// [`ManifestWithNameAndSource`], deriving `name` from the `<name>`
+/// path segment (`.../<owner>/<name>/<version>/objectiveai.json`) and
+/// `source` from the file path. `None` on missing / unreadable /
 /// malformed files.
 async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
     let bytes = tokio::fs::read(path).await.ok()?;
-    if let Ok(full) =
-        serde_json::from_slice::<ManifestWithNameAndSource>(&bytes)
-    {
-        return Some(full);
-    }
     let manifest: Manifest = serde_json::from_slice(&bytes).ok()?;
-    let name = path.file_stem()?.to_str()?.to_string();
+    // path = .../<owner>/<name>/<version>/objectiveai.json
+    // parent = <version>, parent.parent = <name>.
+    let name = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
     let source = path.to_string_lossy().into_owned();
     Some(ManifestWithNameAndSource {
         name,
@@ -32,91 +30,72 @@ async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
     })
 }
 
+/// The current platform's exec vector from a per-OS [`Exec`].
+fn platform_exec(exec: &Exec) -> Vec<String> {
+    if cfg!(target_os = "windows") {
+        exec.windows.clone()
+    } else if cfg!(target_os = "macos") {
+        exec.macos.clone()
+    } else {
+        exec.linux.clone()
+    }
+}
+
 impl Client {
     /// The tools directory: `<base_dir>/tools`.
     pub fn tools_dir(&self) -> PathBuf {
         self.base_dir().join("tools")
     }
 
-    /// Resolve a tool name to its executable path. Reads the tool's
-    /// manifest at `<base_dir>/tools/<name>.json`, joins
-    /// `manifest.exec` to the tools directory, and returns the path
-    /// if it exists as a regular file.
-    ///
-    /// On Windows, if the literal `exec` value doesn't resolve, the
-    /// same path with a `.exe` extension is also tried. That way a
-    /// manifest written in canonical Unix form (`"exec": "hello-tool"`)
-    /// still resolves against a `hello-tool.exe` on disk — useful for
-    /// committed, platform-neutral test fixtures.
-    ///
-    /// Returns `None` when the manifest is missing/malformed or the
-    /// referenced exec is absent.
-    pub async fn resolve_tool(&self, name: &str) -> Option<PathBuf> {
-        let bundle = self.get_tool(name).await?;
-        let exec_path = self.tools_dir().join(&bundle.manifest.exec);
-        if tokio::fs::metadata(&exec_path)
-            .await
-            .map(|m| m.is_file())
-            .unwrap_or(false)
-        {
-            return Some(exec_path);
-        }
-        #[cfg(windows)]
-        {
-            let mut with_exe = exec_path.clone();
-            if with_exe.extension().is_none() {
-                with_exe.set_extension("exe");
-                if tokio::fs::metadata(&with_exe)
-                    .await
-                    .map(|m| m.is_file())
-                    .unwrap_or(false)
-                {
-                    return Some(with_exe);
-                }
-            }
-        }
-        None
+    /// A tool's version directory:
+    /// `<base_dir>/tools/<owner>/<name>/<version>`.
+    pub fn tool_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
+        self.tools_dir().join(owner).join(name).join(version)
     }
 
-    /// Look up a single tool manifest by name. Reads
-    /// `<base_dir>/tools/<name>.json`. Returns `None` on missing /
-    /// unreadable / malformed files.
+    /// Resolve a tool coordinate to its `(exec_vector, cwd)` for the
+    /// current platform. `cwd` is the version folder; `exec_vector` is
+    /// the manifest's per-OS command (possibly empty when the tool
+    /// declares no command for this platform — the caller treats that
+    /// as an error). `None` when the manifest is missing/malformed.
+    pub async fn resolve_tool(
+        &self,
+        owner: &str,
+        name: &str,
+        version: &str,
+    ) -> Option<(Vec<String>, PathBuf)> {
+        let bundle = self.get_tool(owner, name, version).await?;
+        let dir = self.tool_dir(owner, name, version);
+        Some((platform_exec(&bundle.manifest.exec), dir))
+    }
+
+    /// Look up a single tool manifest by coordinate. Reads
+    /// `<base_dir>/tools/<owner>/<name>/<version>/objectiveai.json`.
+    /// `None` on missing / unreadable / malformed files.
     pub async fn get_tool(
         &self,
+        owner: &str,
         name: &str,
+        version: &str,
     ) -> Option<ManifestWithNameAndSource> {
-        let path = self.tools_dir().join(format!("{name}.json"));
+        let path = self.tool_dir(owner, name, version).join("objectiveai.json");
         parse_manifest_file(&path).await
     }
 
-    /// Enumerate tool manifests in the tools directory. Reads each
-    /// `.json` file in `<base_dir>/tools/`, deserializes it as a
-    /// [`Manifest`], and pairs it with the file's stem (`name`) and
-    /// absolute path (`source`). Every failure mode — missing dir,
-    /// unreadable file, malformed JSON, missing required field — is
-    /// silently skipped; the return type is plain `Vec` rather than
-    /// `Result` to reflect that.
+    /// Enumerate tool manifests by walking the
+    /// `tools/<owner>/<name>/<version>/objectiveai.json` tree. Every
+    /// failure mode — missing dir, unreadable file, malformed JSON — is
+    /// silently skipped.
     ///
-    /// Results are sorted by manifest mtime descending (most recently
-    /// modified first), then `skip(offset).take(limit)` is applied —
-    /// matching `list_plugins` and the logs list endpoints. Pass
-    /// `(0, usize::MAX)` for an unbounded list.
+    /// Results are sorted by manifest mtime descending, then
+    /// `skip(offset).take(limit)` is applied — matching `list_plugins`.
+    /// Pass `(0, usize::MAX)` for an unbounded list.
     pub async fn list_tools(
         &self,
         offset: usize,
         limit: usize,
     ) -> Vec<ManifestWithNameAndSource> {
-        let dir = self.tools_dir();
-        let Ok(mut read_dir) = tokio::fs::read_dir(&dir).await else {
-            return Vec::new();
-        };
-        let mut paths: Vec<PathBuf> = Vec::new();
-        while let Ok(Some(entry)) = read_dir.next_entry().await {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                paths.push(path);
-            }
-        }
+        let paths = collect_manifest_paths(self.tools_dir()).await;
         let futures = paths.into_iter().map(|p| async move {
             let bundle = parse_manifest_file(&p).await?;
             let modified = tokio::fs::metadata(&p)
@@ -143,4 +122,35 @@ impl Client {
             iter.collect()
         }
     }
+}
+
+/// Walk `<root>/<owner>/<name>/<version>/objectiveai.json` and collect
+/// every existing manifest file path. Shared shape with the plugins
+/// tier. Any non-directory / unreadable level is skipped.
+pub(crate) async fn collect_manifest_paths(root: PathBuf) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    let Ok(mut owners) = tokio::fs::read_dir(&root).await else {
+        return out;
+    };
+    while let Ok(Some(owner_e)) = owners.next_entry().await {
+        let Ok(mut names) = tokio::fs::read_dir(owner_e.path()).await else {
+            continue;
+        };
+        while let Ok(Some(name_e)) = names.next_entry().await {
+            let Ok(mut versions) = tokio::fs::read_dir(name_e.path()).await else {
+                continue;
+            };
+            while let Ok(Some(ver_e)) = versions.next_entry().await {
+                let manifest = ver_e.path().join("objectiveai.json");
+                if tokio::fs::metadata(&manifest)
+                    .await
+                    .map(|m| m.is_file())
+                    .unwrap_or(false)
+                {
+                    out.push(manifest);
+                }
+            }
+        }
+    }
+    out
 }

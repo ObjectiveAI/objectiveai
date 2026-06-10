@@ -72,6 +72,12 @@ struct EnvConfigBuilder {
     response_ids: Option<String>,
     #[envconfig(from = "MCP_SESSION_ID")]
     mcp_session_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_PLUGIN_OWNER")]
+    plugin_owner: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_PLUGIN_REPOSITORY")]
+    plugin_repository: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_PLUGIN_VERSION")]
+    plugin_version: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -93,6 +99,9 @@ impl EnvConfigBuilder {
             response_id: self.response_id,
             response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
+            plugin_owner: self.plugin_owner,
+            plugin_repository: self.plugin_repository,
+            plugin_version: self.plugin_version,
         }
     }
 }
@@ -111,6 +120,9 @@ pub struct ConfigBuilder {
     pub response_id: Option<String>,
     pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
+    pub plugin_owner: Option<String>,
+    pub plugin_repository: Option<String>,
+    pub plugin_version: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -147,6 +159,9 @@ impl ConfigBuilder {
             response_id: self.response_id,
             response_ids: self.response_ids,
             mcp_session_id: self.mcp_session_id,
+            plugin_owner: self.plugin_owner,
+            plugin_repository: self.plugin_repository,
+            plugin_version: self.plugin_version,
         }
     }
 }
@@ -179,6 +194,14 @@ pub struct Config {
     /// Propagated onto spawned plugins.
     pub response_ids: Option<String>,
     pub mcp_session_id: Option<String>,
+    /// Plugin coordinate (`OBJECTIVEAI_PLUGIN_OWNER` / `_REPOSITORY` /
+    /// `_VERSION`) of the plugin a command is running on behalf of.
+    /// Set by `plugins run` on the config used to launch nested
+    /// (plugin-originated) commands; assembled into
+    /// [`crate::context::Context::plugin`] at startup.
+    pub plugin_owner: Option<String>,
+    pub plugin_repository: Option<String>,
+    pub plugin_version: Option<String>,
 }
 
 pub type RunStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;

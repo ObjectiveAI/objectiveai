@@ -9,6 +9,7 @@ pub mod favorite_ref;
 pub mod filesystem;
 pub mod lock_file;
 pub mod path_ref;
+pub mod plugin_path;
 mod postgres;
 mod python;
 mod source_resolver;

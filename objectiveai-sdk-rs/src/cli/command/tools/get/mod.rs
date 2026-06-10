@@ -6,7 +6,9 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.tools.get.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub owner: String,
     pub name: String,
+    pub version: String,
     pub jq: Option<String>,
 }
 
@@ -19,13 +21,34 @@ pub enum Path {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["tools".to_string(), "get".to_string(), self.name.clone()];
+        let mut argv = vec![
+            "tools".to_string(),
+            "get".to_string(),
+            "--owner".to_string(),
+            self.owner.clone(),
+            "--name".to_string(),
+            self.name.clone(),
+            "--version".to_string(),
+            self.version.clone(),
+        ];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
         }
         argv
     }
+}
+
+/// Per-OS exec command for a tool. The current platform's vector is
+/// the program plus its leading arguments; the caller's `--args` are
+/// appended, and the result runs with CWD = the tool's version folder
+/// (where `objectiveai.json` lives).
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.get.Exec")]
+pub struct Exec {
+    pub windows: Vec<String>,
+    pub linux: Vec<String>,
+    pub macos: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -35,7 +58,7 @@ pub struct ResponseManifest {
     pub description: String,
     pub version: String,
     pub owner: String,
-    pub exec: String,
+    pub exec: Exec,
     pub source: String,
 }
 
@@ -43,8 +66,15 @@ pub type Response = Option<ResponseManifest>;
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Plugin/tool name.
+    /// Tool owner (GitHub `<owner>` segment). Required.
+    #[arg(long)]
+    pub owner: String,
+    /// Tool name (repository segment). Required.
+    #[arg(long)]
     pub name: String,
+    /// Tool version. Required.
+    #[arg(long)]
+    pub version: String,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -70,8 +100,11 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ToolsGet,
+        Ok(Self {
+            path_type: Path::ToolsGet,
+            owner: args.owner,
             name: args.name,
+            version: args.version,
             jq: args.jq,
         })
     }

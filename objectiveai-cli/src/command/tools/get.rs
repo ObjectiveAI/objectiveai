@@ -1,5 +1,5 @@
-//! `tools get` — read one installed tool's manifest by name.
-//! Returns `None` if not installed.
+//! `tools get` — read one tool's manifest by `(owner, name, version)`.
+//! Returns `None` if not present.
 
 use objectiveai_sdk::cli::command::tools::get::{Request, Response};
 
@@ -7,7 +7,11 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    Ok(ctx.filesystem.get_tool(&request.name).await.map(Into::into))
+    Ok(ctx
+        .filesystem
+        .get_tool(&request.owner, &request.name, &request.version)
+        .await
+        .map(Into::into))
 }
 
 pub mod request_schema {

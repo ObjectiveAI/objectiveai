@@ -34,6 +34,26 @@ fn minimal_manifest_json() -> String {
     .unwrap()
 }
 
+/// Write a bare `objectiveai.json` manifest at
+/// `<base>/plugins/<owner>/<name>/<version>/objectiveai.json`, creating
+/// the version dir. Returns the manifest path.
+fn write_manifest(
+    base: &std::path::Path,
+    owner: &str,
+    name: &str,
+    version: &str,
+) -> std::path::PathBuf {
+    let dir = base
+        .join("plugins")
+        .join(owner)
+        .join(name)
+        .join(version);
+    std::fs::create_dir_all(&dir).unwrap();
+    let manifest_path = dir.join("objectiveai.json");
+    std::fs::write(&manifest_path, minimal_manifest_json()).unwrap();
+    manifest_path
+}
+
 #[tokio::test]
 async fn list_plugins_returns_empty_when_dir_missing() {
     let base = fresh_base_dir();
@@ -56,10 +76,7 @@ async fn list_plugins_returns_empty_when_dir_empty() {
 #[tokio::test]
 async fn list_plugins_parses_valid_manifest() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    let manifest_path = plugins_dir.join("psyops.json");
-    std::fs::write(&manifest_path, minimal_manifest_json()).unwrap();
+    let manifest_path = write_manifest(&base, "wiggidy", "psyops", "0.1.0");
 
     let client = client_for(&base);
     let plugins = client.list_plugins(0, 100).await;
@@ -77,14 +94,17 @@ async fn list_plugins_parses_valid_manifest() {
 #[tokio::test]
 async fn list_plugins_skips_invalid_files() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    std::fs::write(plugins_dir.join("a.json"), minimal_manifest_json())
+    // Valid manifest at owner/a/1.0.0.
+    write_manifest(&base, "wiggidy", "a", "1.0.0");
+    // Invalid: not an object.
+    let b_dir = base.join("plugins").join("wiggidy").join("b").join("1.0.0");
+    std::fs::create_dir_all(&b_dir).unwrap();
+    std::fs::write(b_dir.join("objectiveai.json"), "\"not json\"").unwrap();
+    // Invalid: missing required fields.
+    let c_dir = base.join("plugins").join("wiggidy").join("c").join("1.0.0");
+    std::fs::create_dir_all(&c_dir).unwrap();
+    std::fs::write(c_dir.join("objectiveai.json"), r#"{"version":"1.0.0"}"#)
         .unwrap();
-    std::fs::write(plugins_dir.join("b.json"), "\"not json\"").unwrap();
-    std::fs::write(plugins_dir.join("c.json"), r#"{"version":"1.0.0"}"#)
-        .unwrap();
-    std::fs::write(plugins_dir.join("noise.txt"), "ignore me").unwrap();
 
     let client = client_for(&base);
     let plugins = client.list_plugins(0, 100).await;
@@ -98,14 +118,8 @@ async fn list_plugins_skips_invalid_files() {
 #[tokio::test]
 async fn list_plugins_handles_multiple_valid_manifests() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    for stem in ["a", "b", "c"] {
-        std::fs::write(
-            plugins_dir.join(format!("{stem}.json")),
-            minimal_manifest_json(),
-        )
-        .unwrap();
+    for name in ["a", "b", "c"] {
+        write_manifest(&base, "wiggidy", name, "0.1.0");
     }
 
     let client = client_for(&base);
@@ -121,13 +135,10 @@ async fn list_plugins_handles_multiple_valid_manifests() {
 #[tokio::test]
 async fn get_plugin_returns_some_when_manifest_exists() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    let manifest_path = plugins_dir.join("psyops.json");
-    std::fs::write(&manifest_path, minimal_manifest_json()).unwrap();
+    let manifest_path = write_manifest(&base, "wiggidy", "psyops", "0.1.0");
 
     let client = client_for(&base);
-    let plugin = client.get_plugin("psyops").await;
+    let plugin = client.get_plugin("wiggidy", "psyops", "0.1.0").await;
 
     let p = plugin.expect("expected Some(_)");
     assert_eq!(p.name, "psyops");
@@ -142,32 +153,41 @@ async fn get_plugin_returns_some_when_manifest_exists() {
 async fn get_plugin_returns_none_when_dir_missing() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    assert!(client.get_plugin("psyops").await.is_none());
+    assert!(
+        client
+            .get_plugin("wiggidy", "psyops", "0.1.0")
+            .await
+            .is_none()
+    );
     cleanup(&base);
 }
 
 #[tokio::test]
 async fn get_plugin_returns_none_when_file_missing() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    std::fs::write(plugins_dir.join("other.json"), minimal_manifest_json())
-        .unwrap();
+    write_manifest(&base, "wiggidy", "other", "0.1.0");
 
     let client = client_for(&base);
-    assert!(client.get_plugin("missing").await.is_none());
+    assert!(
+        client
+            .get_plugin("wiggidy", "missing", "0.1.0")
+            .await
+            .is_none()
+    );
     cleanup(&base);
 }
 
 #[tokio::test]
 async fn get_plugin_returns_none_when_malformed() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    std::fs::write(plugins_dir.join("bad.json"), "\"not json\"").unwrap();
+    let dir = base.join("plugins").join("wiggidy").join("bad").join("0.1.0");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("objectiveai.json"), "\"not json\"").unwrap();
 
     let client = client_for(&base);
-    assert!(client.get_plugin("bad").await.is_none());
+    assert!(
+        client.get_plugin("wiggidy", "bad", "0.1.0").await.is_none()
+    );
     cleanup(&base);
 }
 
@@ -175,19 +195,23 @@ async fn get_plugin_returns_none_when_malformed() {
 fn plugin_binary_path_layout() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let expected =
-        client
-            .plugins_dir()
-            .join("my-plugin")
-            .join(if cfg!(windows) {
-                "plugin.exe"
-            } else {
-                "plugin"
-            });
-    assert_eq!(client.plugin_binary_path("my-plugin"), expected);
+    let expected = client
+        .plugins_dir()
+        .join("acme")
+        .join("my-plugin")
+        .join("1.0.0")
+        .join(if cfg!(windows) {
+            "plugin.exe"
+        } else {
+            "plugin"
+        });
     assert_eq!(
-        client.plugin_dir("my-plugin"),
-        client.plugins_dir().join("my-plugin")
+        client.plugin_binary_path("acme", "my-plugin", "1.0.0"),
+        expected
+    );
+    assert_eq!(
+        client.plugin_dir("acme", "my-plugin", "1.0.0"),
+        client.plugins_dir().join("acme").join("my-plugin").join("1.0.0")
     );
     cleanup(&base);
 }
@@ -196,7 +220,12 @@ fn plugin_binary_path_layout() {
 async fn resolve_plugin_returns_none_when_missing() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    assert!(client.resolve_plugin("nope").await.is_none());
+    assert!(
+        client
+            .resolve_plugin("acme", "nope", "1.0.0")
+            .await
+            .is_none()
+    );
     cleanup(&base);
 }
 
@@ -204,7 +233,7 @@ async fn resolve_plugin_returns_none_when_missing() {
 async fn resolve_plugin_returns_canonical_nested_path_when_present() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let target = client.plugin_binary_path("hello");
+    let target = client.plugin_binary_path("acme", "hello", "1.0.0");
     std::fs::create_dir_all(target.parent().unwrap()).unwrap();
     std::fs::write(
         &target,
@@ -212,7 +241,7 @@ async fn resolve_plugin_returns_canonical_nested_path_when_present() {
     )
     .unwrap();
 
-    let resolved = client.resolve_plugin("hello").await;
+    let resolved = client.resolve_plugin("acme", "hello", "1.0.0").await;
     assert_eq!(resolved.as_deref(), Some(target.as_path()));
     cleanup(&base);
 }
@@ -224,7 +253,7 @@ async fn resolve_plugin_falls_back_to_cross_platform_canonical() {
     // returns it.
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let dir = client.plugin_dir("hello");
+    let dir = client.plugin_dir("acme", "hello", "1.0.0");
     std::fs::create_dir_all(&dir).unwrap();
     let alt = dir.join(if cfg!(windows) {
         "plugin"
@@ -233,7 +262,7 @@ async fn resolve_plugin_falls_back_to_cross_platform_canonical() {
     });
     std::fs::write(&alt, b"x").unwrap();
 
-    let resolved = client.resolve_plugin("hello").await;
+    let resolved = client.resolve_plugin("acme", "hello", "1.0.0").await;
     assert_eq!(resolved.as_deref(), Some(alt.as_path()));
     cleanup(&base);
 }
@@ -243,12 +272,12 @@ async fn resolve_plugin_falls_back_to_arbitrary_extension() {
     // Tier 3: only `plugin.<some-ext>` exists. Resolve returns it.
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let dir = client.plugin_dir("hello");
+    let dir = client.plugin_dir("acme", "hello", "1.0.0");
     std::fs::create_dir_all(&dir).unwrap();
     let bat = dir.join("plugin.bat");
     std::fs::write(&bat, b"@echo off\n").unwrap();
 
-    let resolved = client.resolve_plugin("hello").await;
+    let resolved = client.resolve_plugin("acme", "hello", "1.0.0").await;
     assert_eq!(resolved.as_deref(), Some(bat.as_path()));
     cleanup(&base);
 }
@@ -259,13 +288,13 @@ async fn resolve_plugin_prefers_canonical_over_alternate_extension() {
     // exist. The platform-preferred canonical resolves.
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let canonical = client.plugin_binary_path("hello");
+    let canonical = client.plugin_binary_path("acme", "hello", "1.0.0");
     std::fs::create_dir_all(canonical.parent().unwrap()).unwrap();
     std::fs::write(&canonical, b"canonical").unwrap();
     std::fs::write(canonical.parent().unwrap().join("plugin.bat"), b"alt")
         .unwrap();
 
-    let resolved = client.resolve_plugin("hello").await;
+    let resolved = client.resolve_plugin("acme", "hello", "1.0.0").await;
     assert_eq!(resolved.as_deref(), Some(canonical.as_path()));
     cleanup(&base);
 }
@@ -277,12 +306,12 @@ async fn resolve_plugin_ignores_unrelated_stems() {
     // only the last extension), so it's rejected.
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let dir = client.plugin_dir("hello");
+    let dir = client.plugin_dir("acme", "hello", "1.0.0");
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("other.exe"), b"x").unwrap();
     std::fs::write(dir.join("plugin.tar.gz"), b"x").unwrap();
 
-    let resolved = client.resolve_plugin("hello").await;
+    let resolved = client.resolve_plugin("acme", "hello", "1.0.0").await;
     assert!(resolved.is_none(), "got {resolved:?}");
     cleanup(&base);
 }
@@ -290,7 +319,8 @@ async fn resolve_plugin_ignores_unrelated_stems() {
 #[tokio::test]
 async fn resolve_plugin_ignores_flat_layout() {
     // Pre-fix bug behaviour: a file at <plugins_dir>/<name>[.exe] used
-    // to resolve. After the fix, only the nested layout is honoured.
+    // to resolve. After the fix, only the nested coordinate layout is
+    // honoured.
     let base = fresh_base_dir();
     let plugins_dir = base.join("plugins");
     std::fs::create_dir_all(&plugins_dir).unwrap();
@@ -299,21 +329,20 @@ async fn resolve_plugin_ignores_flat_layout() {
     std::fs::write(&flat, b"x").unwrap();
 
     let client = client_for(&base);
-    assert!(client.resolve_plugin("hello").await.is_none());
+    assert!(
+        client
+            .resolve_plugin("acme", "hello", "1.0.0")
+            .await
+            .is_none()
+    );
     cleanup(&base);
 }
 
 #[tokio::test]
 async fn list_plugins_respects_offset_and_limit() {
     let base = fresh_base_dir();
-    let plugins_dir = base.join("plugins");
-    std::fs::create_dir_all(&plugins_dir).unwrap();
-    for stem in ["a", "b", "c"] {
-        std::fs::write(
-            plugins_dir.join(format!("{stem}.json")),
-            minimal_manifest_json(),
-        )
-        .unwrap();
+    for name in ["a", "b", "c"] {
+        write_manifest(&base, "wiggidy", name, "0.1.0");
     }
 
     let client = client_for(&base);

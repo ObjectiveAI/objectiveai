@@ -132,7 +132,9 @@ where
                     version: plugin.version.clone(),
                 },
             );
+            let plugin_owner = plugin.owner.clone();
             let plugin_name = plugin.name.clone();
+            let plugin_version = plugin.version.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
                 Cow::Owned(plugin.name.clone()),
@@ -142,7 +144,9 @@ where
             let registry_for_route = registry.clone();
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
                 let executor = executor_for_route.clone();
+                let plugin_owner = plugin_owner.clone();
                 let plugin_name = plugin_name.clone();
+                let plugin_version = plugin_version.clone();
                 let registry = registry_for_route.clone();
                 let session_id = session_id_from_extensions(&ctx.request_context.extensions);
                 async move {
@@ -150,7 +154,9 @@ where
                     let req: PluginRequest = parse_json_object(arguments)?;
                     let request = plugins::run::Request {
                         path_type: plugins::run::Path::PluginsRun,
+                        owner: plugin_owner,
                         name: plugin_name,
+                        version: plugin_version,
                         args: req.args,
                         jq: None,
                     };
@@ -181,7 +187,9 @@ where
                     version: cli_tool.version.clone(),
                 },
             );
+            let tool_owner = cli_tool.owner.clone();
             let tool_name = cli_tool.name.clone();
+            let tool_version = cli_tool.version.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
                 Cow::Owned(cli_tool.name.clone()),
@@ -191,7 +199,9 @@ where
             let registry_for_route = registry.clone();
             tool_router.add_route(ToolRoute::new_dyn(tool, move |ctx| {
                 let executor = executor_for_route.clone();
+                let tool_owner = tool_owner.clone();
                 let tool_name = tool_name.clone();
+                let tool_version = tool_version.clone();
                 let registry = registry_for_route.clone();
                 let session_id = session_id_from_extensions(&ctx.request_context.extensions);
                 async move {
@@ -199,7 +209,9 @@ where
                     let req: ToolRequest = parse_json_object(arguments)?;
                     let request = tools::run::Request {
                         path_type: tools::run::Path::ToolsRun,
+                        owner: tool_owner,
                         name: tool_name,
+                        version: tool_version,
                         args: req.args,
                         jq: None,
                     };

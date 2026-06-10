@@ -1,0 +1,10 @@
+{
+  "description": "E2E test fixture",
+  "version": "0.0.1",
+  "owner": "objectiveai",
+  "exec": {
+    "windows": ["./hello-tool.exe"],
+    "linux": ["./hello-tool"],
+    "macos": ["./hello-tool"]
+  }
+}

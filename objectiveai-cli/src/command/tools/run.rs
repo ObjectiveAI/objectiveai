@@ -1,13 +1,9 @@
-//! `tools run` — bare-naked port of the legacy `dispatch_tool`.
-//!
-//! Resolve the installed tool binary via
-//! [`crate::filesystem::Client::resolve_tool`], spawn it with the
-//! caller-supplied args, and yield each stdout/stderr line as a
-//! [`ResponseItem`] as it arrives — driven directly by the caller
-//! polling the returned stream, the same way the legacy
-//! `dispatch_tool` emits each line inline. A non-zero exit code
-//! surfaces as a final `Err(Error::ToolExit(code))`, matching
-//! legacy behavior.
+//! `tools run` — resolve a tool by `(owner, name, version)`, build its
+//! command from the current platform's exec vector + the caller's
+//! args, run it with the tool's version folder as the working
+//! directory, and yield each stdout/stderr line as a [`ResponseItem`]
+//! as it arrives. A non-zero exit code surfaces as a final
+//! `Err(Error::ToolExit(code))`.
 
 use std::pin::Pin;
 use std::process::Stdio;
@@ -24,14 +20,28 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let exe = ctx
+    let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
+    let (exec, cwd) = ctx
         .filesystem
-        .resolve_tool(&request.name)
+        .resolve_tool(&request.owner, &request.name, &request.version)
         .await
-        .ok_or_else(|| Error::ToolNotFound(request.name.clone()))?;
+        .ok_or_else(|| Error::ToolNotFound(coord.clone()))?;
 
-    let mut cmd = Command::new(&exe);
-    cmd.args(&request.args)
+    // The command is the tool's exec vector merged with the caller's
+    // args, verbatim — neither array's strings are inspected or
+    // mutated. The first element is the program; the rest are its
+    // arguments. CWD is the tool's version folder (where
+    // `objectiveai.json` lives) — always.
+    let mut argv = exec;
+    argv.extend(request.args);
+    let mut argv = argv.into_iter();
+    let program = argv.next().ok_or_else(|| {
+        Error::ToolNotFound(format!("{coord} (empty exec)"))
+    })?;
+
+    let mut cmd = Command::new(&program);
+    cmd.args(argv)
+        .current_dir(&cwd)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

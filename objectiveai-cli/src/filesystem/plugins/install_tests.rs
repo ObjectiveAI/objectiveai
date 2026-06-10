@@ -1,5 +1,5 @@
 use super::super::Client;
-use super::{InstallError, ManifestWithNameAndSource, Platform};
+use super::{InstallError, Manifest, Platform};
 use indexmap::IndexMap;
 use serde_json::json;
 use wiremock::matchers::{header, method, path};
@@ -22,6 +22,17 @@ fn binary_filename() -> &'static str {
     } else {
         "plugin"
     }
+}
+
+/// The version directory an install writes to:
+/// `<base>/plugins/<owner>/<repository>/<version>`.
+fn version_dir(
+    base: &std::path::Path,
+    owner: &str,
+    repository: &str,
+    version: &str,
+) -> std::path::PathBuf {
+    base.join("plugins").join(owner).join(repository).join(version)
 }
 
 /// Serialize `Platform::current()` to its kebab-case wire form for
@@ -86,7 +97,8 @@ async fn install_succeeds_when_platform_supported() {
 
     assert!(matches!(result, Ok(true)), "got {result:?}");
 
-    let binary_path = base.join("plugins").join("repo").join(binary_filename());
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let binary_path = dir.join(binary_filename());
     assert!(binary_path.exists(), "binary missing at {binary_path:?}");
     let bytes = std::fs::read(&binary_path).unwrap();
     assert_eq!(bytes, FAKE_BIN);
@@ -101,24 +113,29 @@ async fn install_succeeds_when_platform_supported() {
         assert!(mode & 0o111 != 0, "binary not executable, mode={mode:o}");
     }
 
-    // Manifest must be persisted as a flat sibling at
-    // <plugins_dir>/<repository>.json with name = repository and
-    // source = the github URL the manifest came from.
-    let manifest_path = base.join("plugins").join("repo.json");
+    // Manifest is persisted as a bare `Manifest` at
+    // <plugins_dir>/<owner>/<repository>/<version>/objectiveai.json.
+    // The on-disk file carries no `name`/`source` fields — those are
+    // derived on read from the path. The installer overrides the
+    // author-claimed `owner` with the actual GitHub URL owner.
+    let manifest_path = dir.join("objectiveai.json");
     assert!(
         manifest_path.exists(),
         "manifest missing at {manifest_path:?}"
     );
     let manifest_bytes = std::fs::read(&manifest_path).unwrap();
-    let bundle: ManifestWithNameAndSource =
+    let persisted: Manifest =
         serde_json::from_slice(&manifest_bytes).unwrap();
+    assert_eq!(persisted.owner, "owner");
+
+    // Read back through `get_plugin` to verify the derived `name`
+    // (the `<repository>` path segment) and `source` (the file path).
+    let bundle = client
+        .get_plugin("owner", "repo", "1.0.0")
+        .await
+        .expect("expected Some(_)");
     assert_eq!(bundle.name, "repo");
-    assert_eq!(
-        bundle.source,
-        format!("{}/owner/repo/HEAD/objectiveai.json", server.uri())
-    );
-    // The manifest claimed `owner: "claimed-owner"`; the installer
-    // overrides it with the actual GitHub URL owner ("owner" here).
+    assert_eq!(bundle.source, manifest_path.to_string_lossy());
     assert_eq!(bundle.manifest.owner, "owner");
 
     cleanup(&base);
@@ -158,13 +175,15 @@ async fn install_returns_false_when_platform_not_in_binaries() {
     assert!(matches!(result, Ok(false)), "got {result:?}");
     // No binary was fetched → no plugin dir should have been created.
     assert!(
-        !base.join("plugins").join("repo").exists(),
+        !base.join("plugins").join("owner").join("repo").exists(),
         "plugin dir should not exist when install returned false"
     );
     // No manifest persistence either when install short-circuits.
     assert!(
-        !base.join("plugins").join("repo.json").exists(),
-        "manifest sibling should not exist when install returned false"
+        !version_dir(&base, "owner", "repo", "1.0.0")
+            .join("objectiveai.json")
+            .exists(),
+        "manifest should not exist when install returned false"
     );
 
     cleanup(&base);
@@ -535,12 +554,17 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
         .unwrap();
     assert!(ok);
 
-    let got = client.get_plugin("repo").await.expect("expected Some(_)");
+    let got = client
+        .get_plugin("owner", "repo", "1.0.0")
+        .await
+        .expect("expected Some(_)");
     assert_eq!(got.name, "repo");
     assert_eq!(got.manifest.version, "1.0.0");
     assert_eq!(
         got.source,
-        format!("{}/owner/repo/HEAD/objectiveai.json", server.uri())
+        version_dir(&base, "owner", "repo", "1.0.0")
+            .join("objectiveai.json")
+            .to_string_lossy()
     );
 
     cleanup(&base);
@@ -616,11 +640,8 @@ async fn install_extracts_viewer_zip_when_present() {
         .unwrap();
     assert!(ok);
 
-    let viewer_index = base
-        .join("plugins")
-        .join("repo")
-        .join("viewer")
-        .join("index.html");
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let viewer_index = dir.join("viewer").join("index.html");
     assert!(
         viewer_index.exists(),
         "viewer/index.html missing at {viewer_index:?}"
@@ -631,13 +652,14 @@ async fn install_extracts_viewer_zip_when_present() {
         "unexpected viewer index: {contents:?}"
     );
 
-    // Manifest persistence still records the viewer fields.
-    let persisted: ManifestWithNameAndSource = serde_json::from_slice(
-        &std::fs::read(base.join("plugins").join("repo.json")).unwrap(),
+    // Manifest persistence (bare `Manifest`) still records the viewer
+    // fields.
+    let persisted: Manifest = serde_json::from_slice(
+        &std::fs::read(dir.join("objectiveai.json")).unwrap(),
     )
     .unwrap();
-    assert_eq!(persisted.manifest.viewer_zip.as_deref(), Some("v.zip"));
-    assert_eq!(persisted.manifest.viewer_routes.len(), 1);
+    assert_eq!(persisted.viewer_zip.as_deref(), Some("v.zip"));
+    assert_eq!(persisted.viewer_routes.len(), 1);
 
     cleanup(&base);
 }
@@ -684,7 +706,8 @@ async fn install_skips_viewer_zip_when_absent() {
         .unwrap();
     assert!(ok);
 
-    let viewer_dir = base.join("plugins").join("repo").join("viewer");
+    let viewer_dir =
+        version_dir(&base, "owner", "repo", "1.0.0").join("viewer");
     assert!(
         !viewer_dir.exists(),
         "viewer dir should not exist for plugin without viewer_zip"
@@ -744,23 +767,24 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
         .unwrap();
     assert!(ok);
 
-    let viewer_dir = base.join("plugins").join("repo").join("viewer");
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let viewer_dir = dir.join("viewer");
     assert!(
         !viewer_dir.exists(),
         "viewer dir should not exist for viewer_url plugin (no zip to extract)"
     );
 
-    let persisted: ManifestWithNameAndSource = serde_json::from_slice(
-        &std::fs::read(base.join("plugins").join("repo.json")).unwrap(),
+    let persisted: Manifest = serde_json::from_slice(
+        &std::fs::read(dir.join("objectiveai.json")).unwrap(),
     )
     .unwrap();
     assert_eq!(
-        persisted.manifest.viewer_url.as_deref(),
+        persisted.viewer_url.as_deref(),
         Some("https://plugin.example.com/index.html")
     );
-    assert!(persisted.manifest.viewer_zip.is_none());
-    assert_eq!(persisted.manifest.viewer_routes.len(), 1);
-    assert!(persisted.manifest.has_viewer());
+    assert!(persisted.viewer_zip.is_none());
+    assert_eq!(persisted.viewer_routes.len(), 1);
+    assert!(persisted.has_viewer());
 
     cleanup(&base);
 }
@@ -944,12 +968,10 @@ async fn install_refuses_when_manifest_exists_and_not_upgrade() {
     }
 
     // Disk state should match the first install (untouched by the refused second one).
-    let bin = std::fs::read(
-        base.join("plugins").join("repo").join(binary_filename()),
-    )
-    .unwrap();
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let bin = std::fs::read(dir.join(binary_filename())).unwrap();
     assert_eq!(bin, FAKE_BIN);
-    assert!(base.join("plugins").join("repo.json").exists());
+    assert!(dir.join("objectiveai.json").exists());
 
     cleanup(&base);
 }
@@ -990,16 +1012,15 @@ async fn install_upgrade_replaces_prior_artifacts() {
         .unwrap();
 
     // Binary on disk now has B's body; manifest carries B's version.
-    let bin = std::fs::read(
-        base.join("plugins").join("repo").join(binary_filename()),
-    )
-    .unwrap();
+    // The new version lands in its own version dir (`repo/2.0.0/`).
+    let dir = version_dir(&base, "owner", "repo", "2.0.0");
+    let bin = std::fs::read(dir.join(binary_filename())).unwrap();
     assert_eq!(bin, b"VERSION_B_BIN");
-    let persisted: ManifestWithNameAndSource = serde_json::from_slice(
-        &std::fs::read(base.join("plugins").join("repo.json")).unwrap(),
+    let persisted: Manifest = serde_json::from_slice(
+        &std::fs::read(dir.join("objectiveai.json")).unwrap(),
     )
     .unwrap();
-    assert_eq!(persisted.manifest.version, "2.0.0");
+    assert_eq!(persisted.version, "2.0.0");
 
     cleanup(&base);
 }
@@ -1024,12 +1045,15 @@ async fn install_upgrade_preserves_extra_data_under_plugin_dir() {
         .await
         .unwrap();
 
-    // Drop a "user-state" file under the plugin's dir.
-    let user_state = base.join("plugins").join("repo").join("user-state.json");
+    // Drop a "user-state" file under the plugin's version dir — the
+    // upgrade cleanup removes the binary/manifest/viewer but leaves
+    // extra entries untouched.
+    let user_state = version_dir(&base, "owner", "repo", "1.0.0")
+        .join("user-state.json");
     std::fs::write(&user_state, b"{\"runs\":42}").unwrap();
 
-    // Upgrade.
-    let (server_b, _) = upgrade_test_server("2.0.0", b"V2").await;
+    // Upgrade (same version → same version dir is re-installed in place).
+    let (server_b, _) = upgrade_test_server("1.0.0", b"V2").await;
     client
         .install_plugin_at(
             &server_b.uri(),
@@ -1070,13 +1094,9 @@ async fn install_upgrade_with_no_prior_install_just_installs() {
         .await
         .unwrap();
     assert!(ok);
-    assert!(
-        base.join("plugins")
-            .join("repo")
-            .join(binary_filename())
-            .exists()
-    );
-    assert!(base.join("plugins").join("repo.json").exists());
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    assert!(dir.join(binary_filename()).exists());
+    assert!(dir.join("objectiveai.json").exists());
 
     cleanup(&base);
 }
@@ -1124,8 +1144,12 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
     ));
 
     // Nothing on disk — the failure happened in the network phase before any writes.
-    assert!(!base.join("plugins").join("repo").exists());
-    assert!(!base.join("plugins").join("repo.json").exists());
+    assert!(!base.join("plugins").join("owner").join("repo").exists());
+    assert!(
+        !version_dir(&base, "owner", "repo", "1.0.0")
+            .join("objectiveai.json")
+            .exists()
+    );
 
     cleanup(&base);
 }
@@ -1150,12 +1174,14 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         .await
         .unwrap();
 
-    // Attempt upgrade with a binary endpoint that 500s.
+    // Attempt upgrade (same version → same version dir) with a binary
+    // endpoint that 500s. The cleanup step deletes A's artifacts in
+    // that version dir before the failing fetch.
     let server_b = MockServer::start().await;
     let platform_key = current_platform_key();
     let manifest_body = json!({
         "description": "broken upgrade",
-        "version": "2.0.0",
+        "version": "1.0.0",
         "owner": "claimed-owner",
         "binaries": { platform_key: "asset-bin" }
     });
@@ -1165,7 +1191,7 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         .mount(&server_b)
         .await;
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v2.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
         .respond_with(ResponseTemplate::new(500))
         .mount(&server_b)
         .await;
@@ -1190,14 +1216,9 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
 
     // Documented trade-off: upgrade deleted A's artifacts (step 3) BEFORE
     // the network fetch failed (step 4). The user must retry install.
-    assert!(
-        !base
-            .join("plugins")
-            .join("repo")
-            .join(binary_filename())
-            .exists()
-    );
-    assert!(!base.join("plugins").join("repo.json").exists());
+    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    assert!(!dir.join(binary_filename()).exists());
+    assert!(!dir.join("objectiveai.json").exists());
 
     cleanup(&base);
 }
@@ -1225,7 +1246,7 @@ async fn install_refuses_reserved_repository_name() {
         }
         other => panic!("expected ReservedRepositoryName, got {other:?}"),
     }
-    assert!(!base.join("plugins").join("objectiveai").exists());
+    assert!(!base.join("plugins").join("owner").join("objectiveai").exists());
     assert!(!base.join("plugins").join("objectiveai.json").exists());
     cleanup(&base);
 }
