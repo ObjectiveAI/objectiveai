@@ -31,12 +31,11 @@ fi
 
 # ── Build mcp ──────────────────────────────────────────────────────────
 
-# Pass through the cli's python features for parity with the cli release.
-FEATURES="rustpython,systempython"
-
-echo "Building objectiveai-mcp (release, features: $FEATURES)..."
+# objectiveai-mcp is SDK-only (no objectiveai-cli dependency), so the
+# cli's python passthrough features (rustpython/systempython) don't
+# exist on this package. Default features only.
+echo "Building objectiveai-mcp (release)..."
 cargo build --release -p objectiveai-mcp \
-  --features "$FEATURES" \
   --manifest-path "$REPO_ROOT/Cargo.toml"
 
 SRC="$REPO_ROOT/target/release/$SRC_NAME"

@@ -57,13 +57,14 @@ pub fn is_held(path: &Path) -> bool {
     #[cfg(unix)]
     {
         use nix::fcntl::{FlockArg, flock};
+        use std::os::unix::io::AsRawFd;
         let Ok(file) = std::fs::OpenOptions::new().read(true).open(path) else {
             // No file at all — no holder.
             return false;
         };
-        if flock(&file, FlockArg::LockSharedNonblock).is_ok() {
+        if flock(file.as_raw_fd(), FlockArg::LockSharedNonblock).is_ok() {
             // Got the shared lock → no exclusive holder. Release.
-            let _ = flock(&file, FlockArg::Unlock);
+            let _ = flock(file.as_raw_fd(), FlockArg::Unlock);
             false
         } else {
             true
@@ -270,6 +271,7 @@ fn open_claim_file(path: &Path) -> Option<std::fs::File> {
 #[cfg(unix)]
 fn try_create_locked(path: &Path) -> std::io::Result<std::fs::File> {
     use nix::fcntl::{FlockArg, flock};
+    use std::os::unix::io::AsRawFd;
     use std::os::unix::fs::OpenOptionsExt;
 
     let file = std::fs::OpenOptions::new()
@@ -278,7 +280,7 @@ fn try_create_locked(path: &Path) -> std::io::Result<std::fs::File> {
         .create_new(true)
         .mode(0o644)
         .open(path)?;
-    if flock(&file, FlockArg::LockExclusiveNonblock).is_err() {
+    if flock(file.as_raw_fd(), FlockArg::LockExclusiveNonblock).is_err() {
         drop(file);
         let _ = std::fs::remove_file(path);
         return Err(std::io::Error::other("flock failed"));
@@ -289,12 +291,13 @@ fn try_create_locked(path: &Path) -> std::io::Result<std::fs::File> {
 #[cfg(unix)]
 fn take_existing_lock(path: &Path) -> Option<std::fs::File> {
     use nix::fcntl::{FlockArg, flock};
+    use std::os::unix::io::AsRawFd;
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
         .open(path)
         .ok()?;
-    if flock(&file, FlockArg::LockExclusiveNonblock).is_err() {
+    if flock(file.as_raw_fd(), FlockArg::LockExclusiveNonblock).is_err() {
         return None;
     }
     Some(file)
@@ -320,6 +323,7 @@ async fn wait_acquire_unix(path: PathBuf) -> std::io::Result<LockClaim> {
 #[cfg(unix)]
 fn unix_wait_for_release(path: &Path) -> std::io::Result<()> {
     use nix::fcntl::{FlockArg, flock};
+    use std::os::unix::io::AsRawFd;
     // If the file doesn't exist there's nothing to wait for.
     let file = match std::fs::OpenOptions::new().read(true).open(path) {
         Ok(f) => f,
@@ -328,11 +332,11 @@ fn unix_wait_for_release(path: &Path) -> std::io::Result<()> {
     };
     // Blocking shared-lock acquire. Wakes the moment no exclusive
     // holder remains.
-    flock(&file, FlockArg::LockShared)
+    flock(file.as_raw_fd(), FlockArg::LockShared)
         .map_err(|e| std::io::Error::other(format!("flock LOCK_SH: {e}")))?;
     // Release the shared lock immediately — we don't actually hold
     // anything, the acquire was just the "release notification."
-    let _ = flock(&file, FlockArg::Unlock);
+    let _ = flock(file.as_raw_fd(), FlockArg::Unlock);
     Ok(())
 }
 
@@ -341,6 +345,7 @@ fn unix_wait_for_release(path: &Path) -> std::io::Result<()> {
 #[cfg(unix)]
 fn unix_wait_for_acquire(path: &Path) -> std::io::Result<std::fs::File> {
     use nix::fcntl::{FlockArg, flock};
+    use std::os::unix::io::AsRawFd;
     use std::os::unix::fs::OpenOptionsExt;
 
     let file = std::fs::OpenOptions::new()
@@ -351,7 +356,7 @@ fn unix_wait_for_acquire(path: &Path) -> std::io::Result<std::fs::File> {
         .mode(0o644)
         .open(path)?;
     // Blocking exclusive acquire.
-    flock(&file, FlockArg::LockExclusive)
+    flock(file.as_raw_fd(), FlockArg::LockExclusive)
         .map_err(|e| std::io::Error::other(format!("flock LOCK_EX: {e}")))?;
     Ok(file)
 }

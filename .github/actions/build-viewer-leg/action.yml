@@ -12,7 +12,7 @@ inputs:
     description: Filename of the released asset (e.g. objectiveai-linux-x86_64-viewer).
     required: true
   src_name:
-    description: Filename of the built binary inside ~/.objectiveai/ (objectiveai-viewer or objectiveai-viewer.exe).
+    description: Filename of the built binary inside ~/.objectiveai/bin/ (objectiveai-viewer or objectiveai-viewer.exe).
     required: true
   version:
     description: The version string (without leading "v") used in the release tag.
@@ -77,7 +77,7 @@ runs:
         done
     - name: Stage release binary
       shell: bash
-      run: cp "$HOME/.objectiveai/${{ inputs.src_name }}" "${{ inputs.asset }}"
+      run: cp "$HOME/.objectiveai/bin/${{ inputs.src_name }}" "${{ inputs.asset }}"
     - uses: actions/upload-artifact@v4
       with:
         name: ${{ inputs.asset }}
