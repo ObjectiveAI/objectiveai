@@ -47,12 +47,15 @@ fn arbitrary_vec<T>(
     Ok(v)
 }
 
-/// Generates an arbitrary `rust_decimal::Decimal` from an f32.
+/// Generates an arbitrary `rust_decimal::Decimal` from an f32,
+/// scaled down by 1_000. Out-of-range conversions (the f32 range
+/// exceeds `Decimal::MAX` ≈ 7.9e28 even after scaling) fall back
+/// to zero via `unwrap_or_default`.
 pub fn arbitrary_rust_decimal(
     u: &mut arbitrary::Unstructured,
 ) -> arbitrary::Result<rust_decimal::Decimal> {
     let f: f32 = u.arbitrary()?;
-    Ok(rust_decimal::Decimal::try_from(f).unwrap_or_default())
+    Ok(rust_decimal::Decimal::try_from(f / 1_000.0).unwrap_or_default())
 }
 
 /// Generates an arbitrary `Option<rust_decimal::Decimal>`.
