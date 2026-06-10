@@ -13,13 +13,21 @@
 //! source schedule's identity (`name` / `aih` / `version` / `plugin`).
 //!
 //! A log-writer listener is spawned at the top of `execute` with an
-//! unbounded receiver; the final stream wrapper sends every yielded
-//! envelope (with its claim's `run_id`, which rides next to the item
-//! internally and never hits the wire) into the channel, and the
-//! listener appends each to `tasks_logs` as it arrives. After the
-//! merge is exhausted the wrapper drops the sender and awaits the
-//! listener so every log line is durably written before the stream
-//! ends.
+//! unbounded receiver; the log wrapper (layer 1, identical in both
+//! modes) sends every envelope (with its claim's `run_id`, which rides
+//! next to the item internally and never hits the wire) into the
+//! channel, and the listener appends each to `tasks_logs` as it
+//! arrives. After the merge is exhausted the wrapper drops the sender
+//! and awaits the listener so every log line is durably written before
+//! the stream ends.
+//!
+//! Output has two modes (layer 2), selected by `request.stream_all`:
+//! `--stream-all` passes every envelope through verbatim
+//! (`ResponseItem::Value`); the default engages the success layer
+//! instead — items are swallowed and each task yields exactly one
+//! `ResponseItem::Success { .., success }` when its stream completes,
+//! `success` being `false` iff the task's final item was an error.
+//! The mode never affects what is logged.
 //!
 //! Each task runs with the schedule's captured identity
 //! (`apply_agent_arguments`) and the plugin that registered it
@@ -33,8 +41,12 @@ use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::AgentArguments;
+use std::collections::HashMap;
+
 use objectiveai_sdk::cli::command::ResponseItem as RootResponseItem;
-use objectiveai_sdk::cli::command::tasks::run::{Plugin, Request, ResponseItem};
+use objectiveai_sdk::cli::command::tasks::run::{
+    Plugin, Request, ResponseItem, SuccessResponseItem, ValueResponseItem,
+};
 
 use crate::context::Context;
 use crate::db;
@@ -42,13 +54,21 @@ use crate::error::Error;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
-/// Internal merge item: each task's stream is tagged with its claim's
-/// `run_id` so the final wrapper can hand every line to the log writer
-/// — the id rides next to the item and never appears on the wire.
-type TaggedStream =
-    Pin<Box<dyn Stream<Item = (i64, Result<ResponseItem, Error>)> + Send>>;
+/// Internal merge event. Items are tagged with their claim's `run_id`
+/// so the log wrapper can hand every line to the log writer — the id
+/// rides next to the item and never appears on the wire. `Done` marks
+/// a task's stream completing (carrying the meta the success layer
+/// needs); `WriterFailed` carries the log-writer finalizer's error
+/// through the layers.
+enum TaskEvent {
+    Item(i64, Result<ResponseItem, Error>),
+    Done(TaskMeta),
+    WriterFailed(Error),
+}
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+type TaggedStream = Pin<Box<dyn Stream<Item = TaskEvent> + Send>>;
+
+pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     // The log-writer listener: spawned up front with an unbounded
     // receiver. It appends each (run_id, line) to `tasks_logs` as they
     // come in, and exits once every sender has dropped.
@@ -95,59 +115,113 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
     let mut select_all = futures::stream::SelectAll::new();
     for (meta, result) in results {
         let run_id = meta.run_id;
+        // Each task's stream ends with a `Done` marker carrying its
+        // meta, so the success layer can tell when a task completed.
+        let done = meta.clone();
         match result {
             Ok(stream) => {
-                let tagged = stream.map(move |r| {
-                    (
-                        run_id,
-                        r.map(|value| ResponseItem {
-                            agent_instance_hierarchy: meta
-                                .agent_instance_hierarchy
-                                .clone(),
-                            name: meta.name.clone(),
-                            version: meta.version,
-                            plugin: meta.plugin.clone(),
-                            value: Box::new(value),
-                        }),
-                    )
-                });
+                let tagged = stream
+                    .map(move |r| {
+                        TaskEvent::Item(
+                            run_id,
+                            r.map(|value| {
+                                ResponseItem::Value(ValueResponseItem {
+                                    agent_instance_hierarchy: meta
+                                        .agent_instance_hierarchy
+                                        .clone(),
+                                    name: meta.name.clone(),
+                                    version: meta.version,
+                                    plugin: meta.plugin.clone(),
+                                    value: Box::new(value),
+                                })
+                            }),
+                        )
+                    })
+                    .chain(futures::stream::once(async move {
+                        TaskEvent::Done(done)
+                    }));
                 select_all.push(Box::pin(tagged) as TaggedStream);
             }
             Err(e) => {
-                let once: TaggedStream =
-                    Box::pin(futures::stream::once(async move { (run_id, Err(e)) }));
-                select_all.push(once);
+                let tagged = futures::stream::once(async move {
+                    TaskEvent::Item(run_id, Err(e))
+                })
+                .chain(futures::stream::once(async move {
+                    TaskEvent::Done(done)
+                }));
+                select_all.push(Box::pin(tagged) as TaggedStream);
             }
         }
     }
 
-    // The wrapper: forward every merged item to the caller AND send
+    // Layer 1 — the log wrapper, identical regardless of mode: send
     // each Ok envelope (serialized, keyed by its run_id) to the log
-    // writer. Once the merge is exhausted, drop the sender and wait
-    // for the listener to finish draining its queue so every line is
-    // durably in `tasks_logs` before the stream ends.
-    let stream = async_stream::stream! {
+    // writer and pass every event through. Once the merge is
+    // exhausted, drop the sender and wait for the listener to finish
+    // draining its queue so every line is durably in `tasks_logs`
+    // before the stream ends; a writer failure flows on as a trailing
+    // event.
+    let logged: TaggedStream = Box::pin(async_stream::stream! {
         let mut merged = select_all;
-        while let Some((run_id, item)) = merged.next().await {
-            if let Ok(envelope) = &item {
+        while let Some(event) = merged.next().await {
+            if let TaskEvent::Item(run_id, Ok(envelope)) = &event {
                 if let Ok(line) = serde_json::to_string(envelope) {
                     // A dead writer (an earlier insert failed) must
                     // not stop the user-facing stream — its error
                     // surfaces from the join below.
-                    let _ = log_tx.send((run_id, line));
+                    let _ = log_tx.send((*run_id, line));
                 }
             }
-            yield item;
+            yield event;
         }
         drop(log_tx);
         match writer.await {
             Ok(Ok(())) => {}
-            Ok(Err(e)) => yield Err(e),
-            Err(_) => yield Err(Error::WriterPanic),
+            Ok(Err(e)) => yield TaskEvent::WriterFailed(e),
+            Err(_) => yield TaskEvent::WriterFailed(Error::WriterPanic),
         }
+    });
+
+    // Layer 2 — the mode adapter. `--stream-all` skips the success
+    // layer entirely: items pass through verbatim and the Done markers
+    // vanish. The default engages the success layer: items are
+    // swallowed (each run's final-item error-ness tracked) and every
+    // task yields exactly one `{.., success}` summary on its Done.
+    let stream: ItemStream = if request.stream_all {
+        Box::pin(logged.filter_map(|event| async move {
+            match event {
+                TaskEvent::Item(_, item) => Some(item),
+                TaskEvent::Done(_) => None,
+                TaskEvent::WriterFailed(e) => Some(Err(e)),
+            }
+        }))
+    } else {
+        Box::pin(async_stream::stream! {
+            let mut last_err: HashMap<i64, bool> = HashMap::new();
+            let mut inner = logged;
+            while let Some(event) = inner.next().await {
+                match event {
+                    TaskEvent::Item(run_id, item) => {
+                        last_err.insert(run_id, item.is_err());
+                    }
+                    TaskEvent::Done(meta) => {
+                        let success =
+                            !last_err.get(&meta.run_id).copied().unwrap_or(false);
+                        yield Ok(ResponseItem::Success(SuccessResponseItem {
+                            agent_instance_hierarchy: meta.agent_instance_hierarchy,
+                            name: meta.name,
+                            version: meta.version,
+                            plugin: meta.plugin,
+                            success,
+                        }));
+                    }
+                    TaskEvent::WriterFailed(e) => yield Err(e),
+                }
+            }
+        })
     };
 
-    Ok(Box::pin(stream))
+    Ok(stream)
 }
 
 /// Drain the log channel into `tasks_logs` — one INSERT per emitted
@@ -166,8 +240,11 @@ async fn log_writer_loop(
 
 /// Envelope metadata for one fired schedule, cloned out of its
 /// `RunRow` before `run_one` consumes the row, then stamped onto every
-/// item that task emits. `run_id` tags items internally for the log
-/// writer and never appears on the wire envelope.
+/// item that task emits (and onto its terminal `Done` marker, which
+/// the success layer turns into the per-task summary). `run_id` tags
+/// items internally for the log writer and never appears on the wire
+/// envelope.
+#[derive(Clone)]
 struct TaskMeta {
     run_id: i64,
     agent_instance_hierarchy: String,
