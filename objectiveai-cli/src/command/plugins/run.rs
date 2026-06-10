@@ -14,12 +14,12 @@ use std::pin::Pin;
 use std::process::Stdio;
 use std::sync::Arc;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
 use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::cli::{Error as CliError, ErrorType as CliErrorType};
 use serde::Serialize;
-use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::io::AsyncWriteExt;
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
@@ -38,14 +38,20 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .await
         .ok_or_else(|| Error::PluginNotFound(coord.clone()))?;
 
-    // Config for both the plugin binary and any nested
-    // (plugin-originated) commands it invokes: stamped with this
-    // plugin's coordinate so a nested command's `Context` resolves
-    // `ctx.plugin = Some(PluginPath)` from the threaded env vars.
-    let mut cli_config = ctx.config.clone();
-    cli_config.plugin_owner = Some(request.owner.clone());
-    cli_config.plugin_repository = Some(request.name.clone());
-    cli_config.plugin_version = Some(request.version.clone());
+    // Context for nested (plugin-originated) commands: this caller's
+    // ctx, stamped with the plugin coordinate. `ctx.plugin` is set so
+    // a nested command knows which plugin it runs on behalf of, and
+    // `config.plugin_*` is set so any subprocess that nested command
+    // itself spawns inherits the coordinate via `apply_config_env`.
+    let mut nested_ctx = ctx.clone();
+    nested_ctx.config.plugin_owner = Some(request.owner.clone());
+    nested_ctx.config.plugin_repository = Some(request.name.clone());
+    nested_ctx.config.plugin_version = Some(request.version.clone());
+    nested_ctx.plugin = Some(crate::plugin_path::PluginPath {
+        owner: request.owner.clone(),
+        repository: request.name.clone(),
+        version: request.version.clone(),
+    });
 
     let mut cmd = Command::new(&exe);
     cmd.args(&request.args)
@@ -53,7 +59,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .kill_on_drop(true);
-    crate::spawn::apply_config_env(&mut cmd, &cli_config);
+    crate::spawn::apply_config_env(&mut cmd, &nested_ctx.config);
 
     let mut child = cmd.spawn().map_err(Error::PluginSpawn)?;
     let stdout = child.stdout.take().expect("stdout was piped");
@@ -94,9 +100,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                             // them on the user-visible `ResponseItem`
                             // stream.
                             let task_id = Some(c.id);
-                            let task = spawn_nested_command(
+                            let task = run_nested_command(
+                                nested_ctx.clone(),
                                 c.command,
-                                cli_config.clone(),
                                 plugin_stdin.clone(),
                                 task_id.clone(),
                             );
@@ -132,11 +138,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let exit_code = task.await.unwrap_or(-1);
             let envelope = PluginCommandResponse {
                 id: id.as_deref(),
-                value: serde_json::to_value(CommandComplete {
+                value: CommandComplete {
                     kind: "command_complete",
                     exit_code,
-                })
-                .expect("CommandComplete serializes"),
+                },
             };
             let _ = write_envelope(&plugin_stdin, &envelope).await;
         }
@@ -159,61 +164,124 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(Box::pin(stream))
 }
 
-/// Whitespace-tokenize `command`, spawn `objectiveai-cli` (the
-/// current binary) with those argv, capture stdout line-by-line, and
-/// write each parsed line back to `plugin_stdin` wrapped in a
-/// [`PluginCommandResponse`] envelope. Returns the nested process's
-/// exit code (used by the outer drain to stamp the terminal
-/// `CommandComplete`).
-///
-/// Tokenization matches legacy: whitespace-only, no shlex.
-fn spawn_nested_command(
+/// Dispatch a plugin-originated command IN-PROCESS — no subprocess, no
+/// Postgres re-bootstrap. Whitespace-tokenize `command` (legacy: no
+/// shlex) and run it through the very same `crate::run` entry the cli
+/// binary uses, against `ctx` (which already carries this caller's
+/// identity plus the plugin coordinate). The body is a mirror of
+/// `main.rs::run_command`: every line that binary would write to stdout
+/// is instead forwarded into `plugin_stdin` wrapped in a
+/// [`PluginCommandResponse`]. Returns an exit code for the terminal
+/// `CommandComplete` (the tool's code on a `ToolExit`, else 0/1).
+fn run_nested_command(
+    ctx: Context,
     command: String,
-    cli_config: crate::run::Config,
     plugin_stdin: Arc<Mutex<ChildStdin>>,
     id: Option<String>,
 ) -> JoinHandle<i32> {
     tokio::spawn(async move {
-        let exe = match std::env::current_exe() {
-            Ok(p) => p,
-            Err(_) => return -1,
-        };
-        let tokens: Vec<String> =
-            command.split_whitespace().map(String::from).collect();
-        let mut cmd = Command::new(&exe);
-        cmd.args(&tokens)
-            .stdin(Stdio::null())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::inherit());
-        crate::spawn::apply_config_env(&mut cmd, &cli_config);
+        let id = id.as_deref();
+        // Whitespace tokenization matches legacy (no shlex).
+        let tokens: Vec<String> = command.split_whitespace().map(String::from).collect();
 
-        let mut child = match cmd.spawn() {
-            Ok(c) => c,
-            Err(_) => return -1,
+        // A plugin may not invoke `plugins` or `tools` commands — no
+        // running another plugin, no running a tool. Forward the same
+        // error line the cli would emit and stop here.
+        let forbidden = match tokens.first().map(String::as_str) {
+            Some("plugins") => Some("plugins"),
+            Some("tools") => Some("tools"),
+            _ => None,
         };
-        let stdout = child.stdout.take().expect("stdout was piped");
-        let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(raw)) = lines.next_line().await {
-            let trimmed = raw.trim_end_matches(['\r', '\n']);
-            if trimmed.is_empty() {
-                continue;
+        if let Some(kind) = forbidden {
+            let _ = forward_error(
+                &plugin_stdin,
+                id,
+                &Error::PluginCommandForbidden(kind),
+                Some(true),
+            )
+            .await;
+            return 1;
+        }
+
+        // `args[0]` is the program name, which `crate::run` strips
+        // unconditionally; the plugin's command is just the subcommand
+        // tokens, so prepend a placeholder.
+        let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
+        args.extend(tokens);
+
+        // A mirror of `main.rs::run_command`: drive the same `crate::run`
+        // stream, but forward each line into the plugin's stdin (wrapped
+        // in a `PluginCommandResponse`) instead of writing it to stdout.
+        let mut stream = match crate::run(args, Some(ctx)).await {
+            Ok(s) => s,
+            Err(e) => {
+                if let Error::ClapParse(ref clap_err) = e {
+                    if crate::is_informational(clap_err) {
+                        let _ = forward_help(&plugin_stdin, id, &clap_err.to_string()).await;
+                        return 0;
+                    }
+                }
+                let _ = forward_error(&plugin_stdin, id, &e, Some(true)).await;
+                return match e {
+                    Error::ToolExit(code) => code,
+                    _ => 1,
+                };
             }
-            let value: serde_json::Value = serde_json::from_str(trimmed)
-                .unwrap_or_else(|_| serde_json::Value::String(trimmed.to_string()));
-            let envelope = PluginCommandResponse {
-                id: id.as_deref(),
-                value,
+        };
+        let mut last_tool_exit: Option<i32> = None;
+        while let Some(item) = stream.next().await {
+            let written = match item {
+                Ok(response) => forward_line(&plugin_stdin, id, &response).await,
+                Err(e) => {
+                    if let Error::ToolExit(code) = &e {
+                        last_tool_exit = Some(*code);
+                    }
+                    forward_error(&plugin_stdin, id, &e, None).await
+                }
             };
-            if write_envelope(&plugin_stdin, &envelope).await.is_err() {
-                // Plugin's stdin is gone — abandon the run.
+            if written.is_err() {
+                // Plugin's stdin is gone; abandon the run.
                 break;
             }
         }
-        match child.wait().await {
-            Ok(s) => s.code().unwrap_or(-1),
-            Err(_) => -1,
-        }
+        last_tool_exit.unwrap_or(0)
     })
+}
+
+/// Mirror of `main.rs::write_line`: serialize `value` and forward it to
+/// the plugin's stdin in a [`PluginCommandResponse`] envelope.
+async fn forward_line<T: Serialize>(
+    plugin_stdin: &Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+    value: &T,
+) -> std::io::Result<()> {
+    write_envelope(plugin_stdin, &PluginCommandResponse { id, value }).await
+}
+
+/// Mirror of `main.rs::write_error_line`.
+async fn forward_error(
+    plugin_stdin: &Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+    e: &Error,
+    fatal: Option<bool>,
+) -> std::io::Result<()> {
+    let payload = CliError {
+        r#type: CliErrorType::Error,
+        level: Some(objectiveai_sdk::cli::Level::Error),
+        fatal,
+        message: e.output_message(),
+    };
+    forward_line(plugin_stdin, id, &payload).await
+}
+
+/// Mirror of `main.rs::write_help_line`.
+async fn forward_help(
+    plugin_stdin: &Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+    help: &str,
+) -> std::io::Result<()> {
+    let payload = serde_json::json!({ "type": "help", "help": help });
+    forward_line(plugin_stdin, id, &payload).await
 }
 
 async fn write_envelope<T: Serialize>(
@@ -233,10 +301,10 @@ async fn write_envelope<T: Serialize>(
 /// locally rather than in the SDK because the SDK's `cli/output`
 /// module that hosts the canonical type is currently torn-up.
 #[derive(Serialize)]
-struct PluginCommandResponse<'a> {
+struct PluginCommandResponse<'a, T> {
     #[serde(skip_serializing_if = "Option::is_none")]
     id: Option<&'a str>,
-    value: serde_json::Value,
+    value: T,
 }
 
 /// Terminal marker written to plugin stdin after each nested command

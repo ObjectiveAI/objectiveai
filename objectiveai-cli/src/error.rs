@@ -48,6 +48,8 @@ pub enum Error {
     PluginRead(std::io::Error),
     #[error("plugin exited with non-zero status: {0}")]
     PluginExit(i32),
+    #[error("plugins may not invoke `{0}` commands")]
+    PluginCommandForbidden(&'static str),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]
