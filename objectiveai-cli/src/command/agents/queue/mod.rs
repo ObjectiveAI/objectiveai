@@ -14,6 +14,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod delete;
+pub mod deliver;
 pub mod read;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -37,6 +38,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::DeleteResponseSchema(req) => {
             let value = delete::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::DeleteResponseSchema(value)))
+        }
+        Request::Deliver(req) => {
+            let inner = deliver::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Deliver)))
+        }
+        Request::DeliverRequestSchema(req) => {
+            let value = deliver::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DeliverRequestSchema(value)))
+        }
+        Request::DeliverResponseSchema(req) => {
+            let value = deliver::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DeliverResponseSchema(value)))
         }
         Request::Read(req) => {
             let inner = read::execute(ctx, req).await?;
