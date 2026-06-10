@@ -9,7 +9,7 @@
 //! Everything else (depth, kind, readiness, offset, count) is
 //! threaded through to `db::tasks::list_schedules_async` as-is.
 
-use objectiveai_sdk::cli::command::tasks::list::{Request, ResponseItem};
+use objectiveai_sdk::cli::command::tasks::list::{Plugin, Request, ResponseItem};
 
 use crate::context::Context;
 use crate::db;
@@ -44,6 +44,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Vec<ResponseItem
             interval: r.interval_seconds.map(|secs| {
                 humantime::format_duration(std::time::Duration::from_secs(secs))
                     .to_string()
+            }),
+            version: r.version as u64,
+            plugin: r.plugin.map(|p| Plugin {
+                owner: p.owner,
+                repository: p.repository,
+                version: p.version,
             }),
         })
         .collect())

@@ -126,6 +126,13 @@ pub enum Error {
         sender_agent_instance_hierarchy: String,
         caller_agent_instance_hierarchy: String,
     },
+    #[error(
+        "a schedule named {name:?} already exists for {agent_instance_hierarchy:?}; pass --overwrite to replace it"
+    )]
+    ScheduleAlreadyExists {
+        name: String,
+        agent_instance_hierarchy: String,
+    },
     #[error("embedded postgres bootstrap failed: {0}")]
     PostgresBootstrap(String),
     #[error("db: {0}")]

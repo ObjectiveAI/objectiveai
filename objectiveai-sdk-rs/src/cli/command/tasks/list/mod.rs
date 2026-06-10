@@ -115,6 +115,17 @@ impl CommandRequest for Request {
     }
 }
 
+/// The plugin that registered a schedule. All three fields are present
+/// together or the whole object is absent (the `schedules` table
+/// enforces all-or-nothing on its `plugin_*` columns).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tasks.list.Plugin")]
+pub struct Plugin {
+    pub owner: String,
+    pub repository: String,
+    pub version: String,
+}
+
 /// One schedule row.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.list.ResponseItem")]
@@ -141,6 +152,15 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub interval: Option<String>,
+    /// Overwrite count: `1` for a freshly scheduled row, incremented
+    /// each time `tasks schedule --overwrite` replaced it.
+    pub version: u64,
+    /// The plugin that registered this schedule (its `(owner,
+    /// repository, version)` coordinate), or `None` when it was not
+    /// scheduled by a plugin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
 }
 
 #[derive(clap::Args)]

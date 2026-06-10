@@ -19,11 +19,11 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.tasks.schedule.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// User-facing identifier. Globally unique — a second
-    /// `schedule` with the same name fails the
-    /// `schedules.name` UNIQUE constraint. `agents tasks run`
-    /// tags every streamed output line with this name so the
-    /// caller can attribute output to its source schedule.
+    /// User-facing identifier. Unique per agent instance hierarchy —
+    /// a second `schedule` with the same `(name, aih)` fails the
+    /// `schedules` UNIQUE constraint unless `overwrite` is set.
+    /// `agents tasks run` tags every streamed output line with this
+    /// name so the caller can attribute output to its source schedule.
     pub name: String,
     /// argv to invoke on each scheduled poll.
     pub command: Vec<String>,
@@ -39,6 +39,11 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub interval_seconds: Option<u64>,
+    /// Replace an existing `(name, agent_instance_hierarchy)` row
+    /// instead of erroring on collision. Each overwrite bumps the
+    /// row's `version` (starts at 1) and resets its run state.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub overwrite: bool,
     pub jq: Option<String>,
 }
 
@@ -71,6 +76,9 @@ impl CommandRequest for Request {
                 );
             }
             None => argv.push("--oneshot".to_string()),
+        }
+        if self.overwrite {
+            argv.push("--overwrite".to_string());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -120,6 +128,11 @@ pub struct Args {
     /// delete the row. Mutually exclusive with `--interval`.
     #[arg(long)]
     pub oneshot: bool,
+    /// Replace an existing `(name, agent-instance-hierarchy)`
+    /// schedule instead of erroring on collision. Bumps the row's
+    /// `version` (starting at 1) and resets its run state.
+    #[arg(long)]
+    pub overwrite: bool,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -183,6 +196,7 @@ impl TryFrom<Args> for Request {
             command: args.command,
             description: args.description,
             interval_seconds,
+            overwrite: args.overwrite,
             jq: args.jq,
         })
     }

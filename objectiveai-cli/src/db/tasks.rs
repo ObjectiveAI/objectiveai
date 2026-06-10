@@ -8,6 +8,7 @@
 
 use objectiveai_sdk::cli::command::AgentArguments;
 use sqlx::Row as _;
+use sqlx::error::DatabaseError as _;
 
 use super::{Error, Pool};
 
@@ -23,6 +24,12 @@ pub struct ListedSchedule {
     pub created_at: i64,
     pub last_ran_at: Option<i64>,
     pub interval_seconds: Option<u64>,
+    /// Overwrite count: `1` on first insert, incremented on each
+    /// `--overwrite` replacement of this `(name, aih)` row.
+    pub version: i64,
+    /// The plugin that registered this schedule, if any. `Some` iff all
+    /// three `plugin_*` columns are set (the table CHECK enforces it).
+    pub plugin: Option<crate::plugin_path::PluginPath>,
 }
 
 /// Subset of a schedule row that `agents tasks run` needs to fire one
@@ -51,6 +58,13 @@ fn now_seconds() -> i64 {
 /// runner will exec). `agent_arguments` is JSON-serialised verbatim —
 /// the runner re-installs each `Some(_)` field as the matching env var
 /// when the schedule fires.
+///
+/// `(name, agent_instance_hierarchy)` is unique. When `overwrite` is
+/// false a collision yields `Ok(None)` so the caller can raise a
+/// friendly "already exists" error; when true the existing row is
+/// replaced in place and its `version` bumped (`last_ran_at` reset so
+/// the redefined schedule fires fresh). A brand-new row starts at
+/// `version = 1`.
 pub async fn insert_schedule(
     pool: &Pool,
     name: &str,
@@ -59,26 +73,68 @@ pub async fn insert_schedule(
     agent_instance_hierarchy: &str,
     interval_seconds: Option<u64>,
     agent_arguments: &AgentArguments,
-) -> Result<i64, Error> {
+    plugin: Option<&crate::plugin_path::PluginPath>,
+    overwrite: bool,
+) -> Result<Option<i64>, Error> {
     let command_json = serde_json::to_string(command)?;
     let agent_arguments_json = serde_json::to_string(agent_arguments)?;
     let interval_param: Option<i64> = interval_seconds.map(|s| s as i64);
-    let id: i64 = sqlx::query_scalar(
-        "INSERT INTO schedules \
-         (name, command, description, agent_instance_hierarchy, interval_seconds, agent_arguments, created_at) \
-         VALUES ($1, $2, $3, $4, $5, $6, $7) \
-         RETURNING id",
-    )
-    .bind(name)
-    .bind(command_json)
-    .bind(description)
-    .bind(agent_instance_hierarchy)
-    .bind(interval_param)
-    .bind(agent_arguments_json)
-    .bind(now_seconds())
-    .fetch_one(&**pool)
-    .await?;
-    Ok(id)
+    let (plugin_owner, plugin_repository, plugin_version) = match plugin {
+        Some(p) => (
+            Some(p.owner.as_str()),
+            Some(p.repository.as_str()),
+            Some(p.version.as_str()),
+        ),
+        None => (None, None, None),
+    };
+
+    // `version` is omitted from the column list so the table's
+    // `DEFAULT 1` applies on a fresh insert; the overwrite path bumps
+    // it explicitly off the existing row.
+    let columns = "(name, command, description, agent_instance_hierarchy, interval_seconds, \
+                    agent_arguments, plugin_owner, plugin_repository, plugin_version, created_at)";
+    let values = "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)";
+
+    let query = if overwrite {
+        format!(
+            "INSERT INTO schedules {columns} {values} \
+             ON CONFLICT (name, agent_instance_hierarchy) DO UPDATE SET \
+                 command = EXCLUDED.command, \
+                 description = EXCLUDED.description, \
+                 interval_seconds = EXCLUDED.interval_seconds, \
+                 agent_arguments = EXCLUDED.agent_arguments, \
+                 plugin_owner = EXCLUDED.plugin_owner, \
+                 plugin_repository = EXCLUDED.plugin_repository, \
+                 plugin_version = EXCLUDED.plugin_version, \
+                 last_ran_at = NULL, \
+                 version = schedules.version + 1 \
+             RETURNING id"
+        )
+    } else {
+        format!("INSERT INTO schedules {columns} {values} RETURNING id")
+    };
+
+    let result = sqlx::query_scalar::<_, i64>(&query)
+        .bind(name)
+        .bind(command_json)
+        .bind(description)
+        .bind(agent_instance_hierarchy)
+        .bind(interval_param)
+        .bind(agent_arguments_json)
+        .bind(plugin_owner)
+        .bind(plugin_repository)
+        .bind(plugin_version)
+        .bind(now_seconds())
+        .fetch_one(&**pool)
+        .await;
+
+    match result {
+        Ok(id) => Ok(Some(id)),
+        // Non-overwrite collision on the (name, aih) unique constraint:
+        // report absence so the handler can surface a clean error.
+        Err(sqlx::Error::Database(e)) if e.is_unique_violation() => Ok(None),
+        Err(e) => Err(e.into()),
+    }
 }
 
 /// List `schedules` matching the supplied filters. Every filter is
@@ -120,7 +176,11 @@ pub async fn list_schedules(
                 description, \
                 created_at, \
                 last_ran_at, \
-                interval_seconds \
+                interval_seconds, \
+                plugin_owner, \
+                plugin_repository, \
+                plugin_version, \
+                version \
          FROM schedules \
          WHERE \
              /* Hierarchy + depth filter. Inclusive of parent itself. */ \
@@ -181,6 +241,10 @@ pub async fn list_schedules(
         let created_at: i64 = row.try_get(5)?;
         let last_ran_at: Option<i64> = row.try_get(6)?;
         let interval_seconds: Option<i64> = row.try_get(7)?;
+        let plugin_owner: Option<String> = row.try_get(8)?;
+        let plugin_repository: Option<String> = row.try_get(9)?;
+        let plugin_version: Option<String> = row.try_get(10)?;
+        let version: i64 = row.try_get(11)?;
         let command: Vec<String> = serde_json::from_str(&command_json)?;
         out.push(ListedSchedule {
             id,
@@ -191,6 +255,12 @@ pub async fn list_schedules(
             created_at,
             last_ran_at,
             interval_seconds: interval_seconds.map(|s| s as u64),
+            version,
+            plugin: crate::plugin_path::PluginPath::from_parts(
+                plugin_owner,
+                plugin_repository,
+                plugin_version,
+            ),
         });
     }
     Ok(out)

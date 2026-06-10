@@ -189,15 +189,33 @@ CREATE TABLE IF NOT EXISTS message_queue_files (
 
 CREATE TABLE IF NOT EXISTS schedules (
     id                       BIGSERIAL PRIMARY KEY,
-    name                     TEXT   NOT NULL UNIQUE,
+    name                     TEXT   NOT NULL,
     command                  TEXT   NOT NULL,
     description              TEXT   NOT NULL,
     agent_instance_hierarchy TEXT   NOT NULL,
     interval_seconds         BIGINT
         CHECK (interval_seconds IS NULL OR interval_seconds >= 0),
     agent_arguments          TEXT   NOT NULL,
+    -- Overwrite count: 1 on first insert, incremented each time
+    -- `tasks schedule --overwrite` replaces this (name, aih) row.
+    version                  BIGINT NOT NULL DEFAULT 1,
+    -- Plugin coordinate of the plugin that registered this schedule,
+    -- captured from `ctx.plugin` at schedule time. All three NULL when
+    -- not scheduled by a plugin; all three set when it was (enforced by
+    -- the CHECK below).
+    plugin_owner             TEXT,
+    plugin_repository        TEXT,
+    plugin_version           TEXT,
     created_at               BIGINT NOT NULL,
-    last_ran_at              BIGINT
+    last_ran_at              BIGINT,
+    -- A schedule name is unique per agent instance hierarchy, not
+    -- globally — two different agents may reuse the same name.
+    UNIQUE (name, agent_instance_hierarchy),
+    CHECK (
+        (plugin_owner IS NULL AND plugin_repository IS NULL AND plugin_version IS NULL)
+        OR
+        (plugin_owner IS NOT NULL AND plugin_repository IS NOT NULL AND plugin_version IS NOT NULL)
+    )
 );
 
 -- AFTER-UPDATE trigger on `message_queue.active`: every soft-flip
