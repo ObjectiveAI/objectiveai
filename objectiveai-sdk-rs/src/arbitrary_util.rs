@@ -48,14 +48,18 @@ fn arbitrary_vec<T>(
 }
 
 /// Generates an arbitrary `rust_decimal::Decimal` from an f32,
-/// scaled down by 1_000. Out-of-range conversions (the f32 range
-/// exceeds `Decimal::MAX` ≈ 7.9e28 even after scaling) fall back
-/// to zero via `unwrap_or_default`.
+/// scaled down by 10^13. f32::MAX is ~3.4e38, so every finite
+/// sample lands at ≤ ~3.4e25 — a hard ceiling ~2,300× below
+/// `Decimal::MAX` (~7.9e28), leaving ample headroom for the
+/// chunk-push suites that sum ~20 of these through `Usage::push`
+/// (`Decimal::AddAssign` panics on overflow). `Inf`/`NaN` samples
+/// stay non-finite after division and fall back to zero via
+/// `unwrap_or_default`.
 pub fn arbitrary_rust_decimal(
     u: &mut arbitrary::Unstructured,
 ) -> arbitrary::Result<rust_decimal::Decimal> {
     let f: f32 = u.arbitrary()?;
-    Ok(rust_decimal::Decimal::try_from(f / 1_000.0).unwrap_or_default())
+    Ok(rust_decimal::Decimal::try_from(f / 1e13).unwrap_or_default())
 }
 
 /// Generates an arbitrary `Option<rust_decimal::Decimal>`.
