@@ -39,6 +39,30 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Error::ToolNotFound(format!("{coord} (empty exec)"))
     })?;
 
+    // Manifest exec paths are relative to the version folder (e.g.
+    // `./count-tool.exe`), but on Windows `CreateProcess` resolves a
+    // relative program against the PARENT's cwd, not the child's
+    // `current_dir` (rust-lang/rust#37868) — the spawn would miss the
+    // binary entirely. Absolutize relative *paths* against `cwd`;
+    // bare names keep their PATH-lookup semantics (the POSIX execvp
+    // rule: a separator means path, no separator means PATH search).
+    //
+    // Path-vs-name is decided by `Path::components()`, which encodes
+    // the platform split for us:
+    //   - Windows: `/` and `\` are both separators (and both illegal
+    //     in file names), so either marks a path — 2+ components.
+    //   - Unix: only `/` separates; `\` is a legal filename byte, so
+    //     a program literally named `my\tool` stays a bare name —
+    //     1 component — and still resolves via PATH.
+    let program: std::ffi::OsString = {
+        let path = std::path::Path::new(&program);
+        if path.components().count() > 1 && path.is_relative() {
+            cwd.join(path).into_os_string()
+        } else {
+            program.into()
+        }
+    };
+
     let mut cmd = Command::new(&program);
     cmd.args(argv)
         .current_dir(&cwd)
