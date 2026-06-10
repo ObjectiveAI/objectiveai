@@ -1,0 +1,233 @@
+/* ── Profile Detail ── */
+
+.detail {
+  padding: 24px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.header {
+  margin-bottom: 24px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.name {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--info-bright);
+  font-weight: 500;
+}
+
+.agentBadge {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-mid);
+  padding: 2px 6px;
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  font-variant-numeric: tabular-nums;
+}
+
+.description {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  color: var(--info-mid);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
+.kind {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-dim);
+  margin-top: 4px;
+}
+
+/* ── Weight bar ── */
+
+.weightBar {
+  display: flex;
+  height: 6px;
+  gap: 1px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--ground);
+  margin-bottom: 24px;
+}
+
+.weightSegment {
+  background: var(--copper-mid);
+  min-width: 2px;
+  border-radius: 1px;
+}
+
+/* ── Tier sections ── */
+
+.tiers {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tierSection {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tierLabel {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--info-dim);
+}
+
+.tierLabelFrontier {
+  color: var(--info-mid);
+}
+
+.agentCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  background: var(--ground-raised);
+}
+
+.agentModel {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--info-bright);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agentMeta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.tag {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--info-dim);
+  padding: 2px 5px;
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.tagWeight {
+  font-variant-numeric: tabular-nums;
+  color: var(--copper-mid);
+  border-color: var(--copper-dim);
+}
+
+.tagCount {
+  color: var(--info-mid);
+}
+
+/* ── Back link ── */
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  text-decoration: none;
+  margin-bottom: 16px;
+}
+
+.back:hover {
+  color: var(--copper-mid);
+}
+
+/* ── Loading / Error ── */
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--info-dim);
+}
+
+.loadingDot {
+  display: inline-block;
+  width: 4px;
+  height: 4px;
+  background: var(--copper-mid);
+  border-radius: 1px;
+  margin-right: 8px;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 24px;
+  gap: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--copper-mid);
+}
+
+.retryBtn {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--info-dim);
+  background: var(--ground-raised);
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.retryBtn:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
+@media (max-width: 640px) {
+  .detail {
+    padding: 16px;
+  }
+
+  .agentCard {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .agentMeta {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loadingDot { animation: none; opacity: 0.6; }
+}

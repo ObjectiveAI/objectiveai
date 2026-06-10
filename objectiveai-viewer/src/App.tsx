@@ -1,366 +1,284 @@
-import { useEffect, useState } from "react";
+import { useState, useMemo, useEffect, useDeferredValue, type ReactNode } from "react";
 import cn from "classnames";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
-import { AgentCompletionView } from "./AgentCompletionView";
-import { FunctionInventionRecursiveView } from "./FunctionInventionRecursiveView";
-import { FunctionExecutionView } from "./FunctionExecutionView";
+import * as Tooltip from "@radix-ui/react-tooltip";
+import { tauriInvoke } from "./lib/tauri";
+import { useEntries } from "./hooks/useEntries";
+import { useApiCalls } from "./hooks/useApiCalls";
+import { useCollapseState } from "./hooks/useCollapseState";
+import { useSessionStorage } from "./hooks/useSessionStorage";
+import { Shell } from "./components/layout/Shell";
+import { StatusBar } from "./components/layout/StatusBar";
+import { EntryView } from "./components/views/EntryView";
+import { NetworkPanel } from "./components/shared/NetworkPanel";
 import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
+import { RestoreBanner } from "./components/shared/RestoreBanner";
+import { SessionPicker } from "./components/shared/SessionPicker";
+import { SessionSidebar } from "./components/shared/SessionSidebar";
+import { CommandPalette } from "./components/shared/CommandPalette";
+import { DetailPanel } from "./components/shared/DetailPanel";
+import { LogoMark, Wordmark } from "./components/shared/Logo";
 import { RightOverlayPanel, type PanelTab } from "./RightOverlayPanel";
 import { useAgentChat } from "./chat/useAgentChat";
-import { z } from "zod";
-import {
-  AgentCompletionsRequestAgentCompletionCreateParamsSchema,
-  AgentCompletionsResponseStreamingAgentCompletionChunkSchema,
-  FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema,
-  FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema,
-  FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema,
-  FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema,
-  LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema,
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema,
-  ErrorResponseErrorSchema,
-  agentCompletionsResponseStreamingAgentCompletionChunkMerged,
-  functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
-  functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged,
-  laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged,
-} from "@objectiveai/sdk";
-import type {
-  AgentCompletionsResponseStreamingAgentCompletionChunk,
-  FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
-  FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk,
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk,
-} from "@objectiveai/sdk";
+import type { Entry } from "./types";
+import { isTauri } from "./lib/tauri";
+import { mockEntries } from "./mockEntries";
 
-// Extended schemas with required id
-const AgentCompletionCreateParamsSchema = AgentCompletionsRequestAgentCompletionCreateParamsSchema.extend({
-  id: z.string(),
-});
-type AgentCompletionCreateParams = z.infer<typeof AgentCompletionCreateParamsSchema>;
-
-const FunctionExecutionCreateParamsSchema = FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema.extend({
-  id: z.string(),
-});
-type FunctionExecutionCreateParams = z.infer<typeof FunctionExecutionCreateParamsSchema>;
-
-const FunctionInventionRecursiveCreateParamsSchema = FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema.extend({
-  id: z.string(),
-});
-type FunctionInventionRecursiveCreateParams = z.infer<typeof FunctionInventionRecursiveCreateParamsSchema>;
-
-const LaboratoryExecutionCreateParamsSchema = LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema.extend({
-  id: z.string(),
-});
-type LaboratoryExecutionCreateParams = z.infer<typeof LaboratoryExecutionCreateParamsSchema>;
-
-const ResponseErrorSchema = ErrorResponseErrorSchema.extend({
-  id: z.string(),
-});
-type ResponseError = z.infer<typeof ResponseErrorSchema>;
-
-// Classified incoming event
-type AgentCompletionEvent =
-  | { type: "begin"; data: AgentCompletionCreateParams }
-  | { type: "chunk"; data: AgentCompletionsResponseStreamingAgentCompletionChunk }
-  | { type: "error"; data: ResponseError };
-
-type FunctionExecutionEvent =
-  | { type: "begin"; data: FunctionExecutionCreateParams }
-  | { type: "chunk"; data: FunctionsExecutionsResponseStreamingFunctionExecutionChunk }
-  | { type: "error"; data: ResponseError };
-
-type FunctionInventionRecursiveEvent =
-  | { type: "begin"; data: FunctionInventionRecursiveCreateParams }
-  | { type: "chunk"; data: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk }
-  | { type: "error"; data: ResponseError };
-
-type LaboratoryExecutionEvent =
-  | { type: "begin"; data: LaboratoryExecutionCreateParams }
-  | { type: "chunk"; data: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk }
-  | { type: "error"; data: ResponseError };
-
-// Entry in the list
-interface AgentCompletionEntry {
-  kind: "agent-completion";
-  id: string;
-  request: AgentCompletionCreateParams;
-  chunk: AgentCompletionsResponseStreamingAgentCompletionChunk | null;
-  error: ResponseError | null;
+function Tip({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <Tooltip.Root delayDuration={400}>
+      <Tooltip.Trigger asChild>{children}</Tooltip.Trigger>
+      <Tooltip.Portal>
+        <Tooltip.Content className={cn("bg-ground-surface", "border", "border-node-border", "rounded-sm", "px-2", "py-1", "font-mono", "text-[10px]", "text-info-mid", "shadow-lg")} sideOffset={6}>
+          {label}
+          <Tooltip.Arrow className={cn("fill-ground-surface")} />
+        </Tooltip.Content>
+      </Tooltip.Portal>
+    </Tooltip.Root>
+  );
 }
 
-interface FunctionExecutionEntry {
-  kind: "execution";
-  id: string;
-  request: FunctionExecutionCreateParams;
-  chunk: FunctionsExecutionsResponseStreamingFunctionExecutionChunk | null;
-  error: ResponseError | null;
-}
-
-interface FunctionInventionRecursiveEntry {
-  kind: "invention";
-  id: string;
-  request: FunctionInventionRecursiveCreateParams;
-  chunk: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk | null;
-  error: ResponseError | null;
-}
-
-interface LaboratoryExecutionEntry {
-  kind: "laboratory";
-  id: string;
-  request: LaboratoryExecutionCreateParams;
-  chunk: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk | null;
-  error: ResponseError | null;
-}
-
-type Entry = AgentCompletionEntry | FunctionExecutionEntry | FunctionInventionRecursiveEntry | LaboratoryExecutionEntry;
-
-function classifyAgentCompletion(payload: unknown): AgentCompletionEvent | null {
-  const beginParse = AgentCompletionCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = AgentCompletionsResponseStreamingAgentCompletionChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  return null;
-}
-
-function classifyFunctionExecution(payload: unknown): FunctionExecutionEvent | null {
-  const beginParse = FunctionExecutionCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  return null;
-}
-
-function classifyFunctionInventionRecursive(payload: unknown): FunctionInventionRecursiveEvent | null {
-  const beginParse = FunctionInventionRecursiveCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  return null;
-}
-
-function classifyLaboratoryExecution(payload: unknown): LaboratoryExecutionEvent | null {
-  const beginParse = LaboratoryExecutionCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  return null;
-}
-
-function EntryView({ entry }: { entry: Entry }) {
-  if (entry.kind === "agent-completion") {
-    return <AgentCompletionView entry={entry} />;
-  }
-  if (entry.kind === "invention") {
-    return <FunctionInventionRecursiveView entry={entry} />;
-  }
-  if (entry.kind === "execution") {
-    return <FunctionExecutionView entry={entry} />;
-  }
-  // Laboratory executions keep the raw-JSON fallback for now.
-  if (entry.error) {
-    return <pre style={{ color: "red" }}>{JSON.stringify(entry.error, null, 2)}</pre>;
-  }
-  if (entry.chunk) {
-    return <pre>{JSON.stringify(entry.chunk, null, 2)}</pre>;
-  }
-  return <pre style={{ color: "gray" }}>{JSON.stringify(entry.request, null, 2)}</pre>;
-}
-
-interface EmittedEvent {
-  destination: string;
-  type: string;
-  value: unknown;
-}
+const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
+  { kind: "agent-completion", label: "Agent", activeClass: "bg-kind-agent/20 text-kind-agent" },
+  { kind: "execution", label: "Execution", activeClass: "bg-kind-execution/20 text-kind-execution" },
+  { kind: "invention", label: "Invention", activeClass: "bg-kind-invention/20 text-kind-invention" },
+  { kind: "laboratory", label: "Laboratory", activeClass: "bg-kind-laboratory/20 text-kind-laboratory" },
+];
 
 function ObjectiveAIView() {
-  const [entries, setEntries] = useState<Entry[]>([]);
+  const realEntries = useEntries();
+  const liveEntries = !isTauri() && realEntries.length === 0 ? mockEntries : realEntries;
+  const apiCalls = useApiCalls();
+  const session = useSessionStorage(liveEntries, true);
+  const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
   useEffect(() => {
-    const unlistenObjectiveAI = listen<EmittedEvent>("objectiveai", (event) => {
-      const { type, value } = event.payload;
+    if (liveEntries.length > 0 && session.showRestoreBanner) {
+      session.dismissRestore();
+    }
+  }, [liveEntries.length, session.showRestoreBanner, session.dismissRestore]);
 
-      switch (type) {
-        case "agent_completions": {
-          const classified = classifyAgentCompletion(value);
-          if (!classified) return;
-          setEntries((prev) => {
-            switch (classified.type) {
-              case "begin":
-                return [...prev, {
-                  kind: "agent-completion" as const,
-                  id: classified.data.id,
-                  request: classified.data,
-                  chunk: null,
-                  error: null,
-                }];
-              case "error": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id)) return prev;
-                return prev.map((e) =>
-                  e.id === id ? { ...e, error: classified.data } : e
-                );
-              }
-              case "chunk": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id && e.kind === "agent-completion")) return prev;
-                return prev.map((e) => {
-                  if (e.id !== id || e.kind !== "agent-completion") return e;
-                  const [merged] = e.chunk
-                    ? agentCompletionsResponseStreamingAgentCompletionChunkMerged(e.chunk, classified.data)
-                    : [classified.data, true];
-                  return { ...e, chunk: merged };
-                });
-              }
-            }
-          });
-          return;
-        }
-        case "functions_executions": {
-          const classified = classifyFunctionExecution(value);
-          if (!classified) return;
-          setEntries((prev) => {
-            switch (classified.type) {
-              case "begin":
-                return [...prev, {
-                  kind: "execution",
-                  id: classified.data.id,
-                  request: classified.data,
-                  chunk: null,
-                  error: null,
-                }];
-              case "error": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id)) return prev;
-                return prev.map((e) =>
-                  e.id === id ? { ...e, error: classified.data } : e
-                );
-              }
-              case "chunk": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id && e.kind === "execution")) return prev;
-                return prev.map((e) => {
-                  if (e.id !== id || e.kind !== "execution") return e;
-                  const [merged] = e.chunk
-                    ? functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(e.chunk, classified.data)
-                    : [classified.data, true];
-                  return { ...e, chunk: merged };
-                });
-              }
-            }
-          });
-          return;
-        }
-        case "functions_inventions_recursive": {
-          const classified = classifyFunctionInventionRecursive(value);
-          if (!classified) return;
-          setEntries((prev) => {
-            switch (classified.type) {
-              case "begin":
-                return [...prev, {
-                  kind: "invention",
-                  id: classified.data.id,
-                  request: classified.data,
-                  chunk: null,
-                  error: null,
-                }];
-              case "error": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id)) return prev;
-                return prev.map((e) =>
-                  e.id === id ? { ...e, error: classified.data } : e
-                );
-              }
-              case "chunk": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id && e.kind === "invention")) return prev;
-                return prev.map((e) => {
-                  if (e.id !== id || e.kind !== "invention") return e;
-                  const [merged] = e.chunk
-                    ? functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged(e.chunk, classified.data)
-                    : [classified.data, true];
-                  return { ...e, chunk: merged };
-                });
-              }
-            }
-          });
-          return;
-        }
-        case "laboratories_executions": {
-          const classified = classifyLaboratoryExecution(value);
-          if (!classified) return;
-          setEntries((prev) => {
-            switch (classified.type) {
-              case "begin":
-                return [...prev, {
-                  kind: "laboratory" as const,
-                  id: classified.data.id,
-                  request: classified.data,
-                  chunk: null,
-                  error: null,
-                }];
-              case "error": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id)) return prev;
-                return prev.map((e) =>
-                  e.id === id ? { ...e, error: classified.data } : e
-                );
-              }
-              case "chunk": {
-                const id = classified.data.id;
-                if (!prev.some((e) => e.id === id && e.kind === "laboratory")) return prev;
-                return prev.map((e) => {
-                  if (e.id !== id || e.kind !== "laboratory") return e;
-                  const [merged] = e.chunk
-                    ? laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged(e.chunk, classified.data)
-                    : [classified.data, true];
-                  return { ...e, chunk: merged };
-                });
-              }
-            }
-          });
-          return;
-        }
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCommandPaletteOpen((v) => !v);
+        return;
       }
-    });
-
-    // Signal the Rust backend that the listener is registered.
-    // Events are buffered on the Rust side until this resolves.
-    unlistenObjectiveAI.then(() => invoke("viewer_ready"));
-
-    return () => {
-      unlistenObjectiveAI.then((fn) => fn());
+      if (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "j" || e.key === "k") {
+        const active = document.activeElement;
+        if (active?.tagName === "INPUT" || active?.tagName === "TEXTAREA") return;
+        const triggers = Array.from(document.querySelectorAll<HTMLElement>("[data-entry-trigger]"));
+        if (triggers.length === 0) return;
+        const currentIdx = active ? triggers.indexOf(active as HTMLElement) : -1;
+        const direction = (e.key === "ArrowDown" || e.key === "j") ? 1 : -1;
+        const nextIdx = currentIdx === -1 ? (direction === 1 ? 0 : triggers.length - 1) : Math.max(0, Math.min(triggers.length - 1, currentIdx + direction));
+        triggers[nextIdx]?.focus();
+        e.preventDefault();
+      }
     };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  const isRestoredNotBrowsing = session.restoredEntries && !session.isViewingPast;
+  const entries = (isRestoredNotBrowsing && liveEntries.length > 0)
+    ? liveEntries
+    : (session.restoredEntries ?? liveEntries);
+  const { isCollapsed, toggle, collapseAll, expandAll } = useCollapseState(entries);
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(!isTauri() ? "ac-complete-001" : null);
+  const [activeKinds, setActiveKinds] = useState<Set<Entry["kind"]>>(
+    new Set(KINDS.map((k) => k.kind))
+  );
+  const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
+
+  const toggleKind = (kind: Entry["kind"]) => {
+    setActiveKinds((prev) => {
+      const next = new Set(prev);
+      if (next.has(kind)) {
+        if (next.size > 1) next.delete(kind);
+      } else {
+        next.add(kind);
+      }
+      return next;
+    });
+  };
+
+  const kindCounts = useMemo(() => {
+    const counts = new Map<Entry["kind"], number>();
+    for (const e of entries) counts.set(e.kind, (counts.get(e.kind) ?? 0) + 1);
+    return counts;
+  }, [entries]);
+
+  const filtered = useMemo(() => {
+    let result = entries.filter((e) => activeKinds.has(e.kind));
+    if (deferredSearch.trim()) {
+      const q = deferredSearch.trim().toLowerCase();
+      result = result.filter((e) => {
+        const json = JSON.stringify(e).toLowerCase();
+        return json.includes(q);
+      });
+    }
+    return result;
+  }, [entries, activeKinds, deferredSearch]);
+
+  const banner = session.showRestoreBanner && session.restoredEntries ? (
+    <RestoreBanner
+      entryCount={session.restoredEntries.length}
+      timestamp={session.restoredTimestamp}
+      onDismiss={session.dismissRestore}
+      onBrowse={() => { session.dismissRestore(); session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
+    />
+  ) : session.isViewingPast ? (
+    <div className={cn("flex", "items-center", "gap-3", "px-4", "py-2", "border-b", "border-copper-warm/30", "bg-copper-warm/5", "text-xs", "text-info-mid", "select-none")}>
+      <span>Viewing historical session</span>
+      <button
+        onClick={session.returnToLive}
+        className={cn("ml-auto", "px-2", "py-0.5", "rounded-sm", "text-copper-bright", "hover:bg-copper-warm/20", "transition-colors")}
+      >
+        Return to live
+      </button>
+    </div>
+  ) : null;
+
+  const selectedEntry = selectedEntryId ? entries.find((e) => e.id === selectedEntryId) ?? null : null;
+
+  const detailPanel = selectedEntry ? (
+    <DetailPanel entry={selectedEntry} onClose={() => setSelectedEntryId(null)} />
+  ) : null;
+
   return (
-    <main className={cn("mx-auto", "max-w-4xl", "px-4", "py-8", "text-left")}>
-      <h1 className={cn("text-2xl", "font-semibold", "mb-4")}>ObjectiveAI Viewer</h1>
-      {entries.length === 0 && (
-        <p className={cn("text-neutral-500", "dark:text-neutral-400")}>
-          Waiting for requests...
-        </p>
+    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
+      <SessionPicker
+        open={sessionPickerOpen}
+        onOpenChange={setSessionPickerOpen}
+        sessions={session.pastSessions}
+        currentSessionId={session.sessionId}
+        onLoad={session.loadSession}
+        onDelete={session.deleteSession}
+        onRename={session.renameSession}
+        onExport={session.exportSession}
+      />
+      <CommandPalette open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen} />
+      {entries.length > 0 && (
+        <div className={cn("sticky", "top-0", "z-10", "flex", "items-center", "gap-1.5", "pb-3", "pt-0", "mb-1", "bg-ground/95", "backdrop-blur-sm", "select-none")}>
+          {KINDS.map(({ kind, label, activeClass }) => {
+            const count = kindCounts.get(kind) ?? 0;
+            const active = activeKinds.has(kind);
+            return (
+              <button
+                key={kind}
+                onClick={() => toggleKind(kind)}
+                className={cn(
+                  "px-2.5",
+                  "py-1",
+                  "rounded-sm",
+                  "font-mono",
+                  "text-[10px]",
+                  "transition-colors",
+                  active
+                    ? activeClass
+                    : cn("bg-ground-surface", "text-info-dim", "hover:text-info-mid"),
+                )}
+              >
+                {label}
+                {count > 0 && <span className={cn("ml-1", "opacity-70")}>({count})</span>}
+              </button>
+            );
+          })}
+          <div className={cn("ml-auto", "flex", "items-center", "gap-1")}>
+            <div className={cn("group/search", "relative", "mr-1")}>
+              <svg className={cn("absolute", "left-2", "top-1/2", "-translate-y-1/2", "w-3", "h-3", "text-info-dim", "group-focus-within/search:text-copper-dim", "pointer-events-none", "transition-colors")} viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <circle cx="5" cy="5" r="3.5" />
+                <path d="M8 8L10.5 10.5" />
+              </svg>
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search…"
+                aria-label="Search entries"
+                className={cn("w-28", "pl-6", "pr-2", "py-1", "rounded-sm", "bg-ground-surface", "border", "border-node-border", "text-[10px]", "font-mono", "text-info-mid", "placeholder:text-info-dim/50", "outline-none", "focus:border-copper-dim", "focus:w-44", "transition-all")}
+              />
+            </div>
+            <Tip label="Sessions">
+              <button
+                onClick={() => { session.refreshSessions().then(() => setSessionPickerOpen(true)); }}
+                aria-label="Sessions"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="6" cy="6" r="5" />
+                  <path d="M6 3v3l2 1" />
+                </svg>
+              </button>
+            </Tip>
+            <Tip label="Collapse all">
+              <button
+                onClick={collapseAll}
+                aria-label="Collapse all"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 8L6 4L10 8" />
+                  <path d="M2 11L6 7L10 11" />
+                </svg>
+              </button>
+            </Tip>
+            <Tip label="Expand all">
+              <button
+                onClick={expandAll}
+                aria-label="Expand all"
+                className={cn("p-1.5", "rounded-sm", "text-info-dim", "hover:text-info-bright", "hover:bg-ground-surface", "transition-colors")}
+              >
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M2 4L6 8L10 4" />
+                  <path d="M2 1L6 5L10 1" />
+                </svg>
+              </button>
+            </Tip>
+          </div>
+        </div>
       )}
-      {entries.map((entry) => (
-        <EntryView key={entry.id} entry={entry} />
+
+      {entries.length === 0 && (
+        <div className={cn("flex", "flex-col", "items-center", "justify-center", "py-20", "px-6", "select-none")}>
+          <LogoMark className={cn("h-8", "w-auto", "text-info-dim/30", "mb-2")} />
+          <Wordmark className={cn("w-[140px]", "h-auto", "text-info-dim/30", "mb-8")} />
+          <p className={cn("text-info-bright", "text-sm", "font-medium", "mb-1")}>No activity yet</p>
+          <p className={cn("text-info-dim", "text-xs", "mb-8", "max-w-xs", "text-center")}>Run a command from the CLI or use the command palette to get started. Results stream here in real time.</p>
+          <div className={cn("max-w-sm", "w-full", "space-y-2.5")}>
+            <div className={cn("bg-ground-surface", "border", "border-node-border", "rounded-md", "px-4", "py-3")}>
+              <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5")}>From the CLI</div>
+              <code className={cn("text-[11px]", "font-mono", "text-copper-bright", "leading-relaxed", "block")}>objectiveai functions executions create</code>
+              <p className={cn("text-[10px]", "text-info-dim", "mt-1")}>Events stream here automatically when the viewer is running.</p>
+            </div>
+            <div className={cn("bg-ground-surface", "border", "border-node-border", "rounded-md", "px-4", "py-3")}>
+              <div className={cn("text-[10px]", "font-mono", "text-info-dim", "uppercase", "tracking-wide", "mb-1.5")}>From here</div>
+              <p className={cn("text-[11px]", "text-info-mid")}>
+                Press{' '}
+                <kbd className={cn("px-1", "py-px", "rounded-sm", "bg-ground-raised", "border", "border-node-border", "text-info-bright", "font-mono", "text-[10px]")}>{navigator.platform.includes('Mac') ? '⌘' : 'Ctrl'}K</kbd>
+                {' '}to open the command palette and run any ObjectiveAI command directly.
+              </p>
+            </div>
+            <div className={cn("text-center", "text-[10px]", "text-info-dim/50", "mt-3", "font-mono")}>
+              listening on localhost:5001
+            </div>
+          </div>
+        </div>
+      )}
+
+      {filtered.map((entry) => (
+        <EntryView key={entry.id} entry={entry} collapsed={isCollapsed(entry.id)} onToggle={() => { toggle(entry.id); setSelectedEntryId(isCollapsed(entry.id) ? entry.id : null); }} selected={entry.id === selectedEntryId} />
       ))}
-    </main>
+    </Shell>
   );
 }
 
 const OBJECTIVEAI_TAB_ID = "objectiveai";
 
-/**
- * Mirror of `objectiveai-viewer/src-tauri/src/plugins.rs::ViewerPluginInfo`.
- * Source of truth is the Rust struct; keep these in sync by hand.
- */
 export interface ViewerPluginInfo {
   name: string;
   iframe_src: string;
@@ -377,8 +295,8 @@ function App() {
   const { sendMessage } = useAgentChat(setPanelTabs);
 
   useEffect(() => {
-    invoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
-      .then(setPlugins)
+    tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
+      .then((p) => { if (p) setPlugins(p); })
       .catch((e) => {
         // eslint-disable-next-line no-console
         console.warn("list_plugins_with_viewer failed:", e);
@@ -391,6 +309,10 @@ function App() {
   ];
 
   const activePlugin = plugins.find((p) => p.name === activeTab);
+
+  if (plugins.length === 0) {
+    return <ObjectiveAIView />;
+  }
 
   return (
     <div className={cn("flex", "flex-col", "h-screen")}>

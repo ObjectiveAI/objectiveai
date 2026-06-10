@@ -1,0 +1,129 @@
+/* ── Explore Toolbar — Search + Filters ── */
+
+.toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 24px;
+  max-width: 1400px;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.searchInput {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--info-mid);
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 150ms;
+}
+
+.searchInput::placeholder {
+  color: var(--info-dim);
+}
+
+.searchInput:focus {
+  border-color: var(--copper-dim);
+  color: var(--info-bright);
+}
+
+.resultCount {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-dim);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.filterRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filterGroup {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.filterGroup + .filterGroup {
+  margin-left: 8px;
+}
+
+.filterLabel {
+  font-family: var(--font-mono);
+  font-size: 8px;
+  color: var(--info-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-right: 2px;
+}
+
+.filterPill {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--info-dim);
+  background: none;
+  border: 1px solid var(--node-border);
+  border-radius: 2px;
+  padding: 3px 8px;
+  cursor: pointer;
+  transition: color 150ms, border-color 150ms;
+}
+
+.filterPill:hover {
+  color: var(--info-mid);
+  border-color: var(--info-dim);
+}
+
+.filterPill:focus-visible {
+  color: var(--info-mid);
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
+.filterPillActive {
+  color: var(--info-bright);
+  border-color: var(--copper-dim);
+}
+
+@media (max-width: 640px) {
+  .toolbar {
+    padding: 12px 16px;
+  }
+
+  .searchRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .resultCount {
+    text-align: right;
+  }
+
+  .filterRow {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .filterRow::-webkit-scrollbar {
+    display: none;
+  }
+
+  .filterPill {
+    white-space: nowrap;
+  }
+}

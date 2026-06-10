@@ -413,6 +413,7 @@ fn test_user_message_tool_result() {
                             tool_call_id: "toolu_abc".to_string(),
                             metadata: None,
                         },
+                        request_message_ids: None,
                     },
                 ),
             ],

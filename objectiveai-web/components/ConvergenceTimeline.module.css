@@ -1,0 +1,37 @@
+.wrap {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+
+.axisLabel {
+  font-family: var(--font-mono);
+  font-size: 6.5px;
+  fill: var(--info-dim);
+}
+
+.guide {
+  stroke: var(--ground-surface);
+  stroke-width: 0.5;
+}
+
+.dot {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.dot:hover {
+  opacity: 1;
+}
+
+.endLabel {
+  font-family: var(--font-mono);
+  font-size: 7px;
+  font-weight: 600;
+}

@@ -1,0 +1,166 @@
+@import "tailwindcss";
+
+@font-face {
+  font-family: "JetBrains Mono Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 800;
+  src: url("./fonts/JetBrainsMono-Variable.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/Geist-Variable.woff2") format("woff2");
+}
+
+@theme {
+  /* Ground layer — near-black, warm */
+  --color-ground: #0c0a09;
+  --color-ground-raised: #141210;
+  --color-ground-surface: #1c1917;
+
+  /* Information layer — warm grays */
+  --color-info-dim: #8a8580;
+  --color-info-mid: #a8a29e;
+  --color-info-bright: #d6d3d1;
+  --color-info-full: #e7e5e4;
+
+  /* Life layer — copper spectrum (cold → hot) */
+  --color-copper-dim: #78716c;
+  --color-copper-warm: #b45309;
+  --color-copper-mid: #d97706;
+  --color-copper-hot: #f59e0b;
+  --color-copper-bright: #fbbf24;
+
+  /* Entry kind accents */
+  --color-kind-agent: #fbbf24;
+  --color-kind-execution: #d97706;
+  --color-kind-invention: #f59e0b;
+  --color-kind-laboratory: #a8a29e;
+
+  /* Semantic */
+  --color-node-border: #292524;
+  --color-success: #22c55e;
+  --color-error: #b91c1c;
+
+  /* Type */
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-sans: "Geist Variable", system-ui, sans-serif;
+
+  /* Radii */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Timing */
+  --duration-fast: 150ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+
+  /* Layout */
+  --width-content: 800px;
+}
+
+@layer base {
+  html {
+    height: 100%;
+    color-scheme: dark;
+  }
+
+  body {
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    color: var(--color-info-bright);
+    background: var(--color-ground);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+  }
+
+  *:focus-visible {
+    outline: 1px solid var(--color-copper-dim);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-copper-warm) 40%, transparent);
+    color: var(--color-info-full);
+  }
+}
+
+.ft-container {
+  --ft-bg: var(--color-ground);
+  --ft-text: var(--color-info-bright);
+  --ft-text-secondary: var(--color-info-dim);
+  --ft-accent: var(--color-copper-mid);
+  --ft-border: var(--color-node-border);
+  --ft-node-bg: var(--color-ground-raised);
+  --ft-panel-bg: var(--color-ground-surface);
+}
+
+@keyframes collapsible-open {
+  from { height: 0; opacity: 0; }
+  to { height: var(--radix-collapsible-content-height); opacity: 1; }
+}
+
+@keyframes collapsible-close {
+  from { height: var(--radix-collapsible-content-height); opacity: 1; }
+  to { height: 0; opacity: 0; }
+}
+
+[data-state="open"] > [data-radix-collapsible-content] {
+  animation: collapsible-open 200ms ease-out;
+}
+
+[data-state="closed"] > [data-radix-collapsible-content] {
+  animation: collapsible-close 150ms ease-in;
+}
+
+.entry-row {
+  transition: background-color 150ms ease, border-color 150ms ease, box-shadow 150ms ease, opacity 300ms ease, transform 300ms ease;
+}
+
+.entry-row:hover {
+  background-color: var(--color-ground-surface);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--color-copper-dim) 20%, transparent),
+              0 0 8px color-mix(in srgb, var(--color-copper-dim) 8%, transparent);
+}
+
+@keyframes detail-open {
+  from { width: 0; opacity: 0; }
+  to { width: 20rem; opacity: 1; }
+}
+
+@keyframes detail-close {
+  from { width: 20rem; opacity: 1; }
+  to { width: 0; opacity: 0; }
+}
+
+.detail-panel-enter {
+  animation: detail-open 200ms ease-out forwards;
+}
+
+.detail-panel-exit {
+  animation: detail-close 150ms ease-in forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,146 @@
+/* ── InventionStream ── */
+/* 5-step progress visualization for function invention. */
+
+.container {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--info-bright);
+  background: var(--ground);
+  border: 1px solid var(--ground-surface);
+  border-radius: var(--radius);
+  overflow: hidden;
+  max-width: 720px;
+}
+
+/* ── Progress rail ── */
+
+.rail {
+  display: flex;
+  border-bottom: 1px solid var(--ground-surface);
+}
+
+.step {
+  flex: 1;
+  padding: 8px 10px;
+  text-align: center;
+  color: var(--info-dim);
+  border-right: 1px solid var(--ground-surface);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+}
+
+.step:last-child {
+  border-right: none;
+}
+
+.step:hover {
+  background: var(--ground-raised);
+}
+
+.stepComplete {
+  color: var(--copper-hot);
+  background: var(--ground-raised);
+}
+
+.stepActive {
+  color: var(--copper-mid);
+  background: var(--ground-raised);
+  position: relative;
+}
+
+.stepActive::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--copper-mid);
+}
+
+.stepPending {
+  color: var(--info-dim);
+  opacity: 0.5;
+}
+
+/* ── Step content area ── */
+
+.content {
+  min-height: 80px;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.stepContent {
+  padding: 16px;
+}
+
+.streamText {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--info-bright);
+  line-height: 18px;
+}
+
+.cursor {
+  display: inline-block;
+  width: 6px;
+  height: 12px;
+  background: var(--copper-mid);
+  margin-left: 2px;
+  animation: blink 1s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.pendingText {
+  color: var(--info-dim);
+  font-style: italic;
+}
+
+.completeIndicator {
+  display: inline-block;
+  color: var(--copper-hot);
+  margin-left: 4px;
+  font-size: 9px;
+}
+
+/* ── Header ── */
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--ground-surface);
+}
+
+.headerName {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.02em;
+}
+
+.headerState {
+  font-size: 9px;
+  color: var(--info-dim);
+  margin-left: auto;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.stateDot {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 1px;
+  margin-right: 4px;
+  vertical-align: middle;
+}

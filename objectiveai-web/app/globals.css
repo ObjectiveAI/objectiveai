@@ -7,22 +7,25 @@
   --ground-surface: #1c1917;
 
   /* Information layer — warm grays */
-  --info-dim: #57534e;
+  --info-dim: #8a8580;
   --info-mid: #a8a29e;
   --info-bright: #d6d3d1;
   --info-full: #e7e5e4;
 
   /* Life layer — copper spectrum (cold → hot) */
   --copper-dim: #78716c;
+  --copper-dim-rgb: 120, 113, 108;
   --copper-warm: #b45309;
   --copper-mid: #d97706;
   --copper-hot: #f59e0b;
+  --copper-hot-rgb: 245, 158, 11;
   --copper-bright: #fbbf24;
 
   /* Semantic */
   --node-border: #292524;
   --node-bg: var(--ground-raised);
   --connector: #292524;
+  --error: #b91c1c;
 
   /* Type */
   --font-mono: var(--font-jetbrains-mono), 'JetBrains Mono', ui-monospace, monospace;
@@ -38,7 +41,8 @@ html {
 }
 
 html, body {
-  max-width: 100vw;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 body {

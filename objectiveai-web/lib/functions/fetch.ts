@@ -7,7 +7,7 @@ import { apiFetch } from "../client";
 
 /** Simple TTL cache for the function list (shared across pages) */
 let listCache: { data: FunctionListItem[]; ts: number } | null = null;
-const LIST_TTL = 60_000; // 1 minute
+const LIST_TTL = 300_000; // 5 minutes
 
 /** Immutable cache for GitHub definitions (keyed by commit SHA) */
 const defCache = new Map<string, FunctionDefinition>();
@@ -17,15 +17,9 @@ export async function fetchFunctionList(): Promise<FunctionListItem[]> {
   if (listCache && Date.now() - listCache.ts < LIST_TTL) {
     return listCache.data;
   }
-  try {
-    const data = await apiFetch<{ data: FunctionListItem[] }>("/functions");
-    listCache = { data: data.data, ts: Date.now() };
-    return listCache.data;
-  } catch {
-    // API unreachable — return empty, don't show error
-    listCache = { data: [], ts: Date.now() };
-    return [];
-  }
+  const data = await apiFetch<{ data: FunctionListItem[] }>("/functions");
+  listCache = { data: data.data, ts: Date.now() };
+  return listCache.data;
 }
 
 /** Fetch a function.json definition directly from GitHub (cached by commit) */
@@ -48,7 +42,7 @@ export async function fetchFunctionDefinition(
 }
 
 /** Parse a function type string into category and depth */
-function parseType(type: string): {
+export function parseType(type: string): {
   category: "scalar" | "vector";
   depth: "leaf" | "branch";
   clean: string;

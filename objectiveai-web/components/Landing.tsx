@@ -1,16 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import Link from "next/link";
-import type { FunctionMeta } from "@/lib/functions/types";
-import type { SwarmMeta } from "@/lib/swarms/types";
-import type { ProfileMeta } from "@/lib/profiles/types";
-import { fetchAllFunctions } from "@/lib/functions/fetch";
-import { fetchAllSwarms } from "@/lib/swarms/fetch";
-import { fetchDefaultProfiles } from "@/lib/profiles/fetch";
+import { EmailSignup } from "./EmailSignup";
 import styles from "./Landing.module.css";
 
-/** Static example — realistic votes from a startup-idea-ranker execution */
+/* ── Static example — realistic votes from a startup-idea-ranker execution ── */
+
 const EXAMPLE_VOTES = [
   { model: "claude-haiku-4.5",        vote: [0.00, 1.00], weight: 1.0 },
   { model: "gpt-4.1-nano",            vote: [0.85, 0.15], weight: 1.0 },
@@ -26,59 +20,31 @@ const EXAMPLE_VOTES = [
   { model: "gpt-4o-mini",             vote: [0.55, 0.45], weight: 0.5 },
 ];
 
+const SWARM_TOTAL_WEIGHT = EXAMPLE_VOTES.reduce((s, v) => s + v.weight, 0);
+const SWARM_SCORE_A = EXAMPLE_VOTES.reduce((s, v) => s + v.vote[0] * v.weight, 0) / SWARM_TOTAL_WEIGHT;
+const SWARM_SCORE_B = 1 - SWARM_SCORE_A;
+
 export function Landing() {
-  const [functions, setFunctions] = useState<FunctionMeta[]>([]);
-  const [swarms, setSwarms] = useState<SwarmMeta[]>([]);
-  const [profiles, setProfiles] = useState<ProfileMeta[]>([]);
-  const [loaded, setLoaded] = useState({ fn: false, sw: false, pr: false });
-  const [errors, setErrors] = useState({ fn: false, sw: false, pr: false });
-
-  useEffect(() => {
-    let cancelled = false;
-
-    fetchAllFunctions()
-      .then((fns) => { if (!cancelled) { setFunctions(fns); setLoaded((p) => ({ ...p, fn: true })); } })
-      .catch(() => { if (!cancelled) { setErrors((p) => ({ ...p, fn: true })); setLoaded((p) => ({ ...p, fn: true })); } });
-
-    fetchAllSwarms()
-      .then((s) => { if (!cancelled) { setSwarms(s); setLoaded((p) => ({ ...p, sw: true })); } })
-      .catch(() => { if (!cancelled) { setErrors((p) => ({ ...p, sw: true })); setLoaded((p) => ({ ...p, sw: true })); } });
-
-    fetchDefaultProfiles()
-      .then((p) => { if (!cancelled) { setProfiles(p); setLoaded((prev) => ({ ...prev, pr: true })); } })
-      .catch(() => { if (!cancelled) { setErrors((p) => ({ ...p, pr: true })); setLoaded((p) => ({ ...p, pr: true })); } });
-
-    return () => { cancelled = true; };
-  }, []);
-
-  const sortedFunctions = useMemo(() => {
-    return [...functions].sort((a, b) => {
-      const aB = a.subFunctions.length > 0 ? 0 : 1;
-      const bB = b.subFunctions.length > 0 ? 0 : 1;
-      if (aB !== bB) return aB - bB;
-      return a.name.localeCompare(b.name);
-    });
-  }, [functions]);
-
-  const sortedSwarms = useMemo(() => {
-    return [...swarms].sort((a, b) => b.totalAgentCount - a.totalAgentCount);
-  }, [swarms]);
-
   return (
     <div className={styles.landing}>
-      {/* Hero */}
+
+      {/* ── Hero ── */}
       <section className={styles.hero}>
         <h1 className={styles.heroTitle}>the agentic collective judgment harness</h1>
+        <p className={styles.heroBody}>
+          Any agent can call out to a swarm of models for collective judgment; routing decisions through recursive scoring trees that produce a vector of scores across every option. No fine-tuning. ObjectiveAI learns weights.
+        </p>
+
+        {/* CTA — Ronald's hyperprompt / CLI install */}
         <div className={styles.install}>
-          <span className={styles.installCmd}>npm install objectiveai</span>
-          <span className={styles.installCmd}>pip install objectiveai</span>
+          <span className={styles.installCmd}>$ lorem ipsum install objectiveai --lorem</span>
         </div>
       </section>
 
-      <p className={styles.bridging}>your agent doesn't have to decide alone</p>
+      {/* ── Proof — one agent vs the swarm ── */}
+      <section className={styles.proof}>
+        <p className={styles.proofLead}>your agent doesn&apos;t have to decide alone</p>
 
-      {/* Execution comparison */}
-      <section className={styles.execution}>
         <div className={styles.executionHeader}>
           <span className={styles.executionLabel}>example execution</span>
           <span className={styles.executionFunction}>startup-idea-ranker</span>
@@ -136,7 +102,7 @@ export function Landing() {
                 <span className={styles.voteTableCol}>weight</span>
               </div>
               {EXAMPLE_VOTES.map((v, i) => {
-                const relWeight = v.weight; // max weight is 1.0
+                const relWeight = v.weight;
                 return (
                   <div
                     key={i}
@@ -167,107 +133,87 @@ export function Landing() {
             <div className={styles.scoresRow}>
               <span className={styles.scoresLabel}>scores</span>
               <div className={styles.scoreBar}>
-                <div className={styles.scoreSegmentA} style={{ flex: 0.62 }} />
-                <div className={styles.scoreSegmentB} style={{ flex: 0.38 }} />
+                <div className={styles.scoreSegmentA} style={{ flex: SWARM_SCORE_A }} />
+                <div className={styles.scoreSegmentB} style={{ flex: SWARM_SCORE_B }} />
               </div>
-              <span className={styles.scoresValue}>[0.62, 0.38]</span>
+              <span className={styles.scoresValue}>[{SWARM_SCORE_A.toFixed(2)}, {SWARM_SCORE_B.toFixed(2)}]</span>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Directory */}
-      <section className={styles.directory}>
-        {/* Functions */}
-        <div className={styles.directorySection}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>functions</h2>
-            <Link href="/functions" className={styles.sectionLink}>browse all</Link>
+      {/* ── Structure — how functions compose ── */}
+      <section className={styles.textSection}>
+        <h2 className={styles.textSectionTitle}>structure</h2>
+        <p className={styles.textSectionBody}>
+          agent.json ← swarm.json ← profile.json ← function.json. Core primitives that reference each other. A function references a profile. A profile references a swarm with weights. A swarm references agents. Each link is either inline or a remote path.
+        </p>
+        <div className={styles.conceptGrid}>
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>functions</h3>
+            <p className={styles.conceptBody}>Composable scoring pipelines. Data in, scores out. Recursive decision trees that contain vector completions, nested function calls, and map operations, arbitrarily composed.</p>
           </div>
-          {!loaded.fn ? <SectionLoader /> : sortedFunctions.length === 0 ? (
-            <div className={styles.sectionEmpty}>functions are registered via the api — check github for examples</div>
-          ) : (
-            <div className={styles.directoryList}>
-              {sortedFunctions.slice(0, 6).map((fn) => (
-                <Link
-                  key={`${fn.owner}/${fn.repository}`}
-                  href={`/functions/${fn.owner}/${fn.repository}`}
-                  className={styles.directoryRow}
-                >
-                  <span className={styles.directoryName}>{fn.name}</span>
-                  <span className={styles.directoryMeta}>{fn.type}</span>
-                  <span className={styles.directoryMeta}>{fn.taskCount} tasks</span>
-                  {fn.subFunctions.length > 0 && (
-                    <span className={styles.directoryMeta}>{fn.subFunctions.length} sub-functions</span>
-                  )}
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Swarms */}
-        <div className={styles.directorySection}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>swarms</h2>
-            <Link href="/swarms" className={styles.sectionLink}>browse all</Link>
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>vector completions</h3>
+            <p className={styles.conceptBody}>The core primitive. Give a swarm a prompt and a set of possible responses. Each agent votes. Votes combine with weights to produce a score vector that sums to 1.</p>
           </div>
-          {!loaded.sw ? <SectionLoader /> : sortedSwarms.length === 0 ? (
-            <div className={styles.sectionEmpty}>swarms are created at execution time</div>
-          ) : (
-            <div className={styles.directoryList}>
-              {sortedSwarms.slice(0, 4).map((s) => (
-                <Link
-                  key={s.id}
-                  href={`/swarms/${s.id}`}
-                  className={styles.directoryRow}
-                >
-                  <span className={styles.directoryName}>{swarmSummary(s)}</span>
-                  <span className={styles.directoryMeta}>{s.totalAgentCount} agents</span>
-                </Link>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Profiles */}
-        <div className={styles.directorySection}>
-          <div className={styles.sectionHeader}>
-            <h2 className={styles.sectionTitle}>profiles</h2>
-            <Link href="/profiles" className={styles.sectionLink}>browse all</Link>
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>swarms</h3>
+            <p className={styles.conceptBody}>A named collection of agents. Weights don&apos;t affect the swarm&apos;s identity — the same agents always produce the same swarm, regardless of weighting.</p>
           </div>
-          {!loaded.pr ? <SectionLoader /> : profiles.length === 0 ? (
-            <div className={styles.sectionEmpty}>profiles are loaded from github</div>
-          ) : (
-            <div className={styles.directoryList}>
-              {profiles.map((p) => (
-                <div key={p.name} className={styles.directoryRow}>
-                  <span className={styles.directoryName}>{p.name}</span>
-                  <span className={styles.directoryMeta}>{p.totalAgents} agents</span>
-                </div>
-              ))}
-            </div>
-          )}
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>profiles</h3>
+            <p className={styles.conceptBody}>Learned weight configurations across agents and tasks. Human-readable. Looking at the weights tells you about the perspective being simulated.</p>
+          </div>
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>agents</h3>
+            <p className={styles.conceptBody}>A complete configuration of a single upstream model: sampling parameters, prompt framing, tool access, voting behavior. Content-addressed; same configuration, same ID, always.</p>
+          </div>
+          <div className={styles.concept}>
+            <h3 className={styles.conceptName}>weights</h3>
+            <p className={styles.conceptBody}>Parameters controlling each agent's influence over the final score. Supplied separately from the swarm, learned through profile training. The only thing that changes between one perspective and another.</p>
+          </div>
         </div>
       </section>
-    </div>
-  );
-}
 
-/** Derive a short label from a swarm's agent models */
-function swarmSummary(s: SwarmMeta): string {
-  const unique = [...new Set(s.agents.map((a) => {
-    const short = a.model.includes("/") ? a.model.split("/").pop()! : a.model;
-    return short.replace(/-chat(?=-)/i, "");
-  }))];
-  if (unique.length <= 2) return unique.join(" + ");
-  return `${unique[0]} + ${unique[1]} +${unique.length - 2}`;
-}
+      {/* ── Invention — agents build functions ── */}
+      <section className={styles.textSection}>
+        <h2 className={styles.textSectionTitle}>invention</h2>
+        <p className={styles.textSectionBody}>
+          Agents don&apos;t just execute functions. They build them. Pick an agent, give them a spec. They invent the function, spawn more agents to invent the sub-functions, and those spawn more for theirs. The result is a complete decision tree, ready to deploy and train.
+        </p>
+        <div className={styles.textColumns}>
+          <div className={styles.textColumn}>
+            <h3 className={styles.textColumnTitle}>invent</h3>
+            <p className={styles.textColumnBody}>
+              Give an agent a description of what you want to score. They reason about what qualities matter, design the input schema, write the task tree, and validate at each step. Recursive; sub-functions are invented concurrently by their own agents.
+            </p>
+          </div>
+          <div className={styles.textColumn}>
+            <h3 className={styles.textColumnTitle}>deploy</h3>
+            <p className={styles.textColumnBody}>
+              The result is a complete function.json. Train a profile on your data to learn the right weights. Deploy them, call them from your agent, or let your agent do all of that on their own.
+            </p>
+          </div>
+        </div>
+      </section>
 
-function SectionLoader() {
-  return (
-    <div className={styles.sectionLoading}>
-      <span className={styles.loadingDot} />
+      {/* ── Footer ── */}
+      <footer className={styles.landingFooter}>
+        <div className={styles.footerLinks}>
+          <a href="https://github.com/ObjectiveAI" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>github</a>
+          <a href="https://discord.gg/gbNFHensby" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>discord</a>
+          <a href="https://x.com/mkgores" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/mkgores</a>
+          <a href="https://x.com/ronald_obj_ai" target="_blank" rel="noopener noreferrer" className={styles.footerLink}>x.com/ronald_obj_ai</a>
+        </div>
+        <EmailSignup
+          formClassName={styles.footerForm}
+          inputClassName={styles.emailInput}
+          buttonClassName={styles.submitBtn}
+          confirmationClassName={styles.confirmation}
+          errorClassName={styles.footerError}
+        />
+      </footer>
     </div>
   );
 }

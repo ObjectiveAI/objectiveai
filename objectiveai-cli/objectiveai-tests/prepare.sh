@@ -88,7 +88,31 @@ slot "$FIX_BIN_DIR/objectiveai-tests-pg-installer$EXE" \
      "$ROOT/objectiveai-tests-pg-installer$EXE"
 
 SHARED="$ROOT/_shared-db-bin"
-"$ROOT/objectiveai-tests-pg-installer$EXE" "$SHARED"
+
+# Run the installer with bounded retries. The extract writes
+# hundreds of postgres binaries/libraries; on some platforms a
+# real-time AV/indexer scanning a freshly-written executable holds
+# a transient handle on it, so the crate's extraction intermittently
+# fails with an "Access is denied"-class error mid-write. The race
+# is timing-only — a clean retry succeeds — so wipe the partial
+# install (and its stale archive lock) and try again, hard-failing
+# only if it can't extract after several attempts. On platforms
+# without that interference the first attempt simply succeeds and
+# the loop is a no-op.
+pg_installed=""
+for attempt in 1 2 3 4 5; do
+  if "$ROOT/objectiveai-tests-pg-installer$EXE" "$SHARED"; then
+    pg_installed=1
+    break
+  fi
+  echo "prepare.sh: postgres install attempt $attempt did not complete; retrying" >&2
+  rm -rf "$SHARED"
+  sleep "$attempt"   # 1s, 2s, 3s, 4s — widening grace for the scanner
+done
+if [ -z "$pg_installed" ]; then
+  echo "prepare.sh: FATAL — postgres install failed after 5 attempts" >&2
+  exit 1
+fi
 
 # Loop over committed test dirs (everything not starting with
 # `_`). The `*/` glob filters out files. `[ -e dst ]` skips
@@ -99,13 +123,23 @@ for d in "$ROOT"/*/; do
   [[ -e "$d/db-bin" ]] && continue
   case "$OSTYPE" in
     msys*|cygwin*|win32*)
-      # `mklink /D` makes a real Windows symbolic link, but it
-      # requires developer mode or admin. Fall back to
-      # `mklink /J` (junction) which is always permitted for
-      # local volumes and is semantically equivalent for our
-      # read-only use case.
-      cmd //c "mklink /D \"$(cygpath -w "$d/db-bin")\" \"$(cygpath -w "$SHARED")\"" >/dev/null 2>&1 \
-        || cmd //c "mklink /J \"$(cygpath -w "$d/db-bin")\" \"$(cygpath -w "$SHARED")\"" >/dev/null
+      # Create a directory junction via PowerShell. A junction
+      # needs no privilege (unlike a symbolic link) and is
+      # equivalent for our read-only reuse of the shared install.
+      #
+      # We deliberately do NOT use `cmd //c "mklink /J ..."`: MSYS
+      # rewrites the `/J` flag as if it were a POSIX path, so cmd
+      # receives a garbled argument and mklink fails with a bogus
+      # "The filename, directory name, or volume label syntax is
+      # incorrect". Paths are handed to PowerShell through the
+      # environment (not interpolated into the command string) so
+      # backslashes and spaces survive the bash→PowerShell hop
+      # untouched.
+      OAI_LINK="$(cygpath -w "$d/db-bin")" \
+      OAI_TARGET="$(cygpath -w "$SHARED")" \
+        powershell.exe -NoProfile -Command \
+          'New-Item -ItemType Junction -Path $env:OAI_LINK -Target $env:OAI_TARGET -ErrorAction Stop | Out-Null' \
+          >/dev/null
       ;;
     *)
       ln -s "$SHARED" "$d/db-bin"

@@ -25,12 +25,43 @@
 pub mod hang_preventing_executor;
 
 use std::path::{Path, PathBuf};
+use std::sync::Once;
+use std::time::{Duration, Instant};
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use objectiveai_sdk::cli::command::{CommandExecutor, CommandRequest, CommandResponse};
 
 pub use hang_preventing_executor::HangPreventingBinaryCommandExecutor;
+
+/// Translate the suite-wide `UPDATE_SNAPSHOTS=1` knob into insta's
+/// own `INSTA_UPDATE` env var, once per process. Called from
+/// [`test_base_dir`] so every insta-using test picks it up without
+/// needing an explicit call.
+///
+/// - `UPDATE_SNAPSHOTS=1` → `INSTA_UPDATE=always` (insta overwrites
+///   `.snap` in place, treats mismatch as passing).
+/// - otherwise → `INSTA_UPDATE=no` (no `.snap.new` sidecars; insta
+///   fails on mismatch AND on missing `.snap`).
+///
+/// Mirrors the JSON-snapshot path in
+/// `function_execution_snapshot_with_tools.rs` so both snapshot
+/// backends respect a single user-facing env var.
+fn sync_snapshots_env() {
+    static ONCE: Once = Once::new();
+    ONCE.call_once(|| {
+        let mode = if std::env::var("UPDATE_SNAPSHOTS").as_deref() == Ok("1") {
+            "always"
+        } else {
+            "no"
+        };
+        // SAFETY: this runs at most once, before any insta assertion
+        // fires (test_base_dir is called from executor()/the test
+        // body before the first snapshot macro). No other thread is
+        // reading or mutating the environment at this point.
+        unsafe { std::env::set_var("INSTA_UPDATE", mode) };
+    });
+}
 
 /// Reads `OBJECTIVEAI_TEST_PORT` and returns `http://127.0.0.1:<port>`.
 /// `None` when the env var isn't set — used by tests as a skip-gate
@@ -64,6 +95,7 @@ pub fn cli_binary() -> PathBuf {
 /// directory is already on disk (prepare.sh staged it); we don't
 /// create or clean anything here.
 pub fn test_base_dir() -> PathBuf {
+    sync_snapshots_env();
     let test = std::thread::current()
         .name()
         .expect("test thread must have a name")
@@ -133,6 +165,152 @@ where
         .execute_one::<R, T>(request, None)
         .await
         .expect("CommandExecutor::execute_one failed")
+}
+
+/// Run a one-shot read-only SQL query through the CLI's `db query`
+/// leaf and return the raw row set as `serde_json::Value`s. Tests
+/// use this to look up rows in `agent_continuations`,
+/// `logs.agent_completion_requests`, etc. — the postgres tables that
+/// replaced the old `logs/...` on-disk tree.
+pub async fn db_query<E>(executor: &E, sql: &str) -> Vec<Vec<serde_json::Value>>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    use objectiveai_sdk::cli::command::db::query::{
+        Path as DbPath, Request as DbReq, Response as DbResp,
+    };
+    let req = DbReq {
+        path_type: DbPath::DbQuery,
+        query: sql.to_string(),
+        timeout_seconds: 30,
+        max_tokens: None,
+        jq: None,
+    };
+    let resp: DbResp = executor
+        .execute_one(req, None)
+        .await
+        .expect("db query executor call");
+    resp.rows
+}
+
+/// Escape a string for safe inlining into a SQL literal. Doubles
+/// any single quotes; everything else passes through.
+fn sql_escape(s: &str) -> String {
+    s.replace('\'', "''")
+}
+
+/// Fetch the latest continuation string for an AIH from the
+/// `agent_continuations` postgres table. `None` if no row exists
+/// yet (the agent's first chunk hasn't landed, or the stream
+/// errored before any continuation was emitted).
+pub async fn read_continuation<E>(executor: &E, aih: &str) -> Option<String>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    let sql = format!(
+        "SELECT continuation FROM agent_continuations \
+         WHERE agent_instance_hierarchy = '{}'",
+        sql_escape(aih),
+    );
+    let rows = db_query(executor, &sql).await;
+    rows.into_iter().next().and_then(|mut row| {
+        row.pop().and_then(|v| v.as_str().map(str::to_string))
+    })
+}
+
+/// Poll `read_continuation` until a non-empty string lands for
+/// `aih`. Panics if `timeout` elapses first.
+pub async fn wait_for_continuation<E>(executor: &E, aih: &str, timeout: Duration) -> String
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    let deadline = Instant::now() + timeout;
+    loop {
+        if let Some(s) = read_continuation(executor, aih).await {
+            if !s.is_empty() {
+                return s;
+            }
+        }
+        if Instant::now() >= deadline {
+            panic!(
+                "no agent_continuations row for {aih} after {:?}",
+                timeout,
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// Wait until a `logs.agent_completion_requests` row exists for
+/// the given response_id, returning the row's `body->>'continuation'`
+/// JSON field as a `Option<String>` (None if the request blob
+/// didn't carry a continuation — e.g. a fresh spawn).
+pub async fn wait_for_request_continuation<E>(
+    executor: &E,
+    response_id: &str,
+    timeout: Duration,
+) -> Option<String>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    let sql = format!(
+        "SELECT body->>'continuation' FROM logs.agent_completion_requests \
+         WHERE response_id = '{}'",
+        sql_escape(response_id),
+    );
+    let deadline = Instant::now() + timeout;
+    loop {
+        let rows = db_query(executor, &sql).await;
+        if let Some(mut row) = rows.into_iter().next() {
+            return row.pop().and_then(|v| v.as_str().map(str::to_string));
+        }
+        if Instant::now() >= deadline {
+            panic!(
+                "no logs.agent_completion_requests row for response_id={response_id} after {:?}",
+                timeout,
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
+/// Pull every `function.name` that appears in any
+/// `assistant_response_chunk`'s `tool_calls` for the given
+/// `response_id`. The current `logs.assistant_response_tool_calls`
+/// table only persists `tool_call_id` and `arguments`; the
+/// function name lives inside the full response body
+/// (`logs.agent_completion_responses.body.messages[*].tool_calls[*].function.name`),
+/// so we extract it via a `jsonb_path_query` over the body.
+///
+/// Returns names in arrival order; the caller dedupes if needed.
+pub async fn tool_call_names_for_response<E>(executor: &E, response_id: &str) -> Vec<String>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    let sql = format!(
+        "SELECT jsonb_path_query(body, '$.messages[*].tool_calls[*].function.name')::text \
+         FROM logs.agent_completion_responses WHERE response_id = '{}'",
+        sql_escape(response_id),
+    );
+    let rows = db_query(executor, &sql).await;
+    rows.into_iter()
+        .filter_map(|mut row| row.pop())
+        .filter_map(|v| match v {
+            serde_json::Value::String(s) => {
+                // `jsonb_path_query(...)::text` round-trips JSON
+                // strings as double-quoted text. Strip the
+                // surrounding quotes once if present.
+                Some(s.trim_matches('"').to_string())
+            }
+            _ => None,
+        })
+        .filter(|s| !s.is_empty())
+        .collect()
 }
 
 pub fn load_snapshot(dir: &Path, name: &str) -> serde_json::Value {

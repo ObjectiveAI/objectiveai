@@ -1,6 +1,5 @@
 ---
 source: objectiveai-cli/tests/plugin_mcp_dispatch_e2e.rs
-assertion_line: 344
 expression: projection
 ---
 {

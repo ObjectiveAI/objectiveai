@@ -56,6 +56,8 @@
   border-radius: var(--radius);
   background: var(--ground-raised);
   overflow: hidden;
+  text-decoration: none;
+  color: inherit;
   transition: border-color 200ms, background 200ms;
 }
 
@@ -64,11 +66,18 @@
   background: var(--ground-surface);
 }
 
+.card:focus-visible {
+  border-color: var(--copper-dim);
+  outline: 1px solid var(--copper-dim);
+  outline-offset: 1px;
+}
+
 .cardBody {
   padding: 14px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex: 1;
 }
 
 .cardHeader {
@@ -94,18 +103,12 @@
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 600;
-  color: var(--ground);
-  background: var(--copper-warm);
+  color: var(--info-mid);
+  background: var(--ground-surface);
+  border: 1px solid var(--node-border);
   border-radius: 2px;
   padding: 0 4px;
   font-variant-numeric: tabular-nums;
-}
-
-.cardDescription {
-  font-family: var(--font-sans);
-  font-size: 10px;
-  color: var(--info-dim);
-  line-height: 1.4;
 }
 
 /* ── Weight bar ── */
@@ -131,6 +134,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
 }
 
 .tierGroup {
@@ -147,11 +151,11 @@
 }
 
 .tierFrontier {
-  color: var(--copper-hot);
+  color: var(--info-mid);
 }
 
 .tierMid {
-  color: var(--copper-mid);
+  color: var(--info-dim);
 }
 
 .tierBudget {
@@ -179,18 +183,18 @@
 }
 
 .chipFrontier {
-  color: var(--copper-hot);
-  border-color: var(--copper-dim);
+  color: var(--info-mid);
+  border-color: var(--node-border);
 }
 
 .chipMid {
-  color: var(--copper-mid);
-  border-color: var(--copper-dim);
+  color: var(--info-dim);
+  border-color: var(--node-border);
 }
 
 .chipCount {
   font-size: 8px;
-  color: var(--copper-mid);
+  color: var(--info-dim);
   font-variant-numeric: tabular-nums;
 }
 
@@ -244,7 +248,11 @@
   cursor: pointer;
 }
 
+.retryBtn:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loadingDot { animation: none; opacity: 0.6; }
-  .card { transition: none; }
 }

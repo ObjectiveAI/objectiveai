@@ -215,6 +215,26 @@
   cursor: pointer;
 }
 
+.retryBtn:focus-visible {
+  border-color: var(--copper-dim);
+  outline: none;
+}
+
+@media (max-width: 768px) {
+  .detail {
+    padding: 16px;
+  }
+
+  .agentMain {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .agentTags {
+    flex-wrap: wrap;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loadingDot { animation: none; opacity: 0.6; }
 }

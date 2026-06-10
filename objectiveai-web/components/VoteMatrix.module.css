@@ -1,0 +1,207 @@
+/* ── Vote Matrix ── */
+
+.matrixWrap {
+  overflow-x: auto;
+}
+
+.matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.matrix thead th {
+  padding: 4px 8px 6px;
+  font-size: 9px;
+  font-weight: 400;
+  color: var(--info-dim);
+  text-align: center;
+  vertical-align: bottom;
+}
+
+.matrix thead th.winner {
+  color: var(--info-mid);
+  font-weight: 600;
+  border-bottom: 2px solid var(--copper-hot);
+}
+
+.colWeight {
+  width: 52px;
+  text-align: right !important;
+  padding-right: 6px !important;
+}
+
+.colAgent {
+  width: 140px;
+  text-align: left !important;
+}
+
+.colResponse {
+  min-width: 70px;
+}
+
+.colFlags {
+  width: 20px;
+}
+
+/* ── Agent row ── */
+
+.agentRow {
+  border-top: 1px solid var(--ground);
+  background: rgba(var(--copper-hot-rgb), var(--row-alpha, 0));
+  animation: fadeIn 0.25s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.weightCell {
+  padding: 2px 6px 2px 0;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.weightInner {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.weightBar {
+  width: 4px;
+  height: 20px;
+  background: var(--ground-surface);
+  border-radius: 1px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.weightFill {
+  width: 100%;
+  border-radius: 1px;
+  background: rgba(var(--copper-hot-rgb), var(--fill-alpha, 0.5));
+  transition: height 0.3s ease;
+}
+
+.weightNum {
+  font-size: 9px;
+  color: var(--copper-dim);
+  width: 24px;
+  text-align: right;
+}
+
+.agentCell {
+  padding: 4px 8px;
+  vertical-align: middle;
+}
+
+.agentName {
+  font-size: 10px;
+  color: var(--info-mid);
+}
+
+.agentMode {
+  font-size: 8px;
+  color: var(--connector);
+  margin-left: 4px;
+}
+
+.voteCell {
+  padding: 4px 8px 2px;
+  text-align: center;
+  border-left: 1px solid var(--ground);
+  vertical-align: middle;
+  background: rgba(var(--copper-hot-rgb), var(--heat-alpha, 0));
+}
+
+.voteNum {
+  font-size: 10px;
+  margin-bottom: 2px;
+}
+
+.voteMax {
+  color: var(--info-bright);
+  font-weight: 600;
+}
+
+.voteMid {
+  color: var(--info-mid);
+  font-weight: 400;
+}
+
+.voteDim {
+  color: var(--info-dim);
+  font-weight: 400;
+}
+
+.contributionTrack {
+  width: 100%;
+  height: 4px;
+  background: var(--ground);
+  border-radius: 1px;
+  margin-top: 1px;
+}
+
+.contributionFill {
+  height: 100%;
+  border-radius: 1px;
+  background: rgba(var(--copper-dim-rgb), 0.35);
+  transition: width 0.3s ease;
+}
+
+.contributionWinner {
+  background: rgba(var(--copper-hot-rgb), 0.6);
+}
+
+.flagCell {
+  padding: 4px 4px;
+  text-align: center;
+  font-size: 8px;
+  color: var(--info-dim);
+}
+
+.flagRng {
+  color: var(--copper-mid);
+}
+
+/* ── Convergence row ── */
+
+.convergenceRow {
+  border-top: 2px solid var(--node-border);
+}
+
+.convergenceRow td {
+  padding: 6px 8px;
+}
+
+.convergenceLabel {
+  font-size: 9px;
+  color: var(--copper-dim);
+  font-weight: 600;
+}
+
+.convergenceScore {
+  text-align: center;
+  border-left: 1px solid var(--ground);
+}
+
+.convergenceWinner {
+  background: rgba(var(--copper-hot-rgb), 0.1);
+}
+
+.convergenceValue {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--copper-dim);
+}
+
+.convergenceValueWinner {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--info-bright);
+}

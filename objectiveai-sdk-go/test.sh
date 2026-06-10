@@ -3,7 +3,8 @@
 # Output is captured to .logs/test/objectiveai-sdk-go.txt.
 #
 # If OBJECTIVEAI_TEST_PORT is already set, uses that server as-is.
-# Otherwise, spawns a new server via test-spawn-api-server.sh and kills it on exit.
+# Otherwise, spawns a new server via test-spawn-api-server.sh and reaps it on
+# exit (kill+wait, resilient to Ctrl-C / SIGTERM).
 #
 # Usage:
 #   bash objectiveai-sdk-go/test.sh
@@ -29,10 +30,28 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Spawn test server if needed
+# Reap the api server we spawn (if any). SERVER_PID stays empty when a
+# parent harness provided OBJECTIVEAI_TEST_PORT, so the trap leaves the
+# parent's server alone. kill+wait guarantees no orphaned objectiveai-api
+# process survives a standalone run; trapping INT/TERM (not just EXIT)
+# keeps cleanup resilient to Ctrl-C / kill.
+SERVER_PID=""
+cleanup() {
+  if [ -n "$SERVER_PID" ]; then
+    kill "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT INT TERM
+
+# Spawn ONE test api server only if a parent harness hasn't already
+# provided OBJECTIVEAI_TEST_PORT. Capture the pid so the cleanup trap
+# can reap it on exit.
 if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
-  read -r PORT PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE")
-  trap 'kill "$PID" 2>/dev/null || true' EXIT
+  read -r PORT SERVER_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE") || {
+    echo "$MODULE: FATAL — failed to spawn API server (see $LOG_FILE)" >&2
+    exit 1
+  }
   export OBJECTIVEAI_TEST_PORT="$PORT"
 fi
 
