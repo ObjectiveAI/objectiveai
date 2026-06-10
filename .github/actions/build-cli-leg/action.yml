@@ -21,6 +21,12 @@ runs:
     - uses: dtolnay/rust-toolchain@stable
     - name: Build CLI
       shell: bash
+      # GITHUB_TOKEN: postgresql_embedded's build script queries the
+      # GitHub API for the bundled postgres archive; unauthenticated
+      # requests from shared runners intermittently 403 on rate
+      # limits. The crate authenticates when GITHUB_TOKEN is set.
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
       run: bash objectiveai-cli/install.sh
     - name: Dump build logs on failure
       if: failure()
