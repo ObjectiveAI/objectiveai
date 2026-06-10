@@ -21,8 +21,14 @@
     "name": {
       "type": "string"
     },
+    "owner": {
+      "type": "string"
+    },
     "path_type": {
       "$ref": "cli.command.tools.run.Path"
+    },
+    "version": {
+      "type": "string"
     }
   }
 }

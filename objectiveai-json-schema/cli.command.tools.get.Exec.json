@@ -1,0 +1,25 @@
+{
+  "title": "cli.command.tools.get.Exec",
+  "description": "Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder\n(where `objectiveai.json` lives).",
+  "type": "object",
+  "properties": {
+    "linux": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "macos": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "windows": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

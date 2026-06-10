@@ -6,7 +6,7 @@
       "type": "string"
     },
     "exec": {
-      "type": "string"
+      "$ref": "cli.command.tools.get.Exec"
     },
     "name": {
       "type": "string"

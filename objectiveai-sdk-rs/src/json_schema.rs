@@ -1001,6 +1001,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::tasks::schedule::Response),
         schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Path),
         schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::get::Exec),
         schemars::schema_for!(crate::cli::command::tools::get::Path),
         schemars::schema_for!(crate::cli::command::tools::get::Request),
         schemars::schema_for!(crate::cli::command::tools::get::request_schema::Path),
