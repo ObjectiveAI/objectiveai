@@ -104,13 +104,15 @@ macro_rules! snapshot_test {
                 ),
                 continuation: None,
                 retry_token: None,
-                seed: Some($seed),
                 split: false,
                 invert: false,
                 // Stream so collect_stream's `ResponseItem::Chunk(_)`
                 // loop has chunks to consume; without it the cli
                 // emits only a bare `Id` and the aggregator is empty.
-                dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
+                dangerous_advanced: Some(RequestDangerousAdvanced {
+                    stream: Some(true),
+                    seed: Some($seed),
+                }),
                 jq: None,
             };
             let execution = run_and_aggregate_normalized(request).await;
@@ -188,13 +190,15 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
         ),
         continuation: None,
         retry_token: None,
-        seed: Some(42),
         split: true,
         invert: false,
         // Stream so collect_stream's `ResponseItem::Chunk(_)` loop has
         // chunks to consume; without it the cli emits only a bare `Id`
         // and the aggregator is empty.
-        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
+        dangerous_advanced: Some(RequestDangerousAdvanced {
+            stream: Some(true),
+            seed: Some(42),
+        }),
         jq: None,
     };
 

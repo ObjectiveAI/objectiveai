@@ -120,7 +120,6 @@ async fn function_swarm_writes_per_agent_files() {
         ),
         continuation: None,
         retry_token: None,
-        seed: Some(42),
         split: false,
         invert: false,
         // Stream so the cli waits for the function execution to fully
@@ -128,7 +127,10 @@ async fn function_swarm_writes_per_agent_files() {
         // and detaches from the instance subprocess on `LogStreamReady`,
         // leaving the instance to write `A.txt`/`B.txt` orphaned —
         // the assertions below would race against those writes.
-        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
+        dangerous_advanced: Some(RequestDangerousAdvanced {
+            stream: Some(true),
+            seed: Some(42),
+        }),
         jq: None,
     };
 

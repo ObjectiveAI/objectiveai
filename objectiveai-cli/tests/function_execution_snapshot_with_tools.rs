@@ -1,31 +1,24 @@
-//! Snapshot test for a vector-output function execution driven through
-//! the SDK `BinaryExecutor`.
+//! Snapshot test for a function execution whose body is a single
+//! `vector.completion` over a 20-agent JsonSchema swarm with a
+//! 10-tools surface on every agent (no plugins, `objectiveai`
+//! field omitted). Driven through the SDK `BinaryExecutor`.
 //!
-//! Originally `vector_completion_snapshots.rs` invoked the legacy
-//! `api vector completions post` command directly. That command path
-//! no longer exists in the new bare-naked tree, so the workload is
-//! now wrapped one tier higher — a mock function whose only task is a
-//! single `vector.completion` over a 20-agent JsonSchema swarm.
-//!
-//! Currently exercises one scenario: the same 20-agent mock swarm in
-//! JsonSchema output mode where every agent declares 10 entries in
-//! `client_objectiveai_mcp.tools` (no plugins, `objectiveai` field
-//! omitted). The function execution accumulates `FunctionExecutionChunk`s
-//! into a unary `FunctionExecution`, normalises it via the Rust SDK's
-//! `normalize_for_tests`, and structurally compares the **whole**
-//! rounded result against the snapshot under
+//! The function execution accumulates `FunctionExecutionChunk`s
+//! into a unary `FunctionExecution`, normalises it via the Rust
+//! SDK's `normalize_for_tests`, and structurally compares the
+//! **whole** rounded result against the snapshot under
 //! `objectiveai-cli/assets/function/executions/snapshots/`.
 //!
 //! Mirrors the canonical 3-SDK pattern in
 //! `objectiveai-sdk-py/tests/http_test_util.py`,
 //! `objectiveai-sdk-js/src/httpTestUtil.ts`, and
-//! `objectiveai-sdk-go/tests/http_test_util_test.go`. The cli stays
-//! streaming-only by transport-level necessity; every other piece of
-//! the canonical pattern carries over verbatim.
+//! `objectiveai-sdk-go/tests/http_test_util_test.go`. The cli
+//! stays streaming-only by transport-level necessity; every other
+//! piece of the canonical pattern carries over verbatim.
 //!
-//! Set `UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1` to (re)write
-//! the snapshot — it serialises the normalised rounded form so the
-//! committed file matches what the assertion path reads back.
+//! Set `UPDATE_SNAPSHOTS=1` to (re)write the snapshot — it
+//! serialises the normalised rounded form so the committed file
+//! matches what the assertion path reads back.
 
 mod cli_test_util;
 
@@ -109,13 +102,15 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         ),
         continuation: None,
         retry_token: None,
-        seed: Some(42),
         split: false,
         invert: false,
         // Stream so the executor emits per-chunk `ResponseItem::Chunk(_)`
         // for the aggregator below; without it the cli emits only a
         // bare `Id` and the chunk loop is empty.
-        dangerous_advanced: Some(RequestDangerousAdvanced { stream: Some(true) }),
+        dangerous_advanced: Some(RequestDangerousAdvanced {
+            stream: Some(true),
+            seed: Some(42),
+        }),
         jq: None,
     };
 
@@ -135,7 +130,7 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
     result.normalize_for_tests();
 
     let name = "twenty_agents_json_schema_10x_tools_seed_42";
-    if std::env::var("UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS").as_deref() == Ok("1") {
+    if std::env::var("UPDATE_SNAPSHOTS").as_deref() == Ok("1") {
         update_snapshot(name, &result);
         return;
     }

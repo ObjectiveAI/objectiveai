@@ -97,7 +97,38 @@ fi
 # `objectiveai-tests/` source. The copied tree includes a self-
 # removing `prepare.sh` which cargo-builds the cli + every fixture
 # crate and slots binaries into the right per-test directories.
-rm -rf "$RUNTIME_DIR"
+#
+# Fail FAST and LOUD if the wipe can't complete — but give killed
+# processes a moment to die first. The pre-run sweep above fires
+# `Stop-Process -Force` (or SIGKILL) and returns immediately, yet
+# Windows does not release a terminated postmaster's open file
+# handles synchronously. The very next `rm -rf` can therefore race
+# the kernel's handle teardown and fail with "Device or resource
+# busy" on $RUNTIME_DIR itself, even though nothing will hold it a
+# second later. So retry with a short backoff; only if it STILL
+# can't wipe after the grace window do we treat it as a genuinely
+# stuck handle (a leaked process the sweep's exe-path filter
+# missed) and abort with a diagnostic instead of a silent
+# `set -e` exit.
+RMRF_ERR="$(mktemp)"
+wiped=""
+for attempt in 1 2 3 4 5; do
+  if rm -rf "$RUNTIME_DIR" 2>"$RMRF_ERR"; then
+    wiped=1
+    break
+  fi
+  sleep "$attempt"   # 1s, 2s, 3s, 4s — widening grace for handle release
+done
+if [ -z "$wiped" ]; then
+  echo "$MODULE: FATAL — could not wipe runtime dir before staging" >&2
+  echo "  path: $RUNTIME_DIR" >&2
+  sed 's/^/  rm: /' "$RMRF_ERR" >&2 || true
+  rm -f "$RMRF_ERR"
+  echo "  A process may still be alive inside that folder, holding a" >&2
+  echo "  handle open and preventing deletion. Kill it, then re-run." >&2
+  exit 1
+fi
+rm -f "$RMRF_ERR"
 cp -R "$SCRIPT_DIR/objectiveai-tests" "$RUNTIME_DIR"
 bash "$RUNTIME_DIR/prepare.sh" >>"$LOG_FILE" 2>&1 &
 PREP_PID=$!
