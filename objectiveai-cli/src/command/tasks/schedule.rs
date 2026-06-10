@@ -26,7 +26,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     let name = request.name.clone();
-    let db_id = db::tasks::insert_schedule(
+    let (_db_id, version) = db::tasks::insert_schedule(
         &ctx.db,
         &request.name,
         &request.command,
@@ -34,10 +34,20 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         &ctx.config.agent_instance_hierarchy,
         request.interval_seconds,
         &agent_arguments,
+        ctx.plugin.as_ref(),
+        request.overwrite,
     )
-    .await?;
+    .await?
+    .ok_or_else(|| Error::ScheduleAlreadyExists {
+        name: name.clone(),
+        agent_instance_hierarchy: ctx.config.agent_instance_hierarchy.clone(),
+    })?;
 
-    Ok(Response { id: format!("{name}-{db_id}") })
+    Ok(Response {
+        name,
+        agent_instance_hierarchy: ctx.config.agent_instance_hierarchy.clone(),
+        version: version as u64,
+    })
 }
 
 pub mod request_schema {

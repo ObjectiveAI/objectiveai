@@ -1,38 +1,41 @@
-//! `agents tasks run` — fire every pending schedule in scope.
+//! `agents tasks run` — fire every pending schedule in the caller's
+//! own subtree.
 //!
-//! Walks every row that `agents tasks list --pending` would
-//! surface under the given scope, bumps each row's `last_ran_at`
-//! to `now`, deletes oneshots, and dispatches each row's stored
-//! argv through the in-process `CliCommandExecutor` in parallel.
-//! The resulting per-task streams are merged via SelectAll; each
-//! emitted item is wrapped with the source schedule's `name` so
-//! callers can attribute output.
+//! Scope is fixed: every schedule whose `agent_instance_hierarchy` is
+//! the caller's own AIH or a descendant of it. Of those, the runner
+//! claims the pending ones (unfired oneshots + interval rows whose
+//! interval has elapsed — newest versions only), minting one
+//! `tasks_runs` row per firing, and dispatches each row's stored argv
+//! through the root `crate::run` in parallel — with the schedule's
+//! captured identity (and the plugin that registered it, if any)
+//! re-installed on the run ctx.
 //!
-//! Only the three scope flags from #216's runner spec —
-//! `--agent-instance-hierarchy` / `--tag` (mutex, neither
-//! required) and `--depth`. Readiness filtering is implicit: the
-//! runner only fires pending rows by definition.
+//! Two output modes, selected by `stream_all`:
+//! * `--stream-all`: every item every task emits streams back, each
+//!   wrapped as a [`ValueResponseItem`].
+//! * default: exactly ONE [`SuccessResponseItem`] per task, emitted
+//!   when that task's stream completes — `success` is `false` iff the
+//!   task's final item was an error.
+//!
+//! The mode affects only the caller-visible stream: in BOTH modes the
+//! full per-item output is durably written to `tasks_logs`.
 
 use crate::cli::command::CommandRequest;
+
+/// The plugin that registered a schedule — the same shape `tasks list`
+/// surfaces.
+pub use crate::cli::command::tasks::list::Plugin;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.run.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// Literal hierarchy scope. Mutually exclusive with `tag`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Tag name; resolved BOUND-only at handler time. PENDING /
-    /// ABSENT raise structured errors. Mutually exclusive with
-    /// `agent_instance_hierarchy`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub tag: Option<String>,
-    /// Cap descent depth from the scope root. `None` = unlimited.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub depth: Option<u64>,
+    /// Stream every item every fired task emits (each a
+    /// [`ValueResponseItem`]). When false — the default — each task
+    /// yields exactly one [`SuccessResponseItem`] summary instead; the
+    /// full output still lands in `tasks_logs` either way.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub stream_all: bool,
     pub jq: Option<String>,
 }
 
@@ -49,17 +52,8 @@ impl CommandRequest for Request {
             "tasks".to_string(),
             "run".to_string(),
         ];
-        if let Some(h) = &self.agent_instance_hierarchy {
-            argv.push("--agent-instance-hierarchy".to_string());
-            argv.push(h.clone());
-        }
-        if let Some(t) = &self.tag {
-            argv.push("--tag".to_string());
-            argv.push(t.clone());
-        }
-        if let Some(d) = self.depth {
-            argv.push("--depth".to_string());
-            argv.push(d.to_string());
+        if self.stream_all {
+            argv.push("--stream-all".to_string());
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -69,15 +63,27 @@ impl CommandRequest for Request {
     }
 }
 
-/// One output item from one fired schedule's in-process stream.
-/// `id` is the source schedule's stable identifier, formatted
-/// `"{name}-{db_id}"` so it's both human-readable (the user-
-/// supplied `--name` from `schedule`) and globally unique (the
-/// row id from `schedules`). `value` is the typed root
-/// [`crate::cli::command::ResponseItem`] emitted by the scheduled
-/// cli leaf — boxed because the root union transitively contains
-/// *this* variant (`agents → tasks → run`), and boxing is what
-/// makes the recursion sized.
+/// One stream item from `tasks run`. Untagged — the variants'
+/// required fields (`value` vs `success`) are disjoint, so the wire
+/// shape is just the inner object. Which variant flows is decided by
+/// the request's `stream_all`: `true` streams every emitted item as a
+/// [`ValueResponseItem`]; `false` (default) yields exactly one
+/// [`SuccessResponseItem`] per task when its stream completes.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.tasks.run.ResponseItem")]
+pub enum ResponseItem {
+    Value(ValueResponseItem),
+    Success(SuccessResponseItem),
+}
+
+/// One output item from one fired schedule's in-process stream
+/// (`stream_all` mode). The first four fields identify the source
+/// schedule; `value` is the typed root
+/// [`crate::cli::command::ResponseItem`] emitted by the scheduled cli
+/// leaf — boxed because the root union transitively contains *this*
+/// type (`agents → tasks → run`), and boxing is what makes the
+/// recursion sized.
 ///
 /// The `value` field's JSON schema is opaqued to `serde_json::Value`
 /// (renders as bare `{}` aka JsonValue) so the published schema
@@ -86,33 +92,54 @@ impl CommandRequest for Request {
 /// Downstream SDKs see `value: JsonValue` on the typed `execute`
 /// path; consumers that want to peer inside parse it case-by-case.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.tasks.run.ResponseItem")]
-pub struct ResponseItem {
-    pub id: String,
+#[schemars(rename = "cli.command.tasks.run.ValueResponseItem")]
+pub struct ValueResponseItem {
+    /// The source schedule's `agent_instance_hierarchy`.
+    pub agent_instance_hierarchy: String,
+    /// The source schedule's `--name`.
+    pub name: String,
+    /// The source schedule's version (`1` on first creation,
+    /// incremented per `schedule --overwrite`).
+    pub version: u64,
+    /// The plugin that registered the source schedule, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
+    /// The typed root item emitted by the scheduled command.
     #[schemars(with = "serde_json::Value")]
     pub value: Box<crate::cli::command::ResponseItem>,
 }
 
+/// One per-task completion summary (default mode): the same schedule
+/// identity as [`ValueResponseItem`], with `success` in lieu of
+/// `value`. `success` is `false` iff the task's FINAL emitted item was
+/// an error (a task that emitted nothing is a success). The task's
+/// full output is in `tasks_logs` regardless.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tasks.run.SuccessResponseItem")]
+pub struct SuccessResponseItem {
+    /// The source schedule's `agent_instance_hierarchy`.
+    pub agent_instance_hierarchy: String,
+    /// The source schedule's `--name`.
+    pub name: String,
+    /// The source schedule's version (`1` on first creation,
+    /// incremented per `schedule --overwrite`).
+    pub version: u64,
+    /// The plugin that registered the source schedule, if any.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
+    /// Whether the task's stream completed without a trailing error.
+    pub success: bool,
+}
+
 #[derive(clap::Args)]
-#[command(group(
-    clap::ArgGroup::new("scope")
-        .multiple(false)
-        .args(["agent_instance_hierarchy", "tag"])
-))]
 pub struct Args {
-    /// Subtree root for the hierarchy filter. Mutually exclusive
-    /// with `--tag`. When neither is set, the cli's own
-    /// `Config.agent_instance_hierarchy` is used.
+    /// Stream every item every fired task emits. Without this flag
+    /// each task yields exactly one `{.., success}` summary when it
+    /// completes; the full output lands in `tasks_logs` either way.
     #[arg(long)]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Tag name; resolved against `tags.sqlite` BOUND-only.
-    /// Mutually exclusive with `--agent-instance-hierarchy`.
-    #[arg(long)]
-    pub tag: Option<String>,
-    /// Cap the descent depth from the scope root. Omit for
-    /// unlimited descent.
-    #[arg(long)]
-    pub depth: Option<u64>,
+    pub stream_all: bool,
     #[arg(long)]
     pub jq: Option<String>,
 }
@@ -139,9 +166,7 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::AgentsTasksRun,
-            agent_instance_hierarchy: args.agent_instance_hierarchy,
-            tag: args.tag,
-            depth: args.depth,
+            stream_all: args.stream_all,
             jq: args.jq,
         })
     }

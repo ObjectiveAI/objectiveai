@@ -1,6 +1,10 @@
-//! `agents queue` — deferred prompts queue. Two top-level subcommands:
+//! `agents queue` — deferred prompts queue. Three top-level
+//! subcommands:
 //!
 //! - `delete` — remove one queued prompt by id.
+//! - `deliver` — wake every queue-pending strict descendant of the
+//!   caller (try-lock each AIH; spawn the idle ones with empty
+//!   messages so they drain their own queues).
 //! - `read` (nested) — sub-tier whose only leaf today is `id`,
 //!   which fetches one piece of queued content by its
 //!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
@@ -15,12 +19,15 @@
 use crate::cli::command::CommandRequest;
 
 pub mod delete;
+pub mod deliver;
 pub mod read;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Delete one queued prompt by id.
     Delete(delete::Command),
+    /// Wake every queue-pending descendant agent of the caller.
+    Deliver(deliver::Command),
     /// Read queued content — `read id <id>` for a single content
     /// piece, `read pending [parent]` for the list of queued
     /// prompts under a parent.
@@ -48,6 +55,12 @@ pub enum Request {
     DeleteRequestSchema(delete::request_schema::Request),
     #[schemars(title = "DeleteResponseSchema")]
     DeleteResponseSchema(delete::response_schema::Request),
+    #[schemars(title = "Deliver")]
+    Deliver(deliver::Request),
+    #[schemars(title = "DeliverRequestSchema")]
+    DeliverRequestSchema(deliver::request_schema::Request),
+    #[schemars(title = "DeliverResponseSchema")]
+    DeliverResponseSchema(deliver::response_schema::Request),
     #[schemars(title = "Read")]
     Read(read::Request),
 }
@@ -65,6 +78,12 @@ pub enum ResponseItem {
     DeleteRequestSchema(delete::request_schema::Response),
     #[schemars(title = "DeleteResponseSchema")]
     DeleteResponseSchema(delete::response_schema::Response),
+    #[schemars(title = "Deliver")]
+    Deliver(deliver::ResponseItem),
+    #[schemars(title = "DeliverRequestSchema")]
+    DeliverRequestSchema(deliver::request_schema::Response),
+    #[schemars(title = "DeliverResponseSchema")]
+    DeliverResponseSchema(deliver::response_schema::Response),
     #[schemars(title = "Read")]
     Read(read::ResponseItem),
 }
@@ -76,6 +95,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Delete(v) => v.into_mcp(),
             ResponseItem::DeleteRequestSchema(v) => v.into_mcp(),
             ResponseItem::DeleteResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Deliver(v) => v.into_mcp(),
+            ResponseItem::DeliverRequestSchema(v) => v.into_mcp(),
+            ResponseItem::DeliverResponseSchema(v) => v.into_mcp(),
             ResponseItem::Read(v) => v.into_mcp(),
         }
     }
@@ -94,6 +116,15 @@ impl TryFrom<Command> for Request {
                     Request::DeleteResponseSchema(delete::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::Deliver(cmd) => match cmd.schema {
+                None => Ok(Request::Deliver(deliver::Request::try_from(cmd.args)?)),
+                Some(deliver::Schema::RequestSchema(args)) => Ok(
+                    Request::DeliverRequestSchema(deliver::request_schema::Request::try_from(args)?),
+                ),
+                Some(deliver::Schema::ResponseSchema(args)) => Ok(
+                    Request::DeliverResponseSchema(deliver::response_schema::Request::try_from(args)?),
+                ),
+            },
             Command::Read(rc) => Ok(Request::Read(read::Request::try_from(rc.sub)?)),
         }
     }
@@ -105,6 +136,9 @@ impl CommandRequest for Request {
             Request::Delete(inner) => inner.into_command(),
             Request::DeleteRequestSchema(inner) => inner.into_command(),
             Request::DeleteResponseSchema(inner) => inner.into_command(),
+            Request::Deliver(inner) => inner.into_command(),
+            Request::DeliverRequestSchema(inner) => inner.into_command(),
+            Request::DeliverResponseSchema(inner) => inner.into_command(),
             Request::Read(inner) => inner.into_command(),
         }
     }
@@ -143,6 +177,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::DeleteResponseSchema(value),
             )))
         }
+        Request::Deliver(req) => {
+            let inner = deliver::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Deliver)))
+        }
+        Request::DeliverRequestSchema(req) => {
+            let value =
+                deliver::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeliverRequestSchema(value),
+            )))
+        }
+        Request::DeliverResponseSchema(req) => {
+            let value =
+                deliver::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DeliverResponseSchema(value),
+            )))
+        }
         Request::Read(req) => {
             let inner = read::execute(executor, req, agent_arguments).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
@@ -176,6 +228,20 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Request::DeleteResponseSchema(req) => {
             let value =
                 delete::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Deliver(req) => {
+            let inner = deliver::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
+        }
+        Request::DeliverRequestSchema(req) => {
+            let value =
+                deliver::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DeliverResponseSchema(req) => {
+            let value =
+                deliver::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::Read(req) => {

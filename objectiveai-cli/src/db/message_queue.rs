@@ -457,7 +457,7 @@ pub async fn list_pending_for_targets(
            ) \
            AND c.id > COALESCE($3, 0) \
          ORDER BY p.id ASC, c.id ASC \
-         LIMIT COALESCE($4, 1000)",
+         LIMIT $4",
     )
     .bind(if hier_targets.is_empty() { None } else { Some(&hier_targets) })
     .bind(if tag_targets.is_empty() { None } else { Some(&tag_targets) })

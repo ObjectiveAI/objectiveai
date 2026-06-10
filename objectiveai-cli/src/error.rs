@@ -48,6 +48,8 @@ pub enum Error {
     PluginRead(std::io::Error),
     #[error("plugin exited with non-zero status: {0}")]
     PluginExit(i32),
+    #[error("plugins may not invoke `{0}` commands")]
+    PluginCommandForbidden(&'static str),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]
@@ -123,6 +125,13 @@ pub enum Error {
         id: i64,
         sender_agent_instance_hierarchy: String,
         caller_agent_instance_hierarchy: String,
+    },
+    #[error(
+        "a schedule named {name:?} already exists for {agent_instance_hierarchy:?}; pass --overwrite to replace it"
+    )]
+    ScheduleAlreadyExists {
+        name: String,
+        agent_instance_hierarchy: String,
     },
     #[error("embedded postgres bootstrap failed: {0}")]
     PostgresBootstrap(String),

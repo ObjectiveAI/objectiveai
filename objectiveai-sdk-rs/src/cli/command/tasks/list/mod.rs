@@ -1,39 +1,31 @@
 //! `agents tasks list` — inspection leaf over `schedules`.
 //!
-//! Every filter is optional and additive. Hierarchy scope is
-//! always `parent + descendants` — either `--agent-instance-hierarchy
-//! <h>` (literal), `--tag <name>` (resolves through `tags.sqlite`
-//! BOUND only — errors on PENDING / ABSENT), or, when neither is
-//! given, the cli's own `Config.agent_instance_hierarchy`.
-//! `--depth N` caps the descent depth; `--oneshot` / `--interval`
-//! filter by kind; `--pending` / `--exhausted` filter by
-//! readiness. `--offset` / `--count` paginate.
+//! Scope is one or more `--target` entries (the shared `Target`:
+//! `me` / `instance=L[,parent=P]` / `tag=T`). Each resolves to an AIH
+//! and the listing returns the schedule rows whose
+//! `agent_instance_hierarchy` equals it — exact match, no subtree
+//! descent. Only the NEWEST version of each `(name, aih)` lists;
+//! `--overwrite`-shadowed versions stay on disk (per-version run
+//! history) but never surface here. `--oneshot` / `--interval` filter
+//! by kind; `--pending` / `--exhausted` filter by readiness (derived
+//! from the schedule's newest `tasks_runs` entry); `--after-id` /
+//! `--count` paginate forward by ascending row id.
 
 use crate::cli::command::CommandRequest;
+
+/// The same `Target` every hierarchy-scoped read command uses
+/// (`agents instances list`, `agents logs read all`, …).
+pub use crate::cli::command::agents::logs::read::all::Target;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.list.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// Subtree root for the hierarchy filter. When omitted (and
-    /// `tag` is also `None`), the handler substitutes the cli's
-    /// own `Config.agent_instance_hierarchy`. Mutually exclusive
-    /// with `tag`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Tag name; resolved against `tags.sqlite` BOUND-only at
-    /// handler time. PENDING / ABSENT lookups return an error.
-    /// Mutually exclusive with `agent_instance_hierarchy`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub tag: Option<String>,
-    /// Maximum descent depth from the hierarchy root. `0` = the
-    /// hierarchy itself only; `1` = direct children; `None` =
-    /// unlimited recursion.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub depth: Option<u64>,
+    /// One or more targets to list schedules for. Each resolves to a
+    /// single AIH (`me` → the cli's own; `instance=L[,parent=P]`;
+    /// `tag=T` BOUND-only — PENDING / ABSENT error), and rows whose
+    /// `agent_instance_hierarchy` equals any resolved AIH are returned.
+    pub targets: Vec<Target>,
     /// Filter to oneshot rows only. Mutually exclusive with `interval`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub oneshot: bool,
@@ -51,11 +43,13 @@ pub struct Request {
     /// exclusive with `pending`.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub exhausted: bool,
-    /// Row offset for pagination. Defaults to 0.
+    /// Skip rows with `schedules.id <= after_id`. Use the highest
+    /// `id` from a previous page to paginate forward.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub offset: Option<u64>,
-    /// Row count limit for pagination. `None` = unlimited.
+    pub after_id: Option<i64>,
+    /// Per-target row cap — each target's query returns at most this
+    /// many rows (ascending id, after `after_id`). `None` = unlimited.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub count: Option<u64>,
@@ -75,17 +69,9 @@ impl CommandRequest for Request {
             "tasks".to_string(),
             "list".to_string(),
         ];
-        if let Some(h) = &self.agent_instance_hierarchy {
-            argv.push("--agent-instance-hierarchy".to_string());
-            argv.push(h.clone());
-        }
-        if let Some(t) = &self.tag {
-            argv.push("--tag".to_string());
-            argv.push(t.clone());
-        }
-        if let Some(d) = self.depth {
-            argv.push("--depth".to_string());
-            argv.push(d.to_string());
+        for target in &self.targets {
+            argv.push("--target".to_string());
+            argv.push(target.into_arg_string());
         }
         if self.oneshot {
             argv.push("--oneshot".to_string());
@@ -99,9 +85,9 @@ impl CommandRequest for Request {
         if self.exhausted {
             argv.push("--exhausted".to_string());
         }
-        if let Some(o) = self.offset {
-            argv.push("--offset".to_string());
-            argv.push(o.to_string());
+        if let Some(after_id) = self.after_id {
+            argv.push("--after-id".to_string());
+            argv.push(after_id.to_string());
         }
         if let Some(c) = self.count {
             argv.push("--count".to_string());
@@ -115,21 +101,34 @@ impl CommandRequest for Request {
     }
 }
 
+/// The plugin that registered a schedule. All three fields are present
+/// together or the whole object is absent (the `schedules` table
+/// enforces all-or-nothing on its `plugin_*` columns).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tasks.list.Plugin")]
+pub struct Plugin {
+    pub owner: String,
+    pub repository: String,
+    pub version: String,
+}
+
 /// One schedule row.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.list.ResponseItem")]
 pub struct ResponseItem {
-    /// Stable identifier — `"{name}-{db_id}"` where `name` is the
-    /// `--name` passed to `agents tasks schedule` and `db_id` is
-    /// the row id from `schedules`. Same shape `agents tasks run`
-    /// tags each emitted item with.
-    pub id: String,
+    /// The `schedules` row id. Monotonic; pass the highest `id` from a
+    /// page as the next request's `after_id` to paginate forward.
+    pub id: i64,
+    /// The `--name` passed to `agents tasks schedule`. Unique per
+    /// `agent_instance_hierarchy`.
+    pub name: String,
     pub agent_instance_hierarchy: String,
     pub command: Vec<String>,
     pub description: String,
     pub created_at: i64,
-    /// Unix seconds of the most recent invocation. `None` until
-    /// the runner has fired this schedule at least once.
+    /// Unix seconds of the most recent invocation — this row's newest
+    /// `tasks_runs` entry. `None` until the runner has fired this
+    /// version at least once (runs are tracked per-version).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub last_ran_at: Option<i64>,
@@ -141,14 +140,19 @@ pub struct ResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub interval: Option<String>,
+    /// This row's version: `1` for a freshly scheduled task,
+    /// `max + 1` for each `tasks schedule --overwrite` (each version
+    /// is its own row; only the newest lists).
+    pub version: u64,
+    /// The plugin that registered this schedule (its `(owner,
+    /// repository, version)` coordinate), or `None` when it was not
+    /// scheduled by a plugin.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
 }
 
 #[derive(clap::Args)]
-#[command(group(
-    clap::ArgGroup::new("scope")
-        .multiple(false)
-        .args(["agent_instance_hierarchy", "tag"])
-))]
 #[command(group(
     clap::ArgGroup::new("kind")
         .multiple(false)
@@ -160,21 +164,11 @@ pub struct ResponseItem {
         .args(["pending", "exhausted"])
 ))]
 pub struct Args {
-    /// Filter rows to this subtree (inclusive of the parent).
-    /// Mutually exclusive with `--tag`. When neither is given,
-    /// the cli's own `Config.agent_instance_hierarchy` is used.
-    #[arg(long)]
-    pub agent_instance_hierarchy: Option<String>,
-    /// Tag name; resolved against `tags.sqlite` (BOUND-only —
-    /// PENDING / ABSENT raise structured errors). Mutually
-    /// exclusive with `--agent-instance-hierarchy`.
-    #[arg(long)]
-    pub tag: Option<String>,
-    /// Cap the descent depth from the hierarchy root.
-    /// `0` = root only; `1` = root + direct children. Omit for
-    /// unlimited descent.
-    #[arg(long)]
-    pub depth: Option<u64>,
+    /// One or more `--target instance=L[,parent=P]` entries. Also
+    /// accepts `--target tag=T` and `--target me`. Lists schedules
+    /// whose `agent_instance_hierarchy` equals each resolved AIH.
+    #[arg(long = "target", required = true)]
+    pub targets: Vec<String>,
     /// Filter to oneshot rows only. Mutually exclusive with `--interval`.
     #[arg(long)]
     pub oneshot: bool,
@@ -187,8 +181,10 @@ pub struct Args {
     /// Only schedules NOT currently runnable. Mutually exclusive with `--pending`.
     #[arg(long)]
     pub exhausted: bool,
+    /// Skip rows with `schedules.id <= after_id`; use the highest
+    /// `id` from the previous page to paginate forward.
     #[arg(long)]
-    pub offset: Option<u64>,
+    pub after_id: Option<i64>,
     #[arg(long)]
     pub count: Option<u64>,
     #[arg(long)]
@@ -215,16 +211,23 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let targets = args
+            .targets
+            .iter()
+            .map(|s| {
+                s.parse::<Target>().map_err(|msg| {
+                    crate::cli::command::FromArgsError::path_parse("target", msg)
+                })
+            })
+            .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             path_type: Path::AgentsTasksList,
-            agent_instance_hierarchy: args.agent_instance_hierarchy,
-            tag: args.tag,
-            depth: args.depth,
+            targets,
             oneshot: args.oneshot,
             interval: args.interval,
             pending: args.pending,
             exhausted: args.exhausted,
-            offset: args.offset,
+            after_id: args.after_id,
             count: args.count,
             jq: args.jq,
         })

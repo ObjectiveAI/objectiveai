@@ -3,10 +3,11 @@
 //! count, spawn/active timestamps, total logged messages). Backed by
 //! `db::instances::list_under_parent`.
 
-use std::collections::BTreeMap;
+use std::collections::HashSet;
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::stream::FuturesUnordered;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::instances::list::{Request, ResponseItem};
 
 use crate::context::Context;
@@ -16,34 +17,44 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
-
-    // Resolve each target to a parent AIH whose direct children get
-    // listed. GROUPED/ABSENT tags resolve to None and are skipped.
-    let mut parents: Vec<String> = Vec::new();
-    for target in request.targets {
-        if let Some(parent) =
-            super::resolve_target(&ctx.db, target, &default_parent).await?
-        {
-            if !parents.contains(&parent) {
-                parents.push(parent);
+    let db = ctx.db.clone();
+    let stream = async_stream::stream! {
+        // Resolve + query every target concurrently. GROUPED/ABSENT tags
+        // resolve to None and contribute nothing.
+        let mut inflight = FuturesUnordered::new();
+        for target in request.targets {
+            let db = db.clone();
+            let default_parent = default_parent.clone();
+            inflight.push(async move {
+                let parent = super::resolve_target(&db, target, &default_parent).await?;
+                let items = match parent {
+                    Some(p) => crate::db::instances::list_under_parent(&db, &p)
+                        .await
+                        .map_err(Error::from)?,
+                    None => Vec::new(),
+                };
+                Ok::<Vec<ResponseItem>, Error>(items)
+            });
+        }
+        // Yield each child the moment its target's query lands — never
+        // waiting for the slowest. A `seen` set dedups by AIH across
+        // overlapping/nested targets (the BTreeMap's old job, minus the
+        // global sort that collecting would have forced).
+        let mut seen = HashSet::new();
+        while let Some(result) = inflight.next().await {
+            match result {
+                Ok(items) => {
+                    for item in items {
+                        if seen.insert(item.agent_instance_hierarchy.clone()) {
+                            yield Ok(item);
+                        }
+                    }
+                }
+                Err(e) => yield Err(e),
             }
         }
-    }
-
-    // Query each parent's direct children and merge by AIH. The
-    // BTreeMap keeps the output sorted and deduped across
-    // overlapping/nested targets.
-    let mut merged: BTreeMap<String, ResponseItem> = BTreeMap::new();
-    for parent in parents {
-        let items = crate::db::instances::list_under_parent(&ctx.db, &parent).await?;
-        for item in items {
-            merged.insert(item.agent_instance_hierarchy.clone(), item);
-        }
-    }
-
-    let items: Vec<Result<ResponseItem, Error>> =
-        merged.into_values().map(Ok).collect();
-    Ok(Box::pin(futures::stream::iter(items)))
+    };
+    Ok(Box::pin(stream))
 }
 
 pub mod request_schema {
