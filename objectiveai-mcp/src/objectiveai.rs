@@ -41,17 +41,13 @@ pub struct ObjectiveAiRequest {
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct PluginRequest {
-    #[schemars(
-        description = "Args forwarded to the plugin's argv (prefixed automatically with `plugins run <name>` when invoking the CLI)."
-    )]
+    #[schemars(description = "Args forwarded to the plugin binary's argv.")]
     pub args: Vec<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToolRequest {
-    #[schemars(
-        description = "Args forwarded to the tool's argv (prefixed automatically with `tools run <name>` when invoking the CLI)."
-    )]
+    #[schemars(description = "Args appended verbatim to the tool's exec command.")]
     pub args: Vec<String>,
 }
 
