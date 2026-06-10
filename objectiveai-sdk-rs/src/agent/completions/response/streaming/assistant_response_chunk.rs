@@ -68,6 +68,7 @@ pub struct AssistantResponseChunk {
     /// serialize.
     #[serde(default, skip_serializing_if = "request_message_ids_is_empty")]
     #[schemars(extend("omitempty" = true))]
+    #[arbitrary(with = crate::arbitrary_util::arbitrary_option_vec_i64)]
     pub request_message_ids: Option<Vec<i64>>,
 }
 

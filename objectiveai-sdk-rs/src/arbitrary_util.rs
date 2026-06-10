@@ -193,6 +193,20 @@ pub fn arbitrary_option_i64(
     arbitrary_option(u, arbitrary_i64)
 }
 
+/// Generates an arbitrary `Vec<i64>` (bounded range).
+pub fn arbitrary_vec_i64(
+    u: &mut arbitrary::Unstructured,
+) -> arbitrary::Result<Vec<i64>> {
+    arbitrary_vec(u, arbitrary_i64)
+}
+
+/// Generates an arbitrary `Option<Vec<i64>>` (bounded range).
+pub fn arbitrary_option_vec_i64(
+    u: &mut arbitrary::Unstructured,
+) -> arbitrary::Result<Option<Vec<i64>>> {
+    arbitrary_option(u, arbitrary_vec_i64)
+}
+
 /// Generates an arbitrary `serde_json::Value`. Nesting requires a "go deep"
 /// bool to be true (geometric distribution), so compound structures are
 /// exponentially rare. Collection sizes also use bool-per-element.
