@@ -137,28 +137,53 @@ fn inline_generic_defs(schema: &mut serde_json::Value) {
     }
 }
 
+/// Rewrite a bare `true` JSON-Schema into the empty object schema (`{}`)
+/// so downstream SDK generators only ever walk object schemas. schemars
+/// 1.x emits a bare `true` ("any value allowed") for `serde_json::Value`
+/// fields with no constraints. A bare `false` ("no value allowed") never
+/// occurs in this codebase, so it is deliberately left untouched. No-op
+/// for any value that isn't `true`.
+fn objectify_bool_schema(v: &mut serde_json::Value) {
+    if matches!(v, serde_json::Value::Bool(true)) {
+        *v = serde_json::Value::Object(serde_json::Map::new());
+    }
+}
+
 fn normalize(value: &mut serde_json::Value, inside_properties: bool, title: &str) {
     match value {
         serde_json::Value::Object(map) => {
-            // JSON Schema spec lets a property's value be a bare boolean
-            // (`true` = "any value allowed", `false` = "no value allowed"),
-            // and schemars 1.0+ emits `true` for `serde_json::Value` fields
-            // with no other constraints (e.g. `JsonRpcRequest::id`).
-            // Normalize to the equivalent object shape (`{}` / `{"not": {}}`)
-            // here so SDK generators downstream only ever have to walk one
-            // shape. Done at this object's `properties` child rather than
-            // mid-recursion because Rust fields literally named "properties"
-            // produce a same-named map one level deeper, which a depth flag
-            // would misclassify.
+            // schemars 1.x emits a bare `true` schema for
+            // `serde_json::Value` fields in any schema position. Downstream
+            // generators only walk object schemas, so rewrite each bare
+            // `true` that lands in a schema slot to `{}` (see
+            // `objectify_bool_schema`; bare `false` never occurs and is left
+            // untouched). This covers every position a `serde_json::Value`
+            // can occupy:
+            //   - a property value          (a struct field of type Value)
+            //   - an `items` schema         (a `Vec<Value>` element; nested
+            //                                `Vec<Vec<Value>>` is reached by
+            //                                the recursion below)
+            //   - an `anyOf`/`allOf`/`oneOf` element (a `Value` enum variant)
+            // `additionalProperties` is deliberately left as a boolean —
+            // that's its conventional JSON-Schema form, which the generators
+            // expect.
+            //
+            // Handled at the owning object rather than mid-recursion because
+            // a Rust field literally named "properties" produces a same-named
+            // map one level deeper that a depth flag would misclassify.
             if !inside_properties {
                 if let Some(serde_json::Value::Object(props)) = map.get_mut("properties") {
                     for (_k, v) in props.iter_mut() {
-                        if let serde_json::Value::Bool(b) = v {
-                            *v = if *b {
-                                serde_json::Value::Object(serde_json::Map::new())
-                            } else {
-                                serde_json::json!({"not": {}})
-                            };
+                        objectify_bool_schema(v);
+                    }
+                }
+                if let Some(items) = map.get_mut("items") {
+                    objectify_bool_schema(items);
+                }
+                for key in ["anyOf", "allOf", "oneOf"] {
+                    if let Some(serde_json::Value::Array(arr)) = map.get_mut(key) {
+                        for v in arr.iter_mut() {
+                            objectify_bool_schema(v);
                         }
                     }
                 }

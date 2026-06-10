@@ -19,7 +19,7 @@
       "type": "array",
       "items": {
         "type": "array",
-        "items": true
+        "items": {}
       }
     },
     "truncated": {
