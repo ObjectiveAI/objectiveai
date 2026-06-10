@@ -6,7 +6,9 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.plugins.run.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub owner: String,
     pub name: String,
+    pub version: String,
     pub args: Vec<String>,
     pub jq: Option<String>,
 }
@@ -21,12 +23,20 @@ pub enum Path {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["plugins".to_string(), "run".to_string()];
+        argv.push("--owner".to_string());
+        argv.push(self.owner.clone());
+        argv.push("--name".to_string());
+        argv.push(self.name.clone());
+        argv.push("--version".to_string());
+        argv.push(self.version.clone());
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
         }
-        argv.push(self.name.clone());
-        argv.extend(self.args.iter().cloned());
+        if !self.args.is_empty() {
+            argv.push("--args".to_string());
+            argv.push(serde_json::to_string(&self.args).expect("Vec<String> serializes"));
+        }
         argv
     }
 }
@@ -84,11 +94,19 @@ pub enum McpType {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Plugin/tool name.
+    /// Plugin owner (GitHub `<owner>` segment). Required.
+    #[arg(long)]
+    pub owner: String,
+    /// Plugin name (repository segment). Required.
+    #[arg(long)]
     pub name: String,
-    /// Arguments passed through to the invoked binary.
-    #[arg(trailing_var_arg = true, allow_hyphen_values = true)]
-    pub args: Vec<String>,
+    /// Plugin version. Required.
+    #[arg(long)]
+    pub version: String,
+    /// Arguments passed through to the invoked binary, as a JSON array
+    /// of strings (e.g. `--args '["--flag","value"]'`).
+    #[arg(long)]
+    pub args: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -114,9 +132,24 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::PluginsRun,
+        let parsed_args: Vec<String> = match args.args {
+            Some(s) => {
+                let mut de = serde_json::Deserializer::from_str(&s);
+                serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                    crate::cli::command::FromArgsError {
+                        field: "args",
+                        source: source.into(),
+                    }
+                })?
+            }
+            None => Vec::new(),
+        };
+        Ok(Self {
+            path_type: Path::PluginsRun,
+            owner: args.owner,
             name: args.name,
-            args: args.args,
+            version: args.version,
+            args: parsed_args,
             jq: args.jq,
         })
     }

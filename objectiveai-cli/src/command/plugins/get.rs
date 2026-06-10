@@ -1,5 +1,5 @@
-//! `plugins get` — read one installed plugin's manifest by name.
-//! Returns `None` if not installed.
+//! `plugins get` — read one installed plugin's manifest by
+//! `(owner, name, version)`. Returns `None` if not installed.
 
 use objectiveai_sdk::cli::command::plugins::get::{Request, Response};
 
@@ -7,7 +7,11 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    Ok(ctx.filesystem.get_plugin(&request.name).await.map(Into::into))
+    Ok(ctx
+        .filesystem
+        .get_plugin(&request.owner, &request.name, &request.version)
+        .await
+        .map(Into::into))
 }
 
 pub mod request_schema {

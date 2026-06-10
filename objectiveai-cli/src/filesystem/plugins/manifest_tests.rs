@@ -79,8 +79,9 @@ fn manifest_with_name_and_source_field_order() {
             mobile_ready: false,
             mcp_servers: Vec::new(),
         },
-        source: "/home/user/.objectiveai/plugins/psyops.manifest.json"
-            .to_string(),
+        source:
+            "/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json"
+                .to_string(),
     };
     let s = serde_json::to_string(&m).unwrap();
     // With preserve_order, name comes first, the flattened manifest
@@ -94,7 +95,7 @@ fn manifest_with_name_and_source_field_order() {
         r#""owner":"wiggidy","#,
         r#""author":"Wiggidy","#,
         r#""license":"MIT","#,
-        r#""source":"/home/user/.objectiveai/plugins/psyops.manifest.json""#,
+        r#""source":"/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json""#,
         r#"}"#,
     );
     assert_eq!(s, expected);
@@ -110,7 +111,7 @@ fn manifest_with_name_and_source_field_order() {
     assert!(back.manifest.binaries.is_empty());
     assert_eq!(
         back.source,
-        "/home/user/.objectiveai/plugins/psyops.manifest.json"
+        "/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json"
     );
 }
 

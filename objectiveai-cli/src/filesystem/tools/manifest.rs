@@ -1,9 +1,15 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// Per-OS exec command. Reused from the SDK so the on-disk
+/// `objectiveai.json` shape and the `tools get` wire shape stay
+/// identical.
+pub use objectiveai_sdk::cli::command::tools::get::Exec;
+
 /// Declarative metadata a local tool ships with. The wire shape is
-/// JSON: `<base_dir>/tools/<name>.json`. Companion executable lives
-/// alongside in `<base_dir>/tools/<exec>`.
+/// JSON: `<base_dir>/tools/<owner>/<name>/<version>/objectiveai.json`.
+/// The executable command is invoked with that version folder as the
+/// working directory.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.Manifest")]
 pub struct Manifest {
@@ -21,11 +27,11 @@ pub struct Manifest {
     /// plugin installer overrides the plugin manifest's owner.
     pub owner: String,
 
-    /// Filename of the executable to invoke, resolved relative to
-    /// `<base_dir>/tools/`. The author is responsible for including
-    /// any platform-specific extension (`.exe`, `.sh`, `.bat`, …) —
-    /// the SDK doesn't synthesise one.
-    pub exec: String,
+    /// Per-OS exec command. The current platform's vector is the
+    /// program plus its leading arguments; the caller's `--args` are
+    /// appended and the whole thing runs with CWD = this manifest's
+    /// version folder.
+    pub exec: Exec,
 }
 
 impl Manifest {
@@ -42,8 +48,8 @@ impl Manifest {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.ManifestWithNameAndSource")]
 pub struct ManifestWithNameAndSource {
-    /// The tool's identifier — the filename it lives under in the
-    /// tools directory (e.g. `hello` for `~/.objectiveai/tools/hello.json`).
+    /// The tool's identifier — the `<name>` segment of its
+    /// `tools/<owner>/<name>/<version>/` directory.
     pub name: String,
     #[serde(flatten)]
     pub manifest: Manifest,

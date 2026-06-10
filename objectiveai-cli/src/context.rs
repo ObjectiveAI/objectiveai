@@ -16,6 +16,7 @@ use objectiveai_sdk::HttpClient;
 
 use crate::db;
 use crate::filesystem;
+use crate::plugin_path::PluginPath;
 use crate::run::Config;
 
 #[derive(Clone)]
@@ -24,6 +25,10 @@ pub struct Context {
     pub filesystem: filesystem::Client,
     pub db: db::Pool,
     pub http: HttpClient,
+    /// The plugin a command is running on behalf of, when it was
+    /// invoked through a plugin's nested-command protocol. Assembled
+    /// from the `OBJECTIVEAI_PLUGIN_*` env vars (via `Config`).
+    pub plugin: Option<PluginPath>,
 }
 
 impl Context {
@@ -40,11 +45,17 @@ impl Context {
         crate::postgres::bootstrap(filesystem.base_dir()).await?;
         let db = db::init(filesystem.base_dir()).await?;
         let http = build_http_client(&config, &filesystem).await?;
+        let plugin = PluginPath::from_parts(
+            config.plugin_owner.clone(),
+            config.plugin_repository.clone(),
+            config.plugin_version.clone(),
+        );
         Ok(Self {
             config,
             filesystem,
             db,
             http,
+            plugin,
         })
     }
 }

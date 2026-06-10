@@ -35,7 +35,10 @@ fn run_and_summarize(base: &Path, name: &str) -> Summary {
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", base)
-        .args(["tools", "run", name])
+        .args([
+            "tools", "run", "--owner", "objectiveai", "--name", name, "--version",
+            "0.0.1",
+        ])
         .output()
         .expect("failed to run cli");
 

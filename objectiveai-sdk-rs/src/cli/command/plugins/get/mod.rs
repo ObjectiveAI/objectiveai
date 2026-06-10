@@ -6,7 +6,9 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.plugins.get.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub owner: String,
     pub name: String,
+    pub version: String,
     pub jq: Option<String>,
 }
 
@@ -19,7 +21,16 @@ pub enum Path {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["plugins".to_string(), "get".to_string(), self.name.clone()];
+        let mut argv = vec![
+            "plugins".to_string(),
+            "get".to_string(),
+            "--owner".to_string(),
+            self.owner.clone(),
+            "--name".to_string(),
+            self.name.clone(),
+            "--version".to_string(),
+            self.version.clone(),
+        ];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -126,8 +137,15 @@ pub struct ResponseMcpServer {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Plugin/tool name.
+    /// Plugin owner (GitHub `<owner>` segment). Required.
+    #[arg(long)]
+    pub owner: String,
+    /// Plugin name (repository segment). Required.
+    #[arg(long)]
     pub name: String,
+    /// Plugin version. Required.
+    #[arg(long)]
+    pub version: String,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -153,8 +171,11 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::PluginsGet,
+        Ok(Self {
+            path_type: Path::PluginsGet,
+            owner: args.owner,
             name: args.name,
+            version: args.version,
             jq: args.jq,
         })
     }

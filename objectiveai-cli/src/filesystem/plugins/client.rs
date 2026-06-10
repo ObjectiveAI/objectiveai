@@ -1,12 +1,12 @@
 //! Plugin discovery on the local filesystem.
 //!
-//! Installed plugins live at `<base_dir>/plugins/<name>/`, with the
-//! binary at `<base_dir>/plugins/<name>/plugin` (or `plugin.exe` on
-//! Windows) and the optional viewer bundle at
-//! `<base_dir>/plugins/<name>/viewer/`. The manifest is persisted
-//! alongside at `<base_dir>/plugins/<name>.json`. The cli's
-//! external-subcommand dispatch uses [`Client::resolve_plugin`] to
-//! turn a user-supplied plugin name into an executable path.
+//! Installed plugins live at
+//! `<base_dir>/plugins/<owner>/<name>/<version>/`, with the binary at
+//! `…/plugin` (or `plugin.exe` on Windows), the optional viewer bundle
+//! at `…/viewer/`, and the manifest as `…/objectiveai.json` inside the
+//! version folder. The cli's `plugins run` dispatch uses
+//! [`Client::resolve_plugin`] to turn an `(owner, name, version)`
+//! coordinate into an executable path.
 //!
 //! [`Client::install_plugin`] always writes the canonical
 //! `plugin[.exe]` filename, but [`Client::resolve_plugin`] tolerates a
@@ -17,30 +17,55 @@ use std::path::{Path, PathBuf};
 use super::super::Client;
 use super::{Manifest, ManifestWithNameAndSource};
 
-/// Two-step parse: try `ManifestWithNameAndSource` first (installed
-/// plugins persist `name` + `source`), then fall back to a bare
-/// `Manifest` with `name = file_stem` and `source = absolute_path`
-/// (hand-edited / pre-existing manifests). Returns `None` on missing
-/// / unreadable / malformed files.
+/// Parse an on-disk `objectiveai.json` (a bare [`Manifest`]) into a
+/// [`ManifestWithNameAndSource`], deriving `name` from the `<name>`
+/// path segment (`.../<owner>/<name>/<version>/objectiveai.json`) and
+/// `source` from the file path. `None` on missing / unreadable /
+/// malformed / invalid files.
 async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
     let bytes = tokio::fs::read(path).await.ok()?;
-    if let Ok(full) =
-        serde_json::from_slice::<ManifestWithNameAndSource>(&bytes)
-    {
-        // Same validate gate as the install path: malformed
-        // viewer-source combos shouldn't surface as installed plugins.
-        full.manifest.validate().ok()?;
-        return Some(full);
-    }
     let manifest: Manifest = serde_json::from_slice(&bytes).ok()?;
     manifest.validate().ok()?;
-    let name = path.file_stem()?.to_str()?.to_string();
+    // path = .../<owner>/<name>/<version>/objectiveai.json
+    // parent = <version>, parent.parent = <name>.
+    let name = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
     let source = path.to_string_lossy().into_owned();
     Some(ManifestWithNameAndSource {
         name,
         manifest,
         source,
     })
+}
+
+/// Walk `<root>/<owner>/<name>/<version>/objectiveai.json` and collect
+/// every existing manifest file path. Any non-directory / unreadable
+/// level is skipped.
+async fn collect_manifest_paths(root: PathBuf) -> Vec<PathBuf> {
+    let mut out: Vec<PathBuf> = Vec::new();
+    let Ok(mut owners) = tokio::fs::read_dir(&root).await else {
+        return out;
+    };
+    while let Ok(Some(owner_e)) = owners.next_entry().await {
+        let Ok(mut names) = tokio::fs::read_dir(owner_e.path()).await else {
+            continue;
+        };
+        while let Ok(Some(name_e)) = names.next_entry().await {
+            let Ok(mut versions) = tokio::fs::read_dir(name_e.path()).await else {
+                continue;
+            };
+            while let Ok(Some(ver_e)) = versions.next_entry().await {
+                let manifest = ver_e.path().join("objectiveai.json");
+                if tokio::fs::metadata(&manifest)
+                    .await
+                    .map(|m| m.is_file())
+                    .unwrap_or(false)
+                {
+                    out.push(manifest);
+                }
+            }
+        }
+    }
+    out
 }
 
 impl Client {
@@ -50,18 +75,19 @@ impl Client {
     }
 
     /// The directory that holds a plugin's installed artifacts:
-    /// `<plugins_dir>/<name>/`. Contains the binary, an optional
-    /// `viewer/` bundle, and any runtime state the plugin writes.
-    pub fn plugin_dir(&self, name: &str) -> PathBuf {
-        self.plugins_dir().join(name)
+    /// `<plugins_dir>/<owner>/<name>/<version>/`. Contains the binary,
+    /// the manifest `objectiveai.json`, an optional `viewer/` bundle,
+    /// and any runtime state the plugin writes.
+    pub fn plugin_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
+        self.plugins_dir().join(owner).join(name).join(version)
     }
 
     /// Canonical path of a plugin's binary:
-    /// `<plugins_dir>/<name>/plugin` on Unix, `…/plugin.exe` on
-    /// Windows. Used by both `install_plugin` (write target) and
-    /// `resolve_plugin` (read target) so the two cannot drift.
-    pub fn plugin_binary_path(&self, name: &str) -> PathBuf {
-        self.plugin_dir(name).join(if cfg!(windows) {
+    /// `<plugin_dir>/plugin` on Unix, `…/plugin.exe` on Windows. Used
+    /// by both `install_plugin` (write target) and `resolve_plugin`
+    /// (read target) so the two cannot drift.
+    pub fn plugin_binary_path(&self, owner: &str, name: &str, version: &str) -> PathBuf {
+        self.plugin_dir(owner, name, version).join(if cfg!(windows) {
             "plugin.exe"
         } else {
             "plugin"
@@ -89,8 +115,13 @@ impl Client {
     ///
     /// Returns `None` if none of the three tiers turn up a regular
     /// file. Uses `tokio` filesystem APIs throughout — never blocks.
-    pub async fn resolve_plugin(&self, name: &str) -> Option<PathBuf> {
-        let dir = self.plugin_dir(name);
+    pub async fn resolve_plugin(
+        &self,
+        owner: &str,
+        name: &str,
+        version: &str,
+    ) -> Option<PathBuf> {
+        let dir = self.plugin_dir(owner, name, version);
 
         // Tiers 1 + 2.
         #[cfg(windows)]
@@ -138,52 +169,41 @@ impl Client {
         None
     }
 
-    /// Look up a single plugin manifest by name. Reads
-    /// `<base_dir>/plugins/<name>.json`. If the file persists `name`
-    /// and `source` (as installed plugins do), they're returned
-    /// verbatim; otherwise the wrapper is synthesized with
-    /// `name = <name>` and `source = absolute_path`. Returns `None`
-    /// if the file is missing, unreadable, or malformed.
+    /// Look up a single plugin manifest by coordinate. Reads
+    /// `<base_dir>/plugins/<owner>/<name>/<version>/objectiveai.json`.
+    /// Returns `None` if the file is missing, unreadable, malformed, or
+    /// invalid.
     pub async fn get_plugin(
         &self,
+        owner: &str,
         name: &str,
+        version: &str,
     ) -> Option<ManifestWithNameAndSource> {
-        let path = self.plugins_dir().join(format!("{name}.json"));
+        let path = self
+            .plugin_dir(owner, name, version)
+            .join("objectiveai.json");
         parse_manifest_file(&path).await
     }
 
-    /// Enumerate plugin manifests in the plugins directory. Reads each
-    /// `.json` file in `<base_dir>/plugins/`, deserializes it as a
-    /// [`Manifest`], and pairs it with the file's stem (`name`) and
-    /// absolute path (`source`). Every failure mode — missing dir,
-    /// unreadable file, malformed JSON, missing required field — is
-    /// silently skipped; the return type is plain `Vec` rather than
-    /// `Result` to reflect that.
+    /// Enumerate plugin manifests by walking the
+    /// `plugins/<owner>/<name>/<version>/objectiveai.json` tree. Every
+    /// failure mode — missing dir, unreadable file, malformed JSON,
+    /// missing required field — is silently skipped; the return type is
+    /// plain `Vec` rather than `Result` to reflect that.
     ///
     /// Results are sorted by manifest mtime descending (most recently
     /// modified first), then `skip(offset).take(limit)` is applied —
     /// matching the convention of the logs list endpoints. Pass
     /// `(0, usize::MAX)` for an unbounded list.
     ///
-    /// The directory scan is sequential (intrinsic to `read_dir`) but
-    /// per-file read+parse runs concurrently via
-    /// [`futures::future::join_all`].
+    /// The directory walk is sequential but per-file read+parse runs
+    /// concurrently via [`futures::future::join_all`].
     pub async fn list_plugins(
         &self,
         offset: usize,
         limit: usize,
     ) -> Vec<ManifestWithNameAndSource> {
-        let dir = self.plugins_dir();
-        let Ok(mut read_dir) = tokio::fs::read_dir(&dir).await else {
-            return Vec::new();
-        };
-        let mut paths: Vec<PathBuf> = Vec::new();
-        while let Ok(Some(entry)) = read_dir.next_entry().await {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) == Some("json") {
-                paths.push(path);
-            }
-        }
+        let paths = collect_manifest_paths(self.plugins_dir()).await;
         let futures = paths.into_iter().map(|p| async move {
             let bundle = parse_manifest_file(&p).await?;
             let modified = tokio::fs::metadata(&p)
@@ -408,7 +428,7 @@ impl Client {
         owner: &str,
         repository: &str,
         manifest: &Manifest,
-        source: &str,
+        _source: &str,
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
@@ -433,11 +453,11 @@ impl Client {
             return Ok(false);
         };
 
-        let plugins_dir = self.plugins_dir();
-        let plugin_dir = self.plugin_dir(repository);
-        let binary_path = self.plugin_binary_path(repository);
+        let version = manifest.version.clone();
+        let plugin_dir = self.plugin_dir(owner, repository, &version);
+        let binary_path = self.plugin_binary_path(owner, repository, &version);
         let viewer_dir = plugin_dir.join("viewer");
-        let manifest_path = plugins_dir.join(format!("{repository}.json"));
+        let manifest_path = plugin_dir.join("objectiveai.json");
 
         // 2. Existing-install check: the manifest sibling file is the
         //    source of truth for "this plugin is installed."
@@ -524,15 +544,12 @@ impl Client {
         let manifest_bytes: Vec<u8> = {
             // Override the author-claimed `owner` with the GitHub
             // `<owner>` we were actually installed from — forks land
-            // on disk with the fork's owner, not the upstream's.
+            // on disk with the fork's owner, not the upstream's. The
+            // on-disk `objectiveai.json` is the bare manifest; `name`
+            // / `version` / `owner` are encoded in the directory path.
             let mut manifest = manifest.clone();
             manifest.owner = owner.to_string();
-            let bundle = ManifestWithNameAndSource {
-                name: repository.to_string(),
-                manifest,
-                source: source.to_string(),
-            };
-            serde_json::to_vec_pretty(&bundle)
+            serde_json::to_vec_pretty(&manifest)
                 .map_err(super::InstallError::ManifestSerialize)?
         };
 

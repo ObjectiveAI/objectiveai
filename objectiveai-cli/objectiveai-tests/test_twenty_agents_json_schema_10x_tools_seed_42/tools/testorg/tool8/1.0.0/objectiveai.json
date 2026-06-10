@@ -1,0 +1,10 @@
+{
+  "description": "Counter tool 8",
+  "version": "1.0.0",
+  "owner": "testorg",
+  "exec": {
+    "windows": ["./count-tool.exe"],
+    "linux": ["./count-tool"],
+    "macos": ["./count-tool"]
+  }
+}

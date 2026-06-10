@@ -58,23 +58,33 @@ slot() {
   cp "$1" "$2"
 }
 
+# Layout: every plugin/tool lives at
+# `<test>/{plugins,tools}/<owner>/<name>/<version>/`. Plugin binaries
+# are `plugin[.exe]`; tool binaries keep their exec base name (the
+# manifest's per-OS `exec` invokes `./<name>` from that version dir,
+# which is the CWD at run time).
 slot "$CLI_BIN_DIR/objectiveai-cli$EXE"               "$ROOT/objectiveai-cli$EXE" &
-slot "$FIX_BIN_DIR/test-mcp-plugin$EXE"               "$ROOT/plugin_mcp_dispatch_round_trip/plugins/test-mcp-plugin/plugin$EXE" &
-slot "$FIX_BIN_DIR/hello-plugin$EXE"                  "$ROOT/hello_plugin_dispatch_produces_expected_output/plugins/hello/plugin$EXE" &
-slot "$FIX_BIN_DIR/hello-tool$EXE"                    "$ROOT/hello_tool_dispatch_snapshot/tools/hello-tool$EXE" &
-slot "$FIX_BIN_DIR/error-tool$EXE"                    "$ROOT/error_tool_dispatch_snapshot/tools/error-tool$EXE" &
-slot "$FIX_BIN_DIR/test-mcp-plugin-foo-headers$EXE"   "$ROOT/function_swarm_writes_per_agent_files/plugins/test-mcp-plugin-foo-headers/plugin$EXE" &
-slot "$FIX_BIN_DIR/count-tool$EXE"                    "$ROOT/two_agents_continuations_count_persists_per_session/tools/count-tool$EXE" &
-slot "$FIX_BIN_DIR/count-tool$EXE"                    "$ROOT/test_twenty_agents_json_schema_10x_tools_seed_42/tools/count-tool$EXE" &
+slot "$FIX_BIN_DIR/test-mcp-plugin$EXE"               "$ROOT/plugin_mcp_dispatch_round_trip/plugins/testorg/test-mcp-plugin/1.0.0/plugin$EXE" &
+slot "$FIX_BIN_DIR/hello-plugin$EXE"                  "$ROOT/hello_plugin_dispatch_produces_expected_output/plugins/objectiveai/hello/0.0.1/plugin$EXE" &
+slot "$FIX_BIN_DIR/hello-tool$EXE"                    "$ROOT/hello_tool_dispatch_snapshot/tools/objectiveai/hello/0.0.1/hello-tool$EXE" &
+slot "$FIX_BIN_DIR/error-tool$EXE"                    "$ROOT/error_tool_dispatch_snapshot/tools/objectiveai/error/0.0.1/error-tool$EXE" &
+slot "$FIX_BIN_DIR/test-mcp-plugin-foo-headers$EXE"   "$ROOT/function_swarm_writes_per_agent_files/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0/plugin$EXE" &
+
+for n in 0 1 2 3 4 5 6 7 8 9; do
+  slot "$FIX_BIN_DIR/count-tool$EXE" \
+       "$ROOT/two_agents_continuations_count_persists_per_session/tools/testorg/tool$n/1.0.0/count-tool$EXE" &
+  slot "$FIX_BIN_DIR/count-tool$EXE" \
+       "$ROOT/test_twenty_agents_json_schema_10x_tools_seed_42/tools/testorg/tool$n/1.0.0/count-tool$EXE" &
+done
 
 for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo; do
   slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
-       "$ROOT/duplicate_tool_names_routed_across_turns/plugins/$name/plugin$EXE" &
+       "$ROOT/duplicate_tool_names_routed_across_turns/plugins/testorg/$name/1.0.0/plugin$EXE" &
 done
 
 for name in same-alpha same-bravo same-charlie same-delta same-echo; do
   slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
-       "$ROOT/duplicate_server_names_routed_across_turns/plugins/$name/plugin$EXE" &
+       "$ROOT/duplicate_server_names_routed_across_turns/plugins/testorg/$name/1.0.0/plugin$EXE" &
 done
 
 wait

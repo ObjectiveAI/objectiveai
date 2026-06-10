@@ -14,7 +14,18 @@ fn hello_plugin_dispatch_produces_expected_output() {
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
         .env("CONFIG_BASE_DIR", &base)
-        .args(["plugins", "run", "hello", "world"])
+        .args([
+            "plugins",
+            "run",
+            "--owner",
+            "objectiveai",
+            "--name",
+            "hello",
+            "--version",
+            "0.0.1",
+            "--args",
+            "[\"world\"]",
+        ])
         .output()
         .expect("failed to run cli");
 

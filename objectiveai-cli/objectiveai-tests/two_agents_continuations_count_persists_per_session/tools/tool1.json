@@ -1,6 +1,0 @@
-{
-  "description": "Counter tool 1",
-  "version": "1.0.0",
-  "owner": "testorg",
-  "exec": "count-tool"
-}
