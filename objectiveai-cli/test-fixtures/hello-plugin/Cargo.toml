@@ -1,6 +1,6 @@
 [package]
 name = "hello-plugin"
-version = "2.0.11"
+version = "2.1.1"
 edition = "2024"
 publish = false
 
