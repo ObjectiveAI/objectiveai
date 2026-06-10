@@ -174,6 +174,18 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::instances::Request),
         #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Request),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Path),
+        #[cfg(feature = "cli")]
+        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Request),
+        #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::instances::list::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::instances::list::Request),
@@ -205,20 +217,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::list::response_schema::Path),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::me::response_schema::Request),
         #[cfg(feature = "cli")]
         schemars::schema_for!(crate::cli::command::agents::message::EnqueueMode),
         #[cfg(feature = "cli")]

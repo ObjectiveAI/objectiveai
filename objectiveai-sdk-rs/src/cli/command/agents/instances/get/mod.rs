@@ -1,16 +1,18 @@
-﻿//! `agents instances list` — enumerate agent instances under one or
-//! more targets, reporting per-agent aggregates (tags, queued count,
-//! spawn/active timestamps, total logged messages).
+//! `agents instances get` — fetch per-agent aggregates (tags, queued
+//! count, spawn/active timestamps, total logged messages) for one or
+//! more targets. Same response shape as `agents instances list`, but
+//! each target resolves to the EXACT agent rather than its children;
+//! an explicitly-named target always yields an item (zero-filled when
+//! it has no activity).
 
 use crate::cli::command::CommandRequest;
 
-/// Reuse the shared `--target` enum (`instance=L[,parent=P]`, `tag=T`,
-/// `me`) from `agents logs read all`. Each target resolves to an AIH
-/// whose direct children this command lists.
-pub use super::super::logs::read::all::Target;
+/// Reuse the shared `--target` enum and the `list` response item — a
+/// `get` row is identical in shape to a `list` row.
+pub use super::list::{ResponseItem, Target};
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.list.Request")]
+#[schemars(rename = "cli.command.agents.instances.get.Request")]
 pub struct Request {
     pub path_type: Path,
     pub targets: Vec<Target>,
@@ -18,10 +20,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.list.Path")]
+#[schemars(rename = "cli.command.agents.instances.get.Path")]
 pub enum Path {
-    #[serde(rename = "agents/instances/list")]
-    AgentsInstancesList,
+    #[serde(rename = "agents/instances/get")]
+    AgentsInstancesGet,
 }
 
 impl CommandRequest for Request {
@@ -29,7 +31,7 @@ impl CommandRequest for Request {
         let mut argv = vec![
             "agents".to_string(),
             "instances".to_string(),
-            "list".to_string(),
+            "get".to_string(),
         ];
         for target in &self.targets {
             argv.push("--target".to_string());
@@ -43,37 +45,11 @@ impl CommandRequest for Request {
     }
 }
 
-/// One discovered agent instance under a target. Aggregated from the
-/// `logs.messages`, `message_queue`, and `tags` tiers.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.list.ResponseItem")]
-pub struct ResponseItem {
-    /// Full hierarchy of this agent instance.
-    pub agent_instance_hierarchy: String,
-    /// Tag names currently bound to this AIH, newest-bound first.
-    pub tags: Vec<String>,
-    /// Active `message_queue` rows targeting this agent — counting
-    /// both direct-AIH rows and rows whose tag is bound to this AIH.
-    pub queued: u64,
-    /// Timestamp of the first `logs.messages` row for this agent.
-    /// `None` when the agent has no logs yet (queue-only).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub timestamp_spawned: Option<i64>,
-    /// Timestamp of the most recent `logs.messages` row for this
-    /// agent. `None` when the agent has no logs yet (queue-only).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub timestamp_active: Option<i64>,
-    /// Total `logs.messages` rows for this agent over all time.
-    pub logged: u64,
-}
-
 #[derive(clap::Args)]
 pub struct Args {
     /// One or more `--target instance=L[,parent=P]` entries. Also
-    /// accepts `--target tag=T` and `--target me`. Lists the direct
-    /// children of each resolved target.
+    /// accepts `--target tag=T` and `--target me`. Fetches each
+    /// resolved agent exactly (not its children).
     #[arg(long = "target", required = true)]
     pub targets: Vec<String>,
     /// jq filter applied to the JSON output.
@@ -111,7 +87,7 @@ impl TryFrom<Args> for Request {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
-            path_type: Path::AgentsInstancesList,
+            path_type: Path::AgentsInstancesGet,
             targets,
             jq: args.jq,
         })
@@ -139,13 +115,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     ) -> Result<E::Stream<serde_json::Value>, E::Error> {
     request.jq = Some(jq);
     executor.execute(request, agent_arguments).await
-}
-
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for ResponseItem {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
-    }
 }
 
 pub mod request_schema;

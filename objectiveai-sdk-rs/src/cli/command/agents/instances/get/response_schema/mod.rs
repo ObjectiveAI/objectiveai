@@ -1,28 +1,28 @@
-﻿use crate::cli::command::CommandRequest;
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.me.request_schema.Request")]
+#[schemars(rename = "cli.command.agents.instances.get.response_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     pub jq: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.instances.me.request_schema.Path")]
+#[schemars(rename = "cli.command.agents.instances.get.response_schema.Path")]
 pub enum Path {
-    #[serde(rename = "agents/instances/me/request_schema")]
-    AgentsInstancesMeRequestSchema,
+    #[serde(rename = "agents/instances/get/response_schema")]
+    AgentsInstancesGetResponseSchema,
 }
-
 #[derive(clap::Args)]
 pub struct Args {
     #[arg(long)]
     pub jq: Option<String>,
 }
 
+
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv: Vec<String> = vec!["agents", "instances", "me", "request-schema"].into_iter().map(String::from).collect();
+        let mut argv: Vec<String> = vec!["agents", "instances", "get", "response-schema"].into_iter().map(String::from).collect();
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -36,7 +36,7 @@ pub type Response = crate::cli::command::ResponseSchema;
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsInstancesMeRequestSchema, jq: args.jq })
+        Ok(Self { path_type: Path::AgentsInstancesGetResponseSchema, jq: args.jq })
     }
 }
 

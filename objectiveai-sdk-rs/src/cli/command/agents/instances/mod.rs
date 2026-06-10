@@ -1,8 +1,8 @@
 //! `agents instances` — caller-side handles that didn't earn their
 //! own top-level home under `agents`. Two leaves today:
 //!
-//! - `me` — return the configured self agent id.
-//! - `list` — list direct children of the calling agent.
+//! - `get` — per-agent aggregates for the exact resolved targets.
+//! - `list` — the direct children of the resolved targets.
 //!
 //! Historically this tier also owned `spawn`, `message`, and `read`;
 //! those moved up to `agents spawn`, `agents message`, and
@@ -10,14 +10,14 @@
 
 use crate::cli::command::CommandRequest;
 
+pub mod get;
 pub mod list;
-pub mod me;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    /// Return the configured self agent id.
-    Me(me::Command),
-    /// List direct children of the calling agent.
+    /// Per-agent aggregates for the exact resolved targets.
+    Get(get::Command),
+    /// List the direct children of the resolved targets.
     List(list::Command),
 }
 
@@ -25,12 +25,12 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.instances.Request")]
 pub enum Request {
-    #[schemars(title = "Me")]
-    Me(me::Request),
-    #[schemars(title = "MeRequestSchema")]
-    MeRequestSchema(me::request_schema::Request),
-    #[schemars(title = "MeResponseSchema")]
-    MeResponseSchema(me::response_schema::Request),
+    #[schemars(title = "Get")]
+    Get(get::Request),
+    #[schemars(title = "GetRequestSchema")]
+    GetRequestSchema(get::request_schema::Request),
+    #[schemars(title = "GetResponseSchema")]
+    GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "List")]
     List(list::Request),
     #[schemars(title = "ListRequestSchema")]
@@ -46,12 +46,12 @@ pub enum Request {
 #[schemars(rename = "cli.command.agents.instances.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
-    #[schemars(title = "Me")]
-    Me(me::Response),
-    #[schemars(title = "MeRequestSchema")]
-    MeRequestSchema(me::request_schema::Response),
-    #[schemars(title = "MeResponseSchema")]
-    MeResponseSchema(me::response_schema::Response),
+    #[schemars(title = "Get")]
+    Get(get::ResponseItem),
+    #[schemars(title = "GetRequestSchema")]
+    GetRequestSchema(get::request_schema::Response),
+    #[schemars(title = "GetResponseSchema")]
+    GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "List")]
     List(list::ResponseItem),
     #[schemars(title = "ListRequestSchema")]
@@ -64,9 +64,9 @@ pub enum ResponseItem {
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
-            ResponseItem::Me(v) => v.into_mcp(),
-            ResponseItem::MeRequestSchema(v) => v.into_mcp(),
-            ResponseItem::MeResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Get(v) => v.into_mcp(),
+            ResponseItem::GetRequestSchema(v) => v.into_mcp(),
+            ResponseItem::GetResponseSchema(v) => v.into_mcp(),
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
@@ -78,12 +78,12 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
-            Command::Me(cmd) => match cmd.schema {
-                None => Ok(Request::Me(me::Request::try_from(cmd.args)?)),
-                Some(me::Schema::RequestSchema(args)) =>
-                    Ok(Request::MeRequestSchema(me::request_schema::Request::try_from(args)?)),
-                Some(me::Schema::ResponseSchema(args)) =>
-                    Ok(Request::MeResponseSchema(me::response_schema::Request::try_from(args)?)),
+            Command::Get(cmd) => match cmd.schema {
+                None => Ok(Request::Get(get::Request::try_from(cmd.args)?)),
+                Some(get::Schema::RequestSchema(args)) =>
+                    Ok(Request::GetRequestSchema(get::request_schema::Request::try_from(args)?)),
+                Some(get::Schema::ResponseSchema(args)) =>
+                    Ok(Request::GetResponseSchema(get::response_schema::Request::try_from(args)?)),
             },
             Command::List(cmd) => match cmd.schema {
                 None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
@@ -99,9 +99,9 @@ impl TryFrom<Command> for Request {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
-            Request::Me(inner) => inner.into_command(),
-            Request::MeRequestSchema(inner) => inner.into_command(),
-            Request::MeResponseSchema(inner) => inner.into_command(),
+            Request::Get(inner) => inner.into_command(),
+            Request::GetRequestSchema(inner) => inner.into_command(),
+            Request::GetResponseSchema(inner) => inner.into_command(),
             Request::List(inner) => inner.into_command(),
             Request::ListRequestSchema(inner) => inner.into_command(),
             Request::ListResponseSchema(inner) => inner.into_command(),
@@ -122,22 +122,20 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
-        Request::Me(req) => {
-            let value = me::execute(executor, req, agent_arguments).await?;
+        Request::Get(req) => {
+            let inner = get::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Get)))
+        }
+        Request::GetRequestSchema(req) => {
+            let value = get::request_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::Me(value),
+                ResponseItem::GetRequestSchema(value),
             )))
         }
-        Request::MeRequestSchema(req) => {
-            let value = me::request_schema::execute(executor, req, agent_arguments).await?;
+        Request::GetResponseSchema(req) => {
+            let value = get::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::MeRequestSchema(value),
-            )))
-        }
-        Request::MeResponseSchema(req) => {
-            let value = me::response_schema::execute(executor, req, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                ResponseItem::MeResponseSchema(value),
+                ResponseItem::GetResponseSchema(value),
             )))
         }
         Request::List(req) => {
@@ -173,18 +171,18 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
-        Request::Me(req) => {
-            let value = me::execute_jq(executor, req, jq, agent_arguments).await?;
+        Request::Get(req) => {
+            let inner = get::execute_jq(executor, req, jq, agent_arguments).await?;
+            Box::pin(inner)
+        }
+        Request::GetRequestSchema(req) => {
+            let value =
+                get::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
-        Request::MeRequestSchema(req) => {
+        Request::GetResponseSchema(req) => {
             let value =
-                me::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
-            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-        }
-        Request::MeResponseSchema(req) => {
-            let value =
-                me::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                get::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::List(req) => {
