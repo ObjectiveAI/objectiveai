@@ -22,13 +22,15 @@ use crate::cli::command::path_ref::tokenize;
 
 /// One queue-read target. Either direct `(parent, instance)` (parent
 /// defaults to the cli's own `Config.agent_instance_hierarchy` when
-/// omitted) OR a tag name the cli resolves at handler time. Shared
-/// with `agents read pending` via re-export.
+/// omitted), a tag name the cli resolves at handler time, or `me`
+/// (the caller's own `Config.agent_instance_hierarchy`, with no child
+/// leaf appended). Shared with `agents read pending` via re-export.
 ///
 /// Docker-style `key=value,key=value` wire form on the CLI:
 ///   `--target instance=L`           (direct; parent defaults to ctx)
 ///   `--target instance=L,parent=P`  (direct; explicit parent)
-///   `--target tag=T`                (tag; cli resolves via tags.sqlite)
+///   `--target tag=T`                (tag; cli resolves via the tags tier)
+///   `--target me`                   (the caller's own AIH; bare valueless key)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.read.all.Target")]
@@ -45,14 +47,24 @@ pub enum Target {
     },
     #[schemars(title = "Tag")]
     Tag { agent_tag: String },
+    /// The caller's own `Config.agent_instance_hierarchy`, verbatim.
+    /// CLI wire form is the bare valueless key `me` (docker
+    /// `readonly`-style), mutually exclusive with the other keys.
+    #[schemars(title = "Me")]
+    Me,
 }
 
 impl FromStr for Target {
     type Err = String;
-    /// Parse a `--target` arg. Accepted keys: `instance` + optional
-    /// `parent`, OR `tag` alone. `tag` is mutually exclusive with
-    /// the other two keys.
+    /// Parse a `--target` arg. Accepted forms: the bare valueless key
+    /// `me`; `instance` + optional `parent`; or `tag` alone. `tag` is
+    /// mutually exclusive with the other two keys.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
+        // Bare valueless key (docker `readonly`-style). Handled before
+        // `tokenize`, which requires every token to be `key=value`.
+        if s.trim() == "me" {
+            return Ok(Target::Me);
+        }
         let mut tag: Option<String> = None;
         let mut parent: Option<String> = None;
         let mut instance: Option<String> = None;
@@ -83,6 +95,7 @@ impl Target {
     /// `key=value,key=value` wire form for round-tripping.
     pub fn into_arg_string(&self) -> String {
         match self {
+            Target::Me => "me".to_string(),
             Target::Tag { agent_tag } => format!("tag={agent_tag}"),
             Target::Direct {
                 parent_agent_instance_hierarchy: None,
@@ -329,7 +342,8 @@ pub enum ResponseItem {
 pub struct Args {
     /// One or more `--target instance=L[,parent=P]` entries. `parent`
     /// defaults to the cli's own `Config.agent_instance_hierarchy`
-    /// when omitted on an individual target.
+    /// when omitted on an individual target. Also accepts
+    /// `--target tag=T` and `--target me` (the caller's own AIH).
     #[arg(long = "target", required = true)]
     pub targets: Vec<String>,
     /// Skip rows with `logs.messages."index" <= after_id` per target.
@@ -416,3 +430,31 @@ pub mod request_schema;
 
 
 pub mod response_schema;
+
+#[cfg(test)]
+mod tests {
+    use super::Target;
+
+    #[test]
+    fn me_target_parses_and_round_trips() {
+        assert_eq!("me".parse::<Target>(), Ok(Target::Me));
+        // Surrounding whitespace is trimmed, same as the other forms.
+        assert_eq!("  me  ".parse::<Target>(), Ok(Target::Me));
+        assert_eq!(Target::Me.into_arg_string(), "me");
+    }
+
+    #[test]
+    fn me_is_mutually_exclusive_with_other_keys() {
+        // `me` combined with any other key falls through to the
+        // `key=value` tokenizer and is rejected.
+        assert!("me,instance=x".parse::<Target>().is_err());
+    }
+
+    #[test]
+    fn json_wire_shape_is_by_me() {
+        assert_eq!(
+            serde_json::to_value(Target::Me).unwrap(),
+            serde_json::json!({ "by": "me" }),
+        );
+    }
+}

@@ -174,6 +174,8 @@ async fn resolve_target(
                 parent_agent_instance_hierarchy.unwrap_or_else(|| default_parent.to_string());
             Ok(format!("{parent}/{agent_instance}"))
         }
+        // The caller's own AIH itself — no child leaf appended.
+        Target::Me => Ok(default_parent.to_string()),
         Target::Tag { agent_tag } => match tags::lookup(db, &agent_tag).await? {
             tags::LookupState::Bound { agent_instance_hierarchy } => {
                 Ok(agent_instance_hierarchy)

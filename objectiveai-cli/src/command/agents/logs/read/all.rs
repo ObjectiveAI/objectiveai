@@ -65,6 +65,12 @@ async fn resolve_target(
             let spawned = format!("{parent}/{agent_instance}");
             Ok((parent, spawned, agent_instance))
         }
+        // The caller's own AIH itself — no child leaf appended.
+        Target::Me => Ok((
+            tags::parent_of(default_parent).to_string(),
+            default_parent.to_string(),
+            tags::leaf_of(default_parent).to_string(),
+        )),
         Target::Tag { agent_tag } => match tags::lookup(db, &agent_tag).await? {
             tags::LookupState::Bound { agent_instance_hierarchy } => {
                 let parent = tags::parent_of(&agent_instance_hierarchy).to_string();

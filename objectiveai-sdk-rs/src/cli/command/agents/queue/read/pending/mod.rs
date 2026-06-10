@@ -132,7 +132,8 @@ pub struct Args {
     /// One or more `--target instance=L[,parent=P]` entries.
     /// `parent` defaults to the cli's own
     /// `Config.agent_instance_hierarchy` when omitted on an
-    /// individual target.
+    /// individual target. Also accepts `--target tag=T` and
+    /// `--target me` (the caller's own AIH).
     #[arg(long = "target", required = true)]
     pub targets: Vec<String>,
     /// Skip rows with `message_queue_contents.id <= after_id`.
