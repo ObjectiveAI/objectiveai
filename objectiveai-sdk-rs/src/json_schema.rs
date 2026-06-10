@@ -3,48 +3,34 @@
 /// Each schema is generated via `schemars::schema_for!()` and includes
 /// the type's `$defs` for referenced types. The schema title matches
 /// the `#[schemars(rename = "...")]` attribute on each type.
+///
+/// Feature gating mirrors the module layout exactly — there are no other
+/// gates in this file:
+///
+/// - every `crate::cli::*` schema lives behind `feature = "cli"`,
+/// - every `crate::viewer::*` schema behind `feature = "viewer"`,
+/// - every `crate::http::*` schema behind `feature = "http"`,
+/// - all remaining (core) schemas are always present.
+///
+/// Each block lists its types exactly once, sorted by path.
 pub fn json_schemas() -> Vec<schemars::Schema> {
-    let mut schemas = vec![
-        schemars::schema_for!(crate::remote::Remote),
-        schemars::schema_for!(crate::remote::RemotePath),
-        schemars::schema_for!(crate::remote::RemotePathCommitOptional),
-        schemars::schema_for!(crate::weights::Weights),
-        schemars::schema_for!(crate::weights::WeightsEntry),
+    #[allow(unused_mut)]
+    let mut schemas: Vec<schemars::Schema> = vec![
         schemars::schema_for!(crate::agent::Agent),
         schemars::schema_for!(crate::agent::AgentBase),
         schemars::schema_for!(crate::agent::AgentWithFallbacks),
         schemars::schema_for!(crate::agent::AgentWithFallbacksWithCount),
-        schemars::schema_for!(crate::agent::ClientObjectiveaiMcp),
-        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpEntry),
-        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpHeaders),
-        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginEntry),
-        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginMcpServer),
-        schemars::schema_for!(crate::agent::Continuation),
-        schemars::schema_for!(crate::agent::response::GetAgentResponse),
-        schemars::schema_for!(crate::agent::InlineAgent),
-        schemars::schema_for!(crate::agent::InlineAgentBase),
-        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacks),
-        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemote),
-        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
-        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount),
-        schemars::schema_for!(crate::agent::InlineAgentWithFallbacks),
-        schemars::schema_for!(crate::agent::response::ListAgentResponse),
-        schemars::schema_for!(crate::agent::request::ListAgentsRequest),
-        schemars::schema_for!(crate::agent::request::ListAgentsSource),
-        schemars::schema_for!(crate::agent::McpServer),
-        schemars::schema_for!(crate::agent::OutputMode),
-        schemars::schema_for!(crate::agent::RemoteAgent),
-        schemars::schema_for!(crate::agent::RemoteAgentBase),
-        schemars::schema_for!(crate::agent::RemoteAgentBaseWithFallbacks),
-        schemars::schema_for!(crate::agent::RemoteAgentWithFallbacks),
-        schemars::schema_for!(crate::agent::Upstream),
-        schemars::schema_for!(crate::agent::response::UsageAgentResponse),
         schemars::schema_for!(crate::agent::claude_agent_sdk::Agent),
         schemars::schema_for!(crate::agent::claude_agent_sdk::AgentBase),
         schemars::schema_for!(crate::agent::claude_agent_sdk::Continuation),
         schemars::schema_for!(crate::agent::claude_agent_sdk::Effort),
         schemars::schema_for!(crate::agent::claude_agent_sdk::OutputMode),
         schemars::schema_for!(crate::agent::claude_agent_sdk::upstream::Upstream),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcp),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpEntry),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpHeaders),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginEntry),
+        schemars::schema_for!(crate::agent::ClientObjectiveaiMcpPluginMcpServer),
         schemars::schema_for!(crate::agent::codex_sdk::Agent),
         schemars::schema_for!(crate::agent::codex_sdk::AgentBase),
         schemars::schema_for!(crate::agent::codex_sdk::Continuation),
@@ -99,21 +85,30 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::completions::response::Logprob),
         schemars::schema_for!(crate::agent::completions::response::Logprobs),
         schemars::schema_for!(crate::agent::completions::response::PromptTokensDetails),
-        schemars::schema_for!(crate::agent::completions::response::ToolResponse),
-        schemars::schema_for!(crate::agent::completions::response::ToolRole),
-        schemars::schema_for!(crate::agent::completions::response::TopLogprob),
-        schemars::schema_for!(crate::agent::completions::response::UpstreamUsage),
-        schemars::schema_for!(crate::agent::completions::response::Usage),
         schemars::schema_for!(crate::agent::completions::response::streaming::AgentCompletionChunk),
         schemars::schema_for!(crate::agent::completions::response::streaming::AssistantResponseChunk),
         schemars::schema_for!(crate::agent::completions::response::streaming::MessageChunk),
         schemars::schema_for!(crate::agent::completions::response::streaming::Object),
+        schemars::schema_for!(crate::agent::completions::response::ToolResponse),
+        schemars::schema_for!(crate::agent::completions::response::ToolRole),
+        schemars::schema_for!(crate::agent::completions::response::TopLogprob),
         schemars::schema_for!(crate::agent::completions::response::unary::AgentCompletion),
         schemars::schema_for!(crate::agent::completions::response::unary::AssistantResponse),
         schemars::schema_for!(crate::agent::completions::response::unary::Message),
         schemars::schema_for!(crate::agent::completions::response::unary::Object),
+        schemars::schema_for!(crate::agent::completions::response::UpstreamUsage),
+        schemars::schema_for!(crate::agent::completions::response::Usage),
+        schemars::schema_for!(crate::agent::Continuation),
         schemars::schema_for!(crate::agent::favorites::Action),
         schemars::schema_for!(crate::agent::favorites::ChangedNotification),
+        schemars::schema_for!(crate::agent::InlineAgent),
+        schemars::schema_for!(crate::agent::InlineAgentBase),
+        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacks),
+        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemote),
+        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
+        schemars::schema_for!(crate::agent::InlineAgentBaseWithFallbacksOrRemoteWithCount),
+        schemars::schema_for!(crate::agent::InlineAgentWithFallbacks),
+        schemars::schema_for!(crate::agent::McpServer),
         schemars::schema_for!(crate::agent::mock::Agent),
         schemars::schema_for!(crate::agent::mock::AgentBase),
         schemars::schema_for!(crate::agent::mock::Call),
@@ -124,10 +119,10 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::mock::upstream::Upstream),
         schemars::schema_for!(crate::agent::openrouter::Agent),
         schemars::schema_for!(crate::agent::openrouter::AgentBase),
+        schemars::schema_for!(crate::agent::openrouter::ContextCompression),
         schemars::schema_for!(crate::agent::openrouter::Continuation),
         schemars::schema_for!(crate::agent::openrouter::OutputMode),
         schemars::schema_for!(crate::agent::openrouter::Provider),
-        schemars::schema_for!(crate::agent::openrouter::ContextCompression),
         schemars::schema_for!(crate::agent::openrouter::ProviderQuantization),
         schemars::schema_for!(crate::agent::openrouter::Reasoning),
         schemars::schema_for!(crate::agent::openrouter::ReasoningEffort),
@@ -135,6 +130,18 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::agent::openrouter::Stop),
         schemars::schema_for!(crate::agent::openrouter::upstream::Upstream),
         schemars::schema_for!(crate::agent::openrouter::Verbosity),
+        schemars::schema_for!(crate::agent::OutputMode),
+        schemars::schema_for!(crate::agent::RemoteAgent),
+        schemars::schema_for!(crate::agent::RemoteAgentBase),
+        schemars::schema_for!(crate::agent::RemoteAgentBaseWithFallbacks),
+        schemars::schema_for!(crate::agent::RemoteAgentWithFallbacks),
+        schemars::schema_for!(crate::agent::request::ListAgentsRequest),
+        schemars::schema_for!(crate::agent::request::ListAgentsSource),
+        schemars::schema_for!(crate::agent::response::GetAgentResponse),
+        schemars::schema_for!(crate::agent::response::ListAgentResponse),
+        schemars::schema_for!(crate::agent::response::UsageAgentResponse),
+        schemars::schema_for!(crate::agent::Upstream),
+        schemars::schema_for!(crate::auth::ApiKey),
         schemars::schema_for!(crate::auth::ApiKeyWithMetadata),
         schemars::schema_for!(crate::auth::request::CreateApiKeyRequest),
         schemars::schema_for!(crate::auth::request::CreateOpenRouterByokApiKeyRequest),
@@ -143,1476 +150,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::auth::response::GetOpenRouterByokApiKeyResponse),
         schemars::schema_for!(crate::auth::response::ListApiKeyItem),
         schemars::schema_for!(crate::auth::response::ListApiKeyResponse),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::Error),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::ErrorType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::Level),
-        #[cfg(feature = "cli-executor")]
-        schemars::schema_for!(crate::cli::command::AgentArguments),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::Ok),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::RemotePathCommitOptionalOrFavorite),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::instances::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::RequestSource),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::ResponseFavorite),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::EnqueueMode),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::RequestMessage),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::message::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::RequestBody),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::RequestPublishMessage),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPart),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPartType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePart),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePartType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePart),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePartType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::all::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::id::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Request),
-        // `pending::ResponseItem` is re-exported from `all::ResponseItem`;
-        // its schema is registered above.
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::KindFilter),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::AgentsInactiveTag),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::AgentResolution),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::AgentSpec),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::agents::spawn::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::RequestCommitChange),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::agents::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::RequestCommitChange),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::RequestCommitChange),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::RequestCommitChange),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Response),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::get::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::address::set::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::Response),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::get::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Response),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::get::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::mcp::port::set::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::RequestCommitChange),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::swarms::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::address::set::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::port::set::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::Column),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::db::query::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::FunctionSpec),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::ProfileSpec),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestInput),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestDangerousAdvanced),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestInput),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::RequestSource),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::ResponseFavorite),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::RequestSource),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::ResponseFavorite),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::RequestBody),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::RequestPublishMessage),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::profiles::publish::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::RequestBody),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::RequestPublishMessage),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::Response),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::kill::response_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::Response),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::request_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::request_schema::Request),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::response_schema::Path),
-        #[cfg(feature = "mcp")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::mcp::spawn::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseBinaries),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseHttpMethod),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseManifest),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseMcpServer),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseViewerRoute),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::install::github::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::Mcp),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::McpType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::plugins::run::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::RequestSource),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::ResponseFavorite),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::RequestBody),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::RequestPublishMessage),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::ResponseManifest),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::get::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::install::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::list::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::tools::run::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::Response),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::ResponseItem),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::ResponseSkipReason),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::request_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::request_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::response_schema::Path),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::update::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::kill::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::Response),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::request_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::request_schema::Request),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::response_schema::Path),
-        #[cfg(feature = "viewer")]
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::command::viewer::spawn::response_schema::Request),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::plugins::Command),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::plugins::CommandType),
-        #[cfg(feature = "cli")]
-        schemars::schema_for!(crate::cli::plugins::Output),
         schemars::schema_for!(crate::error::request::ErrorCreateParams),
         schemars::schema_for!(crate::error::response::ErrorResponse),
         schemars::schema_for!(crate::error::ResponseError),
-        schemars::schema_for!(crate::functions::AlphaInlineFunction),
-        schemars::schema_for!(crate::functions::AlphaRemoteFunction),
-        schemars::schema_for!(crate::functions::CompiledTask),
-        schemars::schema_for!(crate::functions::FullFunction),
-        schemars::schema_for!(crate::functions::FullInlineFunction),
-        schemars::schema_for!(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
-        schemars::schema_for!(crate::functions::FullRemoteFunction),
-        schemars::schema_for!(crate::functions::Function),
-        schemars::schema_for!(crate::functions::FunctionType),
-        schemars::schema_for!(crate::functions::response::GetFunctionProfilePairResponse),
-        schemars::schema_for!(crate::functions::request::GetFunctionProfilePairUsageRequest),
-        schemars::schema_for!(crate::functions::response::GetFunctionResponse),
-        schemars::schema_for!(crate::functions::InlineFunction),
-        schemars::schema_for!(crate::functions::InlineProfile),
-        schemars::schema_for!(crate::functions::InlineProfileOrRemoteCommitOptional),
-        schemars::schema_for!(crate::functions::InlineTasksProfile),
-        schemars::schema_for!(crate::functions::response::ListFunctionProfilePairItem),
-        schemars::schema_for!(crate::functions::response::ListFunctionProfilePairResponse),
-        schemars::schema_for!(crate::functions::request::ListFunctionProfilePairsRequest),
-        schemars::schema_for!(crate::functions::request::ListFunctionProfilePairsSource),
-        schemars::schema_for!(crate::functions::response::ListFunctionResponse),
-        schemars::schema_for!(crate::functions::request::ListFunctionsRequest),
-        schemars::schema_for!(crate::functions::request::ListFunctionsSource),
-        schemars::schema_for!(crate::functions::PlaceholderScalarFunctionTask),
-        schemars::schema_for!(crate::functions::PlaceholderScalarFunctionTaskExpression),
-        schemars::schema_for!(crate::functions::PlaceholderVectorFunctionTask),
-        schemars::schema_for!(crate::functions::PlaceholderVectorFunctionTaskExpression),
-        schemars::schema_for!(crate::functions::Profile),
-        schemars::schema_for!(crate::functions::RemoteFunction),
-        schemars::schema_for!(crate::functions::RemoteProfile),
-        schemars::schema_for!(crate::functions::RemoteTasksProfile),
-        schemars::schema_for!(crate::functions::ScalarFunctionTask),
-        schemars::schema_for!(crate::functions::ScalarFunctionTaskExpression),
-        schemars::schema_for!(crate::functions::Task),
-        schemars::schema_for!(crate::functions::TaskExpression),
-        schemars::schema_for!(crate::functions::TaskProfile),
-        schemars::schema_for!(crate::functions::response::UsageFunctionProfilePairResponse),
-        schemars::schema_for!(crate::functions::response::UsageFunctionResponse),
-        schemars::schema_for!(crate::functions::VectorCompletionTask),
-        schemars::schema_for!(crate::functions::VectorCompletionTaskExpression),
-        schemars::schema_for!(crate::functions::VectorFunctionTask),
-        schemars::schema_for!(crate::functions::VectorFunctionTaskExpression),
         schemars::schema_for!(crate::functions::alpha_scalar::BranchTaskExpression),
         schemars::schema_for!(crate::functions::alpha_scalar::InlineFunction),
         schemars::schema_for!(crate::functions::alpha_scalar::LeafTaskExpression),
@@ -1623,6 +163,9 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::alpha_scalar::ScalarFunctionTaskExpression),
         schemars::schema_for!(crate::functions::alpha_scalar::VectorCompletionTaskExpression),
         schemars::schema_for!(crate::functions::alpha_vector::BranchTaskExpression),
+        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputSchema),
+        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputValue),
+        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputValueExpression),
         schemars::schema_for!(crate::functions::alpha_vector::InlineFunction),
         schemars::schema_for!(crate::functions::alpha_vector::LeafTaskExpression),
         schemars::schema_for!(crate::functions::alpha_vector::PartialPlaceholderBranchTaskExpression),
@@ -1634,12 +177,11 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::alpha_vector::ScalarFunctionTaskExpression),
         schemars::schema_for!(crate::functions::alpha_vector::VectorCompletionTaskExpression),
         schemars::schema_for!(crate::functions::alpha_vector::VectorFunctionTaskExpression),
-        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputSchema),
-        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputValue),
-        schemars::schema_for!(crate::functions::alpha_vector::expression::VectorFunctionInputValueExpression),
+        schemars::schema_for!(crate::functions::AlphaInlineFunction),
+        schemars::schema_for!(crate::functions::AlphaRemoteFunction),
         schemars::schema_for!(crate::functions::check::ScalarFieldsValidation),
         schemars::schema_for!(crate::functions::check::VectorFieldsValidation),
-        schemars::schema_for!(crate::functions::executions::RetryToken),
+        schemars::schema_for!(crate::functions::CompiledTask),
         schemars::schema_for!(crate::functions::executions::request::FunctionExecutionCreateParams),
         schemars::schema_for!(crate::functions::executions::request::Reasoning),
         schemars::schema_for!(crate::functions::executions::request::Strategy),
@@ -1657,6 +199,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::executions::response::unary::ReasoningSummary),
         schemars::schema_for!(crate::functions::executions::response::unary::Task),
         schemars::schema_for!(crate::functions::executions::response::unary::VectorCompletionTask),
+        schemars::schema_for!(crate::functions::executions::RetryToken),
         schemars::schema_for!(crate::functions::expression::AnyOfInputSchema),
         schemars::schema_for!(crate::functions::expression::ArrayInputSchema),
         schemars::schema_for!(crate::functions::expression::ArrayInputSchemaType),
@@ -1685,28 +228,47 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::expression::TaskOutputOwned),
         schemars::schema_for!(crate::functions::expression::VideoInputSchema),
         schemars::schema_for!(crate::functions::expression::VideoInputSchemaType),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::AssistantToolCallExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::AssistantToolCallFunctionExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::File>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::ImageUrl>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::InputAudio>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::MessageExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::RichContentExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::RichContentPartExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::SimpleContentExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::SimpleContentPartExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::agent::completions::message::VideoUrl>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<crate::functions::expression::InputValueExpression>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<String>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<Vec<crate::functions::expression::WithExpression<crate::agent::completions::message::AssistantToolCallExpression>>>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<Vec<crate::functions::expression::WithExpression<crate::agent::completions::message::MessageExpression>>>),
+        schemars::schema_for!(crate::functions::expression::WithExpression<Vec<crate::functions::expression::WithExpression<crate::agent::completions::message::RichContentExpression>>>),
+        schemars::schema_for!(crate::functions::FullFunction),
+        schemars::schema_for!(crate::functions::FullInlineFunction),
+        schemars::schema_for!(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
+        schemars::schema_for!(crate::functions::FullRemoteFunction),
+        schemars::schema_for!(crate::functions::Function),
+        schemars::schema_for!(crate::functions::FunctionType),
+        schemars::schema_for!(crate::functions::InlineFunction),
+        schemars::schema_for!(crate::functions::InlineProfile),
+        schemars::schema_for!(crate::functions::InlineProfileOrRemoteCommitOptional),
+        schemars::schema_for!(crate::functions::InlineTasksProfile),
         schemars::schema_for!(crate::functions::inventions::DescriptionObject),
         schemars::schema_for!(crate::functions::inventions::EssayObject),
         schemars::schema_for!(crate::functions::inventions::EssayTasksObject),
         schemars::schema_for!(crate::functions::inventions::IndexObject),
-        schemars::schema_for!(crate::functions::inventions::ScalarBranchTaskObject),
-        schemars::schema_for!(crate::functions::inventions::ScalarInputSchemaObject),
-        schemars::schema_for!(crate::functions::inventions::ScalarLeafTaskObject),
-        schemars::schema_for!(crate::functions::inventions::TasksLengthObject),
-        schemars::schema_for!(crate::functions::inventions::VectorBranchTaskObject),
-        schemars::schema_for!(crate::functions::inventions::VectorInputSchemaObject),
-        schemars::schema_for!(crate::functions::inventions::VectorLeafTaskObject),
-        schemars::schema_for!(crate::functions::inventions::prompts::response::GetPromptResponse),
         schemars::schema_for!(crate::functions::inventions::prompts::InlinePrompt),
         schemars::schema_for!(crate::functions::inventions::prompts::InlinePromptOrRemoteCommitOptional),
-        schemars::schema_for!(crate::functions::inventions::prompts::response::ListPromptResponse),
-        schemars::schema_for!(crate::functions::inventions::prompts::request::ListPromptsRequest),
-        schemars::schema_for!(crate::functions::inventions::prompts::request::ListPromptsSource),
         schemars::schema_for!(crate::functions::inventions::prompts::Prompt),
         schemars::schema_for!(crate::functions::inventions::prompts::RemotePrompt),
+        schemars::schema_for!(crate::functions::inventions::prompts::request::ListPromptsRequest),
+        schemars::schema_for!(crate::functions::inventions::prompts::request::ListPromptsSource),
+        schemars::schema_for!(crate::functions::inventions::prompts::response::GetPromptResponse),
+        schemars::schema_for!(crate::functions::inventions::prompts::response::ListPromptResponse),
+        schemars::schema_for!(crate::functions::inventions::prompts::response::UsagePromptResponse),
         schemars::schema_for!(crate::functions::inventions::prompts::StepPromptExpression),
         schemars::schema_for!(crate::functions::inventions::prompts::StepPromptType),
-        schemars::schema_for!(crate::functions::inventions::prompts::response::UsagePromptResponse),
         schemars::schema_for!(crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionChunk),
         schemars::schema_for!(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
@@ -1723,24 +285,30 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::inventions::response::unary::AgentCompletion),
         schemars::schema_for!(crate::functions::inventions::response::unary::FunctionInvention),
         schemars::schema_for!(crate::functions::inventions::response::unary::Object),
+        schemars::schema_for!(crate::functions::inventions::ScalarBranchTaskObject),
+        schemars::schema_for!(crate::functions::inventions::ScalarInputSchemaObject),
+        schemars::schema_for!(crate::functions::inventions::ScalarLeafTaskObject),
         schemars::schema_for!(crate::functions::inventions::state::AlphaScalarBranchState),
         schemars::schema_for!(crate::functions::inventions::state::AlphaScalarLeafState),
         schemars::schema_for!(crate::functions::inventions::state::AlphaScalarState),
         schemars::schema_for!(crate::functions::inventions::state::AlphaVectorBranchState),
         schemars::schema_for!(crate::functions::inventions::state::AlphaVectorLeafState),
         schemars::schema_for!(crate::functions::inventions::state::AlphaVectorState),
-        schemars::schema_for!(crate::functions::inventions::state::response::GetFunctionInventionStateResponse),
         schemars::schema_for!(crate::functions::inventions::state::InputSchema),
         schemars::schema_for!(crate::functions::inventions::state::Params),
         schemars::schema_for!(crate::functions::inventions::state::ParamsState),
         schemars::schema_for!(crate::functions::inventions::state::ParamsStateOrRemoteCommitOptional),
+        schemars::schema_for!(crate::functions::inventions::state::response::GetFunctionInventionStateResponse),
         schemars::schema_for!(crate::functions::inventions::state::State),
-        schemars::schema_for!(crate::functions::profiles::response::GetProfileResponse),
-        schemars::schema_for!(crate::functions::profiles::response::ListProfileResponse),
-        schemars::schema_for!(crate::functions::profiles::request::ListProfilesRequest),
-        schemars::schema_for!(crate::functions::profiles::request::ListProfilesSource),
-        schemars::schema_for!(crate::functions::profiles::response::UsageProfileResponse),
-        schemars::schema_for!(crate::functions::profiles::computations::RetryToken),
+        schemars::schema_for!(crate::functions::inventions::TasksLengthObject),
+        schemars::schema_for!(crate::functions::inventions::VectorBranchTaskObject),
+        schemars::schema_for!(crate::functions::inventions::VectorInputSchemaObject),
+        schemars::schema_for!(crate::functions::inventions::VectorLeafTaskObject),
+        schemars::schema_for!(crate::functions::PlaceholderScalarFunctionTask),
+        schemars::schema_for!(crate::functions::PlaceholderScalarFunctionTaskExpression),
+        schemars::schema_for!(crate::functions::PlaceholderVectorFunctionTask),
+        schemars::schema_for!(crate::functions::PlaceholderVectorFunctionTaskExpression),
+        schemars::schema_for!(crate::functions::Profile),
         schemars::schema_for!(crate::functions::profiles::computations::request::DatasetItem),
         schemars::schema_for!(crate::functions::profiles::computations::request::FunctionProfileComputationCreateParams),
         schemars::schema_for!(crate::functions::profiles::computations::request::Target),
@@ -1751,36 +319,36 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::functions::profiles::computations::response::unary::FunctionExecution),
         schemars::schema_for!(crate::functions::profiles::computations::response::unary::FunctionProfileComputation),
         schemars::schema_for!(crate::functions::profiles::computations::response::unary::Object),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::AgentCompletionCreateParams),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::FunctionExecutionCreateParams),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveCreateParams),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveRequest),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::LaboratoryExecutionCreateParams),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::LaboratoryExecutionRequest),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::Request),
-        #[cfg(feature = "http")]
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::http::viewer::ResponseError),
+        schemars::schema_for!(crate::functions::profiles::computations::RetryToken),
+        schemars::schema_for!(crate::functions::profiles::request::ListProfilesRequest),
+        schemars::schema_for!(crate::functions::profiles::request::ListProfilesSource),
+        schemars::schema_for!(crate::functions::profiles::response::GetProfileResponse),
+        schemars::schema_for!(crate::functions::profiles::response::ListProfileResponse),
+        schemars::schema_for!(crate::functions::profiles::response::UsageProfileResponse),
+        schemars::schema_for!(crate::functions::RemoteFunction),
+        schemars::schema_for!(crate::functions::RemoteProfile),
+        schemars::schema_for!(crate::functions::RemoteTasksProfile),
+        schemars::schema_for!(crate::functions::request::GetFunctionProfilePairUsageRequest),
+        schemars::schema_for!(crate::functions::request::ListFunctionProfilePairsRequest),
+        schemars::schema_for!(crate::functions::request::ListFunctionProfilePairsSource),
+        schemars::schema_for!(crate::functions::request::ListFunctionsRequest),
+        schemars::schema_for!(crate::functions::request::ListFunctionsSource),
+        schemars::schema_for!(crate::functions::response::GetFunctionProfilePairResponse),
+        schemars::schema_for!(crate::functions::response::GetFunctionResponse),
+        schemars::schema_for!(crate::functions::response::ListFunctionProfilePairItem),
+        schemars::schema_for!(crate::functions::response::ListFunctionProfilePairResponse),
+        schemars::schema_for!(crate::functions::response::ListFunctionResponse),
+        schemars::schema_for!(crate::functions::response::UsageFunctionProfilePairResponse),
+        schemars::schema_for!(crate::functions::response::UsageFunctionResponse),
+        schemars::schema_for!(crate::functions::ScalarFunctionTask),
+        schemars::schema_for!(crate::functions::ScalarFunctionTaskExpression),
+        schemars::schema_for!(crate::functions::Task),
+        schemars::schema_for!(crate::functions::TaskExpression),
+        schemars::schema_for!(crate::functions::TaskProfile),
+        schemars::schema_for!(crate::functions::VectorCompletionTask),
+        schemars::schema_for!(crate::functions::VectorCompletionTaskExpression),
+        schemars::schema_for!(crate::functions::VectorFunctionTask),
+        schemars::schema_for!(crate::functions::VectorFunctionTaskExpression),
         schemars::schema_for!(crate::laboratories::executions::request::LaboratoryExecutionCreateParams),
         schemars::schema_for!(crate::laboratories::executions::response::streaming::BuilderChunk),
         schemars::schema_for!(crate::laboratories::executions::response::streaming::EvaluationChunk),
@@ -1791,26 +359,27 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::laboratories::executions::response::unary::Evaluation),
         schemars::schema_for!(crate::laboratories::executions::response::unary::LaboratoryExecution),
         schemars::schema_for!(crate::laboratories::executions::response::unary::Object),
-        schemars::schema_for!(crate::swarm::response::GetSwarmResponse),
+        schemars::schema_for!(crate::remote::Remote),
+        schemars::schema_for!(crate::remote::RemotePath),
+        schemars::schema_for!(crate::remote::RemotePathCommitOptional),
         schemars::schema_for!(crate::swarm::InlineSwarm),
         schemars::schema_for!(crate::swarm::InlineSwarmBase),
         schemars::schema_for!(crate::swarm::InlineSwarmBaseOrRemote),
         schemars::schema_for!(crate::swarm::InlineSwarmBaseOrRemoteCommitOptional),
-        schemars::schema_for!(crate::swarm::response::ListSwarmResponse),
-        schemars::schema_for!(crate::swarm::request::ListSwarmsRequest),
-        schemars::schema_for!(crate::swarm::request::ListSwarmsSource),
         schemars::schema_for!(crate::swarm::RemoteSwarm),
         schemars::schema_for!(crate::swarm::RemoteSwarmBase),
+        schemars::schema_for!(crate::swarm::request::ListSwarmsRequest),
+        schemars::schema_for!(crate::swarm::request::ListSwarmsSource),
+        schemars::schema_for!(crate::swarm::response::GetSwarmResponse),
+        schemars::schema_for!(crate::swarm::response::ListSwarmResponse),
+        schemars::schema_for!(crate::swarm::response::UsageSwarmResponse),
         schemars::schema_for!(crate::swarm::Swarm),
         schemars::schema_for!(crate::swarm::SwarmBase),
-        schemars::schema_for!(crate::swarm::response::UsageSwarmResponse),
-        schemars::schema_for!(crate::vector::completions::VectorResponses),
-        schemars::schema_for!(crate::vector::completions::cache::response::CacheVote),
         schemars::schema_for!(crate::vector::completions::cache::request::CacheVoteRequestOwned),
-        schemars::schema_for!(crate::vector::completions::cache::response::CompletionVotes),
         schemars::schema_for!(crate::vector::completions::cache::request::GetCompletionVotesRequest),
+        schemars::schema_for!(crate::vector::completions::cache::response::CacheVote),
+        schemars::schema_for!(crate::vector::completions::cache::response::CompletionVotes),
         schemars::schema_for!(crate::vector::completions::request::VectorCompletionCreateParams),
-        schemars::schema_for!(crate::vector::completions::response::Vote),
         schemars::schema_for!(crate::vector::completions::response::streaming::AgentCompletionChunk),
         schemars::schema_for!(crate::vector::completions::response::streaming::InnerError<'_>),
         schemars::schema_for!(crate::vector::completions::response::streaming::Object),
@@ -1818,165 +387,711 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::vector::completions::response::unary::AgentCompletion),
         schemars::schema_for!(crate::vector::completions::response::unary::Object),
         schemars::schema_for!(crate::vector::completions::response::unary::VectorCompletion),
-        #[cfg(feature = "viewer")]
-        schemars::schema_for!(crate::viewer::Event),
-        schemars::schema_for!(crate::auth::ApiKey),
+        schemars::schema_for!(crate::vector::completions::response::Vote),
+        schemars::schema_for!(crate::vector::completions::VectorResponses),
+        schemars::schema_for!(crate::weights::Weights),
+        schemars::schema_for!(crate::weights::WeightsEntry),
     ];
-    #[cfg(feature = "cli")]
-    {
-        schemas.extend([
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::Error),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::ErrorType),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::Level),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::plugins::Command),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::plugins::CommandType),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::plugins::Output),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::command::plugins::run::Mcp),
-            #[cfg(feature = "cli")]
-            schemars::schema_for!(crate::cli::command::plugins::run::McpType),
-        ]);
-    }
-    #[cfg(feature = "viewer")]
-    {
-        schemas.extend([schemars::schema_for!(crate::viewer::Event)]);
-    }
-    #[cfg(feature = "http")]
-    {
-        schemas.extend([
-            #[cfg(feature = "http")]
-            schemars::schema_for!(crate::http::viewer::ResponseError),
-            schemars::schema_for!(
-                crate::http::viewer::AgentCompletionCreateParams
-            ),
-            #[cfg(feature = "http")]
-            schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
-            schemars::schema_for!(
-                crate::http::viewer::FunctionExecutionCreateParams
-            ),
-            schemars::schema_for!(
-                crate::http::viewer::FunctionExecutionRequest
-            ),
-            schemars::schema_for!(
-                crate::http::viewer::FunctionInventionRecursiveCreateParams
-            ),
-            schemars::schema_for!(
-                crate::http::viewer::FunctionInventionRecursiveRequest
-            ),
-            schemars::schema_for!(
-                crate::http::viewer::LaboratoryExecutionCreateParams
-            ),
-            schemars::schema_for!(
-                crate::http::viewer::LaboratoryExecutionRequest
-            ),
-            #[cfg(feature = "http")]
-            schemars::schema_for!(crate::http::viewer::Request),
-        ]);
-    }
 
-    // Concrete instantiations of `WithExpression<T>`, referenced by
-    // other schemas via `$ref` but whose titles only exist after
-    // concrete substitution. (`serde_json::Value` is NOT registered:
-    // it always inlines as an unconstrained `{}` schema wherever it
-    // appears — fields and the cli `ResponseSchema` wrapper alike —
-    // so no standalone "AnyValue" title exists.)
+    #[cfg(feature = "cli")]
     schemas.extend([
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<String>
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::functions::expression::InputValueExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::AssistantToolCallExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::AssistantToolCallFunctionExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::File,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::ImageUrl,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::InputAudio,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::MessageExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::RichContentExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::RichContentPartExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::SimpleContentExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::SimpleContentPartExpression,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                crate::agent::completions::message::VideoUrl,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                Vec<
-                    crate::functions::expression::WithExpression<
-                        crate::agent::completions::message::AssistantToolCallExpression,
-                    >,
-                >,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                Vec<
-                    crate::functions::expression::WithExpression<
-                        crate::agent::completions::message::MessageExpression,
-                    >,
-                >,
-            >
-        ),
-        schemars::schema_for!(
-            crate::functions::expression::WithExpression<
-                Vec<
-                    crate::functions::expression::WithExpression<
-                        crate::agent::completions::message::RichContentExpression,
-                    >,
-                >,
-            >
-        ),
+        schemars::schema_for!(crate::cli::command::AgentArguments),
+        schemars::schema_for!(crate::cli::command::agents::get::Path),
+        schemars::schema_for!(crate::cli::command::agents::get::Request),
+        schemars::schema_for!(crate::cli::command::agents::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::instances::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::instances::Request),
+        schemars::schema_for!(crate::cli::command::agents::list::Path),
+        schemars::schema_for!(crate::cli::command::agents::list::Request),
+        schemars::schema_for!(crate::cli::command::agents::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::list::RequestSource),
+        schemars::schema_for!(crate::cli::command::agents::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::list::ResponseFavorite),
+        schemars::schema_for!(crate::cli::command::agents::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePart),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::AssistantResponsePartType),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPart),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ClientNotificationPartType),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::Target),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePart),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::all::ToolResponsePartType),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::Response),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::id::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::pending::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::AgentsInactiveTag),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::KindFilter),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::message::EnqueueMode),
+        schemars::schema_for!(crate::cli::command::agents::message::MessageTarget),
+        schemars::schema_for!(crate::cli::command::agents::message::Path),
+        schemars::schema_for!(crate::cli::command::agents::message::Request),
+        schemars::schema_for!(crate::cli::command::agents::message::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::message::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::message::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::agents::message::RequestMessage),
+        schemars::schema_for!(crate::cli::command::agents::message::Response),
+        schemars::schema_for!(crate::cli::command::agents::message::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::message::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::message::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::publish::Path),
+        schemars::schema_for!(crate::cli::command::agents::publish::Request),
+        schemars::schema_for!(crate::cli::command::agents::publish::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::publish::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::publish::RequestBody),
+        schemars::schema_for!(crate::cli::command::agents::publish::RequestPublishMessage),
+        schemars::schema_for!(crate::cli::command::agents::publish::Response),
+        schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::publish::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::Response),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::delete::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::id::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::QueuePart),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::pending::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::queue::read::Request),
+        schemars::schema_for!(crate::cli::command::agents::queue::Request),
+        schemars::schema_for!(crate::cli::command::agents::Request),
+        schemars::schema_for!(crate::cli::command::agents::spawn::AgentResolution),
+        schemars::schema_for!(crate::cli::command::agents::spawn::AgentSpec),
+        schemars::schema_for!(crate::cli::command::agents::spawn::Path),
+        schemars::schema_for!(crate::cli::command::agents::spawn::Request),
+        schemars::schema_for!(crate::cli::command::agents::spawn::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::spawn::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::spawn::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::agents::spawn::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::spawn::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::spawn::ResponseItem),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::AgentTagResolution),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::Response),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::apply::Target),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::LookupState),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::Response),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tags::lookup::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tags::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::add::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::del::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::RequestCommitChange),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::edit::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::get::ResponseItem),
+        schemars::schema_for!(crate::cli::command::config::agents::favorites::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::get::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::get::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::get::Response),
+        schemars::schema_for!(crate::cli::command::config::agents::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::agents::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::agents::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::add::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::del::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::RequestCommitChange),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::edit::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::get::ResponseItem),
+        schemars::schema_for!(crate::cli::command::config::functions::favorites::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::get::Response),
+        schemars::schema_for!(crate::cli::command::config::functions::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::add::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::del::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::RequestCommitChange),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::edit::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::get::ResponseItem),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::favorites::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::Response),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::add::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::del::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::RequestCommitChange),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::edit::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::get::ResponseItem),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::favorites::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::Response),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::pairs::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::profiles::Request),
+        schemars::schema_for!(crate::cli::command::config::functions::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::Response),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::address::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::Response),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::Response),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::mcp::port::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::mcp::Request),
+        schemars::schema_for!(crate::cli::command::config::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::add::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::del::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::RequestCommitChange),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::edit::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::get::ResponseItem),
+        schemars::schema_for!(crate::cli::command::config::swarms::favorites::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::Response),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::swarms::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::swarms::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::Response),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::address::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::Response),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::Response),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::port::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::Response),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::secret::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::Response),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::config::viewer::signature::set::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::db::query::Column),
+        schemars::schema_for!(crate::cli::command::db::query::Path),
+        schemars::schema_for!(crate::cli::command::db::query::Request),
+        schemars::schema_for!(crate::cli::command::db::query::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::db::query::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::db::query::Response),
+        schemars::schema_for!(crate::cli::command::db::query::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::db::query::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::db::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::FunctionSpec),
+        schemars::schema_for!(crate::cli::command::functions::execute::ProfileSpec),
+        schemars::schema_for!(crate::cli::command::functions::execute::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::RequestInput),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::standard::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestDangerousAdvanced),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::RequestInput),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::execute::swiss_system::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::get::Path),
+        schemars::schema_for!(crate::cli::command::functions::get::Request),
+        schemars::schema_for!(crate::cli::command::functions::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::list::Path),
+        schemars::schema_for!(crate::cli::command::functions::list::Request),
+        schemars::schema_for!(crate::cli::command::functions::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::list::RequestSource),
+        schemars::schema_for!(crate::cli::command::functions::list::Response),
+        schemars::schema_for!(crate::cli::command::functions::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::list::ResponseFavorite),
+        schemars::schema_for!(crate::cli::command::functions::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::RequestSource),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::Response),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::ResponseFavorite),
+        schemars::schema_for!(crate::cli::command::functions::profiles::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::RequestBody),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::RequestPublishMessage),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::Response),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::profiles::publish::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::profiles::Request),
+        schemars::schema_for!(crate::cli::command::functions::publish::Path),
+        schemars::schema_for!(crate::cli::command::functions::publish::Request),
+        schemars::schema_for!(crate::cli::command::functions::publish::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::publish::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::publish::RequestBody),
+        schemars::schema_for!(crate::cli::command::functions::publish::RequestPublishMessage),
+        schemars::schema_for!(crate::cli::command::functions::publish::Response),
+        schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::functions::publish::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::functions::Request),
+        schemars::schema_for!(crate::cli::command::mcp::kill::Path),
+        schemars::schema_for!(crate::cli::command::mcp::kill::Request),
+        schemars::schema_for!(crate::cli::command::mcp::kill::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::mcp::kill::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::mcp::kill::Response),
+        schemars::schema_for!(crate::cli::command::mcp::kill::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::mcp::kill::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::mcp::Request),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::Path),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::Request),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::Response),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::mcp::spawn::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::Ok),
+        schemars::schema_for!(crate::cli::command::plugins::get::Path),
+        schemars::schema_for!(crate::cli::command::plugins::get::Request),
+        schemars::schema_for!(crate::cli::command::plugins::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::get::ResponseBinaries),
+        schemars::schema_for!(crate::cli::command::plugins::get::ResponseHttpMethod),
+        schemars::schema_for!(crate::cli::command::plugins::get::ResponseManifest),
+        schemars::schema_for!(crate::cli::command::plugins::get::ResponseMcpServer),
+        schemars::schema_for!(crate::cli::command::plugins::get::ResponseViewerRoute),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::Response),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::filesystem::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::Response),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::install::github::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::install::Request),
+        schemars::schema_for!(crate::cli::command::plugins::list::Path),
+        schemars::schema_for!(crate::cli::command::plugins::list::Request),
+        schemars::schema_for!(crate::cli::command::plugins::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::Request),
+        schemars::schema_for!(crate::cli::command::plugins::run::Mcp),
+        schemars::schema_for!(crate::cli::command::plugins::run::McpType),
+        schemars::schema_for!(crate::cli::command::plugins::run::Path),
+        schemars::schema_for!(crate::cli::command::plugins::run::Request),
+        schemars::schema_for!(crate::cli::command::plugins::run::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::run::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::run::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::run::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::run::ResponseItem),
+        schemars::schema_for!(crate::cli::command::RemotePathCommitOptionalOrFavorite),
+        schemars::schema_for!(crate::cli::command::Request),
+        schemars::schema_for!(crate::cli::command::swarms::get::Path),
+        schemars::schema_for!(crate::cli::command::swarms::get::Request),
+        schemars::schema_for!(crate::cli::command::swarms::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::list::Path),
+        schemars::schema_for!(crate::cli::command::swarms::list::Request),
+        schemars::schema_for!(crate::cli::command::swarms::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::list::RequestSource),
+        schemars::schema_for!(crate::cli::command::swarms::list::Response),
+        schemars::schema_for!(crate::cli::command::swarms::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::list::ResponseFavorite),
+        schemars::schema_for!(crate::cli::command::swarms::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::swarms::publish::Path),
+        schemars::schema_for!(crate::cli::command::swarms::publish::Request),
+        schemars::schema_for!(crate::cli::command::swarms::publish::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::publish::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::publish::RequestBody),
+        schemars::schema_for!(crate::cli::command::swarms::publish::RequestPublishMessage),
+        schemars::schema_for!(crate::cli::command::swarms::publish::Response),
+        schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::swarms::publish::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::swarms::Request),
+        schemars::schema_for!(crate::cli::command::tasks::list::Path),
+        schemars::schema_for!(crate::cli::command::tasks::list::Request),
+        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tasks::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::tasks::Request),
+        schemars::schema_for!(crate::cli::command::tasks::run::Path),
+        schemars::schema_for!(crate::cli::command::tasks::run::Request),
+        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::run::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::run::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tasks::run::ResponseItem),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Path),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Request),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::Response),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tasks::schedule::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::get::Path),
+        schemars::schema_for!(crate::cli::command::tools::get::Request),
+        schemars::schema_for!(crate::cli::command::tools::get::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::get::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::get::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::get::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::get::ResponseManifest),
+        schemars::schema_for!(crate::cli::command::tools::install::Path),
+        schemars::schema_for!(crate::cli::command::tools::install::Request),
+        schemars::schema_for!(crate::cli::command::tools::install::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::install::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::install::Response),
+        schemars::schema_for!(crate::cli::command::tools::install::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::install::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::list::Path),
+        schemars::schema_for!(crate::cli::command::tools::list::Request),
+        schemars::schema_for!(crate::cli::command::tools::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::Request),
+        schemars::schema_for!(crate::cli::command::tools::run::Path),
+        schemars::schema_for!(crate::cli::command::tools::run::Request),
+        schemars::schema_for!(crate::cli::command::tools::run::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::run::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::run::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::tools::run::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::tools::run::ResponseItem),
+        schemars::schema_for!(crate::cli::command::update::Path),
+        schemars::schema_for!(crate::cli::command::update::Request),
+        schemars::schema_for!(crate::cli::command::update::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::update::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::update::Response),
+        schemars::schema_for!(crate::cli::command::update::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::update::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::update::ResponseItem),
+        schemars::schema_for!(crate::cli::command::update::ResponseSkipReason),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Path),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Request),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::Response),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::generate_secret_signature_pair::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::kill::Path),
+        schemars::schema_for!(crate::cli::command::viewer::kill::Request),
+        schemars::schema_for!(crate::cli::command::viewer::kill::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::kill::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::kill::Response),
+        schemars::schema_for!(crate::cli::command::viewer::kill::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::kill::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::Request),
+        schemars::schema_for!(crate::cli::command::viewer::send::Path),
+        schemars::schema_for!(crate::cli::command::viewer::send::Request),
+        schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::send::Response),
+        schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::Path),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::Request),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::Response),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::viewer::spawn::response_schema::Request),
+        schemars::schema_for!(crate::cli::Error),
+        schemars::schema_for!(crate::cli::ErrorType),
+        schemars::schema_for!(crate::cli::Level),
+        schemars::schema_for!(crate::cli::plugins::Command),
+        schemars::schema_for!(crate::cli::plugins::CommandType),
+        schemars::schema_for!(crate::cli::plugins::Output),
+    ]);
+
+    #[cfg(feature = "viewer")]
+    schemas.extend([
+        schemars::schema_for!(crate::viewer::Event),
+    ]);
+
+    #[cfg(feature = "http")]
+    schemas.extend([
+        schemars::schema_for!(crate::http::viewer::AgentCompletionCreateParams),
+        schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
+        schemars::schema_for!(crate::http::viewer::FunctionExecutionCreateParams),
+        schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
+        schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveCreateParams),
+        schemars::schema_for!(crate::http::viewer::FunctionInventionRecursiveRequest),
+        schemars::schema_for!(crate::http::viewer::LaboratoryExecutionCreateParams),
+        schemars::schema_for!(crate::http::viewer::LaboratoryExecutionRequest),
+        schemars::schema_for!(crate::http::viewer::Request),
+        schemars::schema_for!(crate::http::viewer::ResponseError),
     ]);
 
     schemas
