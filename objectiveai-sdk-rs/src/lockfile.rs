@@ -11,16 +11,21 @@
 //! "is anyone alive holding this claim right now":
 //!
 //! - **Windows**: `CreateFileW + CREATE_NEW + FILE_FLAG_DELETE_ON_CLOSE`.
-//!   File existence ⇔ owner alive. Drop the [`LockClaim`] (or kill
-//!   the process by any means) → kernel deletes the file.
-//!   Subscribe to release via [`FindFirstChangeNotificationW`] on
-//!   the parent directory.
+//!   File existence ⇔ owner alive. Kill the process by any means →
+//!   kernel deletes the file. Subscribe to release via
+//!   [`FindFirstChangeNotificationW`] on the parent directory.
 //! - **Unix**: persistent file + `flock(LOCK_EX | LOCK_NB)`. Lock
-//!   state ⇔ owner alive. Drop the [`LockClaim`] (or kill the
-//!   process) → kernel releases the flock. Subscribe to release
-//!   via blocking `flock(LOCK_SH)` (wakes when no exclusive holder
-//!   remains). Subscribe to acquisition via blocking
-//!   `flock(LOCK_EX)`.
+//!   state ⇔ owner alive. Kill the process → kernel releases the
+//!   flock. Subscribe to release via blocking `flock(LOCK_SH)`
+//!   (wakes when no exclusive holder remains). Subscribe to
+//!   acquisition via blocking `flock(LOCK_EX)`.
+//!
+//! **Dropping a [`LockClaim`] does NOT release it.** The OS object
+//! is held in [`std::mem::ManuallyDrop`], so an acquired lock
+//! persists until process death unless explicitly ended via
+//! [`LockClaim::release`] or handed to a child via
+//! [`LockClaim::transfer`]. `let _ = try_acquire(..)` therefore
+//! means "claim this for the rest of the process's life."
 //!
 //! Every fallible op is best-effort at the API boundary —
 //! [`try_acquire`] returns `Option`, the blocking subscribers
@@ -28,15 +33,21 @@
 
 use std::path::{Path, PathBuf};
 
-/// One held lock. Dropping it releases the claim — Windows: file
-/// handle close triggers `FILE_FLAG_DELETE_ON_CLOSE`; Unix: FD
-/// close releases the `flock`.
+/// One held lock. Dropping the value does NOT release it — the
+/// handle/fd is deliberately leaked (`ManuallyDrop`), so the lock
+/// outlives the value and ends only at process death,
+/// [`Self::release`], or [`Self::transfer`].
 pub struct LockClaim {
-    #[allow(dead_code)] // Drop closes the handle; field anchors the lifetime.
-    file: std::fs::File,
+    file: std::mem::ManuallyDrop<std::fs::File>,
 }
 
 impl LockClaim {
+    fn new(file: std::fs::File) -> Self {
+        Self {
+            file: std::mem::ManuallyDrop::new(file),
+        }
+    }
+
     /// Transfer step 1 of 2 — call BEFORE spawning, with the
     /// [`tokio::process::Command`] of the one child that is to own
     /// this lock.
@@ -79,12 +90,10 @@ impl LockClaim {
         }
     }
 
-    /// Release the lock NOW, on purpose. Consumes the claim.
-    ///
-    /// Functionally this is what dropping the claim does (RAII close
-    /// → Windows `FILE_FLAG_DELETE_ON_CLOSE` deletes the file, Unix
-    /// the `flock` releases), but with the intent in the code and an
-    /// error channel instead of a silently-ignored close:
+    /// Release the lock NOW, on purpose. Consumes the claim — and
+    /// is the ONLY in-process way to end it (dropping leaks the
+    /// handle by design; the lock would persist until process
+    /// death):
     ///
     /// - **Windows**: closes the handle explicitly via `CloseHandle`
     ///   and surfaces its failure. Our handle is the only one (a
@@ -106,12 +115,15 @@ impl LockClaim {
     /// call `release` only when the lock should genuinely end.
     /// Windows has no such hazard — a duplicated handle is
     /// independent of ours.
-    pub fn release(self) -> std::io::Result<()> {
+    pub fn release(mut self) -> std::io::Result<()> {
+        // SAFETY: sole take — `self` is consumed and its (no-op)
+        // drop glue never touches the field again.
+        let file = unsafe { std::mem::ManuallyDrop::take(&mut self.file) };
         #[cfg(windows)]
         {
             use std::os::windows::io::IntoRawHandle;
             use windows_sys::Win32::Foundation::CloseHandle;
-            let handle = self.file.into_raw_handle();
+            let handle = file.into_raw_handle();
             // SAFETY: `into_raw_handle` transferred ownership to us;
             // this is the sole close of a live handle.
             if unsafe { CloseHandle(handle as _) } == 0 {
@@ -123,9 +135,9 @@ impl LockClaim {
         {
             use nix::fcntl::{FlockArg, flock};
             use std::os::unix::io::AsRawFd;
-            flock(self.file.as_raw_fd(), FlockArg::Unlock)
+            flock(file.as_raw_fd(), FlockArg::Unlock)
                 .map_err(std::io::Error::from)?;
-            // `self.file` drops here, closing the fd.
+            // `file` drops here, closing the fd.
             Ok(())
         }
     }
@@ -154,7 +166,7 @@ impl LockClaim {
     /// On `Err` the claim is handed back — the parent still owns the
     /// lock and decides what to do (e.g. the child died instantly).
     pub fn transfer(
-        self,
+        mut self,
         child: &tokio::process::Child,
     ) -> Result<(), (Self, std::io::Error)> {
         #[cfg(windows)]
@@ -192,18 +204,22 @@ impl LockClaim {
                 return Err((self, std::io::Error::last_os_error()));
             }
             // The child's handle table now keeps the file object (and
-            // the lock) alive; dropping our handle leaves the child
-            // as sole owner.
-            drop(self);
+            // the lock) alive; explicitly closing our handle (drop is
+            // a leak under ManuallyDrop, not a close) leaves the
+            // child sole owner.
+            // SAFETY: sole take — `self` is consumed on this path.
+            drop(unsafe { std::mem::ManuallyDrop::take(&mut self.file) });
             Ok(())
         }
         #[cfg(unix)]
         {
             let _ = child;
             // The child shares the open file description since spawn
-            // (step 1 cleared CLOEXEC). Dropping our fd makes it the
-            // sole owner.
-            drop(self);
+            // (step 1 cleared CLOEXEC). Explicitly closing our fd
+            // (drop is a leak under ManuallyDrop; and a close is NOT
+            // an unlock) makes the child sole owner.
+            // SAFETY: sole take — `self` is consumed on this path.
+            drop(unsafe { std::mem::ManuallyDrop::take(&mut self.file) });
             Ok(())
         }
     }
@@ -214,7 +230,7 @@ impl LockClaim {
 /// open / lock failure.
 pub async fn try_acquire(dir: &Path, key: &str) -> Option<LockClaim> {
     tokio::fs::create_dir_all(dir).await.ok()?;
-    open_claim_file(&claim_path(dir, key)).map(|file| LockClaim { file })
+    open_claim_file(&claim_path(dir, key)).map(LockClaim::new)
 }
 
 /// `<dir>/<escape(key)>.lock`.
@@ -374,7 +390,7 @@ async fn wait_release_windows(path: PathBuf) -> std::io::Result<()> {
 #[cfg(windows)]
 async fn wait_acquire_windows(path: PathBuf) -> std::io::Result<LockClaim> {
     loop {
-        if let Some(claim) = open_claim_file(&path).map(|file| LockClaim { file }) {
+        if let Some(claim) = open_claim_file(&path).map(LockClaim::new) {
             return Ok(claim);
         }
         // No file yet? `try_acquire` failed because the file
@@ -519,7 +535,7 @@ async fn wait_acquire_unix(path: PathBuf) -> std::io::Result<LockClaim> {
     tokio::task::spawn_blocking(move || unix_wait_for_acquire(&path))
         .await
         .map_err(|e| std::io::Error::other(format!("join: {e}")))?
-        .map(|file| LockClaim { file })
+        .map(LockClaim::new)
 }
 
 /// Block until the exclusive holder of `path` releases — implemented
