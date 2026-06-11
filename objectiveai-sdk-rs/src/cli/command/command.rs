@@ -9,6 +9,10 @@ pub enum Command {
         #[command(subcommand)]
         command: super::agents::Command,
     },
+    Api {
+        #[command(subcommand)]
+        command: super::api::Command,
+    },
     Config {
         #[command(subcommand)]
         command: super::config::Command,
@@ -54,6 +58,8 @@ pub enum Command {
 pub enum Request {
     #[schemars(title = "Agents")]
     Agents(super::agents::Request),
+    #[schemars(title = "Api")]
+    Api(super::api::Request),
     #[schemars(title = "Config")]
     Config(super::config::Request),
     #[schemars(title = "Db")]
@@ -92,6 +98,8 @@ pub enum Request {
 pub enum ResponseItem {
     #[schemars(title = "Agents")]
     Agents(super::agents::ResponseItem),
+    #[schemars(title = "Api")]
+    Api(super::api::Response),
     #[schemars(title = "Config")]
     Config(super::config::ResponseItem),
     #[schemars(title = "Db")]
@@ -123,6 +131,7 @@ impl super::CommandResponse for ResponseItem {
     fn into_mcp(self) -> super::McpResponseItem {
         match self {
             ResponseItem::Agents(v) => v.into_mcp(),
+            ResponseItem::Api(v) => v.into_mcp(),
             ResponseItem::Config(v) => v.into_mcp(),
             ResponseItem::Db(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
@@ -145,6 +154,8 @@ impl TryFrom<Command> for Request {
         match command {
             Command::Agents { command } =>
                 Ok(Request::Agents(super::agents::Request::try_from(command)?)),
+            Command::Api { command } =>
+                Ok(Request::Api(super::api::Request::try_from(command)?)),
             Command::Config { command } =>
                 Ok(Request::Config(super::config::Request::try_from(command)?)),
             Command::Db { command } =>
@@ -178,6 +189,7 @@ impl super::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
             Request::Agents(inner) => inner.into_command(),
+            Request::Api(inner) => inner.into_command(),
             Request::Config(inner) => inner.into_command(),
             Request::Db(inner) => inner.into_command(),
             Request::Functions(inner) => inner.into_command(),
@@ -210,6 +222,10 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Agents(req) => {
                 let inner = super::agents::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
+            }
+            Request::Api(req) => {
+                let inner = super::api::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
             }
             Request::Config(req) => {
                 let inner = super::config::execute(executor, req, agent_arguments).await?;
@@ -278,6 +294,10 @@ pub async fn execute_jq<E: super::CommandExecutor>(
         match request {
             Request::Agents(req) => {
                 let inner = super::agents::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Api(req) => {
+                let inner = super::api::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Config(req) => {

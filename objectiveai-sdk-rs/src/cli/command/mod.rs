@@ -41,6 +41,7 @@ mod response_schema;
 pub use response_schema::*;
 
 pub mod agents;
+pub mod api;
 pub mod config;
 pub mod db;
 pub mod functions;

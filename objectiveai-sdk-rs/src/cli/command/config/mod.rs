@@ -1,4 +1,5 @@
 pub mod agents;
+pub mod api;
 pub mod functions;
 pub mod mcp;
 pub mod swarms;
@@ -9,6 +10,10 @@ pub enum Command {
     Agents {
         #[command(subcommand)]
         command: agents::Command,
+    },
+    Api {
+        #[command(subcommand)]
+        command: api::Command,
     },
     Functions {
         #[command(subcommand)]
@@ -34,6 +39,8 @@ pub enum Command {
 pub enum Request {
     #[schemars(title = "Agents")]
     Agents(agents::Request),
+    #[schemars(title = "Api")]
+    Api(api::Request),
     #[schemars(title = "Functions")]
     Functions(functions::Request),
     #[schemars(title = "Mcp")]
@@ -53,6 +60,8 @@ pub enum Request {
 pub enum ResponseItem {
     #[schemars(title = "Agents")]
     Agents(agents::ResponseItem),
+    #[schemars(title = "Api")]
+    Api(api::Response),
     #[schemars(title = "Functions")]
     Functions(functions::ResponseItem),
     #[schemars(title = "Mcp")]
@@ -68,6 +77,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
             ResponseItem::Agents(v) => v.into_mcp(),
+            ResponseItem::Api(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
@@ -82,6 +92,8 @@ impl TryFrom<Command> for Request {
         match command {
             Command::Agents { command } =>
                 Ok(Request::Agents(agents::Request::try_from(command)?)),
+            Command::Api { command } =>
+                Ok(Request::Api(api::Request::try_from(command)?)),
             Command::Functions { command } =>
                 Ok(Request::Functions(functions::Request::try_from(command)?)),
             Command::Mcp { command } =>
@@ -98,6 +110,7 @@ impl crate::cli::command::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
             Request::Agents(inner) => inner.into_command(),
+            Request::Api(inner) => inner.into_command(),
             Request::Functions(inner) => inner.into_command(),
             Request::Mcp(inner) => inner.into_command(),
             Request::Swarms(inner) => inner.into_command(),
@@ -122,6 +135,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Agents(req) => {
                 let inner = agents::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
+            }
+            Request::Api(req) => {
+                let inner = api::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
             }
             Request::Functions(req) => {
                 let inner = functions::execute(executor, req, agent_arguments).await?;
@@ -158,6 +175,10 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         match request {
             Request::Agents(req) => {
                 let inner = agents::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Api(req) => {
+                let inner = api::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Functions(req) => {
