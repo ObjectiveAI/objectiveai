@@ -32,6 +32,45 @@ pub fn ensure_not_running(exe_name: &str) -> Result<(), crate::error::Error> {
     }
 }
 
+/// Send SIGTERM (Unix) / TerminateProcess (Windows) to one specific
+/// pid. Returns 1 if a live process with that pid existed and was
+/// targeted, 0 otherwise. Used by `db kill`, where the postmaster's
+/// pid comes from `postmaster.pid` and a name match would hit
+/// unrelated postgres servers.
+pub fn kill_pid(pid: u32) -> usize {
+    let mut sys = System::new();
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing());
+    match sys.process(sysinfo::Pid::from_u32(pid)) {
+        Some(process) => {
+            let _ = process
+                .kill_with(Signal::Term)
+                .or_else(|| Some(process.kill()));
+            1
+        }
+        None => 0,
+    }
+}
+
+/// `true` if a TCP connect to `address:port` succeeds within 250ms.
+/// Wildcard bind addresses are probed via loopback (you can't connect
+/// TO `0.0.0.0`). Used by `db spawn` as its "already running" check —
+/// the objectiveai-db vehicle exits right after launching the
+/// postmaster, so a process-name check would always pass.
+pub async fn tcp_alive(address: &str, port: u16) -> bool {
+    let host = match address {
+        "0.0.0.0" | "::" => "127.0.0.1",
+        other => other,
+    };
+    matches!(
+        tokio::time::timeout(
+            std::time::Duration::from_millis(250),
+            tokio::net::TcpStream::connect((host, port)),
+        )
+        .await,
+        Ok(Ok(_))
+    )
+}
+
 /// Send SIGTERM (Unix) / TerminateProcess (Windows) to every matching
 /// pid. Returns the number of processes that were targeted. Idempotent:
 /// a count of zero is not an error.

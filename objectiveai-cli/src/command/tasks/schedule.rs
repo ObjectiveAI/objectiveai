@@ -27,7 +27,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 
     let name = request.name.clone();
     let (_db_id, version) = db::tasks::insert_schedule(
-        &ctx.db,
+        ctx.db.get().await?,
         &request.name,
         &request.command,
         &request.description,

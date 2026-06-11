@@ -273,10 +273,10 @@ pub async fn run(
     #[cfg(windows)]
     clear_stdio_inheritance();
 
-    // `Context::new` now drives `crate::postgres::bootstrap` +
-    // `crate::db::init` internally so the instance subprocess fast-
-    // path (which also routes through `Context::new`) picks up the
-    // pool. No explicit bootstrap call needed here.
+    // `Context::new` drives `crate::db::init` internally (connecting
+    // to the postgres configured via `config db`) so the instance
+    // subprocess fast-path (which also routes through `Context::new`)
+    // picks up the pool. No explicit setup call needed here.
     let ctx = match ctx {
         Some(c) => c,
         None => Context::new(load_config()).await?,

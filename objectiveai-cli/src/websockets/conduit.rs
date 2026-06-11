@@ -521,8 +521,18 @@ async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
+    let pool = match inner.ctx.db.get().await {
+        Ok(pool) => pool,
+        Err(e) => {
+            return server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
+                code: -32603,
+                message: format!("conduit: read_message_queue: {e}"),
+                data: None,
+            });
+        }
+    };
     match crate::db::message_queue::read_pending_and_upgrade_tag(
-        &inner.ctx.db,
+        pool,
         inner.agent_tag.as_deref(),
         &req.agent_instance_hierarchy,
     )

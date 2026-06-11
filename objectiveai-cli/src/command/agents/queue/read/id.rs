@@ -9,7 +9,7 @@ use crate::db;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let row = db::message_queue::read_content(&ctx.db, request.id)
+    let row = db::message_queue::read_content(ctx.db.get().await?, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(

@@ -41,7 +41,7 @@ struct Resolved {
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db.clone();
+    let db = ctx.db.get().await?.clone();
     let agents_dir = ctx
         .filesystem
         .base_dir()

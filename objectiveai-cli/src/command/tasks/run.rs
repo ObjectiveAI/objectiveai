@@ -73,12 +73,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // receiver. It appends each (run_id, line) to `tasks_logs` as they
     // come in, and exits once every sender has dropped.
     let (log_tx, log_rx) = tokio::sync::mpsc::unbounded_channel::<(i64, String)>();
-    let writer = tokio::spawn(log_writer_loop(ctx.db.clone(), log_rx));
+    let writer = tokio::spawn(log_writer_loop(ctx.db.get().await?.clone(), log_rx));
 
     // Scope is the caller's own AIH plus all descendants — no params.
     let parent = ctx.config.agent_instance_hierarchy.clone();
 
-    let rows = db::tasks::claim_pending(&ctx.db, &parent).await?;
+    let rows = db::tasks::claim_pending(ctx.db.get().await?, &parent).await?;
 
     if rows.is_empty() {
         // Nothing claimed → nothing to log. `log_tx` drops here and

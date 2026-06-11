@@ -140,7 +140,7 @@ async fn execute_streaming(
     let (agent_spec, agent_tag) = match request.agent {
         AgentResolution::Direct { agent_spec } => (agent_spec, None),
         AgentResolution::Tag { agent_tag } => {
-            match crate::db::tags::lookup(&ctx.db, &agent_tag).await? {
+            match crate::db::tags::lookup(ctx.db.get().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
                     return Err(Error::Instance(format!(
                         "tag {agent_tag:?} is already bound to {agent_instance_hierarchy:?}; \
@@ -230,7 +230,7 @@ pub(crate) fn run_multi_pass(
             // `chunk.agent_instance_hierarchy` directly on the first
             // chunk. Drop the receiver.
             let (log_writer, _ready_rx) = crate::db::logs::write_agent_completion(
-                &ctx.db,
+                ctx.db.get().await?,
                 &params,
                 ctx.config.agent_instance_hierarchy.clone(),
             )
@@ -305,7 +305,7 @@ pub(crate) fn run_multi_pass(
                 for (hier, continuation) in chunk.agent_instance_hierarchies() {
                     if let Some(c) = continuation {
                         continuation_upserts.push(
-                            crate::db::agent_continuations::upsert(&ctx.db, hier, c),
+                            crate::db::agent_continuations::upsert(ctx.db.get().await?, hier, c),
                         );
                     }
                 }
@@ -401,7 +401,7 @@ pub(crate) fn run_multi_pass(
                 break;
             };
             let pending = crate::db::message_queue::check_any_pending(
-                &ctx.db, hier,
+                ctx.db.get().await?, hier,
             )
             .await
             .unwrap_or(false);

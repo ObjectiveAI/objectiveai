@@ -9,16 +9,16 @@ use crate::error::Error;
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
     let mut config = ctx.filesystem.read_config().await?;
 
+    // Built-in defaults so a fresh install can `api spawn` with zero
+    // config. Loopback, deliberately NOT the api server's own 0.0.0.0
+    // env default — an unconfigured spawn shouldn't expose the server
+    // beyond the local machine.
     let address = config
         .api()
         .get_address()
-        .ok_or(Error::MissingArgs(
-            "api.address unset; run `objectiveai config api address set <addr>`",
-        ))?
+        .unwrap_or("127.0.0.1")
         .to_string();
-    let port = config.api().get_port().ok_or(Error::MissingArgs(
-        "api.port unset; run `objectiveai config api port set <port>`",
-    ))?;
+    let port = config.api().get_port().unwrap_or(5000);
 
     crate::spawn::ensure_not_running("objectiveai-api")?;
 

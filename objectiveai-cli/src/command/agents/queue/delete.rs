@@ -14,7 +14,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     use db::message_queue::DeleteOutcome;
 
     let outcome = db::message_queue::delete_by_id(
-        &ctx.db,
+        ctx.db.get().await?,
         request.id,
         &ctx.config.agent_instance_hierarchy,
     )

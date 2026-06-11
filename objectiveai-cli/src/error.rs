@@ -93,6 +93,8 @@ pub enum Error {
     FromArgs(#[from] objectiveai_sdk::cli::command::FromArgsError),
     #[error("{name} is already running (pids: {pids:?})")]
     AlreadyRunning { name: String, pids: Vec<u32> },
+    #[error("something is already listening on {address}:{port}")]
+    AlreadyListening { address: String, port: u16 },
     #[error("{name} did not announce \"listening\" on stderr before exiting")]
     SpawnNoListeningLine { name: String },
     #[error("spawn {0}: {1}")]
@@ -133,8 +135,6 @@ pub enum Error {
         name: String,
         agent_instance_hierarchy: String,
     },
-    #[error("embedded postgres bootstrap failed: {0}")]
-    PostgresBootstrap(String),
     #[error("db: {0}")]
     Db(#[from] crate::db::Error),
     /// Endpoint exists in the command tree but the underlying

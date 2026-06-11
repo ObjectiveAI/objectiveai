@@ -23,7 +23,10 @@ use crate::run::Config;
 pub struct Context {
     pub config: Config,
     pub filesystem: filesystem::Client,
-    pub db: db::Pool,
+    /// Lazily-initialized database pool — connects (and ensures the
+    /// database + schema) on first use, so db-less commands like
+    /// `config db ...` and `db spawn` work before any postgres exists.
+    pub db: db::LazyPool,
     pub http: HttpClient,
     /// The plugin a command is running on behalf of, when it was
     /// invoked through a plugin's nested-command protocol. Assembled
@@ -38,12 +41,13 @@ impl Context {
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
-        // Ensure the embedded postmaster is alive before opening the
-        // application pool. `bootstrap` is fast on the warm path
-        // (`postmaster.pid` already exists) and only spawns on first
-        // run.
-        crate::postgres::bootstrap(filesystem.base_dir()).await?;
-        let db = db::init(filesystem.base_dir()).await?;
+        // Connection parameters come from the on-disk `config db`
+        // tier (with built-in defaults). No postgres is spawned
+        // here — `objectiveai db spawn` provisions the local
+        // objectiveai-db; a remote postgres just needs `config db`
+        // pointed at it.
+        let mut file_config = filesystem.read_config().await?;
+        let db = db::LazyPool::new(file_config.db().clone());
         let http = build_http_client(&config, &filesystem).await?;
         let plugin = PluginPath::from_parts(
             config.plugin_owner.clone(),

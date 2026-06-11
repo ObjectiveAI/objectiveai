@@ -4,33 +4,30 @@
 //! NOT EXISTS` etc. that we run on every cold `init`. Idempotent: a
 //! second invocation against an already-populated database is a no-op.
 //!
-//! Connection URL strategy (postmaster is spun up by
-//! [`crate::postgres::bootstrap`] before this runs, with the
-//! cluster's default `pg_hba.conf` left intact; we authenticate
-//! with the fixed [`crate::postgres::PG_INITDB_PASSWORD`] the
-//! cluster was initdb'd against):
+//! Connection URL strategy: every connection parameter comes from
+//! the on-disk `config db` tier (address, port, user, password,
+//! database), with built-in defaults matching objectiveai-db's own
+//! env defaults — so a fresh install can `objectiveai db spawn` and
+//! connect with zero config, and a `config db` pointed at a remote
+//! postgres Just Works:
 //!
-//! `postgres://postgres:<pw>@127.0.0.1:<port>/<db>` — TCP
-//! loopback on every platform. `<port>` is the OS-assigned
-//! ephemeral port the postmaster bound to at bootstrap time;
-//! it's read out of `<data_dir>/postmaster.pid` (line 4) via
-//! [`crate::postgres::pg_port`].
+//! `postgres://<user>:<password>@<address>:<port>/<db>`
 //!
 //! We open two pools sequentially: a small admin pool against the
-//! `postgres` system database (used only to `CREATE DATABASE objectiveai`
-//! when it doesn't exist), then the real application pool against the
-//! freshly-ensured `objectiveai` database. Schema runs inside one
-//! transaction.
-
-use std::path::Path;
+//! `postgres` system database (used only to `CREATE DATABASE` the
+//! configured application database when it doesn't exist), then the
+//! real application pool against the freshly-ensured database.
+//! Schema runs inside one transaction.
 
 use sqlx::postgres::PgPoolOptions;
 use sqlx::{Executor as _, Row as _};
 
-use super::{Error, Pool};
+use crate::filesystem::config::{
+    DB_DEFAULT_ADDRESS, DB_DEFAULT_DATABASE, DB_DEFAULT_PASSWORD, DB_DEFAULT_PORT,
+    DB_DEFAULT_USER, DbConfig,
+};
 
-/// Database name we create + connect to for the application pool.
-const APP_DB_NAME: &str = "objectiveai";
+use super::{Error, Pool};
 
 /// Inline schema applied on every cold `init`. `CREATE TABLE IF NOT
 /// EXISTS` + `CREATE INDEX IF NOT EXISTS` everywhere keeps the call
@@ -271,24 +268,19 @@ FOR EACH ROW EXECUTE FUNCTION notify_message_queue_inactive();
 /// constant baked into Rust source.
 const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 
-/// Open the admin pool to the `postgres` system database, ensure
-/// `objectiveai` exists, then open the application pool and apply the
-/// inline schema. Idempotent across cold and warm starts — re-running
-/// against an already-bootstrapped database is a no-op (every CREATE
-/// uses `IF NOT EXISTS`).
-pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
-    let data_dir = config_base_dir.join("db");
-    // `postgres::bootstrap` ran first inside `Context::new`, so
-    // `postmaster.pid` is in place and carries the port the
-    // postmaster bound to (OS-assigned at start time).
-    let port = crate::postgres::pg_port(&data_dir).await.ok_or_else(|| {
-        Error::InvalidData(format!(
-            "postmaster.pid in {data_dir:?} did not carry a parseable port — \
-             bootstrap appears to have run but the postmaster isn't running"
-        ))
-    })?;
-    let admin_url = build_url("postgres", port);
-    let app_url = build_url(APP_DB_NAME, port);
+/// Open the admin pool to the `postgres` system database, ensure the
+/// configured application database exists, then open the application
+/// pool and apply the inline schema. Idempotent across cold and warm
+/// starts — re-running against an already-bootstrapped database is a
+/// no-op (every CREATE uses `IF NOT EXISTS`).
+pub async fn init(db_config: &DbConfig) -> Result<Pool, Error> {
+    let address = db_config.get_address().unwrap_or(DB_DEFAULT_ADDRESS);
+    let port = db_config.get_port().unwrap_or(DB_DEFAULT_PORT);
+    let user = db_config.get_user().unwrap_or(DB_DEFAULT_USER);
+    let password = db_config.get_password().unwrap_or(DB_DEFAULT_PASSWORD);
+    let database = db_config.get_database().unwrap_or(DB_DEFAULT_DATABASE);
+    let admin_url = build_url(address, port, user, password, "postgres");
+    let app_url = build_url(address, port, user, password, database);
 
     // 1. Admin pool: ensure the `objectiveai` database exists.
     //    `CREATE DATABASE` cannot run inside a transaction, so we use
@@ -296,24 +288,28 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     let admin = PgPoolOptions::new()
         .max_connections(1)
         .connect(&admin_url)
-        .await?;
+        .await
+        .map_err(|e| unreachable_hint(address, port, e))?;
     let exists: bool = {
         let row = sqlx::query("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)")
-            .bind(APP_DB_NAME)
+            .bind(database)
             .fetch_one(&admin)
             .await?;
         row.try_get::<bool, _>(0)?
     };
     if !exists {
-        // `CREATE DATABASE` can't be parameterised; the constant is
-        // a compile-time literal so no injection surface.
+        // `CREATE DATABASE` can't be parameterised; the name comes
+        // from config, so quote it as an identifier (double-quote
+        // wrapping with embedded quotes doubled) to keep arbitrary
+        // names safe.
         //
         // Race: two concurrent cli processes can both observe
         // `exists = false` and race the CREATE. The second to
         // commit gets SQLSTATE 42P04 (`duplicate_database`); swallow
         // that exact code (any other error still propagates).
+        let quoted = database.replace('"', "\"\"");
         match admin
-            .execute(format!("CREATE DATABASE {APP_DB_NAME}").as_str())
+            .execute(format!("CREATE DATABASE \"{quoted}\"").as_str())
             .await
         {
             Ok(_) => {}
@@ -345,7 +341,8 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     let pool = PgPoolOptions::new()
         .max_connections(8)
         .connect(&app_url)
-        .await?;
+        .await
+        .map_err(|e| unreachable_hint(address, port, e))?;
     {
         // Arbitrary 64-bit constant; the pair `(database, key)`
         // defines the lock identity, so as long as every process
@@ -375,17 +372,26 @@ pub async fn init(config_base_dir: &Path) -> Result<Pool, Error> {
     Ok(Pool(pool))
 }
 
-/// Compose the libpq connection URL for `db` against the
-/// postmaster listening on `127.0.0.1:<port>`. TCP loopback on
-/// every platform; the port is the OS-assigned ephemeral one
-/// the postmaster bound to at bootstrap time and advertised via
-/// `postmaster.pid`. Password is the fixed
-/// [`crate::postgres::PG_INITDB_PASSWORD`] the cluster was
-/// initdb'd against.
-fn build_url(db: &str, port: u16) -> String {
-    let password = percent_encoding::utf8_percent_encode(
-        crate::postgres::PG_INITDB_PASSWORD,
-        percent_encoding::NON_ALPHANUMERIC,
-    );
-    format!("postgres://postgres:{password}@127.0.0.1:{port}/{db}")
+/// Compose the libpq connection URL for `db` from the configured
+/// connection parameters. User and password are percent-encoded so
+/// arbitrary config values can't break the URL shape.
+fn build_url(address: &str, port: u16, user: &str, password: &str, db: &str) -> String {
+    let user =
+        percent_encoding::utf8_percent_encode(user, percent_encoding::NON_ALPHANUMERIC);
+    let password =
+        percent_encoding::utf8_percent_encode(password, percent_encoding::NON_ALPHANUMERIC);
+    format!("postgres://{user}:{password}@{address}:{port}/{db}")
+}
+
+/// Map a pool-connect failure to the actionable error: the database
+/// at the configured endpoint isn't reachable, and the fix is either
+/// `objectiveai db spawn` (local objectiveai-db) or `config db ...`
+/// (remote postgres). Non-connect errors (auth failures, TLS, ...)
+/// get the same wrapper — the remedy hint is still the right one.
+fn unreachable_hint(address: &str, port: u16, source: sqlx::Error) -> Error {
+    Error::DbUnreachable {
+        address: address.to_string(),
+        port,
+        source: Box::new(source),
+    }
 }

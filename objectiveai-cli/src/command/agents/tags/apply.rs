@@ -58,7 +58,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         db::tags::ResolvedApplyTarget::AgentTag { agent_tag } => Some(agent_tag.clone()),
         _ => None,
     };
-    let state = db::tags::apply(&ctx.db, &request.name, resolved).await?;
+    let state = db::tags::apply(ctx.db.get().await?, &request.name, resolved).await?;
     Ok(match (source_tag, state) {
         (None, db::tags::LookupState::Bound { agent_instance_hierarchy }) => {
             // AgentInstance path — re-derive `agent_instance` + parent

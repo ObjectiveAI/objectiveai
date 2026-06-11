@@ -82,7 +82,7 @@ pub fn run(
         // `written_once` has also been flipped, so we never await
         // this oneshot before the gate opens.
         let (log_writer, log_ready_rx) = crate::db::logs::write_function_execution(
-            &ctx.db,
+            ctx.db.get().await?,
             &params,
             ctx.config.agent_instance_hierarchy.clone(),
         )
@@ -131,7 +131,7 @@ pub fn run(
                         registry.observe(hier);
                         if let Some(c) = continuation {
                             continuation_upserts.push(
-                                crate::db::agent_continuations::upsert(&ctx.db, hier, c),
+                                crate::db::agent_continuations::upsert(ctx.db.get().await?, hier, c),
                             );
                         }
                     }

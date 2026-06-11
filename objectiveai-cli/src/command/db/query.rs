@@ -29,7 +29,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     pre_flight_validate(&request.query)?;
 
     let timeout = Duration::from_secs(request.timeout_seconds);
-    let raw = crate::db::query::run_readonly_query(&ctx.db, &request.query, timeout).await?;
+    let raw = crate::db::query::run_readonly_query(ctx.db.get().await?, &request.query, timeout).await?;
 
     if let Some(limit) = request.max_tokens {
         let actual = count_tokens(&raw)?;
