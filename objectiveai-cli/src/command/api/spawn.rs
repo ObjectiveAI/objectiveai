@@ -83,7 +83,16 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     } else {
         "objectiveai-api"
     };
-    let exe = ctx.filesystem.base_dir().join("bin").join(bin);
+    let exe = ctx.filesystem.bin_dir().join(bin);
+
+    // Forward the layout root only — deliberately NOT
+    // OBJECTIVEAI_STATE: the api server resolves its own state from
+    // its own environment (defaulting to "default") rather than
+    // inheriting whichever state the spawning cli happened to run in.
+    extra_env.push((
+        "OBJECTIVEAI_DIR",
+        ctx.filesystem.dir().to_string_lossy().into_owned(),
+    ));
 
     let listening =
         crate::spawn::spawn_and_wait_for_listening(&exe, &address, port, &extra_env).await?;

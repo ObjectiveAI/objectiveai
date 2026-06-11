@@ -1,7 +1,7 @@
 //! `update` — bare-naked streaming handler.
 //!
-//! Refreshes all four shipped binaries (cli, api, viewer, mcp) from
-//! the latest GitHub release, emitting one [`ResponseItem`] per
+//! Refreshes all five shipped binaries (cli, api, viewer, mcp, db)
+//! from the latest GitHub release, emitting one [`ResponseItem`] per
 //! (asset, stage) pair as the run progresses.
 //!
 //! Ported from `src/updater.rs`. The legacy emitted
@@ -10,19 +10,21 @@
 //! `mpsc::channel` whose receiver is surfaced as the leaf's
 //! streaming return value.
 //!
-//! Layout on disk (resolved via `ctx.filesystem.base_dir()`):
+//! Layout on disk (resolved via `ctx.filesystem.bin_dir()` — every
+//! binary is machine-wide, shared across states):
 //!
 //! ```text
-//! <base_dir>/objectiveai{.exe}        ← cli
-//! <base_dir>/bin/objectiveai-api{.exe}
-//! <base_dir>/bin/objectiveai-viewer{.exe}
-//! <base_dir>/bin/objectiveai-mcp{.exe}
+//! <bin_dir>/objectiveai{.exe}        ← cli
+//! <bin_dir>/objectiveai-api{.exe}
+//! <bin_dir>/objectiveai-viewer{.exe}
+//! <bin_dir>/objectiveai-mcp{.exe}
+//! <bin_dir>/objectiveai-db{.exe}
 //! ```
 //!
 //! Release-completeness rule: if the latest release is missing any of
-//! the four expected `(os, arch)` assets, the run emits
+//! the five expected `(os, arch)` assets, the run emits
 //! [`ResponseSkipReason::IncompleteRelease`] and exits without
-//! touching disk. Either all four advance together or none do.
+//! touching disk. Either all five advance together or none do.
 
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -41,18 +43,18 @@ const RELEASES_API: &str =
 const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
 const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// Swap order: cli last because it's the running binary. The three
+/// Swap order: cli last because it's the running binary. The
 /// sub-binaries don't gate each other — a swap failure on one is
 /// non-fatal (we emit a per-binary error event and keep going).
-const PACKAGES: &[&str] = &["api", "viewer", "mcp", "cli"];
+const PACKAGES: &[&str] = &["api", "viewer", "mcp", "db", "cli"];
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
-    let base_dir = ctx.filesystem.base_dir().clone();
+    let bin_dir = ctx.filesystem.bin_dir();
     let github_authorization = ctx.config.github_authorization.clone();
 
     tokio::spawn(async move {
-        if let Err(e) = run(&base_dir, github_authorization.as_deref(), &tx).await {
+        if let Err(e) = run(&bin_dir, github_authorization.as_deref(), &tx).await {
             let _ = tx.send(Err(e)).await;
         }
     });
@@ -63,7 +65,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 }
 
 async fn run(
-    base_dir: &Path,
+    bin_dir: &Path,
     github_authorization: Option<&str>,
     tx: &tokio::sync::mpsc::Sender<Result<ResponseItem, Error>>,
 ) -> Result<(), Error> {
@@ -183,15 +185,14 @@ async fn run(
         return Ok(());
     }
 
-    let bin_dir = base_dir.join("bin");
-    std::fs::create_dir_all(&bin_dir)
+    std::fs::create_dir_all(bin_dir)
         .map_err(|e| Error::Updater(format!("create bin dir: {e}")))?;
 
     let targets: Vec<(&'static str, String, PathBuf)> = expected
         .iter()
         .map(|(pkg, name)| {
             let path = if *pkg == "cli" {
-                base_dir.join(format!("objectiveai{ext}"))
+                bin_dir.join(format!("objectiveai{ext}"))
             } else {
                 bin_dir.join(format!("objectiveai-{pkg}{ext}"))
             };

@@ -1,6 +1,7 @@
 //! Tool discovery on the local filesystem.
 //!
-//! Tools live at `<base_dir>/tools/<owner>/<name>/<version>/` with the
+//! Tools live at `<bin_dir>/tools/<owner>/<name>/<version>/` (machine-
+//! wide, shared by every state) with the
 //! manifest as `objectiveai.json` inside the version folder. The
 //! manifest's `exec` is a per-OS command vector; at run time the
 //! current platform's vector is appended with the caller's args and
@@ -42,9 +43,9 @@ fn platform_exec(exec: &Exec) -> Vec<String> {
 }
 
 impl Client {
-    /// The tools directory: `<base_dir>/tools`.
+    /// The tools directory: `<bin_dir>/tools`.
     pub fn tools_dir(&self) -> PathBuf {
-        self.base_dir().join("tools")
+        self.bin_dir().join("tools")
     }
 
     /// A tool's version directory:

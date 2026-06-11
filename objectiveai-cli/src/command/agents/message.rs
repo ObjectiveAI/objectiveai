@@ -49,7 +49,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .unwrap_or(false);
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
 
@@ -224,7 +224,7 @@ async fn run_spawn_with(
     };
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
 

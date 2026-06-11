@@ -69,9 +69,10 @@ async fn collect_manifest_paths(root: PathBuf) -> Vec<PathBuf> {
 }
 
 impl Client {
-    /// The plugins directory: `<base_dir>/plugins`.
+    /// The plugins directory: `<bin_dir>/plugins` — installed
+    /// plugins are machine-wide, shared by every state.
     pub fn plugins_dir(&self) -> PathBuf {
-        self.base_dir().join("plugins")
+        self.bin_dir().join("plugins")
     }
 
     /// The directory that holds a plugin's installed artifacts:

@@ -160,7 +160,7 @@ async fn execute_streaming(
     let agent = resolve_agent(ctx, agent_spec).await?;
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
 

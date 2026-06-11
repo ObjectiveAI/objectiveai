@@ -28,9 +28,21 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     } else {
         "objectiveai-viewer"
     };
-    let exe = ctx.filesystem.base_dir().join("bin").join(bin);
+    let exe = ctx.filesystem.bin_dir().join(bin);
 
-    let listening = crate::spawn::spawn_and_wait_for_listening(&exe, &address, port, &[]).await?;
+    let listening = crate::spawn::spawn_and_wait_for_listening(
+        &exe,
+        &address,
+        port,
+        &[
+            (
+                "OBJECTIVEAI_DIR",
+                ctx.filesystem.dir().to_string_lossy().into_owned(),
+            ),
+            ("OBJECTIVEAI_STATE", ctx.filesystem.state().to_string()),
+        ],
+    )
+    .await?;
     Ok(Response { listening })
 }
 

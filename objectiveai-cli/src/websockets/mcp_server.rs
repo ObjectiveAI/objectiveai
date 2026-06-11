@@ -29,7 +29,8 @@ pub fn spawn(ctx: Context) -> McpServerHandle {
         address: "127.0.0.1".to_string(),
         port: 0,
         suppress_output: true,
-        config_base_dir: ctx.config.config_base_dir.clone(),
+        objectiveai_dir: ctx.config.objectiveai_dir.clone(),
+        objectiveai_state: ctx.config.objectiveai_state.clone(),
     };
     let executor = CliCommandExecutor::new(ctx);
     tokio::spawn(async move {

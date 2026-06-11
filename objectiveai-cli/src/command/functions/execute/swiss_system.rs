@@ -67,7 +67,7 @@ async fn execute_streaming(
     };
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
     let inner = super::runner::run(ctx.clone(), params, agents_dir);

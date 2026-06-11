@@ -28,13 +28,17 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         return Err(Error::AlreadyListening { address, port });
     }
 
-    // Forward state-root + password so the vehicle provisions inside
-    // THIS cli's config base dir with the configured superuser
-    // password. ADDRESS/PORT travel via the spawn helper itself.
-    let mut extra_env: Vec<(&str, String)> = vec![(
-        "CONFIG_BASE_DIR",
-        ctx.filesystem.base_dir().to_string_lossy().into_owned(),
-    )];
+    // Forward the layout root + state + password so the vehicle
+    // provisions THIS cli's tree: postgres binaries into the shared
+    // <dir>/bin/pg-bin, the cluster into <dir>/state/<state>/db.
+    // ADDRESS/PORT travel via the spawn helper itself.
+    let mut extra_env: Vec<(&str, String)> = vec![
+        (
+            "OBJECTIVEAI_DIR",
+            ctx.filesystem.dir().to_string_lossy().into_owned(),
+        ),
+        ("OBJECTIVEAI_STATE", ctx.filesystem.state().to_string()),
+    ];
     if let Some(password) = password {
         extra_env.push(("PASSWORD", password));
     }
@@ -44,7 +48,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     } else {
         "objectiveai-db"
     };
-    let exe = ctx.filesystem.base_dir().join("bin").join(bin);
+    let exe = ctx.filesystem.bin_dir().join(bin);
 
     let listening =
         crate::spawn::spawn_and_wait_for_listening(&exe, &address, port, &extra_env).await?;

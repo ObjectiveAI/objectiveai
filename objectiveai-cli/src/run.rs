@@ -50,8 +50,10 @@ pub fn clear_stdio_inheritance() {
 struct EnvConfigBuilder {
     #[envconfig(from = "CONFIG_SET_FORBIDDEN")]
     config_set_forbidden: Option<String>,
-    #[envconfig(from = "CONFIG_BASE_DIR")]
-    config_base_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_DIR")]
+    objectiveai_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_STATE")]
+    objectiveai_state: Option<String>,
     #[envconfig(from = "COMMIT_AUTHOR_NAME")]
     commit_author_name: Option<String>,
     #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
@@ -88,7 +90,8 @@ impl EnvConfigBuilder {
         }
         ConfigBuilder {
             config_set_forbidden: self.config_set_forbidden.map(|s| parse_bool(&s)),
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
@@ -109,7 +112,8 @@ impl EnvConfigBuilder {
 #[derive(Default)]
 pub struct ConfigBuilder {
     pub config_set_forbidden: Option<bool>,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,
@@ -146,7 +150,8 @@ impl ConfigBuilder {
     pub fn build(self) -> Config {
         Config {
             config_set_forbidden: self.config_set_forbidden.unwrap_or(false),
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
             github_authorization: self.github_authorization,
@@ -169,7 +174,10 @@ impl ConfigBuilder {
 #[derive(Debug, Clone)]
 pub struct Config {
     pub config_set_forbidden: bool,
-    pub config_base_dir: Option<String>,
+    /// Layout root override (`OBJECTIVEAI_DIR`); None = ~/.objectiveai.
+    pub objectiveai_dir: Option<String>,
+    /// State name (`OBJECTIVEAI_STATE`); None = "default".
+    pub objectiveai_state: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
     pub github_authorization: Option<String>,

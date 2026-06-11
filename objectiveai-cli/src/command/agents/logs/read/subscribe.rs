@@ -44,7 +44,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let db = ctx.db.get().await?.clone();
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
     // Match the dir-create posture used by `agents message`.

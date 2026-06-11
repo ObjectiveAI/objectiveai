@@ -129,7 +129,7 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
 async fn execute_streaming(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
     let agents_dir = ctx
         .filesystem
-        .base_dir()
+        .state_dir()
         .join("instances")
         .join("agents");
     std::fs::create_dir_all(&agents_dir)

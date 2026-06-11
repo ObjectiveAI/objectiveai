@@ -44,7 +44,7 @@ fn validate_repository_name(name: &str) -> Result<(), Error> {
 
 fn repo_path(client: &Client, kind: Kind, repository: &str) -> PathBuf {
     client
-        .base_dir()
+        .state_dir()
         .join(kind.as_str())
         .join(&client.commit_author_name)
         .join(repository)

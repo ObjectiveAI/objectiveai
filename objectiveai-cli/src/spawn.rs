@@ -199,8 +199,11 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if cfg.config_set_forbidden {
         cmd.env("CONFIG_SET_FORBIDDEN", "true");
     }
-    if let Some(v) = cfg.config_base_dir.as_deref() {
-        cmd.env("CONFIG_BASE_DIR", v);
+    if let Some(v) = cfg.objectiveai_dir.as_deref() {
+        cmd.env("OBJECTIVEAI_DIR", v);
+    }
+    if let Some(v) = cfg.objectiveai_state.as_deref() {
+        cmd.env("OBJECTIVEAI_STATE", v);
     }
     if let Some(v) = cfg.commit_author_name.as_deref() {
         cmd.env("COMMIT_AUTHOR_NAME", v);

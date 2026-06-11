@@ -37,7 +37,8 @@ pub struct Context {
 impl Context {
     pub async fn new(config: Config) -> Result<Self, crate::error::Error> {
         let filesystem = filesystem::Client::new(
-            config.config_base_dir.clone(),
+            config.objectiveai_dir.clone(),
+            config.objectiveai_state.clone(),
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
