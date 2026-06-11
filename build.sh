@@ -8,13 +8,12 @@
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
 #                     (objectiveai-dotnet is disconnected from the root build for now;
 #                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
-# Phase 4 (sequential): objectiveai-viewer release (cross-platform)
-#                       then host-target debug. Sequential because both invoke
-#                       `tauri build`, which holds the workspace cargo target/
-#                       lock — running them in parallel deadlocks. Both
-#                       artifacts are required: cargo test / cargo build of
-#                       objectiveai-cli compiles in debug and its build.rs
-#                       validates the viewer's host-target debug embed.
+# The viewer is NOT built here. Nothing consumes
+# objectiveai-viewer/embed/ anymore (the cli stopped embedding the
+# viewer binary; its build.rs only sets linker flags), and the GitHub
+# Release viewer legs build their own binaries via
+# objectiveai-viewer/install.sh. Run `bash objectiveai-viewer/build.sh`
+# directly if you want a local embed build.
 #
 # Usage:
 #   bash build.sh
@@ -71,7 +70,7 @@ run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
 run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh objectiveai-function-tree/build.sh
 
-# Wait for background builds before running viewer (viewer depends on objectiveai-sdk-js)
+# Wait for the background embedded-binary builds.
 FAILED=false
 for pid in $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
   if ! wait "$pid"; then
@@ -82,14 +81,3 @@ done
 if $FAILED; then
   exit 1
 fi
-
-# Phase 4: viewer (depends on objectiveai-sdk-js package being built in phase 3).
-# Two artifacts are produced: a cross-platform release embed (consumed by
-# published CLI binaries) and a host-target debug embed (consumed by
-# `cargo test`/`cargo build` of objectiveai-cli during local development).
-# Run sequentially — both invoke `tauri build` which holds the workspace
-# cargo target/ lock; parallel invocations deadlock.
-bash "$REPO_ROOT/objectiveai-viewer/build.sh" --release
-
-HOST_TARGET="$(rustc -vV | awk '/^host:/ {print $2}')"
-bash "$REPO_ROOT/objectiveai-viewer/build.sh" --target "$HOST_TARGET"
