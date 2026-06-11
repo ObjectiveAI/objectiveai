@@ -84,14 +84,25 @@ impl LockClaim {
     /// error channel instead of a silently-ignored close:
     ///
     /// - **Windows**: closes the handle explicitly via `CloseHandle`
-    ///   and surfaces its failure. The file disappears once the last
-    ///   handle closes (immediately, unless ownership was duplicated
-    ///   into a child via [`Self::transfer`]).
+    ///   and surfaces its failure. Our handle is the only one (a
+    ///   transferred claim no longer exists — [`Self::transfer`]
+    ///   consumes it), so this is the last close and the file
+    ///   deletes immediately.
     /// - **Unix**: explicit `flock(LOCK_UN)` then close, surfacing
     ///   unlock failure. The claim FILE deliberately stays on disk —
     ///   deleting flock files is racy (a waiter holding the old inode
     ///   plus a fresh creator at the same path would yield two
     ///   "owners"), and [`is_held`] probes lock state, not existence.
+    ///
+    /// **Unix caveat — release vs transfer, in between:** after a
+    /// `prepare_transfer`'d spawn but before [`Self::transfer`], the
+    /// child shares the same open file description, and `LOCK_UN`
+    /// unlocks the OFD itself — `release` here would strip the lock
+    /// from the CHILD as well. To hand the lock over, call
+    /// [`Self::transfer`] (plain fd close, child keeps holding);
+    /// call `release` only when the lock should genuinely end.
+    /// Windows has no such hazard — a duplicated handle is
+    /// independent of ours.
     pub fn release(self) -> std::io::Result<()> {
         #[cfg(windows)]
         {
