@@ -76,6 +76,46 @@ impl LockClaim {
         }
     }
 
+    /// Release the lock NOW, on purpose. Consumes the claim.
+    ///
+    /// Functionally this is what dropping the claim does (RAII close
+    /// → Windows `FILE_FLAG_DELETE_ON_CLOSE` deletes the file, Unix
+    /// the `flock` releases), but with the intent in the code and an
+    /// error channel instead of a silently-ignored close:
+    ///
+    /// - **Windows**: closes the handle explicitly via `CloseHandle`
+    ///   and surfaces its failure. The file disappears once the last
+    ///   handle closes (immediately, unless ownership was duplicated
+    ///   into a child via [`Self::transfer`]).
+    /// - **Unix**: explicit `flock(LOCK_UN)` then close, surfacing
+    ///   unlock failure. The claim FILE deliberately stays on disk —
+    ///   deleting flock files is racy (a waiter holding the old inode
+    ///   plus a fresh creator at the same path would yield two
+    ///   "owners"), and [`is_held`] probes lock state, not existence.
+    pub fn release(self) -> std::io::Result<()> {
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::IntoRawHandle;
+            use windows_sys::Win32::Foundation::CloseHandle;
+            let handle = self.file.into_raw_handle();
+            // SAFETY: `into_raw_handle` transferred ownership to us;
+            // this is the sole close of a live handle.
+            if unsafe { CloseHandle(handle as _) } == 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        }
+        #[cfg(unix)]
+        {
+            use nix::fcntl::{FlockArg, flock};
+            use std::os::unix::io::AsRawFd;
+            flock(self.file.as_raw_fd(), FlockArg::Unlock)
+                .map_err(std::io::Error::from)?;
+            // `self.file` drops here, closing the fd.
+            Ok(())
+        }
+    }
+
     /// Transfer step 2 of 2 — call AFTER a successful spawn, with the
     /// child from step 1's command. Consumes the claim.
     ///
