@@ -33,6 +33,128 @@ pub struct LockClaim {
     file: std::fs::File,
 }
 
+impl LockClaim {
+    /// Transfer step 1 of 2 — call BEFORE spawning, with the
+    /// [`tokio::process::Command`] of the one child that is to own
+    /// this lock.
+    ///
+    /// - **Unix**: attaches a `pre_exec` hook that clears
+    ///   `FD_CLOEXEC` on the lock fd *inside the forked child only*.
+    ///   Every fd Rust opens is CLOEXEC by default, so no other
+    ///   child this process ever spawns inherits the lock — only
+    ///   this command's child does. Because `flock` locks belong to
+    ///   the open file description (shared by inherited fds), the
+    ///   child holds the *same lock* from the instant of spawn — at
+    ///   no point is it released and re-acquired.
+    /// - **Windows**: no-op. The handle is never inheritable;
+    ///   step 2 injects it post-spawn via `DuplicateHandle`.
+    ///
+    /// The claim must stay alive until [`Self::transfer`] — dropping
+    /// it before the spawn releases the lock as usual.
+    pub fn prepare_transfer(&self, cmd: &mut tokio::process::Command) {
+        #[cfg(unix)]
+        {
+            use std::os::unix::io::AsRawFd;
+            let fd = self.file.as_raw_fd();
+            // SAFETY: the hook runs post-fork pre-exec in the child;
+            // `fcntl(F_SETFD)` is async-signal-safe and `fd` is a
+            // plain integer valid in the child's inherited fd table.
+            unsafe {
+                cmd.pre_exec(move || {
+                    nix::fcntl::fcntl(
+                        fd,
+                        nix::fcntl::FcntlArg::F_SETFD(nix::fcntl::FdFlag::empty()),
+                    )
+                    .map_err(std::io::Error::from)?;
+                    Ok(())
+                });
+            }
+        }
+        #[cfg(windows)]
+        {
+            let _ = cmd;
+        }
+    }
+
+    /// Transfer step 2 of 2 — call AFTER a successful spawn, with the
+    /// child from step 1's command. Consumes the claim.
+    ///
+    /// On `Ok(())` the child is the *sole* owner: the lock lives
+    /// exactly as long as the child (kernel cleanup on exit or
+    /// crash), the parent retains no handle and no control, and no
+    /// other process the parent spawns ever held it. The parent may
+    /// die before or after the child without affecting the lock.
+    ///
+    /// - **Windows**: `DuplicateHandle`s the lock handle directly
+    ///   into the child's handle table (surgical — no inheritance),
+    ///   then closes the parent's handle. `FILE_FLAG_DELETE_ON_CLOSE`
+    ///   fires when the child's last handle closes. Note the
+    ///   spawn→transfer window: until this call returns, only the
+    ///   parent holds the lock, so a parent crash inside the window
+    ///   releases it while the child lives (fail-open, microseconds).
+    /// - **Unix**: nothing left to inject — the child already shares
+    ///   the lock via the inherited fd (step 1); consuming `self`
+    ///   closes the parent's fd, leaving the child sole owner. No
+    ///   fail-open window exists on Unix.
+    ///
+    /// On `Err` the claim is handed back — the parent still owns the
+    /// lock and decides what to do (e.g. the child died instantly).
+    pub fn transfer(
+        self,
+        child: &tokio::process::Child,
+    ) -> Result<(), (Self, std::io::Error)> {
+        #[cfg(windows)]
+        {
+            use std::os::windows::io::AsRawHandle;
+            use windows_sys::Win32::Foundation::{
+                DUPLICATE_SAME_ACCESS, DuplicateHandle, HANDLE,
+            };
+            use windows_sys::Win32::System::Threading::GetCurrentProcess;
+
+            let Some(child_handle) = child.raw_handle() else {
+                return Err((
+                    self,
+                    std::io::Error::other(
+                        "child has no process handle (already reaped)",
+                    ),
+                ));
+            };
+            let mut injected: HANDLE = std::ptr::null_mut();
+            // SAFETY: all handles are live for the duration of the
+            // call — ours via `self.file`, the child's via the
+            // `&Child` borrow. `injected` is a valid out-pointer.
+            let ok = unsafe {
+                DuplicateHandle(
+                    GetCurrentProcess(),
+                    self.file.as_raw_handle() as HANDLE,
+                    child_handle as HANDLE,
+                    &mut injected,
+                    0,
+                    0, // bInheritHandle = FALSE — children of the child don't get it
+                    DUPLICATE_SAME_ACCESS,
+                )
+            };
+            if ok == 0 {
+                return Err((self, std::io::Error::last_os_error()));
+            }
+            // The child's handle table now keeps the file object (and
+            // the lock) alive; dropping our handle leaves the child
+            // as sole owner.
+            drop(self);
+            Ok(())
+        }
+        #[cfg(unix)]
+        {
+            let _ = child;
+            // The child shares the open file description since spawn
+            // (step 1 cleared CLOEXEC). Dropping our fd makes it the
+            // sole owner.
+            drop(self);
+            Ok(())
+        }
+    }
+}
+
 /// Try to acquire `path` right now. `None` if another live process
 /// holds it, or any other open / lock failure.
 pub fn try_acquire(path: &Path) -> Option<LockClaim> {
