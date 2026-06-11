@@ -379,6 +379,15 @@ impl ConfigBuilder {
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
             mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
             mcp_encryption_key: self.mcp_encryption_key,
+            // Layout root (OBJECTIVEAI_DIR). Kept on Config for the
+            // paths that live OUTSIDE the state dir — e.g. the
+            // instance lock at <dir>/bin/locks/api/.
+            objectiveai_dir: match self.objectiveai_dir.as_deref() {
+                Some(dir) => std::path::PathBuf::from(dir),
+                None => dirs::home_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join(".objectiveai"),
+            },
             // The api's filesystem client holds per-state data
             // (functions/, profiles/), so resolve straight to the
             // state dir: <dir>/state/<state>.
@@ -468,6 +477,9 @@ pub struct Config {
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
     /// per process.
     pub mcp_encryption_key: Option<String>,
+    /// Layout root (`OBJECTIVEAI_DIR`); `config_base_dir` is the
+    /// per-state dir derived from it.
+    pub objectiveai_dir: std::path::PathBuf,
     pub config_base_dir: std::path::PathBuf,
     pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
@@ -541,6 +553,7 @@ pub async fn setup(
         mcp_connect_timeout,
         mcp_call_timeout,
         mcp_encryption_key,
+        objectiveai_dir: _,
         config_base_dir,
         persistent_cache_transient_ttl_ms,
         mock_delay_ms,

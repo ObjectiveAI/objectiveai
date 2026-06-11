@@ -3,9 +3,12 @@
 //! and [`crate::command::agents::message`] (the
 //! delivery-vs-spawn race driver).
 //!
-//! Each claim is one filesystem path. Each platform uses its
-//! strongest native mechanism for "is anyone alive holding this
-//! claim right now":
+//! Each claim is addressed by `(dir, key)`: the lock file lives at
+//! `<dir>/<escape(key)>.lock`. This module owns the filename
+//! escaping (percent-encoding outside `[A-Za-z0-9._-]`, injective)
+//! and the `.lock` suffix; the acquisition paths also create `dir`
+//! if needed. Each platform uses its strongest native mechanism for
+//! "is anyone alive holding this claim right now":
 //!
 //! - **Windows**: `CreateFileW + CREATE_NEW + FILE_FLAG_DELETE_ON_CLOSE`.
 //!   File existence ⇔ owner alive. Drop the [`LockClaim`] (or kill
@@ -206,10 +209,34 @@ impl LockClaim {
     }
 }
 
-/// Try to acquire `path` right now. `None` if another live process
-/// holds it, or any other open / lock failure.
-pub fn try_acquire(path: &Path) -> Option<LockClaim> {
-    open_claim_file(path).map(|file| LockClaim { file })
+/// Try to acquire `(dir, key)` right now, creating `dir` first if
+/// needed. `None` if another live process holds it, or any other
+/// open / lock failure.
+pub async fn try_acquire(dir: &Path, key: &str) -> Option<LockClaim> {
+    tokio::fs::create_dir_all(dir).await.ok()?;
+    open_claim_file(&claim_path(dir, key)).map(|file| LockClaim { file })
+}
+
+/// `<dir>/<escape(key)>.lock`.
+fn claim_path(dir: &Path, key: &str) -> PathBuf {
+    dir.join(format!("{}.lock", filename_escape(key)))
+}
+
+/// Percent-escape `key` into a filename-safe token: `[A-Za-z0-9._-]`
+/// pass through, every other byte becomes `%XX` (uppercase hex; `%`
+/// itself is escaped, so the mapping is injective — distinct keys
+/// can never collide on disk).
+fn filename_escape(key: &str) -> String {
+    let mut out = String::with_capacity(key.len());
+    for b in key.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'.' | b'_' | b'-' => {
+                out.push(b as char)
+            }
+            _ => out.push_str(&format!("%{b:02X}")),
+        }
+    }
+    out
 }
 
 /// Is some live process currently holding this lock?
@@ -222,7 +249,8 @@ pub fn try_acquire(path: &Path) -> Option<LockClaim> {
 /// lock; if it succeeds, no exclusive holder remains, so we
 /// release immediately and report "not held." If acquisition
 /// fails (`EWOULDBLOCK`), an exclusive holder is alive.
-pub fn is_held(path: &Path) -> bool {
+pub fn is_held(dir: &Path, key: &str) -> bool {
+    let path = &claim_path(dir, key);
     #[cfg(windows)]
     {
         path.exists()
@@ -259,14 +287,15 @@ pub fn is_held(path: &Path) -> bool {
 /// eventually returns (and is reclaimed by tokio) — one task-pool
 /// thread is parked per abandoned wait. Bounded by how many
 /// concurrent waiters get abandoned.
-pub async fn wait_release(path: &Path) -> std::io::Result<()> {
+pub async fn wait_release(dir: &Path, key: &str) -> std::io::Result<()> {
+    let path = claim_path(dir, key);
     #[cfg(windows)]
     {
-        wait_release_windows(path.to_path_buf()).await
+        wait_release_windows(path).await
     }
     #[cfg(unix)]
     {
-        wait_release_unix(path.to_path_buf()).await
+        wait_release_unix(path).await
     }
 }
 
@@ -278,14 +307,16 @@ pub async fn wait_release(path: &Path) -> std::io::Result<()> {
 /// blocking `flock(LOCK_EX)` call.
 ///
 /// Same cancellation caveat as [`wait_release`].
-pub async fn wait_acquire(path: &Path) -> std::io::Result<LockClaim> {
+pub async fn wait_acquire(dir: &Path, key: &str) -> std::io::Result<LockClaim> {
+    tokio::fs::create_dir_all(dir).await?;
+    let path = claim_path(dir, key);
     #[cfg(windows)]
     {
-        wait_acquire_windows(path.to_path_buf()).await
+        wait_acquire_windows(path).await
     }
     #[cfg(unix)]
     {
-        wait_acquire_unix(path.to_path_buf()).await
+        wait_acquire_unix(path).await
     }
 }
 
@@ -343,7 +374,7 @@ async fn wait_release_windows(path: PathBuf) -> std::io::Result<()> {
 #[cfg(windows)]
 async fn wait_acquire_windows(path: PathBuf) -> std::io::Result<LockClaim> {
     loop {
-        if let Some(claim) = try_acquire(&path) {
+        if let Some(claim) = open_claim_file(&path).map(|file| LockClaim { file }) {
             return Ok(claim);
         }
         // No file yet? `try_acquire` failed because the file

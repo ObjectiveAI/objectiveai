@@ -29,7 +29,7 @@ sqlite-persistent-cache = ["dep:rusqlite"]
 orchestrator-bollard = ["dep:bollard", "dep:tar"]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["http", "mcp"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["http", "mcp", "lockfile"] }
 objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.1.2" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
