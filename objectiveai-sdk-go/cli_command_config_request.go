@@ -9,6 +9,7 @@ import (
 
 type CliCommandConfigRequest struct {
 	Agents *CliCommandConfigAgentsRequest 
+	API *CliCommandConfigApiRequest `variantTitle:"Api"`
 	Functions *CliCommandConfigFunctionsRequest 
 	MCP *CliCommandConfigMcpRequest `variantTitle:"Mcp"`
 	Swarms *CliCommandConfigSwarmsRequest 
@@ -18,6 +19,9 @@ type CliCommandConfigRequest struct {
 func (v CliCommandConfigRequest) MarshalJSON() ([]byte, error) {
 	if v.Agents != nil {
 		return json.Marshal(v.Agents)
+	}
+	if v.API != nil {
+		return json.Marshal(v.API)
 	}
 	if v.Functions != nil {
 		return json.Marshal(v.Functions)
@@ -40,6 +44,17 @@ func (v *CliCommandConfigRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandConfigRequest{}
 			candidate.Agents = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandConfigApiRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandConfigRequest{}
+			candidate.API = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -96,6 +111,7 @@ func (v *CliCommandConfigRequest) UnmarshalJSON(data []byte) error {
 func (v CliCommandConfigRequest) Validate() error {
 	count := 0
 	if v.Agents != nil { count++ }
+	if v.API != nil { count++ }
 	if v.Functions != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Swarms != nil { count++ }

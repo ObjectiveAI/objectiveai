@@ -3,4 +3,4 @@
 from .agent_arguments import AgentArguments  # noqa: F401
 from .ok import Ok  # noqa: F401
 from .remote_path_commit_optional_or_favorite import RemotePathCommitOptionalOrFavorite, RemotePathCommitOptionalOrFavoriteFavorite, RemotePathCommitOptionalOrFavoriteResolved  # noqa: F401
-from .request import Request, RequestAgents, RequestConfig, RequestDb, RequestFunctions, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer  # noqa: F401
+from .request import Request, RequestAgents, RequestApi, RequestConfig, RequestDb, RequestFunctions, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer  # noqa: F401

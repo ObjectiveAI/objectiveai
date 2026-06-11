@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.agents.request import Request as CliCommandAgentsRequest
+from objectiveai_sdk.cli.command.api.request import Request as CliCommandApiRequest
 from objectiveai_sdk.cli.command.config.request import Request as CliCommandConfigRequest
 from objectiveai_sdk.cli.command.db.request import Request as CliCommandDbRequest
 from objectiveai_sdk.cli.command.functions.request import Request as CliCommandFunctionsRequest
@@ -22,6 +23,12 @@ class RequestAgents(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Agents'})
 
     root: CliCommandAgentsRequest
+
+
+class RequestApi(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Api'})
+
+    root: CliCommandApiRequest
 
 
 class RequestConfig(RootModel):
@@ -99,5 +106,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestConfig, RequestDb, RequestFunctions, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestConfig, RequestDb, RequestFunctions, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
 

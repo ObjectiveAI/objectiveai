@@ -2183,6 +2183,112 @@ async function agentsTagsLookupResponseSchemaExecuteJq(request, jq) {
   }
   return first;
 }
+var CliCommandApiKillResponseSchema = zod.z.object({
+  killed: zod.z.number().int().min(0).max(4294967295)
+}).meta({ title: "cli.command.api.kill.Response" });
+
+// src/viewer/command/api/kill.ts
+async function apiKillExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/kill" }), zod.z.union([CliErrorSchema, CliCommandApiKillResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiKillExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/kill" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiKillRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/kill/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiKillRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/kill/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiKillResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/kill/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiKillResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/kill/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api kill response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandApiSpawnResponseSchema = zod.z.object({
+  listening: zod.z.string()
+}).meta({ title: "cli.command.api.spawn.Response" });
+
+// src/viewer/command/api/spawn.ts
+async function apiSpawnExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/spawn" }), zod.z.union([CliErrorSchema, CliCommandApiSpawnResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiSpawnExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/spawn" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiSpawnRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/spawn/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiSpawnRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/spawn/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiSpawnResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "api/spawn/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiSpawnResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "api/spawn/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api spawn response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
 var CliCommandOkSchema = zod.z.literal("Ok").describe('Success-only response shape. Wire form is the bare string `"Ok"` \u2014\na single-variant enum gives us a typed sentinel that serializes and\ndeserializes through serde as the static string. Used as `Response`\non every cli leaf whose only success signal is "it worked."').meta({ title: "cli.command.Ok" });
 
 // src/viewer/command/config/agents/favorites/add.ts
@@ -2439,6 +2545,1432 @@ async function configAgentsGetResponseSchemaExecuteJq(request, jq) {
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("config agents get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiAddressGetResponseSchema = zod.z.object({
+  address: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.address.get.Response" });
+
+// src/viewer/command/config/api/address/get.ts
+async function configApiAddressGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/address/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiAddressGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/address/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/address/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/address/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/address/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/address/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/address/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/address/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/address/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/address/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/address/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiAddressSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/address/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api address set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiClaudeAgentSdkGetResponseSchema = zod.z.object({
+  claude_agent_sdk: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.claude_agent_sdk.get.Response" });
+
+// src/viewer/command/config/api/claude_agent_sdk/get.ts
+async function configApiClaudeAgentSdkGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/claude_agent_sdk/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiClaudeAgentSdkGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/claude_agent_sdk/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/claude_agent_sdk/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/claude_agent_sdk/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/claude_agent_sdk/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/claude_agent_sdk/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/claude_agent_sdk/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/claude_agent_sdk/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/claude_agent_sdk/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/claude_agent_sdk/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/claude_agent_sdk/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiClaudeAgentSdkSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/claude_agent_sdk/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api claude_agent_sdk set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiCodexSdkGetResponseSchema = zod.z.object({
+  codex_sdk: zod.z.boolean().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.codex_sdk.get.Response" });
+
+// src/viewer/command/config/api/codex_sdk/get.ts
+async function configApiCodexSdkGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/codex_sdk/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiCodexSdkGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/codex_sdk/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/codex_sdk/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/codex_sdk/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/codex_sdk/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/codex_sdk/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/codex_sdk/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/codex_sdk/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/codex_sdk/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/codex_sdk/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/codex_sdk/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCodexSdkSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/codex_sdk/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api codex_sdk set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiCommitAuthorEmailGetResponseSchema = zod.z.object({
+  commit_author_email: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.commit_author_email.get.Response" });
+
+// src/viewer/command/config/api/commit_author_email/get.ts
+async function configApiCommitAuthorEmailGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_email/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiCommitAuthorEmailGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_email/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_email/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_email/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_email/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_email/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/commit_author_email/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/commit_author_email/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_email/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_email/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_email/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorEmailSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_email/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_email set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiCommitAuthorNameGetResponseSchema = zod.z.object({
+  commit_author_name: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.commit_author_name.get.Response" });
+
+// src/viewer/command/config/api/commit_author_name/get.ts
+async function configApiCommitAuthorNameGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_name/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiCommitAuthorNameGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_name/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_name/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_name/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_name/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_name/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/commit_author_name/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/commit_author_name/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_name/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_name/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/commit_author_name/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiCommitAuthorNameSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/commit_author_name/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api commit_author_name set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiGetResponseSchema = zod.z.object({
+  address: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  claude_agent_sdk: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
+  codex_sdk: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
+  commit_author_email: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  commit_author_name: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  github_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  http_referer: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  mcp_authorization: zod.z.record(zod.z.string(), zod.z.string()).nullable().meta({ omitempty: true }).optional(),
+  objectiveai_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  openrouter_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  port: zod.z.number().int().min(0).max(65535).nullable().meta({ omitempty: true }).optional(),
+  user_agent: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  x_title: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.get.Response" });
+
+// src/viewer/command/config/api/get.ts
+async function configApiGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiGithubAuthorizationGetResponseSchema = zod.z.object({
+  github_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.github_authorization.get.Response" });
+
+// src/viewer/command/config/api/github_authorization/get.ts
+async function configApiGithubAuthorizationGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/github_authorization/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiGithubAuthorizationGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/github_authorization/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/github_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/github_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/github_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/github_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/github_authorization/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/github_authorization/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/github_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/github_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/github_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiGithubAuthorizationSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/github_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api github_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiHttpRefererGetResponseSchema = zod.z.object({
+  http_referer: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.http_referer.get.Response" });
+
+// src/viewer/command/config/api/http_referer/get.ts
+async function configApiHttpRefererGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/http_referer/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiHttpRefererGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/http_referer/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/http_referer/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/http_referer/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/http_referer/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/http_referer/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/http_referer/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/http_referer/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/http_referer/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/http_referer/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/http_referer/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiHttpRefererSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/http_referer/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api http_referer set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/mcp_authorization/add" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/mcp_authorization/add" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/add/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationAddResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/add/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization add response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/mcp_authorization/del" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/mcp_authorization/del" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/del/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/del/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/del/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationDelResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/del/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization del response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiMcpAuthorizationGetResponseSchema = zod.z.object({
+  mcp_authorization: zod.z.record(zod.z.string(), zod.z.string()).nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.mcp_authorization.get.Response" });
+
+// src/viewer/command/config/api/mcp_authorization/get.ts
+async function configApiMcpAuthorizationGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiMcpAuthorizationGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/mcp_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiMcpAuthorizationGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/mcp_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api mcp_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiObjectiveaiAuthorizationGetResponseSchema = zod.z.object({
+  objectiveai_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.objectiveai_authorization.get.Response" });
+
+// src/viewer/command/config/api/objectiveai_authorization/get.ts
+async function configApiObjectiveaiAuthorizationGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/objectiveai_authorization/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiObjectiveaiAuthorizationGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/objectiveai_authorization/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/objectiveai_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/objectiveai_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/objectiveai_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/objectiveai_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/objectiveai_authorization/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/objectiveai_authorization/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/objectiveai_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/objectiveai_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/objectiveai_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiObjectiveaiAuthorizationSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/objectiveai_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api objectiveai_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiOpenrouterAuthorizationGetResponseSchema = zod.z.object({
+  openrouter_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.openrouter_authorization.get.Response" });
+
+// src/viewer/command/config/api/openrouter_authorization/get.ts
+async function configApiOpenrouterAuthorizationGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/openrouter_authorization/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiOpenrouterAuthorizationGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/openrouter_authorization/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/openrouter_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/openrouter_authorization/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/openrouter_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/openrouter_authorization/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/openrouter_authorization/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/openrouter_authorization/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/openrouter_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/openrouter_authorization/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/openrouter_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiOpenrouterAuthorizationSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/openrouter_authorization/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api openrouter_authorization set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiPortGetResponseSchema = zod.z.object({
+  port: zod.z.number().int().min(0).max(65535)
+}).meta({ title: "cli.command.config.api.port.get.Response" });
+
+// src/viewer/command/config/api/port/get.ts
+async function configApiPortGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/port/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiPortGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/port/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/port/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/port/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/port/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/port/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/port/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/port/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/port/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/port/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/port/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiPortSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/port/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api port set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiUserAgentGetResponseSchema = zod.z.object({
+  user_agent: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.user_agent.get.Response" });
+
+// src/viewer/command/config/api/user_agent/get.ts
+async function configApiUserAgentGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/user_agent/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiUserAgentGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/user_agent/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/user_agent/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/user_agent/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/user_agent/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/user_agent/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/user_agent/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/user_agent/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/user_agent/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/user_agent/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/user_agent/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiUserAgentSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/user_agent/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api user_agent set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandConfigApiXTitleGetResponseSchema = zod.z.object({
+  x_title: zod.z.string().nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.config.api.x_title.get.Response" });
+
+// src/viewer/command/config/api/x_title/get.ts
+async function configApiXTitleGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/x_title/get" }), zod.z.union([CliErrorSchema, CliCommandConfigApiXTitleGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleGetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/x_title/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/x_title/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleGetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/x_title/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/x_title/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleGetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/x_title/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/x_title/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "config/api/x_title/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/x_title/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetRequestSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/x_title/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, path_type: "config/api/x_title/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function configApiXTitleSetResponseSchemaExecuteJq(request, jq) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq, path_type: "config/api/x_title/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("config api x_title set response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -6168,6 +7700,18 @@ exports.agentsTagsLookupRequestSchemaExecute = agentsTagsLookupRequestSchemaExec
 exports.agentsTagsLookupRequestSchemaExecuteJq = agentsTagsLookupRequestSchemaExecuteJq;
 exports.agentsTagsLookupResponseSchemaExecute = agentsTagsLookupResponseSchemaExecute;
 exports.agentsTagsLookupResponseSchemaExecuteJq = agentsTagsLookupResponseSchemaExecuteJq;
+exports.apiKillExecute = apiKillExecute;
+exports.apiKillExecuteJq = apiKillExecuteJq;
+exports.apiKillRequestSchemaExecute = apiKillRequestSchemaExecute;
+exports.apiKillRequestSchemaExecuteJq = apiKillRequestSchemaExecuteJq;
+exports.apiKillResponseSchemaExecute = apiKillResponseSchemaExecute;
+exports.apiKillResponseSchemaExecuteJq = apiKillResponseSchemaExecuteJq;
+exports.apiSpawnExecute = apiSpawnExecute;
+exports.apiSpawnExecuteJq = apiSpawnExecuteJq;
+exports.apiSpawnRequestSchemaExecute = apiSpawnRequestSchemaExecute;
+exports.apiSpawnRequestSchemaExecuteJq = apiSpawnRequestSchemaExecuteJq;
+exports.apiSpawnResponseSchemaExecute = apiSpawnResponseSchemaExecute;
+exports.apiSpawnResponseSchemaExecuteJq = apiSpawnResponseSchemaExecuteJq;
 exports.configAgentsFavoritesAddExecute = configAgentsFavoritesAddExecute;
 exports.configAgentsFavoritesAddExecuteJq = configAgentsFavoritesAddExecuteJq;
 exports.configAgentsFavoritesAddRequestSchemaExecute = configAgentsFavoritesAddRequestSchemaExecute;
@@ -6198,6 +7742,174 @@ exports.configAgentsGetRequestSchemaExecute = configAgentsGetRequestSchemaExecut
 exports.configAgentsGetRequestSchemaExecuteJq = configAgentsGetRequestSchemaExecuteJq;
 exports.configAgentsGetResponseSchemaExecute = configAgentsGetResponseSchemaExecute;
 exports.configAgentsGetResponseSchemaExecuteJq = configAgentsGetResponseSchemaExecuteJq;
+exports.configApiAddressGetExecute = configApiAddressGetExecute;
+exports.configApiAddressGetExecuteJq = configApiAddressGetExecuteJq;
+exports.configApiAddressGetRequestSchemaExecute = configApiAddressGetRequestSchemaExecute;
+exports.configApiAddressGetRequestSchemaExecuteJq = configApiAddressGetRequestSchemaExecuteJq;
+exports.configApiAddressGetResponseSchemaExecute = configApiAddressGetResponseSchemaExecute;
+exports.configApiAddressGetResponseSchemaExecuteJq = configApiAddressGetResponseSchemaExecuteJq;
+exports.configApiAddressSetExecute = configApiAddressSetExecute;
+exports.configApiAddressSetExecuteJq = configApiAddressSetExecuteJq;
+exports.configApiAddressSetRequestSchemaExecute = configApiAddressSetRequestSchemaExecute;
+exports.configApiAddressSetRequestSchemaExecuteJq = configApiAddressSetRequestSchemaExecuteJq;
+exports.configApiAddressSetResponseSchemaExecute = configApiAddressSetResponseSchemaExecute;
+exports.configApiAddressSetResponseSchemaExecuteJq = configApiAddressSetResponseSchemaExecuteJq;
+exports.configApiClaudeAgentSdkGetExecute = configApiClaudeAgentSdkGetExecute;
+exports.configApiClaudeAgentSdkGetExecuteJq = configApiClaudeAgentSdkGetExecuteJq;
+exports.configApiClaudeAgentSdkGetRequestSchemaExecute = configApiClaudeAgentSdkGetRequestSchemaExecute;
+exports.configApiClaudeAgentSdkGetRequestSchemaExecuteJq = configApiClaudeAgentSdkGetRequestSchemaExecuteJq;
+exports.configApiClaudeAgentSdkGetResponseSchemaExecute = configApiClaudeAgentSdkGetResponseSchemaExecute;
+exports.configApiClaudeAgentSdkGetResponseSchemaExecuteJq = configApiClaudeAgentSdkGetResponseSchemaExecuteJq;
+exports.configApiClaudeAgentSdkSetExecute = configApiClaudeAgentSdkSetExecute;
+exports.configApiClaudeAgentSdkSetExecuteJq = configApiClaudeAgentSdkSetExecuteJq;
+exports.configApiClaudeAgentSdkSetRequestSchemaExecute = configApiClaudeAgentSdkSetRequestSchemaExecute;
+exports.configApiClaudeAgentSdkSetRequestSchemaExecuteJq = configApiClaudeAgentSdkSetRequestSchemaExecuteJq;
+exports.configApiClaudeAgentSdkSetResponseSchemaExecute = configApiClaudeAgentSdkSetResponseSchemaExecute;
+exports.configApiClaudeAgentSdkSetResponseSchemaExecuteJq = configApiClaudeAgentSdkSetResponseSchemaExecuteJq;
+exports.configApiCodexSdkGetExecute = configApiCodexSdkGetExecute;
+exports.configApiCodexSdkGetExecuteJq = configApiCodexSdkGetExecuteJq;
+exports.configApiCodexSdkGetRequestSchemaExecute = configApiCodexSdkGetRequestSchemaExecute;
+exports.configApiCodexSdkGetRequestSchemaExecuteJq = configApiCodexSdkGetRequestSchemaExecuteJq;
+exports.configApiCodexSdkGetResponseSchemaExecute = configApiCodexSdkGetResponseSchemaExecute;
+exports.configApiCodexSdkGetResponseSchemaExecuteJq = configApiCodexSdkGetResponseSchemaExecuteJq;
+exports.configApiCodexSdkSetExecute = configApiCodexSdkSetExecute;
+exports.configApiCodexSdkSetExecuteJq = configApiCodexSdkSetExecuteJq;
+exports.configApiCodexSdkSetRequestSchemaExecute = configApiCodexSdkSetRequestSchemaExecute;
+exports.configApiCodexSdkSetRequestSchemaExecuteJq = configApiCodexSdkSetRequestSchemaExecuteJq;
+exports.configApiCodexSdkSetResponseSchemaExecute = configApiCodexSdkSetResponseSchemaExecute;
+exports.configApiCodexSdkSetResponseSchemaExecuteJq = configApiCodexSdkSetResponseSchemaExecuteJq;
+exports.configApiCommitAuthorEmailGetExecute = configApiCommitAuthorEmailGetExecute;
+exports.configApiCommitAuthorEmailGetExecuteJq = configApiCommitAuthorEmailGetExecuteJq;
+exports.configApiCommitAuthorEmailGetRequestSchemaExecute = configApiCommitAuthorEmailGetRequestSchemaExecute;
+exports.configApiCommitAuthorEmailGetRequestSchemaExecuteJq = configApiCommitAuthorEmailGetRequestSchemaExecuteJq;
+exports.configApiCommitAuthorEmailGetResponseSchemaExecute = configApiCommitAuthorEmailGetResponseSchemaExecute;
+exports.configApiCommitAuthorEmailGetResponseSchemaExecuteJq = configApiCommitAuthorEmailGetResponseSchemaExecuteJq;
+exports.configApiCommitAuthorEmailSetExecute = configApiCommitAuthorEmailSetExecute;
+exports.configApiCommitAuthorEmailSetExecuteJq = configApiCommitAuthorEmailSetExecuteJq;
+exports.configApiCommitAuthorEmailSetRequestSchemaExecute = configApiCommitAuthorEmailSetRequestSchemaExecute;
+exports.configApiCommitAuthorEmailSetRequestSchemaExecuteJq = configApiCommitAuthorEmailSetRequestSchemaExecuteJq;
+exports.configApiCommitAuthorEmailSetResponseSchemaExecute = configApiCommitAuthorEmailSetResponseSchemaExecute;
+exports.configApiCommitAuthorEmailSetResponseSchemaExecuteJq = configApiCommitAuthorEmailSetResponseSchemaExecuteJq;
+exports.configApiCommitAuthorNameGetExecute = configApiCommitAuthorNameGetExecute;
+exports.configApiCommitAuthorNameGetExecuteJq = configApiCommitAuthorNameGetExecuteJq;
+exports.configApiCommitAuthorNameGetRequestSchemaExecute = configApiCommitAuthorNameGetRequestSchemaExecute;
+exports.configApiCommitAuthorNameGetRequestSchemaExecuteJq = configApiCommitAuthorNameGetRequestSchemaExecuteJq;
+exports.configApiCommitAuthorNameGetResponseSchemaExecute = configApiCommitAuthorNameGetResponseSchemaExecute;
+exports.configApiCommitAuthorNameGetResponseSchemaExecuteJq = configApiCommitAuthorNameGetResponseSchemaExecuteJq;
+exports.configApiCommitAuthorNameSetExecute = configApiCommitAuthorNameSetExecute;
+exports.configApiCommitAuthorNameSetExecuteJq = configApiCommitAuthorNameSetExecuteJq;
+exports.configApiCommitAuthorNameSetRequestSchemaExecute = configApiCommitAuthorNameSetRequestSchemaExecute;
+exports.configApiCommitAuthorNameSetRequestSchemaExecuteJq = configApiCommitAuthorNameSetRequestSchemaExecuteJq;
+exports.configApiCommitAuthorNameSetResponseSchemaExecute = configApiCommitAuthorNameSetResponseSchemaExecute;
+exports.configApiCommitAuthorNameSetResponseSchemaExecuteJq = configApiCommitAuthorNameSetResponseSchemaExecuteJq;
+exports.configApiGetExecute = configApiGetExecute;
+exports.configApiGetExecuteJq = configApiGetExecuteJq;
+exports.configApiGetRequestSchemaExecute = configApiGetRequestSchemaExecute;
+exports.configApiGetRequestSchemaExecuteJq = configApiGetRequestSchemaExecuteJq;
+exports.configApiGetResponseSchemaExecute = configApiGetResponseSchemaExecute;
+exports.configApiGetResponseSchemaExecuteJq = configApiGetResponseSchemaExecuteJq;
+exports.configApiGithubAuthorizationGetExecute = configApiGithubAuthorizationGetExecute;
+exports.configApiGithubAuthorizationGetExecuteJq = configApiGithubAuthorizationGetExecuteJq;
+exports.configApiGithubAuthorizationGetRequestSchemaExecute = configApiGithubAuthorizationGetRequestSchemaExecute;
+exports.configApiGithubAuthorizationGetRequestSchemaExecuteJq = configApiGithubAuthorizationGetRequestSchemaExecuteJq;
+exports.configApiGithubAuthorizationGetResponseSchemaExecute = configApiGithubAuthorizationGetResponseSchemaExecute;
+exports.configApiGithubAuthorizationGetResponseSchemaExecuteJq = configApiGithubAuthorizationGetResponseSchemaExecuteJq;
+exports.configApiGithubAuthorizationSetExecute = configApiGithubAuthorizationSetExecute;
+exports.configApiGithubAuthorizationSetExecuteJq = configApiGithubAuthorizationSetExecuteJq;
+exports.configApiGithubAuthorizationSetRequestSchemaExecute = configApiGithubAuthorizationSetRequestSchemaExecute;
+exports.configApiGithubAuthorizationSetRequestSchemaExecuteJq = configApiGithubAuthorizationSetRequestSchemaExecuteJq;
+exports.configApiGithubAuthorizationSetResponseSchemaExecute = configApiGithubAuthorizationSetResponseSchemaExecute;
+exports.configApiGithubAuthorizationSetResponseSchemaExecuteJq = configApiGithubAuthorizationSetResponseSchemaExecuteJq;
+exports.configApiHttpRefererGetExecute = configApiHttpRefererGetExecute;
+exports.configApiHttpRefererGetExecuteJq = configApiHttpRefererGetExecuteJq;
+exports.configApiHttpRefererGetRequestSchemaExecute = configApiHttpRefererGetRequestSchemaExecute;
+exports.configApiHttpRefererGetRequestSchemaExecuteJq = configApiHttpRefererGetRequestSchemaExecuteJq;
+exports.configApiHttpRefererGetResponseSchemaExecute = configApiHttpRefererGetResponseSchemaExecute;
+exports.configApiHttpRefererGetResponseSchemaExecuteJq = configApiHttpRefererGetResponseSchemaExecuteJq;
+exports.configApiHttpRefererSetExecute = configApiHttpRefererSetExecute;
+exports.configApiHttpRefererSetExecuteJq = configApiHttpRefererSetExecuteJq;
+exports.configApiHttpRefererSetRequestSchemaExecute = configApiHttpRefererSetRequestSchemaExecute;
+exports.configApiHttpRefererSetRequestSchemaExecuteJq = configApiHttpRefererSetRequestSchemaExecuteJq;
+exports.configApiHttpRefererSetResponseSchemaExecute = configApiHttpRefererSetResponseSchemaExecute;
+exports.configApiHttpRefererSetResponseSchemaExecuteJq = configApiHttpRefererSetResponseSchemaExecuteJq;
+exports.configApiMcpAuthorizationAddExecute = configApiMcpAuthorizationAddExecute;
+exports.configApiMcpAuthorizationAddExecuteJq = configApiMcpAuthorizationAddExecuteJq;
+exports.configApiMcpAuthorizationAddRequestSchemaExecute = configApiMcpAuthorizationAddRequestSchemaExecute;
+exports.configApiMcpAuthorizationAddRequestSchemaExecuteJq = configApiMcpAuthorizationAddRequestSchemaExecuteJq;
+exports.configApiMcpAuthorizationAddResponseSchemaExecute = configApiMcpAuthorizationAddResponseSchemaExecute;
+exports.configApiMcpAuthorizationAddResponseSchemaExecuteJq = configApiMcpAuthorizationAddResponseSchemaExecuteJq;
+exports.configApiMcpAuthorizationDelExecute = configApiMcpAuthorizationDelExecute;
+exports.configApiMcpAuthorizationDelExecuteJq = configApiMcpAuthorizationDelExecuteJq;
+exports.configApiMcpAuthorizationDelRequestSchemaExecute = configApiMcpAuthorizationDelRequestSchemaExecute;
+exports.configApiMcpAuthorizationDelRequestSchemaExecuteJq = configApiMcpAuthorizationDelRequestSchemaExecuteJq;
+exports.configApiMcpAuthorizationDelResponseSchemaExecute = configApiMcpAuthorizationDelResponseSchemaExecute;
+exports.configApiMcpAuthorizationDelResponseSchemaExecuteJq = configApiMcpAuthorizationDelResponseSchemaExecuteJq;
+exports.configApiMcpAuthorizationGetExecute = configApiMcpAuthorizationGetExecute;
+exports.configApiMcpAuthorizationGetExecuteJq = configApiMcpAuthorizationGetExecuteJq;
+exports.configApiMcpAuthorizationGetRequestSchemaExecute = configApiMcpAuthorizationGetRequestSchemaExecute;
+exports.configApiMcpAuthorizationGetRequestSchemaExecuteJq = configApiMcpAuthorizationGetRequestSchemaExecuteJq;
+exports.configApiMcpAuthorizationGetResponseSchemaExecute = configApiMcpAuthorizationGetResponseSchemaExecute;
+exports.configApiMcpAuthorizationGetResponseSchemaExecuteJq = configApiMcpAuthorizationGetResponseSchemaExecuteJq;
+exports.configApiObjectiveaiAuthorizationGetExecute = configApiObjectiveaiAuthorizationGetExecute;
+exports.configApiObjectiveaiAuthorizationGetExecuteJq = configApiObjectiveaiAuthorizationGetExecuteJq;
+exports.configApiObjectiveaiAuthorizationGetRequestSchemaExecute = configApiObjectiveaiAuthorizationGetRequestSchemaExecute;
+exports.configApiObjectiveaiAuthorizationGetRequestSchemaExecuteJq = configApiObjectiveaiAuthorizationGetRequestSchemaExecuteJq;
+exports.configApiObjectiveaiAuthorizationGetResponseSchemaExecute = configApiObjectiveaiAuthorizationGetResponseSchemaExecute;
+exports.configApiObjectiveaiAuthorizationGetResponseSchemaExecuteJq = configApiObjectiveaiAuthorizationGetResponseSchemaExecuteJq;
+exports.configApiObjectiveaiAuthorizationSetExecute = configApiObjectiveaiAuthorizationSetExecute;
+exports.configApiObjectiveaiAuthorizationSetExecuteJq = configApiObjectiveaiAuthorizationSetExecuteJq;
+exports.configApiObjectiveaiAuthorizationSetRequestSchemaExecute = configApiObjectiveaiAuthorizationSetRequestSchemaExecute;
+exports.configApiObjectiveaiAuthorizationSetRequestSchemaExecuteJq = configApiObjectiveaiAuthorizationSetRequestSchemaExecuteJq;
+exports.configApiObjectiveaiAuthorizationSetResponseSchemaExecute = configApiObjectiveaiAuthorizationSetResponseSchemaExecute;
+exports.configApiObjectiveaiAuthorizationSetResponseSchemaExecuteJq = configApiObjectiveaiAuthorizationSetResponseSchemaExecuteJq;
+exports.configApiOpenrouterAuthorizationGetExecute = configApiOpenrouterAuthorizationGetExecute;
+exports.configApiOpenrouterAuthorizationGetExecuteJq = configApiOpenrouterAuthorizationGetExecuteJq;
+exports.configApiOpenrouterAuthorizationGetRequestSchemaExecute = configApiOpenrouterAuthorizationGetRequestSchemaExecute;
+exports.configApiOpenrouterAuthorizationGetRequestSchemaExecuteJq = configApiOpenrouterAuthorizationGetRequestSchemaExecuteJq;
+exports.configApiOpenrouterAuthorizationGetResponseSchemaExecute = configApiOpenrouterAuthorizationGetResponseSchemaExecute;
+exports.configApiOpenrouterAuthorizationGetResponseSchemaExecuteJq = configApiOpenrouterAuthorizationGetResponseSchemaExecuteJq;
+exports.configApiOpenrouterAuthorizationSetExecute = configApiOpenrouterAuthorizationSetExecute;
+exports.configApiOpenrouterAuthorizationSetExecuteJq = configApiOpenrouterAuthorizationSetExecuteJq;
+exports.configApiOpenrouterAuthorizationSetRequestSchemaExecute = configApiOpenrouterAuthorizationSetRequestSchemaExecute;
+exports.configApiOpenrouterAuthorizationSetRequestSchemaExecuteJq = configApiOpenrouterAuthorizationSetRequestSchemaExecuteJq;
+exports.configApiOpenrouterAuthorizationSetResponseSchemaExecute = configApiOpenrouterAuthorizationSetResponseSchemaExecute;
+exports.configApiOpenrouterAuthorizationSetResponseSchemaExecuteJq = configApiOpenrouterAuthorizationSetResponseSchemaExecuteJq;
+exports.configApiPortGetExecute = configApiPortGetExecute;
+exports.configApiPortGetExecuteJq = configApiPortGetExecuteJq;
+exports.configApiPortGetRequestSchemaExecute = configApiPortGetRequestSchemaExecute;
+exports.configApiPortGetRequestSchemaExecuteJq = configApiPortGetRequestSchemaExecuteJq;
+exports.configApiPortGetResponseSchemaExecute = configApiPortGetResponseSchemaExecute;
+exports.configApiPortGetResponseSchemaExecuteJq = configApiPortGetResponseSchemaExecuteJq;
+exports.configApiPortSetExecute = configApiPortSetExecute;
+exports.configApiPortSetExecuteJq = configApiPortSetExecuteJq;
+exports.configApiPortSetRequestSchemaExecute = configApiPortSetRequestSchemaExecute;
+exports.configApiPortSetRequestSchemaExecuteJq = configApiPortSetRequestSchemaExecuteJq;
+exports.configApiPortSetResponseSchemaExecute = configApiPortSetResponseSchemaExecute;
+exports.configApiPortSetResponseSchemaExecuteJq = configApiPortSetResponseSchemaExecuteJq;
+exports.configApiUserAgentGetExecute = configApiUserAgentGetExecute;
+exports.configApiUserAgentGetExecuteJq = configApiUserAgentGetExecuteJq;
+exports.configApiUserAgentGetRequestSchemaExecute = configApiUserAgentGetRequestSchemaExecute;
+exports.configApiUserAgentGetRequestSchemaExecuteJq = configApiUserAgentGetRequestSchemaExecuteJq;
+exports.configApiUserAgentGetResponseSchemaExecute = configApiUserAgentGetResponseSchemaExecute;
+exports.configApiUserAgentGetResponseSchemaExecuteJq = configApiUserAgentGetResponseSchemaExecuteJq;
+exports.configApiUserAgentSetExecute = configApiUserAgentSetExecute;
+exports.configApiUserAgentSetExecuteJq = configApiUserAgentSetExecuteJq;
+exports.configApiUserAgentSetRequestSchemaExecute = configApiUserAgentSetRequestSchemaExecute;
+exports.configApiUserAgentSetRequestSchemaExecuteJq = configApiUserAgentSetRequestSchemaExecuteJq;
+exports.configApiUserAgentSetResponseSchemaExecute = configApiUserAgentSetResponseSchemaExecute;
+exports.configApiUserAgentSetResponseSchemaExecuteJq = configApiUserAgentSetResponseSchemaExecuteJq;
+exports.configApiXTitleGetExecute = configApiXTitleGetExecute;
+exports.configApiXTitleGetExecuteJq = configApiXTitleGetExecuteJq;
+exports.configApiXTitleGetRequestSchemaExecute = configApiXTitleGetRequestSchemaExecute;
+exports.configApiXTitleGetRequestSchemaExecuteJq = configApiXTitleGetRequestSchemaExecuteJq;
+exports.configApiXTitleGetResponseSchemaExecute = configApiXTitleGetResponseSchemaExecute;
+exports.configApiXTitleGetResponseSchemaExecuteJq = configApiXTitleGetResponseSchemaExecuteJq;
+exports.configApiXTitleSetExecute = configApiXTitleSetExecute;
+exports.configApiXTitleSetExecuteJq = configApiXTitleSetExecuteJq;
+exports.configApiXTitleSetRequestSchemaExecute = configApiXTitleSetRequestSchemaExecute;
+exports.configApiXTitleSetRequestSchemaExecuteJq = configApiXTitleSetRequestSchemaExecuteJq;
+exports.configApiXTitleSetResponseSchemaExecute = configApiXTitleSetResponseSchemaExecute;
+exports.configApiXTitleSetResponseSchemaExecuteJq = configApiXTitleSetResponseSchemaExecuteJq;
 exports.configFunctionsFavoritesAddExecute = configFunctionsFavoritesAddExecute;
 exports.configFunctionsFavoritesAddExecuteJq = configFunctionsFavoritesAddExecuteJq;
 exports.configFunctionsFavoritesAddRequestSchemaExecute = configFunctionsFavoritesAddRequestSchemaExecute;
