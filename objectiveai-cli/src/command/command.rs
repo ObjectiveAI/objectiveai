@@ -34,6 +34,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = super::agents::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
         }
+        Request::Api(req) => {
+            let inner = super::api::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
+        }
         Request::Config(req) => {
             let inner = super::config::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Config)))

@@ -53,11 +53,12 @@ pub fn kill_by_name(exe_name: &str) -> usize {
 }
 
 /// Spawn `binary_path` with `ADDRESS=<address>` and `PORT=<port>` set in
-/// its environment, then read its stderr line-by-line until a line
-/// containing the substring "listening" (case-insensitive) shows up.
-/// At that point the matched line is returned and the child is left
-/// running detached — when the cli process exits, the spawned binary
-/// is re-parented to init/launchd/services and keeps going.
+/// its environment (plus any caller-provided `extra_env` pairs), then
+/// read its stderr line-by-line until a line containing the substring
+/// "listening" (case-insensitive) shows up. At that point the matched
+/// line is returned and the child is left running detached — when the
+/// cli process exits, the spawned binary is re-parented to
+/// init/launchd/services and keeps going.
 ///
 /// If the child exits or closes stderr before announcing "listening",
 /// returns [`crate::error::Error::SpawnNoListeningLine`].
@@ -65,6 +66,7 @@ pub async fn spawn_and_wait_for_listening(
     binary_path: &Path,
     address: &str,
     port: u16,
+    extra_env: &[(&str, String)],
 ) -> Result<String, crate::error::Error> {
     let name = binary_path
         .file_name()
@@ -77,6 +79,9 @@ pub async fn spawn_and_wait_for_listening(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::piped());
+    for (key, value) in extra_env {
+        cmd.env(key, value);
+    }
 
     #[cfg(windows)]
     {

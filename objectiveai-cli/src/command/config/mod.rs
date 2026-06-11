@@ -9,6 +9,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod agents;
+pub mod api;
 pub mod functions;
 pub mod mcp;
 pub mod swarms;
@@ -21,6 +22,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Agents(req) => {
             let inner = agents::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Agents)))
+        }
+        Request::Api(req) => {
+            let inner = api::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
         }
         Request::Functions(req) => {
             let inner = functions::execute(ctx, req).await?;

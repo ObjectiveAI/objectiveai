@@ -30,7 +30,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     };
     let exe = ctx.filesystem.base_dir().join("bin").join(bin);
 
-    let listening = crate::spawn::spawn_and_wait_for_listening(&exe, &address, port).await?;
+    let listening = crate::spawn::spawn_and_wait_for_listening(&exe, &address, port, &[]).await?;
     Ok(Response { listening })
 }
 

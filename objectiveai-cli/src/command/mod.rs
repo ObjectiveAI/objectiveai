@@ -10,6 +10,7 @@
 //! through the tier `mod.rs` files to the leaves below.
 
 pub mod agents;
+pub mod api;
 pub mod command;
 pub mod config;
 pub mod db;

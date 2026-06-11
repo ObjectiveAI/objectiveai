@@ -1,0 +1,51 @@
+//! `config api get` — read the api section of on-disk config (every
+//! `ApiConfig` field). Missing fields stay `None`.
+
+use objectiveai_sdk::cli::command::config::api::get::{Request, Response};
+
+use crate::context::Context;
+use crate::error::Error;
+
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config().await?;
+    let api = config.api();
+    Ok(Response {
+        address: api.get_address().map(String::from),
+        port: api.get_port(),
+        claude_agent_sdk: api.get_claude_agent_sdk(),
+        codex_sdk: api.get_codex_sdk(),
+        objectiveai_authorization: api.get_objectiveai_authorization().map(String::from),
+        openrouter_authorization: api.get_openrouter_authorization().map(String::from),
+        github_authorization: api.get_github_authorization().map(String::from),
+        mcp_authorization: api.get_mcp_authorization().cloned(),
+        user_agent: api.get_user_agent().map(String::from),
+        http_referer: api.get_http_referer().map(String::from),
+        x_title: api.get_x_title().map(String::from),
+        commit_author_name: api.get_commit_author_name().map(String::from),
+        commit_author_email: api.get_commit_author_email().map(String::from),
+    })
+}
+
+pub mod request_schema {
+    use objectiveai_sdk::cli::command::config::api::get as sdk;
+    use objectiveai_sdk::cli::command::config::api::get::request_schema::{Request, Response};
+
+    use crate::context::Context;
+    use crate::error::Error;
+
+    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Request)))
+    }
+}
+
+pub mod response_schema {
+    use objectiveai_sdk::cli::command::config::api::get as sdk;
+    use objectiveai_sdk::cli::command::config::api::get::response_schema::{Request, Response};
+
+    use crate::context::Context;
+    use crate::error::Error;
+
+    pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+        Ok(objectiveai_sdk::cli::command::ResponseSchema(schemars::schema_for!(sdk::Response)))
+    }
+}
