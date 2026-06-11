@@ -44,24 +44,20 @@ WAVE_2=(
 WAVE_3=(
   "objectiveai-mcp-proxy|crates|objectiveai-mcp-proxy"
   "objectiveai-mcp-filesystem|crates|objectiveai-mcp-filesystem"
+  "objectiveai-mcp|crates|objectiveai-mcp"
   "objectiveai-sdk-py|pypi|objectiveai-sdk"
   "objectiveai-sdk-js|npm|@objectiveai/sdk"
 )
 WAVE_4=(
   "objectiveai-api|crates|objectiveai-api"
-)
-WAVE_5=(
   "objectiveai-cli|crates|objectiveai-cli"
-)
-WAVE_6=(
-  "objectiveai-mcp|crates|objectiveai-mcp"
   "objectiveai-cocoindex|pypi|objectiveai-cocoindex"
 )
 
 # ── --build-only fast path: everything in parallel, no wave/wait logic ──
 if [[ "${1:-}" == "--build-only" ]]; then
   pids=()
-  for entry in "${WAVE_1[@]}" "${WAVE_2[@]}" "${WAVE_3[@]}" "${WAVE_4[@]}" "${WAVE_5[@]}" "${WAVE_6[@]}"; do
+  for entry in "${WAVE_1[@]}" "${WAVE_2[@]}" "${WAVE_3[@]}" "${WAVE_4[@]}"; do
     dir="${entry%%|*}"
     bash "$REPO_ROOT/$dir/publish.sh" --build-only &
     pids+=($!)
@@ -168,8 +164,6 @@ echo "Publishing ObjectiveAI $VERSION across all registries..."
 run_wave "Wave 1 — leaves (no upstream deps)"               "${WAVE_1[@]}"
 run_wave "Wave 2 — depends on objectiveai-sdk-macros"       "${WAVE_2[@]}"
 run_wave "Wave 3 — depends on objectiveai-sdk"              "${WAVE_3[@]}"
-run_wave "Wave 4 — depends on objectiveai-mcp-proxy (api)"  "${WAVE_4[@]}"
-run_wave "Wave 5 — depends on api (cli)"                    "${WAVE_5[@]}"
-run_wave "Wave 6 — depends on cli / sdk-py on PyPI"         "${WAVE_6[@]}"
+run_wave "Wave 4 — depend on wave-3 crates: api (mcp-proxy), cli (mcp), cocoindex (sdk-py)" "${WAVE_4[@]}"
 echo
 echo "✓ All packages published at $VERSION"

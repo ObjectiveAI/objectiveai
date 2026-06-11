@@ -10,12 +10,17 @@ name: Auto-publish libraries
 #   1. sdk-rs-macros (crates), sdk-go (git tag — versioned independently
 #      by objectiveai-sdk-go/version.txt, not the canonical version)
 #   2. sdk-rs (crates)             — needs macros
-#   3. mcp-proxy, mcp-filesystem (crates) +
+#   3. mcp-proxy, mcp-filesystem, mcp (crates) +
 #      sdk-py (PyPI) + sdk-js (npm)               — need sdk-rs
 #   4. api (crates)                — needs mcp-proxy
-#   5. cli (crates)                — needs api
-#   6. mcp (crates), cocoindex (PyPI)
-#                                  — need cli / sdk-py respectively
+#      cli (crates)                — needs mcp (NOT api: the cli stopped
+#                                    embedding the api server)
+#      cocoindex (PyPI)            — needs sdk-py
+#
+# (The old 6-wave order published mcp AFTER cli — true back when
+# objectiveai-mcp-cli depended on the cli. The SDK-only mcp refactor
+# flipped that dependency, so cli's cargo-publish dep resolution failed
+# every release until mcp moved ahead of it.)
 #
 # Each per-package publish workflow is called as a reusable workflow
 # (`uses: ./.github/workflows/publish-objectiveai-X.yml`) so its
@@ -171,89 +176,56 @@ jobs:
     uses: ./.github/workflows/publish-objectiveai-sdk-js.yml
     secrets: inherit
 
+  publish-mcp:
+    needs: wait-after-wave-2
+    uses: ./.github/workflows/publish-objectiveai-mcp.yml
+    secrets: inherit
+
   # ─── Wave 4 ───────────────────────────────────────────────────────
   wait-after-wave-3:
-    needs: [check-version, publish-mcp-proxy, publish-mcp-filesystem, publish-sdk-py, publish-sdk-js]
+    needs: [check-version, publish-mcp-proxy, publish-mcp-filesystem, publish-mcp, publish-sdk-py, publish-sdk-js]
     runs-on: ubuntu-latest
     steps:
-      - name: Wait for mcp-proxy on crates.io sparse index
+      - name: Wait for mcp-proxy + mcp on crates.io sparse index, sdk on PyPI
         env:
           VERSION: ${{ needs.check-version.outputs.version }}
+        # mcp-proxy gates publish-api, mcp gates publish-cli, and
+        # objectiveai-sdk on PyPI gates publish-cocoindex — all three
+        # wave-4 jobs key off this single barrier.
         run: |
-          NAME=objectiveai-mcp-proxy
-          SPARSE_PATH="${NAME:0:2}/${NAME:2:2}/$NAME"
+          for NAME in objectiveai-mcp-proxy objectiveai-mcp; do
+            SPARSE_PATH="${NAME:0:2}/${NAME:2:2}/$NAME"
+            ok=false
+            for _ in $(seq 1 120); do
+              if curl -fsS "https://index.crates.io/$SPARSE_PATH" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
+                echo "$NAME@$VERSION live in sparse index"
+                ok=true
+                break
+              fi
+              sleep 5
+            done
+            $ok || { echo "timed out waiting for $NAME@$VERSION in sparse index"; exit 1; }
+          done
           for _ in $(seq 1 120); do
-            if curl -fsS "https://index.crates.io/$SPARSE_PATH" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
-              echo "$NAME@$VERSION live in sparse index"
+            if curl -fsS -o /dev/null "https://pypi.org/pypi/objectiveai-sdk/$VERSION/json" 2>/dev/null; then
+              echo "objectiveai-sdk@$VERSION live on PyPI"
               exit 0
             fi
             sleep 5
           done
-          echo "timed out waiting for $NAME@$VERSION in sparse index"; exit 1
+          echo "timed out waiting for objectiveai-sdk@$VERSION on PyPI"; exit 1
 
   publish-api:
     needs: wait-after-wave-3
     uses: ./.github/workflows/publish-objectiveai-api.yml
     secrets: inherit
 
-  # ─── Wave 5 ───────────────────────────────────────────────────────
-  wait-after-wave-4:
-    needs: [check-version, publish-api]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for api on crates.io sparse index
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        run: |
-          NAME=objectiveai-api
-          SPARSE_PATH="${NAME:0:2}/${NAME:2:2}/$NAME"
-          for _ in $(seq 1 120); do
-            if curl -fsS "https://index.crates.io/$SPARSE_PATH" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
-              echo "$NAME@$VERSION live in sparse index"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "timed out waiting for $NAME@$VERSION in sparse index"; exit 1
-
   publish-cli:
-    needs: wait-after-wave-4
+    needs: wait-after-wave-3
     uses: ./.github/workflows/publish-objectiveai-cli.yml
     secrets: inherit
 
-  # ─── Wave 6 ───────────────────────────────────────────────────────
-  wait-after-wave-5:
-    needs: [check-version, publish-cli]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for cli on crates.io sparse index + sdk on PyPI
-        env:
-          VERSION: ${{ needs.check-version.outputs.version }}
-        # Probe the sparse index for cli (what mcp-cli's cargo publish
-        # will read when resolving objectiveai-cli as a dep). PyPI's
-        # api endpoint doesn't have the same lag, so we keep the simple
-        # JSON probe for cocoindex's dep on objectiveai-sdk.
-        run: |
-          NAME=objectiveai-cli
-          SPARSE_PATH="${NAME:0:2}/${NAME:2:2}/$NAME"
-          for _ in $(seq 1 120); do
-            ok=true
-            curl -fsS "https://index.crates.io/$SPARSE_PATH" 2>/dev/null | grep -q "\"vers\":\"$VERSION\"" || ok=false
-            curl -fsS -o /dev/null "https://pypi.org/pypi/objectiveai-sdk/$VERSION/json" 2>/dev/null || ok=false
-            if $ok; then
-              echo "$NAME@$VERSION live in sparse index + sdk@$VERSION live on PyPI"
-              exit 0
-            fi
-            sleep 5
-          done
-          echo "timed out waiting for $NAME@$VERSION in sparse index or sdk@$VERSION on PyPI"; exit 1
-
-  publish-mcp:
-    needs: wait-after-wave-5
-    uses: ./.github/workflows/publish-objectiveai-mcp.yml
-    secrets: inherit
-
   publish-cocoindex:
-    needs: wait-after-wave-5
+    needs: wait-after-wave-3
     uses: ./.github/workflows/publish-objectiveai-cocoindex.yml
     secrets: inherit
