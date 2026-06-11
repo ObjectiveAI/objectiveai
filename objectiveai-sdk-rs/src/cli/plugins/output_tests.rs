@@ -39,11 +39,19 @@ fn command_wire_shape() {
     let out = Output::Command(Command {
         r#type: CommandType::Command,
         id: "cmd-1".to_string(),
-        command: "ping".to_string(),
+        // Includes an argument whose value contains spaces, to pin the
+        // structured-argv contract: each element stays its own token.
+        command: vec![
+            "agents".to_string(),
+            "message".to_string(),
+            "leaf".to_string(),
+            "--simple".to_string(),
+            "a b c".to_string(),
+        ],
     });
     let v = roundtrip(&out);
     assert_eq!(v["type"], "command");
-    assert_eq!(v["command"], "ping");
+    assert_eq!(v["command"], json!(["agents", "message", "leaf", "--simple", "a b c"]));
     assert_eq!(v["id"], "cmd-1");
 }
 

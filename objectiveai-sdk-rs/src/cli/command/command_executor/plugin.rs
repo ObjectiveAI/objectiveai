@@ -203,7 +203,11 @@ impl CommandExecutor for PluginExecutor {
         let envelope = Output::Command(Command {
             r#type: CommandType::Command,
             id: id.clone(),
-            command: argv.join(" "),
+            // Carry argv structured — joining into a single string
+            // would lose argument boundaries for any value containing
+            // whitespace (e.g. `--simple "a b c"`), which the host
+            // could not recover.
+            command: argv,
         });
         let line = serde_json::to_string(&envelope).expect("Output serializes");
 

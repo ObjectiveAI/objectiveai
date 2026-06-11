@@ -165,24 +165,28 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 }
 
 /// Dispatch a plugin-originated command IN-PROCESS — no subprocess, no
-/// Postgres re-bootstrap. Whitespace-tokenize `command` (legacy: no
-/// shlex) and run it through the very same `crate::run` entry the cli
-/// binary uses, against `ctx` (which already carries this caller's
-/// identity plus the plugin coordinate). The body is a mirror of
-/// `main.rs::run_command`: every line that binary would write to stdout
-/// is instead forwarded into `plugin_stdin` wrapped in a
+/// Postgres re-bootstrap. `command` arrives as an already-tokenized
+/// argv vector (the plugin executor carries it structured), so it runs
+/// through the very same `crate::run` entry the cli binary uses without
+/// any re-tokenization — an argument value containing whitespace stays a
+/// single token. Dispatched against `ctx` (which already carries this
+/// caller's identity plus the plugin coordinate). The body is a mirror
+/// of `main.rs::run_command`: every line that binary would write to
+/// stdout is instead forwarded into `plugin_stdin` wrapped in a
 /// [`PluginCommandResponse`]. Returns an exit code for the terminal
 /// `CommandComplete` (the tool's code on a `ToolExit`, else 0/1).
 fn run_nested_command(
     ctx: Context,
-    command: String,
+    command: Vec<String>,
     plugin_stdin: Arc<Mutex<ChildStdin>>,
     id: Option<String>,
 ) -> JoinHandle<i32> {
     tokio::spawn(async move {
         let id = id.as_deref();
-        // Whitespace tokenization matches legacy (no shlex).
-        let tokens: Vec<String> = command.split_whitespace().map(String::from).collect();
+        // Argv is already tokenized by the plugin executor — one
+        // element per argument. No `split_whitespace`, so a value like
+        // `--simple "a b c"` is not re-split into separate tokens.
+        let tokens: Vec<String> = command;
 
         // A plugin may not invoke `plugins` or `tools` commands — no
         // running another plugin, no running a tool. Forward the same

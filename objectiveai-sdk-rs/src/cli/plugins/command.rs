@@ -19,7 +19,13 @@ pub struct Command {
     /// Plugin-minted correlation id. Echoed by the host on every
     /// response line so the plugin can demux concurrent calls.
     pub id: String,
-    pub command: String,
+    /// The command to run, as an already-tokenized argv vector — one
+    /// element per argument. Carried structured (NOT a space-joined
+    /// string) so an argument whose value contains whitespace (e.g.
+    /// `["agents", "message", "leaf", "--simple", "a b c"]`) keeps its
+    /// boundary intact; the host dispatches it verbatim without
+    /// re-tokenizing.
+    pub command: Vec<String>,
 }
 
 /// Single-variant discriminator for [`Command`]'s `type` field.
