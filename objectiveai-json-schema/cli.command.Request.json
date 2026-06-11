@@ -6,6 +6,10 @@
       "$ref": "cli.command.agents.Request"
     },
     {
+      "title": "Api",
+      "$ref": "cli.command.api.Request"
+    },
+    {
       "title": "Config",
       "$ref": "cli.command.config.Request"
     },

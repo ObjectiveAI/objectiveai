@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.config.api.mcp_authorization.Request",
+  "anyOf": [
+    {
+      "title": "Add",
+      "$ref": "cli.command.config.api.mcp_authorization.add.Request"
+    },
+    {
+      "title": "AddRequestSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.add.request_schema.Request"
+    },
+    {
+      "title": "AddResponseSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.add.response_schema.Request"
+    },
+    {
+      "title": "Del",
+      "$ref": "cli.command.config.api.mcp_authorization.del.Request"
+    },
+    {
+      "title": "DelRequestSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.del.request_schema.Request"
+    },
+    {
+      "title": "DelResponseSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.del.response_schema.Request"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.api.mcp_authorization.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.api.mcp_authorization.get.response_schema.Request"
+    }
+  ]
+}

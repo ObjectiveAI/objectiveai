@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.config.api.commit_author_email.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.api.commit_author_email.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.api.commit_author_email.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.api.commit_author_email.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.config.api.commit_author_email.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.config.api.commit_author_email.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.config.api.commit_author_email.set.response_schema.Request"
+    }
+  ]
+}

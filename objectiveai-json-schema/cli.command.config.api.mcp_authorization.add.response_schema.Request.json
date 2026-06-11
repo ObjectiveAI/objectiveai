@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.config.api.mcp_authorization.add.response_schema.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.config.api.mcp_authorization.add.response_schema.Path"
+    }
+  }
+}

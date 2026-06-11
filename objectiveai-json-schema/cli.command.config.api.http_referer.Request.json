@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.config.api.http_referer.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.api.http_referer.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.api.http_referer.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.api.http_referer.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.config.api.http_referer.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.config.api.http_referer.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.config.api.http_referer.set.response_schema.Request"
+    }
+  ]
+}

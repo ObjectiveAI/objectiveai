@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.config.api.objectiveai_authorization.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.api.objectiveai_authorization.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.api.objectiveai_authorization.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.api.objectiveai_authorization.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.config.api.objectiveai_authorization.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.config.api.objectiveai_authorization.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.config.api.objectiveai_authorization.set.response_schema.Request"
+    }
+  ]
+}

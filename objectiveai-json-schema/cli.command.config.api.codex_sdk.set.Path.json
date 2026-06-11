@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.codex_sdk.set.Path",
+  "type": "string",
+  "enum": [
+    "config/api/codex_sdk/set"
+  ]
+}

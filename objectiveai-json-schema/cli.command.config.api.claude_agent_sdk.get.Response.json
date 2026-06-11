@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.config.api.claude_agent_sdk.get.Response",
+  "type": "object",
+  "properties": {
+    "claude_agent_sdk": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

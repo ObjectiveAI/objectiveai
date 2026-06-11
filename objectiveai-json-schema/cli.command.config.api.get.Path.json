@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.get.Path",
+  "type": "string",
+  "enum": [
+    "config/api/get"
+  ]
+}

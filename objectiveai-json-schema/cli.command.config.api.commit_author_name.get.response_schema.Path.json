@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.commit_author_name.get.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "config/api/commit_author_name/get/response_schema"
+  ]
+}

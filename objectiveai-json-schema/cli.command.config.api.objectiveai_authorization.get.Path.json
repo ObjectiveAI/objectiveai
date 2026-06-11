@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.objectiveai_authorization.get.Path",
+  "type": "string",
+  "enum": [
+    "config/api/objectiveai_authorization/get"
+  ]
+}

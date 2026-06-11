@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.codex_sdk.set.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "config/api/codex_sdk/set/response_schema"
+  ]
+}

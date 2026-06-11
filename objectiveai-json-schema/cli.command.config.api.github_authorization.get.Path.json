@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.api.github_authorization.get.Path",
+  "type": "string",
+  "enum": [
+    "config/api/github_authorization/get"
+  ]
+}
