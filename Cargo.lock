@@ -4446,6 +4446,7 @@ dependencies = [
  "jmespath",
  "json-escape",
  "mime2ext",
+ "nix 0.29.0",
  "objectiveai-sdk-macros",
  "proc-macro2",
  "quote",
@@ -4468,6 +4469,7 @@ dependencies = [
  "twox-hash",
  "uuid",
  "walkdir",
+ "windows-sys 0.59.0",
  "wiremock",
 ]
 
@@ -4522,16 +4524,6 @@ dependencies = [
  "git2",
  "serde_json",
  "toml 0.8.2",
-]
-
-[[package]]
-name = "objectiveai-tests-pg-installer"
-version = "2.0.11"
-dependencies = [
- "anyhow",
- "postgresql_embedded",
- "tempfile",
- "tokio",
 ]
 
 [[package]]

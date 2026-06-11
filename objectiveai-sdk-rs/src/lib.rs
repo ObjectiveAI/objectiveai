@@ -67,6 +67,9 @@ pub use http::*;
 #[cfg(feature = "mcp")]
 pub mod mcp;
 
+#[cfg(feature = "lockfile")]
+pub mod lockfile;
+
 // `client_objectiveai_mcp` is the reverse-attach protocol's wire
 // envelope. The typed `server_request::Payload` and
 // `server_response::Payload` variants reference `mcp::tool::*` /

@@ -28,6 +28,7 @@ mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio
 cli = ["dep:clap", "dep:humantime"]
 cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs"]
 viewer = ["dep:tokio"]
+lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
 objectiveai-sdk-macros = { version = "2.1.2", path = "../objectiveai-sdk-rs-macros" }
@@ -72,6 +73,12 @@ syn = { version = "2.0.117", features = ["full", "visit"] }
 tempfile = "3.10"
 walkdir = "2.5.0"
 wiremock = "0.6"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.29", features = ["fs"], optional = true }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_Storage_FileSystem", "Win32_Security", "Win32_System_Threading"], optional = true }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 uuid = { version = "1.22.0", features = ["v4", "serde", "js"] }
