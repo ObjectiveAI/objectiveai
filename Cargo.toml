@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "objectiveai-api",
+    "objectiveai-db",
     "objectiveai-mcp",
     "objectiveai-mcp-filesystem",
     "objectiveai-mcp-proxy",
