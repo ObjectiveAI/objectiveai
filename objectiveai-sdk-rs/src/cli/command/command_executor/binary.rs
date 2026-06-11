@@ -16,15 +16,16 @@ use crate::cli::command::{AgentArguments, CommandExecutor, CommandRequest, Comma
 ///
 /// - [`BinaryExecutor::from_path`] — returns the explicit path verbatim
 ///   (used by tests pointing at an out-of-tree build).
-/// - [`BinaryExecutor::new`] with `Some(config_base_dir)` —
-///   `<config_base_dir>/objectiveai{.exe}`.
+/// - [`BinaryExecutor::new`] with `Some(objectiveai_dir)` —
+///   `<objectiveai_dir>/bin/objectiveai{.exe}`.
 /// - [`BinaryExecutor::new`] with `None` —
-///   `<home>/.objectiveai/objectiveai{.exe}`.
+///   `<home>/.objectiveai/bin/objectiveai{.exe}`.
 pub struct BinaryExecutor {
-    /// Resolves to a directory; the binary inside is always
-    /// `objectiveai{.exe}`. `None` falls back to the home-dir default.
-    config_base_dir: Option<PathBuf>,
-    /// When set, used verbatim and the `config_base_dir` lookup is
+    /// The layout root (`OBJECTIVEAI_DIR`); the binary inside is
+    /// always `bin/objectiveai{.exe}`. `None` falls back to the
+    /// home-dir default (`~/.objectiveai`).
+    objectiveai_dir: Option<PathBuf>,
+    /// When set, used verbatim and the `objectiveai_dir` lookup is
     /// skipped entirely. Lets callers (notably tests) point the
     /// executor at any binary by absolute path without enforcing the
     /// `<dir>/objectiveai` naming convention.
@@ -52,9 +53,9 @@ pub struct BinaryExecutor {
 }
 
 impl BinaryExecutor {
-    pub fn new(config_base_dir: Option<impl Into<PathBuf>>) -> Self {
+    pub fn new(objectiveai_dir: Option<impl Into<PathBuf>>) -> Self {
         Self {
-            config_base_dir: config_base_dir.map(Into::into),
+            objectiveai_dir: objectiveai_dir.map(Into::into),
             explicit_path: None,
             extra_env: Vec::new(),
             kill_on_drop: false,
@@ -68,7 +69,7 @@ impl BinaryExecutor {
     /// build without renaming or symlinking.
     pub fn from_path(binary: impl Into<PathBuf>) -> Self {
         Self {
-            config_base_dir: None,
+            objectiveai_dir: None,
             explicit_path: Some(binary.into()),
             extra_env: Vec::new(),
             kill_on_drop: false,
@@ -78,7 +79,7 @@ impl BinaryExecutor {
 
     /// Set an environment variable on every child the executor spawns.
     /// Stacks on top of the parent's env; intended for tests that need
-    /// to pin a per-instance `CONFIG_BASE_DIR` or `OBJECTIVEAI_ADDRESS`
+    /// to pin a per-instance `OBJECTIVEAI_DIR`/`OBJECTIVEAI_STATE` or `OBJECTIVEAI_ADDRESS`
     /// without racing other parallel tests via `std::env::set_var`.
     pub fn env(
         mut self,
@@ -123,21 +124,21 @@ impl BinaryExecutor {
         if let Some(p) = &self.explicit_path {
             return Ok(p.clone());
         }
-        let base = match &self.config_base_dir {
+        let dir = match &self.objectiveai_dir {
             Some(d) => d.clone(),
             None => dirs::home_dir()
                 .ok_or(Error::NoHomeDir)?
                 .join(".objectiveai"),
         };
         let name = if cfg!(windows) { "objectiveai.exe" } else { "objectiveai" };
-        Ok(base.join(name))
+        Ok(dir.join("bin").join(name))
     }
 }
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// `dirs::home_dir()` returned `None` and no `config_base_dir` was set.
-    #[error("no home directory and no config_base_dir set")]
+    /// `dirs::home_dir()` returned `None` and no `objectiveai_dir` was set.
+    #[error("no home directory and no objectiveai_dir set")]
     NoHomeDir,
     /// Failed to spawn the binary at the resolved path.
     #[error("failed to spawn cli binary: {0}")]

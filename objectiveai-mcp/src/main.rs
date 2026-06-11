@@ -7,6 +7,12 @@ async fn main() -> std::io::Result<()> {
     let config = objectiveai_mcp::ConfigBuilder::init_from_env()
         .unwrap_or_default()
         .build();
-    let executor = BinaryExecutor::new(config.config_base_dir.clone());
+    let mut executor = BinaryExecutor::new(config.objectiveai_dir.clone());
+    if let Some(dir) = &config.objectiveai_dir {
+        executor = executor.env("OBJECTIVEAI_DIR", dir.clone());
+    }
+    if let Some(state) = &config.objectiveai_state {
+        executor = executor.env("OBJECTIVEAI_STATE", state.clone());
+    }
     objectiveai_mcp::run(config, executor).await
 }

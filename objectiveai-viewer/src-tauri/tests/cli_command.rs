@@ -34,15 +34,15 @@ async fn cli_command_config_viewer_get() {
         "oai-viewer-cli-command-{}",
         std::process::id()
     ));
-    std::fs::create_dir_all(&scratch).expect("create scratch CONFIG_BASE_DIR");
+    std::fs::create_dir_all(&scratch).expect("create scratch OBJECTIVEAI_DIR");
     let executor = BinaryExecutor::from_path(cli_binary)
-        .env("CONFIG_BASE_DIR", scratch.to_string_lossy().into_owned());
+        .env("OBJECTIVEAI_DIR", scratch.to_string_lossy().into_owned());
 
     let env = ViewerTestEnv::new();
 
     // Pick an offline cli command that emits a small, deterministic
     // JSONL stream: `config viewer get` against the fresh scratch
-    // CONFIG_BASE_DIR prints exactly one line — the empty viewer
+    // OBJECTIVEAI_DIR prints exactly one line — the empty viewer
     // config object — purely local, no network state.
     let args = vec![
         "objectiveai".to_string(),

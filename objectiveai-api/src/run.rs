@@ -146,8 +146,10 @@ struct EnvConfigBuilder {
     mcp_call_timeout: Option<u64>,
     #[envconfig(from = "MCP_ENCRYPTION_KEY")]
     mcp_encryption_key: Option<String>,
-    #[envconfig(from = "CONFIG_BASE_DIR")]
-    config_base_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_DIR")]
+    objectiveai_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_STATE")]
+    objectiveai_state: Option<String>,
     #[envconfig(from = "PERSISTENT_CACHE_TRANSIENT_TTL_MS")]
     persistent_cache_transient_ttl_ms: Option<u64>,
     #[envconfig(from = "MOCK_DELAY_MS")]
@@ -225,7 +227,8 @@ impl EnvConfigBuilder {
             mcp_connect_timeout: self.mcp_connect_timeout,
             mcp_call_timeout: self.mcp_call_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
@@ -293,7 +296,8 @@ pub struct ConfigBuilder {
     pub mcp_connect_timeout: Option<u64>,
     pub mcp_call_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
     pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
@@ -375,11 +379,25 @@ impl ConfigBuilder {
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
             mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
             mcp_encryption_key: self.mcp_encryption_key,
-            config_base_dir: match self.config_base_dir {
-                Some(dir) => std::path::PathBuf::from(dir),
-                None => dirs::home_dir()
-                    .unwrap_or_else(|| std::path::PathBuf::from("."))
-                    .join(".objectiveai"),
+            // The api's filesystem client holds per-state data
+            // (functions/, profiles/), so resolve straight to the
+            // state dir: <dir>/state/<state>.
+            config_base_dir: {
+                let dir = match self.objectiveai_dir {
+                    Some(dir) => std::path::PathBuf::from(dir),
+                    None => dirs::home_dir()
+                        .unwrap_or_else(|| std::path::PathBuf::from("."))
+                        .join(".objectiveai"),
+                };
+                let state = self.objectiveai_state.unwrap_or_else(|| "default".to_string());
+                assert!(
+                    !state.is_empty()
+                        && state
+                            .chars()
+                            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'),
+                    "OBJECTIVEAI_STATE {state:?} is invalid: state names must match [A-Za-z0-9_-]+",
+                );
+                dir.join("state").join(state)
             },
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),

@@ -3,7 +3,7 @@
 //! Other crates can `use objectiveai_mcp::{ConfigBuilder, run}` and
 //! spawn the server in-process without going through the binary. The
 //! executor is a required argument — `main.rs` builds a
-//! `BinaryExecutor` from `Config.config_base_dir`; other callers can
+//! `BinaryExecutor` from `Config.objectiveai_dir`; other callers can
 //! pass any `CommandExecutor` impl.
 
 use std::sync::Arc;
@@ -28,8 +28,10 @@ struct EnvConfigBuilder {
     port: Option<u16>,
     #[envconfig(from = "SUPPRESS_OUTPUT")]
     suppress_output: Option<String>,
-    #[envconfig(from = "CONFIG_BASE_DIR")]
-    config_base_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_DIR")]
+    objectiveai_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_STATE")]
+    objectiveai_state: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -40,7 +42,8 @@ impl EnvConfigBuilder {
             suppress_output: self
                 .suppress_output
                 .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")),
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
         }
     }
 }
@@ -50,7 +53,8 @@ pub struct ConfigBuilder {
     pub address: Option<String>,
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -76,7 +80,8 @@ impl ConfigBuilder {
             address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
             port: self.port.unwrap_or(3000),
             suppress_output: self.suppress_output.unwrap_or(false),
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
         }
     }
 }
@@ -85,7 +90,8 @@ pub struct Config {
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
 }
 
 /// Build the rmcp `(TcpListener, axum::Router)` pair. The executor is
@@ -104,7 +110,8 @@ where
         address,
         port,
         suppress_output: _,
-        config_base_dir: _,
+        objectiveai_dir: _,
+        objectiveai_state: _,
     } = config;
 
     let executor = Arc::new(executor);

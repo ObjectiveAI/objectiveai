@@ -27,8 +27,10 @@ struct EnvConfigBuilder {
     secret: Option<String>,
     #[envconfig(from = "SUPPRESS_OUTPUT")]
     suppress_output: Option<String>,
-    #[envconfig(from = "CONFIG_BASE_DIR")]
-    config_base_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_DIR")]
+    objectiveai_dir: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_STATE")]
+    objectiveai_state: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -40,7 +42,8 @@ impl EnvConfigBuilder {
                 .suppress_output
                 .map(|v| matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")),
             secret: self.secret,
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
         }
     }
 }
@@ -51,7 +54,8 @@ pub struct ConfigBuilder {
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
     pub secret: Option<String>,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -76,7 +80,8 @@ impl ConfigBuilder {
             port: self.port.unwrap_or(5001),
             suppress_output: self.suppress_output.unwrap_or(false),
             secret: self.secret,
-            config_base_dir: self.config_base_dir,
+            objectiveai_dir: self.objectiveai_dir,
+            objectiveai_state: self.objectiveai_state,
         }
     }
 }
@@ -86,7 +91,8 @@ pub struct Config {
     pub port: u16,
     pub suppress_output: bool,
     pub secret: Option<String>,
-    pub config_base_dir: Option<String>,
+    pub objectiveai_dir: Option<String>,
+    pub objectiveai_state: Option<String>,
 }
 
 pub async fn setup(
@@ -146,15 +152,19 @@ pub async fn setup(
     // One executor for everything the viewer runs through the cli
     // binary: plugin discovery here at startup, `cli_run` dispatches
     // from plugin iframes, and `list_plugins_with_viewer` from the
-    // shell. CONFIG_BASE_DIR is stamped onto every spawned child so
-    // the cli resolves the same install root the viewer serves
-    // `plugin://` assets from, even when the viewer's own config came
-    // from a programmatic `ConfigBuilder` rather than the env.
-    let mut executor = BinaryExecutor::new(config.config_base_dir.clone());
-    if let Some(base) = &config.config_base_dir {
-        executor = executor.env("CONFIG_BASE_DIR", base.clone());
+    // shell. OBJECTIVEAI_DIR / OBJECTIVEAI_STATE are stamped onto
+    // every spawned child so the cli resolves the same tree the
+    // viewer serves `plugin://` assets from, even when the viewer's
+    // own config came from a programmatic `ConfigBuilder` rather
+    // than the env.
+    let mut executor = BinaryExecutor::new(config.objectiveai_dir.clone());
+    if let Some(dir) = &config.objectiveai_dir {
+        executor = executor.env("OBJECTIVEAI_DIR", dir.clone());
     }
-    let plugins_dir = crate::plugins::plugins_dir(config.config_base_dir.as_deref());
+    if let Some(state) = &config.objectiveai_state {
+        executor = executor.env("OBJECTIVEAI_STATE", state.clone());
+    }
+    let plugins_dir = crate::plugins::plugins_dir(config.objectiveai_dir.as_deref());
 
     // Scan installed plugins and register any viewer routes they
     // declare. Listing is once-at-startup; the user opts in to

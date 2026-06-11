@@ -1,7 +1,7 @@
 //! Test fixture plugin: serves an MCP-over-Streamable-HTTP endpoint
 //! whose `Mcp-Session-Id` echoes the `--foo` argument the host passes,
 //! and whose only tool (`invoke`) appends one line per call to
-//! `<CONFIG_BASE_DIR>/<foo>.txt`.
+//! `<state_dir>/<foo>.txt`.
 //!
 //! ## CLI contract
 //!
@@ -26,13 +26,14 @@
 //! - `tools/list` → one tool named `invoke` with an open object schema.
 //! - `tools/call` for `invoke` → asserts incoming `Mcp-Session-Id`
 //!   equals `<foo>` (returns 400 otherwise), then appends
-//!   `"<foo> - <session-id>\n"` to `<CONFIG_BASE_DIR>/<foo>.txt`.
+//!   `"<foo> - <session-id>\n"` to `<state_dir>/<foo>.txt`.
 //! - `notifications/initialized` → 202.
 //! - everything else → 404.
 //!
-//! `<CONFIG_BASE_DIR>` is read from the `CONFIG_BASE_DIR` env var, which
-//! the host cli inherits to its `dial_plugin_upstream` child and we
-//! inherit transitively from that child.
+//! `<state_dir>` is `<OBJECTIVEAI_DIR>/state/<OBJECTIVEAI_STATE>`, read
+//! from the env vars the host cli inherits to its
+//! `dial_plugin_upstream` child and we inherit transitively from that
+//! child.
 
 use std::io::Write;
 use std::sync::Arc;
@@ -77,10 +78,12 @@ async fn main() -> std::io::Result<()> {
     }
     let foo = foo.expect("plugin requires --foo <value>");
 
-    // --- CONFIG_BASE_DIR is inherited from the cli's env ---
-    let base_dir = std::env::var("CONFIG_BASE_DIR")
+    // --- OBJECTIVEAI_DIR/_STATE are inherited from the cli's env ---
+    let base_dir = std::env::var("OBJECTIVEAI_DIR")
         .map(std::path::PathBuf::from)
-        .expect("plugin requires CONFIG_BASE_DIR env");
+        .expect("plugin requires OBJECTIVEAI_DIR env")
+        .join("state")
+        .join(std::env::var("OBJECTIVEAI_STATE").unwrap_or_else(|_| "default".to_string()));
 
     let state = AppState {
         inner: Arc::new(Inner {
