@@ -7,7 +7,15 @@
 //! `<dir>/<escape(key)>.lock`. This module owns the filename
 //! escaping (percent-encoding outside `[A-Za-z0-9._-]`, injective)
 //! and the `.lock` suffix; the acquisition paths also create `dir`
-//! if needed. Each platform uses its strongest native mechanism for
+//! if needed.
+//!
+//! **Lock files carry content.** Acquisition takes the content to
+//! publish (written truncate-first under the freshly-won lock) and
+//! any process can [`read`] it WITHOUT owning the lock — the owner
+//! announces itself (its connect address, pid, whatever) and
+//! readers consume it. On Windows the content dies with the lock
+//! (`DELETE_ON_CLOSE`); on Unix the file outlives release, so pair
+//! [`read`] with [`is_held`] before trusting it. Each platform uses its strongest native mechanism for
 //! "is anyone alive holding this claim right now":
 //!
 //! - **Windows**: `CreateFileW + CREATE_NEW + FILE_FLAG_DELETE_ON_CLOSE`.
@@ -226,11 +234,35 @@ impl LockClaim {
 }
 
 /// Try to acquire `(dir, key)` right now, creating `dir` first if
-/// needed. `None` if another live process holds it, or any other
-/// open / lock failure.
-pub async fn try_acquire(dir: &Path, key: &str) -> Option<LockClaim> {
+/// needed, and publish `contents` into the lock file. `None` if
+/// another live process holds it, or any other open / lock / write
+/// failure (a failed publish abandons the freshly-won claim).
+pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockClaim> {
     tokio::fs::create_dir_all(dir).await.ok()?;
-    open_claim_file(&claim_path(dir, key)).map(LockClaim::new)
+    let mut file = open_claim_file(&claim_path(dir, key))?;
+    // On failure `file` drops here un-leaked (it is not yet wrapped
+    // in ManuallyDrop), so the claim releases and nobody observes a
+    // held-but-unannounced lock.
+    write_contents(&mut file, contents).ok()?;
+    Some(LockClaim::new(file))
+}
+
+/// Read the content of the `(dir, key)` lock file, held or not.
+/// Errors with `NotFound` when the file doesn't exist — on Windows
+/// that means "not held" (the file dies with the lock); on Unix the
+/// file outlives release, so combine with [`is_held`].
+pub async fn read(dir: &Path, key: &str) -> std::io::Result<String> {
+    tokio::fs::read_to_string(claim_path(dir, key)).await
+}
+
+/// Truncate-and-write `contents`, so a reused claim file (Unix
+/// re-acquisition) never shows a stale suffix.
+fn write_contents(file: &mut std::fs::File, contents: &str) -> std::io::Result<()> {
+    use std::io::{Seek, Write};
+    file.set_len(0)?;
+    file.seek(std::io::SeekFrom::Start(0))?;
+    file.write_all(contents.as_bytes())?;
+    file.flush()
 }
 
 /// `<dir>/<escape(key)>.lock`.
@@ -315,25 +347,30 @@ pub async fn wait_release(dir: &Path, key: &str) -> std::io::Result<()> {
     }
 }
 
-/// Acquire the lock at `path`, blocking until we own it. Returns
-/// a held [`LockClaim`].
+/// Acquire the lock at `(dir, key)`, blocking until we own it, then
+/// publish `contents` into the lock file. Returns a held
+/// [`LockClaim`].
 ///
 /// On Windows this loops `try_acquire`, waiting on
 /// [`wait_release`] between attempts. On Unix it's a single
 /// blocking `flock(LOCK_EX)` call.
 ///
 /// Same cancellation caveat as [`wait_release`].
-pub async fn wait_acquire(dir: &Path, key: &str) -> std::io::Result<LockClaim> {
+pub async fn wait_acquire(
+    dir: &Path,
+    key: &str,
+    contents: &str,
+) -> std::io::Result<LockClaim> {
     tokio::fs::create_dir_all(dir).await?;
     let path = claim_path(dir, key);
     #[cfg(windows)]
-    {
-        wait_acquire_windows(path).await
-    }
+    let mut file = wait_acquire_windows(path).await?;
     #[cfg(unix)]
-    {
-        wait_acquire_unix(path).await
-    }
+    let mut file = wait_acquire_unix(path).await?;
+    // On failure `file` drops here un-leaked (not yet ManuallyDrop),
+    // releasing the freshly-won claim.
+    write_contents(&mut file, contents)?;
+    Ok(LockClaim::new(file))
 }
 
 // ---------------------------------------------------------------------
@@ -388,10 +425,10 @@ async fn wait_release_windows(path: PathBuf) -> std::io::Result<()> {
 }
 
 #[cfg(windows)]
-async fn wait_acquire_windows(path: PathBuf) -> std::io::Result<LockClaim> {
+async fn wait_acquire_windows(path: PathBuf) -> std::io::Result<std::fs::File> {
     loop {
-        if let Some(claim) = open_claim_file(&path).map(LockClaim::new) {
-            return Ok(claim);
+        if let Some(file) = open_claim_file(&path) {
+            return Ok(file);
         }
         // No file yet? `try_acquire` failed because the file
         // already exists (someone holds it) — wait for it to be
@@ -531,11 +568,10 @@ async fn wait_release_unix(path: PathBuf) -> std::io::Result<()> {
 }
 
 #[cfg(unix)]
-async fn wait_acquire_unix(path: PathBuf) -> std::io::Result<LockClaim> {
+async fn wait_acquire_unix(path: PathBuf) -> std::io::Result<std::fs::File> {
     tokio::task::spawn_blocking(move || unix_wait_for_acquire(&path))
         .await
         .map_err(|e| std::io::Error::other(format!("join: {e}")))?
-        .map(LockClaim::new)
 }
 
 /// Block until the exclusive holder of `path` releases — implemented
