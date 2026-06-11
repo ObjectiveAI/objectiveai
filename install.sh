@@ -20,13 +20,14 @@
 #                      via `curl | bash`). --no-*/--cli-only flags are
 #                      ignored when --dev is set.
 #
-# Layout on disk:
-#   ~/.objectiveai/objectiveai{.exe}        ← CLI (managed self)
+# Layout on disk (bin/ is machine-wide; per-state data lives under
+# ~/.objectiveai/state/<OBJECTIVEAI_STATE>, default "default"):
+#   ~/.objectiveai/bin/objectiveai{.exe}        ← CLI
 #   ~/.objectiveai/bin/objectiveai-api{.exe}
 #   ~/.objectiveai/bin/objectiveai-viewer{.exe}
 #   ~/.objectiveai/bin/objectiveai-mcp{.exe}
 #
-# Both ~/.objectiveai and ~/.objectiveai/bin are added to PATH.
+# ~/.objectiveai/bin is added to PATH.
 # No toolchain required.
 #
 # For a from-source install, clone the repo and run the per-crate
@@ -177,15 +178,16 @@ install_binary() {
 }
 
 # ── Install binaries ──────────────────────────────────────────────────
-# CLI sits at the base directory; api/viewer/mcp land in bin/ so the
-# cli's own `objectiveai update` has a stable place to refresh them.
+# Every binary lands in bin/ — machine-wide, shared by every state —
+# so the cli's own `objectiveai update` has one stable place to
+# refresh them all.
 
 BIN_DIR="$INSTALL_DIR/bin"
 
 # CLI — always installed.
 install_binary \
   "objectiveai-${PLATFORM}-${ARCH}${EXE_SUFFIX}" \
-  "$INSTALL_DIR" \
+  "$BIN_DIR" \
   "objectiveai${EXE_SUFFIX}"
 
 # API server — standalone objectiveai-api binary.
@@ -226,10 +228,6 @@ write_env_file() {
 #   . "$HOME/.objectiveai/env"
 # to put the objectiveai binaries on PATH for the current shell.
 
-case ":${PATH}:" in
-    *:"$HOME/.objectiveai":*) ;;
-    *) export PATH="$HOME/.objectiveai:$PATH" ;;
-esac
 case ":${PATH}:" in
     *:"$HOME/.objectiveai/bin":*) ;;
     *) export PATH="$HOME/.objectiveai/bin:$PATH" ;;

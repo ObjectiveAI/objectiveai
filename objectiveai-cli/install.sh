@@ -2,8 +2,8 @@
 # Builds and installs the ObjectiveAI CLI.
 #
 # - Builds objectiveai-cli in release mode (skips if fingerprint unchanged)
-# - Copies the binary to ~/.objectiveai/ as 'objectiveai' (or 'objectiveai.exe' on Windows)
-# - Adds ~/.objectiveai to PATH if not already present
+# - Copies the binary to ~/.objectiveai/bin/ as 'objectiveai' (or 'objectiveai.exe' on Windows)
+# - Adds ~/.objectiveai/bin to PATH if not already present
 #
 # Usage:
 #   bash objectiveai-cli/install.sh
@@ -13,6 +13,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 INSTALL_DIR="$HOME/.objectiveai"
+BIN_DIR="$INSTALL_DIR/bin"
 
 # Detect platform
 case "$(uname -s)" in
@@ -76,7 +77,7 @@ CURRENT_FP=$(compute_fingerprint)
 
 if [ -f "$FINGERPRINT_FILE" ]; then
   STORED_FP=$(cat "$FINGERPRINT_FILE")
-  if [ "$CURRENT_FP" = "$STORED_FP" ] && [ -f "$INSTALL_DIR/$DST_NAME" ]; then
+  if [ "$CURRENT_FP" = "$STORED_FP" ] && [ -f "$BIN_DIR/$DST_NAME" ]; then
     echo "objectiveai is up to date (fingerprint: ${CURRENT_FP:0:12}...)"
     exit 0
   fi
@@ -96,11 +97,11 @@ fi
 
 # ── Install ────────────────────────────────────────────────────────────
 
-mkdir -p "$INSTALL_DIR"
-cp "$SRC" "$INSTALL_DIR/$DST_NAME"
-chmod +x "$INSTALL_DIR/$DST_NAME"
+mkdir -p "$BIN_DIR"
+cp "$SRC" "$BIN_DIR/$DST_NAME"
+chmod +x "$BIN_DIR/$DST_NAME"
 echo "$CURRENT_FP" > "$FINGERPRINT_FILE"
-echo "Installed $INSTALL_DIR/$DST_NAME"
+echo "Installed $BIN_DIR/$DST_NAME"
 
 # ── PATH ───────────────────────────────────────────────────────────────
 #
@@ -116,10 +117,6 @@ write_env_file() {
 #   . "$HOME/.objectiveai/env"
 # to put the objectiveai binaries on PATH for the current shell.
 
-case ":${PATH}:" in
-    *:"$HOME/.objectiveai":*) ;;
-    *) export PATH="$HOME/.objectiveai:$PATH" ;;
-esac
 case ":${PATH}:" in
     *:"$HOME/.objectiveai/bin":*) ;;
     *) export PATH="$HOME/.objectiveai/bin:$PATH" ;;
