@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.config.db.address.set.Request",
+  "type": "object",
+  "properties": {
+    "path_type": {
+      "$ref": "cli.command.config.db.address.set.Path"
+    },
+    "value": {
+      "type": "string"
+    }
+  }
+}

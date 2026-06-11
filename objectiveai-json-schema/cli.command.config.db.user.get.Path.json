@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.config.db.user.get.Path",
+  "type": "string",
+  "enum": [
+    "config/db/user/get"
+  ]
+}

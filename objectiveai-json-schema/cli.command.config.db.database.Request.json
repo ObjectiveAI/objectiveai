@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.config.db.database.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.config.db.database.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.config.db.database.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.config.db.database.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.config.db.database.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.config.db.database.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.config.db.database.set.response_schema.Request"
+    }
+  ]
+}

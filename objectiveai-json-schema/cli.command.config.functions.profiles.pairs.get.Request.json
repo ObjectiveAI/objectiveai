@@ -2,16 +2,6 @@
   "title": "cli.command.config.functions.profiles.pairs.get.Request",
   "type": "object",
   "properties": {
-    "filter": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "jq": {
       "anyOf": [
         {

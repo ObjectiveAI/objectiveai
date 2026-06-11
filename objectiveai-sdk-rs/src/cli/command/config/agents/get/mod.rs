@@ -6,7 +6,6 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.config.agents.get.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub filter: Option<String>,
     pub jq: Option<String>,
 }
 
@@ -24,9 +23,6 @@ impl CommandRequest for Request {
             "agents".to_string(),
             "get".to_string(),
         ];
-        if let Some(filter) = &self.filter {
-            argv.push(filter.clone());
-        }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -45,8 +41,6 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Optional path filter into the config tree.
-    pub filter: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -73,7 +67,6 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self { path_type: Path::ConfigAgentsGet,
-            filter: args.filter,
             jq: args.jq,
         })
     }

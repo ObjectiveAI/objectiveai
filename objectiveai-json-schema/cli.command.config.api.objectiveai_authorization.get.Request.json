@@ -2,16 +2,6 @@
   "title": "cli.command.config.api.objectiveai_authorization.get.Request",
   "type": "object",
   "properties": {
-    "filter": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "jq": {
       "anyOf": [
         {

@@ -2,6 +2,18 @@
   "title": "cli.command.db.Request",
   "anyOf": [
     {
+      "title": "Kill",
+      "$ref": "cli.command.db.kill.Request"
+    },
+    {
+      "title": "KillRequestSchema",
+      "$ref": "cli.command.db.kill.request_schema.Request"
+    },
+    {
+      "title": "KillResponseSchema",
+      "$ref": "cli.command.db.kill.response_schema.Request"
+    },
+    {
       "title": "Query",
       "$ref": "cli.command.db.query.Request"
     },
@@ -12,6 +24,18 @@
     {
       "title": "QueryResponseSchema",
       "$ref": "cli.command.db.query.response_schema.Request"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.db.spawn.Request"
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "$ref": "cli.command.db.spawn.request_schema.Request"
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "$ref": "cli.command.db.spawn.response_schema.Request"
     }
   ]
 }
