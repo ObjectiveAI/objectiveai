@@ -2,22 +2,27 @@
 //! around embedded PostgreSQL.
 //!
 //! Running this binary ensures a postmaster is alive for the
-//! `<CONFIG_BASE_DIR>/db/` data dir, bound to a FIXED address+port
-//! from the environment, then prints `listening on <addr>:<port>` to
-//! stderr and exits. The postmaster itself is daemonized by `pg_ctl`
+//! `<OBJECTIVEAI_DIR>/state/<OBJECTIVEAI_STATE>/db/` data dir, bound
+//! to a FIXED address+port from the environment, then prints
+//! `listening on <addr>:<port>` to stderr and exits. The postmaster itself is daemonized by `pg_ctl`
 //! (double-fork on Unix → reparented to init; detached child on
 //! Windows) and outlives this process — the binary is a launcher, not
 //! a supervisor. Re-running against a live postmaster is a fast
 //! no-op that re-prints the listening line.
 //!
 //! Environment (all optional; the spawn helper in objectiveai-cli
-//! passes ADDRESS/PORT and forwards the rest from `config db`):
+//! passes ADDRESS/PORT and forwards the rest from `config db` + its
+//! own resolved dir/state):
 //!
-//!   CONFIG_BASE_DIR  state root (default `~/.objectiveai`):
-//!                    binaries extract to `<base>/db-bin/`, cluster
-//!                    data at `<base>/db/`, password file at
-//!                    `<base>/.pgpass`, bootstrap lock at
-//!                    `<base>/db.lock`
+//!   OBJECTIVEAI_DIR    layout root (default `~/.objectiveai`). The
+//!                      postgres binaries extract ONCE per machine to
+//!                      `<dir>/bin/pg-bin/`, shared by every state.
+//!   OBJECTIVEAI_STATE  state name (default `default`, restricted to
+//!                      `[A-Za-z0-9_-]+`). The cluster lives at
+//!                      `<dir>/state/<state>/db/`, password file at
+//!                      `<dir>/state/<state>/.pgpass`, bootstrap lock
+//!                      at `<dir>/state/<state>/db.lock` — one
+//!                      database per state.
 //!   ADDRESS          bind address (default `127.0.0.1`)
 //!   PORT             bind port (default `5433` — one off the system
 //!                    postgres default so the two coexist)
@@ -42,19 +47,40 @@ use std::time::Duration;
 const PROBE_TIMEOUT: Duration = Duration::from_millis(250);
 
 struct Env {
-    base_dir: PathBuf,
+    /// `<OBJECTIVEAI_DIR>/bin` — the machine-wide binaries tree the
+    /// postgres install extracts into (`pg-bin/`).
+    bin_dir: PathBuf,
+    /// `<OBJECTIVEAI_DIR>/state/<OBJECTIVEAI_STATE>` — the per-state
+    /// tree holding the cluster, password file, and bootstrap lock.
+    state_dir: PathBuf,
     address: String,
     port: u16,
     password: String,
 }
 
 fn read_env() -> Result<Env, String> {
-    let base_dir = match std::env::var("CONFIG_BASE_DIR") {
+    let dir = match std::env::var("OBJECTIVEAI_DIR") {
         Ok(v) if !v.trim().is_empty() => PathBuf::from(v),
         _ => dirs::home_dir()
-            .ok_or("CONFIG_BASE_DIR unset and no home directory found")?
+            .ok_or("OBJECTIVEAI_DIR unset and no home directory found")?
             .join(".objectiveai"),
     };
+    let state = match std::env::var("OBJECTIVEAI_STATE") {
+        Ok(v) if !v.trim().is_empty() => v,
+        _ => "default".to_string(),
+    };
+    // State names become directory names under <dir>/state/ — reject
+    // separators, dot-segments, and anything else outside the safe
+    // charset (mirrors objectiveai-cli's validation).
+    if state.is_empty()
+        || !state
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+    {
+        return Err(format!(
+            "OBJECTIVEAI_STATE {state:?} is invalid: state names must match [A-Za-z0-9_-]+"
+        ));
+    }
     let address = match std::env::var("ADDRESS") {
         Ok(v) if !v.trim().is_empty() => v,
         _ => "127.0.0.1".to_string(),
@@ -71,7 +97,8 @@ fn read_env() -> Result<Env, String> {
         _ => "objectiveai".to_string(),
     };
     Ok(Env {
-        base_dir,
+        bin_dir: dir.join("bin"),
+        state_dir: dir.join("state").join(state),
         address,
         port,
         password,
@@ -100,9 +127,10 @@ async fn main() {
 
 /// Probe the configured address:port; if nothing is listening,
 /// single-flight-spawn postgres and detach it. Returns `Ok` once a
-/// postmaster is reachable. Everything stays inside `base_dir`:
-/// install at `db-bin/`, cluster data at `db/`, password file at
-/// `.pgpass`, bootstrap lock at `db.lock`.
+/// postmaster is reachable. The binaries install lands in the shared
+/// `<bin_dir>/pg-bin/`; cluster data (`db/`), password file
+/// (`.pgpass`), and bootstrap lock (`db.lock`) are per-state under
+/// `state_dir`.
 ///
 /// The single-flight loop is the same event-driven claim/wait shape
 /// objectiveai-cli used when it bootstrapped postgres in-process:
@@ -111,17 +139,17 @@ async fn main() {
 /// holder releases, then re-evaluates. A crashed bootstrapper's lock
 /// auto-releases via OS cleanup, so a waiter takes over.
 async fn bootstrap(env: &Env) -> Result<(), String> {
-    let data_dir = env.base_dir.join("db");
-    let install_dir = env.base_dir.join("db-bin");
-    // At the root of `base_dir`, NOT inside `db/` (initdb refuses a
-    // non-empty data dir) and NOT inside `db-bin/` (`pg.setup()`
+    let data_dir = env.state_dir.join("db");
+    let install_dir = env.bin_dir.join("pg-bin");
+    // At the root of the state dir, NOT inside `db/` (initdb refuses
+    // a non-empty data dir) and NOT inside `pg-bin/` (`pg.setup()`
     // early-returns from `install()` if `installation_dir.exists()`,
-    // so an empty `db-bin/` with just our lock file in it would
+    // so an empty `pg-bin/` with just our lock file in it would
     // silently skip the extract).
-    let lock_path = env.base_dir.join("db.lock");
-    tokio::fs::create_dir_all(&env.base_dir)
+    let lock_path = env.state_dir.join("db.lock");
+    tokio::fs::create_dir_all(&env.state_dir)
         .await
-        .map_err(|e| format!("mkdir {:?}: {e}", env.base_dir))?;
+        .map_err(|e| format!("mkdir {:?}: {e}", env.state_dir))?;
 
     loop {
         if probe_alive(&env.address, env.port).await {
@@ -191,7 +219,7 @@ async fn spawn_and_forget(
     // `Settings::default()` puts the password file in
     // `tempfile::tempdir()` (OS temp root). Pin it next to `data_dir`
     // (NOT inside — initdb refuses to run against a non-empty data
-    // directory) so nothing is written outside `base_dir`.
+    // directory) so per-state writes stay inside the state dir.
     settings.password_file = data_dir
         .parent()
         .map(|p| p.join(".pgpass"))
