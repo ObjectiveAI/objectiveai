@@ -23,6 +23,7 @@ pub mod publish;
 pub mod queue;
 pub mod spawn;
 pub mod tags;
+pub mod wait;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -121,6 +122,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Tags(req) => {
             let inner = tags::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+        }
+        Request::Wait(req) => {
+            let value = wait::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Wait(value)))
+        }
+        Request::WaitRequestSchema(req) => {
+            let value = wait::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::WaitRequestSchema(value)))
+        }
+        Request::WaitResponseSchema(req) => {
+            let value = wait::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::WaitResponseSchema(value)))
         }
     };
     Ok(stream)

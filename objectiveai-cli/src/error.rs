@@ -123,6 +123,14 @@ pub enum Error {
     AgentTagActive { tag: String },
     #[error("cannot enqueue against an agent ref; enqueue targets an instance or a tag")]
     EnqueueRefTarget,
+    #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
+    WaitRefTarget,
+    #[error("agents wait timed out after {timeout_seconds}s")]
+    AgentWaitTimeout { timeout_seconds: u64 },
+    #[error(
+        "FATAL: tag {tag:?} lock was released without its GROUPED->BOUND upgrade; the spawn flow's upgrade-before-release invariant is broken"
+    )]
+    TagLockDroppedWithoutUpgrade { tag: String },
     #[error(
         "queued message {id} was sent by {sender_agent_instance_hierarchy:?}; it can only be deleted by the sender or a parent of the sender (caller is {caller_agent_instance_hierarchy:?})"
     )]

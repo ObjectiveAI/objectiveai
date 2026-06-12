@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.wait.Path",
+  "type": "string",
+  "enum": [
+    "agents/wait"
+  ]
+}

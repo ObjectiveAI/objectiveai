@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.wait.Request",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "description": "Who to wait on — an instance hierarchy or a tag. A plain ref\nhas no live identity and errors.",
+      "$ref": "cli.command.agents.AgentSelector"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.wait.Path"
+    },
+    "timeout_seconds": {
+      "description": "Wall-clock cap across the WHOLE wait (both subscriptions on\nthe tag route), in whole seconds. Parsed from `--timeout`\n(humantime), `> 0` enforced at `TryFrom<Args>` time.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 18446744073709551615
+    }
+  }
+}

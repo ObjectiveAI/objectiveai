@@ -88,6 +88,18 @@
     {
       "title": "Tags",
       "$ref": "cli.command.agents.tags.Request"
+    },
+    {
+      "title": "Wait",
+      "$ref": "cli.command.agents.wait.Request"
+    },
+    {
+      "title": "WaitRequestSchema",
+      "$ref": "cli.command.agents.wait.request_schema.Request"
+    },
+    {
+      "title": "WaitResponseSchema",
+      "$ref": "cli.command.agents.wait.response_schema.Request"
     }
   ]
 }
