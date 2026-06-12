@@ -21,7 +21,6 @@ members = [
     "objectiveai-cli/test-fixtures/test-mcp-plugin",
     "objectiveai-cli/test-fixtures/test-mcp-plugin-foo-headers",
     "objectiveai-cli/test-fixtures/test-mcp-plugin-named",
-    "objectiveai-cli/objectiveai-tests-pg-installer",
     "objectiveai-viewer/src-tauri",
     "objectiveai-tests",
 ]
