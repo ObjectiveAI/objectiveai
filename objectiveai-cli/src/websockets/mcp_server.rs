@@ -25,12 +25,16 @@ pub struct McpServerHandle {
 /// bound the listener. `axum::serve` runs in the same spawned task.
 pub fn spawn(ctx: Context) -> McpServerHandle {
     let (port_tx, port_rx) = oneshot::channel::<u16>();
+    // The layout coordinates come from the cli's own resolved
+    // filesystem client (not the raw Option<String> env config) so
+    // the in-process mcp server lands on exactly the same tree —
+    // both apply the same `~/.objectiveai` / `"default"` fallbacks.
     let config = objectiveai_mcp::Config {
         address: "127.0.0.1".to_string(),
         port: 0,
         suppress_output: true,
-        objectiveai_dir: ctx.config.objectiveai_dir.clone(),
-        objectiveai_state: ctx.config.objectiveai_state.clone(),
+        objectiveai_dir: ctx.filesystem.dir().clone(),
+        objectiveai_state: ctx.filesystem.state().to_string(),
     };
     let executor = CliCommandExecutor::new(ctx);
     tokio::spawn(async move {
