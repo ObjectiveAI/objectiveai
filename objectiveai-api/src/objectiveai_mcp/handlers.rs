@@ -29,26 +29,10 @@ use objectiveai_sdk::mcp::tool::{
 };
 use std::time::Duration;
 
-/// How long to wait for a `server_response` over the WS before
-/// failing the request as a gateway timeout. Set once at startup
-/// from `Config.reverse_channel_timeout` (`REVERSE_CHANNEL_TIMEOUT`,
-/// ms; default 30s) — a OnceLock rather than threaded state because
-/// its two consumers (this module's `forward` and the agent client's
-/// message-queue reads) sit on opposite sides of the crate with no
-/// shared constructor. Falls back to the 30s default for embedders
-/// that never call [`set_reverse_channel_timeout`].
-static REVERSE_CHANNEL_TIMEOUT: std::sync::OnceLock<Duration> = std::sync::OnceLock::new();
-
-/// Install the configured reverse-channel budget. First caller wins;
-/// `crate::run::setup` calls this before any route can fire.
-pub fn set_reverse_channel_timeout(timeout: Duration) {
-    let _ = REVERSE_CHANNEL_TIMEOUT.set(timeout);
-}
-
-/// The configured reverse-channel budget (default 30s).
-pub fn reverse_channel_timeout() -> Duration {
-    *REVERSE_CHANNEL_TIMEOUT.get_or_init(|| Duration::from_secs(30))
-}
+// How long to wait for a `server_response` over the WS before
+// failing the request as a gateway timeout: the configured
+// `Config.reverse_channel_timeout`, threaded in per-request via
+// [`McpRequestContext::reverse_channel_timeout`].
 
 /// Common error shape every delegate returns. The route layer renders
 /// this into either a JSON-RPC error envelope (under `POST /…`) or an
@@ -275,7 +259,7 @@ async fn forward(
         .await
         .map_err(|_| McpError::reverse_channel_closed())?;
 
-    match tokio::time::timeout(reverse_channel_timeout(), rx).await {
+    match tokio::time::timeout(ctx.reverse_channel_timeout, rx).await {
         Ok(Ok(response)) => Ok(response),
         Ok(Err(_)) => Err(McpError::reverse_channel_dropped()),
         Err(_) => Err(McpError::reverse_channel_timeout()),

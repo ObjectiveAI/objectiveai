@@ -89,6 +89,7 @@ pub(crate) async fn create_agent_completion_ws(
             reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
+            reverse_attach.reverse_channel_timeout,
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)
@@ -222,6 +223,7 @@ where
             reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
+            reverse_attach.reverse_channel_timeout,
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)
@@ -347,6 +349,7 @@ where
             reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
+            reverse_attach.reverse_channel_timeout,
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)
@@ -441,6 +444,7 @@ where
             reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
+            reverse_attach.reverse_channel_timeout,
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)
@@ -548,6 +552,7 @@ where
             reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
+            reverse_attach.reverse_channel_timeout,
         );
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
             .with_mcp_port(reverse_attach.mcp_port)

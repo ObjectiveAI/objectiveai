@@ -22,7 +22,6 @@ mod send;
 mod sse;
 
 pub use context::McpRequestContext;
-pub use handlers::{reverse_channel_timeout, set_reverse_channel_timeout};
 pub use listeners::McpListenerRegistry;
 pub use registry::{
     PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle,

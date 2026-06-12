@@ -107,6 +107,11 @@ pub struct ReverseAttachConfig {
     pub registry: ReverseChannelRegistry,
     pub mcp_port: u16,
     pub mcp_listeners: McpListenerRegistry,
+    /// Budget for one WS reverse-channel round-trip (from
+    /// `Config.reverse_channel_timeout`); stamped onto every
+    /// [`ReverseAttachHandle`] so the agent client's message-queue
+    /// reads share the configured value with the MCP forward path.
+    pub reverse_channel_timeout: std::time::Duration,
 }
 
 /// Arc-shareable handle the agent client uses to register per-agent
@@ -119,6 +124,7 @@ pub struct ReverseAttachHandle {
     registry: ReverseChannelRegistry,
     channel: ReverseChannel,
     registered: std::sync::Mutex<Vec<String>>,
+    reverse_channel_timeout: std::time::Duration,
 }
 
 impl std::fmt::Debug for ReverseAttachHandle {
@@ -160,6 +166,11 @@ impl ReverseAttachHandle {
     pub fn channel(&self) -> &ReverseChannel {
         &self.channel
     }
+
+    /// Budget for one round-trip over this reverse channel.
+    pub fn reverse_channel_timeout(&self) -> std::time::Duration {
+        self.reverse_channel_timeout
+    }
 }
 
 /// RAII guard for one CLI WS upgrade. Owns the registration handle;
@@ -178,11 +189,13 @@ impl ReverseAttachGuard {
         registry: ReverseChannelRegistry,
         sink: SharedSink,
         pending: PendingRequests,
+        reverse_channel_timeout: std::time::Duration,
     ) -> Self {
         let handle = Arc::new(ReverseAttachHandle {
             registry,
             channel: ReverseChannel { sink, pending },
             registered: std::sync::Mutex::new(Vec::new()),
+            reverse_channel_timeout,
         });
         Self { handle }
     }

@@ -1861,10 +1861,10 @@ fn build_drain_user_message(
     }
 }
 
-// The time budget for one `read_message_queue` / `clear_message_queue`
-// round-trip over the WS reverse-attach is the shared configured
-// reverse-channel budget — see
-// `crate::objectiveai_mcp::reverse_channel_timeout`.
+// The time budget for one `read_message_queue` round-trip over the
+// WS reverse-attach is the shared configured reverse-channel budget,
+// carried by the handle itself —
+// `ReverseAttachHandle::reverse_channel_timeout`.
 
 /// Issue a `ReadMessageQueue` server-request over the WS reverse-
 /// attach and return the joined `(rich_content, ids)` payload.
@@ -1897,12 +1897,7 @@ async fn read_message_queue_via_ws(
     let rx = crate::objectiveai_mcp::send_server_request(&rc.sink, &rc.pending, request)
         .await
         .map_err(|()| super::Error::MessageQueueRead("reverse channel closed".to_string()))?;
-    let response = match tokio::time::timeout(
-        crate::objectiveai_mcp::reverse_channel_timeout(),
-        rx,
-    )
-    .await
-    {
+    let response = match tokio::time::timeout(handle.reverse_channel_timeout(), rx).await {
         Ok(Ok(response)) => response,
         Ok(Err(_)) => {
             return Err(super::Error::MessageQueueRead(

@@ -497,12 +497,11 @@ pub async fn setup(
         suppress_output,
     } = config;
 
-    // Publish the WS reverse-channel budget for its two crate-wide
-    // consumers (the MCP forward path and the agent client's
-    // message-queue reads).
-    crate::objectiveai_mcp::set_reverse_channel_timeout(
-        std::time::Duration::from_millis(reverse_channel_timeout),
-    );
+    // The WS reverse-channel budget, threaded to its two consumers:
+    // the MCP routes (via router state → McpRequestContext) and the
+    // agent client's message-queue reads (via ReverseAttachConfig →
+    // ReverseAttachHandle).
+    let reverse_channel_timeout = std::time::Duration::from_millis(reverse_channel_timeout);
 
     // HTTP Client
     let http_client = reqwest::Client::new();
@@ -701,6 +700,7 @@ pub async fn setup(
         registry: reverse_channels.clone(),
         mcp_port,
         mcp_listeners: mcp_listeners.clone(),
+        reverse_channel_timeout,
     };
 
     // Vector Completions Client
@@ -1283,6 +1283,7 @@ pub async fn setup(
     let mcp_app = axum::Router::new().merge(crate::objectiveai_mcp::router(
         reverse_channels.clone(),
         mcp_listeners.clone(),
+        reverse_channel_timeout,
     ));
 
     Ok((listener, app, mcp_listener, mcp_app))

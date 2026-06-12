@@ -35,10 +35,12 @@ const RESPONSE_ID_HEADER: &str = "X-OBJECTIVEAI-RESPONSE-ID";
 pub fn router(
     reverse_channels: ReverseChannelRegistry,
     listeners: McpListenerRegistry,
+    reverse_channel_timeout: std::time::Duration,
 ) -> axum::Router {
     let state = SharedState {
         reverse_channels,
         listeners,
+        reverse_channel_timeout,
     };
     axum::Router::new()
         .route(
@@ -60,6 +62,7 @@ pub fn router(
 struct SharedState {
     reverse_channels: ReverseChannelRegistry,
     listeners: McpListenerRegistry,
+    reverse_channel_timeout: std::time::Duration,
 }
 
 /// Pull the routing key out of the headers, verify a reverse channel
@@ -96,6 +99,7 @@ fn build_ctx(
         response_id,
         headers,
         registry: state.reverse_channels.clone(),
+        reverse_channel_timeout: state.reverse_channel_timeout,
     }
 }
 

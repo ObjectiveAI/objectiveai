@@ -24,4 +24,7 @@ pub struct McpRequestContext {
     /// Reverse-channel registry. Delegates look up their target WS
     /// by `response_id` and call [`super::send_server_request`].
     pub registry: ReverseChannelRegistry,
+    /// Budget for one WS reverse-channel round-trip (from
+    /// `Config.reverse_channel_timeout`).
+    pub reverse_channel_timeout: std::time::Duration,
 }
