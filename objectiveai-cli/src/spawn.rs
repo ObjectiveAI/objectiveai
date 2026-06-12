@@ -67,11 +67,12 @@ pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
 ///    `env_remove`s every env key its server binary's config struct
 ///    reads that it doesn't deliberately set, so the spawning shell's
 ///    configuration never leaks into a server other processes will
-///    share. Null stdin/stdout; stderr goes to
-///    `<lock_dir>/<key>.spawn.stderr`; detached from the console on
-///    Windows (`CREATE_NO_WINDOW | DETACHED_PROCESS`); `kill_on_drop`
-///    stays false everywhere so the child outlives the cli (Unix
-///    re-parents it to init when the cli exits).
+///    share. Null stdin; stdout/stderr are piped and drained so a
+///    child that dies before publishing reports its own output in
+///    the error; detached from the console on Windows
+///    (`CREATE_NO_WINDOW | DETACHED_PROCESS`); `kill_on_drop` stays
+///    false everywhere so the child outlives the cli (Unix re-parents
+///    it to init when the cli exits).
 /// 3. Subscribe to the lock ([`objectiveai_sdk::lockfile::wait_read`]),
 ///    racing the child's exit. Lock published → the server is up and
 ///    its URL is returned. Child exited first → one last `try_read`:
@@ -103,21 +104,16 @@ pub async fn spawn_until_lock_published(
         .map(|s| s.to_string_lossy().into_owned())
         .unwrap_or_else(|| exe.display().to_string());
 
-    // The child's stderr lands in a per-key file next to the lock it is
-    // expected to publish — without it, a child that dies before
-    // publishing leaves no trace (stdout must stay null: the cli's own
-    // stdout is the command's output stream). Truncated on every spawn
-    // attempt so it only ever holds the most recent child's stderr. A
-    // file (not a pipe) so the cli can exit while the server lives on
-    // writing to it.
-    let stderr_path = lock_dir.join(format!("{key}.spawn.stderr"));
-    tokio::fs::create_dir_all(lock_dir).await.map_err(lock_err)?;
-    let stderr_file = std::fs::File::create(&stderr_path).map_err(lock_err)?;
-
+    // Pipe both output streams: a child that dies before publishing
+    // would otherwise leave no trace, so its captured stdout/stderr
+    // are embedded in the failure error. On the success path the
+    // captured bytes are simply abandoned — the detached server is
+    // quiet by design (`SUPPRESS_OUTPUT`), and the pipes close with
+    // this cli process.
     let mut cmd = Command::new(exe);
     cmd.stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(stderr_file);
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
     #[cfg(windows)]
     {
         // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008)
@@ -134,6 +130,28 @@ pub async fn spawn_until_lock_published(
         .spawn()
         .map_err(|e| crate::error::Error::Spawn(name.clone(), e))?;
 
+    // Drain both pipes from the moment of spawn: a failing child can
+    // spew more than a pipe buffer before exiting, and an undrained
+    // pipe would wedge it before it ever reports.
+    let mut stdout_pipe = child.stdout.take();
+    let mut stderr_pipe = child.stderr.take();
+    let stdout_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stdout_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+    let stderr_task = tokio::spawn(async move {
+        use tokio::io::AsyncReadExt;
+        let mut buf = Vec::new();
+        if let Some(pipe) = stderr_pipe.as_mut() {
+            let _ = pipe.read_to_end(&mut buf).await;
+        }
+        buf
+    });
+
     let listening = tokio::select! {
         read = objectiveai_sdk::lockfile::wait_read(lock_dir, key) => read.map_err(lock_err)?,
         status = child.wait() => {
@@ -145,11 +163,26 @@ pub async fn spawn_until_lock_published(
                 .map_err(lock_err)?
             {
                 Some(listening) => Ok(listening),
-                None => Err(crate::error::Error::SpawnExitedBeforePublishing {
-                    name,
-                    status: status.map_err(|e| crate::error::Error::Spawn(key.to_string(), e))?,
-                    stderr_path,
-                }),
+                None => {
+                    // The dead child's pipes EOF promptly; the timeout
+                    // guards the exotic case of a still-living
+                    // grandchild holding the write ends open.
+                    let drain_timeout = std::time::Duration::from_secs(2);
+                    let stdout = match tokio::time::timeout(drain_timeout, stdout_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    let stderr = match tokio::time::timeout(drain_timeout, stderr_task).await {
+                        Ok(Ok(buf)) => buf,
+                        _ => Vec::new(),
+                    };
+                    Err(crate::error::Error::SpawnExitedBeforePublishing {
+                        name,
+                        status: status.map_err(|e| crate::error::Error::Spawn(key.to_string(), e))?,
+                        stdout: String::from_utf8_lossy(&stdout).trim().to_string(),
+                        stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
+                    })
+                }
             };
         }
     };

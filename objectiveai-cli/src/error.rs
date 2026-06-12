@@ -83,11 +83,12 @@ pub enum Error {
     ClapParse(#[from] clap::Error),
     #[error("argument parse error at `{}`: {}", .0.field, .0.source)]
     FromArgs(#[from] objectiveai_sdk::cli::command::FromArgsError),
-    #[error("{name} exited before publishing its lock ({status}); its stderr is at {}", stderr_path.display())]
+    #[error("{name} exited before publishing its lock ({status}); stdout: {stdout}; stderr: {stderr}")]
     SpawnExitedBeforePublishing {
         name: String,
         status: std::process::ExitStatus,
-        stderr_path: std::path::PathBuf,
+        stdout: String,
+        stderr: String,
     },
     #[error("lockfile {key}: {source}")]
     Lockfile { key: String, source: std::io::Error },
