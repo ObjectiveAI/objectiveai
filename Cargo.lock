@@ -4356,6 +4356,7 @@ version = "2.1.2"
 dependencies = [
  "anyhow",
  "axum",
+ "dirs",
  "dotenv",
  "envconfig",
  "futures",

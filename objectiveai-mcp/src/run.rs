@@ -77,11 +77,20 @@ impl Envconfig for ConfigBuilder {
 impl ConfigBuilder {
     pub fn build(self) -> Config {
         Config {
-            address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
-            port: self.port.unwrap_or(3000),
+            address: self.address.unwrap_or_else(|| "127.0.0.1".to_string()),
+            port: self.port.unwrap_or(0),
             suppress_output: self.suppress_output.unwrap_or(false),
-            objectiveai_dir: self.objectiveai_dir,
-            objectiveai_state: self.objectiveai_state,
+            // Layout root (OBJECTIVEAI_DIR). Same default as the api
+            // and the viewer.
+            objectiveai_dir: match self.objectiveai_dir {
+                Some(dir) => std::path::PathBuf::from(dir),
+                None => dirs::home_dir()
+                    .unwrap_or_else(|| std::path::PathBuf::from("."))
+                    .join(".objectiveai"),
+            },
+            objectiveai_state: self
+                .objectiveai_state
+                .unwrap_or_else(|| "default".to_string()),
         }
     }
 }
@@ -90,8 +99,10 @@ pub struct Config {
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
-    pub objectiveai_dir: Option<String>,
-    pub objectiveai_state: Option<String>,
+    /// Layout root (`OBJECTIVEAI_DIR`); default `~/.objectiveai`.
+    pub objectiveai_dir: std::path::PathBuf,
+    /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
+    pub objectiveai_state: String,
 }
 
 /// Build the rmcp `(TcpListener, axum::Router)` pair. The executor is
@@ -180,9 +191,43 @@ where
     E::Error: std::fmt::Display + Send + 'static,
 {
     let suppress_output = config.suppress_output;
+    let lock_dir = config
+        .objectiveai_dir
+        .join("state")
+        .join(&config.objectiveai_state)
+        .join("locks");
     let (listener, app) = setup(config, executor).await?;
+
+    // There is only ever ONE mcp server per STATE (same shape as the
+    // viewer): claim key "mcp" in <dir>/state/<state>/locks the
+    // moment the listen address is known, publishing the URL clients
+    // connect with (wildcard binds map to loopback). Anyone can
+    // lockfile::try_read it without owning the claim; the claim
+    // itself is held until process death (LockClaim leaks on drop by
+    // design) and the kernel releases it on any exit, crash
+    // included.
+    let addr = listener.local_addr()?;
+    let connect_ip = match addr.ip() {
+        std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+        }
+        std::net::IpAddr::V6(v6) if v6.is_unspecified() => {
+            std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
+        }
+        ip => ip,
+    };
+    let connect_url =
+        format!("http://{}", std::net::SocketAddr::new(connect_ip, addr.port()));
+    if objectiveai_sdk::lockfile::try_acquire(&lock_dir, "mcp", &connect_url)
+        .await
+        .is_none()
+    {
+        return Err(std::io::Error::other(
+            "another objectiveai-mcp instance already holds the mcp lock for this state",
+        ));
+    }
+
     if !suppress_output {
-        let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
     serve(listener, app).await
