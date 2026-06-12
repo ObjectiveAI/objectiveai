@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::command::viewer::config::secret::get::{Request, Respon
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config_view(request.scope).await?;
     Ok(Response {
         secret: config.viewer().get_secret().map(String::from),
     })

@@ -6,9 +6,9 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
+    let mut config = ctx.filesystem.read_config_at(request.scope).await?;
     config.api().set_commit_author_email(request.value);
-    ctx.filesystem.write_config(&config).await?;
+    ctx.filesystem.write_config_at(request.scope, &config).await?;
     Ok(Response::Ok)
 }
 

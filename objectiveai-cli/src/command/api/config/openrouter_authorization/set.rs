@@ -12,9 +12,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     ) {
         return Err(Error::AuthorizationGlobalOnly);
     }
-    let mut config = ctx.filesystem.read_config().await?;
+    let mut config = ctx.filesystem.read_config_at(request.scope).await?;
     config.api().set_openrouter_authorization(request.value);
-    ctx.filesystem.write_config(&config).await?;
+    ctx.filesystem.write_config_at(request.scope, &config).await?;
     Ok(Response::Ok)
 }
 

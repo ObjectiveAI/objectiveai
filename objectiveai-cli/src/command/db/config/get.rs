@@ -6,8 +6,8 @@ use objectiveai_sdk::cli::command::db::config::get::{Request, Response};
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config_view(request.scope).await?;
     let db = config.db();
     Ok(Response {
         address: db.get_address().map(String::from),

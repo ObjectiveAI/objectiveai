@@ -5,8 +5,8 @@ use objectiveai_sdk::cli::command::db::config::password::get::{Request, Response
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let mut config = ctx.filesystem.read_config_view(request.scope).await?;
     Ok(Response {
         password: config.db().get_password().map(String::from),
     })
