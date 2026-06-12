@@ -69,7 +69,7 @@ async fn fetch_paths(
 /// Merge filesystem + objectiveai into a single de-duplicated list:
 /// filesystem items first, then objectiveai items not already
 /// covered by a filesystem item.
-(
+fn merge_all(
     fs_items: Vec<RemotePath>,
     oai_items: Vec<RemotePath>,
 ) -> Vec<ResponseItem> {

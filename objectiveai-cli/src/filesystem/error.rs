@@ -27,8 +27,6 @@ pub enum Error {
     InvalidPath(String),
     #[error("index {0} out of bounds (len {1})")]
     IndexOutOfBounds(usize, usize),
-    #[error("remote {0:?} is not valid for configuration")]
-    InvalidRemote(objectiveai_sdk::Remote),
     #[error("jq parse error: {0}")]
     JqParse(String),
     #[error("jq compile error: {0}")]

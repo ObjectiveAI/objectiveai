@@ -10,7 +10,6 @@ use crate::error::Error;
 
 pub mod api;
 pub mod db;
-pub mod functions;
 pub mod mcp;
 pub mod viewer;
 
@@ -25,10 +24,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Db(req) => {
             let inner = db::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Db)))
-        }
-        Request::Functions(req) => {
-            let inner = functions::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
         }
         Request::Mcp(req) => {
             let inner = mcp::execute(ctx, req).await?;

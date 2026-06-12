@@ -3,7 +3,6 @@ pub use scope::*;
 
 pub mod api;
 pub mod db;
-pub mod functions;
 pub mod mcp;
 pub mod viewer;
 
@@ -16,10 +15,6 @@ pub enum Command {
     Db {
         #[command(subcommand)]
         command: db::Command,
-    },
-    Functions {
-        #[command(subcommand)]
-        command: functions::Command,
     },
     Mcp {
         #[command(subcommand)]
@@ -39,8 +34,6 @@ pub enum Request {
     Api(api::Request),
     #[schemars(title = "Db")]
     Db(db::Request),
-    #[schemars(title = "Functions")]
-    Functions(functions::Request),
     #[schemars(title = "Mcp")]
     Mcp(mcp::Request),
     #[schemars(title = "Viewer")]
@@ -58,8 +51,6 @@ pub enum ResponseItem {
     Api(api::Response),
     #[schemars(title = "Db")]
     Db(db::Response),
-    #[schemars(title = "Functions")]
-    Functions(functions::ResponseItem),
     #[schemars(title = "Mcp")]
     Mcp(mcp::Response),
     #[schemars(title = "Viewer")]
@@ -72,7 +63,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
         match self {
             ResponseItem::Api(v) => v.into_mcp(),
             ResponseItem::Db(v) => v.into_mcp(),
-            ResponseItem::Functions(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Viewer(v) => v.into_mcp(),
         }
@@ -87,8 +77,6 @@ impl TryFrom<Command> for Request {
                 Ok(Request::Api(api::Request::try_from(command)?)),
             Command::Db { command } =>
                 Ok(Request::Db(db::Request::try_from(command)?)),
-            Command::Functions { command } =>
-                Ok(Request::Functions(functions::Request::try_from(command)?)),
             Command::Mcp { command } =>
                 Ok(Request::Mcp(mcp::Request::try_from(command)?)),
             Command::Viewer { command } =>
@@ -102,7 +90,6 @@ impl crate::cli::command::CommandRequest for Request {
         match self {
             Request::Api(inner) => inner.into_command(),
             Request::Db(inner) => inner.into_command(),
-            Request::Functions(inner) => inner.into_command(),
             Request::Mcp(inner) => inner.into_command(),
             Request::Viewer(inner) => inner.into_command(),
         }
@@ -129,10 +116,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Db(req) => {
                 let inner = db::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Db)))
-            }
-            Request::Functions(req) => {
-                let inner = functions::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Functions)))
             }
             Request::Mcp(req) => {
                 let inner = mcp::execute(executor, req, agent_arguments).await?;
@@ -165,10 +148,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Db(req) => {
                 let inner = db::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Functions(req) => {
-                let inner = functions::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Mcp(req) => {

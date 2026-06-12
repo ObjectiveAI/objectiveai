@@ -11,9 +11,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "super::DbConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub db: Option<super::DbConfig>,
-    #[serde(skip_serializing_if = "super::FunctionsConfig::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub functions: Option<super::FunctionsConfig>,
     #[serde(skip_serializing_if = "super::ViewerConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer: Option<super::ViewerConfig>,
@@ -29,11 +26,6 @@ impl Config {
 
     pub fn db(&mut self) -> &mut super::DbConfig {
         self.db.get_or_insert_with(super::DbConfig::default)
-    }
-
-    pub fn functions(&mut self) -> &mut super::FunctionsConfig {
-        self.functions
-            .get_or_insert_with(super::FunctionsConfig::default)
     }
 
     pub fn viewer(&mut self) -> &mut super::ViewerConfig {
