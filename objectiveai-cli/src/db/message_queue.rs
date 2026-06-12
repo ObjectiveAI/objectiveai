@@ -572,63 +572,6 @@ struct DrainedRow {
     enqueued_at: i64,
 }
 
-/// Drain rows targeting `target_hierarchy`, `target_tag` (if some), or
-/// any BOUND tag whose `agent_instance_hierarchy` equals
-/// `target_hierarchy`. Returns drained message_queue oldest-first; deletes
-/// the matched rows in the same transaction.
-pub async fn drain_for_message(
-    pool: &Pool,
-    target_hierarchy: &str,
-    target_tag: Option<&str>,
-) -> Result<Vec<DrainedMessage>, Error> {
-    let mut tx = pool.begin().await?;
-    let rows = collect_matching_for_message(
-        &mut tx,
-        target_hierarchy,
-        target_tag,
-    )
-    .await?;
-    let drained = reconstruct_and_delete(&mut tx, rows).await?;
-    tx.commit().await?;
-    Ok(drained)
-}
-
-async fn collect_matching_for_message(
-    tx: &mut Transaction<'_, Postgres>,
-    target_hierarchy: &str,
-    target_tag: Option<&str>,
-) -> Result<Vec<DrainedRow>, Error> {
-    let rows = sqlx::query(
-        "SELECT p.id, \
-                p.agent_instance_hierarchy, \
-                p.agent_tag, \
-                p.key, \
-                p.enqueued_at \
-         FROM message_queue p \
-         WHERE p.active = TRUE \
-           AND ( \
-                p.agent_instance_hierarchy = $1 \
-             OR ( \
-                p.agent_tag IS NOT NULL \
-                AND EXISTS ( \
-                    SELECT 1 FROM tags t \
-                    WHERE t.name = p.agent_tag \
-                      AND t.agent_instance_hierarchy = $1 \
-                ) \
-            ) \
-             OR ( \
-                $2::text IS NOT NULL \
-                AND p.agent_tag = $2 \
-            ) ) \
-         ORDER BY p.id ASC",
-    )
-    .bind(target_hierarchy)
-    .bind(target_tag)
-    .fetch_all(&mut **tx)
-    .await?;
-    rows_to_drained(rows)
-}
-
 fn rows_to_drained(rows: Vec<sqlx::postgres::PgRow>) -> Result<Vec<DrainedRow>, Error> {
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {

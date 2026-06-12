@@ -402,21 +402,10 @@ impl Client {
             .into());
         }
 
-        // 2. Clean prior install data when --upgrade. Best-effort: any
-        //    delete failure surfaces later as a write-phase error
-        //    (e.g. ManifestPersist) if the artifact is truly stuck.
-        //    Extra entries under <plugin_dir>/ are untouched.
-        if upgrade {
-            let _ = tokio::fs::remove_file(&manifest_path).await;
-            let _ = tokio::fs::remove_dir_all(&cli_dir).await;
-            let _ = tokio::fs::remove_dir_all(&viewer_dir).await;
-        }
-
-        // 3. Network phase: fetch everything into memory before any
-        //    disk write. A network failure here leaves the disk in
-        //    whatever state step 2 left it in (empty if upgrade,
-        //    unchanged if fresh install — since step 1's check would
-        //    have refused).
+        // 2. Network phase: fetch everything into memory before any
+        //    disk write. A network failure here leaves the disk
+        //    untouched — an existing install (upgrade path) keeps
+        //    working until the write phase actually begins.
         let http = reqwest::Client::new();
         let cli_zip_bytes: Option<Vec<u8>> = if let Some(cli_zip_name) =
             &manifest.cli_zip
@@ -492,19 +481,33 @@ impl Client {
                 .map_err(super::InstallError::ManifestSerialize)?
         };
 
-        // 4. Plugin dir setup. Idempotent — preserves any pre-existing
-        //    "extra data" the plugin's runtime created.
+        // 3. Pre-write clean. The manifest is the installed-ness
+        //    commit gate, so it is removed FIRST — from here until
+        //    step 5 lands, the plugin reads as "not installed", and a
+        //    process killed anywhere in between leaves a retryable
+        //    not-installed state rather than an installed-but-broken
+        //    one. The zip target dirs are cleared so an extract can
+        //    never mix two releases' trees (or commit a partial one
+        //    from a previous kill). Best-effort: a truly stuck
+        //    artifact surfaces as a write-phase error below. Extra
+        //    entries under <plugin_dir>/ are untouched.
+        let _ = tokio::fs::remove_file(&manifest_path).await;
+        let _ = tokio::fs::remove_dir_all(&cli_dir).await;
+        let _ = tokio::fs::remove_dir_all(&viewer_dir).await;
         tokio::fs::create_dir_all(&plugin_dir).await.map_err(|e| {
             super::InstallError::PluginDirCreate(plugin_dir.clone(), e)
         })?;
 
-        // 5. Concurrent write phase via try_join!. Three branches fan
-        //    out, short-circuit on first error.
+        // 4. Zip extraction — both bundles concurrently (disjoint
+        //    trees, neither is the commit gate).
         tokio::try_join!(
             write_zip_branch(cli_dir, cli_zip_bytes),
             write_zip_branch(viewer_dir, zip_bytes),
-            write_manifest_branch(manifest_path, manifest_bytes),
         )?;
+
+        // 5. Manifest LAST, atomically — the commit gate. Only a
+        //    fully-extracted install ever becomes visible.
+        write_manifest_branch(manifest_path, manifest_bytes).await?;
 
         Ok(true)
     }
@@ -542,9 +545,13 @@ async fn write_manifest_branch(
     manifest_path: PathBuf,
     bytes: Vec<u8>,
 ) -> Result<(), super::InstallError> {
-    tokio::fs::write(&manifest_path, &bytes).await.map_err(|e| {
-        super::InstallError::ManifestPersist(manifest_path.clone(), e)
-    })
+    // Atomic replace: the manifest is the installed-ness commit
+    // gate — it must appear fully-written or not at all.
+    crate::filesystem::util::write_atomic(&manifest_path, &bytes)
+        .await
+        .map_err(|e| {
+            super::InstallError::ManifestPersist(manifest_path.clone(), e)
+        })
 }
 
 /// Reject reserved plugin repository names before any install

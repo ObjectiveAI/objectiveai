@@ -25,7 +25,10 @@ impl Client {
         }
         let bytes =
             serde_json::to_vec_pretty(config).map_err(Error::Serialize)?;
-        tokio::fs::write(&path, bytes)
+        // Atomic replace: a cli killed mid-write must never leave a
+        // truncated config.json — that would brick every later
+        // command in this scope.
+        crate::filesystem::util::write_atomic(&path, &bytes)
             .await
             .map_err(|e| Error::Write(path, e))?;
         Ok(())
@@ -108,7 +111,8 @@ async fn write_config_file(
             .map_err(|e| Error::Write(parent.to_path_buf(), e))?;
     }
     let bytes = serde_json::to_vec_pretty(config).map_err(Error::Serialize)?;
-    tokio::fs::write(&path, bytes)
+    // Atomic replace — see `write_config` for the rationale.
+    crate::filesystem::util::write_atomic(&path, &bytes)
         .await
         .map_err(|e| Error::Write(path, e))?;
     Ok(())

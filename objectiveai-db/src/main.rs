@@ -311,29 +311,59 @@ async fn extract_install(
 }
 
 /// Phase 2: ensure this state's cluster exists at
-/// `<state_dir>/db/`. `pg.setup()`'s install step early-returns
-/// (the install is in place), so only initdb runs — and only on a
-/// missing/empty data dir. No locking needed: per-state spawns are
-/// serialized by the state lock, and a stray concurrent initdb
-/// fails loudly on the non-empty dir rather than corrupting it.
+/// `<state_dir>/db/`. Runs inside the caller's `db-init` gate, so
+/// at most one initializer works at a time.
+///
+/// Commit-gated against termination: initdb runs against a
+/// PID-suffixed staging dir, which a single `rename` then moves to
+/// `db/` — `db/` therefore exists ⇔ a COMPLETE initdb committed it.
+/// A supervisor killed mid-initdb leaves only a stale staging dir
+/// (swept best-effort on the next run; its owner is dead by the
+/// gate's exclusivity) instead of poisoning the state with a
+/// partial data dir that every later initdb refuses.
 async fn ensure_initdb(env: &Args) -> Result<(), String> {
-    let data_dir = env.state_dir().join("db");
+    let state_dir = env.state_dir();
+    let data_dir = state_dir.join("db");
+    if tokio::fs::try_exists(&data_dir).await.unwrap_or(false) {
+        return Ok(());
+    }
+
+    // Sweep staging leftovers from initializers that died mid-initdb.
+    if let Ok(mut entries) = tokio::fs::read_dir(&state_dir).await {
+        while let Ok(Some(entry)) = entries.next_entry().await {
+            if entry
+                .file_name()
+                .to_string_lossy()
+                .starts_with("db.init-")
+            {
+                let _ = tokio::fs::remove_dir_all(entry.path()).await;
+            }
+        }
+    }
+
+    let init_dir = state_dir.join(format!("db.init-{}", std::process::id()));
     let mut settings = postgresql_embedded::Settings::default();
     settings.installation_dir = env.bin_dir().join("pg-bin");
-    settings.data_dir = data_dir;
+    settings.data_dir = init_dir.clone();
     // `Settings::default()` puts the password file in
     // `tempfile::tempdir()` (OS temp root). Pin it next to the data
     // dir (NOT inside — initdb refuses a non-empty data directory)
     // so per-state writes stay inside the state dir.
-    settings.password_file = env.state_dir().join(".pgpass");
+    settings.password_file = state_dir.join(".pgpass");
     settings.temporary = false;
     settings.password = env.pg_password.clone();
     // initdb routinely takes 10-30s on first run.
     settings.timeout = Some(Duration::from_secs(180));
     let mut pg = postgresql_embedded::PostgreSQL::new(settings);
-    pg.setup().await.map_err(|e| format!("initdb: {e}"))
-    // `pg` drops here without having STARTED anything — its Drop only
+    pg.setup().await.map_err(|e| format!("initdb: {e}"))?;
+    // `pg` dropped without having STARTED anything — its Drop only
     // stops postmasters it launched, and we launch ours directly.
+
+    // The commit gate: only a fully-initialized cluster ever becomes
+    // `db/`.
+    tokio::fs::rename(&init_dir, &data_dir)
+        .await
+        .map_err(|e| format!("commit initdb {init_dir:?} -> {data_dir:?}: {e}"))
 }
 
 /// Locate `bin/postgres(.exe)` under the shared install.
