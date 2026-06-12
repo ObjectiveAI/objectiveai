@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 # Installs the development launcher binary as drop-in replacements
-# for the four production executables under `~/.objectiveai/`:
+# for the five production executables under `~/.objectiveai/`:
 #
 #   objectiveai{.exe}             -> cargo run -p objectiveai-cli
 #   bin/objectiveai-api{.exe}     -> cargo run -p objectiveai-api
 #   bin/objectiveai-viewer{.exe}  -> cargo run -p objectiveai-viewer
 #   bin/objectiveai-mcp{.exe}     -> cargo run -p objectiveai-mcp
+#   bin/objectiveai-db{.exe}      -> cargo run -p objectiveai-db
+#
+# (The same binary, built WITHOUT the baked repo root, is also
+# committed at the repo's `.objectiveai/bin/*.exe` shim paths — see
+# the doc comment in src/main.rs for the dual root resolution.)
 #
 # After running this script, anything that spawns those binaries
 # (cli `api spawn` / `viewer spawn`, scripts, the viewer's
@@ -67,3 +72,4 @@ install_launcher "objectiveai"        "$INSTALL_DIR"
 install_launcher "objectiveai-api"    "$BIN_DIR"
 install_launcher "objectiveai-viewer" "$BIN_DIR"
 install_launcher "objectiveai-mcp"    "$BIN_DIR"
+install_launcher "objectiveai-db"     "$BIN_DIR"

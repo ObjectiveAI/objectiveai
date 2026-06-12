@@ -1,0 +1,23 @@
+#!/usr/bin/env sh
+# Dev shim: resolves its own filename to a workspace crate and
+# cargo-runs it from the repo root (two directories up). Args, env,
+# stdio, and exit code pass straight through — the binaries in this
+# committed test OBJECTIVEAI_DIR need no compilation step; cargo
+# builds on first use. (Windows resolves the sibling .exe copies of
+# objectiveai-development-launcher instead; same dispatch.)
+#
+# Note: `objectiveai-viewer` additionally needs the frontend dist
+# built once (`pnpm run build` in objectiveai-viewer/) before its
+# crate can compile.
+set -eu
+dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+repo=$(CDPATH= cd -- "$dir/../.." && pwd)
+case "$(basename -- "$0")" in
+  objectiveai)        pkg=objectiveai-cli ;;
+  objectiveai-api)    pkg=objectiveai-api ;;
+  objectiveai-viewer) pkg=objectiveai-viewer ;;
+  objectiveai-mcp)    pkg=objectiveai-mcp ;;
+  objectiveai-db)     pkg=objectiveai-db ;;
+  *) echo "objectiveai shim: unknown shim name: $(basename -- "$0")" >&2; exit 2 ;;
+esac
+exec cargo run -q -p "$pkg" --manifest-path "$repo/Cargo.toml" -- "$@"

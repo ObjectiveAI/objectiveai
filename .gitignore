@@ -28,8 +28,8 @@ objectiveai-viewer/__test_harness__/
 # unrelated experiments
 objectiveai-claude-agent-sdk-runner-py/
 
-# ignore build tools
-bin/
+# ignore build tools (repo-root only — .objectiveai/bin is committed)
+/bin/
 .crates.toml
 .crates2.json
 

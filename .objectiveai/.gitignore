@@ -1,0 +1,8 @@
+# Runtime artifacts of the shared test OBJECTIVEAI_DIR. Everything
+# else in this tree is committed and fixed — no preparation step.
+state/
+bin/locks/
+bin/pg-bin/
+bin/config.json
+# Committed api test settings — re-include against the root `.env*`.
+!.env

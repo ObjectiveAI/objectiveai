@@ -13,7 +13,10 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [features]
-default = ["rustpython", "systempython"]
+# rustpython by default: the cli is self-contained with no system
+# python dependency (tests and the .objectiveai cargo-run shims rely
+# on this). Opt into `systempython` to prefer a system interpreter.
+default = ["rustpython"]
 rustpython = ["dep:rustpython"]
 systempython = []
 

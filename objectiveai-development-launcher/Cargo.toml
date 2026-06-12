@@ -10,3 +10,12 @@ publish = false
 
 [dependencies]
 # std only.
+
+# The release binary is committed to git (five copies under
+# `.objectiveai/bin/*.exe`) — squeeze it as small as possible.
+[profile.release]
+opt-level = "z"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"

@@ -14,3 +14,6 @@ objectiveai-claude-agent-sdk-runner-js/embed/**                     -text
 objectiveai-codex-sdk-runner/embed/**                               -text
 objectiveai-codex-sdk-runner-js/embed/**                            -text
 objectiveai-viewer/embed/**                                         -text
+
+# Committed Windows shim launchers in the shared test OBJECTIVEAI_DIR.
+.objectiveai/bin/*.exe                                              -text
