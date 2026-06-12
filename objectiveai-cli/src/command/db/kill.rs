@@ -1,28 +1,17 @@
-//! `db kill` — stop the postmaster started by `db spawn`.
-//! Idempotent: a count of zero is not an error.
-//!
-//! The target pid comes from `<state_dir>/db/postmaster.pid` line 1 —
-//! killing by process name is NOT an option here, because the
-//! `objectiveai-db` vehicle exits right after launching, and matching
-//! on "postgres" would take out unrelated PostgreSQL servers on the
-//! machine. A missing/stale pid file (or a pid that is no longer a
-//! live process) yields `{killed: 0}`.
+//! `db kill --global|--state` — terminate db server(s) by
+//! killing the owner(s) of their per-state lock at
+//! `<dir>/state/<state>/locks` key `db`. `--state` hits the
+//! current state; `--global` fans out across every state
+//! concurrently. Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::db::kill::{Request, Response};
 
+use crate::command::kill_helpers::kill_per_state;
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let pid_file = ctx.filesystem.state_dir().join("db").join("postmaster.pid");
-    let Ok(content) = tokio::fs::read_to_string(&pid_file).await else {
-        return Ok(Response { killed: 0 });
-    };
-    let Some(pid) = content.lines().next().and_then(|l| l.trim().parse::<u32>().ok())
-    else {
-        return Ok(Response { killed: 0 });
-    };
-    let killed = crate::spawn::kill_pid(pid);
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let killed = kill_per_state(ctx, request.scope, "db").await?;
     Ok(Response { killed })
 }
 

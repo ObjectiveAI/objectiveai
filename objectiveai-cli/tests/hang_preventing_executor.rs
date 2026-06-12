@@ -1,12 +1,12 @@
 //! `HangPreventingBinaryCommandExecutor` — a wrapping
 //! [`CommandExecutor`] that aborts the wrapped cli child when its
-//! `CONFIG_BASE_DIR` goes quiet for [`HANG_TIMEOUT`]. Drop-in for
+//! `the test's state dir` goes quiet for [`HANG_TIMEOUT`]. Drop-in for
 //! integration tests so a stuck cli child doesn't wedge nextest's
 //! per-binary slot indefinitely.
 //!
 //! ## Activity definition
 //!
-//! "Activity" is any `notify` event on `CONFIG_BASE_DIR` (recursive).
+//! "Activity" is any `notify` event on `the test's state dir` (recursive).
 //! Recursive on Windows + Linux + macOS via `notify::recommended_watcher`.
 //!
 //! ## Timeout shape
@@ -16,7 +16,7 @@
 //! stream. Every event resets the sleep clock; a fired sleep aborts
 //! the work. We replace the per-agent unix-socket event stream with a
 //! `notify` watcher that produces generic filesystem events on the
-//! whole `CONFIG_BASE_DIR`.
+//! whole `the test's state dir`.
 //!
 //! ## Kill semantics
 //!
@@ -41,7 +41,7 @@ use objectiveai_sdk::cli::command::{
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
-/// Hardcoded inactivity threshold. If `CONFIG_BASE_DIR` sees no
+/// Hardcoded inactivity threshold. If `the test's state dir` sees no
 /// filesystem activity for this duration, the wrapped cli child is
 /// terminated. Bumped to a constant rather than a constructor
 /// parameter for v1 — the value rarely needs to change per call.
@@ -55,40 +55,40 @@ pub enum Error {
     #[error("{0}")]
     Inner(#[from] objectiveai_sdk::cli::command::binary::Error),
     #[error(
-        "cli child went silent on CONFIG_BASE_DIR ({config_base_dir}) for {elapsed:?} — \
+        "cli child went silent on the test's state dir ({state_dir}) for {elapsed:?} — \
          hang-preventing watchdog killed the child"
     )]
     HangTimeout {
         elapsed: Duration,
-        config_base_dir: PathBuf,
+        state_dir: PathBuf,
     },
     /// Failed to construct or attach the `notify` filesystem watcher.
     /// Surfaces as a test-side error rather than panicking so the
     /// test reports cleanly.
-    #[error("hang-prevention fs watcher setup failed for {config_base_dir}: {source}")]
+    #[error("hang-prevention fs watcher setup failed for {state_dir}: {source}")]
     WatcherSetup {
-        config_base_dir: PathBuf,
+        state_dir: PathBuf,
         #[source]
         source: notify::Error,
     },
 }
 
-/// Wraps a [`BinaryExecutor`] with a `CONFIG_BASE_DIR` inactivity
+/// Wraps a [`BinaryExecutor`] with a `the test's state dir` inactivity
 /// watchdog. Construct via [`Self::new`]; the wrapped executor is
 /// internally forced to `kill_on_drop(true)`.
 pub struct HangPreventingBinaryCommandExecutor {
     inner: BinaryExecutor,
-    config_base_dir: PathBuf,
+    state_dir: PathBuf,
 }
 
 impl HangPreventingBinaryCommandExecutor {
     /// Wrap an inner [`BinaryExecutor`]. The inner is forced to
     /// `kill_on_drop(true)` so dropping the inner stream tears the
     /// cli child down when the watchdog fires.
-    pub fn new(inner: BinaryExecutor, config_base_dir: PathBuf) -> Self {
+    pub fn new(inner: BinaryExecutor, state_dir: PathBuf) -> Self {
         Self {
             inner: inner.kill_on_drop(true),
-            config_base_dir,
+            state_dir,
         }
     }
 
@@ -132,7 +132,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             >,
         > = self.inner.execute::<R, T>(request, agent_arguments).await?;
 
-        let config_base_dir = self.config_base_dir.clone();
+        let state_dir = self.state_dir.clone();
         let (out_tx, out_rx) = mpsc::channel::<Result<T, Error>>(16);
         let (notify_tx, notify_rx) =
             mpsc::unbounded_channel::<notify::Result<notify::Event>>();
@@ -143,13 +143,13 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             },
         )
         .map_err(|e| Error::WatcherSetup {
-            config_base_dir: config_base_dir.clone(),
+            state_dir: state_dir.clone(),
             source: e,
         })?;
         watcher
-            .watch(&config_base_dir, RecursiveMode::Recursive)
+            .watch(&state_dir, RecursiveMode::Recursive)
             .map_err(|e| Error::WatcherSetup {
-                config_base_dir: config_base_dir.clone(),
+                state_dir: state_dir.clone(),
                 source: e,
             })?;
 
@@ -157,7 +157,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             inner_stream,
             out_tx,
             notify_rx,
-            config_base_dir,
+            state_dir,
             watcher,
         ));
 
@@ -196,7 +196,7 @@ async fn watchdog_task<T>(
     >,
     out_tx: mpsc::Sender<Result<T, Error>>,
     mut notify_rx: mpsc::UnboundedReceiver<notify::Result<notify::Event>>,
-    config_base_dir: PathBuf,
+    state_dir: PathBuf,
     _watcher: notify::RecommendedWatcher,
 ) where
     T: Send + 'static,
@@ -213,7 +213,7 @@ async fn watchdog_task<T>(
                 let _ = out_tx
                     .send(Err(Error::HangTimeout {
                         elapsed: started.elapsed(),
-                        config_base_dir,
+                        state_dir,
                     }))
                     .await;
                 return;
@@ -239,7 +239,7 @@ async fn watchdog_task<T>(
                     None => return,
                 }
             }
-            // Filesystem event on CONFIG_BASE_DIR → reset the timer.
+            // Filesystem event on the test's state dir → reset the timer.
             // Errored events still count as "activity" (the inotify
             // descriptor itself doing something).
             Some(_event) = notify_rx.recv() => {

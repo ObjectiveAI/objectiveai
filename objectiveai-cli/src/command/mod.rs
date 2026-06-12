@@ -14,6 +14,7 @@ pub mod api;
 pub mod command;
 pub mod db;
 pub mod functions;
+pub mod kill_helpers;
 pub mod mcp;
 pub mod plugins;
 pub mod swarms;

@@ -114,7 +114,7 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
         jq: None,
     };
 
-    let executor = cli_test_util::executor();
+    let executor = cli_test_util::executor().await;
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
     let mut chunks = items.into_iter().filter_map(|item| match item {
         ResponseItem::Chunk(c) => Some(c),

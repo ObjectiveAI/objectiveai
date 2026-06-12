@@ -92,7 +92,7 @@ async fn duplicate_server_names_routed_across_turns() {
         serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(mock_agent())
             .expect("mock agent must deserialize"),
     );
-    let executor = cli_test_util::executor_with_base_dir(&base);
+    let executor = cli_test_util::executor().await;
 
     // Turn 1: agents spawn
     let spawn = SpawnRequest {

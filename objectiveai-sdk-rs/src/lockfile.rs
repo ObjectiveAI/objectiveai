@@ -436,6 +436,350 @@ pub async fn wait_released(dir: &Path, key: &str) -> std::io::Result<()> {
     }
 }
 
+/// PIDs of every live process currently holding the claim at
+/// `(dir, key)` — the deduplicated UNION across the gate and the
+/// announce files. Empty when not held.
+///
+/// Reads the live OS state, not who originally acquired: a process
+/// that has released or transferred its claim does not appear. Only
+/// the active exclusive holder(s) are reported — readers and
+/// would-be acquirers blocked in `wait_*` are excluded. In-progress
+/// transfers are not special-cased; whoever holds a lock right now
+/// is reported.
+///
+/// Per platform:
+/// - **Windows**: the Restart Manager (`RmGetList`) lists every
+///   process with an open handle to the file. Our owners are the
+///   only persistent handle holders, so this is the holder set.
+/// - **Linux**: `/proc/locks`, matched by the file's `(dev, inode)`,
+///   FLOCK WRITE rows only (shared-lock `try_read`/`try_held` probes
+///   are excluded), holder line only (blocked `->` waiters skipped).
+/// - **macOS**: `libproc` — processes with the file open, matched by
+///   `(dev, inode)`. No per-fd lock bit exists, so this is
+///   open-implies-owner; correct for our resident servers (the
+///   owner is the lone persistent opener).
+pub async fn owners(dir: &Path, key: &str) -> std::io::Result<Vec<u32>> {
+    let gate = gate_path(dir, key);
+    let announce = announce_path(dir, key);
+    tokio::task::spawn_blocking(move || {
+        let mut pids = file_owners(&gate)?;
+        for pid in file_owners(&announce)? {
+            if !pids.contains(&pid) {
+                pids.push(pid);
+            }
+        }
+        Ok(pids)
+    })
+    .await
+    .map_err(|e| std::io::Error::other(format!("join: {e}")))?
+}
+
+#[cfg(windows)]
+fn file_owners(path: &Path) -> std::io::Result<Vec<u32>> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Foundation::ERROR_MORE_DATA;
+    use windows_sys::Win32::System::RestartManager::{
+        CCH_RM_SESSION_KEY, RM_PROCESS_INFO, RmEndSession, RmGetList,
+        RmRegisterResources, RmStartSession,
+    };
+
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut session: u32 = 0;
+    let mut session_key = [0u16; CCH_RM_SESSION_KEY as usize + 1];
+    // SAFETY: out-params are valid; session_key is the required size.
+    if unsafe { RmStartSession(&mut session, 0, session_key.as_mut_ptr()) } != 0 {
+        return Ok(Vec::new());
+    }
+    // Always end the session.
+    struct Session(u32);
+    impl Drop for Session {
+        fn drop(&mut self) {
+            // SAFETY: a started session handle.
+            unsafe {
+                RmEndSession(self.0);
+            }
+        }
+    }
+    let _session = Session(session);
+
+    let wide: Vec<u16> = path
+        .as_os_str()
+        .encode_wide()
+        .chain(std::iter::once(0))
+        .collect();
+    let files = [wide.as_ptr()];
+    // SAFETY: one valid null-terminated filename pointer.
+    if unsafe {
+        RmRegisterResources(
+            session,
+            1,
+            files.as_ptr(),
+            0,
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+        )
+    } != 0
+    {
+        return Ok(Vec::new());
+    }
+
+    // First call sizes the array; ERROR_MORE_DATA is expected.
+    let mut needed: u32 = 0;
+    let mut count: u32 = 0;
+    let mut reason: u32 = 0;
+    // SAFETY: null array with zero count is the documented sizing call.
+    let rc = unsafe {
+        RmGetList(
+            session,
+            &mut needed,
+            &mut count,
+            std::ptr::null_mut(),
+            &mut reason,
+        )
+    };
+    if rc != 0 && rc != ERROR_MORE_DATA {
+        return Ok(Vec::new());
+    }
+    if needed == 0 {
+        return Ok(Vec::new());
+    }
+
+    let mut infos: Vec<RM_PROCESS_INFO> =
+        vec![unsafe { std::mem::zeroed() }; needed as usize];
+    count = needed;
+    // SAFETY: `infos` holds `count` writable elements.
+    if unsafe {
+        RmGetList(
+            session,
+            &mut needed,
+            &mut count,
+            infos.as_mut_ptr(),
+            &mut reason,
+        )
+    } != 0
+    {
+        return Ok(Vec::new());
+    }
+
+    let me = std::process::id();
+    Ok(infos[..count as usize]
+        .iter()
+        .map(|i| i.Process.dwProcessId)
+        .filter(|&pid| pid != 0 && pid != me)
+        .collect())
+}
+
+#[cfg(target_os = "linux")]
+fn file_owners(path: &Path) -> std::io::Result<Vec<u32>> {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::metadata(path) else {
+        return Ok(Vec::new());
+    };
+    let target_ino = meta.ino();
+    let dev = meta.dev();
+    let major = (dev >> 8) & 0xfff;
+    let minor = (dev & 0xff) | ((dev >> 12) & 0xfff_ff00);
+
+    let Ok(locks) = std::fs::read_to_string("/proc/locks") else {
+        return Ok(Vec::new());
+    };
+    let me = std::process::id();
+    let mut pids = Vec::new();
+    for line in locks.lines() {
+        let f: Vec<&str> = line.split_whitespace().collect();
+        // `<id>: FLOCK ADVISORY WRITE <pid> <maj>:<min>:<ino> ...`
+        // Blocked waiters render as `<id>: -> FLOCK ...` — f[1] is
+        // `->`, so they're skipped by the FLOCK check below.
+        if f.len() < 6 || f[1] != "FLOCK" || f[3] != "WRITE" {
+            continue;
+        }
+        let Ok(pid) = f[4].parse::<u32>() else {
+            continue;
+        };
+        if pid == 0 || pid == me {
+            continue;
+        }
+        let mut di = f[5].split(':');
+        let (Some(maj), Some(min), Some(ino)) = (di.next(), di.next(), di.next())
+        else {
+            continue;
+        };
+        let (Ok(maj), Ok(min), Ok(ino)) = (
+            u64::from_str_radix(maj, 16),
+            u64::from_str_radix(min, 16),
+            ino.parse::<u64>(),
+        ) else {
+            continue;
+        };
+        if ino == target_ino && maj == major && min == minor && !pids.contains(&pid)
+        {
+            pids.push(pid);
+        }
+    }
+    Ok(pids)
+}
+
+/// The slice of `<sys/proc_info.h>` the libc crate doesn't export:
+/// the `PROC_PIDFDVNODEPATHINFO` flavor structs and two constants.
+/// Layouts mirror the headers exactly (`MAXPATHLEN` = 1024).
+#[cfg(target_os = "macos")]
+mod libproc {
+    pub const PROC_ALL_PIDS: u32 = 1;
+    pub const PROC_PIDFDVNODEPATHINFO: i32 = 2;
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct VinfoStat {
+        pub vst_dev: u32,
+        pub vst_mode: u16,
+        pub vst_nlink: u16,
+        pub vst_ino: u64,
+        pub vst_uid: u32,
+        pub vst_gid: u32,
+        pub vst_atime: i64,
+        pub vst_atimensec: i64,
+        pub vst_mtime: i64,
+        pub vst_mtimensec: i64,
+        pub vst_ctime: i64,
+        pub vst_ctimensec: i64,
+        pub vst_birthtime: i64,
+        pub vst_birthtimensec: i64,
+        pub vst_size: i64,
+        pub vst_blocks: i64,
+        pub vst_blksize: i32,
+        pub vst_flags: u32,
+        pub vst_gen: u32,
+        pub vst_rdev: u32,
+        pub vst_qspare: [i64; 2],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct VnodeInfo {
+        pub vi_stat: VinfoStat,
+        pub vi_type: i32,
+        pub vi_pad: i32,
+        pub vi_fsid: [i32; 2],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct VnodeInfoPath {
+        pub vip_vi: VnodeInfo,
+        pub vip_path: [u8; 1024],
+    }
+
+    #[repr(C)]
+    #[derive(Clone, Copy)]
+    pub struct VnodeFdInfoWithPath {
+        pub pvip: VnodeInfoPath,
+    }
+}
+
+#[cfg(target_os = "macos")]
+fn file_owners(path: &Path) -> std::io::Result<Vec<u32>> {
+    use std::os::unix::fs::MetadataExt;
+    let Ok(meta) = std::fs::metadata(path) else {
+        return Ok(Vec::new());
+    };
+    let (target_dev, target_ino) = (meta.dev() as u32, meta.ino());
+    let me = std::process::id();
+
+    // List all pids.
+    // SAFETY: sizing call (null buffer, zero size) returns the byte
+    // count needed.
+    let bytes = unsafe {
+        nix::libc::proc_listpids(libproc::PROC_ALL_PIDS, 0, std::ptr::null_mut(), 0)
+    };
+    if bytes <= 0 {
+        return Ok(Vec::new());
+    }
+    let cap = bytes as usize / std::mem::size_of::<i32>();
+    let mut all_pids = vec![0i32; cap];
+    // SAFETY: buffer sized to `bytes`.
+    let got = unsafe {
+        nix::libc::proc_listpids(
+            libproc::PROC_ALL_PIDS,
+            0,
+            all_pids.as_mut_ptr() as *mut nix::libc::c_void,
+            bytes,
+        )
+    };
+    if got <= 0 {
+        return Ok(Vec::new());
+    }
+    all_pids.truncate(got as usize / std::mem::size_of::<i32>());
+
+    let mut pids = Vec::new();
+    for pid in all_pids {
+        if pid <= 0 || pid as u32 == me {
+            continue;
+        }
+        // List the process's open fds.
+        // SAFETY: sizing call.
+        let fbytes = unsafe {
+            nix::libc::proc_pidinfo(
+                pid,
+                nix::libc::PROC_PIDLISTFDS,
+                0,
+                std::ptr::null_mut(),
+                0,
+            )
+        };
+        if fbytes <= 0 {
+            continue;
+        }
+        let fcap = fbytes as usize / std::mem::size_of::<nix::libc::proc_fdinfo>();
+        let mut fds: Vec<nix::libc::proc_fdinfo> =
+            vec![unsafe { std::mem::zeroed() }; fcap];
+        // SAFETY: buffer sized to `fbytes`.
+        let fgot = unsafe {
+            nix::libc::proc_pidinfo(
+                pid,
+                nix::libc::PROC_PIDLISTFDS,
+                0,
+                fds.as_mut_ptr() as *mut nix::libc::c_void,
+                fbytes,
+            )
+        };
+        if fgot <= 0 {
+            continue;
+        }
+        fds.truncate(fgot as usize / std::mem::size_of::<nix::libc::proc_fdinfo>());
+
+        for fd in fds {
+            if fd.proc_fdtype != nix::libc::PROX_FDTYPE_VNODE as u32 {
+                continue;
+            }
+            let mut vi: libproc::VnodeFdInfoWithPath = unsafe { std::mem::zeroed() };
+            // SAFETY: `vi` is a correctly-sized out-struct.
+            let n = unsafe {
+                nix::libc::proc_pidfdinfo(
+                    pid,
+                    fd.proc_fd,
+                    libproc::PROC_PIDFDVNODEPATHINFO,
+                    &mut vi as *mut _ as *mut nix::libc::c_void,
+                    std::mem::size_of::<libproc::VnodeFdInfoWithPath>() as i32,
+                )
+            };
+            if n <= 0 {
+                continue;
+            }
+            if vi.pvip.vip_vi.vi_stat.vst_ino == target_ino
+                && vi.pvip.vip_vi.vi_stat.vst_dev == target_dev
+                && !pids.contains(&(pid as u32))
+            {
+                pids.push(pid as u32);
+            }
+        }
+    }
+    Ok(pids)
+}
+
 /// `<dir>/<escape(key)>.lock` — the gate: the real mutex, carries
 /// the content.
 fn gate_path(dir: &Path, key: &str) -> PathBuf {

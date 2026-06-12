@@ -134,7 +134,7 @@ async fn function_swarm_writes_per_agent_files() {
         jq: None,
     };
 
-    let executor = cli_test_util::executor_with_base_dir(&base);
+    let executor = cli_test_util::executor().await;
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
     assert!(
         !items.is_empty(),

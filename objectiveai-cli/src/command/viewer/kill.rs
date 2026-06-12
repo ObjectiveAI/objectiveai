@@ -1,13 +1,17 @@
-//! `viewer kill` — terminate every running `objectiveai-viewer`
-//! process. Idempotent: a count of zero is not an error.
+//! `viewer kill --global|--state` — terminate viewer server(s) by
+//! killing the owner(s) of their per-state lock at
+//! `<dir>/state/<state>/locks` key `viewer`. `--state` hits the
+//! current state; `--global` fans out across every state
+//! concurrently. Idempotent: a count of zero is not an error.
 
 use objectiveai_sdk::cli::command::viewer::kill::{Request, Response};
 
+use crate::command::kill_helpers::kill_per_state;
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let killed = crate::spawn::kill_by_name("objectiveai-viewer");
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let killed = kill_per_state(ctx, request.scope, "viewer").await?;
     Ok(Response { killed })
 }
 

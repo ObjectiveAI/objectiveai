@@ -40,7 +40,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     }
 
     let base_dir = cli_test_util::test_base_dir();
-    let executor = cli_test_util::executor_with_base_dir(&base_dir);
+    let executor = cli_test_util::executor().await;
 
     // ── 1. Spawn a mock agent ────────────────────────────────────
     // `dangerous_advanced.stream = true` keeps the parent cli

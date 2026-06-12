@@ -8,12 +8,17 @@
 //! before invoking nextest). Nothing in this module builds, copies,
 //! or wipes anything at test time.
 //!
-//! Per-test `CONFIG_BASE_DIR` is `<runtime>/<test-fn-name>/`, a flat
-//! subdirectory whose contents prepare.sh set up to mirror what each
-//! test expects on disk. The cli writes its runtime artefacts
-//! (`logs/`, `pipes/`, etc.) into the same subdirectory over the test
-//! run; `test.sh` wipes `.objectiveai-tests/` at the top of every
-//! invocation so stale runtime state from prior runs never leaks in.
+//! Every test shares ONE `OBJECTIVEAI_DIR` (`<runtime>/home/`,
+//! whose `bin/{plugins,tools}` prepare.sh populates with the merged
+//! fixture set) and differs only by `OBJECTIVEAI_STATE=
+//! <test-fn-name>` — exercising the real multi-state design. The cli
+//! writes each test's runtime artefacts (config.json, logs/,
+//! instances/) into `home/state/<test>/`; `test.sh` wipes
+//! `.objectiveai-tests/` at the top of every invocation so stale
+//! state from prior runs never leaks in. Databases are per-test too:
+//! [`executor`] writes a `config db` section pointing at the shared
+//! test postgres (`OBJECTIVEAI_TEST_DB_PORT`) with
+//! `database = <test-fn-name>`.
 
 // `hang_preventing_executor` lives at sibling path
 // `tests/hang_preventing_executor.rs` and is declared as a child
@@ -91,40 +96,74 @@ pub fn cli_binary() -> PathBuf {
     path
 }
 
-/// Per-test `CONFIG_BASE_DIR`: `<runtime>/<test-fn-name>/`. The
-/// directory is already on disk (prepare.sh staged it); we don't
-/// create or clean anything here.
-pub fn test_base_dir() -> PathBuf {
-    sync_snapshots_env();
-    let test = std::thread::current()
+/// The shared `OBJECTIVEAI_DIR` for the whole suite run:
+/// `<runtime>/home/`. prepare.sh staged `bin/` (cli fixtures —
+/// plugins + tools) inside it; per-test state accumulates under
+/// `state/<test-fn-name>/`.
+pub fn home_dir() -> PathBuf {
+    runtime_dir().join("home")
+}
+
+/// This test's `OBJECTIVEAI_STATE` — the test fn name (nextest names
+/// test threads after the test).
+pub fn test_state_name() -> String {
+    std::thread::current()
         .name()
         .expect("test thread must have a name")
-        .to_string();
-    let dir = runtime_dir().join(&test);
-    eprintln!("test base dir: {}", dir.display());
+        .to_string()
+}
+
+/// Per-test state dir: `<home>/state/<test-fn-name>/`. Created here
+/// so post-mortem inspection and the hang-watchdog have a real
+/// directory even before the cli's first write.
+pub fn test_base_dir() -> PathBuf {
+    sync_snapshots_env();
+    let dir = home_dir().join("state").join(test_state_name());
+    std::fs::create_dir_all(&dir).expect("create test state dir");
+    eprintln!("test state dir: {}", dir.display());
     dir
 }
 
-/// Equivalent to `executor_with_base_dir(&test_base_dir())` — the
-/// default executor for tests that don't need a special base dir.
-pub fn executor() -> HangPreventingBinaryCommandExecutor {
-    executor_with_base_dir(&test_base_dir())
+/// Write this test's `config db` section (idempotent): the shared
+/// test postgres at `127.0.0.1:$OBJECTIVEAI_TEST_DB_PORT`, with a
+/// per-test `database` so tests are isolated by database name on one
+/// postmaster. No-op when the env var is unset (db-less tests still
+/// run from a fresh shell).
+async fn ensure_db_config(state: &str) {
+    let Ok(port) = std::env::var("OBJECTIVEAI_TEST_DB_PORT") else {
+        return;
+    };
+    let port: u16 = port.parse().expect("OBJECTIVEAI_TEST_DB_PORT not a port");
+    let fs = objectiveai_cli::filesystem::Client::new(
+        Some(home_dir()),
+        Some(state.to_string()),
+        None::<String>,
+        None::<String>,
+    );
+    let mut config = fs.read_config().await.expect("read test config");
+    if config.db().get_database().is_some() {
+        return;
+    }
+    config.db().set_address("127.0.0.1");
+    config.db().set_port(port);
+    config.db().set_database(state.to_string());
+    fs.write_config(&config).await.expect("write test config");
 }
 
-/// Build a hang-preventing executor aimed at the pre-built cli binary
-/// with `CONFIG_BASE_DIR` pinned to `base_dir` and (when set)
-/// `OBJECTIVEAI_ADDRESS` pointing at the local test server. The inner
-/// [`BinaryExecutor`] is wrapped in a [`HangPreventingBinaryCommandExecutor`]
-/// so a stuck cli child is killed after
-/// [`hang_preventing_executor::HANG_TIMEOUT`] of `CONFIG_BASE_DIR`
-/// inactivity rather than hanging the test indefinitely.
-pub fn executor_with_base_dir(base_dir: &Path) -> HangPreventingBinaryCommandExecutor {
+/// The default executor: shared `OBJECTIVEAI_DIR`, this test's
+/// `OBJECTIVEAI_STATE`, db config ensured. Async because the db
+/// config write goes through the filesystem client.
+pub async fn executor() -> HangPreventingBinaryCommandExecutor {
+    let state = test_state_name();
+    let state_dir = test_base_dir();
+    ensure_db_config(&state).await;
     let mut exec = BinaryExecutor::from_path(cli_binary())
-        .env("CONFIG_BASE_DIR", base_dir.to_string_lossy().into_owned());
+        .env("OBJECTIVEAI_DIR", home_dir().to_string_lossy().into_owned())
+        .env("OBJECTIVEAI_STATE", state);
     if let Some(addr) = test_api_address() {
         exec = exec.env("OBJECTIVEAI_ADDRESS", addr);
     }
-    HangPreventingBinaryCommandExecutor::new(exec, base_dir.to_path_buf())
+    HangPreventingBinaryCommandExecutor::new(exec, state_dir)
 }
 
 /// Run the leaf's streaming `execute` and collect every `ResponseItem`

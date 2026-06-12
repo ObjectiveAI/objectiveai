@@ -56,21 +56,15 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Pre-run sweep: the cli `mem::forget`s the postgres handle so the
-# postmaster daemonizes (its design — subsequent cli invocations
-# in the same `CONFIG_BASE_DIR` reuse the live socket). For tests
-# each per-test config_base_dir gets its own postmaster, and they
-# all outlive the test process. Plugin fixtures spawned by the
-# `agents spawn`-style tests can also outlive their parent cli if
-# the test errored mid-stream. None of those leaks are this
-# script's *fault*, but their open file handles block the
-# `rm -rf` below.
+# Pre-run sweep: plugin fixtures spawned by the `agents spawn`-style
+# tests can outlive their parent cli if the test errored mid-stream,
+# and their open file handles block the `rm -rf` below.
 #
 # Scope: only processes whose binary lives inside $RUNTIME_DIR.
 # Every leaked process from a prior test run launches from a
 # slotted directory under that path (cli binary, plugin
-# fixtures, postgres _shared-db-bin/), so an ExecutablePath
-# prefix match identifies ours without touching anything else.
+# fixtures), so an ExecutablePath prefix match identifies ours
+# without touching anything else.
 # We deliberately do NOT match on command-line substring — that
 # was the old behavior and it killed unrelated processes on the
 # system that happened to share a substring. See the in-script

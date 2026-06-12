@@ -1,8 +1,18 @@
 #!/usr/bin/env bash
 # Builds the cli + every test fixture binary and slots each into the
-# right per-test directory under this folder. Removes itself on
-# success. Multi-platform: the `.exe` suffix is detected from the
-# produced cli binary, not from $OSTYPE heuristics.
+# shared test home (`home/bin/...`). Removes itself on success.
+# Multi-platform: the `.exe` suffix is detected from the produced cli
+# binary, not from $OSTYPE heuristics.
+#
+# Every test shares ONE `OBJECTIVEAI_DIR` (the `home/` dir staged
+# here) and isolates itself with `OBJECTIVEAI_STATE=<test-fn-name>`
+# (per-test `home/state/<test>/`) — including its OWN postmaster on
+# its own port (`db spawn` per test). Only `home/bin` is shared:
+# fixture plugins/tools (coordinates are distinct across tests, and
+# the one shared binary — count-tool — keys its counter files by MCP
+# session id), the objectiveai-db vehicle, and the postgres install
+# at `home/bin/pg-bin/`, which this script pre-warms via INSTALL_ONLY
+# so per-test spawns only pay initdb+start.
 #
 # Run once per checkout — the deposited binaries are gitignored and
 # the script itself self-removes from the working tree (the committed
@@ -15,6 +25,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"             # objectiveai-tests/
 REPO_ROOT="$(cd "$ROOT/../.." && pwd)"             # workspace root
+BIN="$ROOT/home/bin"
 # Dedicated target dir for the cli binary only. The cli build uses
 # `--no-default-features --features rustpython`, which produces a
 # differently-featured `objectiveai-cli` artifact than the default
@@ -22,8 +33,8 @@ REPO_ROOT="$(cd "$ROOT/../.." && pwd)"             # workspace root
 # integration tests linking against `objectiveai-cli` as a lib).
 # Co-locating those two builds would force-rebuild the cli lib on
 # every flip between prepare.sh and nextest, so the cli build keeps
-# its own slot. Sub-crates (SDK, mcp, fixtures) compile under
-# default features and CAN share the workspace target.
+# its own slot. Sub-crates (SDK, mcp, fixtures) compile under default
+# features and CAN share the workspace target.
 CLI_TARGET_DIR="$REPO_ROOT/target/objectiveai-tests"
 
 # Two concurrent cargo invocations:
@@ -44,7 +55,7 @@ PID_CLI=$!
     -p hello-tool -p error-tool -p count-tool \
     -p hello-plugin -p test-mcp-plugin \
     -p test-mcp-plugin-named -p test-mcp-plugin-foo-headers \
-    -p objectiveai-tests-pg-installer) &
+    -p objectiveai-db) &
 PID_FIX=$!
 
 wait "$PID_CLI" "$PID_FIX"
@@ -59,102 +70,52 @@ slot() {
 }
 
 # Layout: every plugin/tool lives at
-# `<test>/{plugins,tools}/<owner>/<name>/<version>/`. Plugin binaries
-# are `plugin[.exe]`; tool binaries keep their exec base name (the
-# manifest's per-OS `exec` invokes `./<name>` from that version dir,
-# which is the CWD at run time).
+# `home/bin/{plugins,tools}/<owner>/<name>/<version>/`. Plugin
+# binaries are `plugin[.exe]`; tool binaries keep their exec base name
+# (the manifest's per-OS `exec` invokes `./<name>` from that version
+# dir, which is the CWD at run time). objectiveai-db sits directly in
+# `home/bin/` where the cli's `db spawn` resolves it.
 slot "$CLI_BIN_DIR/objectiveai-cli$EXE"               "$ROOT/objectiveai-cli$EXE" &
-slot "$FIX_BIN_DIR/test-mcp-plugin$EXE"               "$ROOT/plugin_mcp_dispatch_round_trip/plugins/testorg/test-mcp-plugin/1.0.0/plugin$EXE" &
-slot "$FIX_BIN_DIR/hello-plugin$EXE"                  "$ROOT/hello_plugin_dispatch_produces_expected_output/plugins/objectiveai/hello/0.0.1/plugin$EXE" &
-slot "$FIX_BIN_DIR/hello-tool$EXE"                    "$ROOT/hello_tool_dispatch_snapshot/tools/objectiveai/hello/0.0.1/hello-tool$EXE" &
-slot "$FIX_BIN_DIR/error-tool$EXE"                    "$ROOT/error_tool_dispatch_snapshot/tools/objectiveai/error/0.0.1/error-tool$EXE" &
-slot "$FIX_BIN_DIR/test-mcp-plugin-foo-headers$EXE"   "$ROOT/function_swarm_writes_per_agent_files/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0/plugin$EXE" &
+slot "$FIX_BIN_DIR/objectiveai-db$EXE"                "$BIN/objectiveai-db$EXE" &
+slot "$FIX_BIN_DIR/test-mcp-plugin$EXE"               "$BIN/plugins/testorg/test-mcp-plugin/1.0.0/plugin$EXE" &
+slot "$FIX_BIN_DIR/hello-plugin$EXE"                  "$BIN/plugins/objectiveai/hello/0.0.1/plugin$EXE" &
+slot "$FIX_BIN_DIR/hello-tool$EXE"                    "$BIN/tools/objectiveai/hello/0.0.1/hello-tool$EXE" &
+slot "$FIX_BIN_DIR/error-tool$EXE"                    "$BIN/tools/objectiveai/error/0.0.1/error-tool$EXE" &
+slot "$FIX_BIN_DIR/test-mcp-plugin-foo-headers$EXE"   "$BIN/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0/plugin$EXE" &
 
 for n in 0 1 2 3 4 5 6 7 8 9; do
   slot "$FIX_BIN_DIR/count-tool$EXE" \
-       "$ROOT/two_agents_continuations_count_persists_per_session/tools/testorg/tool$n/1.0.0/count-tool$EXE" &
-  slot "$FIX_BIN_DIR/count-tool$EXE" \
-       "$ROOT/test_twenty_agents_json_schema_10x_tools_seed_42/tools/testorg/tool$n/1.0.0/count-tool$EXE" &
+       "$BIN/tools/testorg/tool$n/1.0.0/count-tool$EXE" &
 done
 
-for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo; do
+for name in dup-alpha dup-bravo dup-charlie dup-delta dup-echo \
+            same-alpha same-bravo same-charlie same-delta same-echo; do
   slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
-       "$ROOT/duplicate_tool_names_routed_across_turns/plugins/testorg/$name/1.0.0/plugin$EXE" &
-done
-
-for name in same-alpha same-bravo same-charlie same-delta same-echo; do
-  slot "$FIX_BIN_DIR/test-mcp-plugin-named$EXE" \
-       "$ROOT/duplicate_server_names_routed_across_turns/plugins/testorg/$name/1.0.0/plugin$EXE" &
+       "$BIN/plugins/testorg/$name/1.0.0/plugin$EXE" &
 done
 
 wait
 
-# Slot the postgres installer alongside the cli binary, then run
-# it to extract the bundled archive once into a shared dir.
-# Symlink every committed test dir's `db-bin/` to that shared
-# install so per-test cli children skip the ~163M extract on
-# their `pg.setup()` call.
-slot "$FIX_BIN_DIR/objectiveai-tests-pg-installer$EXE" \
-     "$ROOT/objectiveai-tests-pg-installer$EXE"
-
-SHARED="$ROOT/_shared-db-bin"
-
-# Run the installer with bounded retries. The extract writes
-# hundreds of postgres binaries/libraries; on some platforms a
-# real-time AV/indexer scanning a freshly-written executable holds
-# a transient handle on it, so the crate's extraction intermittently
-# fails with an "Access is denied"-class error mid-write. The race
-# is timing-only — a clean retry succeeds — so wipe the partial
-# install (and its stale archive lock) and try again, hard-failing
-# only if it can't extract after several attempts. On platforms
-# without that interference the first attempt simply succeeds and
-# the loop is a no-op.
+# Pre-warm the shared postgres install (`home/bin/pg-bin/`): the
+# ~163M extract happens exactly once, here, with bounded retries (a
+# real-time AV/indexer scanning freshly-written executables can hold
+# transient handles and fail the extract mid-write — the race is
+# timing-only, a clean retry succeeds). objectiveai-db's own
+# install-lock + completion marker make the wipe/retry safe. Per-test
+# `db spawn`s then only pay initdb+start for their state's cluster.
 pg_installed=""
 for attempt in 1 2 3 4 5; do
-  if "$ROOT/objectiveai-tests-pg-installer$EXE" "$SHARED"; then
+  if OBJECTIVEAI_DIR="$ROOT/home" INSTALL_ONLY=1 "$BIN/objectiveai-db$EXE"; then
     pg_installed=1
     break
   fi
   echo "prepare.sh: postgres install attempt $attempt did not complete; retrying" >&2
-  rm -rf "$SHARED"
+  rm -rf "$BIN/pg-bin"
   sleep "$attempt"   # 1s, 2s, 3s, 4s — widening grace for the scanner
 done
 if [ -z "$pg_installed" ]; then
   echo "prepare.sh: FATAL — postgres install failed after 5 attempts" >&2
   exit 1
 fi
-
-# Loop over committed test dirs (everything not starting with
-# `_`). The `*/` glob filters out files. `[ -e dst ]` skips
-# dirs that already have a `db-bin/` from a prior partial run.
-for d in "$ROOT"/*/; do
-  name=$(basename "$d")
-  [[ "$name" == _* ]] && continue
-  [[ -e "$d/db-bin" ]] && continue
-  case "$OSTYPE" in
-    msys*|cygwin*|win32*)
-      # Create a directory junction via PowerShell. A junction
-      # needs no privilege (unlike a symbolic link) and is
-      # equivalent for our read-only reuse of the shared install.
-      #
-      # We deliberately do NOT use `cmd //c "mklink /J ..."`: MSYS
-      # rewrites the `/J` flag as if it were a POSIX path, so cmd
-      # receives a garbled argument and mklink fails with a bogus
-      # "The filename, directory name, or volume label syntax is
-      # incorrect". Paths are handed to PowerShell through the
-      # environment (not interpolated into the command string) so
-      # backslashes and spaces survive the bash→PowerShell hop
-      # untouched.
-      OAI_LINK="$(cygpath -w "$d/db-bin")" \
-      OAI_TARGET="$(cygpath -w "$SHARED")" \
-        powershell.exe -NoProfile -Command \
-          'New-Item -ItemType Junction -Path $env:OAI_LINK -Target $env:OAI_TARGET -ErrorAction Stop | Out-Null' \
-          >/dev/null
-      ;;
-    *)
-      ln -s "$SHARED" "$d/db-bin"
-      ;;
-  esac
-done
 
 rm -- "$0"

@@ -189,7 +189,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         ]
     });
 
-    let executor = cli_test_util::executor_with_base_dir(&base);
+    let executor = cli_test_util::executor().await;
 
     let spawn_agent = |seed: i64| {
         let executor = &executor;

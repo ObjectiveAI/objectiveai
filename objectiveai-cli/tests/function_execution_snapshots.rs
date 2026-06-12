@@ -67,7 +67,7 @@ fn inline_profile_spec(json: serde_json::Value) -> ProfileSpec {
 /// the Rust SDK's `normalize_for_tests` so the result is ready for
 /// the structural-Value compare in [`assert_normalized_snapshot`].
 async fn run_and_aggregate_normalized(request: Request) -> FunctionExecution {
-    let executor = cli_test_util::executor();
+    let executor = cli_test_util::executor().await;
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
     let mut chunks = items.into_iter().filter_map(|item| match item {
         ResponseItem::Chunk(c) => Some(c),

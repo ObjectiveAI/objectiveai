@@ -6,6 +6,7 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.viewer.kill.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub scope: crate::cli::command::SetScope,
     pub jq: Option<String>,
 }
 
@@ -18,6 +19,10 @@ pub enum Path {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["viewer".to_string(), "kill".to_string()];
+        argv.push(match self.scope {
+            crate::cli::command::SetScope::Global => "--global".to_string(),
+            crate::cli::command::SetScope::State => "--state".to_string(),
+        });
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -34,6 +39,12 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Kill across all states.
+    #[arg(long)]
+    pub global: bool,
+    /// Kill only the current state.
+    #[arg(long)]
+    pub state: bool,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -59,7 +70,19 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ViewerKill, jq: args.jq })
+        let scope = match (args.global, args.state) {
+            (true, false) => crate::cli::command::SetScope::Global,
+            (false, true) => crate::cli::command::SetScope::State,
+            _ => {
+                return Err(crate::cli::command::FromArgsError {
+                    field: "scope",
+                    source: crate::cli::command::FromArgsErrorSource::Plain(
+                        "exactly one of --global, --state is required".to_string(),
+                    ),
+                });
+            }
+        };
+        Ok(Self { path_type: Path::ViewerKill, scope, jq: args.jq })
     }
 }
 

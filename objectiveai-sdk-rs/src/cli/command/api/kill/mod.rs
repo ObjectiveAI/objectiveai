@@ -6,6 +6,8 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.api.kill.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// Always Global — api has a single machine-wide lock.
+    pub scope: crate::cli::command::SetScope,
     pub jq: Option<String>,
 }
 
@@ -18,6 +20,7 @@ pub enum Path {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["api".to_string(), "kill".to_string()];
+        argv.push("--global".to_string());
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -34,6 +37,9 @@ pub struct Response {
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Kill api servers across all states (required — api is machine-wide).
+    #[arg(long)]
+    pub global: bool,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -59,7 +65,19 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ApiKill, jq: args.jq })
+        if !args.global {
+            return Err(crate::cli::command::FromArgsError {
+                field: "scope",
+                source: crate::cli::command::FromArgsErrorSource::Plain(
+                    "api kill requires --global".to_string(),
+                ),
+            });
+        }
+        Ok(Self {
+            path_type: Path::ApiKill,
+            scope: crate::cli::command::SetScope::Global,
+            jq: args.jq,
+        })
     }
 }
 

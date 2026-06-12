@@ -5,7 +5,6 @@
 
 mod cli_test_util;
 
-use std::path::Path;
 use std::process::Command;
 
 #[derive(serde::Serialize)]
@@ -15,7 +14,7 @@ struct Summary {
     stderr: Vec<String>,
 }
 
-/// Spawn the cli with `CONFIG_BASE_DIR=<base>`, args `tools run <name>`,
+/// Spawn the cli (shared home + this test's state), args `tools run <name>`,
 /// then bucket every `tools::run::ResponseItem` into its originating
 /// stream. Order is preserved within each bucket; cross-bucket
 /// ordering is dropped (the dispatch drains both streams
@@ -31,10 +30,11 @@ struct Summary {
 ///   - `Stderr(cli::Error)` → the error struct directly, e.g.
 ///     `{"type":"error","message":"...", ...}`
 /// — no `Tools/Run` wrapper to navigate.
-fn run_and_summarize(base: &Path, name: &str) -> Summary {
+fn run_and_summarize(name: &str) -> Summary {
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
-        .env("CONFIG_BASE_DIR", base)
+        .env("OBJECTIVEAI_DIR", cli_test_util::home_dir())
+        .env("OBJECTIVEAI_STATE", cli_test_util::test_state_name())
         .args([
             "tools", "run", "--owner", "objectiveai", "--name", name, "--version",
             "0.0.1",
@@ -65,14 +65,14 @@ fn run_and_summarize(base: &Path, name: &str) -> Summary {
 
 #[test]
 fn hello_tool_dispatch_snapshot() {
-    let base = cli_test_util::test_base_dir();
-    let summary = run_and_summarize(&base, "hello");
+    let _state_dir = cli_test_util::test_base_dir();
+    let summary = run_and_summarize("hello");
     insta::assert_json_snapshot!(summary);
 }
 
 #[test]
 fn error_tool_dispatch_snapshot() {
-    let base = cli_test_util::test_base_dir();
-    let summary = run_and_summarize(&base, "error");
+    let _state_dir = cli_test_util::test_base_dir();
+    let summary = run_and_summarize("error");
     insta::assert_json_snapshot!(summary);
 }

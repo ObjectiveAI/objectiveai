@@ -193,7 +193,7 @@ async fn two_agents_continuations_count_persists_per_session() {
     }
 
     let base_dir = cli_test_util::test_base_dir();
-    let executor = Arc::new(cli_test_util::executor_with_base_dir(&base_dir));
+    let executor = Arc::new(cli_test_util::executor().await);
 
     let run_agent = |seed: i64| {
         let executor = executor.clone();

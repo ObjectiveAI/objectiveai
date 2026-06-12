@@ -122,7 +122,7 @@ async fn plugin_mcp_dispatch_round_trip() {
             .expect("inline plugin-mcp agent must deserialize"),
     );
 
-    let executor = cli_test_util::executor_with_base_dir(&base)
+    let executor = cli_test_util::executor().await
         .env("OAI_TEST_MCP_PID_FILE", pid_file.to_string_lossy().into_owned());
 
     let spawn_request = SpawnRequest {
