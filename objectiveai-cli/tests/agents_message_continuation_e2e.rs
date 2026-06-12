@@ -1,8 +1,11 @@
-//! `agents spawn` → wait for cli-stream to finish →
-//! `agents message` → assert the second turn's request body's
-//! `continuation` field byte-equals the first turn's continuation
-//! (the one upserted into `agent_continuations` by the spawn's
-//! final chunk).
+//! `agents spawn` → wait for cli-stream to finish → second
+//! `agents spawn` against the SAME instance (a Historic resume) →
+//! assert the second turn's request body's `continuation` field
+//! byte-equals the first turn's continuation (the one upserted into
+//! `agent_continuations` by the first spawn's final chunk). The
+//! resumed turn is also a streaming spawn so it runs to completion
+//! synchronously and its fresh response_id is mined straight from
+//! its own chunks.
 //!
 //! The test is the smoking gun for response-side continuation
 //! propagation. Reverting the SDK fix that taught `lookup_session`
@@ -20,11 +23,7 @@ mod cli_test_util;
 use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::message::{
-    Request as MessageRequest,
-    RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
-    Response as MessageResponse,
-};
+use objectiveai_sdk::cli::command::agents::message::RequestMessage;
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
     Request as SpawnRequest, RequestDangerousAdvanced,
@@ -91,43 +90,53 @@ async fn spawn_then_message_propagates_response_continuation() {
         cli_test_util::wait_for_continuation(&executor, &spawn_chunk_aih, Duration::from_secs(30))
             .await;
 
-    // ── 3. Message the agent (forces a new turn) ────────────────
-    // Split `{parent}/{instance}` so the message handler composes
-    // the same full AIH the spawn turn registered.
+    // ── 3. Resume the agent with a second spawn (a new turn) ────
+    // Split `{parent}/{instance}` so the Instance selector composes
+    // the same full AIH the first turn registered. A streaming spawn
+    // runs the resumed turn to completion before returning AND
+    // surfaces the turn's chunks — so the fresh response_id (request
+    // rows are PK'd by response_id and plain-INSERTed; a resumed
+    // turn always mints a new one) is mined from the stream itself.
     let (parent, instance) = spawn_chunk_aih
         .rsplit_once('/')
         .map(|(p, i)| (Some(p.to_string()), i.to_string()))
         .expect("spawn_chunk_aih must carry at least one '/'");
-    let message_request = MessageRequest {
-        path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
+    let resume_request = SpawnRequest {
+        path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
+        message: RequestMessage::Simple("follow up".to_string()),
         agent: AgentSelector::Instance {
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
         },
-        message: RequestMessage::Simple("follow up".to_string()),
-        dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(42) }),
+        dangerous_advanced: Some(RequestDangerousAdvanced {
+            stream: Some(true),
+            seed: Some(42),
+            skip_lock: None,
+        }),
         jq: None,
     };
-    // The unary `agents message` leaf no longer surfaces chunks, so
-    // the second turn's response_id can't be mined from the stream.
-    // It can't equal the spawn turn's id either: request rows are
-    // PK'd by response_id and plain-INSERTed, so the resumed turn
-    // mints a fresh one. In this test's isolated state the new
-    // turn's row is simply the one that ISN'T the spawn's.
-    let _resp: MessageResponse =
-        cli_test_util::execute_one(&executor, message_request).await;
+    let resume_items: Vec<SpawnResponseItem> =
+        cli_test_util::collect_stream(&executor, resume_request).await;
+    let new_response_id = resume_items
+        .iter()
+        .find_map(|item| match item {
+            SpawnResponseItem::Chunk(chunk)
+                if !chunk.id.is_empty() && chunk.id != spawn_response_id =>
+            {
+                Some(chunk.id.clone())
+            }
+            _ => None,
+        })
+        .expect("resumed spawn must emit a Chunk with a fresh response id");
 
     // ── 4. Read the new turn's request body's continuation ──────
     // `logs.agent_completion_requests.body->>'continuation'` is
     // exactly what the cli stamped onto the second turn's request
     // before sending it upstream.
-    let request_continuation = cli_test_util::wait_for_new_request_continuation(
-        &executor,
-        &spawn_response_id,
-        Duration::from_secs(30),
-    )
-    .await
-    .expect("second turn's request body must carry a continuation");
+    let request_continuation =
+        cli_test_util::wait_for_request_continuation(&executor, &new_response_id, Duration::from_secs(30))
+            .await
+            .expect("second turn's request body must carry a continuation");
 
     // ── 5. The smoking gun ──────────────────────────────────────
     assert_eq!(
