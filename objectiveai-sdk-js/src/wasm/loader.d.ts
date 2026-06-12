@@ -166,36 +166,6 @@ export function functionExecutionChunkNormalized(a: any): string;
 export function functionExecutionChunkToUnary(a: any): string;
 
 /**
- * Merges two `FunctionInventionChunk`s and returns the merged result.
- */
-export function functionInventionChunkMerged(a: any, b: any): string;
-
-/**
- * Normalizes a `FunctionInventionChunk` by round-tripping through serde.
- */
-export function functionInventionChunkNormalized(a: any): string;
-
-/**
- * Converts an accumulated `FunctionInventionChunk` to a `FunctionInvention` (unary).
- */
-export function functionInventionChunkToUnary(a: any): string;
-
-/**
- * Merges two `FunctionInventionRecursiveChunk`s and returns the merged result.
- */
-export function functionInventionRecursiveChunkMerged(a: any, b: any): string;
-
-/**
- * Normalizes a `FunctionInventionRecursiveChunk` by round-tripping through serde.
- */
-export function functionInventionRecursiveChunkNormalized(a: any): string;
-
-/**
- * Converts an accumulated `FunctionInventionRecursiveChunk` to a `FunctionInventionRecursive` (unary).
- */
-export function functionInventionRecursiveChunkToUnary(a: any): string;
-
-/**
  * Merges two `FunctionProfileComputationChunk`s and returns the merged result.
  */
 export function functionProfileComputationChunkMerged(a: any, b: any): string;
@@ -221,44 +191,14 @@ export function generateAgentCompletionChunk(seed: any): string;
 export function generateFunctionExecutionChunk(seed: any): string;
 
 /**
- * Generates a random `FunctionInventionChunk`. Optional seed for reproducibility.
- */
-export function generateFunctionInventionChunk(seed: any): string;
-
-/**
- * Generates a random `FunctionInventionRecursiveChunk`. Optional seed for reproducibility.
- */
-export function generateFunctionInventionRecursiveChunk(seed: any): string;
-
-/**
  * Generates a random `FunctionProfileComputationChunk`. Optional seed for reproducibility.
  */
 export function generateFunctionProfileComputationChunk(seed: any): string;
 
 /**
- * Generates a random `LaboratoryExecutionChunk`. Optional seed for reproducibility.
- */
-export function generateLaboratoryExecutionChunk(seed: any): string;
-
-/**
  * Generates a random `VectorCompletionChunk`. Optional seed for reproducibility.
  */
 export function generateVectorCompletionChunk(seed: any): string;
-
-/**
- * Merges two `LaboratoryExecutionChunk`s and returns the merged result.
- */
-export function laboratoryExecutionChunkMerged(a: any, b: any): string;
-
-/**
- * Normalizes a `LaboratoryExecutionChunk` by round-tripping through serde.
- */
-export function laboratoryExecutionChunkNormalized(a: any): string;
-
-/**
- * Converts an accumulated `LaboratoryExecutionChunk` to a `LaboratoryExecution` (unary).
- */
-export function laboratoryExecutionChunkToUnary(a: any): string;
 
 /**
  * Normalizes an `AgentCompletion` for test snapshot stability.
@@ -271,24 +211,9 @@ export function normalizeAgentCompletionForTests(a: any): string;
 export function normalizeFunctionExecutionForTests(a: any): string;
 
 /**
- * Normalizes a `FunctionInvention` for test snapshot stability.
- */
-export function normalizeFunctionInventionForTests(a: any): string;
-
-/**
- * Normalizes a `FunctionInventionRecursive` for test snapshot stability.
- */
-export function normalizeFunctionInventionRecursiveForTests(a: any): string;
-
-/**
  * Normalizes a `FunctionProfileComputation` for test snapshot stability.
  */
 export function normalizeFunctionProfileComputationForTests(a: any): string;
-
-/**
- * Normalizes a `LaboratoryExecution` for test snapshot stability.
- */
-export function normalizeLaboratoryExecutionForTests(a: any): string;
 
 /**
  * Normalizes a `VectorCompletion` for test snapshot stability.

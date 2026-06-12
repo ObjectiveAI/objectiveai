@@ -3,8 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.cli.command.agents.message.enqueue_mode import EnqueueMode
-from objectiveai_sdk.cli.command.agents.message.message_target import MessageTarget
+from objectiveai_sdk.cli.command.agents.agent_selector import AgentSelector
 from objectiveai_sdk.cli.command.agents.message.path import Path
 from objectiveai_sdk.cli.command.agents.message.request_dangerous_advanced import RequestDangerousAdvanced
 from objectiveai_sdk.cli.command.agents.message.request_message import RequestMessage
@@ -13,10 +12,9 @@ from objectiveai_sdk.cli.command.agents.message.request_message import RequestMe
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.message.Request')
 
-    dangerous_advanced: Optional[RequestDangerousAdvanced] = Field(None, description="`Some(true)` → in-process streaming delivery / spawn.\n`None | Some(false)` → detached subprocess re-exec for the\nspawn-take-over case; the call returns the first item of\nthat child's stream. Ignored when `enqueue.is_some()` — the\nenqueue path yields a single-item stream identical to its\nunary response.", json_schema_extra={'omitempty': True})
-    enqueue: Optional[EnqueueMode] = Field(None, description='`None` (default) → run the full delivery flow (resolve\ntarget, lock-race, spawn-takeover). `Some(_)` →\nshort-circuit straight into the queue against the target;\nno lookup, no race, no spawn. With `Keyed { key }`, any\npre-existing row scoped to the same target + key is deleted\nbefore insert.', json_schema_extra={'omitempty': True})
+    agent: AgentSelector = Field(..., description="Who receives the message — same shape as `agents spawn`'s\n`agent`: a direct ref spawns a fresh agent carrying this\nmessage; a tag resolves at call time (BOUND → its live\nhierarchy, GROUPED → first message spawns the agent and\nupgrades the group, ABSENT → error); an instance targets an\nexisting hierarchy.")
+    dangerous_advanced: Optional[RequestDangerousAdvanced] = Field(None, json_schema_extra={'omitempty': True})
     jq: Optional[str] = None
     message: RequestMessage = Field(..., description='Required payload. The eventual enqueue / delivery / spawn\nalways carries this exact `RichContent` as its single\nuser message.')
     path_type: Path
-    target: MessageTarget
 

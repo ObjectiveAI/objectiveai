@@ -6,15 +6,8 @@ import { FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema 
 import { FunctionsExpressionExpressionSchema } from "../expression/expression";
 
 export const FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema = z.object({
-  depth: z.number().int().min(0).max(18446744073709552000),
   input: FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema,
   input_schema: FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema,
-  max_branch_width: z.number().int().min(0).max(18446744073709552000),
-  max_leaf_width: z.number().int().min(0).max(18446744073709552000),
-  min_branch_width: z.number().int().min(0).max(18446744073709552000),
-  min_leaf_width: z.number().int().min(0).max(18446744073709552000),
-  name: z.string(),
   skip: FunctionsExpressionExpressionSchema.nullable().meta({ omitempty: true }).optional(),
-  spec: z.string(),
 }).meta({ title: "functions.alpha_vector.PlaceholderVectorFunctionTaskExpression" });
 export type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression = z.infer<typeof FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema>;

@@ -8,6 +8,7 @@ import (
 )
 
 type CliCommandApiRequest struct {
+	Config *CliCommandApiConfigRequest 
 	Kill *CliCommandApiKillRequest 
 	KillRequestSchema *CliCommandApiKillRequestSchemaRequest 
 	KillResponseSchema *CliCommandApiKillResponseSchemaRequest 
@@ -17,6 +18,9 @@ type CliCommandApiRequest struct {
 }
 
 func (v CliCommandApiRequest) MarshalJSON() ([]byte, error) {
+	if v.Config != nil {
+		return json.Marshal(v.Config)
+	}
 	if v.Kill != nil {
 		return json.Marshal(v.Kill)
 	}
@@ -39,6 +43,17 @@ func (v CliCommandApiRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandApiRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandApiConfigRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandApiRequest{}
+			candidate.Config = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandApiKillRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -110,6 +125,7 @@ func (v *CliCommandApiRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandApiRequest) Validate() error {
 	count := 0
+	if v.Config != nil { count++ }
 	if v.Kill != nil { count++ }
 	if v.KillRequestSchema != nil { count++ }
 	if v.KillResponseSchema != nil { count++ }

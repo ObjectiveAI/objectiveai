@@ -10,14 +10,7 @@ from objectiveai_sdk.functions.expression.object_input_schema import ObjectInput
 class PlaceholderScalarFunctionTaskExpression(BaseModel):
     model_config = ConfigDict(title='functions.alpha_scalar.PlaceholderScalarFunctionTaskExpression')
 
-    depth: int = Field(..., ge=0, le=18446744073709551615)
     input: Expression
     input_schema: ObjectInputSchema
-    max_branch_width: int = Field(..., ge=0, le=18446744073709551615)
-    max_leaf_width: int = Field(..., ge=0, le=18446744073709551615)
-    min_branch_width: int = Field(..., ge=0, le=18446744073709551615)
-    min_leaf_width: int = Field(..., ge=0, le=18446744073709551615)
-    name: str
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
-    spec: str
 

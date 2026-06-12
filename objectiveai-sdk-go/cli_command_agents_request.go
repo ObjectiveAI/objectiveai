@@ -8,6 +8,9 @@ import (
 )
 
 type CliCommandAgentsRequest struct {
+	Enqueue *CliCommandAgentsEnqueueRequest 
+	EnqueueRequestSchema *CliCommandAgentsEnqueueRequestSchemaRequest 
+	EnqueueResponseSchema *CliCommandAgentsEnqueueResponseSchemaRequest 
 	Get *CliCommandAgentsGetRequest 
 	GetRequestSchema *CliCommandAgentsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandAgentsGetResponseSchemaRequest 
@@ -30,6 +33,15 @@ type CliCommandAgentsRequest struct {
 }
 
 func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
+	if v.Enqueue != nil {
+		return json.Marshal(v.Enqueue)
+	}
+	if v.EnqueueRequestSchema != nil {
+		return json.Marshal(v.EnqueueRequestSchema)
+	}
+	if v.EnqueueResponseSchema != nil {
+		return json.Marshal(v.EnqueueResponseSchema)
+	}
 	if v.Get != nil {
 		return json.Marshal(v.Get)
 	}
@@ -91,6 +103,39 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandAgentsEnqueueRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.Enqueue = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsEnqueueRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.EnqueueRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsEnqueueResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.EnqueueResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandAgentsGetRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -305,6 +350,9 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandAgentsRequest) Validate() error {
 	count := 0
+	if v.Enqueue != nil { count++ }
+	if v.EnqueueRequestSchema != nil { count++ }
+	if v.EnqueueResponseSchema != nil { count++ }
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }

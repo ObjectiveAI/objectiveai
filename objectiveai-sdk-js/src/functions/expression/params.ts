@@ -5,13 +5,8 @@ import { FunctionsExpressionInputValueSchema } from "./inputValue";
 import { FunctionsExpressionTaskOutputSchema } from "./taskOutput";
 
 export const FunctionsExpressionParamsSchema = z.object({
-  depth: z.number().int().min(0).max(18446744073709552000).nullable().describe("Current recursion depth.\nOnly provided for invention prompt expressions.").optional(),
   input: FunctionsExpressionInputValueSchema.describe("The function's input data."),
   map: z.number().int().min(0).max(18446744073709552000).nullable().describe("Current map index. Only populated for mapped task expressions.").optional(),
-  name: z.string().nullable().describe("The function's name.\nOnly provided for invention prompt expressions.").optional(),
   output: FunctionsExpressionTaskOutputSchema.nullable().describe("Results from executed tasks. Only populated for task output expressions.").optional(),
-  spec: z.string().nullable().describe("The specification text.\nOnly provided for invention prompt expressions.").optional(),
-  tasks_max: z.number().int().min(0).max(18446744073709552000).nullable().describe("Resolved maximum task count for this node type.\nOnly provided for invention prompt expressions.").optional(),
-  tasks_min: z.number().int().min(0).max(18446744073709552000).nullable().describe("Resolved minimum task count for this node type.\nOnly provided for invention prompt expressions.").optional(),
 }).describe("Owned version of expression parameters.").meta({ title: "functions.expression.Params" });
 export type FunctionsExpressionParams = z.infer<typeof FunctionsExpressionParamsSchema>;

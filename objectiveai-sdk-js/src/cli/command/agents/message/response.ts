@@ -4,13 +4,8 @@ import { z } from "zod";
 
 export const CliCommandAgentsMessageResponseSchema = z.union([z.object({
   type: z.literal("delivered"),
-}).describe("The queue row reached a live agent (the API stamped its id\nonto an assistant chunk's `request_message_ids`) before\nany other race finalized.").meta({"variantTitle":"Delivered"}), z.object({
-  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
-  agent_tag: z.string().nullable().meta({ omitempty: true }).optional(),
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  type: z.literal("enqueued"),
-}).describe("The target's tag wasn't bound at call time (PENDING /\nABSENT). The message was deferred into the queue.").meta({"variantTitle":"Enqueued"}), z.object({
+}).describe("The queue row reached a live agent (its row flipped to\ninactive — the API stamped its id onto an assistant chunk's\n`request_message_ids`) before the agent's lock freed up.").meta({"variantTitle":"Delivered"}), z.object({
   agent_instance_hierarchy: z.string(),
   type: z.literal("id"),
-}).describe("The stream=false path re-execed itself as a detached\nsubprocess (stream=true) and the subprocess yielded a\n`ResponseItem::Id` first. Same payload as spawn's\n`ResponseItem::Id(String)` — the bare\n`agent_instance_hierarchy` string the runner just minted.").meta({"variantTitle":"Id"})]).describe("Unary response (stream=false). Exactly one of these per call.\nInternally tagged via `type`; bare unit variant `Delivered`\nserializes as `{\"type\":\"delivered\"}`.").meta({ title: "cli.command.agents.message.Response" });
+}).describe("The handler execed a detached `agents spawn` child (with the\nagent's lock transferred into it) and the child yielded its\n`Id` first item — the bare `agent_instance_hierarchy` the\nrunner just minted or resumed.").meta({"variantTitle":"Id"})]).describe("Unary response. Exactly one of these per call. Internally tagged\nvia `type`; bare unit variant `Delivered` serializes as\n`{\"type\":\"delivered\"}`.").meta({ title: "cli.command.agents.message.Response" });
 export type CliCommandAgentsMessageResponse = z.infer<typeof CliCommandAgentsMessageResponseSchema>;

@@ -10,6 +10,8 @@ import (
 type CliCommandApiKillRequest struct {
 	Jq *string `json:"jq"`
 	PathType CliCommandApiKillPath `json:"path_type"`
+	// Always Global — api has a single machine-wide lock.
+	Scope CliCommandSetScope `json:"scope"`
 }
 
 func (CliCommandApiKillRequest) SchemaTitle() string { return "cli.command.api.kill.Request" }
@@ -22,7 +24,7 @@ func (v *CliCommandApiKillRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type"} {
+	for _, key := range []string{"path_type", "scope"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandApiKillRequest: missing required field %q", key)
 		}

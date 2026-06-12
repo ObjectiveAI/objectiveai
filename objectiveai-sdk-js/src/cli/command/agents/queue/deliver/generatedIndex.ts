@@ -11,4 +11,8 @@ export * from "./path";
 export * from "./request";
 export * from "./requestDangerousAdvanced";
 export * from "./responseItem";
+export * from "./tagActiveResponseItem";
+export * from "./tagActiveType";
+export * from "./tagSpawnedResponseItem";
+export * from "./tagSpawnedType";
 export * from "./valueResponseItem";

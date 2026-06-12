@@ -10,9 +10,6 @@ import (
 type HttpViewerRequest struct {
 	AgentCompletion *HttpViewerAgentCompletionRequest 
 	FunctionExecution *HttpViewerFunctionExecutionRequest 
-	FunctionInventionRecursive *HttpViewerFunctionInventionRecursiveRequest 
-	LaboratoryExecution *HttpViewerLaboratoryExecutionRequest 
-	AgentsFavoritesChanged *AgentFavoritesChangedNotification 
 }
 
 func (v HttpViewerRequest) MarshalJSON() ([]byte, error) {
@@ -21,15 +18,6 @@ func (v HttpViewerRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.FunctionExecution != nil {
 		return json.Marshal(v.FunctionExecution)
-	}
-	if v.FunctionInventionRecursive != nil {
-		return json.Marshal(v.FunctionInventionRecursive)
-	}
-	if v.LaboratoryExecution != nil {
-		return json.Marshal(v.LaboratoryExecution)
-	}
-	if v.AgentsFavoritesChanged != nil {
-		return json.Marshal(v.AgentsFavoritesChanged)
 	}
 	return []byte("null"), nil
 }
@@ -57,39 +45,6 @@ func (v *HttpViewerRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
-	{
-		var try HttpViewerFunctionInventionRecursiveRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := HttpViewerRequest{}
-			candidate.FunctionInventionRecursive = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try HttpViewerLaboratoryExecutionRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := HttpViewerRequest{}
-			candidate.LaboratoryExecution = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try AgentFavoritesChangedNotification
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := HttpViewerRequest{}
-			candidate.AgentsFavoritesChanged = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	return fmt.Errorf("data did not match any variant of HttpViewerRequest")
 }
 
@@ -97,9 +52,6 @@ func (v HttpViewerRequest) Validate() error {
 	count := 0
 	if v.AgentCompletion != nil { count++ }
 	if v.FunctionExecution != nil { count++ }
-	if v.FunctionInventionRecursive != nil { count++ }
-	if v.LaboratoryExecution != nil { count++ }
-	if v.AgentsFavoritesChanged != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("HttpViewerRequest: exactly one variant must be set, got %d", count)
 	}

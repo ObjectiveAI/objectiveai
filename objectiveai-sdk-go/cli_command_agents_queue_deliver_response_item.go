@@ -9,12 +9,15 @@ import (
 
 // One stream item from `agents queue deliver`. Untagged — the
 // variants are disjoint on the wire: `Value` requires `value`,
-// `AgentActive` / `AgentSpawned` carry distinct `type` markers, and
-// `AllAgentsActive` is the bare string `"AllAgentsActive"`.
+// `AgentActive` / `AgentSpawned` / `TagActive` / `TagSpawned` carry
+// distinct `type` markers, and `AllAgentsActive` is the bare string
+// `"AllAgentsActive"`.
 type CliCommandAgentsQueueDeliverResponseItem struct {
 	Value *CliCommandAgentsQueueDeliverValueResponseItem 
 	AgentActive *CliCommandAgentsQueueDeliverAgentActiveResponseItem 
 	AgentSpawned *CliCommandAgentsQueueDeliverAgentSpawnedResponseItem 
+	TagActive *CliCommandAgentsQueueDeliverTagActiveResponseItem 
+	TagSpawned *CliCommandAgentsQueueDeliverTagSpawnedResponseItem 
 	AllAgentsActive *CliCommandAgentsQueueDeliverAllAgentsActive 
 }
 
@@ -27,6 +30,12 @@ func (v CliCommandAgentsQueueDeliverResponseItem) MarshalJSON() ([]byte, error) 
 	}
 	if v.AgentSpawned != nil {
 		return json.Marshal(v.AgentSpawned)
+	}
+	if v.TagActive != nil {
+		return json.Marshal(v.TagActive)
+	}
+	if v.TagSpawned != nil {
+		return json.Marshal(v.TagSpawned)
 	}
 	if v.AllAgentsActive != nil {
 		return json.Marshal(v.AllAgentsActive)
@@ -69,6 +78,28 @@ func (v *CliCommandAgentsQueueDeliverResponseItem) UnmarshalJSON(data []byte) er
 		}
 	}
 	{
+		var try CliCommandAgentsQueueDeliverTagActiveResponseItem
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueDeliverResponseItem{}
+			candidate.TagActive = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueDeliverTagSpawnedResponseItem
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueDeliverResponseItem{}
+			candidate.TagSpawned = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandAgentsQueueDeliverAllAgentsActive
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsQueueDeliverResponseItem{}
@@ -87,6 +118,8 @@ func (v CliCommandAgentsQueueDeliverResponseItem) Validate() error {
 	if v.Value != nil { count++ }
 	if v.AgentActive != nil { count++ }
 	if v.AgentSpawned != nil { count++ }
+	if v.TagActive != nil { count++ }
+	if v.TagSpawned != nil { count++ }
 	if v.AllAgentsActive != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsQueueDeliverResponseItem: exactly one variant must be set, got %d", count)

@@ -3,12 +3,19 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.cli.command.mcp.config.request import Request as CliCommandMcpConfigRequest
 from objectiveai_sdk.cli.command.mcp.kill.request import Request as CliCommandMcpKillRequest
 from objectiveai_sdk.cli.command.mcp.kill.request_schema.request import Request as CliCommandMcpKillRequestSchemaRequest
 from objectiveai_sdk.cli.command.mcp.kill.response_schema.request import Request as CliCommandMcpKillResponseSchemaRequest
 from objectiveai_sdk.cli.command.mcp.spawn.request import Request as CliCommandMcpSpawnRequest
 from objectiveai_sdk.cli.command.mcp.spawn.request_schema.request import Request as CliCommandMcpSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.mcp.spawn.response_schema.request import Request as CliCommandMcpSpawnResponseSchemaRequest
+
+
+class RequestConfig(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Config'})
+
+    root: CliCommandMcpConfigRequest
 
 
 class RequestKill(RootModel):
@@ -50,5 +57,5 @@ class RequestSpawnResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.mcp.Request')
 
-    root: Union[RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
+    root: Union[RequestConfig, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
 

@@ -3,17 +3,18 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
-from objectiveai_sdk.cli.command.plugins.get.response_binaries import ResponseBinaries
 from objectiveai_sdk.cli.command.plugins.get.response_mcp_server import ResponseMcpServer
 from objectiveai_sdk.cli.command.plugins.get.response_viewer_route import ResponseViewerRoute
+from objectiveai_sdk.cli.command.tools.get.exec import Exec
 
 
 class ResponseManifest(BaseModel):
     model_config = ConfigDict(title='cli.command.plugins.get.ResponseManifest')
 
     author: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    binaries: ResponseBinaries
+    cli_zip: Optional[str] = Field(None, description="GitHub-release asset filename for the plugin's cli bundle — a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` → `viewer/`.", json_schema_extra={'omitempty': True})
     description: str
+    exec: Exec = Field(..., description="Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Empty when\nthe plugin is viewer-only.")
     homepage: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     license: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     mcp_servers: list[ResponseMcpServer]

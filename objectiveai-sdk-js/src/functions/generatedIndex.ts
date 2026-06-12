@@ -5,7 +5,6 @@ export * from "./alpha_vector/index";
 export * from "./check/index";
 export * from "./executions/index";
 export * from "./expression/index";
-export * from "./inventions/index";
 export * from "./profiles/index";
 export * from "./alphaInlineFunction";
 export * from "./alphaRemoteFunction";

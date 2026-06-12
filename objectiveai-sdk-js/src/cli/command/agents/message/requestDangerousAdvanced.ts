@@ -3,7 +3,6 @@
 import { z } from "zod";
 
 export const CliCommandAgentsMessageRequestDangerousAdvancedSchema = z.object({
-  seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Deterministic seed for the upstream model's RNG. Plumbed\nonto `AgentCompletionCreateParams.seed` on the\nspawn-takeover path. `None` here ⇒ the api picks; tests\nshould always pin a value to keep continuation turns\nreproducible.").meta({ omitempty: true }).optional(),
-  stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
+  seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Deterministic seed for the upstream model's RNG. Forwarded\nonto the spawn child's `AgentCompletionCreateParams.seed`.\n`None` here ⇒ the api picks; tests should always pin a\nvalue to keep continuation turns reproducible.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.agents.message.RequestDangerousAdvanced" });
 export type CliCommandAgentsMessageRequestDangerousAdvanced = z.infer<typeof CliCommandAgentsMessageRequestDangerousAdvancedSchema>;

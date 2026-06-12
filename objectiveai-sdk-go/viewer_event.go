@@ -10,8 +10,7 @@ import (
 // Host → iframe. Carries data into the plugin (the existing
 // path). `sub_type` is the snake_case discriminator the plugin
 // listens on (built-ins: `agent_completions` /
-// `functions_executions` / `functions_inventions_recursive` /
-// `laboratories_executions`; plugins: whatever they declared in
+// `functions_executions`; plugins: whatever they declared in
 // their manifest's `viewer_routes[i].type`).
 type ViewerEventInbound struct {
 	Destination string `json:"destination"`
@@ -84,8 +83,7 @@ type ViewerEvent struct {
 	// Host → iframe. Carries data into the plugin (the existing
 	// path). `sub_type` is the snake_case discriminator the plugin
 	// listens on (built-ins: `agent_completions` /
-	// `functions_executions` / `functions_inventions_recursive` /
-	// `laboratories_executions`; plugins: whatever they declared in
+	// `functions_executions`; plugins: whatever they declared in
 	// their manifest's `viewer_routes[i].type`).
 	Inbound *ViewerEventInbound `outerObject:"true"`
 	// Host → iframe. One stdout JSONL line from an objectiveai cli

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
+from objectiveai_sdk.cli.command.set_scope import SetScope
 from objectiveai_sdk.cli.command.viewer.kill.path import Path
 
 
@@ -11,4 +12,5 @@ class Request(BaseModel):
 
     jq: Optional[str] = None
     path_type: Path
+    scope: SetScope
 

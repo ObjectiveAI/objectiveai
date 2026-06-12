@@ -3,8 +3,8 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.cli.command.agents.agent_selector import AgentSelector
 from objectiveai_sdk.cli.command.agents.message.request_message import RequestMessage
-from objectiveai_sdk.cli.command.agents.spawn.agent_resolution import AgentResolution
 from objectiveai_sdk.cli.command.agents.spawn.path import Path
 from objectiveai_sdk.cli.command.agents.spawn.request_dangerous_advanced import RequestDangerousAdvanced
 
@@ -12,7 +12,7 @@ from objectiveai_sdk.cli.command.agents.spawn.request_dangerous_advanced import 
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.spawn.Request')
 
-    agent: AgentResolution = Field(..., description="How to resolve the agent for this spawn: either a directly-\nspecified `AgentSpec` (`--agent` / `--agent-inline`) or a\nreference to an existing tag (`--agent-tag`). When a tag is\nused, the conduit injects the tag at construction time so\nevery conduit read fires the tag-group upgrade — flipping\nevery tag in the group to BOUND on the spawn's\n`agent_instance_hierarchy`.")
+    agent: AgentSelector = Field(..., description="What to spawn — a direct agent ref (inline / file / python /\nremote), an existing tag (a GROUPED tag's group flips to\nBOUND on the spawn's `agent_instance_hierarchy` via the\nconduit-driven upgrade; a BOUND tag resumes its live\nhierarchy), or an existing agent instance (resumed via its\nstored session + continuation). Same shape as\n`agents message`'s `agent`.")
     dangerous_advanced: Optional[RequestDangerousAdvanced] = None
     jq: Optional[str] = None
     message: RequestMessage = Field(..., description="Initial user message. The CLI turns it into a single\n`Message::User` at the head of the `messages` array on the\nAPI call. Same wire shape as `agents message`'s\n`RequestMessage` — `Simple`, `Inline(RichContent)`,\n`File`, `PythonInline`, `PythonFile`.")

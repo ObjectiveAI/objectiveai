@@ -3,5 +3,4 @@
 from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
 from .request_source import RequestSource  # noqa: F401
-from .response_favorite import ResponseFavorite, ResponseFavoriteFilesystem, ResponseFavoriteGithub, ResponseFavoriteMock  # noqa: F401
-from .response_item import ResponseItem, ResponseItemFavorite, ResponseItemItem  # noqa: F401
+from .response_item import ResponseItem  # noqa: F401

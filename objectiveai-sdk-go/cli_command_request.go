@@ -10,7 +10,6 @@ import (
 type CliCommandRequest struct {
 	Agents *CliCommandAgentsRequest 
 	API *CliCommandApiRequest `variantTitle:"Api"`
-	Config *CliCommandConfigRequest 
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
@@ -30,9 +29,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.API != nil {
 		return json.Marshal(v.API)
-	}
-	if v.Config != nil {
-		return json.Marshal(v.Config)
 	}
 	if v.Db != nil {
 		return json.Marshal(v.Db)
@@ -87,17 +83,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.API = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandConfigRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Config = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -232,7 +217,6 @@ func (v CliCommandRequest) Validate() error {
 	count := 0
 	if v.Agents != nil { count++ }
 	if v.API != nil { count++ }
-	if v.Config != nil { count++ }
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
 	if v.MCP != nil { count++ }

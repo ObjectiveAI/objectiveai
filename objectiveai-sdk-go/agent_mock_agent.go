@@ -17,7 +17,7 @@ type AgentMockAgent struct {
 	// exactly that `Call`'s `tool_calls` (by name+arguments) and
 	// `content`); the next un-matched `Call` is what that turn
 	// emits. Once every `Call` has been satisfied in the
-	// continuation, the mock falls through to its normal mode-driven
+	// continuation, the mock falls through to its normal
 	// dispatcher. Pure addition — agents without `calls` are
 	// unaffected.
 	Calls *[]AgentMockCall `json:"calls,omitempty"`
@@ -34,8 +34,6 @@ type AgentMockAgent struct {
 	ID string `json:"id"`
 	// MCP servers the agent can connect to.
 	MCPServers *[]AgentMcpServer `json:"mcp_servers,omitempty"`
-	// Mock agent mode. Defaults to `default`.
-	Mode *AgentMockMode `json:"mode,omitempty"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentMockOutputMode `json:"output_mode"`
 	// Number of top log probabilities to return (2-20).

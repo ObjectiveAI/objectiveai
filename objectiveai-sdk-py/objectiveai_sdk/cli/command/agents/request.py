@@ -3,6 +3,9 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.cli.command.agents.enqueue.request import Request as CliCommandAgentsEnqueueRequest
+from objectiveai_sdk.cli.command.agents.enqueue.request_schema.request import Request as CliCommandAgentsEnqueueRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.enqueue.response_schema.request import Request as CliCommandAgentsEnqueueResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.get.request import Request as CliCommandAgentsGetRequest
 from objectiveai_sdk.cli.command.agents.get.request_schema.request import Request as CliCommandAgentsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.get.response_schema.request import Request as CliCommandAgentsGetResponseSchemaRequest
@@ -22,6 +25,24 @@ from objectiveai_sdk.cli.command.agents.spawn.request import Request as CliComma
 from objectiveai_sdk.cli.command.agents.spawn.request_schema.request import Request as CliCommandAgentsSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.spawn.response_schema.request import Request as CliCommandAgentsSpawnResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.request import Request as CliCommandAgentsTagsRequest
+
+
+class RequestEnqueue(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Enqueue'})
+
+    root: CliCommandAgentsEnqueueRequest
+
+
+class RequestEnqueueRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'EnqueueRequestSchema'})
+
+    root: CliCommandAgentsEnqueueRequestSchemaRequest
+
+
+class RequestEnqueueResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'EnqueueResponseSchema'})
+
+    root: CliCommandAgentsEnqueueResponseSchemaRequest
 
 
 class RequestGet(RootModel):
@@ -141,5 +162,5 @@ class RequestTags(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags]
+    root: Union[RequestEnqueue, RequestEnqueueRequestSchema, RequestEnqueueResponseSchema, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags]
 

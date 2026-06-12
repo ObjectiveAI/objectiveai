@@ -12,12 +12,6 @@ class FunctionSpecResolved(RootModel):
     root: FullInlineFunctionOrRemoteCommitOptional
 
 
-class FunctionSpecFavorite(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Favorite'})
-
-    root: str
-
-
 class FunctionSpecFile(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'File'})
 
@@ -40,17 +34,15 @@ class FunctionSpec(RootModel):
     """CLI-surface form for the `--function*` argument family: either a
 fully resolved inline-or-remote spec (the JSON object form that
 lands on `--function-inline`, or the docker-style remote-path
-string on `--function`), a bare favorite name (also on `--function`
-— disambiguated from a remote path by the FromStr at parse time),
-the path to a JSON file (`--function-file`), or a Python harness
+string on `--function`), the path to a JSON file (`--function-file`), or a Python harness
 — inline (`--function-python-inline`) or file
 (`--function-python-file`) — that produces the inline-or-remote
 JSON at handler time.
 
-Untagged so existing on-disk JSON for `Resolved`/`Favorite`
+Untagged so existing on-disk JSON for `Resolved`
 round-trips byte-identically; `File`/`PythonInline`/`PythonFile`
 are new variants that only appear on the cli wire side."""
     model_config = ConfigDict(title='cli.command.functions.execute.FunctionSpec')
 
-    root: Union[FunctionSpecResolved, FunctionSpecFavorite, FunctionSpecFile, FunctionSpecPythonInline, FunctionSpecPythonFile]
+    root: Union[FunctionSpecResolved, FunctionSpecFile, FunctionSpecPythonInline, FunctionSpecPythonFile]
 

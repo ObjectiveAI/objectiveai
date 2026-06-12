@@ -4,7 +4,7 @@ import { z } from "zod";
 import { CliPluginsCommandTypeSchema } from "./commandType";
 
 export const CliPluginsCommandSchema = z.object({
-  command: z.string(),
+  command: z.array(z.string()).describe("The command to run, as an already-tokenized argv vector — one\nelement per argument. Carried structured (NOT a space-joined\nstring) so an argument whose value contains whitespace (e.g.\n`[\"agents\", \"message\", \"leaf\", \"--simple\", \"a b c\"]`) keeps its\nboundary intact; the host dispatches it verbatim without\nre-tokenizing."),
   id: z.string().describe("Plugin-minted correlation id. Echoed by the host on every\nresponse line so the plugin can demux concurrent calls."),
   type: CliPluginsCommandTypeSchema,
 }).describe("Plugin requests the host execute a command. The host streams\nevery emission back into the plugin's stdin; plugins demultiplex\nconcurrent in-flight commands by matching against the echoed\n`id` on each response line.\n\nThe constant `type:\"command\"` discriminator disambiguates this\nvariant from the rest of the untagged [`super::Output`] catch-all,\nmirroring the `type:\"error\"` discriminator on\n[`crate::cli::Error`].").meta({ title: "cli.plugins.Command" });

@@ -7,10 +7,6 @@ import (
 	"fmt"
 )
 
-type CliCommandFunctionsExecuteProfileSpecFavorite string
-
-func (CliCommandFunctionsExecuteProfileSpecFavorite) SchemaVariantTitle() string { return "Favorite" }
-
 type CliCommandFunctionsExecuteProfileSpecFile string
 
 func (CliCommandFunctionsExecuteProfileSpecFile) SchemaVariantTitle() string { return "File" }
@@ -28,7 +24,6 @@ func (CliCommandFunctionsExecuteProfileSpecPythonFile) SchemaVariantTitle() stri
 // enum. See [`FunctionSpec`] for the variant semantics.
 type CliCommandFunctionsExecuteProfileSpec struct {
 	Resolved *FunctionsInlineProfileOrRemoteCommitOptional 
-	Favorite *CliCommandFunctionsExecuteProfileSpecFavorite 
 	File *CliCommandFunctionsExecuteProfileSpecFile 
 	PythonInline *CliCommandFunctionsExecuteProfileSpecPythonInline 
 	PythonFile *CliCommandFunctionsExecuteProfileSpecPythonFile 
@@ -37,9 +32,6 @@ type CliCommandFunctionsExecuteProfileSpec struct {
 func (v CliCommandFunctionsExecuteProfileSpec) MarshalJSON() ([]byte, error) {
 	if v.Resolved != nil {
 		return json.Marshal(v.Resolved)
-	}
-	if v.Favorite != nil {
-		return json.Marshal(v.Favorite)
 	}
 	if v.File != nil {
 		return json.Marshal(v.File)
@@ -59,17 +51,6 @@ func (v *CliCommandFunctionsExecuteProfileSpec) UnmarshalJSON(data []byte) error
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandFunctionsExecuteProfileSpec{}
 			candidate.Resolved = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandFunctionsExecuteProfileSpecFavorite
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandFunctionsExecuteProfileSpec{}
-			candidate.Favorite = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -115,7 +96,6 @@ func (v *CliCommandFunctionsExecuteProfileSpec) UnmarshalJSON(data []byte) error
 func (v CliCommandFunctionsExecuteProfileSpec) Validate() error {
 	count := 0
 	if v.Resolved != nil { count++ }
-	if v.Favorite != nil { count++ }
 	if v.File != nil { count++ }
 	if v.PythonInline != nil { count++ }
 	if v.PythonFile != nil { count++ }

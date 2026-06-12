@@ -5,6 +5,5 @@ from .agent_base import AgentBase  # noqa: F401
 from .call import Call  # noqa: F401
 from .call_tool_call import CallToolCall  # noqa: F401
 from .continuation import Continuation  # noqa: F401
-from .mode import Mode  # noqa: F401
 from .output_mode import OutputMode, OutputModeInstruction, OutputModeJsonSchema, OutputModeToolCall  # noqa: F401
 from .upstream import Upstream  # noqa: F401

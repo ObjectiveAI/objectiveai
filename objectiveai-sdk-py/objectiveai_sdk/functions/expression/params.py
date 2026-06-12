@@ -11,12 +11,7 @@ class Params(BaseModel):
     """Owned version of expression parameters."""
     model_config = ConfigDict(title='functions.expression.Params')
 
-    depth: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Current recursion depth.\nOnly provided for invention prompt expressions.')
     input: InputValue = Field(..., description="The function's input data.")
     map: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Current map index. Only populated for mapped task expressions.')
-    name: Optional[str] = Field(None, description="The function's name.\nOnly provided for invention prompt expressions.")
     output: Optional[TaskOutput] = Field(None, description='Results from executed tasks. Only populated for task output expressions.')
-    spec: Optional[str] = Field(None, description='The specification text.\nOnly provided for invention prompt expressions.')
-    tasks_max: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Resolved maximum task count for this node type.\nOnly provided for invention prompt expressions.')
-    tasks_min: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Resolved minimum task count for this node type.\nOnly provided for invention prompt expressions.')
 

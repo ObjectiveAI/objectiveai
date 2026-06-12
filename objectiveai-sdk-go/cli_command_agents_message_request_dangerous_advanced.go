@@ -3,13 +3,11 @@
 package objectiveai
 
 type CliCommandAgentsMessageRequestDangerousAdvanced struct {
-	// Deterministic seed for the upstream model's RNG. Plumbed
-	// onto `AgentCompletionCreateParams.seed` on the
-	// spawn-takeover path. `None` here ⇒ the api picks; tests
-	// should always pin a value to keep continuation turns
-	// reproducible.
+	// Deterministic seed for the upstream model's RNG. Forwarded
+	// onto the spawn child's `AgentCompletionCreateParams.seed`.
+	// `None` here ⇒ the api picks; tests should always pin a
+	// value to keep continuation turns reproducible.
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
-	Stream *bool `json:"stream,omitempty"`
 }
 
 func (CliCommandAgentsMessageRequestDangerousAdvanced) SchemaTitle() string { return "cli.command.agents.message.RequestDangerousAdvanced" }

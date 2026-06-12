@@ -9,7 +9,7 @@ import (
 
 type CliCommandFunctionsGetRequest struct {
 	Jq *string `json:"jq"`
-	Path CliCommandRemotePathCommitOptionalOrFavorite `json:"path"`
+	Path RemotePathCommitOptional `json:"path"`
 	PathType CliCommandFunctionsGetPath `json:"path_type"`
 }
 

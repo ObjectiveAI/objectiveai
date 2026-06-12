@@ -6,6 +6,8 @@ from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.agents.queue.deliver.agent_active_response_item import AgentActiveResponseItem
 from objectiveai_sdk.cli.command.agents.queue.deliver.agent_spawned_response_item import AgentSpawnedResponseItem
 from objectiveai_sdk.cli.command.agents.queue.deliver.all_agents_active import AllAgentsActive
+from objectiveai_sdk.cli.command.agents.queue.deliver.tag_active_response_item import TagActiveResponseItem
+from objectiveai_sdk.cli.command.agents.queue.deliver.tag_spawned_response_item import TagSpawnedResponseItem
 from objectiveai_sdk.cli.command.agents.queue.deliver.value_response_item import ValueResponseItem
 
 
@@ -27,6 +29,18 @@ class ResponseItemAgentSpawned(RootModel):
     root: AgentSpawnedResponseItem
 
 
+class ResponseItemTagActive(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'TagActive'})
+
+    root: TagActiveResponseItem
+
+
+class ResponseItemTagSpawned(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'TagSpawned'})
+
+    root: TagSpawnedResponseItem
+
+
 class ResponseItemAllAgentsActive(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'AllAgentsActive'})
 
@@ -36,9 +50,10 @@ class ResponseItemAllAgentsActive(RootModel):
 class ResponseItem(RootModel):
     """One stream item from `agents queue deliver`. Untagged — the
 variants are disjoint on the wire: `Value` requires `value`,
-`AgentActive` / `AgentSpawned` carry distinct `type` markers, and
-`AllAgentsActive` is the bare string `"AllAgentsActive"`."""
+`AgentActive` / `AgentSpawned` / `TagActive` / `TagSpawned` carry
+distinct `type` markers, and `AllAgentsActive` is the bare string
+`"AllAgentsActive"`."""
     model_config = ConfigDict(title='cli.command.agents.queue.deliver.ResponseItem')
 
-    root: Union[ResponseItemValue, ResponseItemAgentActive, ResponseItemAgentSpawned, ResponseItemAllAgentsActive]
+    root: Union[ResponseItemValue, ResponseItemAgentActive, ResponseItemAgentSpawned, ResponseItemTagActive, ResponseItemTagSpawned, ResponseItemAllAgentsActive]
 

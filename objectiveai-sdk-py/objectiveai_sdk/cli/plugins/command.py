@@ -17,7 +17,7 @@ mirroring the `type:"error"` discriminator on
 [`crate::cli::Error`]."""
     model_config = ConfigDict(title='cli.plugins.Command')
 
-    command: str
+    command: list[str] = Field(..., description='The command to run, as an already-tokenized argv vector — one\nelement per argument. Carried structured (NOT a space-joined\nstring) so an argument whose value contains whitespace (e.g.\n`["agents", "message", "leaf", "--simple", "a b c"]`) keeps its\nboundary intact; the host dispatches it verbatim without\nre-tokenizing.')
     id: str = Field(..., description='Plugin-minted correlation id. Echoed by the host on every\nresponse line so the plugin can demux concurrent calls.')
     type_: CommandType = Field(..., alias='type')
 

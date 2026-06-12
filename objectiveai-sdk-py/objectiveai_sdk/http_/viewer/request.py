@@ -3,11 +3,8 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.agent.favorites.changed_notification import ChangedNotification
 from objectiveai_sdk.http_.viewer.agent_completion_request import AgentCompletionRequest
 from objectiveai_sdk.http_.viewer.function_execution_request import FunctionExecutionRequest
-from objectiveai_sdk.http_.viewer.function_invention_recursive_request import FunctionInventionRecursiveRequest
-from objectiveai_sdk.http_.viewer.laboratory_execution_request import LaboratoryExecutionRequest
 
 
 class RequestAgentCompletion(RootModel):
@@ -22,26 +19,8 @@ class RequestFunctionExecution(RootModel):
     root: FunctionExecutionRequest
 
 
-class RequestFunctionInventionRecursive(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'FunctionInventionRecursive'})
-
-    root: FunctionInventionRecursiveRequest
-
-
-class RequestLaboratoryExecution(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'LaboratoryExecution'})
-
-    root: LaboratoryExecutionRequest
-
-
-class RequestAgentsFavoritesChanged(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AgentsFavoritesChanged'})
-
-    root: ChangedNotification
-
-
 class Request(RootModel):
     model_config = ConfigDict(title='http.viewer.Request')
 
-    root: Union[RequestAgentCompletion, RequestFunctionExecution, RequestFunctionInventionRecursive, RequestLaboratoryExecution, RequestAgentsFavoritesChanged]
+    root: Union[RequestAgentCompletion, RequestFunctionExecution]
 

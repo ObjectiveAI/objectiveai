@@ -9,27 +9,12 @@ import (
 
 // Owned version of expression parameters.
 type FunctionsExpressionParams struct {
-	// Current recursion depth.
-	// Only provided for invention prompt expressions.
-	Depth *uint64 `json:"depth" validate:"omitempty,min=0,max=18446744073709551615"`
 	// The function's input data.
 	Input FunctionsExpressionInputValue `json:"input"`
 	// Current map index. Only populated for mapped task expressions.
 	Map *uint64 `json:"map" validate:"omitempty,min=0,max=18446744073709551615"`
-	// The function's name.
-	// Only provided for invention prompt expressions.
-	Name *string `json:"name"`
 	// Results from executed tasks. Only populated for task output expressions.
 	Output *FunctionsExpressionTaskOutput `json:"output"`
-	// The specification text.
-	// Only provided for invention prompt expressions.
-	Spec *string `json:"spec"`
-	// Resolved maximum task count for this node type.
-	// Only provided for invention prompt expressions.
-	TasksMax *uint64 `json:"tasks_max" validate:"omitempty,min=0,max=18446744073709551615"`
-	// Resolved minimum task count for this node type.
-	// Only provided for invention prompt expressions.
-	TasksMin *uint64 `json:"tasks_min" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (FunctionsExpressionParams) SchemaTitle() string { return "functions.expression.Params" }

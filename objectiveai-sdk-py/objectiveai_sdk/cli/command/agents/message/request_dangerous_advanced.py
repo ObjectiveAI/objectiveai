@@ -8,6 +8,5 @@ from pydantic import BaseModel, ConfigDict, Field
 class RequestDangerousAdvanced(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.message.RequestDangerousAdvanced')
 
-    seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description="Deterministic seed for the upstream model's RNG. Plumbed\nonto `AgentCompletionCreateParams.seed` on the\nspawn-takeover path. `None` here ⇒ the api picks; tests\nshould always pin a value to keep continuation turns\nreproducible.", json_schema_extra={'omitempty': True})
-    stream: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
+    seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description="Deterministic seed for the upstream model's RNG. Forwarded\nonto the spawn child's `AgentCompletionCreateParams.seed`.\n`None` here ⇒ the api picks; tests should always pin a\nvalue to keep continuation turns reproducible.", json_schema_extra={'omitempty': True})
 

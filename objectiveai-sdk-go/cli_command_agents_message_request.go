@@ -8,27 +8,20 @@ import (
 )
 
 type CliCommandAgentsMessageRequest struct {
-	// `Some(true)` → in-process streaming delivery / spawn.
-	// `None | Some(false)` → detached subprocess re-exec for the
-	// spawn-take-over case; the call returns the first item of
-	// that child's stream. Ignored when `enqueue.is_some()` — the
-	// enqueue path yields a single-item stream identical to its
-	// unary response.
+	// Who receives the message — same shape as `agents spawn`'s
+	// `agent`: a direct ref spawns a fresh agent carrying this
+	// message; a tag resolves at call time (BOUND → its live
+	// hierarchy, GROUPED → first message spawns the agent and
+	// upgrades the group, ABSENT → error); an instance targets an
+	// existing hierarchy.
+	Agent CliCommandAgentsAgentSelector `json:"agent"`
 	DangerousAdvanced *CliCommandAgentsMessageRequestDangerousAdvanced `json:"dangerous_advanced,omitempty"`
-	// `None` (default) → run the full delivery flow (resolve
-	// target, lock-race, spawn-takeover). `Some(_)` →
-	// short-circuit straight into the queue against the target;
-	// no lookup, no race, no spawn. With `Keyed { key }`, any
-	// pre-existing row scoped to the same target + key is deleted
-	// before insert.
-	Enqueue *CliCommandAgentsMessageEnqueueMode `json:"enqueue,omitempty"`
 	Jq *string `json:"jq"`
 	// Required payload. The eventual enqueue / delivery / spawn
 	// always carries this exact `RichContent` as its single
 	// user message.
 	Message CliCommandAgentsMessageRequestMessage `json:"message"`
 	PathType CliCommandAgentsMessagePath `json:"path_type"`
-	Target CliCommandAgentsMessageMessageTarget `json:"target"`
 }
 
 func (CliCommandAgentsMessageRequest) SchemaTitle() string { return "cli.command.agents.message.Request" }
@@ -41,7 +34,7 @@ func (v *CliCommandAgentsMessageRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"message", "path_type", "target"} {
+	for _, key := range []string{"agent", "message", "path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsMessageRequest: missing required field %q", key)
 		}

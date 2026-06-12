@@ -5,6 +5,5 @@ export * from "./agentBase";
 export * from "./call";
 export * from "./callToolCall";
 export * from "./continuation";
-export * from "./mode";
 export * from "./outputMode";
 export * from "./upstream";

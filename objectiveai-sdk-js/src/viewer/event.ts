@@ -8,7 +8,7 @@ export const ViewerEventSchema = z.union([z.object({
   sub_type: z.string(),
   type: z.literal("inbound"),
   value: JsonValueSchema,
-}).describe("Host → iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (built-ins: `agent_completions` /\n`functions_executions` / `functions_inventions_recursive` /\n`laboratories_executions`; plugins: whatever they declared in\ntheir manifest's `viewer_routes[i].type`).").meta({"variantTitle":"Inbound"}), z.object({
+}).describe("Host → iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (built-ins: `agent_completions` /\n`functions_executions`; plugins: whatever they declared in\ntheir manifest's `viewer_routes[i].type`).").meta({"variantTitle":"Inbound"}), z.object({
   destination: z.string(),
   type: z.literal("cli_command"),
   value: JsonValueSchema,

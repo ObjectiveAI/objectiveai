@@ -17,7 +17,13 @@ import (
 // mirroring the `type:"error"` discriminator on
 // [`crate::cli::Error`].
 type CliPluginsCommand struct {
-	Command string `json:"command"`
+	// The command to run, as an already-tokenized argv vector — one
+	// element per argument. Carried structured (NOT a space-joined
+	// string) so an argument whose value contains whitespace (e.g.
+	// `["agents", "message", "leaf", "--simple", "a b c"]`) keeps its
+	// boundary intact; the host dispatches it verbatim without
+	// re-tokenizing.
+	Command []string `json:"command"`
 	// Plugin-minted correlation id. Echoed by the host on every
 	// response line so the plugin can demux concurrent calls.
 	ID string `json:"id"`

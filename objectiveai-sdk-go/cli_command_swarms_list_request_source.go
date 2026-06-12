@@ -9,7 +9,6 @@ import (
 
 type CliCommandSwarmsListRequestSource struct {
 	Filesystem *string `validate:"omitempty,oneof=Filesystem"`
-	Favorites *string `validate:"omitempty,oneof=Favorites"`
 	Objectiveai *string `validate:"omitempty,oneof=Objectiveai"`
 	Mock *string `validate:"omitempty,oneof=Mock"`
 	All *string `validate:"omitempty,oneof=All"`
@@ -18,9 +17,6 @@ type CliCommandSwarmsListRequestSource struct {
 func (v CliCommandSwarmsListRequestSource) MarshalJSON() ([]byte, error) {
 	if v.Filesystem != nil {
 		return json.Marshal(v.Filesystem)
-	}
-	if v.Favorites != nil {
-		return json.Marshal(v.Favorites)
 	}
 	if v.Objectiveai != nil {
 		return json.Marshal(v.Objectiveai)
@@ -40,17 +36,6 @@ func (v *CliCommandSwarmsListRequestSource) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandSwarmsListRequestSource{}
 			candidate.Filesystem = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try string
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandSwarmsListRequestSource{}
-			candidate.Favorites = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -96,7 +81,6 @@ func (v *CliCommandSwarmsListRequestSource) UnmarshalJSON(data []byte) error {
 func (v CliCommandSwarmsListRequestSource) Validate() error {
 	count := 0
 	if v.Filesystem != nil { count++ }
-	if v.Favorites != nil { count++ }
 	if v.Objectiveai != nil { count++ }
 	if v.Mock != nil { count++ }
 	if v.All != nil { count++ }

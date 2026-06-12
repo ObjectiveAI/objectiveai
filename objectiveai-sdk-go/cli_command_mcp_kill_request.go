@@ -10,6 +10,7 @@ import (
 type CliCommandMcpKillRequest struct {
 	Jq *string `json:"jq"`
 	PathType CliCommandMcpKillPath `json:"path_type"`
+	Scope CliCommandSetScope `json:"scope"`
 }
 
 func (CliCommandMcpKillRequest) SchemaTitle() string { return "cli.command.mcp.kill.Request" }
@@ -22,7 +23,7 @@ func (v *CliCommandMcpKillRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type"} {
+	for _, key := range []string{"path_type", "scope"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandMcpKillRequest: missing required field %q", key)
 		}

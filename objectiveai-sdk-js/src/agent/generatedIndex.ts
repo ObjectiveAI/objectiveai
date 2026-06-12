@@ -3,7 +3,6 @@
 export * from "./claude_agent_sdk/index";
 export * from "./codex_sdk/index";
 export * from "./completions/index";
-export * from "./favorites/index";
 export * from "./mock/index";
 export * from "./openrouter/index";
 export * from "./agent";

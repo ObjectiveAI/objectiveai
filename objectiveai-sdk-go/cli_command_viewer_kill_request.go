@@ -10,6 +10,7 @@ import (
 type CliCommandViewerKillRequest struct {
 	Jq *string `json:"jq"`
 	PathType CliCommandViewerKillPath `json:"path_type"`
+	Scope CliCommandSetScope `json:"scope"`
 }
 
 func (CliCommandViewerKillRequest) SchemaTitle() string { return "cli.command.viewer.kill.Request" }
@@ -22,7 +23,7 @@ func (v *CliCommandViewerKillRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type"} {
+	for _, key := range []string{"path_type", "scope"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandViewerKillRequest: missing required field %q", key)
 		}

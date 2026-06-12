@@ -8,5 +8,5 @@ from pydantic import ConfigDict, RootModel
 class RequestSource(RootModel):
     model_config = ConfigDict(title='cli.command.functions.list.RequestSource')
 
-    root: Literal['Filesystem', 'Favorites', 'Objectiveai', 'Mock', 'All']
+    root: Literal['Filesystem', 'Objectiveai', 'Mock', 'All']
 

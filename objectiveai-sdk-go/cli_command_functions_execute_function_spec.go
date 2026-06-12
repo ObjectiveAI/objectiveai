@@ -7,10 +7,6 @@ import (
 	"fmt"
 )
 
-type CliCommandFunctionsExecuteFunctionSpecFavorite string
-
-func (CliCommandFunctionsExecuteFunctionSpecFavorite) SchemaVariantTitle() string { return "Favorite" }
-
 type CliCommandFunctionsExecuteFunctionSpecFile string
 
 func (CliCommandFunctionsExecuteFunctionSpecFile) SchemaVariantTitle() string { return "File" }
@@ -26,19 +22,16 @@ func (CliCommandFunctionsExecuteFunctionSpecPythonFile) SchemaVariantTitle() str
 // CLI-surface form for the `--function*` argument family: either a
 // fully resolved inline-or-remote spec (the JSON object form that
 // lands on `--function-inline`, or the docker-style remote-path
-// string on `--function`), a bare favorite name (also on `--function`
-// — disambiguated from a remote path by the FromStr at parse time),
-// the path to a JSON file (`--function-file`), or a Python harness
+// string on `--function`), the path to a JSON file (`--function-file`), or a Python harness
 // — inline (`--function-python-inline`) or file
 // (`--function-python-file`) — that produces the inline-or-remote
 // JSON at handler time.
 //
-// Untagged so existing on-disk JSON for `Resolved`/`Favorite`
+// Untagged so existing on-disk JSON for `Resolved`
 // round-trips byte-identically; `File`/`PythonInline`/`PythonFile`
 // are new variants that only appear on the cli wire side.
 type CliCommandFunctionsExecuteFunctionSpec struct {
 	Resolved *FunctionsFullInlineFunctionOrRemoteCommitOptional 
-	Favorite *CliCommandFunctionsExecuteFunctionSpecFavorite 
 	File *CliCommandFunctionsExecuteFunctionSpecFile 
 	PythonInline *CliCommandFunctionsExecuteFunctionSpecPythonInline 
 	PythonFile *CliCommandFunctionsExecuteFunctionSpecPythonFile 
@@ -47,9 +40,6 @@ type CliCommandFunctionsExecuteFunctionSpec struct {
 func (v CliCommandFunctionsExecuteFunctionSpec) MarshalJSON() ([]byte, error) {
 	if v.Resolved != nil {
 		return json.Marshal(v.Resolved)
-	}
-	if v.Favorite != nil {
-		return json.Marshal(v.Favorite)
 	}
 	if v.File != nil {
 		return json.Marshal(v.File)
@@ -69,17 +59,6 @@ func (v *CliCommandFunctionsExecuteFunctionSpec) UnmarshalJSON(data []byte) erro
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandFunctionsExecuteFunctionSpec{}
 			candidate.Resolved = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandFunctionsExecuteFunctionSpecFavorite
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandFunctionsExecuteFunctionSpec{}
-			candidate.Favorite = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -125,7 +104,6 @@ func (v *CliCommandFunctionsExecuteFunctionSpec) UnmarshalJSON(data []byte) erro
 func (v CliCommandFunctionsExecuteFunctionSpec) Validate() error {
 	count := 0
 	if v.Resolved != nil { count++ }
-	if v.Favorite != nil { count++ }
 	if v.File != nil { count++ }
 	if v.PythonInline != nil { count++ }
 	if v.PythonFile != nil { count++ }

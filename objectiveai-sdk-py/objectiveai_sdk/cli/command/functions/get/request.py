@@ -3,14 +3,14 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict
+from objectiveai_sdk.RemotePathCommitOptional.remote_path_commit_optional import RemotePathCommitOptional
 from objectiveai_sdk.cli.command.functions.get.path import Path
-from objectiveai_sdk.cli.command.remote_path_commit_optional_or_favorite import RemotePathCommitOptionalOrFavorite
 
 
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.functions.get.Request')
 
     jq: Optional[str] = None
-    path: RemotePathCommitOptionalOrFavorite
+    path: RemotePathCommitOptional
     path_type: Path
 

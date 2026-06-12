@@ -4,7 +4,6 @@ export * from "./request_schema/index";
 export * from "./response_schema/index";
 export * from "./path";
 export * from "./request";
-export * from "./responseBinaries";
 export * from "./responseHttpMethod";
 export * from "./responseManifest";
 export * from "./responseMcpServer";

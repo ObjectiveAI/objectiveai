@@ -8,12 +8,31 @@ import (
 )
 
 type CliCommandDbRequest struct {
+	Config *CliCommandDbConfigRequest 
+	Kill *CliCommandDbKillRequest 
+	KillRequestSchema *CliCommandDbKillRequestSchemaRequest 
+	KillResponseSchema *CliCommandDbKillResponseSchemaRequest 
 	Query *CliCommandDbQueryRequest 
 	QueryRequestSchema *CliCommandDbQueryRequestSchemaRequest 
 	QueryResponseSchema *CliCommandDbQueryResponseSchemaRequest 
+	Spawn *CliCommandDbSpawnRequest 
+	SpawnRequestSchema *CliCommandDbSpawnRequestSchemaRequest 
+	SpawnResponseSchema *CliCommandDbSpawnResponseSchemaRequest 
 }
 
 func (v CliCommandDbRequest) MarshalJSON() ([]byte, error) {
+	if v.Config != nil {
+		return json.Marshal(v.Config)
+	}
+	if v.Kill != nil {
+		return json.Marshal(v.Kill)
+	}
+	if v.KillRequestSchema != nil {
+		return json.Marshal(v.KillRequestSchema)
+	}
+	if v.KillResponseSchema != nil {
+		return json.Marshal(v.KillResponseSchema)
+	}
 	if v.Query != nil {
 		return json.Marshal(v.Query)
 	}
@@ -23,10 +42,63 @@ func (v CliCommandDbRequest) MarshalJSON() ([]byte, error) {
 	if v.QueryResponseSchema != nil {
 		return json.Marshal(v.QueryResponseSchema)
 	}
+	if v.Spawn != nil {
+		return json.Marshal(v.Spawn)
+	}
+	if v.SpawnRequestSchema != nil {
+		return json.Marshal(v.SpawnRequestSchema)
+	}
+	if v.SpawnResponseSchema != nil {
+		return json.Marshal(v.SpawnResponseSchema)
+	}
 	return []byte("null"), nil
 }
 
 func (v *CliCommandDbRequest) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandDbConfigRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.Config = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbKillRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.Kill = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbKillRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.KillRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbKillResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.KillResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try CliCommandDbQueryRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -60,14 +132,54 @@ func (v *CliCommandDbRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandDbSpawnRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.Spawn = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbSpawnRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.SpawnRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDbSpawnResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandDbRequest{}
+			candidate.SpawnResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandDbRequest")
 }
 
 func (v CliCommandDbRequest) Validate() error {
 	count := 0
+	if v.Config != nil { count++ }
+	if v.Kill != nil { count++ }
+	if v.KillRequestSchema != nil { count++ }
+	if v.KillResponseSchema != nil { count++ }
 	if v.Query != nil { count++ }
 	if v.QueryRequestSchema != nil { count++ }
 	if v.QueryResponseSchema != nil { count++ }
+	if v.Spawn != nil { count++ }
+	if v.SpawnRequestSchema != nil { count++ }
+	if v.SpawnResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandDbRequest: exactly one variant must be set, got %d", count)
 	}

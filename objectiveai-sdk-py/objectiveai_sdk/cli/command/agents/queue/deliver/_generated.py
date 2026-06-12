@@ -8,5 +8,9 @@ from .all_agents_active import AllAgentsActive  # noqa: F401
 from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
 from .request_dangerous_advanced import RequestDangerousAdvanced  # noqa: F401
-from .response_item import ResponseItem, ResponseItemAgentActive, ResponseItemAgentSpawned, ResponseItemAllAgentsActive, ResponseItemValue  # noqa: F401
+from .response_item import ResponseItem, ResponseItemAgentActive, ResponseItemAgentSpawned, ResponseItemAllAgentsActive, ResponseItemTagActive, ResponseItemTagSpawned, ResponseItemValue  # noqa: F401
+from .tag_active_response_item import TagActiveResponseItem  # noqa: F401
+from .tag_active_type import TagActiveType  # noqa: F401
+from .tag_spawned_response_item import TagSpawnedResponseItem  # noqa: F401
+from .tag_spawned_type import TagSpawnedType  # noqa: F401
 from .value_response_item import ValueResponseItem  # noqa: F401

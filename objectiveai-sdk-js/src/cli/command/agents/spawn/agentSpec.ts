@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema } from "../../../../agent/inlineAgentBaseWithFallbacksOrRemoteCommitOptional";
 
-export const CliCommandAgentsSpawnAgentSpecSchema = z.union([AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.meta({"title":"agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional","variantTitle":"Resolved"}), z.string().meta({"variantTitle":"Favorite"})]).describe("CLI-surface form for the `--agent` / `--agent-inline` argument: either\na fully resolved inline-or-remote spec, or a bare favorite name that\nthe CLI resolves to one of those at handler time. Untagged: an inline\nagent object or a remote-path object deserializes into `Resolved`; a\nbare JSON string lands on `Favorite`.").meta({ title: "cli.command.agents.spawn.AgentSpec" });
+export const CliCommandAgentsSpawnAgentSpecSchema = AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.describe("CLI-surface form for the `--agent` / `--agent-inline` argument: a\nfully resolved inline-or-remote spec.").meta({ title: "cli.command.agents.spawn.AgentSpec" });
 export type CliCommandAgentsSpawnAgentSpec = z.infer<typeof CliCommandAgentsSpawnAgentSpecSchema>;

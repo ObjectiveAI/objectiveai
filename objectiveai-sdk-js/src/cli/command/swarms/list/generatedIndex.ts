@@ -6,5 +6,4 @@ export * from "./path";
 export * from "./request";
 export * from "./requestSource";
 export * from "./response";
-export * from "./responseFavorite";
 export * from "./responseItem";

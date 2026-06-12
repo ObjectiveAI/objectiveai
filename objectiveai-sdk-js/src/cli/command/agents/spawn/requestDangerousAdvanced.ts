@@ -4,6 +4,7 @@ import { z } from "zod";
 
 export const CliCommandAgentsSpawnRequestDangerousAdvancedSchema = z.object({
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Deterministic seed for the upstream model's RNG (mock\nagents in particular). Plumbed onto\n`AgentCompletionCreateParams.seed`. `None` here ⇒ the\napi picks; tests should always pin a value.").meta({ omitempty: true }).optional(),
+  skip_lock: z.boolean().nullable().describe("`Some(true)` → skip the INITIAL agent/tag lock acquisition\nat stream start. Set by `agents message` after transferring\nits own claim into this process (re-acquiring would fail\nagainst the very handles this process inherited; the lock\nlives until this process exits). Mid-stream best-effort AIH\nclaims are unaffected by this flag.").meta({ omitempty: true }).optional(),
   stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.agents.spawn.RequestDangerousAdvanced" });
 export type CliCommandAgentsSpawnRequestDangerousAdvanced = z.infer<typeof CliCommandAgentsSpawnRequestDangerousAdvancedSchema>;

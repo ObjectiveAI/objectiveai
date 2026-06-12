@@ -8,14 +8,14 @@ import (
 )
 
 type CliCommandAgentsSpawnRequest struct {
-	// How to resolve the agent for this spawn: either a directly-
-	// specified `AgentSpec` (`--agent` / `--agent-inline`) or a
-	// reference to an existing tag (`--agent-tag`). When a tag is
-	// used, the conduit injects the tag at construction time so
-	// every conduit read fires the tag-group upgrade — flipping
-	// every tag in the group to BOUND on the spawn's
-	// `agent_instance_hierarchy`.
-	Agent CliCommandAgentsSpawnAgentResolution `json:"agent"`
+	// What to spawn — a direct agent ref (inline / file / python /
+	// remote), an existing tag (a GROUPED tag's group flips to
+	// BOUND on the spawn's `agent_instance_hierarchy` via the
+	// conduit-driven upgrade; a BOUND tag resumes its live
+	// hierarchy), or an existing agent instance (resumed via its
+	// stored session + continuation). Same shape as
+	// `agents message`'s `agent`.
+	Agent CliCommandAgentsAgentSelector `json:"agent"`
 	DangerousAdvanced *CliCommandAgentsSpawnRequestDangerousAdvanced `json:"dangerous_advanced"`
 	Jq *string `json:"jq"`
 	// Initial user message. The CLI turns it into a single

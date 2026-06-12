@@ -10,8 +10,7 @@ class EventInbound(BaseModel):
     """Host → iframe. Carries data into the plugin (the existing
 path). `sub_type` is the snake_case discriminator the plugin
 listens on (built-ins: `agent_completions` /
-`functions_executions` / `functions_inventions_recursive` /
-`laboratories_executions`; plugins: whatever they declared in
+`functions_executions`; plugins: whatever they declared in
 their manifest's `viewer_routes[i].type`)."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Inbound'})
 

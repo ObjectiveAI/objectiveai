@@ -3,9 +3,6 @@
 from .branch_task_expression import BranchTaskExpression, BranchTaskExpressionPlaceholderScalarFunction, BranchTaskExpressionPlaceholderVectorFunction, BranchTaskExpressionScalarFunction, BranchTaskExpressionScalarFunctionFilesystem, BranchTaskExpressionScalarFunctionGithub, BranchTaskExpressionScalarFunctionMock, BranchTaskExpressionVectorFunction, BranchTaskExpressionVectorFunctionFilesystem, BranchTaskExpressionVectorFunctionGithub, BranchTaskExpressionVectorFunctionMock  # noqa: F401
 from .inline_function import InlineFunction, InlineFunctionBranch, InlineFunctionLeaf  # noqa: F401
 from .leaf_task_expression import LeafTaskExpression  # noqa: F401
-from .partial_placeholder_branch_task_expression import PartialPlaceholderBranchTaskExpression, PartialPlaceholderBranchTaskExpressionPlaceholderScalarFunction, PartialPlaceholderBranchTaskExpressionPlaceholderVectorFunction  # noqa: F401
-from .partial_placeholder_scalar_function_task_expression import PartialPlaceholderScalarFunctionTaskExpression  # noqa: F401
-from .partial_placeholder_vector_function_task_expression import PartialPlaceholderVectorFunctionTaskExpression  # noqa: F401
 from .placeholder_scalar_function_task_expression import PlaceholderScalarFunctionTaskExpression  # noqa: F401
 from .placeholder_vector_function_task_expression import PlaceholderVectorFunctionTaskExpression  # noqa: F401
 from .remote_function import RemoteFunction, RemoteFunctionBranch, RemoteFunctionLeaf  # noqa: F401

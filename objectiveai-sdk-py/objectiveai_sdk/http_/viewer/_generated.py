@@ -4,9 +4,5 @@ from .agent_completion_create_params import AgentCompletionCreateParams  # noqa:
 from .agent_completion_request import AgentCompletionRequest, AgentCompletionRequestBegin, AgentCompletionRequestContinue, AgentCompletionRequestError  # noqa: F401
 from .function_execution_create_params import FunctionExecutionCreateParams  # noqa: F401
 from .function_execution_request import FunctionExecutionRequest, FunctionExecutionRequestBegin, FunctionExecutionRequestContinue, FunctionExecutionRequestError  # noqa: F401
-from .function_invention_recursive_create_params import FunctionInventionRecursiveCreateParams  # noqa: F401
-from .function_invention_recursive_request import FunctionInventionRecursiveRequest, FunctionInventionRecursiveRequestBegin, FunctionInventionRecursiveRequestContinue, FunctionInventionRecursiveRequestError  # noqa: F401
-from .laboratory_execution_create_params import LaboratoryExecutionCreateParams  # noqa: F401
-from .laboratory_execution_request import LaboratoryExecutionRequest, LaboratoryExecutionRequestBegin, LaboratoryExecutionRequestContinue, LaboratoryExecutionRequestError  # noqa: F401
-from .request import Request, RequestAgentCompletion, RequestAgentsFavoritesChanged, RequestFunctionExecution, RequestFunctionInventionRecursive, RequestLaboratoryExecution  # noqa: F401
+from .request import Request, RequestAgentCompletion, RequestFunctionExecution  # noqa: F401
 from .response_error import ResponseError  # noqa: F401

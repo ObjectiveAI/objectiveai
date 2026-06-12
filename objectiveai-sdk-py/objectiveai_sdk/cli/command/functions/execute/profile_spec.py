@@ -12,12 +12,6 @@ class ProfileSpecResolved(RootModel):
     root: InlineProfileOrRemoteCommitOptional
 
 
-class ProfileSpecFavorite(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Favorite'})
-
-    root: str
-
-
 class ProfileSpecFile(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'File'})
 
@@ -42,5 +36,5 @@ shape as [`FunctionSpec`] but wrapping the profile inline-or-remote
 enum. See [`FunctionSpec`] for the variant semantics."""
     model_config = ConfigDict(title='cli.command.functions.execute.ProfileSpec')
 
-    root: Union[ProfileSpecResolved, ProfileSpecFavorite, ProfileSpecFile, ProfileSpecPythonInline, ProfileSpecPythonFile]
+    root: Union[ProfileSpecResolved, ProfileSpecFile, ProfileSpecPythonInline, ProfileSpecPythonFile]
 

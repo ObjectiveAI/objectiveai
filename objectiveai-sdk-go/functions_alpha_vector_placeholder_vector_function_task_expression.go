@@ -8,16 +8,9 @@ import (
 )
 
 type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression struct {
-	Depth uint64 `json:"depth" validate:"min=0,max=18446744073709551615"`
 	Input FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression `json:"input"`
 	InputSchema FunctionsAlphaVectorExpressionVectorFunctionInputSchema `json:"input_schema"`
-	MaxBranchWidth uint64 `json:"max_branch_width" validate:"min=0,max=18446744073709551615"`
-	MaxLeafWidth uint64 `json:"max_leaf_width" validate:"min=0,max=18446744073709551615"`
-	MinBranchWidth uint64 `json:"min_branch_width" validate:"min=0,max=18446744073709551615"`
-	MinLeafWidth uint64 `json:"min_leaf_width" validate:"min=0,max=18446744073709551615"`
-	Name string `json:"name"`
 	Skip *FunctionsExpressionExpression `json:"skip,omitempty"`
-	Spec string `json:"spec"`
 }
 
 func (FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression) SchemaTitle() string { return "functions.alpha_vector.PlaceholderVectorFunctionTaskExpression" }
@@ -30,7 +23,7 @@ func (v *FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression) UnmarshalJ
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"depth", "input", "input_schema", "max_branch_width", "max_leaf_width", "min_branch_width", "min_leaf_width", "name", "spec"} {
+	for _, key := range []string{"input", "input_schema"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression: missing required field %q", key)
 		}

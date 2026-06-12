@@ -9,8 +9,15 @@ import (
 
 type CliCommandPluginsGetResponseManifest struct {
 	Author *string `json:"author,omitempty"`
-	Binaries CliCommandPluginsGetResponseBinaries `json:"binaries"`
+	// GitHub-release asset filename for the plugin's cli bundle — a
+	// zip extracted into `<plugin dir>/cli/` at install time, like
+	// `viewer_zip` → `viewer/`.
+	CliZip *string `json:"cli_zip,omitempty"`
 	Description string `json:"description"`
+	// Per-OS exec argv for the plugin's cli side, run with CWD =
+	// `<plugin dir>/cli/` — the same shape tools use. Empty when
+	// the plugin is viewer-only.
+	Exec CliCommandToolsGetExec `json:"exec"`
 	Homepage *string `json:"homepage,omitempty"`
 	License *string `json:"license,omitempty"`
 	MCPServers []CliCommandPluginsGetResponseMcpServer `json:"mcp_servers"`
@@ -34,7 +41,7 @@ func (v *CliCommandPluginsGetResponseManifest) UnmarshalJSON(data []byte) error 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"binaries", "description", "mcp_servers", "mobile_ready", "name", "owner", "source", "version", "viewer_routes"} {
+	for _, key := range []string{"description", "exec", "mcp_servers", "mobile_ready", "name", "owner", "source", "version", "viewer_routes"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandPluginsGetResponseManifest: missing required field %q", key)
 		}
