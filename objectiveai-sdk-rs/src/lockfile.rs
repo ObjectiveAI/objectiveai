@@ -44,7 +44,7 @@
 //! probe flip retries, infinitely (churn eventually stabilizes). A
 //! returned `Some(content)` was therefore written by a
 //! continuously-live owner and observed complete: lock state and
-//! content cannot be out of sync. [`wait_locked`] subscribes to the
+//! content cannot be out of sync. [`wait_held`] subscribes to the
 //! held state itself; [`wait_read`] composes the two.
 //!
 //! **Dropping a [`LockClaim`] does NOT release it.** The OS objects
@@ -129,7 +129,7 @@ impl LockClaim {
     /// single kernel event), then the gate. On Unix the claim FILES
     /// deliberately stay on disk — deleting flock files is racy (a
     /// waiter holding the old inode plus a fresh creator at the same
-    /// path would yield two "owners"), and [`is_held`] probes lock
+    /// path would yield two "owners"), and [`try_held`] probes lock
     /// state, not existence.
     pub fn release(mut self) -> std::io::Result<()> {
         // SAFETY: sole take — `self` is consumed and its (no-op)
@@ -280,7 +280,7 @@ pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockCl
 /// it isn't — some foreign holder — the won gate is abandoned and
 /// the whole acquisition retries after that holder clears.
 ///
-/// Same cancellation caveat as [`wait_release`].
+/// Same cancellation caveat as [`wait_released`].
 pub async fn wait_acquire(
     dir: &Path,
     key: &str,
@@ -317,7 +317,7 @@ pub async fn wait_acquire(
 /// Is some live process currently holding this claim? Held ⇔ BOTH
 /// the gate and the announce are locked — a gate-only state is an
 /// acquisition in progress (content in flux) and reports false.
-pub fn is_held(dir: &Path, key: &str) -> bool {
+pub fn try_held(dir: &Path, key: &str) -> bool {
     file_locked(&gate_path(dir, key)) && file_locked(&announce_path(dir, key))
 }
 
@@ -342,7 +342,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(e),
         };
-        if !is_held(dir, key) {
+        if !try_held(dir, key) {
             return Ok(None);
         }
         let contents = match tokio::fs::read_to_string(&gate).await {
@@ -351,7 +351,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
             Err(e) => return Err(e),
         };
-        if !is_held(dir, key) {
+        if !try_held(dir, key) {
             // Owner died (the next iteration returns None) or a
             // successor is mid-acquisition (retry until announced).
             continue;
@@ -365,7 +365,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
 
 /// Subscription that completes when and ONLY when the claim at
 /// `(dir, key)` is HELD (both the gate and the announce locked) —
-/// the acquisition-side dual of [`wait_release`]. Returning does not
+/// the acquisition-side dual of [`wait_released`]. Returning does not
 /// certify anything beyond that instant; pair with [`try_read`] for
 /// certified content.
 ///
@@ -381,12 +381,12 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
 ///
 /// Creates `dir` if needed (an empty locks dir is exactly what
 /// acquisition would create) so the watcher has something to watch.
-pub async fn wait_locked(dir: &Path, key: &str) -> std::io::Result<()> {
+pub async fn wait_held(dir: &Path, key: &str) -> std::io::Result<()> {
     tokio::fs::create_dir_all(dir).await?;
     let announce = announce_path(dir, key);
     loop {
         let watcher = HeldWatcher::arm(dir, &announce)?;
-        if is_held(dir, key) {
+        if try_held(dir, key) {
             return Ok(());
         }
         watcher.wait().await?;
@@ -395,14 +395,14 @@ pub async fn wait_locked(dir: &Path, key: &str) -> std::io::Result<()> {
 
 /// Subscribe to the published content of `(dir, key)`: block until
 /// the claim is HELD, then return its certified content. Composed
-/// exactly as it reads: [`wait_locked`], then [`try_read`]; a `None`
+/// exactly as it reads: [`wait_held`], then [`try_read`]; a `None`
 /// (the owner vanished or churned between the two) loops back to
-/// [`wait_locked`]. Every returned value carries [`try_read`]'s full
+/// [`wait_held`]. Every returned value carries [`try_read`]'s full
 /// certification (written by a continuously-live owner, observed
 /// complete).
 pub async fn wait_read(dir: &Path, key: &str) -> std::io::Result<String> {
     loop {
-        wait_locked(dir, key).await?;
+        wait_held(dir, key).await?;
         if let Some(contents) = try_read(dir, key).await? {
             return Ok(contents);
         }
@@ -424,7 +424,7 @@ pub async fn wait_read(dir: &Path, key: &str) -> std::io::Result<String> {
 /// eventually returns (and is reclaimed by tokio) — one task-pool
 /// thread is parked per abandoned wait. Bounded by how many
 /// concurrent waiters get abandoned.
-pub async fn wait_release(dir: &Path, key: &str) -> std::io::Result<()> {
+pub async fn wait_released(dir: &Path, key: &str) -> std::io::Result<()> {
     let path = announce_path(dir, key);
     #[cfg(windows)]
     {
@@ -467,7 +467,7 @@ fn filename_escape(key: &str) -> String {
 
 /// The post-flip beacon: one byte written to the announce file AFTER
 /// its lock is taken. The flock flip itself emits no file event, so
-/// without this a held-subscriber ([`wait_locked`]) could arm its
+/// without this a held-subscriber ([`wait_held`]) could arm its
 /// watcher, probe not-held, and block forever while the flip slid
 /// into the gap after the announce file's last pre-flip event. The
 /// beacon guarantees at least one file event lands strictly AFTER
