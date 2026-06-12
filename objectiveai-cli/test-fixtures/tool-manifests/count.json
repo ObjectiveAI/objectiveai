@@ -1,6 +1,0 @@
-{
-  "description": "Per-session counter tool",
-  "version": "0.0.1",
-  "owner": "objectiveai",
-  "exec": "count-tool"
-}

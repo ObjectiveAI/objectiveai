@@ -5,11 +5,6 @@ use std::path::PathBuf;
 /// after `objectiveai-api`'s `github::Error`: split request / response
 /// / status / parse so diagnostics name what failed, plus IO variants
 /// for the local-disk side of the flow.
-///
-/// **Platform-not-supported is NOT an error.** When the current
-/// platform isn't in `Manifest.binaries`, `Client::install_plugin`
-/// returns `Ok(false)` rather than any variant here. This enum is only
-/// for things that actually went wrong.
 #[derive(thiserror::Error, Debug)]
 pub enum InstallError {
     #[error("manifest request failed: {0}")]
@@ -24,18 +19,14 @@ pub enum InstallError {
     ManifestResponse(reqwest::Error),
     #[error("manifest parse failed: {0}")]
     ManifestParse(serde_path_to_error::Error<serde_json::Error>),
-    #[error("binary request failed: {0}")]
-    BinaryRequest(reqwest::Error),
-    #[error("binary fetch returned bad status {code} from {url}")]
-    BinaryBadStatus { code: StatusCode, url: String },
-    #[error("binary body could not be read: {0}")]
-    BinaryResponse(reqwest::Error),
+    #[error("cli-zip request failed: {0}")]
+    CliZipRequest(reqwest::Error),
+    #[error("cli-zip fetch returned bad status {code} from {url}")]
+    CliZipBadStatus { code: StatusCode, url: String },
+    #[error("cli-zip body could not be read: {0}")]
+    CliZipResponse(reqwest::Error),
     #[error("failed to create plugin directory {0}: {1}")]
     PluginDirCreate(PathBuf, std::io::Error),
-    #[error("failed to write plugin binary {0}: {1}")]
-    BinaryWrite(PathBuf, std::io::Error),
-    #[error("failed to set executable permission on {0}: {1}")]
-    Chmod(PathBuf, std::io::Error),
     #[error("failed to serialize manifest for persistence: {0}")]
     ManifestSerialize(serde_json::Error),
     #[error("failed to persist manifest at {0}: {1}")]
@@ -46,8 +37,8 @@ pub enum InstallError {
     ViewerZipBadStatus { code: StatusCode, url: String },
     #[error("viewer-zip body could not be read: {0}")]
     ViewerZipResponse(reqwest::Error),
-    #[error("failed to extract viewer zip into {0}: {1}")]
-    ViewerZipExtract(PathBuf, String),
+    #[error("failed to extract zip into {0}: {1}")]
+    ZipExtract(PathBuf, String),
     #[error("invalid header name {name:?}: {reason}")]
     InvalidHeaderName { name: String, reason: String },
     #[error("invalid header value for {name:?}: {reason}")]

@@ -59,7 +59,6 @@ pub struct Response {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.swarms.list.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "Item")]
     Item(crate::RemotePath),
 }
 

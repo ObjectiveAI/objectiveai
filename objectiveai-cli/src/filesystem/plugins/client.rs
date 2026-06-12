@@ -1,16 +1,15 @@
 //! Plugin discovery on the local filesystem.
 //!
 //! Installed plugins live at
-//! `<base_dir>/plugins/<owner>/<name>/<version>/`, with the binary at
-//! `…/plugin` (or `plugin.exe` on Windows), the optional viewer bundle
-//! at `…/viewer/`, and the manifest as `…/objectiveai.json` inside the
-//! version folder. The cli's `plugins run` dispatch uses
-//! [`Client::resolve_plugin`] to turn an `(owner, name, version)`
-//! coordinate into an executable path.
-//!
-//! [`Client::install_plugin`] always writes the canonical
-//! `plugin[.exe]` filename, but [`Client::resolve_plugin`] tolerates a
-//! tiered fallback — see its docstring for the exact lookup order.
+//! `<base_dir>/plugins/<owner>/<name>/<version>/`, with the cli-side
+//! payload at `…/cli/` (the exec working directory, extracted from
+//! the manifest's `cli_zip` when one is declared), the optional
+//! viewer bundle at `…/viewer/`, and the manifest as
+//! `…/objectiveai.json` inside the version folder. The cli's
+//! `plugins run` dispatch uses [`Client::resolve_plugin`] to turn an
+//! `(owner, name, version)` coordinate into the platform's exec
+//! vector plus that `cli/` working directory — the same model tools
+//! use, with the extra `cli` folder.
 
 use std::path::{Path, PathBuf};
 
@@ -76,98 +75,40 @@ impl Client {
     }
 
     /// The directory that holds a plugin's installed artifacts:
-    /// `<plugins_dir>/<owner>/<name>/<version>/`. Contains the binary,
-    /// the manifest `objectiveai.json`, an optional `viewer/` bundle,
-    /// and any runtime state the plugin writes.
+    /// `<plugins_dir>/<owner>/<name>/<version>/`. Contains the
+    /// manifest `objectiveai.json`, the `cli/` exec working
+    /// directory, and an optional `viewer/` bundle.
     pub fn plugin_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
         self.plugins_dir().join(owner).join(name).join(version)
     }
 
-    /// Canonical path of a plugin's binary:
-    /// `<plugin_dir>/plugin` on Unix, `…/plugin.exe` on Windows. Used
-    /// by both `install_plugin` (write target) and `resolve_plugin`
-    /// (read target) so the two cannot drift.
-    pub fn plugin_binary_path(&self, owner: &str, name: &str, version: &str) -> PathBuf {
-        self.plugin_dir(owner, name, version).join(if cfg!(windows) {
-            "plugin.exe"
-        } else {
-            "plugin"
-        })
+    /// A plugin's cli working directory: `<plugin_dir>/cli/`. The
+    /// manifest's exec runs with this as CWD; `cli_zip` extracts
+    /// into it at install time.
+    pub fn plugin_cli_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
+        self.plugin_dir(owner, name, version).join("cli")
     }
 
-    /// Resolve a plugin name to its executable path. Lookup order:
-    ///
-    /// 1. Platform-preferred canonical:
-    ///    `<plugins_dir>/<name>/plugin.exe` on Windows,
-    ///    `<plugins_dir>/<name>/plugin` elsewhere. Matches what
-    ///    [`Self::install_plugin`] writes.
-    /// 2. Cross-platform canonical: the same two filenames in opposite
-    ///    order, for hand-placed binaries that came from the "wrong"
-    ///    platform's release asset.
-    /// 3. First-found fallback: any file under `<plugin_dir>/` whose
-    ///    `file_stem` is exactly `"plugin"` and whose `extension` is
-    ///    something other than the two canonical cases — e.g.
-    ///    `plugin.bat`, `plugin.sh`, `plugin.cmd`. Tiebreak is
-    ///    `read_dir` order (filesystem-defined).
-    ///
-    /// Tier 3's stem match uses `Path::file_stem`, which strips only
-    /// the last extension component, so multi-segment names like
-    /// `plugin.tar.gz` (stem = `plugin.tar`) don't accidentally count.
-    ///
-    /// Returns `None` if none of the three tiers turn up a regular
-    /// file. Uses `tokio` filesystem APIs throughout — never blocks.
+    /// Resolve a plugin coordinate to its `(exec_vector, cli_dir)`
+    /// for the current platform — the same contract
+    /// [`Client::resolve_tool`](crate::filesystem::Client::resolve_tool)
+    /// has, with the plugin's `cli/` folder as the working directory.
+    /// `exec_vector` may be empty when the manifest declares no
+    /// command for this platform (viewer-only plugins; the caller
+    /// treats that as an error). `None` when the manifest is
+    /// missing/malformed/invalid.
     pub async fn resolve_plugin(
         &self,
         owner: &str,
         name: &str,
         version: &str,
-    ) -> Option<PathBuf> {
-        let dir = self.plugin_dir(owner, name, version);
-
-        // Tiers 1 + 2.
-        #[cfg(windows)]
-        let priority: [&str; 2] = ["plugin.exe", "plugin"];
-        #[cfg(not(windows))]
-        let priority: [&str; 2] = ["plugin", "plugin.exe"];
-
-        for filename in priority {
-            let path = dir.join(filename);
-            if tokio::fs::metadata(&path)
-                .await
-                .map(|m| m.is_file())
-                .unwrap_or(false)
-            {
-                return Some(path);
-            }
-        }
-
-        // Tier 3: scan for any other `plugin.<ext>` file.
-        let mut read_dir = tokio::fs::read_dir(&dir).await.ok()?;
-        while let Ok(Some(entry)) = read_dir.next_entry().await {
-            let path = entry.path();
-            let Some(file_name) = path.file_name().and_then(|s| s.to_str())
-            else {
-                continue;
-            };
-            if file_name == "plugin" || file_name == "plugin.exe" {
-                // Already tried by the priority loop.
-                continue;
-            }
-            if path.file_stem().and_then(|s| s.to_str()) != Some("plugin") {
-                continue;
-            }
-            if path.extension().is_none() {
-                // Defensive: file_stem == "plugin" + no extension would
-                // be the file named exactly "plugin", which the
-                // priority loop already covered.
-                continue;
-            }
-            if entry.metadata().await.map(|m| m.is_file()).unwrap_or(false) {
-                return Some(path);
-            }
-        }
-
-        None
+    ) -> Option<(Vec<String>, PathBuf)> {
+        let bundle = self.get_plugin(owner, name, version).await?;
+        let cli_dir = self.plugin_cli_dir(owner, name, version);
+        Some((
+            crate::filesystem::tools::platform_exec(&bundle.manifest.exec),
+            cli_dir,
+        ))
     }
 
     /// Look up a single plugin manifest by coordinate. Reads
@@ -240,24 +181,24 @@ impl Client {
     ///    at the supplied `commit_sha` (or the default branch via
     ///    `HEAD` when none).
     /// 2. Parses it as a [`Manifest`].
-    /// 3. Looks up the current platform in `manifest.binaries`. If
-    ///    absent (or this host's platform isn't recognized by
-    ///    [`super::Platform::current`]), returns `Ok(false)` — the
-    ///    plugin simply doesn't support this host.
-    /// 4. Downloads the matching release asset from
-    ///    `https://github.com/<owner>/<repository>/releases/download/v<version>/<asset>`.
-    /// 5. Writes it to `<base_dir>/plugins/<repository>/plugin`
-    ///    (`plugin.exe` on Windows). Sets mode `0o755` on Unix so the
-    ///    binary is executable.
+    /// 3. Downloads the declared release assets from
+    ///    `https://github.com/<owner>/<repository>/releases/download/v<version>/<asset>`:
+    ///    `cli_zip` (when declared) extracts into
+    ///    `<plugin dir>/cli/`, `viewer_zip` into `…/viewer/`.
+    ///    Neither is required — a manifest whose exec invokes
+    ///    PATH-resolved programs installs with just the manifest.
     ///
     /// `headers` is an optional `IndexMap<String, String>` that gets
-    /// attached to both HTTP requests (e.g. `Authorization` for
+    /// attached to every HTTP request (e.g. `Authorization` for
     /// private repos / higher rate limits). The cli always passes
     /// `None`.
     ///
-    /// Failures past step 3 are returned as
-    /// [`super::InstallError`] wrapped by
-    /// [`super::super::Error::Install`].
+    /// Failures are returned as [`super::InstallError`] wrapped by
+    /// [`super::super::Error::Install`]. The `bool` is retained for
+    /// wire compatibility and is always `true` on success — the
+    /// platform gate that used to yield `Ok(false)` died with the
+    /// per-platform binaries map (per-OS support is now expressed by
+    /// the exec vectors themselves).
     pub async fn install_plugin(
         &self,
         owner: &str,
@@ -299,9 +240,8 @@ impl Client {
     }
 
     /// Step 2 of `install_plugin`: given an already-parsed manifest,
-    /// pick the binary for the current platform (`Ok(false)` if
-    /// absent), download it from the corresponding release asset,
-    /// and write it to `<plugins_dir>/<repository>/plugin[.exe]`.
+    /// download its declared release assets (`cli_zip` → `cli/`,
+    /// `viewer_zip` → `viewer/`) and persist the manifest.
     pub async fn install_plugin_from_manifest(
         &self,
         owner: &str,
@@ -446,21 +386,13 @@ impl Client {
             .into());
         }
 
-        // 1. Platform match (no disk touches).
-        let Some(platform) = super::Platform::current() else {
-            return Ok(false);
-        };
-        let Some(binary_name) = manifest.binaries.get(platform) else {
-            return Ok(false);
-        };
-
         let version = manifest.version.clone();
         let plugin_dir = self.plugin_dir(owner, repository, &version);
-        let binary_path = self.plugin_binary_path(owner, repository, &version);
+        let cli_dir = self.plugin_cli_dir(owner, repository, &version);
         let viewer_dir = plugin_dir.join("viewer");
         let manifest_path = plugin_dir.join("objectiveai.json");
 
-        // 2. Existing-install check: the manifest sibling file is the
+        // 1. Existing-install check: the manifest sibling file is the
         //    source of truth for "this plugin is installed."
         let manifest_exists = tokio::fs::metadata(&manifest_path).await.is_ok();
         if manifest_exists && !upgrade {
@@ -470,45 +402,51 @@ impl Client {
             .into());
         }
 
-        // 3. Clean prior install data when --upgrade. Best-effort: any
+        // 2. Clean prior install data when --upgrade. Best-effort: any
         //    delete failure surfaces later as a write-phase error
         //    (e.g. ManifestPersist) if the artifact is truly stuck.
         //    Extra entries under <plugin_dir>/ are untouched.
         if upgrade {
             let _ = tokio::fs::remove_file(&manifest_path).await;
-            let _ = tokio::fs::remove_file(&binary_path).await;
+            let _ = tokio::fs::remove_dir_all(&cli_dir).await;
             let _ = tokio::fs::remove_dir_all(&viewer_dir).await;
         }
 
-        // 4. Network phase: fetch everything into memory before any
+        // 3. Network phase: fetch everything into memory before any
         //    disk write. A network failure here leaves the disk in
-        //    whatever state step 3 left it in (empty if upgrade,
-        //    unchanged if fresh install — since step 2's check would
+        //    whatever state step 2 left it in (empty if upgrade,
+        //    unchanged if fresh install — since step 1's check would
         //    have refused).
         let http = reqwest::Client::new();
-        let bin_bytes: Vec<u8> = {
-            let binary_url = format!(
-                "{releases_base}/{owner}/{repository}/releases/download/v{version}/{binary_name}",
+        let cli_zip_bytes: Option<Vec<u8>> = if let Some(cli_zip_name) =
+            &manifest.cli_zip
+        {
+            let cli_url = format!(
+                "{releases_base}/{owner}/{repository}/releases/download/v{version}/{cli_zip_name}",
                 version = manifest.version,
             );
             let resp = http
-                .get(&binary_url)
+                .get(&cli_url)
                 .headers(build_headers(headers)?)
                 .send()
                 .await
-                .map_err(super::InstallError::BinaryRequest)?;
+                .map_err(super::InstallError::CliZipRequest)?;
             let status = resp.status();
             if !status.is_success() {
-                return Err(super::InstallError::BinaryBadStatus {
+                return Err(super::InstallError::CliZipBadStatus {
                     code: status,
-                    url: binary_url,
+                    url: cli_url,
                 }
                 .into());
             }
-            resp.bytes()
-                .await
-                .map_err(super::InstallError::BinaryResponse)?
-                .to_vec()
+            Some(
+                resp.bytes()
+                    .await
+                    .map_err(super::InstallError::CliZipResponse)?
+                    .to_vec(),
+            )
+        } else {
+            None
         };
 
         let zip_bytes: Option<Vec<u8>> = if let Some(viewer_zip_name) =
@@ -554,17 +492,17 @@ impl Client {
                 .map_err(super::InstallError::ManifestSerialize)?
         };
 
-        // 5. Plugin dir setup. Idempotent — preserves any pre-existing
+        // 4. Plugin dir setup. Idempotent — preserves any pre-existing
         //    "extra data" the plugin's runtime created.
         tokio::fs::create_dir_all(&plugin_dir).await.map_err(|e| {
             super::InstallError::PluginDirCreate(plugin_dir.clone(), e)
         })?;
 
-        // 6. Concurrent write phase via try_join!. Three branches fan
+        // 5. Concurrent write phase via try_join!. Three branches fan
         //    out, short-circuit on first error.
         tokio::try_join!(
-            write_binary_branch(binary_path, bin_bytes),
-            write_viewer_branch(viewer_dir, zip_bytes),
+            write_zip_branch(cli_dir, cli_zip_bytes),
+            write_zip_branch(viewer_dir, zip_bytes),
             write_manifest_branch(manifest_path, manifest_bytes),
         )?;
 
@@ -572,53 +510,31 @@ impl Client {
     }
 }
 
-async fn write_binary_branch(
-    binary_path: PathBuf,
-    bytes: Vec<u8>,
-) -> Result<(), super::InstallError> {
-    tokio::fs::write(&binary_path, &bytes).await.map_err(|e| {
-        super::InstallError::BinaryWrite(binary_path.clone(), e)
-    })?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let perms = std::fs::Permissions::from_mode(0o755);
-        tokio::fs::set_permissions(&binary_path, perms)
-            .await
-            .map_err(|e| super::InstallError::Chmod(binary_path.clone(), e))?;
-    }
-    Ok(())
-}
-
-async fn write_viewer_branch(
-    viewer_dir: PathBuf,
+/// Extract a downloaded release zip into `dir` (used for both the
+/// `cli/` and `viewer/` bundles). `None` bytes = the manifest didn't
+/// declare this asset — no-op.
+async fn write_zip_branch(
+    dir: PathBuf,
     zip_bytes: Option<Vec<u8>>,
 ) -> Result<(), super::InstallError> {
     let Some(bytes) = zip_bytes else {
         return Ok(());
     };
-    tokio::fs::create_dir_all(&viewer_dir).await.map_err(|e| {
-        super::InstallError::ViewerZipExtract(viewer_dir.clone(), e.to_string())
+    tokio::fs::create_dir_all(&dir).await.map_err(|e| {
+        super::InstallError::ZipExtract(dir.clone(), e.to_string())
     })?;
-    let viewer_dir_for_blocking = viewer_dir.clone();
+    let dir_for_blocking = dir.clone();
     tokio::task::spawn_blocking(move || {
         let cursor = std::io::Cursor::new(bytes);
         let mut archive = zip::ZipArchive::new(cursor)
             .map_err(|e| format!("zip archive open: {e}"))?;
         archive
-            .extract(&viewer_dir_for_blocking)
+            .extract(&dir_for_blocking)
             .map_err(|e| format!("extract: {e}"))
     })
     .await
-    .map_err(|e| {
-        super::InstallError::ViewerZipExtract(
-            viewer_dir.clone(),
-            format!("join: {e}"),
-        )
-    })?
-    .map_err(|e| {
-        super::InstallError::ViewerZipExtract(viewer_dir.clone(), e)
-    })?;
+    .map_err(|e| super::InstallError::ZipExtract(dir.clone(), format!("join: {e}")))?
+    .map_err(|e| super::InstallError::ZipExtract(dir.clone(), e))?;
     Ok(())
 }
 

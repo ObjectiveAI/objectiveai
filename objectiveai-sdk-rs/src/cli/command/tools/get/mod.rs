@@ -51,6 +51,12 @@ pub struct Exec {
     pub macos: Vec<String>,
 }
 
+impl Exec {
+    pub fn is_empty(&self) -> bool {
+        self.windows.is_empty() && self.linux.is_empty() && self.macos.is_empty()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tools.get.ResponseManifest")]
 pub struct ResponseManifest {

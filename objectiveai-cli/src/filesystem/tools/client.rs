@@ -31,8 +31,9 @@ async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
     })
 }
 
-/// The current platform's exec vector from a per-OS [`Exec`].
-fn platform_exec(exec: &Exec) -> Vec<String> {
+/// The current platform's exec vector from a per-OS [`Exec`]. Shared
+/// with the plugins tier, whose manifests carry the same `Exec` type.
+pub(crate) fn platform_exec(exec: &Exec) -> Vec<String> {
     if cfg!(target_os = "windows") {
         exec.windows.clone()
     } else if cfg!(target_os = "macos") {

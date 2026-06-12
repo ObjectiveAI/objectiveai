@@ -58,7 +58,6 @@ impl CommandRequest for Request {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.list.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "Item")]
     Item(crate::RemotePath),
 }
 

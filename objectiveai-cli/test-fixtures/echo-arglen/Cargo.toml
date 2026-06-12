@@ -1,9 +1,0 @@
-[package]
-name = "echo-arglen"
-version = "2.0.10"
-edition = "2024"
-publish = false
-
-[[bin]]
-name = "echo-arglen"
-path = "src/main.rs"

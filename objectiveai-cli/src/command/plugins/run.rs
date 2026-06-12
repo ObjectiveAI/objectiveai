@@ -1,6 +1,8 @@
 //! `plugins run` — bare-naked port of legacy `dispatch_external`.
 //!
-//! Resolves the installed plugin binary, spawns it with piped
+//! Resolves the installed plugin's exec command (the tools model:
+//! the manifest's per-OS argv plus the caller's args, run with CWD =
+//! the plugin's `cli/` folder), spawns it with piped
 //! stdin/stdout/stderr, and yields each parsed line from the plugin's
 //! stdout as a [`ResponseItem`] as it arrives. The bidirectional
 //! protocol — plugin emits a `Command` request, the host runs it and
@@ -32,11 +34,43 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let coord = format!("{}/{}/{}", request.owner, request.name, request.version);
-    let exe = ctx
+    let (exec, cli_dir) = ctx
         .filesystem
         .resolve_plugin(&request.owner, &request.name, &request.version)
         .await
         .ok_or_else(|| Error::PluginNotFound(coord.clone()))?;
+
+    // The command is the plugin's exec vector merged with the
+    // caller's args, verbatim. The first element is the program; the
+    // rest are its arguments. CWD is the plugin's `cli/` folder —
+    // always — with the same relative-path program resolution tools
+    // use.
+    let mut argv = exec;
+    argv.extend(request.args.iter().cloned());
+    let mut argv = argv.into_iter();
+    let program = argv
+        .next()
+        .ok_or_else(|| Error::PluginNotFound(format!("{coord} (empty exec)")))?;
+    let program = crate::spawn::resolve_program(program, &cli_dir);
+    // The cli dir may be empty/absent for exec-only plugins (nothing
+    // was zipped into it) — the CWD still has to exist to spawn.
+    tokio::fs::create_dir_all(&cli_dir)
+        .await
+        .map_err(Error::PluginSpawn)?;
+
+    // Per-plugin scratch space inside the (transient) state tree —
+    // plugins that persist files write here, never into their own
+    // (possibly committed) install folder.
+    let state_dir = ctx
+        .filesystem
+        .state_dir()
+        .join("plugins")
+        .join(&request.owner)
+        .join(&request.name)
+        .join(&request.version);
+    tokio::fs::create_dir_all(&state_dir)
+        .await
+        .map_err(Error::PluginSpawn)?;
 
     // Context for nested (plugin-originated) commands: this caller's
     // ctx, stamped with the plugin coordinate. `ctx.plugin` is set so
@@ -56,8 +90,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         version: request.version.clone(),
     });
 
-    let mut cmd = Command::new(&exe);
-    cmd.args(&request.args)
+    let mut cmd = Command::new(&program);
+    cmd.args(argv)
+        .current_dir(&cli_dir)
+        .env("STATE_DIR", &state_dir)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

@@ -1,4 +1,5 @@
 use super::*;
+use crate::filesystem::tools::Exec;
 
 #[test]
 fn manifest_minimal_roundtrip() {
@@ -9,7 +10,8 @@ fn manifest_minimal_roundtrip() {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -17,7 +19,8 @@ fn manifest_minimal_roundtrip() {
         mcp_servers: Vec::new(),
     };
     let json = serde_json::to_value(&m).unwrap();
-    // `skip_serializing_if = "Option::is_none"` keeps the wire shape lean.
+    // `skip_serializing_if` on every optional field keeps the wire
+    // shape lean: only the three required strings remain.
     let obj = json.as_object().unwrap();
     assert_eq!(obj.len(), 3);
     assert_eq!(obj["description"], "tiny test plugin");
@@ -30,7 +33,8 @@ fn manifest_minimal_roundtrip() {
     assert!(back.author.is_none());
     assert!(back.homepage.is_none());
     assert!(back.license.is_none());
-    assert!(back.binaries.is_empty());
+    assert!(back.exec.is_empty());
+    assert!(back.cli_zip.is_none());
 }
 
 #[test]
@@ -45,7 +49,8 @@ fn manifest_full_roundtrip() {
             "https://github.com/Wiggidy/psychological-operations".to_string(),
         ),
         license: Some("MIT".to_string()),
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -72,7 +77,8 @@ fn manifest_with_name_and_source_field_order() {
             author: Some("Wiggidy".to_string()),
             homepage: None,
             license: Some("MIT".to_string()),
-            binaries: Binaries::default(),
+            exec: Exec::default(),
+            cli_zip: None,
             viewer_zip: None,
             viewer_url: None,
             viewer_routes: vec![],
@@ -86,7 +92,8 @@ fn manifest_with_name_and_source_field_order() {
     let s = serde_json::to_string(&m).unwrap();
     // With preserve_order, name comes first, the flattened manifest
     // fields in declaration order, then source last. Optional `None`s
-    // are skipped (homepage); empty `binaries` map is also skipped.
+    // are skipped (homepage, cli_zip); the empty `exec` is also
+    // skipped.
     let expected = concat!(
         r#"{"#,
         r#""name":"psyops","#,
@@ -108,7 +115,8 @@ fn manifest_with_name_and_source_field_order() {
     assert_eq!(back.manifest.author.as_deref(), Some("Wiggidy"));
     assert!(back.manifest.homepage.is_none());
     assert_eq!(back.manifest.license.as_deref(), Some("MIT"));
-    assert!(back.manifest.binaries.is_empty());
+    assert!(back.manifest.exec.is_empty());
+    assert!(back.manifest.cli_zip.is_none());
     assert_eq!(
         back.source,
         "/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json"
@@ -128,21 +136,20 @@ fn manifest_deserializes_minimal_json() {
     assert!(m.author.is_none());
     assert!(m.homepage.is_none());
     assert!(m.license.is_none());
-    assert!(m.binaries.is_empty());
+    assert!(m.exec.is_empty());
+    assert!(m.cli_zip.is_none());
 }
 
-fn full_binaries() -> Binaries {
-    Binaries {
-        linux_x86_64: Some("psyops-linux-x86_64".to_string()),
-        linux_aarch64: Some("psyops-linux-aarch64".to_string()),
-        windows_x86_64: Some("psyops-windows-x86_64.exe".to_string()),
-        macos_aarch64: Some("psyops-macos-aarch64".to_string()),
-        ..Default::default()
+fn full_exec() -> Exec {
+    Exec {
+        windows: vec!["./psyops.exe".to_string(), "--serve".to_string()],
+        linux: vec!["./psyops".to_string(), "--serve".to_string()],
+        macos: vec!["./psyops".to_string(), "--serve".to_string()],
     }
 }
 
 #[test]
-fn manifest_with_binaries_roundtrip() {
+fn manifest_with_exec_and_cli_zip_roundtrip() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
@@ -150,7 +157,8 @@ fn manifest_with_binaries_roundtrip() {
         author: None,
         homepage: None,
         license: None,
-        binaries: full_binaries(),
+        exec: full_exec(),
+        cli_zip: Some("psyops-cli.zip".to_string()),
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -159,33 +167,15 @@ fn manifest_with_binaries_roundtrip() {
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json).unwrap();
-    assert_eq!(back.binaries.len(), 4);
-    assert_eq!(
-        back.binaries.get(Platform::LinuxX86_64).map(String::as_str),
-        Some("psyops-linux-x86_64")
-    );
-    assert_eq!(
-        back.binaries
-            .get(Platform::LinuxAarch64)
-            .map(String::as_str),
-        Some("psyops-linux-aarch64")
-    );
-    assert_eq!(
-        back.binaries
-            .get(Platform::WindowsX86_64)
-            .map(String::as_str),
-        Some("psyops-windows-x86_64.exe")
-    );
-    assert_eq!(
-        back.binaries
-            .get(Platform::MacosAarch64)
-            .map(String::as_str),
-        Some("psyops-macos-aarch64")
-    );
+    assert!(!back.exec.is_empty());
+    assert_eq!(back.exec.windows, vec!["./psyops.exe", "--serve"]);
+    assert_eq!(back.exec.linux, vec!["./psyops", "--serve"]);
+    assert_eq!(back.exec.macos, vec!["./psyops", "--serve"]);
+    assert_eq!(back.cli_zip.as_deref(), Some("psyops-cli.zip"));
 }
 
 #[test]
-fn manifest_omits_empty_binaries_field() {
+fn manifest_omits_empty_exec_and_absent_cli_zip() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
@@ -193,7 +183,8 @@ fn manifest_omits_empty_binaries_field() {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -203,24 +194,65 @@ fn manifest_omits_empty_binaries_field() {
     let json = serde_json::to_value(&m).unwrap();
     let obj = json.as_object().unwrap();
     assert!(
-        !obj.contains_key("binaries"),
-        "empty map should be skipped, got {obj:?}"
+        !obj.contains_key("exec"),
+        "empty exec should be skipped, got {obj:?}"
+    );
+    assert!(
+        !obj.contains_key("cli_zip"),
+        "absent cli_zip should be skipped, got {obj:?}"
     );
 }
 
 #[test]
-fn manifest_deserializes_without_binaries_field() {
+fn manifest_deserializes_without_exec_or_cli_zip_fields() {
     let json = serde_json::json!({
         "description": "x",
         "version": "1.0.0",
         "owner": "wiggidy"
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
-    assert!(m.binaries.is_empty());
+    assert!(m.exec.is_empty());
+    assert!(m.cli_zip.is_none());
 }
 
 #[test]
-fn manifest_with_binaries_field_order() {
+fn manifest_deserializes_exec_object_json() {
+    // The canonical wire fixture: a per-OS exec object plus a cli
+    // bundle asset name.
+    let json = serde_json::json!({
+        "description": "x",
+        "version": "1.0.0",
+        "owner": "wiggidy",
+        "exec": {
+            "windows": ["./plugin.exe"],
+            "linux": ["./plugin"],
+            "macos": ["./plugin"]
+        },
+        "cli_zip": "cli.zip"
+    });
+    let m: Manifest = serde_json::from_value(json).unwrap();
+    assert_eq!(m.exec.windows, vec!["./plugin.exe"]);
+    assert_eq!(m.exec.linux, vec!["./plugin"]);
+    assert_eq!(m.exec.macos, vec!["./plugin"]);
+    assert_eq!(m.cli_zip.as_deref(), Some("cli.zip"));
+}
+
+#[test]
+fn manifest_exec_object_requires_all_platform_keys() {
+    // `Exec` has no per-field serde defaults: an exec object missing
+    // one of the three OS keys is a parse error, not an empty vector.
+    let json = serde_json::json!({
+        "description": "x",
+        "version": "1.0.0",
+        "owner": "wiggidy",
+        "exec": { "windows": ["./plugin.exe"], "linux": ["./plugin"] }
+    });
+    let result: Result<Manifest, _> = serde_json::from_value(json);
+    assert!(result.is_err(), "got {result:?}");
+}
+
+#[test]
+fn manifest_exec_field_order() {
     let m = Manifest {
         description: "x".to_string(),
         version: "1.0.0".to_string(),
@@ -228,7 +260,8 @@ fn manifest_with_binaries_field_order() {
         author: None,
         homepage: None,
         license: None,
-        binaries: full_binaries(),
+        exec: full_exec(),
+        cli_zip: Some("psyops-cli.zip".to_string()),
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -236,50 +269,28 @@ fn manifest_with_binaries_field_order() {
         mcp_servers: Vec::new(),
     };
     let s = serde_json::to_string(&m).unwrap();
-    // Field declaration order on `Binaries`: linux_x86_64, linux_aarch64,
-    // windows_x86_64, windows_aarch64, macos_x86_64, macos_aarch64.
-    // serde respects that for serialization.
-    let i_lx = s.find("linux_x86_64").unwrap();
-    let i_la = s.find("linux_aarch64").unwrap();
-    let i_wx = s.find("windows_x86_64").unwrap();
-    let i_ma = s.find("macos_aarch64").unwrap();
-    assert!(
-        i_lx < i_la,
-        "linux_x86_64 should come before linux_aarch64: {s}"
-    );
-    assert!(
-        i_la < i_wx,
-        "linux_aarch64 should come before windows_x86_64: {s}"
-    );
-    assert!(
-        i_wx < i_ma,
-        "windows_x86_64 should come before macos_aarch64: {s}"
-    );
+    // `exec` precedes `cli_zip` (Manifest declaration order), and the
+    // Exec fields serialize in their declaration order: windows,
+    // linux, macos.
+    let i_exec = s.find("\"exec\"").unwrap();
+    let i_cli = s.find("\"cli_zip\"").unwrap();
+    let i_w = s.find("\"windows\"").unwrap();
+    let i_l = s.find("\"linux\"").unwrap();
+    let i_m = s.find("\"macos\"").unwrap();
+    assert!(i_exec < i_cli, "exec should come before cli_zip: {s}");
+    assert!(i_w < i_l, "windows should come before linux: {s}");
+    assert!(i_l < i_m, "linux should come before macos: {s}");
 
     let back: Manifest = serde_json::from_str(&s).unwrap();
-    assert_eq!(
-        back.binaries.linux_x86_64.as_deref(),
-        Some("psyops-linux-x86_64")
-    );
-    assert_eq!(
-        back.binaries.linux_aarch64.as_deref(),
-        Some("psyops-linux-aarch64")
-    );
-    assert_eq!(
-        back.binaries.windows_x86_64.as_deref(),
-        Some("psyops-windows-x86_64.exe")
-    );
-    assert!(back.binaries.windows_aarch64.is_none());
-    assert!(back.binaries.macos_x86_64.is_none());
-    assert_eq!(
-        back.binaries.macos_aarch64.as_deref(),
-        Some("psyops-macos-aarch64")
-    );
+    assert_eq!(back.exec, full_exec());
+    assert_eq!(back.cli_zip.as_deref(), Some("psyops-cli.zip"));
 }
 
 #[test]
-fn manifest_with_sparse_binaries_is_valid() {
-    // Plugin that only ships a Linux x86_64 binary.
+fn manifest_with_partial_exec_is_valid() {
+    // Plugin that only declares a Linux command. The exec field still
+    // serializes (it's not empty), carrying empty vectors for the
+    // other platforms.
     let m = Manifest {
         description: "linux-only plugin".to_string(),
         version: "0.1.0".to_string(),
@@ -287,28 +298,26 @@ fn manifest_with_sparse_binaries_is_valid() {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries {
-            linux_x86_64: Some("psyops-linux-x86_64".to_string()),
+        exec: Exec {
+            linux: vec!["./psyops".to_string()],
             ..Default::default()
         },
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
         mobile_ready: false,
         mcp_servers: Vec::new(),
     };
-    let s = serde_json::to_string(&m).unwrap();
-    let back: Manifest = serde_json::from_str(&s).unwrap();
-    assert_eq!(back.binaries.len(), 1);
-    assert_eq!(
-        back.binaries.get(Platform::LinuxX86_64).map(String::as_str),
-        Some("psyops-linux-x86_64")
-    );
-    assert!(back.binaries.get(Platform::LinuxAarch64).is_none());
-    assert!(back.binaries.get(Platform::WindowsX86_64).is_none());
-    assert!(back.binaries.get(Platform::WindowsAarch64).is_none());
-    assert!(back.binaries.get(Platform::MacosX86_64).is_none());
-    assert!(back.binaries.get(Platform::MacosAarch64).is_none());
+    let json = serde_json::to_value(&m).unwrap();
+    assert_eq!(json["exec"]["windows"], serde_json::json!([]));
+    assert_eq!(json["exec"]["linux"], serde_json::json!(["./psyops"]));
+    assert_eq!(json["exec"]["macos"], serde_json::json!([]));
+    let back: Manifest = serde_json::from_value(json).unwrap();
+    assert!(!back.exec.is_empty());
+    assert!(back.exec.windows.is_empty());
+    assert_eq!(back.exec.linux, vec!["./psyops"]);
+    assert!(back.exec.macos.is_empty());
 }
 
 #[test]
@@ -320,7 +329,8 @@ fn manifest_with_viewer_fields_roundtrip() {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: Some("psyops-viewer.zip".to_string()),
         viewer_url: None,
         viewer_routes: vec![
@@ -363,7 +373,8 @@ fn manifest_omits_viewer_fields_when_absent() {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -417,7 +428,8 @@ fn manifest_without_viewer() -> Manifest {
         author: None,
         homepage: None,
         license: None,
-        binaries: Binaries::default(),
+        exec: Exec::default(),
+        cli_zip: None,
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
@@ -525,4 +537,75 @@ fn manifest_with_viewer_url_serde_roundtrip() {
     assert_eq!(back.viewer_url, m.viewer_url);
     assert!(back.viewer_zip.is_none());
     assert!(back.has_viewer());
+}
+
+#[test]
+fn tool_name_materializes_owner_name_version() {
+    // `{owner}-{name}-{version}` with `.` -> `-` substitution.
+    let m = manifest_without_viewer(); // owner "wiggidy", version "0.0.1"
+    assert_eq!(m.tool_name("psyops"), "wiggidy-psyops-0-0-1");
+
+    let with_name = ManifestWithNameAndSource {
+        name: "psyops".to_string(),
+        manifest: m,
+        source: "/x/objectiveai.json".to_string(),
+    };
+    assert_eq!(with_name.tool_name(), "wiggidy-psyops-0-0-1");
+}
+
+#[test]
+fn manifest_with_name_and_source_converts_to_sdk_response_manifest() {
+    use objectiveai_sdk::cli::command::plugins::get::{
+        ResponseHttpMethod, ResponseManifest,
+    };
+    let m = ManifestWithNameAndSource {
+        name: "psyops".to_string(),
+        manifest: Manifest {
+            description: "do things".to_string(),
+            version: "1.2.3".to_string(),
+            owner: "wiggidy".to_string(),
+            author: Some("Wiggidy".to_string()),
+            homepage: Some("https://example.com".to_string()),
+            license: Some("MIT".to_string()),
+            exec: full_exec(),
+            cli_zip: Some("psyops-cli.zip".to_string()),
+            viewer_zip: Some("v.zip".to_string()),
+            viewer_url: None,
+            viewer_routes: vec![ViewerRoute {
+                path: "/say".to_string(),
+                method: HttpMethod::Post,
+                r#type: "say_request".to_string(),
+            }],
+            mobile_ready: true,
+            mcp_servers: vec![McpServer {
+                name: "search".to_string(),
+                url: "https://mcp.example.com".to_string(),
+                authorization: true,
+            }],
+        },
+        source: "/x/objectiveai.json".to_string(),
+    };
+    let r: ResponseManifest = m.clone().into();
+    assert_eq!(r.name, "psyops");
+    assert_eq!(r.description, "do things");
+    assert_eq!(r.version, "1.2.3");
+    assert_eq!(r.owner, "wiggidy");
+    assert_eq!(r.author.as_deref(), Some("Wiggidy"));
+    assert_eq!(r.homepage.as_deref(), Some("https://example.com"));
+    assert_eq!(r.license.as_deref(), Some("MIT"));
+    // `exec` is the SDK's own type already — carried over verbatim.
+    assert_eq!(r.exec, m.manifest.exec);
+    assert_eq!(r.cli_zip.as_deref(), Some("psyops-cli.zip"));
+    assert_eq!(r.viewer_zip.as_deref(), Some("v.zip"));
+    assert!(r.viewer_url.is_none());
+    assert_eq!(r.viewer_routes.len(), 1);
+    assert_eq!(r.viewer_routes[0].path, "/say");
+    assert_eq!(r.viewer_routes[0].method, ResponseHttpMethod::Post);
+    assert_eq!(r.viewer_routes[0].r#type, "say_request");
+    assert!(r.mobile_ready);
+    assert_eq!(r.mcp_servers.len(), 1);
+    assert_eq!(r.mcp_servers[0].name, "search");
+    assert_eq!(r.mcp_servers[0].url, "https://mcp.example.com");
+    assert!(r.mcp_servers[0].authorization);
+    assert_eq!(r.source, "/x/objectiveai.json");
 }

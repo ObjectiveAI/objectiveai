@@ -1,8 +1,0 @@
-{
-  "description": "foo-headers fixture",
-  "version": "1.0.0",
-  "owner": "testorg",
-  "mcp_servers": [
-    { "name": "demo", "url": "http://127.0.0.1:0", "authorization": false }
-  ]
-}

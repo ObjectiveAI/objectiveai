@@ -3,13 +3,11 @@
 mod client;
 mod install_error;
 mod manifest;
-mod platform;
 mod whitelist;
 
 pub use client::*;
 pub use install_error::*;
 pub use manifest::*;
-pub use platform::*;
 pub use whitelist::*;
 
 #[cfg(test)]
@@ -20,7 +18,5 @@ mod install_error_tests;
 mod install_tests;
 #[cfg(test)]
 mod manifest_tests;
-#[cfg(test)]
-mod platform_tests;
 #[cfg(test)]
 mod whitelist_tests;

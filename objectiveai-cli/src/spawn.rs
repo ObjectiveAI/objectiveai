@@ -25,6 +25,30 @@ pub fn kill_pid(pid: u32) -> usize {
     }
 }
 
+/// Absolutize a relative exec *path* against `cwd`; keep bare names'
+/// PATH-lookup semantics. Shared by `tools run` and `plugins run`,
+/// whose manifest exec paths are relative to their version / `cli`
+/// folder (e.g. `./count-tool.exe`) — but on Windows `CreateProcess`
+/// resolves a relative program against the PARENT's cwd, not the
+/// child's `current_dir` (rust-lang/rust#37868), so the spawn would
+/// miss the binary entirely without this.
+///
+/// Path-vs-name is decided by `Path::components()`, which encodes
+/// the platform split for us:
+///   - Windows: `/` and `\` are both separators (and both illegal
+///     in file names), so either marks a path — 2+ components.
+///   - Unix: only `/` separates; `\` is a legal filename byte, so
+///     a program literally named `my\tool` stays a bare name —
+///     1 component — and still resolves via PATH.
+pub fn resolve_program(program: String, cwd: &Path) -> std::ffi::OsString {
+    let path = Path::new(&program);
+    if path.components().count() > 1 && path.is_relative() {
+        cwd.join(path).into_os_string()
+    } else {
+        program.into()
+    }
+}
+
 /// Lock-based background spawn shared by the four `* spawn` commands.
 ///
 /// A server's readiness signal is its lockfile: once its listener is
@@ -77,19 +101,35 @@ pub async fn spawn_until_lock_published(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
+    // Machine/toolchain identity that survives the env_clear — NOT
+    // inherited cli config. SYSTEMROOT: winsock (WSAStartup), and
+    // therefore every socket the servers bind, fails without it, as
+    // does the postmaster objectiveai-db launches. PATH + the
+    // cargo/rustup homes + HOME/TEMP: the dev/test `bin` entries are
+    // cargo-run shims (see `.objectiveai/bin/`), and cargo can't
+    // locate rustc, its caches, or a scratch dir without them.
+    const PRESERVED_ENV: &[&str] = &[
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "TEMP",
+        "TMP",
+        "TMPDIR",
+        "SYSTEMROOT",
+        "CARGO_HOME",
+        "RUSTUP_HOME",
+    ];
+    for key in PRESERVED_ENV {
+        if let Some(value) = std::env::var_os(key) {
+            cmd.env(key, value);
+        }
+    }
     #[cfg(windows)]
     {
         // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008)
         // — keep the spawned binary off the parent console and let it
         // outlive the cli.
         cmd.creation_flags(0x0800_0008);
-        // SYSTEMROOT survives the env_clear: winsock (WSAStartup) — and
-        // therefore every socket the servers bind — fails without it,
-        // as does the postmaster objectiveai-db launches. It's machine
-        // identity, not inherited cli config.
-        if let Some(system_root) = std::env::var_os("SYSTEMROOT") {
-            cmd.env("SYSTEMROOT", system_root);
-        }
     }
     configure(&mut cmd);
 

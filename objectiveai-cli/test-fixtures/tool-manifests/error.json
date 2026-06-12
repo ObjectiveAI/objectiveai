@@ -1,6 +1,0 @@
-{
-  "description": "E2E test fixture (errors)",
-  "version": "0.0.1",
-  "owner": "objectiveai",
-  "exec": "error-tool"
-}

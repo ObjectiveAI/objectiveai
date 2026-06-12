@@ -42,8 +42,8 @@ impl CommandRequest for Request {
 // list items deserialize as the same Rust type the bare-naked
 // dispatcher already constructs.
 pub use super::get::{
-    ResponseBinaries, ResponseHttpMethod, ResponseManifest as ResponseItem,
-    ResponseMcpServer, ResponseViewerRoute,
+    ResponseHttpMethod, ResponseManifest as ResponseItem, ResponseMcpServer,
+    ResponseViewerRoute,
 };
 
 #[derive(clap::Args)]

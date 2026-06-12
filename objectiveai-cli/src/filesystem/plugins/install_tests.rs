@@ -1,5 +1,5 @@
 use super::super::Client;
-use super::{InstallError, Manifest, Platform};
+use super::{InstallError, Manifest};
 use indexmap::IndexMap;
 use serde_json::json;
 use wiremock::matchers::{header, method, path};
@@ -16,56 +16,53 @@ fn cleanup(d: &std::path::Path) {
     let _ = std::fs::remove_dir_all(d);
 }
 
-fn binary_filename() -> &'static str {
-    if cfg!(windows) {
-        "plugin.exe"
-    } else {
-        "plugin"
-    }
-}
-
-/// The version directory an install writes to:
-/// `<base>/plugins/<owner>/<repository>/<version>`.
-fn version_dir(
-    base: &std::path::Path,
-    owner: &str,
-    repository: &str,
-    version: &str,
-) -> std::path::PathBuf {
-    base.join("plugins").join(owner).join(repository).join(version)
-}
-
-/// Serialize `Platform::current()` to its kebab-case wire form for
-/// constructing mock manifest bodies.
-fn current_platform_key() -> String {
-    let p =
-        Platform::current().expect("test requires a supported host platform");
-    serde_json::to_value(p)
-        .unwrap()
-        .as_str()
-        .unwrap()
-        .to_string()
-}
-
 fn client_for(base: &std::path::Path) -> Client {
-    Client::new(Some(base.to_path_buf()), None::<&str>, None::<&str>)
+    Client::new(
+        Some(base.to_path_buf()),
+        None::<String>,
+        None::<&str>,
+        None::<&str>,
+    )
 }
 
-const FAKE_BIN: &[u8] = b"FAKEBIN";
+/// The per-OS exec object the mock manifests declare. All three
+/// vectors must be present — the SDK `Exec` derives `Deserialize`
+/// without per-field defaults.
+fn exec_json() -> serde_json::Value {
+    json!({
+        "windows": ["./plugin.exe"],
+        "linux": ["./plugin"],
+        "macos": ["./plugin"]
+    })
+}
+
+/// Build a minimal in-memory zip containing one file.
+fn build_zip(file_name: &str, contents: &str) -> Vec<u8> {
+    use std::io::Write;
+    let mut buf = Vec::new();
+    {
+        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
+        let options: zip::write::SimpleFileOptions =
+            zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+        writer.start_file(file_name, options).unwrap();
+        writer.write_all(contents.as_bytes()).unwrap();
+        writer.finish().unwrap();
+    }
+    buf
+}
 
 #[tokio::test]
-async fn install_succeeds_when_platform_supported() {
+async fn install_succeeds_and_extracts_cli_zip() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": {
-            platform_key: "asset-bin"
-        }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -75,9 +72,10 @@ async fn install_succeeds_when_platform_supported() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "CLI PAYLOAD")),
         )
         .mount(&server)
         .await;
@@ -97,21 +95,12 @@ async fn install_succeeds_when_platform_supported() {
 
     assert!(matches!(result, Ok(true)), "got {result:?}");
 
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
-    let binary_path = dir.join(binary_filename());
-    assert!(binary_path.exists(), "binary missing at {binary_path:?}");
-    let bytes = std::fs::read(&binary_path).unwrap();
-    assert_eq!(bytes, FAKE_BIN);
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mode = std::fs::metadata(&binary_path)
-            .unwrap()
-            .permissions()
-            .mode();
-        assert!(mode & 0o111 != 0, "binary not executable, mode={mode:o}");
-    }
+    // The cli zip extracts into `<plugin dir>/cli/` — the exec working
+    // directory.
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
+    let extracted = dir.join("cli").join("main.txt");
+    assert!(extracted.exists(), "cli payload missing at {extracted:?}");
+    assert_eq!(std::fs::read_to_string(&extracted).unwrap(), "CLI PAYLOAD");
 
     // Manifest is persisted as a bare `Manifest` at
     // <plugins_dir>/<owner>/<repository>/<version>/objectiveai.json.
@@ -123,10 +112,14 @@ async fn install_succeeds_when_platform_supported() {
         manifest_path.exists(),
         "manifest missing at {manifest_path:?}"
     );
-    let manifest_bytes = std::fs::read(&manifest_path).unwrap();
     let persisted: Manifest =
-        serde_json::from_slice(&manifest_bytes).unwrap();
+        serde_json::from_slice(&std::fs::read(&manifest_path).unwrap())
+            .unwrap();
     assert_eq!(persisted.owner, "owner");
+    assert_eq!(persisted.cli_zip.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.exec.windows, vec!["./plugin.exe"]);
+    assert_eq!(persisted.exec.linux, vec!["./plugin"]);
+    assert_eq!(persisted.exec.macos, vec!["./plugin"]);
 
     // Read back through `get_plugin` to verify the derived `name`
     // (the `<repository>` path segment) and `source` (the file path).
@@ -142,15 +135,24 @@ async fn install_succeeds_when_platform_supported() {
 }
 
 #[tokio::test]
-async fn install_returns_false_when_platform_not_in_binaries() {
+async fn install_manifest_only_persists_just_the_manifest() {
+    // No cli_zip, no viewer source: the exec invokes PATH-resolved
+    // programs, so nothing besides objectiveai.json lands on disk.
+    // No release-asset mocks are registered — if install tried to
+    // fetch one anyway, wiremock would 404 and the install would
+    // error instead of returning Ok(true).
     let base = temp_base();
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
+        "description": "manifest-only plugin",
         "version": "1.0.0",
-        "owner": "claimed-owner"
-        // no binaries field → empty map → current platform absent
+        "owner": "claimed-owner",
+        "exec": {
+            "windows": ["python.exe", "-m", "plugin"],
+            "linux": ["python3", "-m", "plugin"],
+            "macos": ["python3", "-m", "plugin"]
+        }
     });
 
     Mock::given(method("GET"))
@@ -172,18 +174,14 @@ async fn install_returns_false_when_platform_not_in_binaries() {
         )
         .await;
 
-    assert!(matches!(result, Ok(false)), "got {result:?}");
-    // No binary was fetched → no plugin dir should have been created.
+    assert!(matches!(result, Ok(true)), "got {result:?}");
+
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
+    assert!(dir.join("objectiveai.json").exists());
+    assert!(!dir.join("cli").exists(), "no cli_zip → no cli/ dir");
     assert!(
-        !base.join("plugins").join("owner").join("repo").exists(),
-        "plugin dir should not exist when install returned false"
-    );
-    // No manifest persistence either when install short-circuits.
-    assert!(
-        !version_dir(&base, "owner", "repo", "1.0.0")
-            .join("objectiveai.json")
-            .exists(),
-        "manifest should not exist when install returned false"
+        !dir.join("viewer").exists(),
+        "no viewer source → no viewer/"
     );
 
     cleanup(&base);
@@ -193,13 +191,13 @@ async fn install_returns_false_when_platform_not_in_binaries() {
 async fn install_uses_commit_sha_when_provided() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -210,9 +208,10 @@ async fn install_uses_commit_sha_when_provided() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "x")),
         )
         .expect(1)
         .mount(&server)
@@ -276,16 +275,16 @@ async fn install_manifest_404_returns_manifest_bad_status_error() {
 }
 
 #[tokio::test]
-async fn install_binary_404_returns_binary_bad_status_error() {
+async fn install_cli_zip_404_returns_cli_zip_bad_status_error() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -295,7 +294,7 @@ async fn install_binary_404_returns_binary_bad_status_error() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(ResponseTemplate::new(404))
         .mount(&server)
         .await;
@@ -314,13 +313,68 @@ async fn install_binary_404_returns_binary_bad_status_error() {
         .await;
 
     match result {
-        Err(super::super::Error::Install(InstallError::BinaryBadStatus {
+        Err(super::super::Error::Install(InstallError::CliZipBadStatus {
             code,
             ..
         })) => {
             assert_eq!(code.as_u16(), 404);
         }
-        other => panic!("expected BinaryBadStatus(404), got {other:?}"),
+        other => panic!("expected CliZipBadStatus(404), got {other:?}"),
+    }
+
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn install_corrupt_cli_zip_returns_zip_extract_error() {
+    let base = temp_base();
+    let server = MockServer::start().await;
+
+    let manifest_body = json!({
+        "description": "test plugin",
+        "version": "1.0.0",
+        "owner": "claimed-owner",
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
+    });
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/HEAD/objectiveai.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
+        .mount(&server)
+        .await;
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
+        .respond_with(
+            ResponseTemplate::new(200)
+                .set_body_bytes(b"definitely not a zip".to_vec()),
+        )
+        .mount(&server)
+        .await;
+
+    let client = client_for(&base);
+    let result = client
+        .install_plugin_at(
+            &server.uri(),
+            &server.uri(),
+            "owner",
+            "repo",
+            None,
+            None,
+            false,
+        )
+        .await;
+
+    match result {
+        Err(super::super::Error::Install(InstallError::ZipExtract(
+            dir,
+            reason,
+        ))) => {
+            assert!(dir.ends_with("cli"), "got {dir:?}");
+            assert!(reason.contains("zip archive open"), "got {reason:?}");
+        }
+        other => panic!("expected ZipExtract, got {other:?}"),
     }
 
     cleanup(&base);
@@ -364,14 +418,14 @@ async fn install_malformed_manifest_returns_parse_error() {
 async fn fetch_plugin_manifest_returns_parsed_manifest() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.2.3",
         "owner": "claimed-owner",
         "author": "Wiggidy",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -393,7 +447,8 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
     // is where `owner` gets overwritten with the real URL owner.
     assert_eq!(manifest.owner, "claimed-owner");
     assert_eq!(manifest.author.as_deref(), Some("Wiggidy"));
-    assert_eq!(manifest.binaries.len(), 1);
+    assert_eq!(manifest.exec.linux, vec!["./plugin"]);
+    assert_eq!(manifest.cli_zip.as_deref(), Some("cli.zip"));
 
     cleanup(&base);
 }
@@ -402,18 +457,18 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
 async fn install_passes_headers_to_both_requests() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "test plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     // Both mocks require the header — if the SDK doesn't forward it,
     // wiremock falls through and returns 404 (which would surface as
-    // ManifestBadStatus / BinaryBadStatus).
+    // ManifestBadStatus / CliZipBadStatus).
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
         .and(header("authorization", "token abc"))
@@ -422,10 +477,11 @@ async fn install_passes_headers_to_both_requests() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .and(header("authorization", "token abc"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "x")),
         )
         .mount(&server)
         .await;
@@ -455,14 +511,14 @@ async fn install_passes_headers_to_both_requests() {
 async fn install_makes_plugin_appear_in_list() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "installed plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
         "author": "tester",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -472,9 +528,10 @@ async fn install_makes_plugin_appear_in_list() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "x")),
         )
         .mount(&server)
         .await;
@@ -505,9 +562,10 @@ async fn install_makes_plugin_appear_in_list() {
     assert_eq!(p.manifest.description, "installed plugin");
     assert_eq!(p.manifest.version, "1.0.0");
     assert_eq!(p.manifest.author.as_deref(), Some("tester"));
-    let expected_source =
-        format!("{}/owner/repo/HEAD/objectiveai.json", server.uri());
-    assert_eq!(p.source, expected_source);
+    let expected_source = client
+        .plugin_dir("owner", "repo", "1.0.0")
+        .join("objectiveai.json");
+    assert_eq!(p.source, expected_source.to_string_lossy());
 
     cleanup(&base);
 }
@@ -516,13 +574,13 @@ async fn install_makes_plugin_appear_in_list() {
 async fn install_then_get_plugin_returns_persisted_manifest() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "installed plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -532,9 +590,10 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "x")),
         )
         .mount(&server)
         .await;
@@ -562,7 +621,8 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
     assert_eq!(got.manifest.version, "1.0.0");
     assert_eq!(
         got.source,
-        version_dir(&base, "owner", "repo", "1.0.0")
+        client
+            .plugin_dir("owner", "repo", "1.0.0")
             .join("objectiveai.json")
             .to_string_lossy()
     );
@@ -570,33 +630,17 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
     cleanup(&base);
 }
 
-/// Build a minimal in-memory zip containing one `index.html` file.
-fn build_viewer_zip(html_contents: &str) -> Vec<u8> {
-    use std::io::Write;
-    let mut buf = Vec::new();
-    {
-        let mut writer = zip::ZipWriter::new(std::io::Cursor::new(&mut buf));
-        let options: zip::write::SimpleFileOptions =
-            zip::write::SimpleFileOptions::default()
-                .compression_method(zip::CompressionMethod::Stored);
-        writer.start_file("index.html", options).unwrap();
-        writer.write_all(html_contents.as_bytes()).unwrap();
-        writer.finish().unwrap();
-    }
-    buf
-}
-
 #[tokio::test]
 async fn install_extracts_viewer_zip_when_present() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "viewer plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" },
+        "exec": exec_json(),
+        "cli_zip": "cli.zip",
         "viewer_zip": "v.zip",
         "viewer_routes": [
             { "path": "/say", "method": "POST", "type": "say_request" }
@@ -610,18 +654,20 @@ async fn install_extracts_viewer_zip_when_present() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "CLI PAYLOAD")),
         )
         .mount(&server)
         .await;
 
-    let zip_bytes = build_viewer_zip("<!doctype html><title>hi</title>");
-
     Mock::given(method("GET"))
         .and(path("/owner/repo/releases/download/v1.0.0/v.zip"))
-        .respond_with(ResponseTemplate::new(200).set_body_bytes(zip_bytes))
+        .respond_with(ResponseTemplate::new(200).set_body_bytes(build_zip(
+            "index.html",
+            "<!doctype html><title>hi</title>",
+        )))
         .mount(&server)
         .await;
 
@@ -640,7 +686,7 @@ async fn install_extracts_viewer_zip_when_present() {
         .unwrap();
     assert!(ok);
 
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
     let viewer_index = dir.join("viewer").join("index.html");
     assert!(
         viewer_index.exists(),
@@ -651,6 +697,9 @@ async fn install_extracts_viewer_zip_when_present() {
         contents.contains("hi"),
         "unexpected viewer index: {contents:?}"
     );
+
+    // The cli zip extracted alongside, into its own folder.
+    assert!(dir.join("cli").join("main.txt").exists());
 
     // Manifest persistence (bare `Manifest`) still records the viewer
     // fields.
@@ -668,13 +717,13 @@ async fn install_extracts_viewer_zip_when_present() {
 async fn install_skips_viewer_zip_when_absent() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "no-viewer plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -684,9 +733,10 @@ async fn install_skips_viewer_zip_when_absent() {
         .await;
 
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip("main.txt", "x")),
         )
         .mount(&server)
         .await;
@@ -706,8 +756,7 @@ async fn install_skips_viewer_zip_when_absent() {
         .unwrap();
     assert!(ok);
 
-    let viewer_dir =
-        version_dir(&base, "owner", "repo", "1.0.0").join("viewer");
+    let viewer_dir = client.plugin_dir("owner", "repo", "1.0.0").join("viewer");
     assert!(
         !viewer_dir.exists(),
         "viewer dir should not exist for plugin without viewer_zip"
@@ -719,19 +768,18 @@ async fn install_skips_viewer_zip_when_absent() {
 #[tokio::test]
 async fn install_skips_viewer_zip_download_when_viewer_url_set() {
     // When the manifest declares `viewer_url` (and no `viewer_zip`),
-    // the install path should download the binary, persist the
-    // manifest with the URL, and NOT create `<plugin_dir>/viewer/`.
-    // No viewer-zip mock is registered — if install tries to fetch
-    // one, wiremock 404s and the test fails.
+    // the install path should persist the manifest with the URL and
+    // NOT create `<plugin_dir>/viewer/`. No release-asset mock is
+    // registered at all — if install tries to fetch one, wiremock
+    // 404s and the test fails.
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "url-viewer plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" },
+        "exec": exec_json(),
         "viewer_url": "https://plugin.example.com/index.html",
         "viewer_routes": [
             { "path": "/say", "method": "POST", "type": "say_request" }
@@ -744,14 +792,6 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
         .mount(&server)
         .await;
 
-    Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
-        )
-        .mount(&server)
-        .await;
-
     let client = client_for(&base);
     let ok = client
         .install_plugin_at(
@@ -767,7 +807,7 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
         .unwrap();
     assert!(ok);
 
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
     let viewer_dir = dir.join("viewer");
     assert!(
         !viewer_dir.exists(),
@@ -793,13 +833,12 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
 async fn install_rejects_manifest_with_both_viewer_sources() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "broken plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" },
+        "exec": exec_json(),
         "viewer_zip": "v.zip",
         "viewer_url": "https://plugin.example.com/"
     });
@@ -833,27 +872,18 @@ async fn install_rejects_manifest_with_both_viewer_sources() {
 async fn install_viewer_zip_404_returns_error() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
 
     let manifest_body = json!({
         "description": "broken viewer plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" },
+        "exec": exec_json(),
         "viewer_zip": "missing.zip"
     });
 
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
         .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
-        .mount(&server)
-        .await;
-
-    Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(FAKE_BIN.to_vec()),
-        )
         .mount(&server)
         .await;
 
@@ -892,44 +922,44 @@ async fn install_viewer_zip_404_returns_error() {
 // --upgrade flag behaviour
 // ============================================================
 
-/// Builds two mock endpoints (manifest + binary) that any install
-/// call hits. Returns (server, full manifest body) so the test can
-/// drive multiple installs against the same mock.
+/// Builds two mock endpoints (manifest + cli zip) that any install
+/// call hits. The cli zip contains a single `file_name` entry with
+/// `contents`.
 async fn upgrade_test_server(
     version: &str,
-    binary_body: &'static [u8],
-) -> (MockServer, serde_json::Value) {
+    file_name: &str,
+    contents: &str,
+) -> MockServer {
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
     let manifest_body = json!({
         "description": "upgrade test plugin",
         "version": version,
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
-        .respond_with(
-            ResponseTemplate::new(200).set_body_json(manifest_body.clone()),
-        )
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
         .mount(&server)
         .await;
     Mock::given(method("GET"))
         .and(path(format!(
-            "/owner/repo/releases/download/v{version}/asset-bin"
+            "/owner/repo/releases/download/v{version}/cli.zip"
         )))
         .respond_with(
-            ResponseTemplate::new(200).set_body_bytes(binary_body.to_vec()),
+            ResponseTemplate::new(200)
+                .set_body_bytes(build_zip(file_name, contents)),
         )
         .mount(&server)
         .await;
-    (server, manifest_body)
+    server
 }
 
 #[tokio::test]
 async fn install_refuses_when_manifest_exists_and_not_upgrade() {
     let base = temp_base();
-    let (server, _) = upgrade_test_server("1.0.0", FAKE_BIN).await;
+    let server = upgrade_test_server("1.0.0", "main.txt", "FIRST").await;
     let client = client_for(&base);
 
     // First install succeeds.
@@ -968,9 +998,10 @@ async fn install_refuses_when_manifest_exists_and_not_upgrade() {
     }
 
     // Disk state should match the first install (untouched by the refused second one).
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
-    let bin = std::fs::read(dir.join(binary_filename())).unwrap();
-    assert_eq!(bin, FAKE_BIN);
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
+    let payload =
+        std::fs::read_to_string(dir.join("cli").join("main.txt")).unwrap();
+    assert_eq!(payload, "FIRST");
     assert!(dir.join("objectiveai.json").exists());
 
     cleanup(&base);
@@ -982,7 +1013,7 @@ async fn install_upgrade_replaces_prior_artifacts() {
     let client = client_for(&base);
 
     // Install A at version 1.0.0.
-    let (server_a, _) = upgrade_test_server("1.0.0", b"VERSION_A_BIN").await;
+    let server_a = upgrade_test_server("1.0.0", "main.txt", "VERSION_A").await;
     client
         .install_plugin_at(
             &server_a.uri(),
@@ -997,7 +1028,7 @@ async fn install_upgrade_replaces_prior_artifacts() {
         .unwrap();
 
     // Install B at version 2.0.0 with --upgrade.
-    let (server_b, _) = upgrade_test_server("2.0.0", b"VERSION_B_BIN").await;
+    let server_b = upgrade_test_server("2.0.0", "main.txt", "VERSION_B").await;
     client
         .install_plugin_at(
             &server_b.uri(),
@@ -1011,11 +1042,13 @@ async fn install_upgrade_replaces_prior_artifacts() {
         .await
         .unwrap();
 
-    // Binary on disk now has B's body; manifest carries B's version.
-    // The new version lands in its own version dir (`repo/2.0.0/`).
-    let dir = version_dir(&base, "owner", "repo", "2.0.0");
-    let bin = std::fs::read(dir.join(binary_filename())).unwrap();
-    assert_eq!(bin, b"VERSION_B_BIN");
+    // The cli payload on disk now has B's body; manifest carries B's
+    // version. The new version lands in its own version dir
+    // (`repo/2.0.0/`).
+    let dir = client.plugin_dir("owner", "repo", "2.0.0");
+    let payload =
+        std::fs::read_to_string(dir.join("cli").join("main.txt")).unwrap();
+    assert_eq!(payload, "VERSION_B");
     let persisted: Manifest = serde_json::from_slice(
         &std::fs::read(dir.join("objectiveai.json")).unwrap(),
     )
@@ -1026,12 +1059,61 @@ async fn install_upgrade_replaces_prior_artifacts() {
 }
 
 #[tokio::test]
+async fn install_upgrade_replaces_cli_dir_in_place() {
+    // Same-version upgrade: the whole `cli/` DIRECTORY is removed
+    // before the new zip extracts, so stale files from the prior
+    // bundle don't linger.
+    let base = temp_base();
+    let client = client_for(&base);
+
+    let server_a = upgrade_test_server("1.0.0", "old.txt", "OLD").await;
+    client
+        .install_plugin_at(
+            &server_a.uri(),
+            &server_a.uri(),
+            "owner",
+            "repo",
+            None,
+            None,
+            false,
+        )
+        .await
+        .unwrap();
+
+    let server_b = upgrade_test_server("1.0.0", "new.txt", "NEW").await;
+    client
+        .install_plugin_at(
+            &server_b.uri(),
+            &server_b.uri(),
+            "owner",
+            "repo",
+            None,
+            None,
+            true,
+        )
+        .await
+        .unwrap();
+
+    let cli_dir = client.plugin_dir("owner", "repo", "1.0.0").join("cli");
+    assert_eq!(
+        std::fs::read_to_string(cli_dir.join("new.txt")).unwrap(),
+        "NEW"
+    );
+    assert!(
+        !cli_dir.join("old.txt").exists(),
+        "stale cli payload should have been removed with the cli/ dir"
+    );
+
+    cleanup(&base);
+}
+
+#[tokio::test]
 async fn install_upgrade_preserves_extra_data_under_plugin_dir() {
     let base = temp_base();
     let client = client_for(&base);
 
     // Install A.
-    let (server_a, _) = upgrade_test_server("1.0.0", FAKE_BIN).await;
+    let server_a = upgrade_test_server("1.0.0", "main.txt", "V1").await;
     client
         .install_plugin_at(
             &server_a.uri(),
@@ -1046,14 +1128,15 @@ async fn install_upgrade_preserves_extra_data_under_plugin_dir() {
         .unwrap();
 
     // Drop a "user-state" file under the plugin's version dir — the
-    // upgrade cleanup removes the binary/manifest/viewer but leaves
-    // extra entries untouched.
-    let user_state = version_dir(&base, "owner", "repo", "1.0.0")
+    // upgrade cleanup removes the cli/manifest/viewer entries but
+    // leaves extra entries untouched.
+    let user_state = client
+        .plugin_dir("owner", "repo", "1.0.0")
         .join("user-state.json");
     std::fs::write(&user_state, b"{\"runs\":42}").unwrap();
 
     // Upgrade (same version → same version dir is re-installed in place).
-    let (server_b, _) = upgrade_test_server("1.0.0", b"V2").await;
+    let server_b = upgrade_test_server("1.0.0", "main.txt", "V2").await;
     client
         .install_plugin_at(
             &server_b.uri(),
@@ -1077,7 +1160,7 @@ async fn install_upgrade_preserves_extra_data_under_plugin_dir() {
 #[tokio::test]
 async fn install_upgrade_with_no_prior_install_just_installs() {
     let base = temp_base();
-    let (server, _) = upgrade_test_server("1.0.0", FAKE_BIN).await;
+    let server = upgrade_test_server("1.0.0", "main.txt", "x").await;
     let client = client_for(&base);
 
     // upgrade=true on a fresh base — should still work, no prior state to delete.
@@ -1094,8 +1177,8 @@ async fn install_upgrade_with_no_prior_install_just_installs() {
         .await
         .unwrap();
     assert!(ok);
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
-    assert!(dir.join(binary_filename()).exists());
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
+    assert!(dir.join("cli").join("main.txt").exists());
     assert!(dir.join("objectiveai.json").exists());
 
     cleanup(&base);
@@ -1105,12 +1188,12 @@ async fn install_upgrade_with_no_prior_install_just_installs() {
 async fn install_network_failure_leaves_disk_untouched_on_fresh() {
     let base = temp_base();
     let server = MockServer::start().await;
-    let platform_key = current_platform_key();
     let manifest_body = json!({
         "description": "broken plugin",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
 
     Mock::given(method("GET"))
@@ -1119,7 +1202,7 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
         .mount(&server)
         .await;
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(ResponseTemplate::new(500))
         .mount(&server)
         .await;
@@ -1139,14 +1222,15 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
     assert!(matches!(
         result,
         Err(super::super::Error::Install(
-            InstallError::BinaryBadStatus { .. }
+            InstallError::CliZipBadStatus { .. }
         ))
     ));
 
     // Nothing on disk — the failure happened in the network phase before any writes.
-    assert!(!base.join("plugins").join("owner").join("repo").exists());
+    assert!(!client.plugins_dir().join("owner").join("repo").exists());
     assert!(
-        !version_dir(&base, "owner", "repo", "1.0.0")
+        !client
+            .plugin_dir("owner", "repo", "1.0.0")
             .join("objectiveai.json")
             .exists()
     );
@@ -1160,7 +1244,7 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
     let client = client_for(&base);
 
     // Install A successfully.
-    let (server_a, _) = upgrade_test_server("1.0.0", b"V1").await;
+    let server_a = upgrade_test_server("1.0.0", "main.txt", "V1").await;
     client
         .install_plugin_at(
             &server_a.uri(),
@@ -1174,16 +1258,16 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         .await
         .unwrap();
 
-    // Attempt upgrade (same version → same version dir) with a binary
-    // endpoint that 500s. The cleanup step deletes A's artifacts in
-    // that version dir before the failing fetch.
+    // Attempt upgrade (same version → same version dir) with a cli
+    // zip endpoint that 500s. The cleanup step deletes A's artifacts
+    // in that version dir before the failing fetch.
     let server_b = MockServer::start().await;
-    let platform_key = current_platform_key();
     let manifest_body = json!({
         "description": "broken upgrade",
         "version": "1.0.0",
         "owner": "claimed-owner",
-        "binaries": { platform_key: "asset-bin" }
+        "exec": exec_json(),
+        "cli_zip": "cli.zip"
     });
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
@@ -1191,7 +1275,7 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         .mount(&server_b)
         .await;
     Mock::given(method("GET"))
-        .and(path("/owner/repo/releases/download/v1.0.0/asset-bin"))
+        .and(path("/owner/repo/releases/download/v1.0.0/cli.zip"))
         .respond_with(ResponseTemplate::new(500))
         .mount(&server_b)
         .await;
@@ -1210,14 +1294,15 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
     assert!(matches!(
         result,
         Err(super::super::Error::Install(
-            InstallError::BinaryBadStatus { .. }
+            InstallError::CliZipBadStatus { .. }
         ))
     ));
 
-    // Documented trade-off: upgrade deleted A's artifacts (step 3) BEFORE
-    // the network fetch failed (step 4). The user must retry install.
-    let dir = version_dir(&base, "owner", "repo", "1.0.0");
-    assert!(!dir.join(binary_filename()).exists());
+    // Documented trade-off: upgrade deleted A's artifacts (the cli/
+    // dir, viewer/, and the manifest) BEFORE the network fetch failed.
+    // The user must retry install.
+    let dir = client.plugin_dir("owner", "repo", "1.0.0");
+    assert!(!dir.join("cli").exists());
     assert!(!dir.join("objectiveai.json").exists());
 
     cleanup(&base);
@@ -1246,8 +1331,14 @@ async fn install_refuses_reserved_repository_name() {
         }
         other => panic!("expected ReservedRepositoryName, got {other:?}"),
     }
-    assert!(!base.join("plugins").join("owner").join("objectiveai").exists());
-    assert!(!base.join("plugins").join("objectiveai.json").exists());
+    assert!(
+        !client
+            .plugins_dir()
+            .join("owner")
+            .join("objectiveai")
+            .exists()
+    );
+    assert!(!client.plugins_dir().join("objectiveai.json").exists());
     cleanup(&base);
 }
 
@@ -1277,5 +1368,99 @@ async fn install_refuses_reserved_repository_name_case_insensitive() {
             "expected ReservedRepositoryName for {candidate:?}",
         );
     }
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn install_rejects_invalid_identifiers() {
+    // Identifier shape checks run before any network traffic — the
+    // example.invalid bases are never dialed.
+    let base = temp_base();
+    let client = client_for(&base);
+    let cases: [(&str, &str, Option<&str>, &str); 4] = [
+        ("bad owner", "repo", None, "owner"),
+        ("", "repo", None, "owner"),
+        ("owner", "bad/repo", None, "repository"),
+        ("owner", "repo", Some("no spaces"), "commit"),
+    ];
+    for (owner, repo, sha, expected_kind) in cases {
+        let result = client
+            .install_plugin_at(
+                "http://example.invalid",
+                "http://example.invalid",
+                owner,
+                repo,
+                sha,
+                None,
+                false,
+            )
+            .await;
+        match result {
+            Err(super::super::Error::Install(
+                InstallError::InvalidIdentifier { kind, .. },
+            )) => {
+                assert_eq!(
+                    kind, expected_kind,
+                    "for ({owner:?}, {repo:?}, {sha:?})"
+                );
+            }
+            other => panic!(
+                "expected InvalidIdentifier({expected_kind}) for \
+                 ({owner:?}, {repo:?}, {sha:?}), got {other:?}"
+            ),
+        }
+    }
+    cleanup(&base);
+}
+
+#[tokio::test]
+async fn install_rejects_tool_name_over_budget() {
+    // The tool name materializes from the MANIFEST's claimed owner
+    // (`{owner}-{name}-{version}` with `.` -> `-`); the budget check
+    // runs before any disk write. 95 + 1 + 4 + 1 + 5 = 106 > 100.
+    let base = temp_base();
+    let server = MockServer::start().await;
+    let claimed_owner = "x".repeat(95);
+
+    let manifest_body = json!({
+        "description": "overlong plugin",
+        "version": "1.0.0",
+        "owner": claimed_owner,
+        "exec": exec_json()
+    });
+
+    Mock::given(method("GET"))
+        .and(path("/owner/repo/HEAD/objectiveai.json"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
+        .mount(&server)
+        .await;
+
+    let client = client_for(&base);
+    let result = client
+        .install_plugin_at(
+            &server.uri(),
+            &server.uri(),
+            "owner",
+            "repo",
+            None,
+            None,
+            false,
+        )
+        .await;
+
+    match result {
+        Err(super::super::Error::Install(InstallError::ToolNameTooLong {
+            tool_name,
+            len,
+        })) => {
+            assert_eq!(len, 106);
+            assert!(tool_name.ends_with("-repo-1-0-0"), "got {tool_name:?}");
+        }
+        other => panic!("expected ToolNameTooLong, got {other:?}"),
+    }
+
+    // Nothing persisted — the budget check precedes all disk writes.
+    assert!(!client.plugins_dir().exists());
+
     cleanup(&base);
 }

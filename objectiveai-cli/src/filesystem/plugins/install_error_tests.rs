@@ -15,22 +15,22 @@ fn install_error_display_strings_are_useful() {
     assert!(s.contains("objectiveai.json"), "{s}");
     assert!(s.contains("Not Found"), "{s}");
 
-    let e = InstallError::BinaryBadStatus {
+    let e = InstallError::CliZipBadStatus {
         code: reqwest::StatusCode::FORBIDDEN,
-        url: "https://github.com/o/r/releases/download/v1.0.0/myplugin"
+        url: "https://github.com/o/r/releases/download/v1.0.0/myplugin-cli.zip"
             .to_string(),
     };
     let s = e.to_string();
     assert!(s.contains("403"), "{s}");
-    assert!(s.contains("myplugin"), "{s}");
+    assert!(s.contains("myplugin-cli.zip"), "{s}");
 
-    let e = InstallError::BinaryWrite(
-        PathBuf::from("/tmp/oai/plugins/r/plugin"),
-        std::io::Error::other("disk full"),
+    let e = InstallError::ZipExtract(
+        PathBuf::from("/tmp/oai/plugins/o/r/1.0.0/cli"),
+        "zip archive open: invalid Zip archive".to_string(),
     );
     let s = e.to_string();
-    assert!(s.contains("plugin"), "{s}");
-    assert!(s.contains("disk full"), "{s}");
+    assert!(s.contains("cli"), "{s}");
+    assert!(s.contains("invalid Zip archive"), "{s}");
 
     let e = InstallError::InvalidHeaderName {
         name: "bad name!".to_string(),

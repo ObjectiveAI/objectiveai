@@ -926,7 +926,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::plugins::get::request_schema::Request),
         schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Path),
         schemars::schema_for!(crate::cli::command::plugins::get::response_schema::Request),
-        schemars::schema_for!(crate::cli::command::plugins::get::ResponseBinaries),
         schemars::schema_for!(crate::cli::command::plugins::get::ResponseHttpMethod),
         schemars::schema_for!(crate::cli::command::plugins::get::ResponseManifest),
         schemars::schema_for!(crate::cli::command::plugins::get::ResponseMcpServer),

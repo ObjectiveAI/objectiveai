@@ -87,7 +87,7 @@ reaches the plugin's `main()` as `argv = ["psyops", "--topic", "wave physics", "
 
 ## The dispatch protocol
 
-When the host dispatches your plugin, it spawns the binary at `<plugins_dir>/<repo>/plugin[.exe]` with:
+When the host dispatches your plugin, it runs the manifest's per-OS `exec` command with CWD = `<plugin_dir>/cli/` and:
 
 - **argv** = `[binary_path, ...trailing_args]` (the same args the user typed).
 - **stdin** = `/dev/null` (no stdin protocol yet).
@@ -126,7 +126,7 @@ After `objectiveai plugins install --owner X --repository my-plugin`:
 <plugins_dir>/                        (~/.objectiveai/plugins on Unix)
 ├── my-plugin.json                    ← persisted ManifestWithNameAndSource (name + source URL + manifest)
 └── my-plugin/
-    ├── plugin                        ← native binary (plugin.exe on Windows; 0o755 on Unix)
+    ├── cli/                          ← exec working directory (cli_zip extracted here)
     ├── viewer/                       ← optional, only if viewer_zip declared
     │   ├── index.html
     │   └── assets/…
@@ -134,6 +134,6 @@ After `objectiveai plugins install --owner X --repository my-plugin`:
                                         (preserved across `--upgrade`)
 ```
 
-The cli's `resolve_plugin(name)` function looks at `<plugins_dir>/<name>/plugin[.exe]` for the dispatch target. The sibling `<name>.json` is what `plugins list` / `plugins get` consume.
+The cli's `resolve_plugin` function returns the manifest's platform exec vector plus the `cli/` working directory for dispatch. The persisted manifest is what `plugins list` / `plugins get` consume.
 
 Both files are tracked as "install data"; everything else under `<my-plugin>/` is "extra data" the plugin's runtime is welcome to use for state. `--upgrade` deletes the install data only.

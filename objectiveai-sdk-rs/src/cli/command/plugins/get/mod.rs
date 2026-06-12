@@ -57,8 +57,20 @@ pub struct ResponseManifest {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub license: Option<String>,
-    #[serde(default, skip_serializing_if = "ResponseBinaries::is_empty")]
-    pub binaries: ResponseBinaries,
+    /// Per-OS exec argv for the plugin's cli side, run with CWD =
+    /// `<plugin dir>/cli/` — the same shape tools use. Empty when
+    /// the plugin is viewer-only.
+    #[serde(
+        default,
+        skip_serializing_if = "crate::cli::command::tools::get::Exec::is_empty"
+    )]
+    pub exec: crate::cli::command::tools::get::Exec,
+    /// GitHub-release asset filename for the plugin's cli bundle — a
+    /// zip extracted into `<plugin dir>/cli/` at install time, like
+    /// `viewer_zip` → `viewer/`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub cli_zip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_zip: Option<String>,
@@ -72,40 +84,6 @@ pub struct ResponseManifest {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<ResponseMcpServer>,
     pub source: String,
-}
-
-#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.get.ResponseBinaries")]
-pub struct ResponseBinaries {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub linux_x86_64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub linux_aarch64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub windows_x86_64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub windows_aarch64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub macos_x86_64: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub macos_aarch64: Option<String>,
-}
-
-impl ResponseBinaries {
-    fn is_empty(&self) -> bool {
-        self.linux_x86_64.is_none()
-            && self.linux_aarch64.is_none()
-            && self.windows_x86_64.is_none()
-            && self.windows_aarch64.is_none()
-            && self.macos_x86_64.is_none()
-            && self.macos_aarch64.is_none()
-    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

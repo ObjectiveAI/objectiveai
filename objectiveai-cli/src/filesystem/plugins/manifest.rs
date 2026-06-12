@@ -1,7 +1,7 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use super::Platform;
+use crate::filesystem::tools::Exec;
 
 /// Declarative metadata a plugin ships with itself. The wire shape is
 /// JSON; the on-disk convention (sibling file, embedded resource,
@@ -39,22 +39,25 @@ pub struct Manifest {
     #[schemars(extend("omitempty" = true))]
     pub license: Option<String>,
 
-    /// Release-asset filename per platform — what the cli should
-    /// download from the GitHub release tagged `v<version>` to install
-    /// the plugin's binary on each platform. Values are filenames
-    /// (e.g. `psyops-linux-x86_64`, `psyops-windows-x86_64.exe`), NOT
-    /// URLs; the URL is composed from the repository + tag + asset
-    /// name elsewhere.
-    ///
-    /// **Every platform field is optional.** Declare entries only for
-    /// the platforms this plugin actually ships a binary for; absent
-    /// platforms are simply not supported by this release. A plugin
-    /// shipping only Linux x86_64 declares one entry; a plugin
-    /// shipping all six declares six. All-None ↔ field omitted in
-    /// the wire shape.
-    #[serde(default, skip_serializing_if = "Binaries::is_empty")]
+    /// Per-OS exec command for the plugin's cli side — the same shape
+    /// tools use. The current platform's vector is the program plus
+    /// its leading arguments; the run's args are appended, and the
+    /// whole thing runs with CWD = `<plugin dir>/cli/`. Relative
+    /// program paths resolve against that folder; bare names keep
+    /// PATH-lookup semantics. Empty when the plugin is viewer-only.
+    #[serde(default, skip_serializing_if = "Exec::is_empty")]
     #[schemars(extend("omitempty" = true))]
-    pub binaries: Binaries,
+    pub exec: Exec,
+
+    /// GitHub-release asset filename for the plugin's cli bundle — a
+    /// `.zip` whose contents are extracted into `<plugin dir>/cli/`
+    /// at install time (the [`Self::exec`] working directory), the
+    /// same way [`Self::viewer_zip`] extracts to `viewer/`. Absent
+    /// when the exec needs nothing on disk (e.g. it invokes a
+    /// PATH-resolved program).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub cli_zip: Option<String>,
 
     /// GitHub-release asset filename for the plugin's viewer UI
     /// bundle (a `.zip` whose root contains `index.html` plus
@@ -198,83 +201,6 @@ fn validate_viewer_url(url: &str) -> Result<(), &'static str> {
     Err("viewer_url must use https:// or http://localhost / http://127.0.0.1")
 }
 
-/// Release-asset filename per platform. Every field is optional;
-/// declare only the platforms a plugin ships for. The wire shape is
-/// a flat JSON object — absent platforms are omitted, never
-/// serialised as `null`.
-///
-/// Exposes a [`Self::get`] method that takes a [`Platform`] enum so
-/// callers can read the asset filename for the current host without
-/// pattern-matching the field set themselves.
-#[derive(
-    Debug, Clone, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq,
-)]
-#[schemars(rename = "filesystem.plugins.Binaries")]
-pub struct Binaries {
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub linux_x86_64: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub linux_aarch64: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub windows_x86_64: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub windows_aarch64: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub macos_x86_64: Option<String>,
-
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub macos_aarch64: Option<String>,
-}
-
-impl Binaries {
-    /// Asset filename for the given platform, if declared.
-    pub fn get(&self, platform: Platform) -> Option<&String> {
-        match platform {
-            Platform::LinuxX86_64 => self.linux_x86_64.as_ref(),
-            Platform::LinuxAarch64 => self.linux_aarch64.as_ref(),
-            Platform::WindowsX86_64 => self.windows_x86_64.as_ref(),
-            Platform::WindowsAarch64 => self.windows_aarch64.as_ref(),
-            Platform::MacosX86_64 => self.macos_x86_64.as_ref(),
-            Platform::MacosAarch64 => self.macos_aarch64.as_ref(),
-        }
-    }
-
-    /// True when no platform has an asset declared.
-    pub fn is_empty(&self) -> bool {
-        self.linux_x86_64.is_none()
-            && self.linux_aarch64.is_none()
-            && self.windows_x86_64.is_none()
-            && self.windows_aarch64.is_none()
-            && self.macos_x86_64.is_none()
-            && self.macos_aarch64.is_none()
-    }
-
-    /// Count of declared platforms.
-    pub fn len(&self) -> usize {
-        [
-            &self.linux_x86_64,
-            &self.linux_aarch64,
-            &self.windows_x86_64,
-            &self.windows_aarch64,
-            &self.macos_x86_64,
-            &self.macos_aarch64,
-        ]
-        .iter()
-        .filter(|o| o.is_some())
-        .count()
-    }
-}
-
 /// MCP server entry inside [`Manifest::mcp_servers`]. Same `url` +
 /// `authorization` semantics as [`objectiveai_sdk::agent::McpServer`] plus a
 /// `name` field that agent declarations reference (via
@@ -368,16 +294,16 @@ impl ManifestWithNameAndSource {
 // Typed conversion to the SDK's bare-naked wire shape. Lets the
 // `command::plugins::{get, list}` leaves yield SDK `ResponseManifest`
 // items without round-tripping through `serde_json::Value`. The
-// inner type parallels (`Binaries`/`ResponseBinaries`,
-// `ViewerRoute`/`ResponseViewerRoute`, `McpServer`/`ResponseMcpServer`,
-// `HttpMethod`/`ResponseHttpMethod`) are field-identical — collapsing
-// them into shared types is a separate cleanup pass.
+// inner type parallels (`ViewerRoute`/`ResponseViewerRoute`,
+// `McpServer`/`ResponseMcpServer`, `HttpMethod`/`ResponseHttpMethod`)
+// are field-identical — collapsing them into shared types is a
+// separate cleanup pass. `exec` is the SDK type already.
 impl From<ManifestWithNameAndSource>
     for objectiveai_sdk::cli::command::plugins::get::ResponseManifest
 {
     fn from(m: ManifestWithNameAndSource) -> Self {
         use objectiveai_sdk::cli::command::plugins::get::{
-            ResponseBinaries, ResponseHttpMethod, ResponseManifest, ResponseMcpServer,
+            ResponseHttpMethod, ResponseManifest, ResponseMcpServer,
             ResponseViewerRoute,
         };
         let manifest = m.manifest;
@@ -389,14 +315,8 @@ impl From<ManifestWithNameAndSource>
             author: manifest.author,
             homepage: manifest.homepage,
             license: manifest.license,
-            binaries: ResponseBinaries {
-                linux_x86_64: manifest.binaries.linux_x86_64,
-                linux_aarch64: manifest.binaries.linux_aarch64,
-                windows_x86_64: manifest.binaries.windows_x86_64,
-                windows_aarch64: manifest.binaries.windows_aarch64,
-                macos_x86_64: manifest.binaries.macos_x86_64,
-                macos_aarch64: manifest.binaries.macos_aarch64,
-            },
+            exec: manifest.exec,
+            cli_zip: manifest.cli_zip,
             viewer_zip: manifest.viewer_zip,
             viewer_url: manifest.viewer_url,
             viewer_routes: manifest

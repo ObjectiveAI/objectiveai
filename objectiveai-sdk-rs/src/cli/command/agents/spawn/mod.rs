@@ -40,7 +40,6 @@ pub enum Path {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.spawn.AgentSpec")]
 pub enum AgentSpec {
-    #[schemars(title = "Resolved")]
     Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
 }
 

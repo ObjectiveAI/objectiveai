@@ -11,8 +11,10 @@ For component-specific details after reading this overview:
 
 A plugin is a GitHub repository that ships:
 
-- A `objectiveai.json` **manifest** at the repo root.
-- One or more **native binaries** as release assets (one per platform you support).
+- A `objectiveai.json` **manifest** at the repo root, declaring a
+  per-OS **`exec` command** the host runs for the plugin's CLI side.
+- *Optionally* a **cli bundle** as a release asset (a zip extracted into
+  the plugin's `cli/` folder — the exec working directory).
 - *Optionally* a **viewer bundle** as a release asset (a zip with `index.html` + assets that renders inside the viewer's iframe sandbox).
 
 The host viewer and CLI consume them like this:
@@ -20,12 +22,12 @@ The host viewer and CLI consume them like this:
 ```
 GitHub repo                         Local installation
 ─────────                           ─────────────────────────────────────
-objectiveai.json   ────install─►   <plugins_dir>/<repo>.json          ← manifest
-binaries[platform] ────install─►   <plugins_dir>/<repo>/plugin[.exe]   ← CLI dispatch target
-viewer_zip         ────install─►   <plugins_dir>/<repo>/viewer/        ← viewer UI bundle
+objectiveai.json   ────install─►   <plugin_dir>/objectiveai.json   ← manifest (carries exec)
+cli_zip            ────install─►   <plugin_dir>/cli/               ← exec CWD / payload
+viewer_zip         ────install─►   <plugin_dir>/viewer/            ← viewer UI bundle
 
 Then:
-  CLI: `objectiveai <repo> <args>`            → spawns plugin[.exe], pipes JSONL
+  CLI: `objectiveai plugins run …`            → runs exec[platform] with CWD=cli/, pipes JSONL
   Viewer: tab appears for plugins with        → iframe loads
           viewer_zip; routes register on        plugin://localhost/<repo>/index.html
           the embedded axum server
@@ -45,12 +47,12 @@ Plugins are **content-addressed by repository** — the name a plugin lives unde
   "homepage":     "https://github.com/you/repo",
   "license":      "MIT",
 
-  "binaries": {
-    "linux_x86_64":    "my-plugin-linux-x86_64",
-    "linux_aarch64":   "my-plugin-linux-aarch64",
-    "windows_x86_64":  "my-plugin-windows-x86_64.exe",
-    "macos_aarch64":   "my-plugin-macos-aarch64"
+  "exec": {
+    "windows": ["./my-plugin.exe"],
+    "linux":   ["./my-plugin"],
+    "macos":   ["./my-plugin"]
   },
+  "cli_zip": "my-plugin-cli.zip",
 
   "viewer_zip": "my-plugin-viewer.zip",
 
@@ -69,7 +71,8 @@ Field-by-field:
 | `description` | string | Required. One-line summary. |
 | `version` | string | Required. Used to construct the release-asset URLs (`releases/download/v<version>/<asset>`). Semver recommended; not enforced. |
 | `author` / `homepage` / `license` | string | Optional metadata. |
-| `binaries` | map | Platform → asset filename. Keys are `<os>_<arch>` (`linux_x86_64`, `linux_aarch64`, `windows_x86_64`, `windows_aarch64`, `macos_x86_64`, `macos_aarch64`). Every key is optional — only declare platforms you ship for. |
+| `exec` | object | Per-OS argv (`windows` / `linux` / `macos`, each an array: program + leading args). The host appends the run's args and executes with CWD = the plugin's `cli/` folder; relative program paths resolve against it, bare names use PATH lookup. Omit for viewer-only plugins. |
+| `cli_zip` | string | Asset filename for the cli bundle — a zip extracted into `cli/` at install time. Omit when the exec needs nothing on disk (e.g. it invokes a PATH-resolved program). |
 | `viewer_zip` | string | Asset filename for the UI bundle. Omit if the plugin is CLI-only. |
 | `viewer_routes` | array | HTTP routes the viewer exposes on this plugin's behalf. See [Viewer plugins reference](objectiveai-viewer/PLUGINS.md). |
 | `mobile_ready` | bool | Opt-in flag for iOS/Android viewer builds. Future feature; default false. |
@@ -80,13 +83,13 @@ The canonical schema lives in [`objectiveai-rs/src/filesystem/plugins/manifest.r
 
 1. **Create a public GitHub repo** under your org or user. The repo name becomes the plugin's identifier on disk.
 
-2. **Build a CLI binary** that speaks the JSONL protocol on stdin/stdout. See the [CLI plugins reference](objectiveai-cli/PLUGINS.md) for the wire format. The smallest possible compliant plugin lives at [`objectiveai-cli/test-fixtures/hello-plugin/`](objectiveai-cli/test-fixtures/hello-plugin/) (~10 lines of Rust).
+2. **Build a CLI program** that speaks the JSONL protocol on stdin/stdout, and declare how to launch it in the manifest's `exec`. See the [CLI plugins reference](objectiveai-cli/PLUGINS.md) for the wire format. The smallest possible compliant plugin lives at [`.objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli/`](.objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli/) (~10 lines of Rust, exec'd via `cargo run`).
 
 3. **(Optional) Build a viewer bundle.** A static `dist/` from your favourite frontend stack (vite, plain HTML, anything). Use [`@objectiveai/viewer-sdk`](objectiveai-viewer-sdk/)'s `listen()` to receive events from the host. See the [viewer plugins reference](objectiveai-viewer/PLUGINS.md).
 
 4. **Write `objectiveai.json`** at your repo root with the fields above.
 
-5. **Cut a GitHub release** tagged `v<version>` (matching the manifest's `version`). Upload binaries + the viewer zip as release assets named exactly as the manifest declares.
+5. **Cut a GitHub release** tagged `v<version>` (matching the manifest's `version`). Upload the cli zip + the viewer zip as release assets named exactly as the manifest declares.
 
 6. **Test the install**:
    ```bash
@@ -99,7 +102,7 @@ The canonical schema lives in [`objectiveai-rs/src/filesystem/plugins/manifest.r
 Plugins are fetched from GitHub Releases. The host follows this URL convention:
 
 - Manifest: `https://raw.githubusercontent.com/<owner>/<repo>/<commit-or-HEAD>/objectiveai.json`
-- Binaries / viewer-zip: `https://github.com/<owner>/<repo>/releases/download/v<version>/<asset-name>`
+- Cli-zip / viewer-zip: `https://github.com/<owner>/<repo>/releases/download/v<version>/<asset-name>`
 
 The CLI ships with an install **whitelist**. By default, only repos under the `ObjectiveAI` GitHub org (case-insensitive) are installable; everything else requires the `--allow-untrusted` flag, which emits a `warn`-level notification at install time documenting that the plugin is unverified.
 
@@ -117,7 +120,7 @@ objectiveai plugins install --owner third-party --repository thing --allow-untru
 # Pin to a specific commit (otherwise the default branch is used).
 objectiveai plugins install --owner ObjectiveAI --repository my-plugin --commit-sha <sha>
 
-# Replace an already-installed plugin (binary + viewer + manifest are
+# Replace an already-installed plugin (cli/ + viewer/ + manifest are
 # rewritten; extra runtime data under <repo>/ is preserved).
 objectiveai plugins install --owner ObjectiveAI --repository my-plugin --upgrade
 ```
