@@ -4335,6 +4335,7 @@ version = "2.1.2"
 dependencies = [
  "dirs",
  "nix 0.29.0",
+ "objectiveai-sdk",
  "postgresql_embedded",
  "tokio",
  "windows-sys 0.59.0",
