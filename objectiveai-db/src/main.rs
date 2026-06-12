@@ -17,8 +17,9 @@
 //!    archive if still needed, then EXPLICITLY release the lock.
 //! 2. **initdb** (per state, once): create the cluster at
 //!    `<dir>/state/<state>/db` if it doesn't exist.
-//! 3. **Spawn postgres** as a direct child on the resolved port —
-//!    `PORT` env if given, otherwise a RANDOM free port.
+//! 3. **Spawn postgres** as a direct child on 127.0.0.1 and a
+//!    RANDOM free port — localhost exclusively; nothing is
+//!    configurable about the bind.
 //! 4. **Fast-acquire the state lock**: `<dir>/state/<state>/locks`
 //!    key `db`, publishing the full connection string (including
 //!    the random port). Failure means another objectiveai-db
@@ -27,94 +28,61 @@
 //!    child forever. Lock release and postmaster death both happen
 //!    at process exit, however it happens.
 //!
-//! Environment (all optional):
+//! Configuration is clap arguments EXCLUSIVELY — no environment
+//! variables. All three are required, and they are the only
+//! arguments:
 //!
-//!   OBJECTIVEAI_DIR    layout root (default `~/.objectiveai`). The
-//!                      postgres binaries extract ONCE per machine
-//!                      to `<dir>/bin/pg-bin/`, shared by every
-//!                      state.
-//!   OBJECTIVEAI_STATE  state name (default `default`). The cluster
-//!                      lives at `<dir>/state/<state>/db/`, password
-//!                      file at `<dir>/state/<state>/.pgpass` — one
-//!                      database per state.
-//!   ADDRESS            bind address (default `127.0.0.1`)
-//!   PORT               bind port (default `0` = a random free port;
-//!                      the actual port is published in the state
-//!                      lock's connection string)
-//!   PASSWORD           superuser password the cluster is initdb'd
-//!                      with (default `objectiveai`). Only applied
-//!                      on the FIRST initdb of a data dir — an
-//!                      existing cluster keeps the password it was
-//!                      created with.
+//!   --objectiveai-dir <PATH>    layout root. The postgres binaries
+//!                               extract ONCE per machine to
+//!                               `<dir>/bin/pg-bin/`, shared by
+//!                               every state.
+//!   --objectiveai-state <NAME>  state name. The cluster lives at
+//!                               `<dir>/state/<state>/db/`, password
+//!                               file at
+//!                               `<dir>/state/<state>/.pgpass` —
+//!                               one database per state.
+//!   --pg-password <PW>          superuser password the cluster is
+//!                               initdb'd with. Only applied on the
+//!                               FIRST initdb of a data dir — an
+//!                               existing cluster keeps the password
+//!                               it was created with.
 
+use clap::Parser;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-struct Env {
-    /// `OBJECTIVEAI_DIR` — the layout root.
-    dir: PathBuf,
-    /// `OBJECTIVEAI_STATE` — the state name.
-    state: String,
-    address: String,
-    /// `0` = pick a random free port at spawn time.
-    port: u16,
-    password: String,
+/// ObjectiveAI database server — a resident supervisor around
+/// embedded PostgreSQL. Binds 127.0.0.1 on a random free port and
+/// publishes the connection string in the state's db lock.
+#[derive(Parser)]
+#[command(name = "objectiveai-db", version)]
+struct Args {
+    /// Layout root; the postgres install is shared at <dir>/bin/pg-bin.
+    #[arg(long)]
+    objectiveai_dir: PathBuf,
+    /// State name; the cluster lives at <dir>/state/<state>/db.
+    #[arg(long)]
+    objectiveai_state: String,
+    /// Superuser password (applied on the first initdb only).
+    #[arg(long)]
+    pg_password: String,
 }
 
-impl Env {
+impl Args {
     fn bin_dir(&self) -> PathBuf {
-        self.dir.join("bin")
+        self.objectiveai_dir.join("bin")
     }
 
     fn state_dir(&self) -> PathBuf {
-        self.dir.join("state").join(&self.state)
+        self.objectiveai_dir
+            .join("state")
+            .join(&self.objectiveai_state)
     }
-}
-
-fn read_env() -> Result<Env, String> {
-    let dir = match std::env::var("OBJECTIVEAI_DIR") {
-        Ok(v) if !v.trim().is_empty() => PathBuf::from(v),
-        _ => dirs::home_dir()
-            .ok_or("OBJECTIVEAI_DIR unset and no home directory found")?
-            .join(".objectiveai"),
-    };
-    let state = match std::env::var("OBJECTIVEAI_STATE") {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => "default".to_string(),
-    };
-    let address = match std::env::var("ADDRESS") {
-        Ok(v) if !v.trim().is_empty() => v,
-        _ => "127.0.0.1".to_string(),
-    };
-    let port = match std::env::var("PORT") {
-        Ok(v) if !v.trim().is_empty() => v
-            .trim()
-            .parse::<u16>()
-            .map_err(|e| format!("PORT {v:?} is not a valid port: {e}"))?,
-        _ => 0,
-    };
-    let password = match std::env::var("PASSWORD") {
-        Ok(v) if !v.is_empty() => v,
-        _ => "objectiveai".to_string(),
-    };
-    Ok(Env {
-        dir,
-        state,
-        address,
-        port,
-        password,
-    })
 }
 
 #[tokio::main]
 async fn main() {
-    let env = match read_env() {
-        Ok(env) => env,
-        Err(e) => {
-            eprintln!("error: {e}");
-            std::process::exit(1);
-        }
-    };
+    let env = Args::parse();
     match run(&env).await {
         Ok(code) => std::process::exit(code),
         Err(e) => {
@@ -124,14 +92,14 @@ async fn main() {
     }
 }
 
-async fn run(env: &Env) -> Result<i32, String> {
+async fn run(env: &Args) -> Result<i32, String> {
     ensure_installed(env).await?;
     ensure_initdb(env).await?;
 
-    let port = resolve_port(env)?;
+    let port = free_port()?;
     let mut child = spawn_postgres(env, port)?;
 
-    if let Err(e) = wait_ready(env, port, &mut child).await {
+    if let Err(e) = wait_ready(port, &mut child).await {
         let _ = child.kill().await;
         return Err(e);
     }
@@ -158,7 +126,7 @@ async fn run(env: &Env) -> Result<i32, String> {
     // (`spawn_and_wait_for_listening` matches on "listening",
     // case-insensitive) — same protocol as objectiveai-api and
     // objectiveai-viewer.
-    eprintln!("listening on {}:{port}", env.address);
+    eprintln!("listening on 127.0.0.1:{port}");
 
     // Resident from here on: live exactly as long as the postmaster.
     let status = child
@@ -180,7 +148,7 @@ async fn run(env: &Env) -> Result<i32, String> {
 /// extract (crash/AV interruption mid-write) would otherwise be
 /// silently accepted forever. Missing marker + existing dir ⇒ wipe
 /// and re-extract.
-async fn ensure_installed(env: &Env) -> Result<(), String> {
+async fn ensure_installed(env: &Args) -> Result<(), String> {
     let install_dir = env.bin_dir().join("pg-bin");
     let marker = install_dir.join(".objectiveai-complete");
     // 1. Installed? Done.
@@ -224,7 +192,7 @@ async fn ensure_installed(env: &Env) -> Result<(), String> {
 /// `pg.setup()` with a scratch data dir (extract + a throwaway
 /// initdb that is deleted by the caller).
 async fn extract_install(
-    env: &Env,
+    env: &Args,
     install_dir: &Path,
     scratch: &Path,
 ) -> Result<(), String> {
@@ -233,7 +201,7 @@ async fn extract_install(
     settings.data_dir = PathBuf::from(scratch);
     settings.password_file = scratch.join(".pgpass-scratch");
     settings.temporary = true;
-    settings.password = env.password.clone();
+    settings.password = env.pg_password.clone();
     settings.timeout = Some(Duration::from_secs(180));
     let mut pg = postgresql_embedded::PostgreSQL::new(settings);
     pg.setup().await.map_err(|e| format!("install: {e}"))
@@ -245,7 +213,7 @@ async fn extract_install(
 /// missing/empty data dir. No locking needed: per-state spawns are
 /// serialized by the state lock, and a stray concurrent initdb
 /// fails loudly on the non-empty dir rather than corrupting it.
-async fn ensure_initdb(env: &Env) -> Result<(), String> {
+async fn ensure_initdb(env: &Args) -> Result<(), String> {
     let data_dir = env.state_dir().join("db");
     let mut settings = postgresql_embedded::Settings::default();
     settings.installation_dir = env.bin_dir().join("pg-bin");
@@ -256,7 +224,7 @@ async fn ensure_initdb(env: &Env) -> Result<(), String> {
     // so per-state writes stay inside the state dir.
     settings.password_file = env.state_dir().join(".pgpass");
     settings.temporary = false;
-    settings.password = env.password.clone();
+    settings.password = env.pg_password.clone();
     // initdb routinely takes 10-30s on first run.
     settings.timeout = Some(Duration::from_secs(180));
     let mut pg = postgresql_embedded::PostgreSQL::new(settings);
@@ -265,16 +233,11 @@ async fn ensure_initdb(env: &Env) -> Result<(), String> {
     // stops postmasters it launched, and we launch ours directly.
 }
 
-/// `PORT` env if nonzero, otherwise a random free port. postgres
-/// can't bind port 0 itself, so randomness is resolved here (bind,
-/// read, release — the usual TOCTOU caveat, narrowed by spawning
-/// immediately after).
-fn resolve_port(env: &Env) -> Result<u16, String> {
-    if env.port != 0 {
-        return Ok(env.port);
-    }
-    let listener = std::net::TcpListener::bind((env.address.as_str(), 0))
-        .or_else(|_| std::net::TcpListener::bind(("127.0.0.1", 0)))
+/// A random free port on loopback. postgres can't bind port 0
+/// itself, so randomness is resolved here (bind, read, release —
+/// the usual TOCTOU caveat, narrowed by spawning immediately after).
+fn free_port() -> Result<u16, String> {
+    let listener = std::net::TcpListener::bind(("127.0.0.1", 0))
         .map_err(|e| format!("bind free port: {e}"))?;
     listener
         .local_addr()
@@ -295,7 +258,7 @@ fn resolve_port(env: &Env) -> Result<u16, String> {
 /// - **macOS**: no parent-death primitive exists; `kill_on_drop`
 ///   covers orderly exits and panics, a hard crash can leave the
 ///   postmaster until `db kill`.
-fn spawn_postgres(env: &Env, port: u16) -> Result<tokio::process::Child, String> {
+fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String> {
     let data_dir = env.state_dir().join("db");
     let postgres = env
         .bin_dir()
@@ -309,7 +272,7 @@ fn spawn_postgres(env: &Env, port: u16) -> Result<tokio::process::Child, String>
         .arg("-p")
         .arg(port.to_string())
         .arg("-h")
-        .arg(&env.address)
+        .arg("127.0.0.1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
@@ -399,14 +362,10 @@ fn assign_kill_on_close_job(child: &tokio::process::Child) -> Result<(), String>
 /// Poll TCP until postgres accepts connections, failing fast if the
 /// child exits during startup.
 async fn wait_ready(
-    env: &Env,
     port: u16,
     child: &mut tokio::process::Child,
 ) -> Result<(), String> {
-    let host = match env.address.as_str() {
-        "0.0.0.0" | "::" => "127.0.0.1",
-        other => other,
-    };
+    let host = "127.0.0.1";
     let deadline = tokio::time::Instant::now() + Duration::from_secs(180);
     loop {
         if matches!(
@@ -429,17 +388,13 @@ async fn wait_ready(
     }
 }
 
-/// `postgresql://postgres:<password>@<host>:<port>` — the URL
-/// clients connect with, published as the state lock's content.
-/// Wildcard binds map to loopback; the password is percent-encoded.
-fn connection_string(env: &Env, port: u16) -> String {
-    let host = match env.address.as_str() {
-        "0.0.0.0" | "::" => "127.0.0.1",
-        other => other,
-    };
+/// `postgresql://postgres:<password>@127.0.0.1:<port>` — the URL
+/// clients connect with, published as the state lock's content. The
+/// password is percent-encoded.
+fn connection_string(env: &Args, port: u16) -> String {
     format!(
-        "postgresql://postgres:{}@{host}:{port}",
-        percent_encode(&env.password)
+        "postgresql://postgres:{}@127.0.0.1:{port}",
+        percent_encode(&env.pg_password)
     )
 }
 

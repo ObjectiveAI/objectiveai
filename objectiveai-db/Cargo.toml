@@ -14,9 +14,9 @@ publish = true
 
 [dependencies]
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["lockfile"] }
+clap = { version = "4.6.0", features = ["derive"] }
 postgresql_embedded = { version = "0.20", default-features = false, features = ["bundled", "theseus", "tokio", "rustls"] }
 tokio = { version = "1.51.1", features = ["rt-multi-thread", "macros", "fs", "net", "time", "process"] }
-dirs = { version = "6.0.0" }
 
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["fs"] }

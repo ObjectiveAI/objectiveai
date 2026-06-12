@@ -4333,7 +4333,7 @@ dependencies = [
 name = "objectiveai-db"
 version = "2.1.2"
 dependencies = [
- "dirs",
+ "clap 4.6.0",
  "nix 0.29.0",
  "objectiveai-sdk",
  "postgresql_embedded",
