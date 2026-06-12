@@ -4441,14 +4441,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-test-cleanup"
+version = "0.0.0"
+dependencies = [
+ "objectiveai-sdk",
+ "sysinfo",
+ "tokio",
+]
+
+[[package]]
 name = "objectiveai-tests"
 version = "2.0.11"
 dependencies = [
  "git2",
- "objectiveai-sdk",
  "serde_json",
- "sysinfo",
- "tokio",
  "toml 0.8.2",
 ]
 

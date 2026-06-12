@@ -26,6 +26,7 @@ members = [
     ".objectiveai/bin/tools/objectiveai/error/0.0.1",
     "objectiveai-viewer/src-tauri",
     "objectiveai-tests",
+    "objectiveai-tests/test-cleanup",
 ]
 
 [workspace.metadata.tools]

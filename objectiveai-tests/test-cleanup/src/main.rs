@@ -1,4 +1,5 @@
-//! `test-cleanup` — reset the repo's shared test `OBJECTIVEAI_DIR`.
+//! `objectiveai-test-cleanup` — reset the repo's shared test
+//! `OBJECTIVEAI_DIR`.
 //!
 //! 1. Walks `<repo>/.objectiveai` for every SDK lockfile gate
 //!    (`*.lock`, skipping the paired `*.live.lock` announces) —
@@ -18,17 +19,20 @@
 //! 4. Deletes `state/` (and the runtime `bin/locks/`) with retries —
 //!    Windows releases dead processes' file handles asynchronously.
 //!
-//! Invoked by the repo-root `test-cleanup.sh`, which every suite's
-//! `test.sh` runs at start and end unless
+//! Invoked (as the pre-built `target/debug` binary — `test-build.sh`
+//! compiles it) by the repo-root `test-cleanup.sh`, which every
+//! suite's `test.sh` runs at start and end unless
 //! `OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT` says the root `test.sh`
 //! already brackets the whole run.
 
 use std::path::{Path, PathBuf};
 
 fn main() {
+    // <repo>/objectiveai-tests/test-cleanup → <repo>.
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("crate dir has a parent");
+        .and_then(|p| p.parent())
+        .expect("crate dir is two levels under the repo root");
     let root = repo.join(".objectiveai");
     if !root.is_dir() {
         println!("test-cleanup: {} does not exist; nothing to do", root.display());

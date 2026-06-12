@@ -8,17 +8,8 @@ license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 publish = false
 
-# Dependencies of the `test-cleanup` bin (the invariant tests
-# themselves are dev-dependency-only).
-[dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["lockfile"] }
-sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
-tokio = { version = "1.50.0", features = ["rt", "macros"] }
-
-[[bin]]
-name = "test-cleanup"
-path = "src/bin/test-cleanup.rs"
-
+# The invariant tests are dev-dependency-only. (`test-cleanup` is
+# its own crate: ../objectiveai-test-cleanup.)
 [dev-dependencies]
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 toml = "0.8"
