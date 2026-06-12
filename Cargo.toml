@@ -13,14 +13,17 @@ members = [
     "objectiveai-sdk-rs-macros",
     "objectiveai-sdk-rs-pyo3",
     "objectiveai-sdk-rs-cffi", "objectiveai-cli",
-    "objectiveai-cli/test-fixtures/hello-plugin",
-    "objectiveai-cli/test-fixtures/hello-tool",
-    "objectiveai-cli/test-fixtures/error-tool",
-    "objectiveai-cli/test-fixtures/echo-arglen",
-    "objectiveai-cli/test-fixtures/count-tool",
-    "objectiveai-cli/test-fixtures/test-mcp-plugin",
-    "objectiveai-cli/test-fixtures/test-mcp-plugin-foo-headers",
-    "objectiveai-cli/test-fixtures/test-mcp-plugin-named",
+    # Integration-test fixtures living inside the committed shared
+    # test OBJECTIVEAI_DIR — plugin crates sit in their plugin's cli/
+    # folder, tool crates beside their manifest, shared crates under
+    # crates/. Their manifests exec `cargo run` (no preparation step).
+    ".objectiveai/crates/count-tool",
+    ".objectiveai/crates/test-mcp-plugin-named",
+    ".objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli",
+    ".objectiveai/bin/plugins/testorg/test-mcp-plugin/1.0.0/cli",
+    ".objectiveai/bin/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0/cli",
+    ".objectiveai/bin/tools/objectiveai/hello/0.0.1",
+    ".objectiveai/bin/tools/objectiveai/error/0.0.1",
     "objectiveai-viewer/src-tauri",
     "objectiveai-tests",
 ]

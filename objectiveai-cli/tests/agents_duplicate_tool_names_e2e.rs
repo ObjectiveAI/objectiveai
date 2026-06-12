@@ -17,8 +17,6 @@
 //! pinned by `SEED = 13` carried through both the spawn and the
 //! continuation messages — the api's mock RNG produces the same
 //! per-turn tool draws across runs.
-//!
-//! Skip-gate: `OBJECTIVEAI_TEST_PORT` must point at a running test API.
 
 mod cli_test_util;
 
@@ -30,12 +28,13 @@ use objectiveai_sdk::cli::command::agents::logs::read::all::{
     Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::message::{
-    MessageTarget, Request as MessageRequest,
+    Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
-    ResponseItem as MessageResponseItem,
+    Response as MessageResponse,
 };
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced,
+    Request as SpawnRequest, RequestDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
@@ -74,28 +73,25 @@ fn mock_agent() -> Value {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn duplicate_tool_names_routed_across_turns() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "skipping duplicate_tool_names_routed_across_turns: OBJECTIVEAI_TEST_PORT not set"
-        );
-        return;
-    }
-    let base = cli_test_util::test_base_dir();
-
-    let agent = AgentSpec::Resolved(
-        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(mock_agent())
+    let agent = AgentSelector::Ref {
+        agent: AgentRef::Resolved(
+            serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                mock_agent(),
+            )
             .expect("mock agent must deserialize"),
-    );
+        ),
+    };
     let executor = cli_test_util::executor().await;
 
     // Turn 1: agents spawn
     let spawn = SpawnRequest {
         path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         message: RequestMessage::Simple("use a tool".to_string()),
-        agent: AgentResolution::Direct { agent_spec: agent },
+        agent,
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(SEED),
+            skip_lock: None,
         }),
         jq: None,
     };
@@ -123,40 +119,30 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Turn 2: agents message — first continuation
     let msg1 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        target: MessageTarget::Direct {
+        agent: AgentSelector::Instance {
             parent_agent_instance_hierarchy: target_parent.clone(),
             agent_instance: target_instance.clone(),
         },
         message: RequestMessage::Simple("again".to_string()),
-        enqueue: None,
-        dangerous_advanced: Some(MessageDangerousAdvanced {
-            stream: Some(true),
-            seed: Some(SEED),
-        }),
+        dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(SEED) }),
         jq: None,
     };
-    let _items: Vec<MessageResponseItem> =
-        cli_test_util::collect_stream(&executor, msg1).await;
+    let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg1).await;
     cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Turn 3: agents message — second continuation
     let msg2 = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        target: MessageTarget::Direct {
+        agent: AgentSelector::Instance {
             parent_agent_instance_hierarchy: target_parent.clone(),
             agent_instance: target_instance.clone(),
         },
         message: RequestMessage::Simple("one more".to_string()),
-        enqueue: None,
-        dangerous_advanced: Some(MessageDangerousAdvanced {
-            stream: Some(true),
-            seed: Some(SEED),
-        }),
+        dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(SEED) }),
         jq: None,
     };
-    let _items: Vec<MessageResponseItem> =
-        cli_test_util::collect_stream(&executor, msg2).await;
+    let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg2).await;
     cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
 
     // Walk every assistant block from `agents logs read all`,

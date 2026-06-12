@@ -1,24 +1,23 @@
 //! Shared test harness for the cli integration tests.
 //!
 //! Tests drive the cli via the SDK's [`BinaryExecutor`], feeding it
-//! typed `Request` values and reading typed `ResponseItem`s back. The
-//! cli binary, the test fixtures (plugins and tools), and every
-//! committed manifest live under `<crate>/.objectiveai-tests/` —
-//! pre-staged by `test.sh` (which runs `objectiveai-tests/prepare.sh`
-//! before invoking nextest). Nothing in this module builds, copies,
-//! or wipes anything at test time.
+//! typed `Request` values and reading typed `ResponseItem`s back —
+//! through the repo's committed shared test root, `<repo>/.objectiveai`,
+//! with NO preparation step. The cli "binary" is the cargo-run shim
+//! at `.objectiveai/bin/objectiveai[.exe]`; fixtures (plugins and
+//! tools) are committed manifests whose exec entries cargo-run their
+//! crates in place. Nothing in this module builds, copies, or wipes
+//! anything at test time.
 //!
-//! Every test shares ONE `OBJECTIVEAI_DIR` (`<runtime>/home/`,
-//! whose `bin/{plugins,tools}` prepare.sh populates with the merged
-//! fixture set) and differs only by `OBJECTIVEAI_STATE=
-//! <test-fn-name>` — exercising the real multi-state design. The cli
-//! writes each test's runtime artefacts (config.json, logs/,
-//! instances/) into `home/state/<test>/`; `test.sh` wipes
-//! `.objectiveai-tests/` at the top of every invocation so stale
-//! state from prior runs never leaks in. Databases are per-test too:
-//! [`executor`] writes a `config db` section pointing at the shared
-//! test postgres (`OBJECTIVEAI_TEST_DB_PORT`) with
-//! `database = <test-fn-name>`.
+//! Every test shares that ONE `OBJECTIVEAI_DIR` and differs only by
+//! `OBJECTIVEAI_STATE=<test-fn-name>` — exercising the real
+//! multi-state design. The cli writes each test's runtime artefacts
+//! (config.json, db/, logs/, instances/) into
+//! `.objectiveai/state/<test>/` (gitignored); `test-cleanup.sh`
+//! reaps lockfile-owning processes and deletes `state/` around runs.
+//! Servers need no lifecycle tracking: the cli auto-resolves api/db
+//! via their spawn flows behind lockfile singletons — each test
+//! state gets its own postmaster, every suite shares one api.
 
 // `hang_preventing_executor` lives at sibling path
 // `tests/hang_preventing_executor.rs` and is declared as a child
@@ -68,40 +67,28 @@ fn sync_snapshots_env() {
     });
 }
 
-/// Reads `OBJECTIVEAI_TEST_PORT` and returns `http://127.0.0.1:<port>`.
-/// `None` when the env var isn't set — used by tests as a skip-gate
-/// so `cargo test -p objectiveai-cli` from a fresh shell (no shared
-/// api server running) doesn't spuriously fail with connect errors
-/// against the upstream URL.
-pub fn test_api_address() -> Option<String> {
-    let port = std::env::var("OBJECTIVEAI_TEST_PORT").ok()?;
-    Some(format!("http://127.0.0.1:{port}"))
+/// The repo's committed shared test root — the `OBJECTIVEAI_DIR`
+/// every integration test in the repository uses:
+/// `<repo>/.objectiveai`. Fixtures live committed under `bin/`;
+/// per-test state accumulates under `state/<test-fn-name>/`
+/// (gitignored).
+pub fn objectiveai_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate dir has a parent")
+        .join(".objectiveai")
 }
 
-/// `<crate>/.objectiveai-tests/` — the runtime staging tree `test.sh`
-/// + `prepare.sh` populate before nextest runs. Read-only entry
-/// point for everything else in this module.
-pub fn runtime_dir() -> PathBuf {
-    Path::new(env!("CARGO_MANIFEST_DIR")).join(".objectiveai-tests")
-}
-
-/// Path to the pre-built cli binary at the root of the runtime tree.
-/// `prepare.sh` cargo-built this with `--no-default-features --features
-/// rustpython` and slotted it in.
+/// The committed cli shim at `.objectiveai/bin/objectiveai[.exe]` —
+/// resolves to `cargo run -q -p objectiveai-cli` against this repo,
+/// so the cli under test always reflects the working tree with no
+/// pre-build step.
 pub fn cli_binary() -> PathBuf {
-    let mut path = runtime_dir().join("objectiveai-cli");
+    let mut path = objectiveai_dir().join("bin").join("objectiveai");
     if cfg!(windows) {
         path.set_extension("exe");
     }
     path
-}
-
-/// The shared `OBJECTIVEAI_DIR` for the whole suite run:
-/// `<runtime>/home/`. prepare.sh staged `bin/` (cli fixtures —
-/// plugins + tools) inside it; per-test state accumulates under
-/// `state/<test-fn-name>/`.
-pub fn home_dir() -> PathBuf {
-    runtime_dir().join("home")
 }
 
 /// This test's `OBJECTIVEAI_STATE` — the test fn name (nextest names
@@ -113,56 +100,30 @@ pub fn test_state_name() -> String {
         .to_string()
 }
 
-/// Per-test state dir: `<home>/state/<test-fn-name>/`. Created here
+/// Per-test state dir: `<dir>/state/<test-fn-name>/`. Created here
 /// so post-mortem inspection and the hang-watchdog have a real
 /// directory even before the cli's first write.
 pub fn test_base_dir() -> PathBuf {
     sync_snapshots_env();
-    let dir = home_dir().join("state").join(test_state_name());
+    let dir = objectiveai_dir().join("state").join(test_state_name());
     std::fs::create_dir_all(&dir).expect("create test state dir");
     eprintln!("test state dir: {}", dir.display());
     dir
 }
 
-/// Write this test's `config db` section (idempotent): the shared
-/// test postgres at `127.0.0.1:$OBJECTIVEAI_TEST_DB_PORT`, with a
-/// per-test `database` so tests are isolated by database name on one
-/// postmaster. No-op when the env var is unset (db-less tests still
-/// run from a fresh shell).
-async fn ensure_db_config(state: &str) {
-    let Ok(port) = std::env::var("OBJECTIVEAI_TEST_DB_PORT") else {
-        return;
-    };
-    let port: u16 = port.parse().expect("OBJECTIVEAI_TEST_DB_PORT not a port");
-    let fs = objectiveai_cli::filesystem::Client::new(
-        Some(home_dir()),
-        Some(state.to_string()),
-        None::<String>,
-        None::<String>,
-    );
-    let mut config = fs.read_config().await.expect("read test config");
-    if config.db().get_database().is_some() {
-        return;
-    }
-    config.db().set_address("127.0.0.1");
-    config.db().set_port(port);
-    config.db().set_database(state.to_string());
-    fs.write_config(&config).await.expect("write test config");
-}
-
-/// The default executor: shared `OBJECTIVEAI_DIR`, this test's
-/// `OBJECTIVEAI_STATE`, db config ensured. Async because the db
-/// config write goes through the filesystem client.
+/// The default executor: the shared `OBJECTIVEAI_DIR`, this test's
+/// `OBJECTIVEAI_STATE`, nothing else — db/api resolve themselves
+/// through the cli's lazy spawn flows. (Kept `async` so call sites
+/// read naturally alongside the awaits that follow.)
 pub async fn executor() -> HangPreventingBinaryCommandExecutor {
     let state = test_state_name();
     let state_dir = test_base_dir();
-    ensure_db_config(&state).await;
-    let mut exec = BinaryExecutor::from_path(cli_binary())
-        .env("OBJECTIVEAI_DIR", home_dir().to_string_lossy().into_owned())
+    let exec = BinaryExecutor::from_path(cli_binary())
+        .env(
+            "OBJECTIVEAI_DIR",
+            objectiveai_dir().to_string_lossy().into_owned(),
+        )
         .env("OBJECTIVEAI_STATE", state);
-    if let Some(addr) = test_api_address() {
-        exec = exec.env("OBJECTIVEAI_ADDRESS", addr);
-    }
     HangPreventingBinaryCommandExecutor::new(exec, state_dir)
 }
 

@@ -9,7 +9,7 @@ mod common;
 
 use std::time::Duration;
 
-use common::{ViewerTestEnv, snapshot, test_api_address};
+use common::{ViewerTestEnv, snapshot};
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 
 const SNAPSHOT_PATH: &str = concat!(
@@ -19,31 +19,24 @@ const SNAPSHOT_PATH: &str = concat!(
 
 #[tokio::test]
 async fn cli_command_config_viewer_get() {
-    if test_api_address().is_none() {
-        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping");
-        return;
-    }
-    // The forwarder spawns a real cli binary now; test.sh builds one
-    // and exports its path. Skip-gate mirrors OBJECTIVEAI_TEST_PORT
-    // so a bare `cargo test -p objectiveai-viewer` stays green.
-    let Some(cli_binary) = std::env::var_os("OBJECTIVEAI_CLI_BINARY") else {
-        eprintln!("OBJECTIVEAI_CLI_BINARY not set — skipping");
-        return;
-    };
-    let scratch = std::env::temp_dir().join(format!(
-        "oai-viewer-cli-command-{}",
-        std::process::id()
-    ));
-    std::fs::create_dir_all(&scratch).expect("create scratch OBJECTIVEAI_DIR");
+    // The forwarder spawns the repo's committed cargo-run cli shim
+    // out of the shared test root — no pre-build, no env plumbing.
+    let dir = common::objectiveai_dir();
+    let cli_binary = dir.join("bin").join(if cfg!(windows) {
+        "objectiveai.exe"
+    } else {
+        "objectiveai"
+    });
     let executor = BinaryExecutor::from_path(cli_binary)
-        .env("OBJECTIVEAI_DIR", scratch.to_string_lossy().into_owned());
+        .env("OBJECTIVEAI_DIR", dir.to_string_lossy().into_owned())
+        .env("OBJECTIVEAI_STATE", "viewer_cli_command");
 
     let env = ViewerTestEnv::new();
 
     // Pick an offline cli command that emits a small, deterministic
-    // JSONL stream: `config viewer get` against the fresh scratch
-    // OBJECTIVEAI_DIR prints exactly one line — the empty viewer
-    // config object — purely local, no network state.
+    // JSONL stream: `config viewer get` against the dedicated
+    // `viewer_cli_command` state prints exactly one line — the empty
+    // viewer config object — purely local, no network state.
     let args = vec![
         "objectiveai".to_string(),
         "config".to_string(),

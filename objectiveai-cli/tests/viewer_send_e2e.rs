@@ -39,7 +39,7 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
         .await;
 
     let fs_client = objectiveai_cli::filesystem::Client::new(
-        Some(cli_test_util::home_dir()),
+        Some(cli_test_util::objectiveai_dir()),
         Some(cli_test_util::test_state_name()),
         None::<String>,
         None::<String>,
@@ -55,7 +55,7 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
     let cli = cli_test_util::cli_binary();
     let body_arg = serde_json::to_string(&request_body).unwrap();
     let output = Command::new(cli)
-        .env("OBJECTIVEAI_DIR", cli_test_util::home_dir())
+        .env("OBJECTIVEAI_DIR", cli_test_util::objectiveai_dir())
         .env("OBJECTIVEAI_STATE", cli_test_util::test_state_name())
         .args(["viewer", "send", "/agent/completions", &body_arg])
         .output()

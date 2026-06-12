@@ -1,5 +1,5 @@
 //! Test-fixture tool. Reads `MCP_SESSION_ID` from its env, increments
-//! a per-session counter file at `<binary-dir>/data/<session>.txt`,
+//! a per-session counter file at `<STATE_DIR>/data/<session>.txt`,
 //! and prints the new count to stdout.
 //!
 //! Used by the `agents_continuation_tool_session_e2e` snapshot test to
@@ -7,6 +7,12 @@
 //! that the count persists across continuation turns of the same
 //! agent (same session) while staying independent across distinct
 //! agents (different sessions).
+//!
+//! `STATE_DIR` is provided by the host cli on every tool spawn
+//! (`<dir>/state/<state>/tools/<owner>/<name>/<version>`) — the
+//! tool's own install folder is committed and must never be written
+//! to. Per-test-state isolation comes for free: each state gets its
+//! own counter files.
 //!
 //! When MCP_SESSION_ID is unset, falls back to session `_default` so
 //! the binary never errors — it may be deployed into a shared test
@@ -26,7 +32,7 @@ fn main() {
     // to keep one file per session.
     let safe_session = session_id.replace('/', "_");
 
-    let data_dir = current_exe_dir().join("data");
+    let data_dir = state_dir().join("data");
     if let Err(e) = fs::create_dir_all(&data_dir) {
         eprintln!("mkdir {}: {e}", data_dir.display());
         std::process::exit(1);
@@ -69,10 +75,8 @@ fn main() {
     println!("{next}");
 }
 
-fn current_exe_dir() -> PathBuf {
-    std::env::current_exe()
-        .expect("current_exe")
-        .parent()
-        .expect("exe parent")
-        .to_path_buf()
+fn state_dir() -> PathBuf {
+    PathBuf::from(
+        std::env::var_os("STATE_DIR").expect("STATE_DIR is set by the host cli"),
+    )
 }

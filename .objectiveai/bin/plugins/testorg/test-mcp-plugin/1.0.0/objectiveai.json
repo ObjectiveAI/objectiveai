@@ -1,0 +1,32 @@
+{
+  "description": "test fixture",
+  "version": "1.0.0",
+  "owner": "testorg",
+  "exec": {
+    "windows": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ],
+    "linux": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ],
+    "macos": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ]
+  },
+  "mcp_servers": [
+    {
+      "name": "demo",
+      "url": "http://127.0.0.1:0",
+      "authorization": false
+    }
+  ]
+}

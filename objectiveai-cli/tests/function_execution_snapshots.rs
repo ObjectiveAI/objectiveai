@@ -87,13 +87,6 @@ macro_rules! snapshot_test {
     ($name:ident, $snapshot:expr, $function:expr, $profile:expr, $seed:expr, $input:tt) => {
         #[tokio::test]
         async fn $name() {
-            if cli_test_util::test_api_address().is_none() {
-                eprintln!(
-                    "OBJECTIVEAI_TEST_PORT not set — skipping {}",
-                    stringify!($name)
-                );
-                return;
-            }
             let request = Request {
                 path_type: objectiveai_sdk::cli::command::functions::execute::standard::Path::FunctionsExecuteStandard,
                 function: mock_function_spec($function),
@@ -160,10 +153,6 @@ snapshot_test!(
 /// top_logprobs=6, equal weights), same input file, same seed.
 #[tokio::test]
 async fn split_tweet_scorer_10_tweets_seed_42() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!("OBJECTIVEAI_TEST_PORT not set — skipping split_tweet_scorer_10_tweets_seed_42");
-        return;
-    }
     let snapshots = snapshots_dir();
     let input_path = snapshots.join("inputs/10_tweets.json");
     let input_value: serde_json::Value = serde_json::from_str(

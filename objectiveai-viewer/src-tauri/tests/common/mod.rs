@@ -22,14 +22,15 @@ use objectiveai_sdk::viewer::{Event, EventReceiver, EventSender};
 use tokio::sync::mpsc;
 use tokio::time::timeout;
 
-/// Reads `OBJECTIVEAI_TEST_PORT` and returns the URL pointing at the
-/// shared test API server. Skips the test (via `eprintln!` + early
-/// return from the caller) if the env var isn't set — used so a
-/// developer running `cargo test -p objectiveai-viewer` without the
-/// orchestrator's env doesn't get spurious failures.
-pub fn test_api_address() -> Option<String> {
-    let port = std::env::var("OBJECTIVEAI_TEST_PORT").ok()?;
-    Some(format!("http://127.0.0.1:{port}"))
+/// `<repo>/.objectiveai` — the committed shared test
+/// `OBJECTIVEAI_DIR` every integration test in the repository uses.
+pub fn objectiveai_dir() -> std::path::PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("src-tauri has a parent")
+        .parent()
+        .expect("crate dir has a parent")
+        .join(".objectiveai")
 }
 
 pub struct ViewerTestEnv {

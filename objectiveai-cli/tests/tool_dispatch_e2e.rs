@@ -33,7 +33,7 @@ struct Summary {
 fn run_and_summarize(name: &str) -> Summary {
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
-        .env("OBJECTIVEAI_DIR", cli_test_util::home_dir())
+        .env("OBJECTIVEAI_DIR", cli_test_util::objectiveai_dir())
         .env("OBJECTIVEAI_STATE", cli_test_util::test_state_name())
         .args([
             "tools", "run", "--owner", "objectiveai", "--name", name, "--version",

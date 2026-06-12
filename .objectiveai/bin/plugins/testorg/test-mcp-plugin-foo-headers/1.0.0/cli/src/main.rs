@@ -30,10 +30,10 @@
 //! - `notifications/initialized` → 202.
 //! - everything else → 404.
 //!
-//! `<state_dir>` is `<OBJECTIVEAI_DIR>/state/<OBJECTIVEAI_STATE>`, read
-//! from the env vars the host cli inherits to its
-//! `dial_plugin_upstream` child and we inherit transitively from that
-//! child.
+//! `<state_dir>` is the `STATE_DIR` env the host cli stamps on every
+//! plugin spawn (`<dir>/state/<state>/plugins/<owner>/<name>/<version>`)
+//! — the plugin's own install folder is committed and must never be
+//! written to. Per-test-state isolation comes for free.
 
 use std::io::Write;
 use std::sync::Arc;
@@ -78,12 +78,10 @@ async fn main() -> std::io::Result<()> {
     }
     let foo = foo.expect("plugin requires --foo <value>");
 
-    // --- OBJECTIVEAI_DIR/_STATE are inherited from the cli's env ---
-    let base_dir = std::env::var("OBJECTIVEAI_DIR")
+    // --- STATE_DIR is stamped by the host cli on every spawn ---
+    let base_dir = std::env::var("STATE_DIR")
         .map(std::path::PathBuf::from)
-        .expect("plugin requires OBJECTIVEAI_DIR env")
-        .join("state")
-        .join(std::env::var("OBJECTIVEAI_STATE").unwrap_or_else(|_| "default".to_string()));
+        .expect("plugin requires STATE_DIR env");
 
     let state = AppState {
         inner: Arc::new(Inner {

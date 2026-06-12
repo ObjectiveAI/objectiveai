@@ -60,13 +60,6 @@ fn update_snapshot<T: serde::Serialize>(name: &str, normalized: &T) {
 
 #[tokio::test]
 async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "OBJECTIVEAI_TEST_PORT not set — skipping test_twenty_agents_json_schema_10x_tools_seed_42"
-        );
-        return;
-    }
-
     // Mock function fixture whose body is a single `vector.completion`
     // task over the 20-agent JsonSchema swarm with the 10-tools surface
     // every agent declares. Lives on the api side; if the fixture

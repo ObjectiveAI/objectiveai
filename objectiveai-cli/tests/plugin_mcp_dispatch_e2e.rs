@@ -19,9 +19,6 @@
 //!   (extracted from `logs.agent_completion_responses.body`).
 //! - `tool_results` — `text` rows from
 //!   `logs.tool_response_content_text` for this response_id.
-//!
-//! Skip-gate: requires `OBJECTIVEAI_TEST_PORT` to point at a
-//! running test API.
 
 mod cli_test_util;
 
@@ -35,8 +32,9 @@ use objectiveai_sdk::cli::command::agents::logs::read::all::{
     Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced,
+    Request as SpawnRequest, RequestDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
 use serde_json::{Value, json};
@@ -92,11 +90,6 @@ where
 
 #[tokio::test(flavor = "multi_thread")]
 async fn plugin_mcp_dispatch_round_trip() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!("skipping plugin_mcp_dispatch_round_trip: OBJECTIVEAI_TEST_PORT not set");
-        return;
-    }
-
     let base = cli_test_util::test_base_dir();
     let pid_file = base.join("plugin-pid");
 
@@ -117,10 +110,14 @@ async fn plugin_mcp_dispatch_round_trip() {
             }]
         }
     });
-    let agent = AgentSpec::Resolved(
-        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(agent_json)
+    let agent = AgentSelector::Ref {
+        agent: AgentRef::Resolved(
+            serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                agent_json,
+            )
             .expect("inline plugin-mcp agent must deserialize"),
-    );
+        ),
+    };
 
     let executor = cli_test_util::executor().await
         .env("OAI_TEST_MCP_PID_FILE", pid_file.to_string_lossy().into_owned());
@@ -128,10 +125,11 @@ async fn plugin_mcp_dispatch_round_trip() {
     let spawn_request = SpawnRequest {
         path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         message: RequestMessage::Simple("use a tool".to_string()),
-        agent: AgentResolution::Direct { agent_spec: agent },
+        agent,
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(1),
+            skip_lock: None,
         }),
         jq: None,
     };

@@ -21,25 +21,18 @@ use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    MessageTarget, Request as MessageRequest,
+    Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
-    ResponseItem as MessageResponseItem,
+    Response as MessageResponse,
 };
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced,
+    Request as SpawnRequest, RequestDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
 
 #[tokio::test]
 async fn spawn_then_message_propagates_response_continuation() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "OBJECTIVEAI_TEST_PORT not set — skipping spawn_then_message_propagates_response_continuation"
-        );
-        return;
-    }
-
-    let base_dir = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
     // ── 1. Spawn a mock agent ────────────────────────────────────
@@ -52,8 +45,8 @@ async fn spawn_then_message_propagates_response_continuation() {
     let spawn_request = SpawnRequest {
         path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         message: RequestMessage::Simple("first turn".to_string()),
-        agent: AgentResolution::Direct {
-            agent_spec: AgentSpec::Resolved(
+        agent: AgentSelector::Ref {
+            agent: AgentRef::Resolved(
                 serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
                     serde_json::json!({"upstream":"mock","output_mode":"instruction"}),
                 )
@@ -63,6 +56,7 @@ async fn spawn_then_message_propagates_response_continuation() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(42),
+            skip_lock: None,
         }),
         jq: None,
     };
@@ -106,27 +100,21 @@ async fn spawn_then_message_propagates_response_continuation() {
         .expect("spawn_chunk_aih must carry at least one '/'");
     let message_request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        target: MessageTarget::Direct {
+        agent: AgentSelector::Instance {
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
         },
         message: RequestMessage::Simple("follow up".to_string()),
-        enqueue: None,
-        dangerous_advanced: Some(MessageDangerousAdvanced {
-            stream: Some(true),
-            seed: Some(42),
-        }),
+        dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(42) }),
         jq: None,
     };
-    let items: Vec<MessageResponseItem> =
-        cli_test_util::collect_stream(&executor, message_request).await;
-    let new_response_id = items
-        .iter()
-        .find_map(|item| match item {
-            MessageResponseItem::Chunk(chunk) if !chunk.id.is_empty() => Some(chunk.id.clone()),
-            _ => None,
-        })
-        .unwrap_or(spawn_response_id);
+    // The unary `agents message` leaf no longer surfaces chunks, so
+    // the second turn's response_id can't be mined from the stream —
+    // fall back to the spawn turn's id (the resumed instance keeps
+    // the same response_id).
+    let _resp: MessageResponse =
+        cli_test_util::execute_one(&executor, message_request).await;
+    let new_response_id = spawn_response_id;
 
     // ── 4. Read the new turn's request body's continuation ──────
     // `logs.agent_completion_requests.body->>'continuation'` is

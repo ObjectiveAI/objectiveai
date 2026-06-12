@@ -9,7 +9,7 @@
 //! proxy is dialing fresh) or `resumed` (header present — the proxy
 //! is replaying a prior session id). Every `tools/call` looks up the
 //! inbound session's `is_new` flag and appends
-//! `"{is_new}-{response_id}"` to a file under `CONFIG_BASE_DIR`.
+//! `"{is_new}-{response_id}"` to a file under the test's state dir.
 //!
 //! Assertion: exactly 10 unique lines, with at least 5 starting
 //! `true-` (5 fresh inits) and at least 5 starting `false-` (5
@@ -33,12 +33,13 @@ use axum::{
 };
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    MessageTarget, Request as MessageRequest,
+    Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
-    ResponseItem as MessageResponseItem,
+    Response as MessageResponse,
 };
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request as SpawnRequest,
+    Request as SpawnRequest,
     RequestDangerousAdvanced as SpawnDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
@@ -148,13 +149,6 @@ async fn handle_post(
 
 #[tokio::test(flavor = "multi_thread")]
 async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "skipping shared_mcp_session_preserves_per_agent_identity_with_resumption: \
-             OBJECTIVEAI_TEST_PORT not set"
-        );
-        return;
-    }
     let base = cli_test_util::test_base_dir();
 
     let output_path = Arc::new(base.join("response-ids.txt"));
@@ -195,19 +189,22 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         let executor = &executor;
         let agent_json = agent_json.clone();
         async move {
-            let agent = AgentSpec::Resolved(
-                serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
-                    agent_json,
-                )
-                .expect("inline mock agent must deserialize"),
-            );
+            let agent = AgentSelector::Ref {
+                agent: AgentRef::Resolved(
+                    serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                        agent_json,
+                    )
+                    .expect("inline mock agent must deserialize"),
+                ),
+            };
             let request = SpawnRequest {
                 path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
                 message: RequestMessage::Simple("go".to_string()),
-                agent: AgentResolution::Direct { agent_spec: agent },
+                agent,
                 dangerous_advanced: Some(SpawnDangerousAdvanced {
                     stream: Some(true),
                     seed: Some(seed),
+                    skip_lock: None,
                 }),
                 jq: None,
             };
@@ -253,21 +250,17 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             .unwrap_or((None, aih.clone()));
         let request = MessageRequest {
             path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-            target: MessageTarget::Direct {
+            agent: AgentSelector::Instance {
                 parent_agent_instance_hierarchy: parent,
                 agent_instance: instance,
             },
             message: RequestMessage::Simple("again".to_string()),
-            enqueue: None,
-            dangerous_advanced: Some(MessageDangerousAdvanced {
-                stream: Some(true),
-                seed: Some(seed),
-            }),
+            dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(seed) }),
             jq: None,
         };
         async move {
-            let _items: Vec<MessageResponseItem> =
-                cli_test_util::collect_stream(executor, request).await;
+            let _resp: MessageResponse =
+                cli_test_util::execute_one(executor, request).await;
         }
     });
     futures::future::join_all(send_futures).await;

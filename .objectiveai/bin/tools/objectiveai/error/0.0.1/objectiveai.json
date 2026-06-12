@@ -1,0 +1,25 @@
+{
+  "description": "E2E test fixture",
+  "version": "0.0.1",
+  "owner": "objectiveai",
+  "exec": {
+    "windows": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ],
+    "linux": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ],
+    "macos": [
+      "cargo",
+      "run",
+      "-q",
+      "--"
+    ]
+  }
+}

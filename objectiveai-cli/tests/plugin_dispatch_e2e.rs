@@ -13,7 +13,7 @@ fn hello_plugin_dispatch_produces_expected_output() {
     let _state_dir = cli_test_util::test_base_dir();
     let cli = cli_test_util::cli_binary();
     let output = Command::new(cli)
-        .env("OBJECTIVEAI_DIR", cli_test_util::home_dir())
+        .env("OBJECTIVEAI_DIR", cli_test_util::objectiveai_dir())
         .env("OBJECTIVEAI_STATE", cli_test_util::test_state_name())
         .args([
             "plugins",

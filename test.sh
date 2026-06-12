@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
-# Runs all test suites in parallel.
-# Spawns a shared API server for suites that need one.
+# Runs all test suites in parallel against the repo's committed
+# shared test root (.objectiveai/). No server orchestration: suites
+# that need the api run `objectiveai api spawn` themselves, and the
+# api lockfile singleton guarantees exactly one server materializes
+# no matter how many suites ask. This script owns the bracketing —
+# it resets the shared root (kill lockfile owners + wipe state/) at
+# start and end via test-cleanup.sh, and tells the inner scripts to
+# skip their own bracketing through OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT.
 #
 # Usage:
 #   bash test.sh
@@ -9,26 +15,15 @@ set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/test"
-SERVER_LOG="$LOG_DIR/server.txt"
+CLEANUP_LOG="$LOG_DIR/test-cleanup.txt"
 
 mkdir -p "$LOG_DIR"
+: > "$CLEANUP_LOG"
 
-# Spawn shared API server, capturing all output
-SERVER_PID=""
-cleanup() {
-  if [ -n "$SERVER_PID" ]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT
+export OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT=1
 
-read -r PORT SERVER_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>"$SERVER_LOG") || {
-  echo "Failed to spawn API server. Log:" >&2
-  cat "$SERVER_LOG" >&2
-  exit 1
-}
-export OBJECTIVEAI_TEST_PORT="$PORT"
+bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1
+trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true' EXIT INT TERM
 
 # Run all test suites in parallel.
 # Each script prints exactly one line: "$MODULE: PASS N/N" or "$MODULE: FAIL N/N".

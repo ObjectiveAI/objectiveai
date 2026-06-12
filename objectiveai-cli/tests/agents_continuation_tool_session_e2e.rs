@@ -25,12 +25,13 @@ use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
-    MessageTarget, Request as MessageRequest,
+    Request as MessageRequest,
     RequestDangerousAdvanced as MessageDangerousAdvanced, RequestMessage,
-    ResponseItem as MessageResponseItem,
+    Response as MessageResponse,
 };
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request as SpawnRequest, RequestDangerousAdvanced,
+    Request as SpawnRequest, RequestDangerousAdvanced,
     ResponseItem as SpawnResponseItem,
 };
 use cli_test_util::HangPreventingBinaryCommandExecutor;
@@ -38,7 +39,7 @@ use serde_json::{Value, json};
 
 /// Inline mock-agent spec wired to the 10 `testorg/tool{0..9}/1.0.0`
 /// tools the test mcp server registered.
-fn agent_spec() -> AgentSpec {
+fn agent_spec() -> AgentSelector {
     let tools: Vec<Value> = (0..10)
         .map(|i| {
             json!({
@@ -62,12 +63,14 @@ fn agent_spec() -> AgentSpec {
         "client_objectiveai_mcp": {"tools": tools},
         "calls": calls,
     });
-    AgentSpec::Resolved(
-        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
-            agent_json,
-        )
-        .expect("inline mock agent must deserialize"),
-    )
+    AgentSelector::Ref {
+        agent: AgentRef::Resolved(
+            serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(
+                agent_json,
+            )
+            .expect("inline mock agent must deserialize"),
+        ),
+    }
 }
 
 /// Pair of (full api-side AIH, response_id) needed to drive both
@@ -83,12 +86,11 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
     let request = SpawnRequest {
         path_type: objectiveai_sdk::cli::command::agents::spawn::Path::AgentsSpawn,
         message: RequestMessage::Simple("go".to_string()),
-        agent: AgentResolution::Direct {
-            agent_spec: agent_spec(),
-        },
+        agent: agent_spec(),
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(seed),
+            skip_lock: None,
         }),
         jq: None,
     };
@@ -141,20 +143,15 @@ async fn continue_agent(
         .unwrap_or_else(|| (None, spawn_aih.to_string()));
     let request = MessageRequest {
         path_type: objectiveai_sdk::cli::command::agents::message::Path::AgentsMessage,
-        target: MessageTarget::Direct {
+        agent: AgentSelector::Instance {
             parent_agent_instance_hierarchy: parent,
             agent_instance: instance,
         },
         message: RequestMessage::Simple("more".to_string()),
-        enqueue: None,
-        dangerous_advanced: Some(MessageDangerousAdvanced {
-            stream: Some(true),
-            seed: Some(seed),
-        }),
+        dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(seed) }),
         jq: None,
     };
-    let _items: Vec<MessageResponseItem> =
-        cli_test_util::collect_stream(executor, request).await;
+    let _resp: MessageResponse = cli_test_util::execute_one(executor, request).await;
 }
 
 /// Pull every count value the count-tool emitted to its tool
@@ -185,14 +182,6 @@ async fn read_tool_response_counts(
 
 #[tokio::test]
 async fn two_agents_continuations_count_persists_per_session() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "OBJECTIVEAI_TEST_PORT not set — skipping two_agents_continuations_count_persists_per_session"
-        );
-        return;
-    }
-
-    let base_dir = cli_test_util::test_base_dir();
     let executor = Arc::new(cli_test_util::executor().await);
 
     let run_agent = |seed: i64| {

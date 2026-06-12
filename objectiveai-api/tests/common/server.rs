@@ -1,35 +1,66 @@
-//! Connects to the test api server spawned by `objectiveai-api/test.sh`
-//! (or inherited from a parent harness, e.g. the root `test.sh`).
+//! Connects to the shared test api server — self-resolving, no
+//! harness required.
 //!
-//! All integration test binaries share **one** api server instance —
-//! `test.sh` boots it via `test-spawn-api-server.sh` and exports
-//! `OBJECTIVEAI_TEST_PORT`, which we read here to build the HTTP client.
-//! Spawning the binary per-binary used to live here (one server per
-//! `tests/*.rs` cargo binary) but contention on Windows ephemeral ports
-//! during the agent_completions cluster surfaced as transient
-//! ConnectionRefused panics — a single shared server avoids that
-//! entirely. Cross-binary state isolation is handled inside the api
-//! (per-request) and inside the tests (per-test directories), not at
-//! the OS process level.
+//! All integration test binaries (this suite's AND every other suite
+//! in the repo) share **one** api server instance: each consumer
+//! runs `objectiveai api spawn` against the repo's committed
+//! `.objectiveai` test root, and the api lockfile singleton
+//! guarantees exactly one server ever materializes — whoever asks
+//! first spawns it (the bin entry is a cargo-run shim, so the server
+//! always reflects the working tree), everyone else gets the
+//! already-published URL back. The URL itself is read from the `api`
+//! lockfile's published contents. Cross-binary state isolation is
+//! handled inside the api (per-request) and inside the tests
+//! (per-test states), not at the OS process level.
 
+use std::path::PathBuf;
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
 
-/// Resolve the shared api server's base URL from the
-/// `OBJECTIVEAI_TEST_PORT` env var. Panics with a remediation hint if
-/// the variable isn't set — running these tests through raw
-/// `cargo test` (no `test.sh` wrapper, no inherited harness) won't
-/// work.
+/// `<repo>/.objectiveai` — the committed shared test OBJECTIVEAI_DIR.
+fn objectiveai_dir() -> PathBuf {
+    std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .parent()
+        .expect("crate dir has a parent")
+        .join(".objectiveai")
+}
+
+/// Spawn-or-discover the shared api server and return its base URL.
+///
+/// `api spawn` is idempotent and cheap when the server is already up
+/// (it returns the lock-published URL without spawning); afterwards
+/// the URL is read from the lockfile at `<dir>/bin/locks` key `api`.
+/// The lockfile read needs a tokio reactor and this may be called
+/// from inside a test runtime, so it runs on a dedicated thread with
+/// its own current-thread runtime.
 fn resolve_base_url() -> String {
-    match std::env::var("OBJECTIVEAI_TEST_PORT") {
-        Ok(port) if !port.is_empty() => format!("http://127.0.0.1:{port}"),
-        _ => panic!(
-            "OBJECTIVEAI_TEST_PORT is not set. Run via `bash objectiveai-api/test.sh` \
-             (or `bash test.sh` at the repo root) so the shared api server is spawned \
-             before the integration tests run."
-        ),
-    }
+    let dir = objectiveai_dir();
+    let shim = dir.join("bin").join(if cfg!(windows) {
+        "objectiveai.exe"
+    } else {
+        "objectiveai"
+    });
+    let status = std::process::Command::new(&shim)
+        .args(["api", "spawn"])
+        .env("OBJECTIVEAI_DIR", &dir)
+        .stdout(std::process::Stdio::null())
+        .status()
+        .expect("run the objectiveai shim for `api spawn`");
+    assert!(status.success(), "`objectiveai api spawn` failed");
+
+    let locks_dir = dir.join("bin").join("locks");
+    std::thread::spawn(move || {
+        tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build()
+            .expect("build lockfile-read runtime")
+            .block_on(objectiveai_sdk::lockfile::try_read(&locks_dir, "api"))
+    })
+    .join()
+    .expect("lockfile-read thread")
+    .expect("read api lockfile")
+    .expect("api lock published a URL")
 }
 
 /// Returns a fresh `HttpClient` pointing at the shared test api server.

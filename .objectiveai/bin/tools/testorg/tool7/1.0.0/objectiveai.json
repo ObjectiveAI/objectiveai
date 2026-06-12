@@ -1,0 +1,31 @@
+{
+  "description": "Counter tool 7",
+  "version": "1.0.0",
+  "owner": "testorg",
+  "exec": {
+    "windows": [
+      "cargo",
+      "run",
+      "-q",
+      "-p",
+      "count-tool",
+      "--"
+    ],
+    "linux": [
+      "cargo",
+      "run",
+      "-q",
+      "-p",
+      "count-tool",
+      "--"
+    ],
+    "macos": [
+      "cargo",
+      "run",
+      "-q",
+      "-p",
+      "count-tool",
+      "--"
+    ]
+  }
+}

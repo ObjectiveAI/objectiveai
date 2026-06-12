@@ -3,7 +3,9 @@
 //! fixture (`test-mcp-plugin-foo-headers`) but with a different `foo`
 //! argument (`"A"` vs `"B"`). The plugin echoes `foo` as its
 //! `Mcp-Session-Id` on initialize and writes one line to
-//! `<CONFIG_BASE_DIR>/<foo>.txt` per `invoke` tool call.
+//! `<STATE_DIR>/<foo>.txt` per `invoke` tool call, where `STATE_DIR`
+//! is the plugin's per-state scratch dir
+//! `<dir>/state/<test>/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0`.
 //!
 //! Each agent's `calls` override emits two scripted turns: turn 1
 //! calls the `invoke` tool, turn 2 closes out with content. After the
@@ -12,9 +14,6 @@
 //! map round-trips through API → CLI conduit → plugin argv, and that
 //! `Mcp-Session-Id` routes calls back to the matching plugin
 //! instance.
-//!
-//! Skip-gate: `OBJECTIVEAI_TEST_PORT` must point at a running test
-//! API (same gate as every other cli e2e test).
 
 mod cli_test_util;
 
@@ -71,13 +70,6 @@ fn mock_agent(foo_value: &str) -> serde_json::Value {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn function_swarm_writes_per_agent_files() {
-    if cli_test_util::test_api_address().is_none() {
-        eprintln!(
-            "skipping function_swarm_writes_per_agent_files: OBJECTIVEAI_TEST_PORT not set"
-        );
-        return;
-    }
-
     let base = cli_test_util::test_base_dir();
 
     // One-task vector function. `output: {"$special":"output"}`
@@ -154,8 +146,13 @@ async fn function_swarm_writes_per_agent_files() {
     // plugin's `Mcp-Session-Id` assert ensures each call landed on
     // the matching plugin process; finding the file at all proves the
     // per-agent argv arrived correctly.
-    let a_path = base.join("A.txt");
-    let b_path = base.join("B.txt");
+    let plugin_state_dir = base
+        .join("plugins")
+        .join("testorg")
+        .join("test-mcp-plugin-foo-headers")
+        .join("1.0.0");
+    let a_path = plugin_state_dir.join("A.txt");
+    let b_path = plugin_state_dir.join("B.txt");
     let a = std::fs::read_to_string(&a_path)
         .unwrap_or_else(|e| panic!("missing {}: {e}", a_path.display()));
     let b = std::fs::read_to_string(&b_path)

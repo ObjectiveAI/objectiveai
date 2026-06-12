@@ -2,9 +2,10 @@
 # Spawns the API server (if needed) and runs tests.
 # Output is captured to .logs/test/objectiveai-js.txt.
 #
-# If OBJECTIVEAI_TEST_PORT is already set, uses that server as-is.
-# Otherwise, spawns a new server via test-spawn-api-server.sh and reaps it on
-# exit (kill+wait, resilient to Ctrl-C / SIGTERM).
+# Self-resolving server: runs `objectiveai api spawn` against the
+# repo's committed .objectiveai test root (lockfile singleton — only
+# one server ever materializes across every suite) and reads the
+# published address. test-cleanup.sh brackets standalone runs.
 #
 # Usage:
 #   bash objectiveai-js/test.sh
@@ -19,30 +20,27 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 mkdir -p "$LOG_DIR"
 > "$LOG_FILE"
 
-# Reap the api server we spawn (if any). SERVER_PID stays empty when a
-# parent harness provided OBJECTIVEAI_TEST_PORT, so the trap leaves the
-# parent's server alone. kill+wait guarantees no orphaned objectiveai-api
-# process survives a standalone run; trapping INT/TERM (not just EXIT)
-# keeps cleanup resilient to Ctrl-C / kill.
-SERVER_PID=""
-cleanup() {
-  if [ -n "$SERVER_PID" ]; then
-    kill "$SERVER_PID" 2>/dev/null || true
-    wait "$SERVER_PID" 2>/dev/null || true
-  fi
-}
-trap cleanup EXIT INT TERM
-
-# Spawn ONE test api server only if a parent harness hasn't already
-# provided OBJECTIVEAI_TEST_PORT. Capture the pid so the cleanup trap
-# can reap it on exit.
-if [ -z "${OBJECTIVEAI_TEST_PORT:-}" ]; then
-  read -r PORT SERVER_PID < <(bash "$REPO_ROOT/test-spawn-api-server.sh" 2>>"$LOG_FILE") || {
-    echo "$MODULE: FATAL — failed to spawn API server (see $LOG_FILE)" >&2
-    exit 1
-  }
-  export OBJECTIVEAI_TEST_PORT="$PORT"
+# Reset the shared test root (kill lockfile owners + wipe state/) at
+# start and end when running standalone; the root test.sh brackets
+# the whole multi-suite run itself and tells us to skip via the env.
+if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
+  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1
+  trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
 fi
+
+# Spawn-or-discover THE shared api server through the committed
+# `.objectiveai` test root: `api spawn` is idempotent behind the api
+# lockfile singleton — whoever asks first spawns it (the bin entry is
+# a cargo-run shim, so the server reflects the working tree),
+# everyone else gets the already-published URL back. The port feeds
+# the suite's in-language gate var.
+OAI_DIR="$REPO_ROOT/.objectiveai"
+LISTENING=$(OBJECTIVEAI_DIR="$OAI_DIR" bash "$OAI_DIR/bin/objectiveai" api spawn 2>>"$LOG_FILE") || {
+  echo "$MODULE: FATAL — objectiveai api spawn failed (see $LOG_FILE)" >&2
+  exit 1
+}
+PORT=$(printf '%s' "$LISTENING" | python3 -c "import sys,json;print(json.loads(sys.stdin.readline())['listening'].rsplit(':',1)[1])")
+export OBJECTIVEAI_TEST_PORT="$PORT"
 
 # Run tests, capture all output
 if pnpm --filter @objectiveai/sdk run test -- --reporter=verbose >> "$LOG_FILE" 2>&1; then
