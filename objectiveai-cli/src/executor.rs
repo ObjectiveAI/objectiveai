@@ -58,8 +58,11 @@ impl CliCommandExecutor {
     /// `response_ids`, `mcp_session_id` are set verbatim (including
     /// `None`, which clears the slot), and `agent_instance_hierarchy`
     /// falls back to `"UNKNOWN"` when missing because it's a non-
-    /// nullable String on the cli's `Config`. When `agent_arguments`
-    /// is `None`, the base ctx is borrowed unchanged.
+    /// nullable String on the cli's `Config`. The clone's API-client
+    /// cell is detached afterwards so the memoized `HttpClient`
+    /// rebuilds with the overridden identity headers. When
+    /// `agent_arguments` is `None`, the base ctx is borrowed
+    /// unchanged.
     fn resolve_ctx<'a>(
         &'a self,
         agent_arguments: Option<&AgentArguments>,
@@ -78,6 +81,7 @@ impl CliCommandExecutor {
                 ctx.config.response_id = args.response_id.clone();
                 ctx.config.response_ids = args.response_ids.clone();
                 ctx.config.mcp_session_id = args.mcp_session_id.clone();
+                ctx.reset_api_client();
                 std::borrow::Cow::Owned(ctx)
             }
         }

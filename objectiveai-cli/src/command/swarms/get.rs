@@ -9,7 +9,7 @@ use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     let path = request.path;
-    let response = objectiveai_sdk::swarm::get_swarm(&ctx.http, path).await?;
+    let response = objectiveai_sdk::swarm::get_swarm(ctx.api_client().await?, path).await?;
     Ok(response)
 }
 

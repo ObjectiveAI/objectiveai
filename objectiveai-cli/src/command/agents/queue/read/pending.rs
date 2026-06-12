@@ -21,7 +21,7 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db.get().await?.clone();
+    let db = ctx.db_client().await?.clone();
     let after_id = request.after_id;
     let limit = request.limit;
     let stream = async_stream::stream! {

@@ -79,7 +79,6 @@ pub async fn spawn_until_lock_published(
         .stderr(std::process::Stdio::null());
     #[cfg(windows)]
     {
-        use std::os::windows::process::CommandExt;
         // CREATE_NO_WINDOW (0x08000000) | DETACHED_PROCESS (0x00000008)
         // — keep the spawned binary off the parent console and let it
         // outlive the cli.

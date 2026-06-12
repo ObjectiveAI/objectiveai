@@ -57,7 +57,7 @@ async fn fetch_paths(
     source: ListSwarmsSource,
 ) -> Result<Vec<RemotePath>, Error> {
     let resp = list_swarms(
-        &ctx.http,
+        ctx.api_client().await?,
         ListSwarmsRequest {
             source: Some(source),
         },

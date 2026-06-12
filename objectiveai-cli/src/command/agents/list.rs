@@ -56,7 +56,7 @@ async fn fetch_paths(
     source: ListAgentsSource,
 ) -> Result<Vec<RemotePath>, Error> {
     let resp = list_agents(
-        &ctx.http,
+        ctx.api_client().await?,
         ListAgentsRequest {
             source: Some(source),
         },

@@ -9,6 +9,7 @@ pub mod plugin_path;
 mod python;
 mod source_resolver;
 mod spawn;
+pub mod viewer_client;
 pub(crate) mod websockets;
 
 #[cfg(test)]

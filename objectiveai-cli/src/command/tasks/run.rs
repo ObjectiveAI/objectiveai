@@ -73,12 +73,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // receiver. It appends each (run_id, line) to `tasks_logs` as they
     // come in, and exits once every sender has dropped.
     let (log_tx, log_rx) = tokio::sync::mpsc::unbounded_channel::<(i64, String)>();
-    let writer = tokio::spawn(log_writer_loop(ctx.db.get().await?.clone(), log_rx));
+    let writer = tokio::spawn(log_writer_loop(ctx.db_client().await?.clone(), log_rx));
 
     // Scope is the caller's own AIH plus all descendants — no params.
     let parent = ctx.config.agent_instance_hierarchy.clone();
 
-    let rows = db::tasks::claim_pending(ctx.db.get().await?, &parent).await?;
+    let rows = db::tasks::claim_pending(ctx.db_client().await?, &parent).await?;
 
     if rows.is_empty() {
         // Nothing claimed → nothing to log. `log_tx` drops here and
@@ -279,7 +279,9 @@ async fn run_one(ctx: &Context, row: db::tasks::RunRow) -> Result<RootStream, Er
 /// `Config` from the schedule's saved `AgentArguments`. Mirrors
 /// `CliCommandExecutor::resolve_ctx`'s Some-arm — including the
 /// `"UNKNOWN"` fallback for the non-nullable
-/// `agent_instance_hierarchy` field.
+/// `agent_instance_hierarchy` field and the API-client cell detach
+/// (the memoized `HttpClient` must rebuild with the task's identity
+/// headers).
 fn apply_agent_arguments(ctx: &Context, args: &AgentArguments) -> Context {
     let mut ctx = ctx.clone();
     ctx.config.agent_instance_hierarchy = args
@@ -292,6 +294,7 @@ fn apply_agent_arguments(ctx: &Context, args: &AgentArguments) -> Context {
     ctx.config.response_id = args.response_id.clone();
     ctx.config.response_ids = args.response_ids.clone();
     ctx.config.mcp_session_id = args.mcp_session_id.clone();
+    ctx.reset_api_client();
     ctx
 }
 

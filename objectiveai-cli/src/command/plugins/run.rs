@@ -43,6 +43,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // a nested command knows which plugin it runs on behalf of, and
     // `config.plugin_*` is set so any subprocess that nested command
     // itself spawns inherits the coordinate via `apply_config_env`.
+    // No `reset_api_client()` here: plugin coords aren't on the
+    // `HttpClient`, so the memoized API client deliberately stays
+    // shared with the caller's ctx.
     let mut nested_ctx = ctx.clone();
     nested_ctx.config.plugin_owner = Some(request.owner.clone());
     nested_ctx.config.plugin_repository = Some(request.name.clone());

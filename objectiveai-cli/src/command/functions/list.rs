@@ -57,7 +57,7 @@ async fn fetch_paths(
     source: ListFunctionsSource,
 ) -> Result<Vec<RemotePath>, Error> {
     let resp = list_functions(
-        &ctx.http,
+        ctx.api_client().await?,
         ListFunctionsRequest {
             source: Some(source),
         },

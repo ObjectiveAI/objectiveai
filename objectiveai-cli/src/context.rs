@@ -1,75 +1,185 @@
 //! Process-wide state threaded into every bare-naked `command::*::execute`.
 //!
 //! `Context` is constructed once in `main.rs` (or by a programmatic
-//! embedder), then borrowed into the command tree. Bodies that need IO
-//! grab a `filesystem::Client` or the prebuilt `HttpClient` off it
-//! rather than building one per call.
+//! embedder) — synchronously and infallibly, no IO — then borrowed
+//! into the command tree. The three service clients are LAZY: the
+//! first `api_client()` / `viewer_client()` / `db_client()` call
+//! resolves the server's address (on-disk config, else the matching
+//! spawn flow, which itself short-circuits to the lock-published URL
+//! when the server is already up), builds the client, and memoizes it
+//! in a `tokio::sync::OnceCell` shared across `Context` clones (Arc).
+//! Concurrent callers coalesce on one initialization; a failed init
+//! is not cached, so the next call retries. Commands that never touch
+//! a service never spawn or connect to it.
 //!
-//! The `HttpClient` builder mirrors the legacy `crate::api::client::
-//! build_http_client` shape: per-field precedence is `env var →
-//! on-disk config → SDK default`, except `agent_instance_hierarchy`
-//! and `mcp_session_id` which come straight from `cli_config` (already
-//! env-populated at startup, and mutated for per-request overrides at
-//! the MCP boundary).
+//! Identity hazard: the memoized API `HttpClient` snapshots
+//! `config.agent_instance_hierarchy` + `config.mcp_session_id` into
+//! headers. A clone that mutates those fields MUST call
+//! [`Context::reset_api_client`] afterwards — see that method's doc.
+
+use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
+use tokio::sync::OnceCell;
 
 use crate::db;
 use crate::filesystem;
 use crate::plugin_path::PluginPath;
 use crate::run::Config;
+use crate::viewer_client::ViewerClient;
 
 #[derive(Clone)]
 pub struct Context {
     pub config: Config,
     pub filesystem: filesystem::Client,
-    /// Lazily-initialized database pool — connects (and ensures the
-    /// database + schema) on first use, so db-less commands like
-    /// `config db ...` and `db spawn` work before any postgres exists.
-    pub db: db::LazyPool,
-    pub http: HttpClient,
     /// The plugin a command is running on behalf of, when it was
     /// invoked through a plugin's nested-command protocol. Assembled
     /// from the `OBJECTIVEAI_PLUGIN_*` env vars (via `Config`).
     pub plugin: Option<PluginPath>,
+    /// Lazily-built API `HttpClient` — see [`Context::api_client`].
+    api: Arc<OnceCell<HttpClient>>,
+    /// Lazily-built viewer client — see [`Context::viewer_client`].
+    /// No per-request identity; always shared across clones.
+    viewer: Arc<OnceCell<ViewerClient>>,
+    /// Lazily-connected db pool — see [`Context::db_client`]. No
+    /// per-request identity; always shared across clones.
+    db: Arc<OnceCell<db::Pool>>,
 }
 
 impl Context {
-    pub async fn new(config: Config) -> Result<Self, crate::error::Error> {
+    pub fn new(config: Config) -> Self {
         let filesystem = filesystem::Client::new(
             config.objectiveai_dir.clone(),
             config.objectiveai_state.clone(),
             config.commit_author_name.clone(),
             config.commit_author_email.clone(),
         );
-        // Connection parameters come from the on-disk `config db`
-        // tier (with built-in defaults). No postgres is spawned
-        // here — `objectiveai db spawn` provisions the local
-        // objectiveai-db; a remote postgres just needs `config db`
-        // pointed at it.
-        let mut file_config = filesystem.read_config().await?;
-        let db = db::LazyPool::new(file_config.db().clone());
-        let http = build_http_client(&config, &filesystem).await?;
         let plugin = PluginPath::from_parts(
             config.plugin_owner.clone(),
             config.plugin_repository.clone(),
             config.plugin_version.clone(),
         );
-        Ok(Self {
+        Self {
             config,
             filesystem,
-            db,
-            http,
             plugin,
-        })
+            api: Arc::new(OnceCell::new()),
+            viewer: Arc::new(OnceCell::new()),
+            db: Arc::new(OnceCell::new()),
+        }
+    }
+
+    /// The API `HttpClient`, built on first use and memoized.
+    ///
+    /// Address resolution: `api.address` from the merged (`--final`)
+    /// config view when set, else the `api spawn` flow — which
+    /// returns the lock-published URL of an already-running api
+    /// without spawning, or starts one and waits for its lock.
+    pub async fn api_client(&self) -> Result<&HttpClient, crate::error::Error> {
+        self.api
+            .get_or_try_init(|| async {
+                let mut config = self
+                    .filesystem
+                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+                    .await?;
+                let address = match config.api().get_address() {
+                    Some(a) => ensure_scheme(a),
+                    None => crate::command::api::spawn::spawn(self).await?,
+                };
+                Ok(build_http_client(&self.config, &mut config, address))
+            })
+            .await
+    }
+
+    /// The synchronous-response viewer client, built on first use and
+    /// memoized.
+    ///
+    /// Address resolution mirrors [`Self::api_client`]:
+    /// `viewer.address` from the merged config view when set, else
+    /// the `viewer spawn` flow. Signature: env `VIEWER_SIGNATURE`,
+    /// else `viewer.signature` from the same view.
+    pub async fn viewer_client(&self) -> Result<&ViewerClient, crate::error::Error> {
+        self.viewer
+            .get_or_try_init(|| async {
+                let mut config = self
+                    .filesystem
+                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+                    .await?;
+                let address = match config.viewer().get_address() {
+                    Some(a) => ensure_scheme(a),
+                    None => crate::command::viewer::spawn::spawn(self).await?,
+                };
+                let signature = env("VIEWER_SIGNATURE")
+                    .or_else(|| config.viewer().get_signature().map(String::from));
+                Ok(ViewerClient::new(address, signature))
+            })
+            .await
+    }
+
+    /// The db pool, connected on first use (ensuring the application
+    /// database + schema exist) and memoized. Must NOT connect
+    /// eagerly: commands like `db config ...` and `db spawn` have to
+    /// work before any database exists — they're how you bring one up
+    /// in the first place.
+    ///
+    /// URL resolution: when `db.address` is set in the merged config
+    /// view, a remote-postgres URL is composed from the `config db`
+    /// parts; otherwise the `db spawn` flow returns the local
+    /// cluster's lock-published `postgresql://` URL (starting the
+    /// objectiveai-db supervisor if needed).
+    pub async fn db_client(&self) -> Result<&db::Pool, crate::error::Error> {
+        self.db
+            .get_or_try_init(|| async {
+                let mut config = self
+                    .filesystem
+                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+                    .await?;
+                let address = config.db().get_address().map(String::from);
+                let url = match address {
+                    Some(address) => {
+                        let db = config.db();
+                        db::config_url(
+                            &address,
+                            db.get_user()
+                                .unwrap_or(crate::filesystem::config::DB_DEFAULT_USER),
+                            db.get_password()
+                                .unwrap_or(crate::filesystem::config::DB_DEFAULT_PASSWORD),
+                        )
+                    }
+                    None => crate::command::db::spawn::spawn(self).await?,
+                };
+                let database = config
+                    .db()
+                    .get_database()
+                    .unwrap_or(crate::filesystem::config::DB_DEFAULT_DATABASE)
+                    .to_string();
+                Ok(db::init(&url, &database).await?)
+            })
+            .await
+    }
+
+    /// Detach this clone's API-client cell. MUST be called after
+    /// mutating `config.agent_instance_hierarchy` or
+    /// `config.mcp_session_id` on a cloned `Context`: the memoized
+    /// `HttpClient` snapshots those into headers, so a shared cell
+    /// would either serve the base identity to this clone or poison
+    /// the base context with this clone's identity. The viewer/db
+    /// cells stay shared — neither client carries identity.
+    pub fn reset_api_client(&mut self) {
+        self.api = Arc::new(OnceCell::new());
     }
 }
 
-/// Build the SDK `HttpClient` for this cli process. Precedence per
-/// field: `env var → on-disk config → SDK default`. The SDK's
-/// `env` feature is still enabled in `Cargo.toml`, but every value
-/// we pass in is already resolved (Some/None) so the SDK never
+/// Build the SDK `HttpClient` for this cli process. `address` is the
+/// already-resolved API base URL; every other field's precedence is
+/// `env var → on-disk config (merged final view) → SDK default`. The
+/// SDK's `env` feature is still enabled in `Cargo.toml`, but every
+/// value we pass in is already resolved (Some/None) so the SDK never
 /// reaches its own env fallback — the precedence chain is ours.
+///
+/// The viewer-mirror headers (`x_viewer_signature`,
+/// `x_viewer_address`) are deliberately not set — viewer discovery is
+/// lock-based now and the API client no longer carries them.
 ///
 /// Sourcing `agent_instance_hierarchy` and `mcp_session_id` from
 /// `cli_config` is deliberate: those are env-populated at startup by
@@ -77,21 +187,11 @@ impl Context {
 /// MCP boundary (see the per-call `X-OBJECTIVEAI-AGENT-INSTANCE-
 /// HIERARCHY` header stamp in `objectiveai-mcp`). Re-reading the env
 /// here would silently drop those overrides.
-async fn build_http_client(
+fn build_http_client(
     cli_config: &Config,
-    fs: &filesystem::Client,
-) -> Result<HttpClient, crate::error::Error> {
-    // The legacy filesystem `read_config` returns the full Config
-    // struct. We mutate it through `&mut config.api()` etc., then
-    // drop it — the resolved Option<String>s land in HttpClient by
-    // value.
-    let mut config = fs.read_config().await?;
-
-    let address = env("OBJECTIVEAI_ADDRESS").or_else(|| {
-        let api = config.api();
-        compose_url(api.get_address(), api.get_port())
-    });
-
+    config: &mut crate::filesystem::config::Config,
+    address: String,
+) -> HttpClient {
     let authorization = env("OBJECTIVEAI_AUTHORIZATION").or_else(|| {
         config
             .api()
@@ -128,14 +228,6 @@ async fn build_http_client(
                     .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             });
 
-    let x_viewer_signature = env("VIEWER_SIGNATURE")
-        .or_else(|| config.viewer().get_signature().map(String::from));
-
-    let x_viewer_address = env("VIEWER_ADDRESS").or_else(|| {
-        let viewer = config.viewer();
-        compose_url(viewer.get_address(), viewer.get_port())
-    });
-
     let x_commit_author_name = env("COMMIT_AUTHOR_NAME")
         .or_else(|| config.api().get_commit_author_name().map(String::from));
 
@@ -147,9 +239,9 @@ async fn build_http_client(
     let agent_instance_hierarchy = Some(cli_config.agent_instance_hierarchy.clone());
     let mcp_session_id = cli_config.mcp_session_id.clone();
 
-    Ok(HttpClient::new(
+    HttpClient::new(
         reqwest::Client::new(),
-        address,
+        Some(address),
         authorization,
         user_agent,
         x_title,
@@ -157,35 +249,23 @@ async fn build_http_client(
         x_github_authorization,
         x_openrouter_authorization,
         x_mcp_authorization,
-        x_viewer_signature,
-        x_viewer_address,
+        None::<String>,
+        None::<String>,
         x_commit_author_name,
         x_commit_author_email,
         agent_instance_hierarchy,
         mcp_session_id,
-    ))
+    )
 }
 
-/// Compose `(addr, port)` into a base URL, ensuring an explicit scheme.
-///
-/// Rule: if the address already starts with `http://` or `https://`,
-/// leave it untouched. Otherwise prefix `http://` — regardless of
-/// whether the host is an IPv4, IPv6, or hostname.
-pub(crate) fn compose_url(addr: Option<&str>, port: Option<u16>) -> Option<String> {
-    fn ensure_scheme(a: &str) -> String {
-        if a.starts_with("http://") || a.starts_with("https://") {
-            a.to_string()
-        } else {
-            format!("http://{a}")
-        }
-    }
-    match (addr, port) {
-        (Some(a), Some(p)) => {
-            Some(format!("{}:{p}", ensure_scheme(a).trim_end_matches('/')))
-        }
-        (Some(a), None) => Some(ensure_scheme(a)),
-        (None, Some(p)) => Some(format!("http://127.0.0.1:{p}")),
-        (None, None) => None,
+/// Ensure an explicit scheme on a configured address: leave
+/// `http://`/`https://` untouched, otherwise prefix `http://` —
+/// regardless of whether the host is an IPv4, IPv6, or hostname.
+pub(crate) fn ensure_scheme(a: &str) -> String {
+    if a.starts_with("http://") || a.starts_with("https://") {
+        a.to_string()
+    } else {
+        format!("http://{a}")
     }
 }
 
@@ -195,36 +275,15 @@ fn env(name: &str) -> Option<String> {
 
 #[cfg(test)]
 mod tests {
-    use super::compose_url;
+    use super::ensure_scheme;
 
     #[test]
-    fn compose_url_cases() {
-        assert_eq!(compose_url(None, None), None);
-        assert_eq!(
-            compose_url(Some("127.0.0.1"), Some(8080)).as_deref(),
-            Some("http://127.0.0.1:8080"),
-        );
-        assert_eq!(
-            compose_url(Some("::1"), Some(8080)).as_deref(),
-            Some("http://::1:8080"),
-        );
-        assert_eq!(compose_url(Some("::1"), None).as_deref(), Some("http://::1"));
-        assert_eq!(compose_url(Some("api.x"), None).as_deref(), Some("http://api.x"));
-        assert_eq!(
-            compose_url(Some("https://api.x"), None).as_deref(),
-            Some("https://api.x"),
-        );
-        assert_eq!(
-            compose_url(Some("https://api.x"), Some(443)).as_deref(),
-            Some("https://api.x:443"),
-        );
-        assert_eq!(
-            compose_url(Some("https://api.x/"), Some(443)).as_deref(),
-            Some("https://api.x:443"),
-        );
-        assert_eq!(
-            compose_url(None, Some(8080)).as_deref(),
-            Some("http://127.0.0.1:8080"),
-        );
+    fn ensure_scheme_cases() {
+        assert_eq!(ensure_scheme("127.0.0.1"), "http://127.0.0.1");
+        assert_eq!(ensure_scheme("127.0.0.1:8080"), "http://127.0.0.1:8080");
+        assert_eq!(ensure_scheme("::1"), "http://::1");
+        assert_eq!(ensure_scheme("api.x"), "http://api.x");
+        assert_eq!(ensure_scheme("http://api.x"), "http://api.x");
+        assert_eq!(ensure_scheme("https://api.x"), "https://api.x");
     }
 }

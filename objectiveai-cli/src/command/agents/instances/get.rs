@@ -21,7 +21,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // dedup preserving first-seen order.
     let mut aihs: Vec<String> = Vec::new();
     for target in request.targets {
-        if let Some(aih) = super::resolve_target(ctx.db.get().await?, target, &default_parent).await? {
+        if let Some(aih) = super::resolve_target(ctx.db_client().await?, target, &default_parent).await? {
             if !aihs.contains(&aih) {
                 aihs.push(aih);
             }
@@ -32,7 +32,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // that resolved to the same AIH.
     let mut merged: BTreeMap<String, ResponseItem> = BTreeMap::new();
     for aih in aihs {
-        let item = crate::db::instances::get_exact(ctx.db.get().await?, &aih).await?;
+        let item = crate::db::instances::get_exact(ctx.db_client().await?, &aih).await?;
         merged.insert(item.agent_instance_hierarchy.clone(), item);
     }
 

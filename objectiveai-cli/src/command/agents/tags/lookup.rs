@@ -19,14 +19,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 .unwrap_or_else(|| ctx.config.agent_instance_hierarchy.clone());
             let agent_instance_hierarchy = format!("{parent}/{agent_instance}");
             let tags = db::tags::tags_for_hierarchy(
-                ctx.db.get().await?,
+                ctx.db_client().await?,
                 &agent_instance_hierarchy,
             )
             .await?;
             Ok(Response::AgentInstanceHierarchy { tags })
         }
         Request::Tag { tag, .. } => {
-            let state = db::tags::lookup(ctx.db.get().await?, &tag).await?;
+            let state = db::tags::lookup(ctx.db_client().await?, &tag).await?;
             Ok(match state {
                 db::tags::LookupState::Bound { agent_instance_hierarchy } => Response::Tag {
                     state: LookupState::Bound { agent_instance_hierarchy },

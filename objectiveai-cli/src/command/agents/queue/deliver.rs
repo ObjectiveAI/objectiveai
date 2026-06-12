@@ -139,7 +139,7 @@ async fn execute_streaming(ctx: &Context, _request: Request) -> Result<ItemStrea
     // excluded (the query is parent-inclusive; deliver targets only
     // strict descendants).
     let caller = ctx.config.agent_instance_hierarchy.clone();
-    let targets = db::message_queue::list_delivery_targets(ctx.db.get().await?, &caller).await?;
+    let targets = db::message_queue::list_delivery_targets(ctx.db_client().await?, &caller).await?;
     let mut hierarchies: Vec<String> = Vec::new();
     for target in targets {
         if target.agent_instance_hierarchy != caller
@@ -204,7 +204,7 @@ fn deliver_one(
         // is best-effort and silently no-ops on the held lock.
         let _claim = claim;
 
-        let lookup = match db::logs::lookup_session(ctx.db.get().await?, &hierarchy).await {
+        let lookup = match db::logs::lookup_session(ctx.db_client().await?, &hierarchy).await {
             Ok(Some(lookup)) => lookup,
             Ok(None) => {
                 yield Err(Error::Instance(format!(

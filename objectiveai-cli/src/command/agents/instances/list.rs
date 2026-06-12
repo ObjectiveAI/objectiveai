@@ -17,7 +17,7 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
-    let db = ctx.db.get().await?.clone();
+    let db = ctx.db_client().await?.clone();
     let stream = async_stream::stream! {
         // Resolve + query every target concurrently. GROUPED/ABSENT tags
         // resolve to None and contribute nothing.

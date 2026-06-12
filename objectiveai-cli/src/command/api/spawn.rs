@@ -10,7 +10,11 @@ use objectiveai_sdk::cli::command::api::spawn::{Request, Response};
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+/// The spawn flow itself, callable in-process (used by
+/// `Context::api_client()` as well as the `api spawn` command).
+/// Idempotent and cheap when the server is already up: a try_read of
+/// the lock returns the published URL without spawning.
+pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let bin = if cfg!(windows) {
         "objectiveai-api.exe"
     } else {
@@ -25,12 +29,17 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     // whichever state the spawning cli happened to run in. No
     // ADDRESS/PORT either: the api defaults to 127.0.0.1 on an
     // ephemeral port and publishes the bound URL in its lock.
-    let listening = crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
+    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("SUPPRESS_OUTPUT", "true");
     })
-    .await?;
-    Ok(Response { listening })
+    .await
+}
+
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    Ok(Response {
+        listening: spawn(ctx).await?,
+    })
 }
 
 pub mod request_schema {

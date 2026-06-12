@@ -105,7 +105,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
             })
         }
         MessageTarget::Tag { agent_tag } => {
-            let state = crate::db::tags::lookup(ctx.db.get().await?, agent_tag).await?;
+            let state = crate::db::tags::lookup(ctx.db_client().await?, agent_tag).await?;
             match state {
                 LookupState::Bound {
                     agent_instance_hierarchy,
@@ -118,7 +118,7 @@ async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarg
                     // tag name — the queue reader resolves it later.
                     let content = resolve_message(request.message.clone())?;
                     let id = crate::db::message_queue::enqueue_with_content(
-                        ctx.db.get().await?,
+                        ctx.db_client().await?,
                         None,
                         Some(agent_tag.clone()),
                         &ctx.config.agent_instance_hierarchy,
@@ -157,7 +157,7 @@ async fn execute_streaming(
 
     // Slow path: live owner. Enqueue + race.
     let queue_id = crate::db::message_queue::enqueue_with_content(
-        ctx.db.get().await?,
+        ctx.db_client().await?,
         Some(hierarchy.clone()),
         None,
         &ctx.config.agent_instance_hierarchy,
@@ -166,7 +166,7 @@ async fn execute_streaming(
     )
     .await?;
 
-    let pool = ctx.db.get().await?.clone();
+    let pool = ctx.db_client().await?.clone();
     let lock_path_clone = lock_path.clone();
     tokio::select! {
         delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
@@ -180,7 +180,7 @@ async fn execute_streaming(
             // We're the new owner. Reclaim our queue row before
             // spawning — the conduit shouldn't see it again.
             let _ = crate::db::message_queue::delete_by_id(
-                ctx.db.get().await?,
+                ctx.db_client().await?,
                 queue_id,
                 &ctx.config.agent_instance_hierarchy,
             )
@@ -203,7 +203,7 @@ async fn run_spawn_with(
     message_content: RichContent,
     seed: Option<i64>,
 ) -> Result<ItemStream, Error> {
-    let lookup = crate::db::logs::lookup_session(ctx.db.get().await?, &hierarchy)
+    let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
         .await?
         .ok_or_else(|| {
             Error::Instance(format!("no prior session for {hierarchy:?}"))
@@ -274,7 +274,7 @@ async fn execute_unary(
         if lock_file::is_held(&lock_path) {
             // Live agent — enqueue + race delivery vs release.
             let queue_id = crate::db::message_queue::enqueue_with_content(
-                ctx.db.get().await?,
+                ctx.db_client().await?,
                 Some(hierarchy.clone()),
                 None,
                 &ctx.config.agent_instance_hierarchy,
@@ -283,7 +283,7 @@ async fn execute_unary(
             )
             .await?;
 
-            let pool = ctx.db.get().await?.clone();
+            let pool = ctx.db_client().await?.clone();
             let lock_path_clone = lock_path.clone();
             let race_outcome = tokio::select! {
                 delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
@@ -307,7 +307,7 @@ async fn execute_unary(
                     // have claimed it already, or no one will and
                     // we'll fall through to the detached respawn).
                     let _ = crate::db::message_queue::delete_by_id(
-                ctx.db.get().await?,
+                ctx.db_client().await?,
                 queue_id,
                 &ctx.config.agent_instance_hierarchy,
             )
@@ -411,7 +411,7 @@ async fn execute_enqueue(
         MessageTarget::Tag { agent_tag } => (None, Some(agent_tag)),
     };
     let id = crate::db::message_queue::enqueue_with_content(
-        ctx.db.get().await?,
+        ctx.db_client().await?,
         hier.clone(),
         tag.clone(),
         &ctx.config.agent_instance_hierarchy,

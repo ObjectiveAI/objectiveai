@@ -57,7 +57,7 @@ async fn fetch_paths(
     source: ListProfilesSource,
 ) -> Result<Vec<RemotePath>, Error> {
     let resp = list_profiles(
-        &ctx.http,
+        ctx.api_client().await?,
         ListProfilesRequest {
             source: Some(source),
         },

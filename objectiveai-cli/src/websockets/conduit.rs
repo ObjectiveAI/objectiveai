@@ -521,7 +521,7 @@ async fn dispatch_read_message_queue(
     inner: &Arc<Inner>,
     req: server_request::ReadMessageQueueRequest,
 ) -> server_response::Payload {
-    let pool = match inner.ctx.db.get().await {
+    let pool = match inner.ctx.db_client().await {
         Ok(pool) => pool,
         Err(e) => {
             return server_response::Payload::ReadMessageQueue(JsonRpcResult::Err {
@@ -693,6 +693,10 @@ async fn dial_plugin_upstream(
     dial_ctx.config.agent_remote = transient.agent_remote.clone();
     dial_ctx.config.response_id = Some(transient.response_id.clone());
     dial_ctx.config.response_ids = Some(transient.response_ids.clone());
+    // Nested plugin commands run in-process against this ctx; the
+    // transient identity must not reuse (or poison) the conduit
+    // owner's memoized API client.
+    dial_ctx.reset_api_client();
 
     // Build argv: `mcp <mcp_name> begin [--<k> [<v>]]…`. Manifest /
     // binary resolution is `command::plugins::run::execute`'s job;

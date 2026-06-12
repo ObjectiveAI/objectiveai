@@ -8,7 +8,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    crate::db::logs::read_by_id(ctx.db.get().await?, request.id)
+    crate::db::logs::read_by_id(ctx.db_client().await?, request.id)
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(

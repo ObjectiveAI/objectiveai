@@ -13,7 +13,12 @@ use crate::context::Context;
 use crate::error::Error;
 use crate::filesystem::config::DB_DEFAULT_PASSWORD;
 
-pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+/// The spawn flow itself, callable in-process (used by
+/// `Context::db_client()` as well as the `db spawn` command).
+/// Idempotent and cheap when the cluster is already up: a try_read of
+/// the lock returns the published `postgresql://` URL without
+/// spawning.
+pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let mut config = ctx
         .filesystem
         .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
@@ -36,7 +41,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     // coordinates tell it to provision THIS cli's tree — postgres
     // binaries into the shared <dir>/bin/pg-bin, the cluster into
     // <dir>/state/<state>/db.
-    let listening = crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "db", |cmd| {
+    crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "db", |cmd| {
         cmd.arg("--objectiveai-dir")
             .arg(ctx.filesystem.dir())
             .arg("--objectiveai-state")
@@ -44,8 +49,13 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
             .arg("--pg-password")
             .arg(password);
     })
-    .await?;
-    Ok(Response { listening })
+    .await
+}
+
+pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
+    Ok(Response {
+        listening: spawn(ctx).await?,
+    })
 }
 
 pub mod request_schema {

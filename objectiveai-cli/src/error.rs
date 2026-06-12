@@ -69,18 +69,10 @@ pub enum Error {
     },
     #[error("whitelist regex error: {0}")]
     WhitelistRegex(regex::Error),
-    #[error(
-        "viewer address is not configured; set VIEWER_ADDRESS in the env or run `objectiveai viewer address config set <addr>` (and optionally `objectiveai viewer port config set <port>`)"
-    )]
-    ViewerAddressNotConfigured,
     #[error("viewer path must start with `/`, got {0:?}")]
     ViewerPathMissingSlash(String),
-    #[error("viewer body is not valid JSON: {0}")]
-    ViewerBodyJsonParse(String),
     #[error("viewer http error: {0}")]
     ViewerSendHttp(String),
-    #[error("viewer returned status {status}: {body}")]
-    ViewerSendBadStatus { status: u16, body: String },
     #[error("updater: {0}")]
     Updater(String),
     #[error("instance runner: {0}")]
@@ -181,13 +173,11 @@ fn http_is_connect_failure(err: &objectiveai_sdk::HttpError) -> bool {
 fn format_http_error(err: &objectiveai_sdk::HttpError) -> String {
     if http_is_connect_failure(err) {
         format!(
-            "{err}\n\nhint: this looks like a connection failure to the configured API address. \
-to run an API locally:\n  \
-  1. configure address + port (use an available port):\n     \
-       objectiveai api address config set 127.0.0.1\n     \
-       objectiveai api port config set <port>\n  \
-  2. spawn the server:\n     \
-       objectiveai api spawn"
+            "{err}\n\nhint: this looks like a connection failure to the resolved API \
+address. the cli auto-spawns a local objectiveai-api when no address is \
+configured; if you set `api.address`, verify it \
+(`objectiveai api config address get --final`) or unset it to use the \
+local server. to (re)start the local server: `objectiveai api spawn`"
         )
     } else {
         err.to_string()

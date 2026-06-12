@@ -1,10 +1,11 @@
 //! Postgres-backed state for the CLI.
 //!
 //! Replaces the legacy `filesystem::db` SQLite tree. One sqlx `PgPool`
-//! over the postgres configured via `config db` (locally provisioned
-//! by `objectiveai db spawn`, or any remote instance); every tier
-//! ([`tags`], [`message_queue`], [`tasks`], [`logs`]) takes `&Pool` and
-//! runs natively async.
+//! over the objectiveai-db cluster whose `postgresql://` URL is
+//! published in the `db` spawn lock (or a remote postgres pointed at
+//! via `db config address`), lazily initialized by
+//! `Context::db_client()`; every tier ([`tags`], [`message_queue`],
+//! [`tasks`], [`logs`]) takes `&Pool` and runs natively async.
 
 mod error;
 pub use error::*;
@@ -14,9 +15,6 @@ pub use pool::*;
 
 mod init;
 pub use init::*;
-
-mod lazy;
-pub use lazy::*;
 
 pub mod agent_continuations;
 pub mod instances;
