@@ -208,8 +208,10 @@ fn build_http_client(
     let http_referer = env("HTTP_REFERER")
         .or_else(|| config.api().get_http_referer().map(String::from));
 
-    let x_github_authorization = env("GITHUB_AUTHORIZATION")
-        .or_else(|| config.api().get_github_authorization().map(String::from));
+    // Deliberately NOT env-sourced: the GitHub credential lives in the
+    // on-disk json config only (`api config github-authorization set`).
+    let x_github_authorization =
+        config.api().get_github_authorization().map(String::from);
 
     let x_openrouter_authorization = env("OPENROUTER_AUTHORIZATION").or_else(|| {
         config

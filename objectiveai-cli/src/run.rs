@@ -58,8 +58,6 @@ struct EnvConfigBuilder {
     commit_author_name: Option<String>,
     #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
     commit_author_email: Option<String>,
-    #[envconfig(from = "GITHUB_AUTHORIZATION")]
-    github_authorization: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY")]
     agent_instance_hierarchy: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_AGENT_ID")]
@@ -94,7 +92,6 @@ impl EnvConfigBuilder {
             objectiveai_state: self.objectiveai_state,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
-            github_authorization: self.github_authorization,
             agent_instance_hierarchy: self.agent_instance_hierarchy,
             agent_id: self.agent_id,
             agent_full_id: self.agent_full_id,
@@ -116,7 +113,6 @@ pub struct ConfigBuilder {
     pub objectiveai_state: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
-    pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: Option<String>,
     pub agent_id: Option<String>,
     pub agent_full_id: Option<String>,
@@ -154,7 +150,6 @@ impl ConfigBuilder {
             objectiveai_state: self.objectiveai_state,
             commit_author_name: self.commit_author_name,
             commit_author_email: self.commit_author_email,
-            github_authorization: self.github_authorization,
             agent_instance_hierarchy: self
                 .agent_instance_hierarchy
                 .unwrap_or_else(|| "cli".to_string()),
@@ -180,7 +175,6 @@ pub struct Config {
     pub objectiveai_state: Option<String>,
     pub commit_author_name: Option<String>,
     pub commit_author_email: Option<String>,
-    pub github_authorization: Option<String>,
     pub agent_instance_hierarchy: String,
     pub agent_id: Option<String>,
     /// WF-level agent identity from `OBJECTIVEAI_AGENT_FULL_ID` / the

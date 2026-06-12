@@ -51,7 +51,15 @@ const PACKAGES: &[&str] = &["api", "viewer", "mcp", "db", "cli"];
 pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
     let bin_dir = ctx.filesystem.bin_dir();
-    let github_authorization = ctx.config.github_authorization.clone();
+    // The GitHub credential lives in the on-disk json config only
+    // (`api config github-authorization set`), not the env Config.
+    let github_authorization = ctx
+        .filesystem
+        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .await?
+        .api()
+        .get_github_authorization()
+        .map(String::from);
 
     tokio::spawn(async move {
         if let Err(e) = run(&bin_dir, github_authorization.as_deref(), &tx).await {

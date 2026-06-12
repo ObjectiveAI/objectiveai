@@ -234,9 +234,6 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     if let Some(v) = cfg.commit_author_email.as_deref() {
         cmd.env("COMMIT_AUTHOR_EMAIL", v);
     }
-    if let Some(v) = cfg.github_authorization.as_deref() {
-        cmd.env("GITHUB_AUTHORIZATION", v);
-    }
     cmd.env("OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY", &cfg.agent_instance_hierarchy);
     match cfg.agent_id.as_deref() {
         Some(v) => {
