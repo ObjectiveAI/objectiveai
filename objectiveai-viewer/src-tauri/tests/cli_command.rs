@@ -34,14 +34,15 @@ async fn cli_command_config_viewer_get() {
     let env = ViewerTestEnv::new();
 
     // Pick an offline cli command that emits a small, deterministic
-    // JSONL stream: `config viewer get` against the dedicated
+    // JSONL stream: `viewer config get --final` against the dedicated
     // `viewer_cli_command` state prints exactly one line — the empty
-    // viewer config object — purely local, no network state.
+    // merged viewer config object — purely local, no network state.
     let args = vec![
         "objectiveai".to_string(),
-        "config".to_string(),
         "viewer".to_string(),
+        "config".to_string(),
         "get".to_string(),
+        "--final".to_string(),
     ];
     objectiveai_viewer::test_internals::cli_run_impl(
         &executor,
