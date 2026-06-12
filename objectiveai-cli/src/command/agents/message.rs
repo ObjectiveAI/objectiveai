@@ -8,13 +8,14 @@
 //!   inline, return its first item as `Id`.
 //! - **instance / BOUND tag** (the AIH lock) and **GROUPED tag**
 //!   (the tag lock): try_acquire. Won → exec the spawn child with
-//!   the claim TRANSFERRED into it (`skip_lock=true`; the lock then
-//!   lives exactly as long as the child) → `Id`. Lost → enqueue the
-//!   message, then race `subscribe_delivered` (the row flipping
+//!   `skip_lock=true`; an AIH claim is TRANSFERRED into the child
+//!   (the lock then lives exactly as long as the child), a TAG claim
+//!   is held by THIS process instead — only AIH locks ever transfer
+//!   — and persists until this process exits → `Id`. Lost → enqueue
+//!   the message, then race `subscribe_delivered` (the row flipping
 //!   inactive means a live agent consumed it → `Delivered`) against
 //!   `wait_acquire` (the slot freed up first → reclaim our queue
-//!   row, exec the spawn child with the fresh claim transferred →
-//!   `Id`).
+//!   row, exec the spawn child with the fresh claim → `Id`).
 //!
 //! The message payload is resolved ONCE in this process (file IO /
 //! Python run here); spawn children always receive the resolved
@@ -88,7 +89,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(child, content, seed, None).await,
+        Route::Ref { child } => spawn_child(child, content, seed, None, false).await,
         Route::Locked {
             dir,
             key,
@@ -96,10 +97,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             tag,
             child,
         } => {
+            let is_tag = tag.is_some();
             // Fast path: nobody holds the lock — exec the spawn child
-            // with the claim transferred into it.
+            // under the fresh claim.
             if let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                return spawn_child(child, content, seed, Some(claim)).await;
+                return spawn_locked(child, content, seed, claim, is_tag).await;
             }
 
             // Slow path: live owner. Park the message, then wait for
@@ -135,7 +137,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         &ctx.config.agent_instance_hierarchy,
                     )
                     .await;
-                    spawn_child(child, content, seed, Some(claim)).await
+                    spawn_locked(child, content, seed, claim, is_tag).await
                 }
             }
         }
@@ -180,20 +182,46 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
     }
 }
 
+/// Exec the spawn child for a freshly won lock. AIH claims TRANSFER
+/// into the child (the lock then lives exactly as long as the
+/// child); TAG claims never transfer — this process keeps holding
+/// the claim while the child runs with `skip_lock`, and since
+/// dropping a claim does not release it, the tag lock persists until
+/// this process exits. That's deliberate: nothing else may
+/// materialize the tag while the child is still pre-first-chunk; by
+/// the time the child's first item (`Id`) arrives it already holds
+/// its minted AIH lock, and the GROUPED→BOUND upgrade has landed.
+async fn spawn_locked(
+    agent: AgentSelector,
+    content: RichContent,
+    seed: Option<i64>,
+    claim: LockClaim,
+    is_tag: bool,
+) -> Result<Response, Error> {
+    if is_tag {
+        let _tag_claim = claim;
+        spawn_child(agent, content, seed, None, true).await
+    } else {
+        spawn_child(agent, content, seed, Some(claim), true).await
+    }
+}
+
 /// Exec a detached `agents spawn` child (stream=true) and return its
-/// first item as the unary response. When `claim` is `Some`, the
-/// lock is transferred into the child (which is told to skip its own
-/// initial acquisition via `skip_lock`) — the child becomes the sole
-/// owner and the lock lives until it exits. The child's first item
-/// is always its `Id` (chunks are gated behind it); the rest of the
+/// first item as the unary response. When `transfer` is `Some`, the
+/// lock is transferred into the child — the child becomes the sole
+/// owner and the lock lives until it exits. `skip_lock` tells the
+/// child to skip its own initial acquisition (set whenever a lock is
+/// held for it, transferred or not). The child's first item is
+/// always its `Id` (chunks are gated behind it); the rest of the
 /// stream is dropped and the orphan keeps running.
 async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    claim: Option<LockClaim>,
+    transfer: Option<LockClaim>,
+    skip_lock: bool,
 ) -> Result<Response, Error> {
-    let skip_lock = claim.is_some().then_some(true);
+    let skip_lock = skip_lock.then_some(true);
     let child_request = spawn_sdk::Request {
         path_type: spawn_sdk::Path::AgentsSpawn,
         message: RequestMessage::Inline(content),
@@ -209,7 +237,7 @@ async fn spawn_child(
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
     let mut executor = BinaryExecutor::from_path(exe).detach(true);
-    if let Some(claim) = claim {
+    if let Some(claim) = transfer {
         executor = executor.transfer_lock(claim);
     }
     let mut stream = executor

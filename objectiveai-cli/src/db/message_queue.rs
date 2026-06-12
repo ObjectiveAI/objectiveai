@@ -54,9 +54,14 @@ pub struct DrainedMessage {
 
 /// One addressed delivery target.
 #[derive(Debug, Clone)]
-pub struct DeliveryTarget {
-    pub agent_instance_hierarchy: String,
-    pub agent_tag: Option<String>,
+pub enum DeliveryTarget {
+    /// A resolvable hierarchy: direct queue rows plus rows parked
+    /// against BOUND tags (resolved to the tag's hierarchy).
+    Hierarchy { agent_instance_hierarchy: String },
+    /// An un-upgraded (GROUPED) tag with pending rows — spawning it
+    /// materializes the agent from the group's stored spec and
+    /// upgrades the whole group to BOUND.
+    GroupedTag { agent_tag: String },
 }
 
 fn now_seconds() -> i64 {
@@ -917,18 +922,25 @@ async fn fetch_content_parts_for_queue_id(
 // Delivery enumeration — `agents queue deliver` fan-out.
 // ---------------------------------------------------------------------------
 
-/// Enumerate every distinct `(resolved hierarchy, agent_tag)` pair with
-/// pending queue rows in the subtree rooted at `parent` (inclusive).
-/// PENDING / ABSENT tag rows are filtered out at the SQL level.
+/// Enumerate every delivery target with pending queue rows in the
+/// subtree rooted at `parent`:
+///
+/// - **Hierarchies** (subtree-inclusive): direct rows, plus tag rows
+///   resolved through a BOUND tag.
+/// - **Un-upgraded (GROUPED) tags** whose `tag_groups` parent sits in
+///   the subtree (inclusive — the minted hierarchy will be a strict
+///   descendant of that parent).
+///
+/// ABSENT tag rows (no `tags` row at all) are filtered out at the
+/// SQL level — there is nothing to wake or materialize for them.
 pub async fn list_delivery_targets(
     pool: &Pool,
     parent: &str,
 ) -> Result<Vec<DeliveryTarget>, Error> {
     let pattern = format!("{parent}/%");
-    let rows = sqlx::query(
+    let hier_rows = sqlx::query(
         "SELECT DISTINCT \
-                COALESCE(t.agent_instance_hierarchy, p.agent_instance_hierarchy) AS hier, \
-                p.agent_tag \
+                COALESCE(t.agent_instance_hierarchy, p.agent_instance_hierarchy) AS hier \
          FROM message_queue p \
          LEFT JOIN tags t \
              ON p.agent_tag = t.name \
@@ -952,17 +964,39 @@ pub async fn list_delivery_targets(
                      OR t.agent_instance_hierarchy LIKE $2 \
                  ) \
              ) ) \
-         ORDER BY hier, p.agent_tag",
+         ORDER BY hier",
     )
     .bind(parent)
     .bind(&pattern)
     .fetch_all(&**pool)
     .await?;
-    let mut out = Vec::with_capacity(rows.len());
-    for row in rows {
-        out.push(DeliveryTarget {
+    let tag_rows = sqlx::query(
+        "SELECT DISTINCT p.agent_tag \
+         FROM message_queue p \
+         JOIN tags t \
+             ON p.agent_tag = t.name \
+             AND t.tag_group IS NOT NULL \
+         JOIN tag_groups g \
+             ON g.id = t.tag_group \
+         WHERE p.active = TRUE AND ( \
+             g.parent_agent_instance_hierarchy = $1 \
+             OR g.parent_agent_instance_hierarchy LIKE $2 \
+         ) \
+         ORDER BY p.agent_tag",
+    )
+    .bind(parent)
+    .bind(&pattern)
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(hier_rows.len() + tag_rows.len());
+    for row in hier_rows {
+        out.push(DeliveryTarget::Hierarchy {
             agent_instance_hierarchy: row.try_get(0)?,
-            agent_tag: row.try_get(1)?,
+        });
+    }
+    for row in tag_rows {
+        out.push(DeliveryTarget::GroupedTag {
+            agent_tag: row.try_get(0)?,
         });
     }
     Ok(out)

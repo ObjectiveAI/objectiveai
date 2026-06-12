@@ -1,16 +1,21 @@
 //! `agents queue deliver` — wake every queue-pending descendant
 //! agent of the caller.
 //!
-//! The handler enumerates the unique AIHs with active queued prompts
-//! that are STRICT descendants of the caller (the caller itself is
-//! excluded) and, per AIH, try-acquires the agent's file lock with no
-//! waiting: a live owner yields [`AgentActiveResponseItem`]; winning
-//! the lock yields [`AgentSpawnedResponseItem`] and runs the same
-//! spawn machinery `agents spawn` / `agents message` use (empty
-//! messages + the stored continuation), streaming each spawn item as
-//! a [`ValueResponseItem`] and releasing the lock when that task's
-//! stream ends. Once EVERY target has resolved (active or spawned),
-//! the bare string `"AllAgentsActive"` is emitted.
+//! The handler enumerates two kinds of targets with active queued
+//! prompts in the caller's subtree: unique AIHs that are STRICT
+//! descendants of the caller (direct rows + rows against BOUND
+//! tags), and un-upgraded (GROUPED) tags whose group parent sits in
+//! the subtree. Per target it try-acquires the agent's (or tag's)
+//! lock with no waiting: a live owner yields
+//! [`AgentActiveResponseItem`] / [`TagActiveResponseItem`]; winning
+//! the lock yields [`AgentSpawnedResponseItem`] /
+//! [`TagSpawnedResponseItem`] and runs the same spawn machinery
+//! `agents spawn` / `agents message` use (empty messages, plus the
+//! stored continuation for AIHs or the group's stored agent spec for
+//! tags), streaming each spawn item as a [`ValueResponseItem`] and
+//! releasing the lock when that task's stream ends. Once EVERY
+//! target has resolved (active or spawned), the bare string
+//! `"AllAgentsActive"` is emitted.
 //!
 //! Two modes, selected by `dangerous_advanced.stream_spawns`:
 //! * unset/false (the default, user-facing): re-exec the cli binary
@@ -72,8 +77,9 @@ impl CommandRequest for Request {
 
 /// One stream item from `agents queue deliver`. Untagged — the
 /// variants are disjoint on the wire: `Value` requires `value`,
-/// `AgentActive` / `AgentSpawned` carry distinct `type` markers, and
-/// `AllAgentsActive` is the bare string `"AllAgentsActive"`.
+/// `AgentActive` / `AgentSpawned` / `TagActive` / `TagSpawned` carry
+/// distinct `type` markers, and `AllAgentsActive` is the bare string
+/// `"AllAgentsActive"`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.queue.deliver.ResponseItem")]
@@ -84,6 +90,10 @@ pub enum ResponseItem {
     AgentActive(AgentActiveResponseItem),
     #[schemars(title = "AgentSpawned")]
     AgentSpawned(AgentSpawnedResponseItem),
+    #[schemars(title = "TagActive")]
+    TagActive(TagActiveResponseItem),
+    #[schemars(title = "TagSpawned")]
+    TagSpawned(TagSpawnedResponseItem),
     #[schemars(title = "AllAgentsActive")]
     AllAgentsActive(AllAgentsActive),
 }
@@ -140,6 +150,42 @@ pub struct AgentSpawnedResponseItem {
 pub enum AgentSpawnedType {
     #[serde(rename = "AgentSpawned")]
     AgentSpawned,
+}
+
+/// This un-upgraded tag's lock was held by a live owner — another
+/// process is already materializing it; the queued rows will reach
+/// the agent it mints. Nothing was spawned for it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.deliver.TagActiveResponseItem")]
+pub struct TagActiveResponseItem {
+    pub r#type: TagActiveType,
+    pub agent_tag: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.deliver.TagActiveType")]
+pub enum TagActiveType {
+    #[serde(rename = "TagActive")]
+    TagActive,
+}
+
+/// This un-upgraded tag's lock was won and a fresh spawn of the
+/// group's stored agent spec has started. The minted
+/// `agent_instance_hierarchy` isn't known yet at this point — it
+/// arrives as the FIRST inner item (the spawn `Id`) of the
+/// [`ValueResponseItem`]s that follow (in `stream_spawns` mode).
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.deliver.TagSpawnedResponseItem")]
+pub struct TagSpawnedResponseItem {
+    pub r#type: TagSpawnedType,
+    pub agent_tag: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.deliver.TagSpawnedType")]
+pub enum TagSpawnedType {
+    #[serde(rename = "TagSpawned")]
+    TagSpawned,
 }
 
 /// Every target has resolved to active-or-spawned. Wire shape is the

@@ -145,12 +145,20 @@ async fn execute_streaming(
     // array. Reuses `agents message`'s `resolve_message`
     // so the five wire variants (`Simple` / `Inline(RichContent)`
     // / `File` / `PythonInline` / `PythonFile`) round-trip
-    // identically.
+    // identically. EMPTY resolved content (`--simple ""`, an empty
+    // Inline text, empty parts) means a wake-up/resume turn: send an
+    // EMPTY `messages` array — never a user message with an empty
+    // string — and let the API drive from the continuation + the
+    // conduit's queue drain.
     let content = super::message::resolve_message(request.message)?;
-    let messages = vec![Message::User(UserMessage {
-        content,
-        name: None,
-    })];
+    let messages = if content.is_empty() {
+        Vec::new()
+    } else {
+        vec![Message::User(UserMessage {
+            content,
+            name: None,
+        })]
+    };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
     let skip_lock = request
         .dangerous_advanced
