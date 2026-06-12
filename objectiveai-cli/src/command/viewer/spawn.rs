@@ -1,6 +1,10 @@
 //! `viewer spawn` — start the `objectiveai-viewer` Tauri shell in the
-//! background, using `viewer.address` + `viewer.port` from on-disk
-//! config.
+//! background.
+//!
+//! The viewer is per-state: its lock lives at
+//! `<dir>/state/<state>/locks` key `viewer`, and the lock contents are
+//! the server's client-connect URL. If the lock is already held the
+//! viewer is already up and its published URL is returned as-is.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
@@ -8,20 +12,11 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
-
-    let address = config
-        .viewer()
-        .get_address()
-        .ok_or(Error::MissingArgs(
-            "viewer.address unset; run `objectiveai config viewer address set <addr>`",
-        ))?
-        .to_string();
-    let port = config.viewer().get_port().ok_or(Error::MissingArgs(
-        "viewer.port unset; run `objectiveai config viewer port set <port>`",
-    ))?;
-
-    crate::spawn::ensure_not_running("objectiveai-viewer")?;
+    let mut config = ctx
+        .filesystem
+        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .await?;
+    let secret = config.viewer().get_secret().map(String::from);
 
     let bin = if cfg!(windows) {
         "objectiveai-viewer.exe"
@@ -29,19 +24,20 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         "objectiveai-viewer"
     };
     let exe = ctx.filesystem.bin_dir().join(bin);
+    let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    let listening = crate::spawn::spawn_and_wait_for_listening(
-        &exe,
-        &address,
-        port,
-        &[
-            (
-                "OBJECTIVEAI_DIR",
-                ctx.filesystem.dir().to_string_lossy().into_owned(),
-            ),
-            ("OBJECTIVEAI_STATE", ctx.filesystem.state().to_string()),
-        ],
-    )
+    // Fresh env: layout coordinates + the configured secret (omitted
+    // when unset so the viewer falls back to its own default). No
+    // ADDRESS/PORT — the viewer defaults to 127.0.0.1 on an ephemeral
+    // port and publishes the bound URL in its lock.
+    let listening = crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
+        cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
+            .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
+            .env("SUPPRESS_OUTPUT", "true");
+        if let Some(secret) = secret {
+            cmd.env("VIEWER_SECRET", secret);
+        }
+    })
     .await?;
     Ok(Response { listening })
 }

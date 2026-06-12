@@ -91,12 +91,10 @@ pub enum Error {
     ClapParse(#[from] clap::Error),
     #[error("argument parse error at `{}`: {}", .0.field, .0.source)]
     FromArgs(#[from] objectiveai_sdk::cli::command::FromArgsError),
-    #[error("{name} is already running (pids: {pids:?})")]
-    AlreadyRunning { name: String, pids: Vec<u32> },
-    #[error("something is already listening on {address}:{port}")]
-    AlreadyListening { address: String, port: u16 },
-    #[error("{name} did not announce \"listening\" on stderr before exiting")]
-    SpawnNoListeningLine { name: String },
+    #[error("{name} exited before publishing its lock")]
+    SpawnExitedBeforePublishing { name: String },
+    #[error("lockfile {key}: {source}")]
+    Lockfile { key: String, source: std::io::Error },
     #[error("spawn {0}: {1}")]
     Spawn(String, std::io::Error),
     #[error(

@@ -5,7 +5,6 @@ pub mod db;
 pub mod error;
 pub mod executor;
 pub mod filesystem;
-pub mod lock_file;
 pub mod plugin_path;
 mod python;
 mod source_resolver;

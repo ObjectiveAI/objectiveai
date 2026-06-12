@@ -1,47 +1,28 @@
-//! `db spawn` — start the `objectiveai-db` postgres vehicle in the
-//! background, using `config db` connection settings (built-in
-//! defaults when unset).
+//! `db spawn` — start the `objectiveai-db` postgres supervisor in the
+//! background.
+//!
+//! The supervisor is per-state: its lock lives at
+//! `<dir>/state/<state>/locks` key `db`, and the lock contents are the
+//! cluster's `postgresql://...` connection URL (the postmaster binds
+//! 127.0.0.1 on a random free port). If the lock is already held the
+//! cluster is already up and its published URL is returned as-is.
 
 use objectiveai_sdk::cli::command::db::spawn::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
-use crate::filesystem::config::{DB_DEFAULT_ADDRESS, DB_DEFAULT_PORT};
+use crate::filesystem::config::DB_DEFAULT_PASSWORD;
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
-
-    let db = config.db();
-    let address = db
-        .get_address()
-        .unwrap_or(DB_DEFAULT_ADDRESS)
+    let mut config = ctx
+        .filesystem
+        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+        .await?;
+    let password = config
+        .db()
+        .get_password()
+        .unwrap_or(DB_DEFAULT_PASSWORD)
         .to_string();
-    let port = db.get_port().unwrap_or(DB_DEFAULT_PORT);
-    let password = db.get_password().map(String::from);
-
-    // `objectiveai-db` is a launcher, not a resident server — it
-    // starts the postmaster and exits — so an "already running" check
-    // by process name would always pass. Probe the configured
-    // address:port instead: anything listening there means the
-    // database (or something else occupying its spot) is alive.
-    if crate::spawn::tcp_alive(&address, port).await {
-        return Err(Error::AlreadyListening { address, port });
-    }
-
-    // Forward the layout root + state + password so the vehicle
-    // provisions THIS cli's tree: postgres binaries into the shared
-    // <dir>/bin/pg-bin, the cluster into <dir>/state/<state>/db.
-    // ADDRESS/PORT travel via the spawn helper itself.
-    let mut extra_env: Vec<(&str, String)> = vec![
-        (
-            "OBJECTIVEAI_DIR",
-            ctx.filesystem.dir().to_string_lossy().into_owned(),
-        ),
-        ("OBJECTIVEAI_STATE", ctx.filesystem.state().to_string()),
-    ];
-    if let Some(password) = password {
-        extra_env.push(("PASSWORD", password));
-    }
 
     let bin = if cfg!(windows) {
         "objectiveai-db.exe"
@@ -49,9 +30,21 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         "objectiveai-db"
     };
     let exe = ctx.filesystem.bin_dir().join(bin);
+    let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    let listening =
-        crate::spawn::spawn_and_wait_for_listening(&exe, &address, port, &extra_env).await?;
+    // objectiveai-db is clap-args-only (no env): the layout
+    // coordinates tell it to provision THIS cli's tree — postgres
+    // binaries into the shared <dir>/bin/pg-bin, the cluster into
+    // <dir>/state/<state>/db.
+    let listening = crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "db", |cmd| {
+        cmd.arg("--objectiveai-dir")
+            .arg(ctx.filesystem.dir())
+            .arg("--objectiveai-state")
+            .arg(ctx.filesystem.state())
+            .arg("--pg-password")
+            .arg(password);
+    })
+    .await?;
     Ok(Response { listening })
 }
 
