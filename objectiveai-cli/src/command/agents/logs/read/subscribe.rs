@@ -7,10 +7,11 @@
 //!    past its watermark, call `read_pending_for_parent` for ALL
 //!    targets (UNFILTERED — kinds gate "wake up", not the
 //!    returned slice) and emit every block. Close.
-//! 2. Else: lock check. If no target's file lock is held, emit
+//! 2. Else: lock check. If no target's instance lock
+//!    ([`crate::command::agents::locks`]) is held, emit
 //!    `AgentsInactive` and close.
 //! 3. Else: per held-target, race `wait_for_logs_message_at` vs
-//!    `lock_file::wait_release`. First fire wins. DB ping →
+//!    `lockfile::wait_released`. First fire wins. DB ping →
 //!    restart from step 1 (but loop back to existence check —
 //!    type-filter false positives are dropped silently). Lock
 //!    release → restart from step 1.
@@ -29,27 +30,22 @@ use crate::context::Context;
 use crate::db::logs::MessageTable;
 use crate::db::tags;
 use crate::error::Error;
-use crate::lock_file;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 #[derive(Clone)]
 struct Resolved {
     spawned: String,
-    lock_path: PathBuf,
+    /// The target's instance-lock coordinates — held ⇔ a live
+    /// process owns the agent.
+    lock_dir: PathBuf,
+    lock_key: String,
 }
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let db = ctx.db_client().await?.clone();
-    let agents_dir = ctx
-        .filesystem
-        .state_dir()
-        .join("instances")
-        .join("agents");
-    // Match the dir-create posture used by `agents message`.
-    std::fs::create_dir_all(&agents_dir)
-        .map_err(|e| Error::Instance(format!("create agents_dir: {e}")))?;
+    let state_dir = ctx.filesystem.state_dir();
 
     // Resolve every target up front. Tags resolve via tags::lookup;
     // PENDING/GROUPED/ABSENT raises a structured error before we
@@ -57,8 +53,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let mut resolved: Vec<Resolved> = Vec::with_capacity(request.targets.len());
     for target in request.targets {
         let spawned = resolve_target(&db, target, &default_parent).await?;
-        let lock_path = agents_dir.join(spawned.replace('/', "_"));
-        resolved.push(Resolved { spawned, lock_path });
+        let (lock_dir, lock_key) =
+            crate::command::agents::locks::agent_instance_lock(&state_dir, &spawned);
+        resolved.push(Resolved {
+            spawned,
+            lock_dir,
+            lock_key,
+        });
     }
 
     let kinds = build_kind_filter(request.kinds);
@@ -103,7 +104,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             // Step 2: filter to held-lock targets.
             let held: Vec<Resolved> = resolved
                 .iter()
-                .filter(|r| lock_file::is_held(&r.lock_path))
+                .filter(|r| objectiveai_sdk::lockfile::try_held(&r.lock_dir, &r.lock_key))
                 .cloned()
                 .collect();
             if held.is_empty() {
@@ -123,9 +124,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let mut watch_set = FuturesUnordered::new();
             for r in &held {
                 let db = db.clone();
-                let spawned = r.spawned.clone();
-                let lock_path = r.lock_path.clone();
-                watch_set.push(async move { watch_target(&db, spawned, lock_path).await });
+                let r = r.clone();
+                watch_set.push(async move { watch_target(&db, r).await });
             }
             match watch_set.next().await {
                 Some(Ok(())) => continue,
@@ -137,23 +137,20 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(Box::pin(stream))
 }
 
-/// Race the postgres LISTEN against the filesystem lock release.
+/// Race the postgres LISTEN against the instance-lock release.
 /// Returns `Ok(())` on either fire — the outer loop doesn't care
 /// which one woke us up; it re-runs the existence check + lock
 /// check from the top.
-async fn watch_target(
-    pool: &crate::db::Pool,
-    target_aih: String,
-    lock_path: PathBuf,
-) -> Result<(), Error> {
+async fn watch_target(pool: &crate::db::Pool, target: Resolved) -> Result<(), Error> {
     tokio::select! {
-        result = crate::db::logs::wait_for_logs_message_at(pool, &target_aih) => {
+        result = crate::db::logs::wait_for_logs_message_at(pool, &target.spawned) => {
             result.map_err(Error::from)
         }
-        result = lock_file::wait_release(&lock_path) => {
-            result.map_err(|e| Error::Instance(format!(
-                "lock release wait: {e}"
-            )))
+        result = objectiveai_sdk::lockfile::wait_released(&target.lock_dir, &target.lock_key) => {
+            result.map_err(|e| Error::Lockfile {
+                key: target.lock_key.clone(),
+                source: e,
+            })
         }
     }
 }
