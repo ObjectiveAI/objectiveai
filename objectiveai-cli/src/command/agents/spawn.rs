@@ -132,8 +132,7 @@ async fn execute_streaming(
         name: None,
     })];
     // Dispatch on the resolution mode:
-    // - Direct → use the `AgentSpec` as-is (favorite resolution runs
-    //   in `resolve_agent`).
+    // - Direct → use the `AgentSpec` as-is.
     // - Tag    → look the tag up: BOUND is rejected (the AIH is
     //   already live; `agents message` is the right entry
     //   point). Grouped takes the group's stored AgentSpec.
@@ -424,17 +423,6 @@ async fn resolve_agent(
 ) -> Result<InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Error> {
     match spec {
         AgentSpec::Resolved(resolved) => Ok(resolved),
-        AgentSpec::Favorite(name) => {
-            let mut config = ctx.filesystem.read_config().await?;
-            let favorites = config.agents().get_favorites();
-            let fav = favorites
-                .iter()
-                .find(|f| f.get_name() == name)
-                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
-            Ok(InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(
-                fav.path.clone(),
-            ))
-        }
     }
 }
 

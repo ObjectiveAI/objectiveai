@@ -8,9 +8,7 @@ use objectiveai_sdk::cli::command::config::functions::{Request, ResponseItem};
 use crate::context::Context;
 use crate::error::Error;
 
-pub mod favorites;
 pub mod get;
-pub mod profiles;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -33,14 +31,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::GetResponseSchema(req) => {
             let value = get::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::GetResponseSchema(value)))
-        }
-        Request::Favorites(req) => {
-            let inner = favorites::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Favorites)))
-        }
-        Request::Profiles(req) => {
-            let inner = profiles::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Profiles)))
         }
     };
     Ok(stream)

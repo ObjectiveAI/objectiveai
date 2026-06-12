@@ -47,7 +47,7 @@ const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS tag_groups (
     id                              BIGSERIAL PRIMARY KEY,
     -- Resolved `agents::spawn::AgentSpec`; serialized
-    -- as JSONB. Favorites are resolved at apply-time, never at
+    -- as JSONB. References are resolved at apply-time, never at
     -- spawn-time, so this column is always inline-or-remote.
     agent_spec                      JSONB  NOT NULL,
     -- The lineage prefix the spawn-by-tag will compose its AIH

@@ -125,9 +125,6 @@ impl Client {
                     Request::LaboratoryExecution(_) => {
                         format!("{}/laboratories/executions", address)
                     }
-                    Request::AgentsFavoritesChanged(_) => {
-                        format!("{}/agents/favorites/changed", address)
-                    }
                 };
 
                 let body = match serde_json::to_vec(&request) {
@@ -412,24 +409,6 @@ impl Client {
             Request::LaboratoryExecution(LaboratoryExecutionRequest::Error(
                 ResponseError { id, inner: error },
             )),
-        );
-    }
-
-    /// Enqueue an `agents_favorites_changed` notification. Posts to
-    /// `<address>/agents/favorites/changed`. Fired by the cli's
-    /// `agents favorites config {add,del,edit}` handlers so any
-    /// running viewer that exposes a `useFavoriteAgents()`-style hook
-    /// can refresh its favorites list.
-    pub fn send_agents_favorites_changed(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        notification: crate::agent::favorites::ChangedNotification,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::AgentsFavoritesChanged(notification),
         );
     }
 }

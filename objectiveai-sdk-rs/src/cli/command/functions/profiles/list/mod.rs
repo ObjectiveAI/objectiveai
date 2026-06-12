@@ -22,7 +22,6 @@ pub enum Path {
 #[schemars(rename = "cli.command.functions.profiles.list.RequestSource")]
 pub enum RequestSource {
     Filesystem,
-    Favorites,
     Objectiveai,
     Mock,
     All,
@@ -32,7 +31,6 @@ impl RequestSource {
     fn as_str(&self) -> &'static str {
         match self {
             RequestSource::Filesystem => "filesystem",
-            RequestSource::Favorites => "favorites",
             RequestSource::Objectiveai => "objectiveai",
             RequestSource::Mock => "mock",
             RequestSource::All => "all",
@@ -52,15 +50,6 @@ impl CommandRequest for Request {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.profiles.list.ResponseFavorite")]
-pub struct ResponseFavorite {
-    pub name: String,
-    #[serde(flatten)]
-    pub path: crate::RemotePathCommitOptional,
-    pub note: String,
-}
-
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.profiles.list.Response")]
 pub struct Response {
     pub items: Vec<ResponseItem>,
@@ -70,8 +59,6 @@ pub struct Response {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.profiles.list.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "Favorite")]
-    Favorite(ResponseFavorite),
     #[schemars(title = "Item")]
     Item(crate::RemotePath),
 }

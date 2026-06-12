@@ -1,12 +1,12 @@
 //! `functions get` — async handler stub.
 
-use crate::cli::command::{CommandRequest, RemotePathCommitOptionalOrFavorite};
+use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.functions.get.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub path: RemotePathCommitOptionalOrFavorite,
+    pub path: crate::RemotePathCommitOptional,
     pub jq: Option<String>,
 }
 
@@ -23,7 +23,7 @@ impl CommandRequest for Request {
             "functions".to_string(),
             "get".to_string(),
             "--path".to_string(),
-            self.path.into_arg_string(),
+            crate::cli::command::path_ref::remote_path_to_arg_string(&self.path),
         ];
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -67,7 +67,7 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let path = args
             .path
-            .parse::<RemotePathCommitOptionalOrFavorite>()
+            .parse::<crate::RemotePathCommitOptional>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
         Ok(Self { path_type: Path::FunctionsGet, path, jq: args.jq })
     }

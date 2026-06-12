@@ -5,7 +5,7 @@
 //!   `{parent}/{agent_instance}`. Parent defaults to ctx own.
 //! - `Target::Agent` — creates a fresh `tag_groups` row carrying the
 //!   resolved `AgentSpec` + parent, then a `tags` row pointing at
-//!   that group. Parent defaults to ctx own. Favorites in `AgentSpec`
+//!   that group. Parent defaults to ctx own.
 //!   are stored as-is — the spawn path resolves them at execution
 //!   time (so the tag carries the symbolic reference, not the frozen
 //!   snapshot).

@@ -55,19 +55,14 @@ pub enum Path {
     AgentsSpawn,
 }
 
-/// CLI-surface form for the `--agent` / `--agent-inline` argument: either
-/// a fully resolved inline-or-remote spec, or a bare favorite name that
-/// the CLI resolves to one of those at handler time. Untagged: an inline
-/// agent object or a remote-path object deserializes into `Resolved`; a
-/// bare JSON string lands on `Favorite`.
+/// CLI-surface form for the `--agent` / `--agent-inline` argument: a
+/// fully resolved inline-or-remote spec.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.spawn.AgentSpec")]
 pub enum AgentSpec {
     #[schemars(title = "Resolved")]
     Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
-    #[schemars(title = "Favorite")]
-    Favorite(String),
 }
 
 impl CommandRequest for Request {
@@ -181,7 +176,7 @@ pub struct MessageArgs {
 #[derive(clap::Args)]
 #[group(required = true, multiple = false)]
 pub struct AgentArgs {
-    /// Favorite-ref or remote-path string.
+    /// Remote-path string.
     #[arg(long)]
     pub agent: Option<String>,
     /// Inline JSON for the full agent definition.
@@ -246,8 +241,13 @@ impl TryFrom<Args> for Request {
             })?;
             AgentResolution::Direct { agent_spec: spec }
         } else if let Some(s) = args.agent.agent {
+            let path: crate::RemotePathCommitOptional = s
+                .parse()
+                .map_err(|e| crate::cli::command::FromArgsError::path_parse("agent", e))?;
             AgentResolution::Direct {
-                agent_spec: AgentSpec::Favorite(s),
+                agent_spec: AgentSpec::Resolved(
+                    InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
+                ),
             }
         } else {
             // Clap `required = true` on `AgentArgs` guarantees

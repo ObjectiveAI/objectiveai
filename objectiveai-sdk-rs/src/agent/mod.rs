@@ -32,7 +32,6 @@ mod client_objectiveai_mcp;
 pub mod codex_sdk;
 pub mod completions;
 mod continuation;
-pub mod favorites;
 mod mcp;
 pub mod mock;
 pub mod openrouter;

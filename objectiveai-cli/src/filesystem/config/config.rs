@@ -11,12 +11,6 @@ pub struct Config {
     #[serde(skip_serializing_if = "super::DbConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub db: Option<super::DbConfig>,
-    #[serde(skip_serializing_if = "super::AgentsConfig::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agents: Option<super::AgentsConfig>,
-    #[serde(skip_serializing_if = "super::SwarmsConfig::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub swarms: Option<super::SwarmsConfig>,
     #[serde(skip_serializing_if = "super::FunctionsConfig::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub functions: Option<super::FunctionsConfig>,
@@ -35,14 +29,6 @@ impl Config {
 
     pub fn db(&mut self) -> &mut super::DbConfig {
         self.db.get_or_insert_with(super::DbConfig::default)
-    }
-
-    pub fn agents(&mut self) -> &mut super::AgentsConfig {
-        self.agents.get_or_insert_with(super::AgentsConfig::default)
-    }
-
-    pub fn swarms(&mut self) -> &mut super::SwarmsConfig {
-        self.swarms.get_or_insert_with(super::SwarmsConfig::default)
     }
 
     pub fn functions(&mut self) -> &mut super::FunctionsConfig {

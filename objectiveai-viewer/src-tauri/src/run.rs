@@ -153,11 +153,6 @@ pub async fn setup(
             tx.clone(),
         ),
         built_in_route("/laboratories/executions", "laboratories_executions", tx.clone()),
-        built_in_route(
-            "/agents/favorites/changed",
-            "agents_favorites_changed",
-            tx.clone(),
-        ),
     ] {
         app = app.route(path, route);
     }

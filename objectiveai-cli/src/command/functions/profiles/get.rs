@@ -1,27 +1,13 @@
 //! `functions profiles get` — read a profile definition by remote
-//! path or favorite-name reference.
+//! path.
 
-use objectiveai_sdk::cli::command::RemotePathCommitOptionalOrFavorite;
 use objectiveai_sdk::cli::command::functions::profiles::get::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let path = match request.path {
-        RemotePathCommitOptionalOrFavorite::Resolved(p) => p,
-        RemotePathCommitOptionalOrFavorite::Favorite(name) => {
-            let mut config = ctx.filesystem.read_config().await?;
-            let fav = config
-                .functions()
-                .profiles()
-                .get_favorites()
-                .iter()
-                .find(|f| f.get_name() == name)
-                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
-            fav.path.clone()
-        }
-    };
+    let path = request.path;
     Ok(objectiveai_sdk::functions::profiles::get_profile(&ctx.http, path).await?)
 }
 

@@ -2,22 +2,10 @@
 //!
 //! Every cli leaf that takes a docker-style `key=value,key=value` ref
 //! parses it at `TryFrom<Args>` time so each leaf's `Request` carries
-//! the pre-parsed form. There are **two distinct parsers** because
-//! different leaves accept different sets of keys:
-//!
-//! - [`FromStr for crate::RemotePathCommitOptional`] — for leaves
-//!   that take a *path only* (e.g. `config/<domain>/favorites/add`).
-//!   Accepts `remote=<github|filesystem|mock>` plus the matching
-//!   owner/repository/name/commit fields. Any other key (including
-//!   `favorite=`) is an `unknown key` error.
-//! - [`FromStr for RemotePathCommitOptionalOrFavorite`] — for leaves
-//!   that take *either* a favorite name *or* a path (e.g. the `*get`
-//!   leaves). A string of the exact form `favorite=<name>` becomes
-//!   `Favorite(name)`; otherwise the string is parsed by the
-//!   remote-only parser and lifted into `Resolved(path)`.
-//!
-//! Mixing `favorite=` with remote keys is an error in the
-//! favorite-or-path parser.
+//! the pre-parsed form: [`FromStr for crate::RemotePathCommitOptional`]
+//! accepts `remote=<github|filesystem|mock>` plus the matching
+//! owner/repository/name/commit fields. Any other key is an
+//! `unknown key` error.
 
 use std::str::FromStr;
 
@@ -87,8 +75,8 @@ impl FromStr for crate::RemotePathCommitOptional {
     type Err = String;
 
     /// Parse a remote-path ref. Accepted keys: `remote`, `owner`,
-    /// `repository`, `name`, `commit`. Anything else (including
-    /// `favorite=`) is an unknown-key error.
+    /// `repository`, `name`, `commit`. Anything else is an
+    /// unknown-key error.
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let mut remote: Option<Remote> = None;
         let mut owner: Option<String> = None;
@@ -112,58 +100,6 @@ impl FromStr for crate::RemotePathCommitOptional {
                 "owner and repository are required for github/filesystem, name for mock"
                     .to_string()
             })
-    }
-}
-
-/// Either a fully resolved `RemotePathCommitOptional` or a favorite
-/// name that the cli host resolves at handler time. Parsed from CLI
-/// input via [`FromStr`] (docker-style `key=value,...`); after that
-/// the typed enum is carried around in-process — `Request`s are never
-/// actually serialized at runtime. The `serde` + `schemars::JsonSchema`
-/// derives exist solely so the SDK can generate the JSON Schema for
-/// this type (untagged so the schema describes either the path's
-/// object form or a bare string).
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.RemotePathCommitOptionalOrFavorite")]
-pub enum RemotePathCommitOptionalOrFavorite {
-    #[schemars(title = "Resolved")]
-    Resolved(crate::RemotePathCommitOptional),
-    #[schemars(title = "Favorite")]
-    Favorite(String),
-}
-
-impl RemotePathCommitOptionalOrFavorite {
-    /// Reconstruct a docker-style `key=value,...` string from this
-    /// typed value. Used by `into_command` to round-trip the
-    /// `Request` back through argv for subprocess dispatch.
-    pub fn into_arg_string(&self) -> String {
-        match self {
-            Self::Favorite(name) => format!("favorite={name}"),
-            Self::Resolved(path) => remote_path_to_arg_string(path),
-        }
-    }
-}
-
-impl FromStr for RemotePathCommitOptionalOrFavorite {
-    type Err = String;
-
-    /// Parse a favorite-or-path ref. Two accepted forms:
-    /// - `favorite=<name>` on its own — combining `favorite=` with
-    ///   any other key is an error.
-    /// - Anything else — delegated to
-    ///   [`FromStr for crate::RemotePathCommitOptional`].
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let pairs = tokenize(s)?;
-        if let Some((_, value)) = pairs.iter().find(|(k, _)| *k == "favorite") {
-            if pairs.len() > 1 {
-                return Err(
-                    "favorite= cannot be combined with other keys".to_string(),
-                );
-            }
-            return Ok(Self::Favorite((*value).to_string()));
-        }
-        s.parse::<crate::RemotePathCommitOptional>().map(Self::Resolved)
     }
 }
 

@@ -35,11 +35,7 @@ impl CommandRequest for Request {
 
 #[derive(PartialEq, Debug, Clone, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.config.functions.get.Response")]
-pub struct Response {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub favorites: Option<Vec<super::favorites::get::ResponseItem>>,
-}
+pub struct Response {}
 
 #[derive(clap::Args)]
 pub struct Args {

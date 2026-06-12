@@ -10,7 +10,7 @@ pub mod tags;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    /// Get an agent by remote path or favorite name.
+    /// Get an agent by remote path.
     Get(get::Command),
     /// Caller-side handles for live spawned agents that didn't earn
     /// their own top-level home: `me`, `list`.

@@ -27,14 +27,6 @@ pub enum Error {
     InvalidPath(String),
     #[error("index {0} out of bounds (len {1})")]
     IndexOutOfBounds(usize, usize),
-    #[error("favorite not found: {0}")]
-    FavoriteNotFound(String),
-    #[error(
-        "invalid favorite name (alphanumeric and dashes only, max 64 chars): {0}"
-    )]
-    InvalidFavoriteName(String),
-    #[error("invalid favorite note (max 512 chars): {0}")]
-    InvalidFavoriteNote(String),
     #[error("remote {0:?} is not valid for configuration")]
     InvalidRemote(objectiveai_sdk::Remote),
     #[error("jq parse error: {0}")]

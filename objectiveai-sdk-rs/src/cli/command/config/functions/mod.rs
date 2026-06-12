@@ -1,18 +1,8 @@
-pub mod favorites;
 pub mod get;
-pub mod profiles;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     Get(get::Command),
-    Favorites {
-        #[command(subcommand)]
-        command: favorites::Command,
-    },
-    Profiles {
-        #[command(subcommand)]
-        command: profiles::Command,
-    },
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -25,10 +15,6 @@ pub enum Request {
     GetRequestSchema(get::request_schema::Request),
     #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Request),
-    #[schemars(title = "Favorites")]
-    Favorites(favorites::Request),
-    #[schemars(title = "Profiles")]
-    Profiles(profiles::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -44,10 +30,6 @@ pub enum ResponseItem {
     GetRequestSchema(get::request_schema::Response),
     #[schemars(title = "GetResponseSchema")]
     GetResponseSchema(get::response_schema::Response),
-    #[schemars(title = "Favorites")]
-    Favorites(favorites::ResponseItem),
-    #[schemars(title = "Profiles")]
-    Profiles(profiles::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -57,8 +39,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Get(v) => v.into_mcp(),
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
-            ResponseItem::Favorites(v) => v.into_mcp(),
-            ResponseItem::Profiles(v) => v.into_mcp(),
         }
     }
 }
@@ -74,10 +54,6 @@ impl TryFrom<Command> for Request {
                 Some(get::Schema::ResponseSchema(args)) =>
                     Ok(Request::GetResponseSchema(get::response_schema::Request::try_from(args)?)),
             },
-            Command::Favorites { command } =>
-                Ok(Request::Favorites(favorites::Request::try_from(command)?)),
-            Command::Profiles { command } =>
-                Ok(Request::Profiles(profiles::Request::try_from(command)?)),
         }
     }
 }
@@ -88,8 +64,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Get(inner) => inner.into_command(),
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
-            Request::Favorites(inner) => inner.into_command(),
-            Request::Profiles(inner) => inner.into_command(),
         }
     }
 }
@@ -125,14 +99,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                     ResponseItem::GetResponseSchema(value),
                 )))
             }
-            Request::Favorites(req) => {
-                let inner = favorites::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Favorites)))
-            }
-            Request::Profiles(req) => {
-                let inner = profiles::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Profiles)))
-            }
         };
     Ok(stream)
 }
@@ -161,14 +127,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             Request::GetResponseSchema(req) => {
                 let value = get::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::Favorites(req) => {
-                let inner = favorites::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Profiles(req) => {
-                let inner = profiles::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
             }
         };
     Ok(stream)

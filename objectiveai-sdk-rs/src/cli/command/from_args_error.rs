@@ -17,7 +17,7 @@ pub struct FromArgsError {
 impl FromArgsError {
     /// Build a `FromArgsError` from a docker-style path parse error
     /// produced by [`super::path_ref::PathRef::from_str`] or the
-    /// [`FromStr`] impl on [`super::path_ref::RemotePathCommitOptionalOrFavorite`].
+    /// [`FromStr`] impl on [`crate::RemotePathCommitOptional`].
     ///
     /// [`FromStr`]: std::str::FromStr
     pub fn path_parse(field: &'static str, source: String) -> Self {

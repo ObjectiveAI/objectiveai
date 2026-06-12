@@ -187,9 +187,8 @@ pub struct Args {
     /// Bind the tag immediately to `{parent}/{agent_instance}`.
     #[arg(long)]
     pub agent_instance: Option<String>,
-    /// Resolved agent reference (docker-style `key=value,…` or
-    /// `favorite=<name>`). Mutually exclusive with
-    /// `--agent-inline`.
+    /// Resolved agent reference (docker-style `key=value,…`).
+    /// Mutually exclusive with `--agent-inline`.
     #[arg(long)]
     pub agent: Option<String>,
     /// Inline JSON for the full agent definition. Mutually
@@ -242,24 +241,15 @@ impl TryFrom<Args> for Request {
                 parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
             },
             (None, Some(s), None, None) => {
-                use crate::cli::command::path_ref::RemotePathCommitOptionalOrFavorite;
                 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
                 use super::super::spawn::AgentSpec;
-                let parsed: RemotePathCommitOptionalOrFavorite = s
+                let path: crate::RemotePathCommitOptional = s
                     .parse()
                     .map_err(|e| crate::cli::command::FromArgsError::path_parse("agent", e))?;
-                let spec = match parsed {
-                    RemotePathCommitOptionalOrFavorite::Resolved(p) => {
-                        AgentSpec::Resolved(
-                            InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(p),
-                        )
-                    }
-                    RemotePathCommitOptionalOrFavorite::Favorite(name) => {
-                        AgentSpec::Favorite(name)
-                    }
-                };
                 Target::Agent {
-                    agent_spec: spec,
+                    agent_spec: AgentSpec::Resolved(
+                        InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
+                    ),
                     parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
                 }
             }

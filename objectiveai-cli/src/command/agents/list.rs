@@ -1,14 +1,11 @@
 ﻿//! `agents list available <source>` — enumerate remote agents from a
 //! given source. Streams one `ResponseItem` per agent. Sources:
 //!
-//! - `Favorites` — on-disk agent favorites (no HTTP).
 //! - `Filesystem` / `Objectiveai` / `Mock` — delegates to the SDK's
 //!   `list_agents` HTTP endpoint with the matching `ListAgentsSource`.
-//! - `All` — favorites + filesystem + objectiveai, **de-duplicated**:
-//!   favorites first, filesystem items skipping anything already
-//!   covered by a favorite, then ObjectiveAI items skipping anything
-//!   covered by a favorite or a filesystem item. Filesystem and
-//!   ObjectiveAI fetches run concurrently.
+//! - `All` — filesystem + objectiveai, **de-duplicated**: ObjectiveAI
+//!   items skip anything already covered by a filesystem item. The
+//!   fetches run concurrently.
 
 use std::pin::Pin;
 
@@ -16,25 +13,17 @@ use futures::Stream;
 use objectiveai_sdk::agent::list_agents;
 use objectiveai_sdk::agent::request::{ListAgentsRequest, ListAgentsSource};
 use objectiveai_sdk::cli::command::agents::list::{
-    Request, RequestSource, ResponseFavorite, ResponseItem,
+    Request, RequestSource, ResponseItem,
 };
 use objectiveai_sdk::RemotePath;
 
-use crate::command::list_helpers::favorite_matches_path;
 use crate::context::Context;
 use crate::error::Error;
-use crate::filesystem::config::Favorite;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request.source {
-        RequestSource::Favorites => {
-            let favorites = read_favorites(ctx).await?;
-            Box::pin(futures::stream::iter(
-                favorites.into_iter().map(favorite_to_item).map(Ok),
-            ))
-        }
         RequestSource::Filesystem => paths_to_stream(
             fetch_paths(ctx, ListAgentsSource::Filesystem).await?,
         ),
@@ -45,29 +34,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             paths_to_stream(fetch_paths(ctx, ListAgentsSource::Mock).await?)
         }
         RequestSource::All => {
-            let favorites = read_favorites(ctx).await?;
             let (fs_items, oai_items) = tokio::try_join!(
                 fetch_paths(ctx, ListAgentsSource::Filesystem),
                 fetch_paths(ctx, ListAgentsSource::Objectiveai),
             )?;
-            let items = merge_all(&favorites, fs_items, oai_items);
+            let items = merge_all(fs_items, oai_items);
             Box::pin(futures::stream::iter(items.into_iter().map(Ok)))
         }
     };
     Ok(stream)
-}
-
-async fn read_favorites(ctx: &Context) -> Result<Vec<Favorite>, Error> {
-    let mut config = ctx.filesystem.read_config().await?;
-    Ok(config.agents().get_favorites().to_vec())
-}
-
-fn favorite_to_item(f: Favorite) -> ResponseItem {
-    ResponseItem::Favorite(ResponseFavorite {
-        name: f.get_name().to_string(),
-        note: f.get_note().to_string(),
-        path: f.path,
-    })
 }
 
 fn paths_to_stream(paths: Vec<RemotePath>) -> ItemStream {
@@ -91,32 +66,16 @@ async fn fetch_paths(
 }
 
 fn merge_all(
-    favorites: &[Favorite],
     fs_items: Vec<RemotePath>,
     oai_items: Vec<RemotePath>,
 ) -> Vec<ResponseItem> {
-    let mut items: Vec<ResponseItem> = Vec::new();
-
-    for fav in favorites {
-        items.push(favorite_to_item(fav.clone()));
-    }
-
-    for path in fs_items {
-        if !favorites
-            .iter()
-            .any(|fav| favorite_matches_path(&fav.path, &path))
-        {
-            items.push(ResponseItem::Item(path));
-        }
-    }
+    let mut items: Vec<ResponseItem> =
+        fs_items.into_iter().map(ResponseItem::Item).collect();
 
     for path in oai_items {
-        let dominated = favorites
-            .iter()
-            .any(|fav| favorite_matches_path(&fav.path, &path))
-            || items.iter().any(|existing| {
-                matches!(existing, ResponseItem::Item(p) if p == &path)
-            });
+        let dominated = items.iter().any(|existing| {
+            matches!(existing, ResponseItem::Item(p) if p == &path)
+        });
         if !dominated {
             items.push(ResponseItem::Item(path));
         }

@@ -4,14 +4,12 @@ pub mod swiss_system;
 /// CLI-surface form for the `--function*` argument family: either a
 /// fully resolved inline-or-remote spec (the JSON object form that
 /// lands on `--function-inline`, or the docker-style remote-path
-/// string on `--function`), a bare favorite name (also on `--function`
-/// — disambiguated from a remote path by the FromStr at parse time),
-/// the path to a JSON file (`--function-file`), or a Python harness
+/// string on `--function`), the path to a JSON file (`--function-file`), or a Python harness
 /// — inline (`--function-python-inline`) or file
 /// (`--function-python-file`) — that produces the inline-or-remote
 /// JSON at handler time.
 ///
-/// Untagged so existing on-disk JSON for `Resolved`/`Favorite`
+/// Untagged so existing on-disk JSON for `Resolved`
 /// round-trips byte-identically; `File`/`PythonInline`/`PythonFile`
 /// are new variants that only appear on the cli wire side.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -20,8 +18,6 @@ pub mod swiss_system;
 pub enum FunctionSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::FullInlineFunctionOrRemoteCommitOptional),
-    #[schemars(title = "Favorite")]
-    Favorite(String),
     #[schemars(title = "File")]
     File(std::path::PathBuf),
     #[schemars(title = "PythonInline")]
@@ -39,8 +35,6 @@ pub enum FunctionSpec {
 pub enum ProfileSpec {
     #[schemars(title = "Resolved")]
     Resolved(crate::functions::InlineProfileOrRemoteCommitOptional),
-    #[schemars(title = "Favorite")]
-    Favorite(String),
     #[schemars(title = "File")]
     File(std::path::PathBuf),
     #[schemars(title = "PythonInline")]
@@ -63,10 +57,6 @@ impl FunctionSpec {
             FunctionSpec::Resolved(inline @ FullInlineFunctionOrRemoteCommitOptional::Inline(_)) => {
                 out.push("--function-inline".to_string());
                 out.push(serde_json::to_string(inline).expect("function serializes"));
-            }
-            FunctionSpec::Favorite(name) => {
-                out.push("--function".to_string());
-                out.push(format!("favorite={name}"));
             }
             FunctionSpec::File(p) => {
                 out.push("--function-file".to_string());
@@ -99,10 +89,6 @@ impl ProfileSpec {
                 out.push("--profile-inline".to_string());
                 out.push(serde_json::to_string(inline).expect("profile serializes"));
             }
-            ProfileSpec::Favorite(name) => {
-                out.push("--profile".to_string());
-                out.push(format!("favorite={name}"));
-            }
             ProfileSpec::File(p) => {
                 out.push("--profile-file".to_string());
                 out.push(p.to_string_lossy().into_owned());
@@ -130,8 +116,8 @@ impl ProfileSpec {
 #[derive(clap::Args)]
 #[group(id = "function_group", required = true, multiple = false)]
 pub struct FunctionArgs {
-    /// Remote-path or favorite ref in docker-style key=value form
-    /// (e.g. `remote=mock,name=foo` or `favorite=my-saved-fn`).
+    /// Remote-path ref in docker-style key=value form
+    /// (e.g. `remote=mock,name=foo`).
     #[arg(long, group = "function_group")]
     pub function: Option<String>,
     /// Inline JSON function definition (inline or remote-object shape).
@@ -153,8 +139,8 @@ pub struct FunctionArgs {
 #[derive(clap::Args)]
 #[group(id = "profile_group", required = true, multiple = false)]
 pub struct ProfileArgs {
-    /// Remote-path or favorite ref in docker-style key=value form
-    /// (e.g. `remote=mock,name=foo` or `favorite=my-saved-profile`).
+    /// Remote-path ref in docker-style key=value form
+    /// (e.g. `remote=mock,name=foo`).
     #[arg(long, group = "profile_group")]
     pub profile: Option<String>,
     /// Inline JSON profile definition (inline or remote-object shape).
@@ -174,18 +160,14 @@ pub struct ProfileArgs {
 impl TryFrom<FunctionArgs> for FunctionSpec {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: FunctionArgs) -> Result<Self, Self::Error> {
-        use crate::cli::command::path_ref::RemotePathCommitOptionalOrFavorite;
         use crate::functions::FullInlineFunctionOrRemoteCommitOptional;
         if let Some(s) = args.function {
-            let parsed: RemotePathCommitOptionalOrFavorite = s
+            let path: crate::RemotePathCommitOptional = s
                 .parse()
                 .map_err(|e| crate::cli::command::FromArgsError::path_parse("function", e))?;
-            Ok(match parsed {
-                RemotePathCommitOptionalOrFavorite::Resolved(p) => FunctionSpec::Resolved(
-                    FullInlineFunctionOrRemoteCommitOptional::Remote(p),
-                ),
-                RemotePathCommitOptionalOrFavorite::Favorite(name) => FunctionSpec::Favorite(name),
-            })
+            Ok(FunctionSpec::Resolved(
+                FullInlineFunctionOrRemoteCommitOptional::Remote(path),
+            ))
         } else if let Some(s) = args.function_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de)
@@ -204,18 +186,14 @@ impl TryFrom<FunctionArgs> for FunctionSpec {
 impl TryFrom<ProfileArgs> for ProfileSpec {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: ProfileArgs) -> Result<Self, Self::Error> {
-        use crate::cli::command::path_ref::RemotePathCommitOptionalOrFavorite;
         use crate::functions::InlineProfileOrRemoteCommitOptional;
         if let Some(s) = args.profile {
-            let parsed: RemotePathCommitOptionalOrFavorite = s
+            let path: crate::RemotePathCommitOptional = s
                 .parse()
                 .map_err(|e| crate::cli::command::FromArgsError::path_parse("profile", e))?;
-            Ok(match parsed {
-                RemotePathCommitOptionalOrFavorite::Resolved(p) => ProfileSpec::Resolved(
-                    InlineProfileOrRemoteCommitOptional::Remote(p),
-                ),
-                RemotePathCommitOptionalOrFavorite::Favorite(name) => ProfileSpec::Favorite(name),
-            })
+            Ok(ProfileSpec::Resolved(
+                InlineProfileOrRemoteCommitOptional::Remote(path),
+            ))
         } else if let Some(s) = args.profile_inline {
             let mut de = serde_json::Deserializer::from_str(&s);
             let v = serde_path_to_error::deserialize(&mut de)

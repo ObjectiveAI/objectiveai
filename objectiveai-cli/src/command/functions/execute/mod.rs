@@ -28,18 +28,6 @@ pub(super) async fn resolve_function(
 ) -> Result<FullInlineFunctionOrRemoteCommitOptional, Error> {
     match spec {
         FunctionSpec::Resolved(r) => Ok(r),
-        FunctionSpec::Favorite(name) => {
-            let mut config = ctx.filesystem.read_config().await?;
-            let fav = config
-                .functions()
-                .get_favorites()
-                .iter()
-                .find(|f| f.get_name() == name)
-                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
-            Ok(FullInlineFunctionOrRemoteCommitOptional::Remote(
-                fav.path.clone(),
-            ))
-        }
         FunctionSpec::File(path) => read_json_file(&path),
         FunctionSpec::PythonInline(code) => crate::python::exec_code(&code),
         FunctionSpec::PythonFile(path) => crate::python::exec_file(&path),
@@ -52,17 +40,6 @@ pub(super) async fn resolve_profile(
 ) -> Result<InlineProfileOrRemoteCommitOptional, Error> {
     match spec {
         ProfileSpec::Resolved(r) => Ok(r),
-        ProfileSpec::Favorite(name) => {
-            let mut config = ctx.filesystem.read_config().await?;
-            let fav = config
-                .functions()
-                .profiles()
-                .get_favorites()
-                .iter()
-                .find(|f| f.get_name() == name)
-                .ok_or_else(|| Error::FavoriteNotFound(name.clone()))?;
-            Ok(InlineProfileOrRemoteCommitOptional::Remote(fav.path.clone()))
-        }
         ProfileSpec::File(path) => read_json_file(&path),
         ProfileSpec::PythonInline(code) => crate::python::exec_code(&code),
         ProfileSpec::PythonFile(path) => crate::python::exec_file(&path),
