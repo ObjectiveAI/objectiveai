@@ -1,7 +1,7 @@
-//! Raw-HTTP helpers shared by the `/notify` integration tests. Each
-//! notify test file declares `mod notify_helpers;` to pull these in.
-//! We bypass rmcp here because we want explicit control over the
-//! `Mcp-Session-Id` and the exact wire payloads of `tools/call`.
+//! Raw-HTTP session/tool-call helpers shared by the queue-delegate
+//! splice tests. We bypass rmcp here because we want explicit control
+//! over the `Mcp-Session-Id` and the exact wire payloads of
+//! `tools/call`.
 
 #![allow(dead_code)]
 
@@ -58,57 +58,6 @@ pub async fn init_session(
         .expect("initialized notification");
 
     session_id
-}
-
-/// `POST /notify` with the given JSON body (a `Vec<ContentBlock>` shape).
-pub async fn post_notify(
-    client: &reqwest::Client,
-    proxy_url: &str,
-    session_id: &str,
-    body: Value,
-) -> reqwest::Response {
-    let notify_url = format!("{proxy_url}notify");
-    client
-        .post(&notify_url)
-        .header("Content-Type", "application/json")
-        .header("Mcp-Session-Id", session_id)
-        .body(body.to_string())
-        .send()
-        .await
-        .expect("post /notify")
-}
-
-/// `GET /notify` — atomically drains the proxy's pending-notifications
-/// queue for the given session and returns the raw response so callers
-/// can assert on status as well as body.
-pub async fn get_notify(
-    client: &reqwest::Client,
-    proxy_url: &str,
-    session_id: &str,
-) -> reqwest::Response {
-    let notify_url = format!("{proxy_url}notify");
-    client
-        .get(&notify_url)
-        .header("Mcp-Session-Id", session_id)
-        .send()
-        .await
-        .expect("get /notify")
-}
-
-/// `GET /notify/queued` — non-draining peek. Returns the raw response so
-/// callers can assert on status and parse the JSON boolean body.
-pub async fn get_notify_queued(
-    client: &reqwest::Client,
-    proxy_url: &str,
-    session_id: &str,
-) -> reqwest::Response {
-    let notify_url = format!("{proxy_url}notify/queued");
-    client
-        .get(&notify_url)
-        .header("Mcp-Session-Id", session_id)
-        .send()
-        .await
-        .expect("get /notify/queued")
 }
 
 /// Issue a `tools/call` against the proxy and return the parsed JSON-RPC

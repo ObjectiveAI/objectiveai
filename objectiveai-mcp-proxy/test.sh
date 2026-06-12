@@ -53,23 +53,26 @@ run_all >> "$LOG_FILE" 2>&1 || EXIT=$?
 # usually plain when redirected, but stripping is harmless either way.
 CLEAN=$(sed 's/\x1b\[[0-9;]*m//g' "$LOG_FILE")
 
-# Cargo: each test binary prints `test result: ok. N passed; M failed; ...`
-RUST_PASSED=$(echo "$CLEAN" | grep -E '^test result:' \
-  | sed -n 's/.*[^0-9]\([0-9][0-9]*\) passed.*/\1/p' \
-  | awk '{s+=$1} END {print s+0}')
-RUST_FAILED=$(echo "$CLEAN" | grep -E '^test result:' \
-  | sed -n 's/.*[^0-9]\([0-9][0-9]*\) failed.*/\1/p' \
-  | awk '{s+=$1} END {print s+0}')
+# Nextest: `   Summary [  59.27s] 29 tests run: 29 passed, 0 skipped`
+# (`N failed` appears in the same list on red runs). awk only — a grep
+# with zero matches would exit 1 and kill the script under pipefail.
+RUST_PASSED=$(echo "$CLEAN" | awk \
+  '/tests run:/ { for (i = 2; i <= NF; i++) if ($i ~ /^passed/) s += $(i-1) }
+   END { print s + 0 }')
+RUST_FAILED=$(echo "$CLEAN" | awk \
+  '/tests run:/ { for (i = 2; i <= NF; i++) if ($i ~ /^failed/) s += $(i-1) }
+   END { print s + 0 }')
 
 # Vitest: final summary line `     Tests  18 passed (18)` (with the
-# `Tests Files` line just above it being similar — narrow to lines
-# starting with whitespace + `Tests ` exactly).
-TS_PASSED=$(echo "$CLEAN" | grep -E '^[[:space:]]*Tests[[:space:]]' \
-  | sed -n 's/.*[^0-9]\([0-9][0-9]*\) passed.*/\1/p' \
-  | tail -1)
-TS_FAILED=$(echo "$CLEAN" | grep -E '^[[:space:]]*Tests[[:space:]]' \
-  | sed -n 's/.*[^0-9]\([0-9][0-9]*\) failed.*/\1/p' \
-  | tail -1)
+# `Test Files` line just above it being similar — narrow to lines
+# starting with whitespace + `Tests ` exactly; on red runs it reads
+# `Tests  1 failed | 17 passed (18)`).
+TS_PASSED=$(echo "$CLEAN" | awk \
+  '/^[[:space:]]*Tests[[:space:]]/ { for (i = 2; i <= NF; i++) if ($i ~ /^passed/) p = $(i-1) }
+   END { print p + 0 }')
+TS_FAILED=$(echo "$CLEAN" | awk \
+  '/^[[:space:]]*Tests[[:space:]]/ { for (i = 2; i <= NF; i++) if ($i ~ /^failed/) f = $(i-1) }
+   END { print f + 0 }')
 
 PASSED=$(( RUST_PASSED + ${TS_PASSED:-0} ))
 FAILED=$(( RUST_FAILED + ${TS_FAILED:-0} ))

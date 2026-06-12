@@ -201,7 +201,9 @@ impl TestRig {
 
 // ---- Subprocess spawn helpers ------------------------------------------
 
-async fn spawn_upstream(spec: UpstreamSpec) -> Upstream {
+/// Public so the in-process queue-delegate tests can spawn a real
+/// upstream without paying for the rig's subprocess proxy.
+pub async fn spawn_upstream(spec: UpstreamSpec) -> Upstream {
     let port = pick_free_port();
     let mut cmd = Command::new(test_upstream_binary());
     cmd.env("ADDRESS", "127.0.0.1")
