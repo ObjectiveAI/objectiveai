@@ -14,10 +14,8 @@ publish = true
 include = [
     "src/**/*.rs",
     "Cargo.toml",
-    "build.rs",
     "README.md",
     "LICENSE*",
-    "schemas/*.json",
 ]
 
 [features]

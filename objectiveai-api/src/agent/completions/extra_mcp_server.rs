@@ -1,9 +1,8 @@
 //! Caller-supplied additional MCP server for an agent-completion run.
 //!
-//! `extra_mcp_servers` lets a caller (e.g. the function-inventions
-//! orchestrator) attach extra MCP upstreams onto a single
-//! `create_streaming` call without baking those URLs into the agent's
-//! own content-hashed configuration. Each entry pairs a URL with an
+//! `extra_mcp_servers` lets a caller attach extra MCP upstreams onto a
+//! single `create_streaming` call without baking those URLs into the
+//! agent's own content-hashed configuration. Each entry pairs a URL with an
 //! optional per-server header set; both flow through to the proxy as
 //! one URL in `X-MCP-Servers` and one entry in `X-MCP-Headers`'s
 //! per-URL header map (merged on top of any orchestrator-wide

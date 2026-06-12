@@ -45,12 +45,6 @@ cp "$BINARY" "$TMPBIN"
 #   by silent retry storms.
 # - AGENT_COMPLETIONS_FIRST/OTHER_CHUNK_TIMEOUT=1800000 + the matching
 #   BACKOFF_*=0: same idea for the agent_completions path.
-# - FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT=300000 (5 min): bump
-#   from the 30s default so contention-induced flakes during heavy
-#   parallel `test.sh` loads don't trip the retry loop in
-#   objectiveai-api/src/functions/inventions/client.rs:1346 (which
-#   would append an extra `completion` block to the stream and
-#   diverge from the snapshot).
 ADDRESS=127.0.0.1 \
 PORT="$PORT" \
 CLAUDE_AGENT_SDK_ENABLED=false \
@@ -73,7 +67,6 @@ AGENT_COMPLETIONS_BACKOFF_RANDOMIZATION_FACTOR=0 \
 AGENT_COMPLETIONS_BACKOFF_MULTIPLIER=1 \
 AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL=0 \
 AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME=0 \
-FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT=300000 \
 "$TMPBIN" &
 SERVER_PID=$!
 

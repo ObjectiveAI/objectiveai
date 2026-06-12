@@ -249,10 +249,6 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
         byok: Option<&str>,
         cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        _invention_step: Option<usize>,
-        _invention_tasks_min: Option<u64>,
-        _invention_input_schema: Option<String>,
         agent_instance_hierarchy: &str,
         agent_id: &str,
         agent_full_id: &str,
@@ -301,9 +297,8 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
             };
             // Source MCP tools from the per-agent proxy connection (if any).
             // The proxy fans out to the agent's declared upstream MCP
-            // servers and the invention server, so a single list_tools()
-            // (inside resolve_tools) returns the union — no separate
-            // invention_tools path.
+            // servers, so a single list_tools() (inside resolve_tools)
+            // returns the union.
             let (tool_names, tool_map) = super::super::resolved_tool::resolve_tools(
                 mcp_connection.as_ref(),
                 response_format.as_ref(),

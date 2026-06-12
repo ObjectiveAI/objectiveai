@@ -18,12 +18,6 @@ pub trait ContextExt {
         &self,
     ) -> Option<std::sync::Arc<std::collections::HashMap<String, String>>>;
 
-    /// Returns the user's viewer signature.
-    async fn viewer_signature(&self) -> Option<std::sync::Arc<String>>;
-
-    /// Returns the viewer address (e.g. "http://localhost:5001").
-    async fn viewer_address(&self) -> Option<std::sync::Arc<String>>;
-
     /// Returns the commit author name.
     async fn commit_author_name(&self) -> Option<std::sync::Arc<String>>;
 

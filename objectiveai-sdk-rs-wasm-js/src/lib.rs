@@ -516,45 +516,12 @@ pub fn functionExecutionChunkMerged(a: JsValue, b: JsValue) -> Result<String, Js
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-/// Merges two `FunctionInventionChunk`s and returns the merged result.
-#[wasm_bindgen]
-pub fn functionInventionChunkMerged(a: JsValue, b: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let b: objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk =
-        serde_wasm_bindgen::from_value(b)?;
-    a.push(&b);
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Merges two `FunctionInventionRecursiveChunk`s and returns the merged result.
-#[wasm_bindgen]
-pub fn functionInventionRecursiveChunkMerged(a: JsValue, b: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let b: objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk =
-        serde_wasm_bindgen::from_value(b)?;
-    a.push(&b);
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 /// Merges two `FunctionProfileComputationChunk`s and returns the merged result.
 #[wasm_bindgen]
 pub fn functionProfileComputationChunkMerged(a: JsValue, b: JsValue) -> Result<String, JsValue> {
     let mut a: objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk =
         serde_wasm_bindgen::from_value(a)?;
     let b: objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk =
-        serde_wasm_bindgen::from_value(b)?;
-    a.push(&b);
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Merges two `LaboratoryExecutionChunk`s and returns the merged result.
-#[wasm_bindgen]
-pub fn laboratoryExecutionChunkMerged(a: JsValue, b: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let b: objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk =
         serde_wasm_bindgen::from_value(b)?;
     a.push(&b);
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -584,34 +551,10 @@ pub fn functionExecutionChunkNormalized(a: JsValue) -> Result<String, JsValue> {
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-/// Normalizes a `FunctionInventionChunk` by round-tripping through serde.
-#[wasm_bindgen]
-pub fn functionInventionChunkNormalized(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Normalizes a `FunctionInventionRecursiveChunk` by round-tripping through serde.
-#[wasm_bindgen]
-pub fn functionInventionRecursiveChunkNormalized(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 /// Normalizes a `FunctionProfileComputationChunk` by round-tripping through serde.
 #[wasm_bindgen]
 pub fn functionProfileComputationChunkNormalized(a: JsValue) -> Result<String, JsValue> {
     let a: objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Normalizes a `LaboratoryExecutionChunk` by round-tripping through serde.
-#[wasm_bindgen]
-pub fn laboratoryExecutionChunkNormalized(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk =
         serde_wasm_bindgen::from_value(a)?;
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
 }
@@ -643,39 +586,12 @@ pub fn functionExecutionChunkToUnary(a: JsValue) -> Result<String, JsValue> {
     serde_json::to_string(&unary).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-/// Converts an accumulated `FunctionInventionChunk` to a `FunctionInvention` (unary).
-#[wasm_bindgen]
-pub fn functionInventionChunkToUnary(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let unary: objectiveai_sdk::functions::inventions::response::unary::FunctionInvention = a.into();
-    serde_json::to_string(&unary).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Converts an accumulated `FunctionInventionRecursiveChunk` to a `FunctionInventionRecursive` (unary).
-#[wasm_bindgen]
-pub fn functionInventionRecursiveChunkToUnary(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let unary: objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive = a.into();
-    serde_json::to_string(&unary).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 /// Converts an accumulated `FunctionProfileComputationChunk` to a `FunctionProfileComputation` (unary).
 #[wasm_bindgen]
 pub fn functionProfileComputationChunkToUnary(a: JsValue) -> Result<String, JsValue> {
     let a: objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk =
         serde_wasm_bindgen::from_value(a)?;
     let unary: objectiveai_sdk::functions::profiles::computations::response::unary::FunctionProfileComputation = a.into();
-    serde_json::to_string(&unary).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Converts an accumulated `LaboratoryExecutionChunk` to a `LaboratoryExecution` (unary).
-#[wasm_bindgen]
-pub fn laboratoryExecutionChunkToUnary(a: JsValue) -> Result<String, JsValue> {
-    let a: objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk =
-        serde_wasm_bindgen::from_value(a)?;
-    let unary: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution = a.into();
     serde_json::to_string(&unary).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
@@ -706,37 +622,10 @@ pub fn normalizeFunctionExecutionForTests(a: JsValue) -> Result<String, JsValue>
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-/// Normalizes a `FunctionInvention` for test snapshot stability.
-#[wasm_bindgen]
-pub fn normalizeFunctionInventionForTests(a: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::functions::inventions::response::unary::FunctionInvention =
-        serde_wasm_bindgen::from_value(a)?;
-    a.normalize_for_tests();
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Normalizes a `FunctionInventionRecursive` for test snapshot stability.
-#[wasm_bindgen]
-pub fn normalizeFunctionInventionRecursiveForTests(a: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive =
-        serde_wasm_bindgen::from_value(a)?;
-    a.normalize_for_tests();
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 /// Normalizes a `FunctionProfileComputation` for test snapshot stability.
 #[wasm_bindgen]
 pub fn normalizeFunctionProfileComputationForTests(a: JsValue) -> Result<String, JsValue> {
     let mut a: objectiveai_sdk::functions::profiles::computations::response::unary::FunctionProfileComputation =
-        serde_wasm_bindgen::from_value(a)?;
-    a.normalize_for_tests();
-    serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Normalizes a `LaboratoryExecution` for test snapshot stability.
-#[wasm_bindgen]
-pub fn normalizeLaboratoryExecutionForTests(a: JsValue) -> Result<String, JsValue> {
-    let mut a: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution =
         serde_wasm_bindgen::from_value(a)?;
     a.normalize_for_tests();
     serde_json::to_string(&a).map_err(|e| JsValue::from_str(&e.to_string()))
@@ -772,42 +661,12 @@ pub fn generateFunctionExecutionChunk(seed: JsValue) -> Result<String, JsValue> 
     serde_json::to_string(&chunk).map_err(|e| JsValue::from_str(&e.to_string()))
 }
 
-/// Generates a random `FunctionInventionChunk`. Optional seed for reproducibility.
-#[wasm_bindgen]
-pub fn generateFunctionInventionChunk(seed: JsValue) -> Result<String, JsValue> {
-    let bytes = seed_to_bytes(seed);
-    let mut u = arbitrary::Unstructured::new(&bytes);
-    let chunk = objectiveai_sdk::functions::inventions::response::streaming::FunctionInventionChunk::arbitrary(&mut u)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_json::to_string(&chunk).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Generates a random `FunctionInventionRecursiveChunk`. Optional seed for reproducibility.
-#[wasm_bindgen]
-pub fn generateFunctionInventionRecursiveChunk(seed: JsValue) -> Result<String, JsValue> {
-    let bytes = seed_to_bytes(seed);
-    let mut u = arbitrary::Unstructured::new(&bytes);
-    let chunk = objectiveai_sdk::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk::arbitrary(&mut u)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_json::to_string(&chunk).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
 /// Generates a random `FunctionProfileComputationChunk`. Optional seed for reproducibility.
 #[wasm_bindgen]
 pub fn generateFunctionProfileComputationChunk(seed: JsValue) -> Result<String, JsValue> {
     let bytes = seed_to_bytes(seed);
     let mut u = arbitrary::Unstructured::new(&bytes);
     let chunk = objectiveai_sdk::functions::profiles::computations::response::streaming::FunctionProfileComputationChunk::arbitrary(&mut u)
-        .map_err(|e| JsValue::from_str(&e.to_string()))?;
-    serde_json::to_string(&chunk).map_err(|e| JsValue::from_str(&e.to_string()))
-}
-
-/// Generates a random `LaboratoryExecutionChunk`. Optional seed for reproducibility.
-#[wasm_bindgen]
-pub fn generateLaboratoryExecutionChunk(seed: JsValue) -> Result<String, JsValue> {
-    let bytes = seed_to_bytes(seed);
-    let mut u = arbitrary::Unstructured::new(&bytes);
-    let chunk = objectiveai_sdk::laboratories::executions::response::streaming::LaboratoryExecutionChunk::arbitrary(&mut u)
         .map_err(|e| JsValue::from_str(&e.to_string()))?;
     serde_json::to_string(&chunk).map_err(|e| JsValue::from_str(&e.to_string()))
 }

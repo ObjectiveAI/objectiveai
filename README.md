@@ -55,15 +55,14 @@ The brand promise is **judgment**: the system was built so that collective evalu
 
 ### Execution modes
 
-Three shapes. Each mode resolves the same Agents and Swarms but does something different with them.
+Two shapes. Each mode resolves the same Agents and Swarms but does something different with them.
 
 | Mode | What it does | Returns | Reach for it when |
 |---|---|---|---|
 | [**Agent completion**](#agent-completions) | Spawn a single Agent to do work — call tools, talk to MCP servers, execute multi-turn loops, generate artifacts | Whatever the Agent produces | You need one agent to perform a discrete task |
 | [**Function execution**](#function-executions) | Spawn a swarm to evaluate something. Functions are composable, recursive evaluation pipelines | Scalar or vector of scores | You want a calibrated, trainable multi-model evaluation |
-| [**Laboratory execution**](#laboratory-executions) | Builder agents run in a Docker sandbox with persistent filesystem MCP; an optional evaluation agent scores the outputs | Builder outputs + evaluation result | You need agents to write code, files, or artifacts in isolation |
 
-Function execution is the judgment mode — that's where the system's name comes from. Agent completions are the foundational orchestration layer; every other mode is built on top of them. Laboratory executions extend the system to workloads that produce files and artifacts, not just scores.
+Function execution is the judgment mode — that's where the system's name comes from. Agent completions are the foundational orchestration layer; every other mode is built on top of them.
 
 ### Why collective judgment
 
@@ -169,26 +168,17 @@ objectiveai agents spawn \
   --inline '[{"role":"user","content":"Write a haiku about ocean waves."}]'
 ```
 
-Spawn builder agents in a Docker sandbox with persistent filesystem access:
-
-```bash
-objectiveai laboratories executions create \
-  --docker-image python:3.12-slim \
-  --builder-agent remote=github,owner=your-org,repository=builder-agent \
-  --builder-messages-inline '[{"role":"user","content":"Write a Python script that prints hello to /workspace/out.txt"}]'
-```
-
-Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents, Swarms, Profiles, and the three execution modes, and [SDKs](#sdks) for Python, Rust, Go, and .NET patterns including streaming.
+Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents, Swarms, Profiles, and the two execution modes, and [SDKs](#sdks) for Python, Rust, Go, and .NET patterns including streaming.
 
 ## Core primitives
 
-Three **resources** (Agents, Swarms, Profiles) define what's in the system; three **execution modes** (Agent completions, Function executions, Laboratory executions) define what you can do with them. Resources are content-addressed Git-hosted JSON; execution modes resolve resources at request time and stream typed results back. Everything ties together through a shared resource graph at the bottom of this section.
+Three **resources** (Agents, Swarms, Profiles) define what's in the system; two **execution modes** (Agent completions, Function executions) define what you can do with them. Resources are content-addressed Git-hosted JSON; execution modes resolve resources at request time and stream typed results back. Everything ties together through a shared resource graph at the bottom of this section.
 
 ### Agents
 
 An **Agent** is a fully-specified configuration of a single upstream model: model identity, prompt structure, decoding parameters, output mode, tools, MCP servers, provider preferences. Agents are content-addressed via XXHash3-128 — the same configuration always produces the same 22-character base62 ID. IDs are deterministic because the serialized configuration is hashed after normalization (empty fields stripped, defaults canonicalized). Two Agents with identical effective settings are the same Agent.
 
-Agents are stored as `agent.json` in Git repositories and referenced by `owner/repo@commit` everywhere a swarm, function, or laboratory needs an agent. Authoring agents lives in source control; calling them happens by reference.
+Agents are stored as `agent.json` in Git repositories and referenced by `owner/repo@commit` everywhere a swarm or function needs an agent. Authoring agents lives in source control; calling them happens by reference.
 
 ```json
 {
@@ -203,7 +193,7 @@ Agents are stored as `agent.json` in Git repositories and referenced by `owner/r
 }
 ```
 
-Each upstream (OpenRouter, Claude Agent SDK, Codex SDK) has its own agent type with its own parameter set. The same Agent can be driven in any of the three execution modes — running solo in an agent completion, contributing to the swarm's evaluation in a function execution, or working as a builder or evaluator in a laboratory.
+Each upstream (OpenRouter, Claude Agent SDK, Codex SDK) has its own agent type with its own parameter set. The same Agent can be driven in either execution mode — running solo in an agent completion, or contributing to the swarm's evaluation in a function execution.
 
 ### Swarms
 
@@ -259,7 +249,7 @@ At execution time, the Function and Profile are independent inputs. The retrieva
 
 ### Agent completions
 
-An **agent completion** spawns a single Agent to do work. The Agent receives a task as a conversation and acts on it — calls tools, talks to MCP servers, executes a multi-turn loop, writes code, generates artifacts. Function executions and laboratory executions are built on top of agent completions; they're multi-agent or multi-step orchestrations of the same underlying primitive.
+An **agent completion** spawns a single Agent to do work. The Agent receives a task as a conversation and acts on it — calls tools, talks to MCP servers, executes a multi-turn loop, writes code, generates artifacts. Function executions are built on top of agent completions; they're multi-agent orchestrations of the same underlying primitive.
 
 The Agent is supplied by remote reference. Messages can include images, audio, and files in addition to text. Tool calls are detected mid-stream and executed automatically; MCP servers attached to the Agent are dialed transparently. The response carries a `Continuation` that captures the conversation state so the next call can pick up where this one left off.
 
@@ -309,27 +299,6 @@ Functions are stored as `function.json` in Git repositories and referenced by `o
 }
 ```
 
-### Laboratory executions
-
-A **laboratory execution** runs Agents in a Docker sandbox with persistent filesystem access. The container starts with `objectiveai-mcp-filesystem` injected as an MCP server, giving the running agents read/write tools over the workspace directory. One or more **builder agents** produce outputs (write files, run code, generate artifacts); an optional **evaluation agent** then runs against the resulting workspace and produces a schema-constrained verdict. Failed evaluations can trigger up to `max_evaluation_retries` builder re-runs.
-
-This mode extends the system beyond text scoring into physical-output workloads: an agent that has to write working code, lay out a directory tree, or produce a binary artifact can do all of that inside a hermetic container, with the outputs available to the evaluator (and to you) afterwards.
-
-```bash
-objectiveai laboratories executions create \
-  --docker-image python:3.12-slim \
-  --builder-agent remote=github,owner=your-org,repository=builder-agent \
-  --builder-messages-inline '[{"role":"user","content":"Write tests for src/foo.py"}]' \
-  --evaluation-agent remote=github,owner=your-org,repository=evaluator-agent \
-  --evaluation-messages-inline '[{"role":"user","content":"Determine whether the tests pass."}]' \
-  --evaluation-output-schema-inline '{"type":"object","properties":{"passed":{"type":"boolean"}}}' \
-  --max-evaluation-retries 3
-```
-
-Builder messages, evaluation messages, and the evaluation output schema can be supplied inline as JSON, generated via inline Python, or loaded from a Python file (`--builder-messages-python-inline`, `--builder-messages-python-file`, and the corresponding flags for evaluation).
-
-Laboratory executions are not learned-weighted or vote-aggregated — they're sequential agentic pipelines, scoped to a sandbox. Use them when you need agents to *do* something with files, not just judge between options.
-
 ### The resource graph
 
 All resources reference each other via `(owner, repository, commit)` triples. Content-addressing plus commit pinning makes the full graph reproducible from any entry point.
@@ -345,46 +314,9 @@ The Function and Profile are deliberately separate files. The same Function can 
 
 Remote references resolve lazily: the retrieval system walks the graph starting from the execution request, fetching and caching each resource exactly once. Deduplication is by `(owner, repo, commit)` triple. All fetches are content-verified — a cached resource is never re-fetched if the commit SHA matches. Even deeply nested function graphs execute with minimal network overhead.
 
-## Function invention
-
-Invention is specific to the **Function** execution mode — it generates `function.json` files that you then run as function executions. Agent completions and laboratory executions don't have an analogous generator; they're authored directly.
-
-An agent that needs a new evaluation pipeline can ask ObjectiveAI to build one for it. Invention takes a natural-language description — a `spec` — and an optional set of examples, then runs a five-step agentic process (essay → input schema → essay tasks → tasks → description) that produces a complete, valid `function.json`: typed input schema, task tree with expressions, and description. The output is ready to commit, train against a dataset, and call immediately.
-
-**Input to invention:**
-
-- `spec` — plain text description of what the function should evaluate
-- `name` — target repository name for publishing
-- `depth`, `min_branch_width`, `max_branch_width`, `min_leaf_width`, `max_leaf_width` — tree shape constraints
-- Optional: an agent to run the invention steps; a seed for reproducibility; a remote target (GitHub or local filesystem)
-
-**Output:** a `function.json` with a JSON Schema `input_schema`, a `tasks` array of swarm evaluation steps (or nested function references), and a `description`. The file is published to the configured remote automatically.
-
-### Recursive invention
-
-Setting `depth > 0` triggers recursive invention. The root function is invented first. Its task tree contains placeholder slots for child functions. The recursive client then spawns a concurrent child invention for each placeholder, resolving the full tree bottom-up. All streams are merged immediately — no waiting for siblings. The result is a multi-level decision tree where every node is itself an invented, deployable function.
-
-Depth and width bounds control the shape: `min_branch_width` / `max_branch_width` govern non-leaf nodes; `min_leaf_width` / `max_leaf_width` govern leaves. A `depth=2`, `max_branch_width=3` invention produces up to nine leaf functions under three branch functions under one root — all invented concurrently, all published independently.
-
-```bash
-objectiveai functions inventions recursive create alpha-scalar \
-  --name my-org/code-quality-scorer \
-  --spec "Score a pull request diff on correctness, readability, and test coverage" \
-  --depth 1 --min-branch-width 2 --max-branch-width 3
-```
-
-### The self-improvement loop
-
-1. **Invent** — agent describes what it needs to evaluate; invention generates `function.json`.
-2. **Train** — provide labeled examples; ObjectiveAI learns weights and writes `profile.json`.
-3. **Deploy** — push both files to a Git repository; reference by `owner/repo@commit`.
-4. **Use** — the same agent (or any agent) calls the function to evaluate future inputs.
-
-Each cycle produces a reusable, versioned evaluation tool. An agent that executes this loop on demand gains evaluation infrastructure calibrated to its own criteria — not to a pre-defined rubric. The system does not fine-tune models; it learns weights over fixed agents. The infrastructure improves; the models stay stable.
-
 ## SDKs
 
-Every SDK exposes the same three execution modes: **Agent Completions** (spawn a single Agent to do work — tools, MCP, multi-turn loops), **Function Executions** (spawn a swarm to evaluate something — composable evaluation pipelines), and **Laboratory Executions** (Docker-sandboxed builder + evaluator runs). All three support streaming via Server-Sent Events. The API emits incremental chunks; each SDK merges them into an accumulating object using an immutable merge system (TypeScript), a mutable push system (Python, Rust, Go), or equivalent. Types are generated from a shared JSON Schema corpus derived from the Rust SDK, so field names and shapes are identical across languages.
+Every SDK exposes the same two execution modes: **Agent Completions** (spawn a single Agent to do work — tools, MCP, multi-turn loops) and **Function Executions** (spawn a swarm to evaluate something — composable evaluation pipelines). Both support streaming via Server-Sent Events. The API emits incremental chunks; each SDK merges them into an accumulating object using an immutable merge system (TypeScript), a mutable push system (Python, Rust, Go), or equivalent. Types are generated from a shared JSON Schema corpus derived from the Rust SDK, so field names and shapes are identical across languages.
 
 ### Languages
 
@@ -498,13 +430,12 @@ All four binaries land in `~/.objectiveai/` and are added to `PATH`. The CLI (`o
 
 ### `objectiveai` (CLI)
 
-The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `functions`, `vector`, `laboratories`, `plugins`, `logs`, `instructions`, `schemas`, `api`, `viewer`.
+The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `functions`, `vector`, `plugins`, `logs`, `instructions`, `schemas`, `api`, `viewer`.
 
 ```bash
 objectiveai agents list
 objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'
 objectiveai functions executions create standard --function remote=github,owner=...,repository=... --profile remote=github,owner=...,repository=... --input-inline '{...}'
-objectiveai laboratories executions create --docker-image ... --builder-agent remote=github,owner=...,repository=... --builder-messages-inline '...'
 objectiveai plugins install github --owner ObjectiveAI --repository my-plugin
 ```
 
@@ -530,7 +461,7 @@ Key environment variables (all optional):
 | `GITHUB_AUTHORIZATION` | — | GitHub token for resource retrieval |
 | `MCP_AUTHORIZATION` | — | Bearer token for outbound MCP calls |
 
-The server is streaming-first: every layer (agent completions, function executions, laboratory executions, inventions) produces a typed stream of chunks and yields immediately to the HTTP response — nothing is buffered in the hot path.
+The server is streaming-first: every layer (agent completions, vector completions, function executions) produces a typed stream of chunks and yields immediately to the HTTP response — nothing is buffered in the hot path.
 
 ### `objectiveai-viewer`
 
@@ -544,7 +475,7 @@ Three crates make up the MCP surface:
 
 - **`objectiveai-mcp`** — the primary MCP surface. Wraps the CLI as MCP tools over streamable-HTTP. What users run locally and expose upstream for distributed agents.
 - **`objectiveai-mcp-proxy`** — a multiplexing sidecar of `objectiveai-api`. Terminates an MCP client connection and forwards tool calls to an upstream MCP server or to ObjectiveAI-native tools. Embedded inside `objectiveai-api` at runtime.
-- **`objectiveai-mcp-filesystem`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls. Docker-injected into laboratory executions so agents running in sandboxed containers can access the ObjectiveAI filesystem layer.
+- **`objectiveai-mcp-filesystem`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls.
 
 ### Install flags
 
@@ -659,7 +590,7 @@ Full reference: [PLUGINS.md](PLUGINS.md).
 
 The [`examples/`](examples/) directory collects real software built on top of ObjectiveAI, with links to full source repositories.
 
-**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines three primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite), *PsyOps* (scoring jobs that pull tagged posts and run them through an ObjectiveAI function using a chosen swarm, profile, and strategy — including Swiss System tournament-style ranking), and *Inventions* (wrappers around recursive function invention). A pilot study ranked tweets from 33 YC W22 CEO accounts along an *unsettlingness* axis using sub-functions invented by a Claude Opus agent; published artifacts are content-addressed and reproducible.
+**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (scoring jobs that pull tagged posts and run them through an ObjectiveAI function using a chosen swarm, profile, and strategy — including Swiss System tournament-style ranking). A pilot study ranked tweets from 33 YC W22 CEO accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
 
 ### Ecosystem
 
@@ -669,7 +600,6 @@ The [`examples/`](examples/) directory collects real software built on top of Ob
 - **`objectiveai-cocoindex`** ([PyPI](https://pypi.org/project/objectiveai-cocoindex/)) — a Python integration that wraps ObjectiveAI function executions as memoized [CocoIndex](https://github.com/cocoindex-io/cocoindex) processing components. The memo key combines the bound `(function, profile, strategy)` triple with the per-call input, making it safe to drop into indexing pipelines.
 - **`objectiveai-github-discord-notifier`** — a Python FastAPI webhook server (Docker-deployable) that validates GitHub webhook signatures and forwards pull-request and issue events to a configured Discord channel.
 - **`objectiveai-json-schema`** — generated JSON Schema files for every public serializable type in the Rust SDK, named using dot-separated module paths (e.g. `functions.executions.RetryToken.json`). Several hundred schemas cover agents, swarms, functions, profiles, executions, CLI output, MCP types, and more. These files drive code generation for the Go SDK and .NET SDK and can be used by any downstream tooling that needs machine-readable type definitions.
-- **[ObjectiveAI-claude-code-1](https://github.com/ObjectiveAI-claude-code-1)** — an autonomous Claude Code agent that invents and publishes ObjectiveAI Functions without human intervention. Uses the Agent SDK to create, test, and deploy new scoring pipelines, closing the loop on the invention system.
 
 ## Repository structure
 

@@ -8,7 +8,6 @@ pub fn exists(name: &str) -> bool {
         || SWARM_REPOSITORIES.contains(&name)
         || FUNCTION_REPOSITORIES.contains(&name)
         || PROFILE_REPOSITORIES.contains(&name)
-        || PROMPT_REPOSITORIES.contains(&name)
 }
 
 /// Returns a mock Agent by name.
@@ -26,7 +25,6 @@ fn get_agent_json(name: &str) -> Option<&'static str> {
         "instruction" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/instruction.json"))),
         "tool-call" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/tool-call.json"))),
         "instruction-logprobs" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/instruction-logprobs.json"))),
-        "invention" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/invention.json"))),
         "error-probability-50" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/error-probability-50.json"))),
         "json-schema-10x-tools" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/agents/json-schema-10x-tools.json"))),
         _ => None,
@@ -34,7 +32,7 @@ fn get_agent_json(name: &str) -> Option<&'static str> {
 }
 
 /// All mock Agent names.
-const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "invention", "error-probability-50", "json-schema-10x-tools"];
+const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "error-probability-50", "json-schema-10x-tools"];
 
 /// Lists all mock Agents.
 pub fn list_agents() -> objectiveai_sdk::agent::response::ListAgentResponse {
@@ -141,36 +139,6 @@ fn get_function_json(repository: &str) -> Option<&'static str> {
         "tweet-3YQMcu21" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/tweet-3YQMcu21.json"))),
         "tweet-3YQMcu22" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/tweet-3YQMcu22.json"))),
         "twenty-agents-json-schema-10x-tools-vector" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/functions/twenty-agents-json-schema-10x-tools-vector.json"))),
-        _ => None,
-    }
-}
-
-/// Returns a mock invention state file by name and filename.
-pub fn get_invention_state_file(name: &str, filename: &str) -> Option<&'static str> {
-    macro_rules! inv {
-        ($name:expr, $file:expr) => {
-            include_str!(concat!(
-                env!("CARGO_MANIFEST_DIR"),
-                "/assets/mock/functions/inventions/",
-                $name, "/", $file,
-            ))
-        };
-    }
-    match (name, filename) {
-        // inv-good-sl
-        ("inv-good-sl", "parameters.json") => Some(inv!("inv-good-sl", "parameters.json")),
-        ("inv-good-sl", "function.json") => Some(inv!("inv-good-sl", "function.json")),
-        ("inv-good-sl", "input_schema.json") => Some(inv!("inv-good-sl", "input_schema.json")),
-        ("inv-good-sl", "ESSAY_TASKS.md") => Some(inv!("inv-good-sl", "ESSAY_TASKS.md")),
-        // inv-good-vl
-        ("inv-good-vl", "parameters.json") => Some(inv!("inv-good-vl", "parameters.json")),
-        ("inv-good-vl", "function.json") => Some(inv!("inv-good-vl", "function.json")),
-        ("inv-good-vl", "input_schema.json") => Some(inv!("inv-good-vl", "input_schema.json")),
-        ("inv-good-vl", "ESSAY.md") => Some(inv!("inv-good-vl", "ESSAY.md")),
-        // inv-schema-only
-        ("inv-schema-only", "parameters.json") => Some(inv!("inv-schema-only", "parameters.json")),
-        ("inv-schema-only", "input_schema.json") => Some(inv!("inv-schema-only", "input_schema.json")),
-        ("inv-schema-only", "ESSAY.md") => Some(inv!("inv-schema-only", "ESSAY.md")),
         _ => None,
     }
 }
@@ -284,39 +252,6 @@ const PROFILE_REPOSITORIES: &[&str] = &[
 pub fn list_profiles() -> objectiveai_sdk::functions::profiles::response::ListProfileResponse {
     objectiveai_sdk::functions::profiles::response::ListProfileResponse {
         data: PROFILE_REPOSITORIES
-            .iter()
-            .map(|repo| objectiveai_sdk::RemotePath::Mock {
-                name: repo.to_string(),
-            })
-            .collect(),
-    }
-}
-
-/// Returns a mock Prompt by name.
-pub fn get_prompt(
-    name: &str,
-) -> Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt> {
-    let json = get_prompt_json(name)?;
-    Some(serde_json::from_str(json).expect("invalid mock prompt JSON"))
-}
-
-/// Returns mock Prompt JSON by repository name.
-fn get_prompt_json(repository: &str) -> Option<&'static str> {
-    match repository {
-        "default" => Some(include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/assets/mock/prompts/default.json"))),
-        _ => None,
-    }
-}
-
-/// All mock Prompt repository names.
-const PROMPT_REPOSITORIES: &[&str] = &[
-    "default",
-];
-
-/// Lists all mock Prompts.
-pub fn list_prompts() -> objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse {
-    objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse {
-        data: PROMPT_REPOSITORIES
             .iter()
             .map(|repo| objectiveai_sdk::RemotePath::Mock {
                 name: repo.to_string(),

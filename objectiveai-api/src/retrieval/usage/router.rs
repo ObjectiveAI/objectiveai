@@ -57,14 +57,6 @@ where
         self.objectiveai.get_profile_usage(ctx, params).await
     }
 
-    pub async fn get_prompt_usage(
-        &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        params: &objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::UsagePromptResponse, ResponseError> {
-        self.objectiveai.get_prompt_usage(ctx, params).await
-    }
-
     pub async fn get_function_profile_pair_usage(
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,

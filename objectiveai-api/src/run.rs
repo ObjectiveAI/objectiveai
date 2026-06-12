@@ -16,7 +16,7 @@ use crate::{
     filesystem,
     functions::{self, profiles::computations::Client},
     github, objectiveai_http,
-    retrieval, streaming_ws, streaming_ws_handlers, viewer,
+    retrieval, streaming_ws, streaming_ws_handlers,
     util::StreamOnce,
     vector,
 };
@@ -57,10 +57,6 @@ struct EnvConfigBuilder {
     github_authorization: Option<String>,
     #[envconfig(from = "MCP_AUTHORIZATION")]
     mcp_authorization: Option<String>,
-    #[envconfig(from = "VIEWER_ADDRESS")]
-    viewer_address: Option<String>,
-    #[envconfig(from = "VIEWER_SIGNATURE")]
-    viewer_signature: Option<String>,
     #[envconfig(from = "USER_AGENT")]
     user_agent: Option<String>,
     #[envconfig(from = "HTTP_REFERER")]
@@ -124,18 +120,6 @@ struct EnvConfigBuilder {
     github_backoff_max_interval: Option<u64>,
     #[envconfig(from = "GITHUB_BACKOFF_MAX_ELAPSED_TIME")]
     github_backoff_max_elapsed_time: Option<u64>,
-    #[envconfig(from = "VIEWER_BACKOFF_CURRENT_INTERVAL")]
-    viewer_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "VIEWER_BACKOFF_INITIAL_INTERVAL")]
-    viewer_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "VIEWER_BACKOFF_RANDOMIZATION_FACTOR")]
-    viewer_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "VIEWER_BACKOFF_MULTIPLIER")]
-    viewer_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "VIEWER_BACKOFF_MAX_INTERVAL")]
-    viewer_backoff_max_interval: Option<u64>,
-    #[envconfig(from = "VIEWER_BACKOFF_MAX_ELAPSED_TIME")]
-    viewer_backoff_max_elapsed_time: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT")]
     agent_completions_first_chunk_timeout: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT")]
@@ -156,12 +140,6 @@ struct EnvConfigBuilder {
     mock_delay_ms: Option<u64>,
     #[envconfig(from = "MOCK_MAX_TOOL_CALLS")]
     mock_max_tool_calls: Option<u32>,
-    #[envconfig(from = "DOCKER_TIMEOUT")]
-    docker_timeout: Option<u64>,
-    #[envconfig(from = "FUNCTION_INVENTION_FORBID_OVERWRITE")]
-    function_invention_forbid_overwrite: Option<String>,
-    #[envconfig(from = "FUNCTIONS_INVENTIONS_SUBSCRIBE_TOOLS_TIMEOUT")]
-    functions_inventions_subscribe_tools_timeout: Option<u64>,
     #[envconfig(from = "ADDRESS")]
     address: Option<String>,
     #[envconfig(from = "PORT")]
@@ -182,8 +160,6 @@ impl EnvConfigBuilder {
             openrouter_authorization: self.openrouter_authorization,
             github_authorization: self.github_authorization,
             mcp_authorization: self.mcp_authorization,
-            viewer_address: self.viewer_address,
-            viewer_signature: self.viewer_signature,
             user_agent: self.user_agent,
             http_referer: self.http_referer,
             x_title: self.x_title,
@@ -216,12 +192,6 @@ impl EnvConfigBuilder {
             github_backoff_multiplier: self.github_backoff_multiplier,
             github_backoff_max_interval: self.github_backoff_max_interval,
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time,
-            viewer_backoff_current_interval: self.viewer_backoff_current_interval,
-            viewer_backoff_initial_interval: self.viewer_backoff_initial_interval,
-            viewer_backoff_randomization_factor: self.viewer_backoff_randomization_factor,
-            viewer_backoff_multiplier: self.viewer_backoff_multiplier,
-            viewer_backoff_max_interval: self.viewer_backoff_max_interval,
-            viewer_backoff_max_elapsed_time: self.viewer_backoff_max_elapsed_time,
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout,
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
             mcp_connect_timeout: self.mcp_connect_timeout,
@@ -232,9 +202,6 @@ impl EnvConfigBuilder {
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
-            docker_timeout: self.docker_timeout,
-            function_invention_forbid_overwrite: self.function_invention_forbid_overwrite.map(|s| parse_bool(&s)),
-            functions_inventions_subscribe_tools_timeout: self.functions_inventions_subscribe_tools_timeout,
             address: self.address,
             port: self.port,
             suppress_output: None,
@@ -251,8 +218,6 @@ pub struct ConfigBuilder {
     pub openrouter_authorization: Option<String>,
     pub github_authorization: Option<String>,
     pub mcp_authorization: Option<String>,
-    pub viewer_address: Option<String>,
-    pub viewer_signature: Option<String>,
     pub user_agent: Option<String>,
     pub http_referer: Option<String>,
     pub x_title: Option<String>,
@@ -285,12 +250,6 @@ pub struct ConfigBuilder {
     pub github_backoff_multiplier: Option<f64>,
     pub github_backoff_max_interval: Option<u64>,
     pub github_backoff_max_elapsed_time: Option<u64>,
-    pub viewer_backoff_current_interval: Option<u64>,
-    pub viewer_backoff_initial_interval: Option<u64>,
-    pub viewer_backoff_randomization_factor: Option<f64>,
-    pub viewer_backoff_multiplier: Option<f64>,
-    pub viewer_backoff_max_interval: Option<u64>,
-    pub viewer_backoff_max_elapsed_time: Option<u64>,
     pub agent_completions_first_chunk_timeout: Option<u64>,
     pub agent_completions_other_chunk_timeout: Option<u64>,
     pub mcp_connect_timeout: Option<u64>,
@@ -301,9 +260,6 @@ pub struct ConfigBuilder {
     pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
-    pub docker_timeout: Option<u64>,
-    pub function_invention_forbid_overwrite: Option<bool>,
-    pub functions_inventions_subscribe_tools_timeout: Option<u64>,
     pub address: Option<String>,
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
@@ -334,8 +290,6 @@ impl ConfigBuilder {
             openrouter_authorization: self.openrouter_authorization,
             github_authorization: self.github_authorization,
             mcp_authorization: self.mcp_authorization,
-            viewer_address: self.viewer_address,
-            viewer_signature: self.viewer_signature,
             user_agent: self.user_agent.unwrap_or_else(|| "objectiveai-ai<admin@objectiveai-ai.io>".to_string()),
             http_referer: self.http_referer.unwrap_or_else(|| "https://objectiveai-ai.io/".to_string()),
             x_title: self.x_title.unwrap_or_else(|| "ObjectiveAI".to_string()),
@@ -368,12 +322,6 @@ impl ConfigBuilder {
             github_backoff_multiplier: self.github_backoff_multiplier.unwrap_or(1.5),
             github_backoff_max_interval: self.github_backoff_max_interval.unwrap_or(1000),
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(40000),
-            viewer_backoff_current_interval: self.viewer_backoff_current_interval.unwrap_or(100),
-            viewer_backoff_initial_interval: self.viewer_backoff_initial_interval.unwrap_or(100),
-            viewer_backoff_randomization_factor: self.viewer_backoff_randomization_factor.unwrap_or(0.5),
-            viewer_backoff_multiplier: self.viewer_backoff_multiplier.unwrap_or(1.5),
-            viewer_backoff_max_interval: self.viewer_backoff_max_interval.unwrap_or(1000),
-            viewer_backoff_max_elapsed_time: self.viewer_backoff_max_elapsed_time.unwrap_or(40000),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
@@ -404,9 +352,6 @@ impl ConfigBuilder {
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
-            docker_timeout: self.docker_timeout.unwrap_or(30),
-            function_invention_forbid_overwrite: self.function_invention_forbid_overwrite.unwrap_or(false),
-            functions_inventions_subscribe_tools_timeout: self.functions_inventions_subscribe_tools_timeout.unwrap_or(30_000),
             // Loopback + ephemeral by default: the actual bound port
             // is read back from the listener and published in the api
             // lock file, so a fixed default is unnecessary.
@@ -425,8 +370,6 @@ pub struct Config {
     pub openrouter_authorization: Option<String>,
     pub github_authorization: Option<String>,
     pub mcp_authorization: Option<String>,
-    pub viewer_address: Option<String>,
-    pub viewer_signature: Option<String>,
     pub user_agent: String,
     pub http_referer: String,
     pub x_title: String,
@@ -459,12 +402,6 @@ pub struct Config {
     pub github_backoff_multiplier: f64,
     pub github_backoff_max_interval: u64,
     pub github_backoff_max_elapsed_time: u64,
-    pub viewer_backoff_current_interval: u64,
-    pub viewer_backoff_initial_interval: u64,
-    pub viewer_backoff_randomization_factor: f64,
-    pub viewer_backoff_multiplier: f64,
-    pub viewer_backoff_max_interval: u64,
-    pub viewer_backoff_max_elapsed_time: u64,
     pub agent_completions_first_chunk_timeout: u64,
     pub agent_completions_other_chunk_timeout: u64,
     pub mcp_connect_timeout: u64,
@@ -480,9 +417,6 @@ pub struct Config {
     pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
-    pub docker_timeout: u64,
-    pub function_invention_forbid_overwrite: bool,
-    pub functions_inventions_subscribe_tools_timeout: u64,
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
@@ -504,8 +438,6 @@ pub async fn setup(
         openrouter_authorization,
         github_authorization,
         mcp_authorization,
-        viewer_address,
-        viewer_signature,
         user_agent,
         http_referer,
         x_title,
@@ -538,12 +470,6 @@ pub async fn setup(
         github_backoff_multiplier,
         github_backoff_max_interval,
         github_backoff_max_elapsed_time,
-        viewer_backoff_current_interval,
-        viewer_backoff_initial_interval,
-        viewer_backoff_randomization_factor,
-        viewer_backoff_multiplier,
-        viewer_backoff_max_interval,
-        viewer_backoff_max_elapsed_time,
         agent_completions_first_chunk_timeout,
         agent_completions_other_chunk_timeout,
         mcp_connect_timeout,
@@ -554,9 +480,6 @@ pub async fn setup(
         persistent_cache_transient_ttl_ms,
         mock_delay_ms,
         mock_max_tool_calls,
-        docker_timeout,
-        function_invention_forbid_overwrite,
-        functions_inventions_subscribe_tools_timeout,
         address,
         port,
         suppress_output,
@@ -564,19 +487,6 @@ pub async fn setup(
 
     // HTTP Client
     let http_client = reqwest::Client::new();
-
-    // Viewer Client
-    let viewer_client = Arc::new(viewer::Client::<ctx::DefaultContextExt>::new(
-        http_client.clone(),
-        viewer_address.clone(),
-        viewer_signature.clone(),
-        std::time::Duration::from_millis(viewer_backoff_current_interval),
-        std::time::Duration::from_millis(viewer_backoff_initial_interval),
-        viewer_backoff_randomization_factor,
-        viewer_backoff_multiplier,
-        std::time::Duration::from_millis(viewer_backoff_max_interval),
-        std::time::Duration::from_millis(viewer_backoff_max_elapsed_time),
-    ));
 
     // Parse MCP authorization (shared between objectiveai_http and agent_completions clients)
     let mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>> = mcp_authorization
@@ -594,8 +504,6 @@ pub async fn setup(
         github_authorization.as_ref().map(|s| Arc::new(s.clone())),
         openrouter_authorization.as_ref().map(|s| Arc::new(s.clone())),
         mcp_authorization.clone(),
-        viewer_signature.as_ref().map(|s| Arc::new(s.clone())),
-        viewer_address.as_ref().map(|s| Arc::new(s.clone())),
         Some(Arc::new(commit_author_name.clone())),
         Some(Arc::new(commit_author_email.clone())),
     ));
@@ -724,7 +632,6 @@ pub async fn setup(
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
         }),
-        viewer_client.clone(),
         std::time::Duration::from_millis(
             agent_completions_backoff_current_interval,
         ),
@@ -811,75 +718,14 @@ pub async fn setup(
         )),
     ));
 
-    // Function Inventions Client
-    let function_inventions_client =
-        Arc::new(functions::inventions::Client::new(
-            agent_completions_client.clone(),
-            github_client.clone(),
-            filesystem_client.clone(),
-            retrieve_router.clone(),
-            Arc::new(functions::inventions::usage_handler::LogUsageHandler),
-            Arc::new(functions::inventions::InventionServerSpawner::new()),
-            true, // persist
-            function_invention_forbid_overwrite,
-            std::time::Duration::from_millis(functions_inventions_subscribe_tools_timeout),
-        ));
-
-    // Function Inventions Recursive Client
-    let function_inventions_recursive_client =
-        Arc::new(functions::inventions::recursive::Client::new(
-            function_inventions_client.clone(),
-            viewer_client.clone(),
-            Arc::new(
-                functions::inventions::recursive::usage_handler::LogUsageHandler,
-            ),
-        ));
-
     // Function Executions Client
     let function_executions_client =
         Arc::new(functions::executions::Client::new(
             agent_completions_client.clone(),
             vector_completions_client.clone(),
-            viewer_client.clone(),
             retrieve_router.clone(),
             Arc::new(functions::executions::usage_handler::LogUsageHandler),
         ));
-
-    // Laboratory Executions Client
-    //
-    // Wrapped in `DispatchedOrchestrator` so the
-    // `LABORATORY_USE_MOCK_ORCHESTRATOR=1` env var (set by integration
-    // tests) can swap in the mock orchestrator at startup without
-    // talking to a real Docker daemon.
-    let use_mock_orchestrator =
-        std::env::var("LABORATORY_USE_MOCK_ORCHESTRATOR").as_deref() == Ok("1");
-    let laboratory_orchestrator = Arc::new(if use_mock_orchestrator {
-        crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Mock(
-            crate::laboratories::orchestrator::mock::Orchestrator,
-        )
-    } else {
-        #[cfg(feature = "orchestrator-bollard")]
-        {
-            crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Bollard(
-                crate::laboratories::orchestrator::bollard::Orchestrator { docker_timeout },
-            )
-        }
-        #[cfg(not(feature = "orchestrator-bollard"))]
-        {
-            crate::laboratories::orchestrator::dispatch::DispatchedOrchestrator::Unimplemented(
-                crate::laboratories::orchestrator::unimplemented::Orchestrator,
-            )
-        }
-    });
-    let laboratory_executions_client = Arc::new(crate::laboratories::executions::Client {
-        agent_client: agent_completions_client.clone(),
-        retrieve_router: retrieve_router.clone(),
-        usage_handler: Arc::new(
-            crate::laboratories::executions::usage_handler::LogUsageHandler,
-        ),
-        viewer: viewer_client.clone(),
-        orchestrator: laboratory_orchestrator,
-    });
 
     // Functions Profiles Computations Client
     let profile_computations_client =
@@ -1163,134 +1009,6 @@ pub async fn setup(
                 }
             }),
         )
-        // Function Inventions - create (transport selected by X-Transport header)
-        .route(
-            "/functions/inventions",
-            axum::routing::any({
-                let function_inventions_client = function_inventions_client.clone();
-                let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
-                let reverse_attach = reverse_attach.clone();
-                move |transport: streaming_ws::Transport, req: axum::extract::Request| {
-                    let function_inventions_client = function_inventions_client.clone();
-                    let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
-                        use axum::extract::FromRequest;
-                        use axum::extract::FromRequestParts;
-                        let (mut parts, body) = req.into_parts();
-                        let headers = parts.headers.clone();
-                        match transport {
-                            streaming_ws::Transport::Sse => {
-                                let req = axum::extract::Request::from_parts(parts, body);
-                                match Json::<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_function_invention(function_inventions_client, headers, persistent_cache, suppress_output, body).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                            streaming_ws::Transport::WebSocket => {
-                                match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_function_invention_ws(function_inventions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
-        )
-        // Function Inventions Recursive - create
-        .route(
-            "/functions/inventions/recursive",
-            axum::routing::any({
-                let function_inventions_recursive_client =
-                    function_inventions_recursive_client.clone();
-                let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
-                let reverse_attach = reverse_attach.clone();
-                move |transport: streaming_ws::Transport, req: axum::extract::Request| {
-                    let function_inventions_recursive_client =
-                        function_inventions_recursive_client.clone();
-                    let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
-                        use axum::extract::FromRequest;
-                        use axum::extract::FromRequestParts;
-                        let (mut parts, body) = req.into_parts();
-                        let headers = parts.headers.clone();
-                        match transport {
-                            streaming_ws::Transport::Sse => {
-                                let req = axum::extract::Request::from_parts(parts, body);
-                                match Json::<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_function_invention_recursive(function_inventions_recursive_client, headers, persistent_cache, suppress_output, body).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                            streaming_ws::Transport::WebSocket => {
-                                match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_function_invention_recursive_ws(function_inventions_recursive_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
-        )
-        // Function Invention Prompts - list
-        .route(
-            "/functions/inventions/prompts/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest,
-                >| {
-                    list_prompts(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function Invention Prompts - get
-        .route(
-            "/functions/inventions/prompts",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_prompt(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function Invention Prompts - get usage
-        .route(
-            "/functions/inventions/prompts/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
-                >| {
-                    get_prompt_usage(usage_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function Invention State - get
-        .route(
-            "/functions/inventions/state",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_function_invention_state(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
         // Function Profile Computations - create (transport selected by X-Transport header)
         .route(
             "/functions/profiles/compute",
@@ -1527,43 +1245,6 @@ pub async fn setup(
                 }
             }),
         )
-        // Laboratory Executions - create (transport selected by X-Transport header)
-        .route(
-            "/laboratories/executions",
-            axum::routing::any({
-                let laboratory_executions_client = laboratory_executions_client.clone();
-                let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
-                let reverse_attach = reverse_attach.clone();
-                move |transport: streaming_ws::Transport, req: axum::extract::Request| {
-                    let laboratory_executions_client = laboratory_executions_client.clone();
-                    let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
-                    let reverse_attach = reverse_attach.clone();
-                    async move {
-                        use axum::extract::FromRequest;
-                        use axum::extract::FromRequestParts;
-                        let (mut parts, body) = req.into_parts();
-                        let headers = parts.headers.clone();
-                        match transport {
-                            streaming_ws::Transport::Sse => {
-                                let req = axum::extract::Request::from_parts(parts, body);
-                                match Json::<objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => execute_laboratory(laboratory_executions_client, headers, persistent_cache, suppress_output, body).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                            streaming_ws::Transport::WebSocket => {
-                                match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::execute_laboratory_ws(laboratory_executions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
-                                    Err(rej) => rej.into_response(),
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
-        )
         // CORS
         .layer(
             tower_http::cors::CorsLayer::new()
@@ -1717,11 +1398,6 @@ async fn create_agent_completion(
                 vec![], // extra_mcp_servers
                 indexmap::IndexMap::new(), // extra_mcp_headers
                 None,
-                true,
-                None,
-                None,
-                None,
-                None,
             )
             .await
         {
@@ -1754,11 +1430,6 @@ async fn create_agent_completion(
                 None, // disable_tools
                 vec![], // extra_mcp_servers
                 indexmap::IndexMap::new(), // extra_mcp_headers
-                None,
-                true,
-                None,
-                None,
-                None,
                 None,
             )
             .await
@@ -2030,70 +1701,6 @@ async fn get_profile_usage(
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_profile_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Invention Prompts
-
-async fn list_prompts(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    let source = params.source.map(|s| match s {
-        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
-    });
-    match list_router.list_prompts(&ctx, source).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_prompt(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_prompt(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_function_invention_state(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_function_invention_state(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_prompt_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_prompt_usage(&ctx, &params).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
     }
@@ -2484,209 +2091,6 @@ async fn get_agent_usage(
         Err(e) => e.into_response(),
     }
 }
-// Function Inventions
-
-async fn create_function_invention(
-    client: Arc<
-        functions::inventions::Client<
-            ctx::DefaultContextExt,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl agent::completions::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl functions::inventions::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-        >,
-    >,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    body: objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    if body.stream.unwrap_or(false) {
-        match client
-            .create_streaming_handle_usage(ctx, Arc::new(body))
-            .await
-        {
-            Ok(stream) => Sse::new(
-                stream
-                    .map(|chunk| {
-                        Ok::<Event, Infallible>(
-                            Event::default()
-                                .data(serde_json::to_string(&chunk).unwrap()),
-                        )
-                    })
-                    .chain(StreamOnce::new(
-                        Ok(Event::default().data("[DONE]")),
-                    )),
-            )
-            .into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
-        }
-    } else {
-        match client
-            .create_unary_handle_usage(ctx, Arc::new(body))
-            .await
-        {
-            Ok(r) => Json(r).into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
-        }
-    }
-}
-
-// Function Inventions Recursive
-
-async fn create_function_invention_recursive(
-    client: Arc<
-        functions::inventions::recursive::Client<
-            ctx::DefaultContextExt,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
-            > + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl agent::completions::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl functions::inventions::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt>
-            + Send
-            + Sync
-            + 'static,
-            impl functions::inventions::recursive::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-        >,
-    >,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    body: objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    if body.stream.unwrap_or(false) {
-        match client
-            .create_streaming_handle_usage(ctx, Arc::new(body))
-            .await
-        {
-            Ok(stream) => Sse::new(
-                stream
-                    .map(|chunk| {
-                        Ok::<Event, Infallible>(
-                            Event::default()
-                                .data(serde_json::to_string(&chunk).unwrap()),
-                        )
-                    })
-                    .chain(StreamOnce::new(
-                        Ok(Event::default().data("[DONE]")),
-                    )),
-            )
-            .into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
-        }
-    } else {
-        match client
-            .create_unary_handle_usage(ctx, Arc::new(body))
-            .await
-        {
-            Ok(r) => Json(r).into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
-        }
-    }
-}
-
 // Error
 
 async fn create_error(
@@ -2723,69 +2127,6 @@ async fn create_error(
         match client.create_unary(&ctx, &body) {
             Ok(r) => Json(r).into_response(),
             Err(e) => e.into_response(),
-        }
-    }
-}
-
-// Laboratory Executions
-
-async fn execute_laboratory(
-    client: Arc<
-        crate::laboratories::executions::Client<
-            ctx::DefaultContextExt,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation,
-            > + Send + Sync + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation,
-            > + Send + Sync + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
-            > + Send + Sync + 'static,
-            impl agent::completions::UpstreamClient<
-                objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
-            > + Send + Sync + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl crate::laboratories::executions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl crate::laboratories::orchestrator::Orchestrator<ctx::DefaultContextExt> + Send + Sync + 'static,
-        >,
-    >,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    request: objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    if request.stream.unwrap_or(false) {
-        match client
-            .create_streaming_handle_usage(ctx, Arc::new(request))
-            .await
-        {
-            Ok(stream) => Sse::new(
-                stream
-                    .map(|chunk| {
-                        Ok::<Event, Infallible>(
-                            Event::default()
-                                .data(serde_json::to_string(&chunk).unwrap()),
-                        )
-                    })
-                    .chain(StreamOnce::new(
-                        Ok(Event::default().data("[DONE]")),
-                    )),
-            )
-            .into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
-        }
-    } else {
-        match client
-            .create_unary_handle_usage(ctx, Arc::new(request))
-            .await
-        {
-            Ok(r) => Json(r).into_response(),
-            Err(e) => ResponseError::from(&e).into_response(),
         }
     }
 }

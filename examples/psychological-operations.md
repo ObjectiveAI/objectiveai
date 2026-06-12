@@ -10,7 +10,7 @@ human-driven Chrome session (typed search via real keyboard automation,
 intentionally not headless) with ObjectiveAI functions, swarms, and
 profiles to rank scraped tweets along arbitrary operator-defined axes.
 
-The CLI is organized around three primary objects:
+The CLI is organized around two primary objects:
 
 - **Scrapes** — declarative search-job definitions (per-handle search
   filters, target tweet counts, min-engagement gates, scrape-time
@@ -25,12 +25,6 @@ The CLI is organized around three primary objects:
   tournament). `psyops run` schedules eligible psyops in rounds; later
   rounds pick up cascading psyops whose `Source.min_score` depends on
   scores written by earlier rounds.
-
-- **Inventions** — wrapper around `objectiveai functions inventions
-  recursive create alpha-{scalar,vector}` that attaches the project's
-  canonical post input schema (`text` + `images` + `videos`) to the
-  invention so the Claude/OpenAI agent inventing the function knows
-  exactly what fields it has to work with.
 
 ## How ObjectiveAI fits in
 
@@ -57,7 +51,7 @@ A small pilot study built with the project ranked recent tweets from
 the personal accounts of 33 Y Combinator W22 CEOs along an
 *unsettlingness* axis, decomposed into three sub-judgments (visceral
 wrongness, tonal dissonance, lingering disquiet) that were themselves
-invented by a Claude Opus agent under a controlled spec. The
+authored by a Claude Opus agent under a controlled spec. The
 sub-functions and the per-company-top-3 meta-pool ranking that combines
 them are content-addressed and reproducible. Results, methodology, and
 the published function/profile/swarm artifacts are documented at:

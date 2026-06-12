@@ -28,8 +28,6 @@ use serde_json::Value;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
 
-use objectiveai_sdk::functions::inventions::InventionTool;
-
 /// A tool the test server exposes: the wire-level definition plus the
 /// callback that runs when the tool is invoked.
 pub struct TestTool {
@@ -51,33 +49,29 @@ impl TestTool {
         }
     }
 
-    /// Adapt an `InventionTool` into a `TestTool` so an in-process test
-    /// server can stand in for the production `InventionServer`.
-    pub fn from_invention(t: InventionTool) -> Self {
-        let mcp_tool = objectiveai_sdk::mcp::tool::Tool {
-            name: t.name.to_string(),
+    /// Build a noop `TestTool` from raw name/description/parameters,
+    /// standing in for an upstream MCP tool definition.
+    pub fn from_parts(
+        name: &str,
+        description: &str,
+        parameters: indexmap::IndexMap<String, Value>,
+    ) -> Self {
+        Self::noop(objectiveai_sdk::mcp::tool::Tool {
+            name: name.to_string(),
             title: None,
-            description: Some(t.description.to_string()),
+            description: Some(description.to_string()),
             icons: None,
             input_schema: objectiveai_sdk::mcp::tool::ToolSchemaObject {
                 r#type: objectiveai_sdk::mcp::tool::ToolSchemaType::Object,
                 properties: None,
                 required: None,
-                extra: t.parameters.clone(),
+                extra: parameters,
             },
             output_schema: None,
             annotations: None,
             execution: None,
             _meta: None,
-        };
-        let call_fn = t.call.clone();
-        Self {
-            tool: mcp_tool,
-            call: Arc::new(move |args| {
-                let call_fn = call_fn.clone();
-                async move { call_fn(args).await }.boxed()
-            }),
-        }
+        })
     }
 }
 

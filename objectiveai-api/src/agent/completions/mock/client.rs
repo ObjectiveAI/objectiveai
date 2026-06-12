@@ -160,10 +160,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
         tools_enabled: bool,
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
         agent_instance_hierarchy: &str,
         agent_id_arg: &str,
         agent_full_id: &str,
@@ -176,7 +172,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
     > + Send
     + 'static {
         let tools_enabled = tools_enabled;
-        let mode = agent.base.mode.unwrap_or_default();
         let id = id.to_string();
         let agent_instance_hierarchy = agent_instance_hierarchy.to_string();
         let agent_id_for_chunks = agent_id_arg.to_string();
@@ -227,20 +222,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                 }).sum()
             })
             .unwrap_or(0);
-        // Validate that AppendTask / WriteInputSchema results from the
-        // previous turn did not fail. Find the last State in the
-        // continuation and check all ToolMessages that follow it.
-        let continuation_validation = continuation.and_then(|items| {
-            let last_state_idx = items.iter().rposition(|item| {
-                matches!(item, ContinuationItem::State(_))
-            })?;
-            let state = match &items[last_state_idx] {
-                ContinuationItem::State(s) => s,
-                _ => unreachable!(),
-            };
-            Some(super::state::validate_continuation(state, items[last_state_idx + 1..].iter()))
-        });
-        let is_byok = byok.is_some();
         let max_tool_calls = self.max_tool_calls;
 
         // Clone agent's `calls` script and the continuation slice
@@ -257,14 +238,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
 
             if error && error_probability.is_none() {
                 return Err(super::Error::ExpectedError);
-            }
-
-            if matches!(mode, objectiveai_sdk::agent::mock::Mode::Invention) && invention_type.is_none() {
-                return Err(super::Error::InventionAgentWithoutInventionTools);
-            }
-
-            if let Some(result) = continuation_validation {
-                result?;
             }
 
             // Reject Grammar and Python response formats.
@@ -293,10 +266,8 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
 
             // Source MCP tools from the per-agent proxy connection (if any)
             // and merge with the response-format ToolCall name. The proxy
-            // fans out to the agent's declared upstream MCP servers and
-            // the invention server, so a single list_tools() (inside
-            // resolve_tools) returns the union — no separate invention_tools
-            // path.
+            // fans out to the agent's declared upstream MCP servers, so a
+            // single list_tools() (inside resolve_tools) returns the union.
             let (tool_names, tool_map) = super::super::resolved_tool::resolve_tools(
                 mcp_connection.as_ref(),
                 response_format.as_ref(),
@@ -345,9 +316,9 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
             // `agent.base.calls` is a deterministic-script preceding
             // override. When set and the continuation hasn't yet
             // satisfied every `Call`, the next un-matched `Call` is
-            // what this turn emits — regardless of mode. Once the
-            // override is exhausted (all `Call`s matched), we fall
-            // through to the normal mode-driven dispatcher below.
+            // what this turn emits. Once the override is exhausted
+            // (all `Call`s matched), we fall through to the normal
+            // dispatcher below.
             let override_calls = override_calls_owned.as_ref();
             let override_response = override_calls.and_then(|calls| {
                 let idx = next_unmatched_call_index(
@@ -383,53 +354,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
             });
             let mock_response = if let Some(r) = override_response {
                 r
-            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryEvaluation) {
-                // Extract schema from last user message: "## evaluation schema\n\n{json}"
-                let schema_json = {
-                    use objectiveai_sdk::agent::completions::message::RichContent;
-                    let extract = |c: &RichContent| match c {
-                        RichContent::Text(t) => t.clone(),
-                        RichContent::Parts(parts) => parts.iter().filter_map(|p| match p {
-                            objectiveai_sdk::agent::completions::message::RichContentPart::Text { text } => Some(text.as_str()),
-                            _ => None,
-                        }).collect::<Vec<_>>().join(""),
-                    };
-                    all_messages.iter().rev().find_map(|m| match m {
-                        objectiveai_sdk::agent::completions::message::Message::User(u) => {
-                            let text = extract(&u.content);
-                            text.find("## evaluation schema\n\n").map(|pos| {
-                                text[pos + "## evaluation schema\n\n".len()..].to_string()
-                            })
-                        }
-                        _ => None,
-                    }).unwrap_or_default()
-                };
-                let schema: objectiveai_sdk::functions::expression::InputSchema = serde_json::from_str(&schema_json)
-                    .unwrap_or(objectiveai_sdk::functions::expression::InputSchema::String(
-                        objectiveai_sdk::functions::expression::StringInputSchema {
-                            r#type: objectiveai_sdk::functions::expression::StringInputSchemaType::String,
-                            description: None,
-                            r#enum: None,
-                        },
-                    ));
-                let input_value = objectiveai_sdk::functions::check::example_inputs::generate_seeded(
-                    &schema,
-                    rng.clone(),
-                ).next().unwrap_or(objectiveai_sdk::functions::expression::InputValue::String("mock".to_string()));
-                let text = serde_json::to_string(&input_value).unwrap();
-                MockResponse::Content { text, logprobs: None }
-            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::LaboratoryBuilder) && tools_enabled && prior_tool_call_count == 0 {
-                MockResponse::ToolCalls(vec![super::builder::write_tool_call(&mut rng)])
-            } else if matches!(mode, objectiveai_sdk::agent::mock::Mode::Invention) && tools_enabled {
-                resolve_invention_response(
-                    invention_type.unwrap(),
-                    invention_step.unwrap(),
-                    invention_tasks_min.unwrap_or(3),
-                    invention_input_schema.as_deref(),
-                    &tool_names,
-                    &tool_map,
-                    &mut rng,
-                )
             } else {
                 let effective_tool_names = if tools_enabled { &tool_names[..] } else { &[] };
                 resolve_mock_response(
@@ -1061,73 +985,4 @@ pub(super) fn generate_tool_arguments(
         }
         None => "{}".into(),
     }
-}
-
-/// Generates tool calls for an invention agent based on explicit type and step.
-fn resolve_invention_response(
-    invention_type: objectiveai_sdk::functions::inventions::prompts::StepPromptType,
-    invention_step: usize,
-    tasks_min: u64,
-    invention_input_schema: Option<&str>,
-    tool_names: &[String],
-    tool_map: &HashMap<String, ResolvedTool>,
-    rng: &mut impl Rng,
-) -> MockResponse {
-    use objectiveai_sdk::functions::inventions::prompts::StepPromptType::*;
-
-    let tc = match (invention_type, invention_step) {
-        // Step 0: Essay
-        (AlphaScalarBranchFunction | AlphaScalarLeafFunction, 0) => {
-            super::invention::alpha_scalar::essay_tool_call(tool_names, tool_map, rng)
-        }
-        (AlphaVectorBranchFunction | AlphaVectorLeafFunction, 0) => {
-            super::invention::alpha_vector::essay_tool_call(tool_names, tool_map, rng)
-        }
-        // Step 1: Input Schema
-        (AlphaScalarBranchFunction | AlphaScalarLeafFunction, 1) => {
-            super::invention::alpha_scalar::input_schema_tool_call(tool_names, tool_map, rng)
-        }
-        (AlphaVectorBranchFunction | AlphaVectorLeafFunction, 1) => {
-            super::invention::alpha_vector::input_schema_tool_call(tool_names, tool_map, rng)
-        }
-        // Step 2: Essay Tasks
-        (AlphaScalarBranchFunction | AlphaScalarLeafFunction, 2) => {
-            super::invention::alpha_scalar::essay_tasks_tool_call(tool_names, tool_map, rng)
-        }
-        (AlphaVectorBranchFunction | AlphaVectorLeafFunction, 2) => {
-            super::invention::alpha_vector::essay_tasks_tool_call(tool_names, tool_map, rng)
-        }
-        // Step 3: Tasks
-        (AlphaScalarLeafFunction, 3) => {
-            let fallback = r#"{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}"#;
-            let schema = invention_input_schema.unwrap_or(fallback);
-            super::invention::alpha_scalar_leaf::tasks_tool_call(schema, tasks_min, tool_names, tool_map, rng)
-        }
-        (AlphaScalarBranchFunction, 3) => {
-            let fallback = r#"{"type":"object","properties":{"text":{"type":"string"}},"required":["text"]}"#;
-            let schema = invention_input_schema.unwrap_or(fallback);
-            super::invention::alpha_scalar_branch::tasks_tool_call(schema, tasks_min, tool_names, tool_map, rng)
-        }
-        (AlphaVectorLeafFunction, 3) => {
-            let fallback = r#"{"items":{"type":"string"}}"#;
-            let schema = invention_input_schema.unwrap_or(fallback);
-            super::invention::alpha_vector_leaf::tasks_tool_call(schema, tasks_min, tool_names, tool_map, rng)
-        }
-        (AlphaVectorBranchFunction, 3) => {
-            let fallback = r#"{"items":{"type":"string"}}"#;
-            let schema = invention_input_schema.unwrap_or(fallback);
-            super::invention::alpha_vector_branch::tasks_tool_call(schema, 0, 0, tasks_min, tool_names, tool_map, rng)
-        }
-        // Step 4: Description
-        (_, 4) => {
-            super::invention::description_tool_call(tool_names, tool_map, rng)
-        }
-        // Unknown step — description fallback
-        _ => {
-            super::invention::description_tool_call(tool_names, tool_map, rng)
-        }
-    };
-
-
-    MockResponse::ToolCalls(vec![tc])
 }

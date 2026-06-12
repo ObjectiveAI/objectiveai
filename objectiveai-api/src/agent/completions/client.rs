@@ -72,8 +72,6 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub codex_sdk: Arc<CODEXSDK>,
     /// Upstream client for Mock agents.
     pub mock: Arc<MOCK>,
-    /// Viewer client for streaming telemetry.
-    pub viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
 
     /// Current backoff interval for retry logic.
     pub backoff_current_interval: Duration,
@@ -105,7 +103,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
         codex_sdk: Arc<CODEXSDK>,
         mock: Arc<MOCK>,
-        viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
         backoff_current_interval: Duration,
         backoff_initial_interval: Duration,
         backoff_randomization_factor: f64,
@@ -125,7 +122,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk,
             codex_sdk,
             mock,
-            viewer_client,
             backoff_current_interval,
             backoff_initial_interval,
             backoff_randomization_factor,
@@ -153,7 +149,6 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             claude_agent_sdk: self.claude_agent_sdk.clone(),
             codex_sdk: self.codex_sdk.clone(),
             mock: self.mock.clone(),
-            viewer_client: self.viewer_client.clone(),
             backoff_current_interval: self.backoff_current_interval,
             backoff_initial_interval: self.backoff_initial_interval,
             backoff_randomization_factor: self.backoff_randomization_factor,
@@ -198,11 +193,6 @@ where
         extra_mcp_servers: Vec<super::ExtraMcpServer>,
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
-        viewer: bool,
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
     ) -> Result<
         objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
         super::Error,
@@ -211,7 +201,7 @@ where
             objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
         > = None;
         let mut stream = self
-            .create_streaming_handle_usage(ctx, params, continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
+            .create_streaming_handle_usage(ctx, params, continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages)
             .await?;
         while let Some(item) = stream.next().await {
             match item {
@@ -242,11 +232,6 @@ where
         extra_mcp_servers: Vec<super::ExtraMcpServer>,
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
-        viewer: bool,
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
     ) -> Result<
         impl futures::Stream<
             Item = super::StreamItem<
@@ -265,7 +250,7 @@ where
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
         let _ = tokio::spawn(async move {
             let stream = match self
-                .create_streaming(ctx.clone(), params.clone(), continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages, viewer, invention_type, invention_step, invention_tasks_min, invention_input_schema)
+                .create_streaming(ctx.clone(), params.clone(), continuation, disable_tools, extra_mcp_servers, extra_mcp_headers, transform_messages)
                 .await
             {
                 Ok(stream) => stream,
@@ -328,23 +313,13 @@ where
         >,
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
         // URLs to fold into every per-agent `X-MCP-Servers` header
-        // *without* mutating the agent's own `mcp_servers` config — used
-        // by the function-inventions orchestrator to plumb the shared
-        // InventionServer URL through the proxy without affecting the
-        // agent's content-derived ID.
+        // *without* mutating the agent's own `mcp_servers` config.
         extra_mcp_servers: Vec<super::ExtraMcpServer>,
         // Headers to merge into the per-agent `X-MCP-Headers` map. The
         // proxy forwards these verbatim to every upstream it fans out
-        // to. Used by the function-inventions orchestrator to send its
-        // tenant id (`X-Invention-Session-Id`) to the shared
-        // InventionServer.
+        // to.
         extra_mcp_headers: indexmap::IndexMap<String, String>,
         transform_messages: Option<Arc<TransformMessages>>,
-        viewer: bool,
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
     ) -> Result<
         impl futures::Stream<
             Item = super::StreamItem<
@@ -389,23 +364,6 @@ where
         let continuation_internal_aih: Option<String> = continuation
             .as_ref()
             .map(|c| c.agent_instance_hierarchy().to_string());
-        // Pre-yield errors correlate against an agent's response id, passed
-        // explicitly at each call site (the primary's response id).
-        let send_viewer_err = {
-            let viewer_client = self.viewer_client.clone();
-            let ctx_for_err = ctx.clone();
-            move |response_id: &str, e: super::Error| -> super::Error {
-                if viewer {
-                    viewer_client.send_agent_completion_error(
-                        ctx_for_err.clone(),
-                        response_id.to_string(),
-                        &e,
-                    );
-                }
-                e
-            }
-        };
-
         // 1. Panic if internal and request continuation upstream types conflict.
         if let (Some(ic), Some(rc)) = (&continuation, &request_continuation) {
             assert_eq!(
@@ -477,10 +435,6 @@ where
         // (`ctx.agent_instance_hierarchy()`) joined by `/` with this instance.
         let response_ids: Vec<String> =
             filtered_agents.iter().map(|_| response_id(created)).collect();
-        // Primary id for pre-yield viewer-error correlation (empty when no
-        // agents survived filtering).
-        let primary_response_id: String =
-            response_ids.first().cloned().unwrap_or_default();
         // Reuse on resume: internal continuation first, else the wire
         // continuation; `None` on a fresh call.
         let continuation_agent_instance_hierarchy: Option<String> =
@@ -520,7 +474,7 @@ where
             .proxy_spawner
             .get()
             .await
-            .map_err(|e| send_viewer_err(&primary_response_id, super::Error::McpProxyBootstrap(e.to_string())))?;
+            .map_err(|e| super::Error::McpProxyBootstrap(e.to_string()))?;
         let proxy_url = proxy_handle.url.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
@@ -619,10 +573,9 @@ where
             .map(|(((agent, agent_instance_hierarchy), id), needs_reverse_attach)| {
                 // Build the per-agent X-MCP-* header set: the agent's
                 // declared `mcp_servers` plus any caller-supplied
-                // `extra_mcp_servers` (e.g. the function-inventions
-                // orchestrator's per-step InventionServer URL — kept
-                // out of the agent's own config so its content-hashed
-                // ID stays stable across runs).
+                // `extra_mcp_servers` (kept out of the agent's own
+                // config so its content-hashed ID stays stable across
+                // runs).
                 let mut urls: Vec<String> = agent
                     .base()
                     .mcp_servers()
@@ -704,7 +657,7 @@ where
                 // Build the per-URL header map sent as `X-MCP-Headers`
                 // to the proxy. For each agent-declared server URL,
                 // start from the orchestrator-supplied `extra_mcp_headers`
-                // (e.g. the function-inventions tenant id) and layer on
+                // and layer on
                 // any configured `Authorization` for that URL. For each
                 // entry in `extra_mcp_servers`, start from
                 // `extra_mcp_headers` and layer on its own per-server
@@ -1081,33 +1034,12 @@ where
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
-                                invention_type,
-                                invention_step,
-                                invention_tasks_min,
-                                invention_input_schema.clone(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => {
-                                    if !viewer { return Ok(stream); }
-                                    let vc = self.viewer_client.clone();
-                                    let vctx = ctx.clone();
-                                    let params_for_viewer = params.clone();
-                                    let mut sent_begin = false;
-                                    return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
-                                        if let super::StreamItem::Chunk(chunk) = item {
-                                            if !sent_begin {
-                                                sent_begin = true;
-                                                vc.send_agent_completion_begin(
-                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
-                                                );
-                                            }
-                                            vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
-                                        }
-                                    })));
-                                }
+                                Ok(stream) => return Ok(stream),
                                 Err(e) => e,
                             }
                         }
@@ -1133,33 +1065,12 @@ where
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
-                                invention_type,
-                                invention_step,
-                                invention_tasks_min,
-                                invention_input_schema.clone(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => {
-                                    if !viewer { return Ok(stream); }
-                                    let vc = self.viewer_client.clone();
-                                    let vctx = ctx.clone();
-                                    let params_for_viewer = params.clone();
-                                    let mut sent_begin = false;
-                                    return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
-                                        if let super::StreamItem::Chunk(chunk) = item {
-                                            if !sent_begin {
-                                                sent_begin = true;
-                                                vc.send_agent_completion_begin(
-                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
-                                                );
-                                            }
-                                            vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
-                                        }
-                                    })));
-                                }
+                                Ok(stream) => return Ok(stream),
                                 Err(e) => e,
                             }
                         }
@@ -1185,33 +1096,12 @@ where
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
-                                invention_type,
-                                invention_step,
-                                invention_tasks_min,
-                                invention_input_schema.clone(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => {
-                                    if !viewer { return Ok(stream); }
-                                    let vc = self.viewer_client.clone();
-                                    let vctx = ctx.clone();
-                                    let params_for_viewer = params.clone();
-                                    let mut sent_begin = false;
-                                    return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
-                                        if let super::StreamItem::Chunk(chunk) = item {
-                                            if !sent_begin {
-                                                sent_begin = true;
-                                                vc.send_agent_completion_begin(
-                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
-                                                );
-                                            }
-                                            vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
-                                        }
-                                    })));
-                                }
+                                Ok(stream) => return Ok(stream),
                                 Err(e) => e,
                             }
                         }
@@ -1237,33 +1127,12 @@ where
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),
-                                invention_type,
-                                invention_step,
-                                invention_tasks_min,
-                                invention_input_schema.clone(),
                                 attempt.agent_instance_hierarchy.as_str(),
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => {
-                                    if !viewer { return Ok(stream); }
-                                    let vc = self.viewer_client.clone();
-                                    let vctx = ctx.clone();
-                                    let params_for_viewer = params.clone();
-                                    let mut sent_begin = false;
-                                    return Ok(Box::pin(futures::StreamExt::inspect(stream, move |item| {
-                                        if let super::StreamItem::Chunk(chunk) = item {
-                                            if !sent_begin {
-                                                sent_begin = true;
-                                                vc.send_agent_completion_begin(
-                                                    vctx.clone(), chunk.id.clone(), params_for_viewer.clone(),
-                                                );
-                                            }
-                                            vc.send_agent_completion_continue(vctx.clone(), chunk.clone());
-                                        }
-                                    })));
-                                }
+                                Ok(stream) => return Ok(stream),
                                 Err(e) => e,
                             }
                         }
@@ -1274,17 +1143,17 @@ where
 
             // All agents failed this round — apply backoff or give up.
             if errors.is_empty() {
-                return Err(send_viewer_err(&primary_response_id, super::Error::NoAgentsResolved));
+                return Err(super::Error::NoAgentsResolved);
             }
             use backoff::backoff::Backoff;
             match backoff.next_backoff() {
                 Some(d) => tokio::time::sleep(d).await,
                 None => {
-                    return Err(send_viewer_err(&primary_response_id, if errors.len() == 1 {
+                    return Err(if errors.len() == 1 {
                         errors.into_iter().next().unwrap()
                     } else {
                         super::Error::MultipleErrors(errors)
-                    }));
+                    });
                 }
             }
         }
@@ -1294,8 +1163,8 @@ where
     ///
     /// 1. Calls `upstream.create()` with `first_chunk_timeout`.
     /// 2. Returns a stream that yields chunks as they arrive, executes
-    ///    callable tools (MCP and invention), and re-invokes the upstream
-    ///    for each continuation until no more callable tool calls remain.
+    ///    callable tools (MCP), and re-invokes the upstream for each
+    ///    continuation until no more callable tool calls remain.
     /// 3. The final stream item is always `StreamItem::State(CONT)`.
     ///
     /// On success, takes ownership of `cont_items` (via `std::mem::take`).
@@ -1319,10 +1188,6 @@ where
         disable_tools: Option<Arc<dyn Fn() -> bool + Send + Sync>>,
         transform_messages: Option<&(dyn Fn(Vec<objectiveai_sdk::agent::completions::message::Message>) -> Vec<objectiveai_sdk::agent::completions::message::Message> + Send + Sync)>,
         is_cancelled: impl Fn() -> bool + Send + Sync + 'static,
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
         agent_instance_hierarchy_header: &str,
         agent_id: &str,
         agent_full_id: &str,
@@ -1508,10 +1373,6 @@ where
             byok,
             cost_multiplier,
             true,
-            invention_type,
-            invention_step,
-            invention_tasks_min,
-            invention_input_schema.clone(),
             agent_instance_hierarchy_header,
             agent_id,
             agent_full_id,
@@ -1525,9 +1386,8 @@ where
 
         // Resolve the proxy's tool name set once upfront. Used to
         // distinguish tool calls the orchestrator should dispatch
-        // (proxy-routed MCP calls, including invention tools served
-        // through the proxy) from tool calls the upstream encodes for
-        // its own reasons (response_format, etc.).
+        // (proxy-routed MCP calls) from tool calls the upstream
+        // encodes for its own reasons (response_format, etc.).
         let mcp_tool_names: Option<std::collections::HashSet<String>> =
             if let Some(conn) = &mcp_connection {
                 let tools = conn.list_tools().await.map_err(|e| super::Error::McpListTools {
@@ -1562,8 +1422,6 @@ where
             self.proxy_spawner.queue_delegate();
 
         Ok(Box::pin(async_stream::stream! {
-            use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
-
             let mut aggregate: Option<
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
             > = None;
@@ -1674,9 +1532,8 @@ where
                 // continuation BEFORE the early-exit branches. Without this,
                 // a turn that ends without calling any tools — common when the
                 // agent emits free-form text — drops the session_id, so the
-                // next call (e.g. invention's retry-with-error prompt) opens
-                // a fresh SDK session and the agent loses memory of the prior
-                // turn.
+                // next call opens a fresh SDK session and the agent loses
+                // memory of the prior turn.
                 if let Some(state) = current_state.take() {
                     continuation_items.push(super::ContinuationItem::State(state));
                 }
@@ -1694,9 +1551,8 @@ where
 
                 // TODO: return to concurrent dispatch (`join_all`) once
                 // we have a way to keep the per-call response order
-                // deterministic. The blocker is invention tools that
-                // mutate shared state and return order-sensitive values
-                // (`AppendTask` returns the new tasks length, etc.):
+                // deterministic. The blocker is tools that mutate
+                // shared state and return order-sensitive values:
                 // when those run in parallel, the tokio scheduler
                 // decides which acquires the state mutex first,
                 // shuffling each call's return value and propagating
@@ -1708,10 +1564,7 @@ where
                 // Dispatch tool calls in this turn SEQUENTIALLY in the
                 // meantime. We used to `join_all` for latency, but
                 // serialising fixes the race by construction. The
-                // proxy's per-call latency dominates anyway (the
-                // InventionServer's session worker is a single-event
-                // loop, so it would have serialised them server-side
-                // regardless).
+                // proxy's per-call latency dominates anyway.
                 let conn = mcp_connection
                     .as_ref()
                     .expect("callable extraction returns empty without a connection")
@@ -1735,7 +1588,6 @@ where
                     results.push(res);
                 }
 
-                let mut any_invention_tool_called = false;
                 for result in results {
                     match result {
                         Ok(tool_msg) => {
@@ -1790,11 +1642,7 @@ where
                 // `disable_tools` is the sentinel the orchestrator hands
                 // us to signal "the model has produced what we needed;
                 // run the next continuation with tools off so it closes
-                // out with a free-form response". We can't tell from
-                // here whether any of the tools we just dispatched were
-                // invention tools (the proxy hides that), so we let the
-                // sentinel decide on its own.
-                let _ = &any_invention_tool_called;
+                // out with a free-form response".
                 let tools_enabled = !disable_tools.as_ref().is_some_and(|f| f());
 
                 if had_error {
@@ -1805,7 +1653,6 @@ where
                 // old tool calls forward from the previous response.
                 aggregate = None;
 
-                let _ = (&invention_type, &invention_step, &invention_tasks_min);
                 match upstream
                     .create(
                         &id,
@@ -1819,10 +1666,6 @@ where
                         byok.as_deref(),
                         cost_multiplier,
                         tools_enabled,
-                        invention_type,
-                        invention_step,
-                        invention_tasks_min,
-                        invention_input_schema.clone(),
                         agent_instance_hierarchy_header.as_str(),
                         agent_id.as_str(),
                         agent_full_id.as_str(),

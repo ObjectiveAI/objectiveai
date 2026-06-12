@@ -64,18 +64,6 @@ where
             .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn get_prompt_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::UsagePromptResponse, ResponseError>
-    {
-        let client = self.objectiveai_client(ctx).await;
-        objectiveai_sdk::functions::inventions::prompts::get_prompt_usage(&client, params.clone())
-            .await
-            .map_err(|e| ResponseError::from(&e))
-    }
-
     async fn get_function_profile_pair_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,

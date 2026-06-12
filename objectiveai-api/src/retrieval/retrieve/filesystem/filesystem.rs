@@ -125,49 +125,6 @@ where
         }
     }
 
-    async fn get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai_sdk::RemotePath,
-    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, ResponseError> {
-        let (owner, repository, commit) = fs_fields(path);
-        match self
-            .client
-            .read_json::<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>(
-                crate::retrieval::Kind::Prompts,
-                owner,
-                repository,
-                Some(commit),
-                "prompt.json",
-            )
-            .await
-        {
-            Ok(Some((prompt, _resolved_commit))) => Ok(Some(prompt)),
-            Ok(None) => Ok(None),
-            Err(e) => Err(ResponseError::from(&e)),
-        }
-    }
-
-    async fn get_function_invention_state_file<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: &ctx::Context<CTXEXT, PC>,
-        path: &objectiveai_sdk::RemotePath,
-        filename: &'static str,
-    ) -> Result<Option<String>, ResponseError> {
-        let (owner, repository, commit) = fs_fields(path);
-        match self.client.read_file(
-            crate::retrieval::Kind::Functions,
-            owner,
-            repository,
-            Some(commit),
-            filename,
-        ).await {
-            Ok(Some((content, _commit))) => Ok(Some(content)),
-            Ok(None) => Ok(None),
-            Err(e) => Err(ResponseError::from(&e)),
-        }
-    }
-
     async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         _ctx: &ctx::Context<CTXEXT, PC>,

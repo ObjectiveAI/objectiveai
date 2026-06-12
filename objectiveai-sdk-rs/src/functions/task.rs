@@ -289,11 +289,6 @@ impl ScalarFunctionTask {
                 input,
                 output: Some(raw_output),
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
         let compiled_output = self.output.compile_one(&params)?;
         Ok(compiled_output)
@@ -405,11 +400,6 @@ impl VectorFunctionTask {
                 input,
                 output: Some(raw_output),
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
         let compiled_output = self.output.compile_one(&params)?;
         Ok(compiled_output)
@@ -548,11 +538,6 @@ impl VectorCompletionTask {
                 input,
                 output: Some(raw_output),
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
         let compiled_output = self.output.compile_one(&params)?;
         Ok(compiled_output)
@@ -643,11 +628,6 @@ impl PlaceholderScalarFunctionTask {
                 input,
                 output: Some(raw_output),
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
         let compiled_output = self.output.compile_one(&params)?;
         Ok(compiled_output)
@@ -759,11 +739,6 @@ impl PlaceholderVectorFunctionTask {
                 input,
                 output: Some(raw_output),
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
         let compiled_output = self.output.compile_one(&params)?;
         Ok(compiled_output)

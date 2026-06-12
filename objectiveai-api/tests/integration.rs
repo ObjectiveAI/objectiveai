@@ -9,8 +9,7 @@
 //! piled load on shared upstream resources.
 //!
 //! Every integration test category — `agent_completions`,
-//! `vector_completions`, `functions_executions`, `functions_inventions`
-//! (split internally by scalar/vector/validation/recursive), and
+//! `vector_completions`, `functions_executions`, and
 //! `asset_tests` — is a sibling-file
 //! module under `tests/integration/` pulled in via `mod` declarations
 //! from this entrypoint. Sibling files inside a subdirectory aren't
@@ -27,9 +26,5 @@ mod integration {
     pub mod agent_completions;
     pub mod asset_tests;
     pub mod functions_executions;
-    pub mod functions_inventions_recursive;
-    pub mod functions_inventions_scalar;
-    pub mod functions_inventions_validation;
-    pub mod functions_inventions_vector;
     pub mod vector_completions;
 }

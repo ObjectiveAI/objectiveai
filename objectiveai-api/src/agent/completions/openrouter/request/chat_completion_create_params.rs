@@ -91,7 +91,7 @@ pub struct ChatCompletionCreateParams {
     /// Tool choice configuration.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_choice: Option<super::tool_choice::ToolChoice>,
-    /// Available tools (MCP + invention + response format).
+    /// Available tools (MCP + response format).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<super::Tool>>,
     /// Whether to allow parallel tool calls from request.
