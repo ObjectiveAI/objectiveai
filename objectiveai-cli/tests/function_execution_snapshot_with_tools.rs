@@ -104,7 +104,7 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
             stream: Some(true),
             seed: Some(42),
         }),
-        jq: None,
+        base: Default::default(),
     };
 
     let executor = cli_test_util::executor().await;

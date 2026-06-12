@@ -27,25 +27,23 @@ pub enum Request {
         parent_agent_instance_hierarchy: Option<String>,
         /// Leaf id of the target agent.
         agent_instance: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        jq: Option<String>,
+        #[serde(flatten)]
+        base: crate::cli::command::RequestBase,
     },
     #[schemars(title = "Tag")]
     Tag {
         path_type: Path,
         tag: String,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        jq: Option<String>,
+        #[serde(flatten)]
+        base: crate::cli::command::RequestBase,
     },
 }
 
 impl Request {
-    fn jq_mut(&mut self) -> &mut Option<String> {
+    fn base_mut(&mut self) -> &mut crate::cli::command::RequestBase {
         match self {
-            Request::AgentInstanceHierarchy { jq, .. } => jq,
-            Request::Tag { jq, .. } => jq,
+            Request::AgentInstanceHierarchy { base, .. } => base,
+            Request::Tag { base, .. } => base,
         }
     }
 }
@@ -103,7 +101,7 @@ impl CommandRequest for Request {
             Request::AgentInstanceHierarchy {
                 parent_agent_instance_hierarchy,
                 agent_instance,
-                jq,
+                base,
                 ..
             } => {
                 argv.push(agent_instance.clone());
@@ -111,18 +109,12 @@ impl CommandRequest for Request {
                     argv.push("--parent-agent-instance-hierarchy".to_string());
                     argv.push(parent.clone());
                 }
-                if let Some(jq) = jq {
-                    argv.push("--jq".to_string());
-                    argv.push(jq.clone());
-                }
+                base.push_flags(&mut argv);
             }
-            Request::Tag { tag, jq, .. } => {
+            Request::Tag { tag, base, .. } => {
                 argv.push("--tag".to_string());
                 argv.push(tag.clone());
-                if let Some(jq) = jq {
-                    argv.push("--jq".to_string());
-                    argv.push(jq.clone());
-                }
+                base.push_flags(&mut argv);
             }
         }
         argv
@@ -151,9 +143,8 @@ pub struct Args {
     /// and `--parent-agent-instance-hierarchy`.
     #[arg(long)]
     pub tag: Option<String>,
-    /// jq filter applied to the JSON output.
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -181,12 +172,12 @@ impl TryFrom<Args> for Request {
                 path_type: Path::AgentsTagsLookup,
                 parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
                 agent_instance,
-                jq: args.jq,
+                base: args.base.into(),
             }),
             (None, Some(tag)) => Ok(Request::Tag {
                 path_type: Path::AgentsTagsLookup,
                 tag,
-                jq: args.jq,
+                base: args.base.into(),
             }),
             _ => unreachable!(
                 "clap group `lookup_by` ensures exactly one of agent_instance | tag"
@@ -201,18 +192,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<Response, E::Error> {
-    *request.jq_mut() = None;
+    request.base_mut().clear_transform();
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<serde_json::Value, E::Error> {
-    *request.jq_mut() = Some(jq);
+    request.base_mut().set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
 

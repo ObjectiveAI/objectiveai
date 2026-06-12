@@ -231,7 +231,7 @@ async fn spawn_child(
             seed,
             skip_lock,
         }),
-        jq: None,
+        base: Default::default(),
     };
 
     let exe = std::env::current_exe()

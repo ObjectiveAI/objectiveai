@@ -46,7 +46,8 @@ pub struct Request {
     /// no runs yet, so it fires fresh.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub overwrite: bool,
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -82,10 +83,7 @@ impl CommandRequest for Request {
         if self.overwrite {
             argv.push("--overwrite".to_string());
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         // `--` separator so command argv that itself contains flags
         // round-trips cleanly through the trailing-var-arg parse.
         argv.push("--".to_string());
@@ -139,9 +137,8 @@ pub struct Args {
     /// their run history but never list or run again.
     #[arg(long)]
     pub overwrite: bool,
-    /// jq filter applied to the JSON output.
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
     /// Command and arguments to run on each scheduled invocation.
     /// Pass after `--` so flags meant for the inner command don't
     /// collide with the leaf's own (`--interval` / `--oneshot` /
@@ -203,7 +200,7 @@ impl TryFrom<Args> for Request {
             description: args.description,
             interval_seconds,
             overwrite: args.overwrite,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -214,18 +211,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<Response, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<serde_json::Value, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
 

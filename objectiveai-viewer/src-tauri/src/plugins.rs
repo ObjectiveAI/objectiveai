@@ -37,7 +37,7 @@ pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginMan
         path_type: plugins_list::Path::PluginsList,
         offset: None,
         limit: None,
-        jq: None,
+        base: Default::default(),
     };
     let agent_arguments = crate::cli_command::viewer_agent_arguments();
     let mut stream = match plugins_list::execute(executor, request, Some(&agent_arguments)).await {

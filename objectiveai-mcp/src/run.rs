@@ -245,7 +245,7 @@ where
         path_type: plugins::list::Path::PluginsList,
         offset: None,
         limit: None,
-        jq: None,
+        base: Default::default(),
     };
     match plugins::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,
@@ -263,7 +263,7 @@ where
         path_type: tools::list::Path::ToolsList,
         offset: None,
         limit: None,
-        jq: None,
+        base: Default::default(),
     };
     match tools::list::execute(executor, request, None).await {
         Ok(stream) => stream.filter_map(|r| async move { r.ok() }).collect().await,

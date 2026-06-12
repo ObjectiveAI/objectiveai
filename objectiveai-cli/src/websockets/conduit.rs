@@ -644,7 +644,7 @@ where
 /// [`crate::context::Context`] from `inner.ctx`, stamp the six
 /// transient header values into `Config`, then call the shared
 /// [`crate::command::plugins::run::execute`] with
-/// `Request { name: plugin, args: ["mcp", mcp_name, "begin", …], jq: None }`.
+/// `Request { name: plugin, args: ["mcp", mcp_name, "begin", …], base: default }`.
 /// A background drain task forwards the first
 /// [`PluginMcp`](objectiveai_sdk::cli::command::plugins::run::Mcp)
 /// item it sees via a `tokio::sync::oneshot`, then discards every
@@ -716,7 +716,7 @@ async fn dial_plugin_upstream(
         name: plugin_name.clone(),
         version: plugin_version.clone(),
         args: argv,
-        jq: None,
+        base: Default::default(),
     };
 
     let stream = crate::command::plugins::run::execute(&dial_ctx, request)

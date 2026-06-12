@@ -53,7 +53,8 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub count: Option<u64>,
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -93,10 +94,7 @@ impl CommandRequest for Request {
             argv.push("--count".to_string());
             argv.push(c.to_string());
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         argv
     }
 }
@@ -187,8 +185,8 @@ pub struct Args {
     pub after_id: Option<i64>,
     #[arg(long)]
     pub count: Option<u64>,
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -229,7 +227,7 @@ impl TryFrom<Args> for Request {
             exhausted: args.exhausted,
             after_id: args.after_id,
             count: args.count,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -240,18 +238,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<E::Stream<ResponseItem>, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<E::Stream<serde_json::Value>, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     executor.execute(request, agent_arguments).await
 }
 

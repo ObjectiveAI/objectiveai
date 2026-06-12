@@ -131,7 +131,7 @@ async fn plugin_mcp_dispatch_round_trip() {
             seed: Some(1),
             skip_lock: None,
         }),
-        jq: None,
+        base: Default::default(),
     };
     let items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, spawn_request).await;
@@ -172,7 +172,7 @@ async fn plugin_mcp_dispatch_round_trip() {
         }],
         after_id: None,
         limit: None,
-        jq: None,
+        base: Default::default(),
     };
     let blocks: Vec<ReadAllItem> = cli_test_util::collect_stream(&executor, read_all).await;
     let mut tool_call_names: Vec<String> = Vec::new();

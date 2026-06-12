@@ -18,7 +18,8 @@ pub struct Request {
     pub pool: Option<usize>,
     pub rounds: Option<usize>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -103,10 +104,7 @@ impl CommandRequest for Request {
                     .expect("RequestDangerousAdvanced serializes"),
             );
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         argv
     }
 }
@@ -196,9 +194,8 @@ pub struct Args {
     /// How many sequential rounds of comparison.
     #[arg(long)]
     pub rounds: Option<usize>,
-    /// jq filter applied to the JSON output.
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -255,7 +252,7 @@ impl TryFrom<Args> for Request {
             pool: args.pool,
             rounds: args.rounds,
             dangerous_advanced,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -267,7 +264,7 @@ pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<E::Stream<ResponseItem>, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
@@ -275,14 +272,14 @@ pub async fn execute_streaming<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_streaming_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_streaming_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<E::Stream<serde_json::Value>, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     let mut advanced = request.dangerous_advanced.unwrap_or_default();
     advanced.stream = Some(true);
     request.dangerous_advanced = Some(advanced);
@@ -296,7 +293,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }
@@ -304,14 +301,14 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     if let Some(advanced) = request.dangerous_advanced.as_mut() {
         advanced.stream = None;
     }

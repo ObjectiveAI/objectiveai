@@ -93,7 +93,7 @@ async fn duplicate_tool_names_routed_across_turns() {
             seed: Some(SEED),
             skip_lock: None,
         }),
-        jq: None,
+        base: Default::default(),
     };
     let items: Vec<SpawnResponseItem> = cli_test_util::collect_stream(&executor, spawn).await;
     let spawn_aih = items
@@ -125,7 +125,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         },
         message: RequestMessage::Simple("again".to_string()),
         dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(SEED) }),
-        jq: None,
+        base: Default::default(),
     };
     let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg1).await;
     cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
@@ -140,7 +140,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         },
         message: RequestMessage::Simple("one more".to_string()),
         dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(SEED) }),
-        jq: None,
+        base: Default::default(),
     };
     let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg2).await;
     cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
@@ -155,7 +155,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         }],
         after_id: None,
         limit: None,
-        jq: None,
+        base: Default::default(),
     };
     let blocks: Vec<ReadAllItem> = cli_test_util::collect_stream(&executor, read_all).await;
     let mut names: Vec<String> = Vec::new();

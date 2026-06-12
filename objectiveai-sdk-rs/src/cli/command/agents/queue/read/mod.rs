@@ -164,10 +164,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
@@ -177,31 +177,31 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
         Request::Id(req) => {
-            let value = id::execute_jq(executor, req, jq, agent_arguments).await?;
+            let value = id::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::IdRequestSchema(req) => {
             let value =
-                id::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                id::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::IdResponseSchema(req) => {
             let value =
-                id::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                id::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::Pending(req) => {
-            let inner = pending::execute_jq(executor, req, jq, agent_arguments).await?;
+            let inner = pending::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(inner)
         }
         Request::PendingRequestSchema(req) => {
             let value =
-                pending::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                pending::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::PendingResponseSchema(req) => {
             let value =
-                pending::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                pending::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };

@@ -149,10 +149,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<
@@ -162,27 +162,27 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Filesystem(req) => {
-                let value = filesystem::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = filesystem::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::FilesystemRequestSchema(req) => {
-                let value = filesystem::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = filesystem::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::FilesystemResponseSchema(req) => {
-                let value = filesystem::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = filesystem::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Github(req) => {
-                let value = github::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = github::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GithubRequestSchema(req) => {
-                let value = github::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = github::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GithubResponseSchema(req) => {
-                let value = github::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = github::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
         };

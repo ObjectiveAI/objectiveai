@@ -204,10 +204,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
@@ -217,35 +217,35 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
         Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
     > = match request {
         Request::Delete(req) => {
-            let value = delete::execute_jq(executor, req, jq, agent_arguments).await?;
+            let value = delete::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::DeleteRequestSchema(req) => {
             let value =
-                delete::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                delete::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::DeleteResponseSchema(req) => {
             let value =
-                delete::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                delete::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::Deliver(req) => {
-            let inner = deliver::execute_jq(executor, req, jq, agent_arguments).await?;
+            let inner = deliver::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(inner)
         }
         Request::DeliverRequestSchema(req) => {
             let value =
-                deliver::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                deliver::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::DeliverResponseSchema(req) => {
             let value =
-                deliver::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                deliver::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
         Request::Read(req) => {
-            let inner = read::execute_jq(executor, req, jq, agent_arguments).await?;
+            let inner = read::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(inner)
         }
     };

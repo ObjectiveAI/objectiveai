@@ -10,7 +10,8 @@ pub struct Request {
     pub repository: String,
     pub commit_sha: Option<String>,
     pub allow_untrusted: bool,
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -38,10 +39,7 @@ impl CommandRequest for Request {
         if self.allow_untrusted {
             argv.push("--allow-untrusted".to_string());
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         argv
     }
 }
@@ -66,9 +64,8 @@ pub struct Args {
     /// Permit installs from untrusted sources.
     #[arg(long)]
     pub allow_untrusted: bool,
-    /// jq filter applied to the JSON output.
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -96,7 +93,7 @@ impl TryFrom<Args> for Request {
             repository: args.repository,
             commit_sha: args.commit_sha,
             allow_untrusted: args.allow_untrusted,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -108,19 +105,19 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<Response, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<serde_json::Value, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
 

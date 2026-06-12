@@ -36,7 +36,8 @@ pub struct Request {
     /// full output still lands in `tasks_logs` either way.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub stream_all: bool,
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -55,10 +56,7 @@ impl CommandRequest for Request {
         if self.stream_all {
             argv.push("--stream-all".to_string());
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         argv
     }
 }
@@ -142,8 +140,8 @@ pub struct Args {
     /// completes; the full output lands in `tasks_logs` either way.
     #[arg(long)]
     pub stream_all: bool,
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -169,7 +167,7 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsTasksRun,
             stream_all: args.stream_all,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -180,18 +178,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<E::Stream<ResponseItem>, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     executor.execute(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<E::Stream<serde_json::Value>, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     executor.execute(request, agent_arguments).await
 }
 

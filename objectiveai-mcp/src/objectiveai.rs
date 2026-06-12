@@ -154,7 +154,7 @@ where
                         name: plugin_name,
                         version: plugin_version,
                         args: req.args,
-                        jq: None,
+                        base: Default::default(),
                     };
                     let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,
@@ -209,7 +209,7 @@ where
                         name: tool_name,
                         version: tool_version,
                         args: req.args,
-                        jq: None,
+                        base: Default::default(),
                     };
                     let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,

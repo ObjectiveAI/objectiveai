@@ -296,7 +296,8 @@ pub async fn run(
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
 
-    // TODO(jq): if the resolved request carries a `jq` filter, extract
-    // it here and apply to the returned stream before wrapping.
+    // TODO(transform): if the resolved request's `base` carries a
+    // transform (`base.jq`, later python), extract it here and apply
+    // to the returned stream before wrapping.
     crate::command::command::execute(&ctx, request).await
 }

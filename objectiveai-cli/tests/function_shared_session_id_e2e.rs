@@ -206,7 +206,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                     seed: Some(seed),
                     skip_lock: None,
                 }),
-                jq: None,
+                base: Default::default(),
             };
             let items: Vec<SpawnResponseItem> =
                 cli_test_util::collect_stream(executor, request).await;
@@ -256,7 +256,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
             },
             message: RequestMessage::Simple("again".to_string()),
             dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(seed) }),
-            jq: None,
+            base: Default::default(),
         };
         async move {
             let _resp: MessageResponse =

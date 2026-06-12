@@ -26,9 +26,8 @@ pub struct Request {
     pub path_type: Path,
     pub name: String,
     pub target: Target,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub jq: Option<String>,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -132,10 +131,7 @@ impl CommandRequest for Request {
                 argv.push(agent_tag.clone());
             }
         }
-        if let Some(jq) = &self.jq {
-            argv.push("--jq".to_string());
-            argv.push(jq.clone());
-        }
+        self.base.push_flags(&mut argv);
         argv
     }
 }
@@ -205,9 +201,8 @@ pub struct Args {
     /// `Config.agent_instance_hierarchy`.
     #[arg(long = "parent-agent-instance-hierarchy")]
     pub parent_agent_instance_hierarchy: Option<String>,
-    /// jq filter applied to the JSON output.
-    #[arg(long)]
-    pub jq: Option<String>,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
 }
 
 #[derive(clap::Args)]
@@ -283,7 +278,7 @@ impl TryFrom<Args> for Request {
             path_type: Path::AgentsTagsApply,
             name: args.name,
             target,
-            jq: args.jq,
+            base: args.base.into(),
         })
     }
 }
@@ -294,18 +289,18 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     mut request: Request,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<Response, E::Error> {
-    request.jq = None;
+    request.base.clear_transform();
     executor.execute_one(request, agent_arguments).await
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     mut request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
     agent_arguments: Option<&crate::cli::command::AgentArguments>,
 ) -> Result<serde_json::Value, E::Error> {
-    request.jq = Some(jq);
+    request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
 

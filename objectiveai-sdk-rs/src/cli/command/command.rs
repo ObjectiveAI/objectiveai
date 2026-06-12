@@ -264,10 +264,10 @@ pub async fn execute<E: super::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: super::CommandExecutor>(
+pub async fn execute_transform<E: super::CommandExecutor>(
     executor: &E,
     request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<
@@ -277,55 +277,55 @@ pub async fn execute_jq<E: super::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Agents(req) => {
-                let inner = super::agents::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::agents::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Api(req) => {
-                let inner = super::api::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::api::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Db(req) => {
-                let inner = super::db::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::db::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Functions(req) => {
-                let inner = super::functions::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::functions::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Mcp(req) => {
-                let inner = super::mcp::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::mcp::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Plugins(req) => {
-                let inner = super::plugins::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::plugins::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Swarms(req) => {
-                let inner = super::swarms::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::swarms::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Tasks(req) => {
-                let inner = super::tasks::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::tasks::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Tools(req) => {
-                let inner = super::tools::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::tools::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Update(req) => {
-                let inner = super::update::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::update::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::UpdateRequestSchema(req) => {
-                let value = super::update::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = super::update::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::UpdateResponseSchema(req) => {
-                let value = super::update::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = super::update::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Viewer(req) => {
-                let inner = super::viewer::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = super::viewer::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

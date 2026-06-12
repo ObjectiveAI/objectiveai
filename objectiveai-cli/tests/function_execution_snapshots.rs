@@ -106,7 +106,7 @@ macro_rules! snapshot_test {
                     stream: Some(true),
                     seed: Some($seed),
                 }),
-                jq: None,
+                base: Default::default(),
             };
             let execution = run_and_aggregate_normalized(request).await;
             let snapshot_path = snapshots_dir().join(format!("{}.json", $snapshot));
@@ -188,7 +188,7 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
             stream: Some(true),
             seed: Some(42),
         }),
-        jq: None,
+        base: Default::default(),
     };
 
     let execution = run_and_aggregate_normalized(request).await;

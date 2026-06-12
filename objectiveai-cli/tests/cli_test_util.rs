@@ -185,7 +185,7 @@ where
         query: sql.to_string(),
         timeout_seconds: 30,
         max_tokens: None,
-        jq: None,
+        base: Default::default(),
     };
     let resp: DbResp = executor
         .execute_one(req, None)

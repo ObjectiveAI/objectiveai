@@ -155,10 +155,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 }
 
 #[cfg(feature = "cli-executor")]
-pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
     request: Request,
-    jq: String,
+    transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
     ) -> Result<
@@ -168,27 +168,27 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
             Request::Get(req) => {
-                let value = get::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = get::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetRequestSchema(req) => {
-                let value = get::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = get::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::GetResponseSchema(req) => {
-                let value = get::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                let value = get::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Address(req) => {
-                let inner = address::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = address::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Secret(req) => {
-                let inner = secret::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = secret::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Signature(req) => {
-                let inner = signature::execute_jq(executor, req, jq, agent_arguments).await?;
+                let inner = signature::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
         };

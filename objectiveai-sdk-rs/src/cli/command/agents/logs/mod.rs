@@ -31,4 +31,4 @@ impl TryFrom<Command> for Request {
 }
 
 #[cfg(feature = "cli-executor")]
-pub use read::{execute, execute_jq};
+pub use read::{execute, execute_transform};

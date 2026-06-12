@@ -123,7 +123,7 @@ async fn function_swarm_writes_per_agent_files() {
             stream: Some(true),
             seed: Some(42),
         }),
-        jq: None,
+        base: Default::default(),
     };
 
     let executor = cli_test_util::executor().await;

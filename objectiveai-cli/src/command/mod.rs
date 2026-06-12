@@ -1,8 +1,8 @@
 //! Bare-naked CLI handlers mirroring the SDK's `cli::command` tree
 //! 1-for-1. Each leaf file here pairs with an SDK leaf at the same
 //! module path; the SDK leaf defines the typed `Request` / `Response` /
-//! `ResponseItem` shapes, this side defines the `execute` / `execute_jq`
-//! (and `execute_streaming` / `execute_streaming_jq` for chunk-or-id
+//! `ResponseItem` shapes, this side defines the `execute` / `execute_transform`
+//! (and `execute_streaming` / `execute_streaming_transform` for chunk-or-id
 //! leaves) that actually do the work.
 //!
 //! `run.rs` parses argv â†’ SDK `Command` â†’ SDK `Request` (via the SDK's

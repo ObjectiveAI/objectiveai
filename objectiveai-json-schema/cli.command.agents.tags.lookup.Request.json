@@ -16,6 +16,7 @@
           ]
         },
         "jq": {
+          "description": "jq filter applied to the JSON output.",
           "anyOf": [
             {
               "type": "string"
@@ -23,8 +24,7 @@
             {
               "type": "null"
             }
-          ],
-          "omitempty": true
+          ]
         },
         "parent_agent_instance_hierarchy": {
           "description": "Lineage prefix to prepend to [`Self::agent_instance`].\nWhen `None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`. Full hierarchy is\n`\"{parent}/{instance}\"`.",
@@ -54,6 +54,7 @@
           ]
         },
         "jq": {
+          "description": "jq filter applied to the JSON output.",
           "anyOf": [
             {
               "type": "string"
@@ -61,8 +62,7 @@
             {
               "type": "null"
             }
-          ],
-          "omitempty": true
+          ]
         },
         "path_type": {
           "$ref": "cli.command.agents.tags.lookup.Path"

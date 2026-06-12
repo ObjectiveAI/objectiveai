@@ -92,7 +92,7 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
             seed: Some(seed),
             skip_lock: None,
         }),
-        jq: None,
+        base: Default::default(),
     };
     let items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(executor, request).await;
@@ -149,7 +149,7 @@ async fn continue_agent(
         },
         message: RequestMessage::Simple("more".to_string()),
         dangerous_advanced: Some(MessageDangerousAdvanced { seed: Some(seed) }),
-        jq: None,
+        base: Default::default(),
     };
     let _resp: MessageResponse = cli_test_util::execute_one(executor, request).await;
 }

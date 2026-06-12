@@ -57,7 +57,7 @@ async fn spawn_then_message_propagates_response_continuation() {
             seed: Some(42),
             skip_lock: None,
         }),
-        jq: None,
+        base: Default::default(),
     };
     let spawn_items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, spawn_request).await;
@@ -113,7 +113,7 @@ async fn spawn_then_message_propagates_response_continuation() {
             seed: Some(42),
             skip_lock: None,
         }),
-        jq: None,
+        base: Default::default(),
     };
     let resume_items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, resume_request).await;

@@ -13,6 +13,7 @@
       ]
     },
     "jq": {
+      "description": "jq filter applied to the JSON output.",
       "anyOf": [
         {
           "type": "string"
