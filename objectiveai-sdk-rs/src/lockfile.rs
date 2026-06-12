@@ -38,13 +38,14 @@
 //!
 //! **Lock files carry content.** Acquisition takes the content to
 //! publish, and any process can [`read`] it WITHOUT owning the
-//! claim. [`read`] is certified by a change subscription (a seqlock
-//! over file events): arm a watcher before the first held-probe,
-//! read, re-probe, drain the watcher — any event or probe flip
-//! retries, infinitely (churn eventually stabilizes). A returned
-//! `Some(content)` was therefore written by a continuously-live
-//! owner and observed complete: lock state and content cannot be
-//! out of sync.
+//! claim. [`try_read`] is certified by a change subscription (a
+//! seqlock over file events): arm a watcher before the first
+//! held-probe, read, re-probe, drain the watcher — any event or
+//! probe flip retries, infinitely (churn eventually stabilizes). A
+//! returned `Some(content)` was therefore written by a
+//! continuously-live owner and observed complete: lock state and
+//! content cannot be out of sync. [`wait_locked`] subscribes to the
+//! held state itself; [`wait_read`] composes the two.
 //!
 //! **Dropping a [`LockClaim`] does NOT release it.** The OS objects
 //! are held in [`std::mem::ManuallyDrop`], so an acquired claim
@@ -266,7 +267,8 @@ pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockCl
     tokio::fs::create_dir_all(dir).await.ok()?;
     let mut gate = open_claim_file(&gate_path(dir, key))?;
     write_contents(&mut gate, contents).ok()?;
-    let announce = open_claim_file(&announce_path(dir, key))?;
+    let mut announce = open_claim_file(&announce_path(dir, key))?;
+    write_beacon(&mut announce).ok()?;
     Some(LockClaim::new(gate, announce))
 }
 
@@ -295,7 +297,10 @@ pub async fn wait_acquire(
         // On failure `gate` drops here un-leaked, releasing it.
         write_contents(&mut gate, contents)?;
         match open_claim_file(&announce_path) {
-            Some(announce) => return Ok(LockClaim::new(gate, announce)),
+            Some(mut announce) => {
+                write_beacon(&mut announce)?;
+                return Ok(LockClaim::new(gate, announce));
+            }
             None => {
                 // Foreign announce holder — abandon the gate and
                 // retry once the announce clears.
@@ -316,9 +321,9 @@ pub fn is_held(dir: &Path, key: &str) -> bool {
     file_locked(&gate_path(dir, key)) && file_locked(&announce_path(dir, key))
 }
 
-/// Read the published content of `(dir, key)`. `Some(content)` only
-/// if the claim is HELD and the content is certified consistent;
-/// `None` if not held.
+/// Try to read the published content of `(dir, key)` right now.
+/// `Some(content)` only if the claim is HELD and the content is
+/// certified consistent; `None` if not held.
 ///
 /// Certification is a seqlock over file events: arm a change
 /// watcher, probe held, read the gate's bytes, probe held again,
@@ -326,7 +331,7 @@ pub fn is_held(dir: &Path, key: &str) -> bool {
 /// (churn eventually stabilizes; a vanished owner exits through the
 /// `None` arm). A returned `Some` was therefore written by a
 /// continuously-live owner and observed complete.
-pub async fn read(dir: &Path, key: &str) -> std::io::Result<Option<String>> {
+pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> {
     let gate = gate_path(dir, key);
     loop {
         // Arm BEFORE the first probe — no blind spot for an
@@ -355,6 +360,52 @@ pub async fn read(dir: &Path, key: &str) -> std::io::Result<Option<String>> {
             continue;
         }
         return Ok(Some(contents));
+    }
+}
+
+/// Subscription that completes when and ONLY when the claim at
+/// `(dir, key)` is HELD (both the gate and the announce locked) —
+/// the acquisition-side dual of [`wait_release`]. Returning does not
+/// certify anything beyond that instant; pair with [`try_read`] for
+/// certified content.
+///
+/// Fully event-driven: arm a held-watcher, probe, and if not held
+/// block on kernel events, then re-evaluate. There is no kernel
+/// "wake when someone ELSE acquires" lock primitive (blocking
+/// `flock(LOCK_EX)` would acquire it ourselves), so the wake signal
+/// is the owner's post-flip BEACON write to the announce file
+/// (plus, on Windows, the announce file's creation, which IS the
+/// flip). Arming before the probe means a flip can never fall into
+/// a blind spot: its beacon event is queued and the block returns
+/// immediately.
+///
+/// Creates `dir` if needed (an empty locks dir is exactly what
+/// acquisition would create) so the watcher has something to watch.
+pub async fn wait_locked(dir: &Path, key: &str) -> std::io::Result<()> {
+    tokio::fs::create_dir_all(dir).await?;
+    let announce = announce_path(dir, key);
+    loop {
+        let watcher = HeldWatcher::arm(dir, &announce)?;
+        if is_held(dir, key) {
+            return Ok(());
+        }
+        watcher.wait().await?;
+    }
+}
+
+/// Subscribe to the published content of `(dir, key)`: block until
+/// the claim is HELD, then return its certified content. Composed
+/// exactly as it reads: [`wait_locked`], then [`try_read`]; a `None`
+/// (the owner vanished or churned between the two) loops back to
+/// [`wait_locked`]. Every returned value carries [`try_read`]'s full
+/// certification (written by a continuously-live owner, observed
+/// complete).
+pub async fn wait_read(dir: &Path, key: &str) -> std::io::Result<String> {
+    loop {
+        wait_locked(dir, key).await?;
+        if let Some(contents) = try_read(dir, key).await? {
+            return Ok(contents);
+        }
     }
 }
 
@@ -414,6 +465,22 @@ fn filename_escape(key: &str) -> String {
     out
 }
 
+/// The post-flip beacon: one byte written to the announce file AFTER
+/// its lock is taken. The flock flip itself emits no file event, so
+/// without this a held-subscriber ([`wait_locked`]) could arm its
+/// watcher, probe not-held, and block forever while the flip slid
+/// into the gap after the announce file's last pre-flip event. The
+/// beacon guarantees at least one file event lands strictly AFTER
+/// "held" becomes true. (On Windows the announce CREATION is itself
+/// both the flip and a directory event, but the beacon is kept
+/// uniform.) The announce's content is never read — only its lock
+/// state and events matter.
+fn write_beacon(announce: &mut std::fs::File) -> std::io::Result<()> {
+    use std::io::Write;
+    announce.write_all(b"1")?;
+    announce.flush()
+}
+
 /// Truncate-and-write `contents`, so a reused gate file (Unix
 /// re-acquisition) never shows a stale suffix.
 fn write_contents(file: &mut std::fs::File, contents: &str) -> std::io::Result<()> {
@@ -452,7 +519,7 @@ fn file_locked(path: &Path) -> bool {
 }
 
 // ---------------------------------------------------------------------
-// Change watcher — the [`read`] certification primitive. Armed before
+// Change watcher — the [`try_read`] certification primitive. Armed before
 // the first held-probe, drained after the read: reports whether
 // anything relevant happened in between. Conservative: ambiguity
 // reads as dirty → retry.
@@ -604,6 +671,216 @@ impl ChangeWatcher {
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(true),
             Err(e) => Err(e),
         }
+    }
+}
+
+// ---------------------------------------------------------------------
+// Held watcher — the [`wait_read`] blocking primitive. Armed before
+// the held-probe; `wait` blocks on kernel events until anything
+// relevant happens in the locks dir (acquisitions always emit at
+// least the post-flip beacon event). Spurious wakes are fine — the
+// caller loops and re-evaluates.
+// ---------------------------------------------------------------------
+
+/// Windows: the same directory change notification the release
+/// waiter uses, blocked on without a timeout.
+#[cfg(windows)]
+struct HeldWatcher {
+    handle: isize,
+}
+
+#[cfg(windows)]
+impl HeldWatcher {
+    fn arm(dir: &Path, _announce: &Path) -> std::io::Result<Self> {
+        use std::os::windows::ffi::OsStrExt;
+        use windows_sys::Win32::Foundation::INVALID_HANDLE_VALUE;
+        use windows_sys::Win32::Storage::FileSystem::{
+            FILE_NOTIFY_CHANGE_FILE_NAME, FILE_NOTIFY_CHANGE_LAST_WRITE,
+            FILE_NOTIFY_CHANGE_SIZE, FindFirstChangeNotificationW,
+        };
+        let dir_wide: Vec<u16> = dir
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        // SAFETY: `dir_wide` is null-terminated and lives through
+        // the call.
+        let handle = unsafe {
+            FindFirstChangeNotificationW(
+                dir_wide.as_ptr(),
+                0,
+                FILE_NOTIFY_CHANGE_FILE_NAME
+                    | FILE_NOTIFY_CHANGE_LAST_WRITE
+                    | FILE_NOTIFY_CHANGE_SIZE,
+            )
+        };
+        if handle == INVALID_HANDLE_VALUE {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(Self {
+            handle: handle as isize,
+        })
+    }
+
+    async fn wait(&self) -> std::io::Result<()> {
+        use windows_sys::Win32::Foundation::{WAIT_FAILED, WAIT_OBJECT_0};
+        use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
+        let handle = self.handle;
+        // `&self` outlives the await, so the handle stays open for
+        // the blocked thread.
+        tokio::task::spawn_blocking(move || {
+            // SAFETY: handle valid for the watcher's lifetime.
+            let rc = unsafe { WaitForSingleObject(handle as _, INFINITE) };
+            match rc {
+                WAIT_OBJECT_0 => Ok(()),
+                WAIT_FAILED => Err(std::io::Error::last_os_error()),
+                other => Err(std::io::Error::other(format!(
+                    "unexpected WaitForSingleObject result: {other}"
+                ))),
+            }
+        })
+        .await
+        .map_err(|e| std::io::Error::other(format!("join: {e}")))?
+    }
+}
+
+#[cfg(windows)]
+impl Drop for HeldWatcher {
+    fn drop(&mut self) {
+        use windows_sys::Win32::Storage::FileSystem::FindCloseChangeNotification;
+        // SAFETY: handle valid + owned for the watcher's lifetime.
+        unsafe {
+            FindCloseChangeNotification(self.handle as _);
+        }
+    }
+}
+
+/// Linux: a BLOCKING inotify watch on the locks dir — child create /
+/// modify / close-write / moved-to all wake it; the owner's beacon
+/// write is the guaranteed post-flip event.
+#[cfg(target_os = "linux")]
+struct HeldWatcher {
+    inotify: Option<nix::sys::inotify::Inotify>,
+}
+
+#[cfg(target_os = "linux")]
+impl HeldWatcher {
+    fn arm(dir: &Path, _announce: &Path) -> std::io::Result<Self> {
+        use nix::sys::inotify::{AddWatchFlags, InitFlags, Inotify};
+        let inotify = Inotify::init(InitFlags::empty()).map_err(std::io::Error::from)?;
+        inotify
+            .add_watch(
+                dir,
+                AddWatchFlags::IN_CREATE
+                    | AddWatchFlags::IN_MODIFY
+                    | AddWatchFlags::IN_CLOSE_WRITE
+                    | AddWatchFlags::IN_MOVED_TO
+                    | AddWatchFlags::IN_ATTRIB,
+            )
+            .map_err(std::io::Error::from)?;
+        Ok(Self {
+            inotify: Some(inotify),
+        })
+    }
+
+    async fn wait(mut self) -> std::io::Result<()> {
+        let inotify = self.inotify.take().expect("wait called once");
+        tokio::task::spawn_blocking(move || {
+            // Blocking read — returns on the first batch of events.
+            inotify.read_events().map(|_| ()).map_err(std::io::Error::from)
+        })
+        .await
+        .map_err(|e| std::io::Error::other(format!("join: {e}")))?
+    }
+}
+
+/// Non-Linux Unix (macOS et al): a kqueue vnode watch on the locks
+/// dir (entry churn — first-ever creations) and, when it exists, the
+/// announce file itself (the beacon write). Blocked on without a
+/// timeout.
+#[cfg(all(unix, not(target_os = "linux")))]
+struct HeldWatcher {
+    kqueue: nix::sys::event::Kqueue,
+    // Watched fds must stay open while the kqueue is blocked on.
+    _dir: std::fs::File,
+    _announce: Option<std::fs::File>,
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+impl HeldWatcher {
+    fn arm(dir: &Path, announce: &Path) -> std::io::Result<Self> {
+        use nix::sys::event::{EventFilter, EventFlag, FilterFlag, KEvent, Kqueue};
+        use std::os::unix::io::AsRawFd;
+
+        let dir_file = std::fs::File::open(dir)?;
+        let announce_file = match std::fs::File::open(announce) {
+            Ok(f) => Some(f),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+            Err(e) => return Err(e),
+        };
+
+        let kqueue = Kqueue::new().map_err(std::io::Error::from)?;
+        let fflags = FilterFlag::NOTE_WRITE
+            | FilterFlag::NOTE_EXTEND
+            | FilterFlag::NOTE_ATTRIB
+            | FilterFlag::NOTE_DELETE
+            | FilterFlag::NOTE_RENAME
+            | FilterFlag::NOTE_LINK;
+        let mut changes = vec![KEvent::new(
+            dir_file.as_raw_fd() as usize,
+            EventFilter::EVFILT_VNODE,
+            EventFlag::EV_ADD | EventFlag::EV_CLEAR,
+            fflags,
+            0,
+            0,
+        )];
+        if let Some(f) = &announce_file {
+            changes.push(KEvent::new(
+                f.as_raw_fd() as usize,
+                EventFilter::EVFILT_VNODE,
+                EventFlag::EV_ADD | EventFlag::EV_CLEAR,
+                fflags,
+                0,
+                0,
+            ));
+        }
+        // Register only (empty eventlist, zero timeout).
+        kqueue
+            .kevent(
+                &changes,
+                &mut [],
+                Some(nix::libc::timespec {
+                    tv_sec: 0,
+                    tv_nsec: 0,
+                }),
+            )
+            .map_err(std::io::Error::from)?;
+        Ok(Self {
+            kqueue,
+            _dir: dir_file,
+            _announce: announce_file,
+        })
+    }
+
+    async fn wait(self) -> std::io::Result<()> {
+        use nix::sys::event::{EventFilter, EventFlag, FilterFlag, KEvent};
+        tokio::task::spawn_blocking(move || {
+            let mut events = [KEvent::new(
+                0,
+                EventFilter::EVFILT_VNODE,
+                EventFlag::empty(),
+                FilterFlag::empty(),
+                0,
+                0,
+            )];
+            // Blocking wait — no timeout.
+            self.kqueue
+                .kevent(&[], &mut events, None)
+                .map(|_| ())
+                .map_err(std::io::Error::from)
+        })
+        .await
+        .map_err(|e| std::io::Error::other(format!("join: {e}")))?
     }
 }
 
