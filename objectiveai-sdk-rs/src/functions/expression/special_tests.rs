@@ -14,11 +14,6 @@ fn special_input_returns_string_input() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(&Special::Input, &params).unwrap();
     assert_eq!(result, InputValue::String("hello".to_string()));
@@ -33,11 +28,6 @@ fn special_input_returns_object_input() {
         input: InputValue::Object(obj.clone()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(&Special::Input, &params).unwrap();
     assert_eq!(result, InputValue::Object(obj));
@@ -49,11 +39,6 @@ fn special_input_returns_input_expression() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         InputValueExpression::from_special(&Special::Input, &params).unwrap();
@@ -68,11 +53,6 @@ fn special_input_returns_object_input_expression() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         InputValueExpression::from_special(&Special::Input, &params).unwrap();
@@ -94,11 +74,6 @@ fn special_input_fails_for_bool() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = bool::from_special(&Special::Input, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -110,11 +85,6 @@ fn special_input_fails_for_task_output() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = TaskOutputOwned::from_special(&Special::Input, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -128,11 +98,6 @@ fn special_output_returns_scalar() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Scalar(dec!(0.75))),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::Output, &params).unwrap();
@@ -145,11 +110,6 @@ fn special_output_returns_vector() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(0.3), dec!(0.7)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::Output, &params).unwrap();
@@ -169,11 +129,6 @@ fn special_output_fails_for_input() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Scalar(dec!(0.5))),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -185,11 +140,6 @@ fn special_output_fails_for_u64() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Scalar(dec!(0.5))),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = u64::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -203,11 +153,6 @@ fn special_l1_norm_normalizes_vector() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(2), dec!(3), dec!(5)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = TaskOutputOwned::from_special(
         &Special::TaskOutputL1Normalized,
@@ -229,11 +174,6 @@ fn special_l1_norm_normalizes_mapped_scalars_as_vector() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(1), dec!(3)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = TaskOutputOwned::from_special(
         &Special::TaskOutputL1Normalized,
@@ -256,11 +196,6 @@ fn special_l1_norm_fails_for_input() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(1)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         InputValue::from_special(&Special::TaskOutputL1Normalized, &params);
@@ -273,11 +208,6 @@ fn special_l1_norm_fails_for_string() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(1)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         String::from_special(&Special::TaskOutputL1Normalized, &params);
@@ -301,11 +231,6 @@ fn special_items_output_length_returns_count() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         u64::from_special(&Special::InputItemsOutputLength, &params).unwrap();
@@ -320,11 +245,6 @@ fn special_items_output_length_returns_zero_for_empty() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         u64::from_special(&Special::InputItemsOutputLength, &params).unwrap();
@@ -339,11 +259,6 @@ fn special_items_output_length_fails_for_non_object_input() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = u64::from_special(&Special::InputItemsOutputLength, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -357,11 +272,6 @@ fn special_items_output_length_fails_for_missing_items() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = u64::from_special(&Special::InputItemsOutputLength, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -384,11 +294,6 @@ fn special_split_with_context() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = Vec::<InputValue>::from_special(
         &Special::InputItemsOptionalContextSplit,
@@ -441,11 +346,6 @@ fn special_split_without_context() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = Vec::<InputValue>::from_special(
         &Special::InputItemsOptionalContextSplit,
@@ -482,11 +382,6 @@ fn special_split_fails_for_non_object_input() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = Vec::<InputValue>::from_special(
         &Special::InputItemsOptionalContextSplit,
@@ -503,11 +398,6 @@ fn special_split_fails_for_missing_items() {
         input: InputValue::Object(obj),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = Vec::<InputValue>::from_special(
         &Special::InputItemsOptionalContextSplit,
@@ -542,11 +432,6 @@ fn special_merge_with_context() {
         input: InputValue::Array(vec![sub1, sub2]),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(
         &Special::InputItemsOptionalContextMerge,
@@ -601,11 +486,6 @@ fn special_merge_without_context() {
         input: InputValue::Array(vec![sub1, sub2, sub3]),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(
         &Special::InputItemsOptionalContextMerge,
@@ -636,11 +516,6 @@ fn special_merge_fails_for_non_array_input() {
         input: InputValue::String("hello".to_string()),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(
         &Special::InputItemsOptionalContextMerge,
@@ -658,11 +533,6 @@ fn special_merge_fails_for_non_object_elements() {
         ]),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(
         &Special::InputItemsOptionalContextMerge,
@@ -679,11 +549,6 @@ fn special_output_returns_scores_vector() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(0.6), dec!(0.4)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::Output, &params).unwrap();
@@ -705,11 +570,6 @@ fn special_output_returns_three_scores() {
             dec!(0.5),
         ])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::Output, &params).unwrap();
@@ -729,11 +589,6 @@ fn special_output_fails_for_input_type() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(0.5), dec!(0.5)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = InputValue::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -745,11 +600,6 @@ fn special_output_fails_for_no_output() {
         input: InputValue::Boolean(true),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result = TaskOutputOwned::from_special(&Special::Output, &params);
     assert!(matches!(result, Err(ExpressionError::UnsupportedSpecial)));
@@ -765,11 +615,6 @@ fn special_weighted_sum_two_scores() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(0.6), dec!(0.4)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params)
@@ -789,11 +634,6 @@ fn special_weighted_sum_three_scores() {
             dec!(0.5),
         ])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params)
@@ -809,11 +649,6 @@ fn special_weighted_sum_fails_for_input() {
         input: InputValue::Boolean(true),
         output: Some(TaskOutputOwned::Vector(vec![dec!(0.5), dec!(0.5)])),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         InputValue::from_special(&Special::TaskOutputWeightedSum, &params);
@@ -826,11 +661,6 @@ fn special_weighted_sum_fails_for_no_output() {
         input: InputValue::Boolean(true),
         output: None,
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
     let result =
         TaskOutputOwned::from_special(&Special::TaskOutputWeightedSum, &params);

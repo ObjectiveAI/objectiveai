@@ -39,8 +39,8 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         // the single MCP connection for this agent — already initialized
         // against the in-process mcp-proxy with `X-MCP-Servers` listing
-        // the agent's declared upstreams (and the invention server URL,
-        // when applicable). `None` means the agent has no MCP work to do.
+        // the agent's declared upstreams. `None` means the agent has no
+        // MCP work to do.
         // The upstream is responsible for sourcing its tool list from
         // this connection (e.g. via `list_tools`); the orchestrator no
         // longer pre-resolves tool names or maps for the upstream.
@@ -55,11 +55,6 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
         cost_multiplier: rust_decimal::Decimal,
         // when false, the model should not be allowed to call tools
         tools_enabled: bool,
-        // invention context — only set when called from the invention client
-        invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        invention_step: Option<usize>,
-        invention_tasks_min: Option<u64>,
-        invention_input_schema: Option<String>,
         // Composite per-slot agent instance hierarchy
         // `{parent}/{agent_full_id}-{response_id}` (or
         // `{agent_full_id}-{response_id}` with no parent) that the
@@ -126,10 +121,6 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
         _byok: Option<&str>,
         _cost_multiplier: rust_decimal::Decimal,
         _tools_enabled: bool,
-        _invention_type: Option<objectiveai_sdk::functions::inventions::prompts::StepPromptType>,
-        _invention_step: Option<usize>,
-        _invention_tasks_min: Option<u64>,
-        _invention_input_schema: Option<String>,
         _agent_instance_hierarchy: &str,
         _agent_id: &str,
         _agent_full_id: &str,

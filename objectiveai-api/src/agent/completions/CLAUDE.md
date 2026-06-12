@@ -40,30 +40,3 @@ Once set for the first call, `params.messages` must not change across
 subsequent calls within the same conversation. New user turns (step
 prompts, retry prompts) go onto the continuation as `UserMessage` items.
 
-## Function Invention Client
-
-The invention client orchestrates multi-step function invention. Each step
-runs one or more agent completions with invention tools.
-
-### Message flow
-
-- **First step (no continuation):** The step prompt goes into
-  `params.messages` as a user message. This establishes the fixed message
-  prefix for the entire invention conversation.
-- **Subsequent steps (continuation exists):** The step prompt is pushed
-  as a `UserMessage` onto the continuation. `params.messages` remains
-  empty (the fixed prefix from step 1 is already baked into the
-  continuation's history).
-
-### Retry flow
-
-When a step's validation fails after the agent loop ends, the client
-retries up to `max_step_retries` times (default 3). Each retry:
-
-1. Constructs a retry prompt: `"{prompt}\n\nThe following error occurred: {error}\n\nPlease try again."`
-2. Pushes it as a `UserMessage` onto the continuation.
-3. Calls `create_streaming` again with the same `params` (empty messages)
-   and the updated continuation.
-
-This matches the pattern from `objectiveai-cli` (`runAgentStep` in
-`src/agent/index.ts`).

@@ -36,11 +36,6 @@ pub struct AgentBase {
     #[schemars(extend("omitempty" = true))]
     pub error: Option<bool>,
 
-    /// Mock agent mode. Defaults to `default`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub mode: Option<super::Mode>,
-
     /// Probability (0-100) that the mock returns an error mid-stream.
     /// Requires `error` to be `Some(true)`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -67,7 +62,7 @@ pub struct AgentBase {
     /// exactly that `Call`'s `tool_calls` (by name+arguments) and
     /// `content`); the next un-matched `Call` is what that turn
     /// emits. Once every `Call` has been satisfied in the
-    /// continuation, the mock falls through to its normal mode-driven
+    /// continuation, the mock falls through to its normal
     /// dispatcher. Pure addition — agents without `calls` are
     /// unaffected.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -89,9 +84,6 @@ impl AgentBase {
         if self.error == Some(false) {
             self.error = None;
         }
-        if self.mode == Some(super::Mode::Default) {
-            self.mode = None;
-        }
         self.mcp_servers = match self.mcp_servers.take() {
             Some(mcp_servers) => {
                 super::super::mcp::mcp_servers::prepare(mcp_servers)
@@ -110,14 +102,6 @@ impl AgentBase {
             && top_logprobs > 20
         {
             return Err("`top_logprobs` must be at most 20".to_string());
-        }
-        if self.mode == Some(super::Mode::Invention)
-            && self.output_mode != super::OutputMode::Instruction
-        {
-            return Err(
-                "`mode: invention` is only compatible with `instruction` output mode"
-                    .to_string(),
-            );
         }
         if let Some(mcp_servers) = &self.mcp_servers {
             super::super::mcp::mcp_servers::validate(mcp_servers)?;

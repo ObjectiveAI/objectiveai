@@ -348,7 +348,6 @@ where
         objectiveai_sdk::functions::Function::Remote(objectiveai_sdk::functions::RemoteFunction::Vector { output_length, input_split, input_merge, .. }) => {
             let params = objectiveai_sdk::functions::expression::Params::Ref(objectiveai_sdk::functions::expression::ParamsRef {
                 input: &input, output: None, map: None,
-                tasks_min: None, tasks_max: None, depth: None, name: None, spec: None,
             });
             FunctionType::Vector {
                 output_length: Some(output_length.clone().compile_one(&params)?),
@@ -435,7 +434,7 @@ where
             ) => {
                 validate_placeholder_profile(&task_profile)?;
                 let params = objectiveai_sdk::functions::expression::Params::Ref(
-                    objectiveai_sdk::functions::expression::ParamsRef { input: &task.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
+                    objectiveai_sdk::functions::expression::ParamsRef { input: &task.input, output: None, map: None },
                 );
                 let output_length = task.output_length.clone().compile_one(&params)?;
                 flat_tasks_or_futs.push(TaskFut::Task(Some(FlatTaskProfile::PlaceholderVectorFunction(
@@ -512,7 +511,7 @@ where
                         let mut tp = task_path.clone(); tp.push(j as u64);
                         let t = match task { objectiveai_sdk::functions::Task::PlaceholderVectorFunction(t) => t, _ => unreachable!() };
                         let params = objectiveai_sdk::functions::expression::Params::Ref(
-                            objectiveai_sdk::functions::expression::ParamsRef { input: &t.input, output: None, map: None, tasks_min: None, tasks_max: None, depth: None, name: None, spec: None },
+                            objectiveai_sdk::functions::expression::ParamsRef { input: &t.input, output: None, map: None },
                         );
                         let output_length = t.output_length.clone().compile_one(&params)?;
                         placeholders.push(PlaceholderVectorFunctionFlatTaskProfile {

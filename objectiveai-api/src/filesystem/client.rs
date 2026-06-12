@@ -113,7 +113,7 @@ impl Client {
         Ok(Some((value, resolved_commit)))
     }
 
-    /// Publishes invention files to a local git repository.
+    /// Publishes files to a local git repository.
     ///
     /// Handles any initial state: creates the directory if needed, initializes
     /// or resets the git repository, writes files, and commits.

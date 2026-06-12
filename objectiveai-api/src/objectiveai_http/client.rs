@@ -19,8 +19,6 @@ pub struct Client {
     pub x_github_authorization: Option<Arc<String>>,
     pub x_openrouter_authorization: Option<Arc<String>>,
     pub x_mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
-    pub x_viewer_signature: Option<Arc<String>>,
-    pub x_viewer_address: Option<Arc<String>>,
     pub x_commit_author_name: Option<Arc<String>>,
     pub x_commit_author_email: Option<Arc<String>>,
 }
@@ -36,8 +34,6 @@ impl Client {
         x_github_authorization: Option<Arc<String>>,
         x_openrouter_authorization: Option<Arc<String>>,
         x_mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
-        x_viewer_signature: Option<Arc<String>>,
-        x_viewer_address: Option<Arc<String>>,
         x_commit_author_name: Option<Arc<String>>,
         x_commit_author_email: Option<Arc<String>>,
     ) -> Self {
@@ -51,8 +47,6 @@ impl Client {
             x_github_authorization,
             x_openrouter_authorization,
             x_mcp_authorization,
-            x_viewer_signature,
-            x_viewer_address,
             x_commit_author_name,
             x_commit_author_email,
         }
@@ -68,16 +62,12 @@ impl Client {
             ctx_github_authorization,
             ctx_openrouter_authorization,
             ctx_mcp_authorization,
-            ctx_viewer_signature,
-            ctx_viewer_address,
             ctx_commit_author_name,
             ctx_commit_author_email,
         ) = tokio::join!(
             ctx.github_authorization(),
             ctx.upstream_authorization(objectiveai_sdk::agent::Upstream::Openrouter),
             ctx.mcp_authorization(),
-            ctx.viewer_signature(),
-            ctx.viewer_address(),
             ctx.commit_author_name(),
             ctx.commit_author_email(),
         );
@@ -100,10 +90,10 @@ impl Client {
                 .or_else(|| self.x_openrouter_authorization.clone()),
             x_mcp_authorization: ctx_mcp_authorization
                 .or_else(|| self.x_mcp_authorization.clone()),
-            x_viewer_signature: ctx_viewer_signature
-                .or_else(|| self.x_viewer_signature.clone()),
-            x_viewer_address: ctx_viewer_address
-                .or_else(|| self.x_viewer_address.clone()),
+            // The api no longer reads or forwards viewer headers; the
+            // SDK HttpClient keeps the fields for other consumers.
+            x_viewer_signature: None,
+            x_viewer_address: None,
             x_commit_author_name: ctx_commit_author_name
                 .or_else(|| self.x_commit_author_name.clone()),
             x_commit_author_email: ctx_commit_author_email

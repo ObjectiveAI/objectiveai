@@ -7,7 +7,6 @@ pub enum Kind {
     Swarms,
     Functions,
     Profiles,
-    Prompts,
 }
 
 impl Kind {
@@ -18,7 +17,6 @@ impl Kind {
             Kind::Swarms => "swarms",
             Kind::Functions => "functions",
             Kind::Profiles => "profiles",
-            Kind::Prompts => "prompts",
         }
     }
 }

@@ -23,22 +23,17 @@ _Each line: `unique type` — leaves using it._
 - `crate::agent::completions::response::Logprobs` — logs/agents/completions/response/messages/logprobs/get.rs, logs/agents/completions/response/messages/logprobs/subscribe.rs
 - `crate::agent::completions::response::streaming::AgentCompletionChunkLog` — logs/agents/completions/response/get.rs, logs/agents/completions/response/subscribe.rs
 - `crate::agent::response::GetAgentResponse` — agents/get.rs
-- `crate::cli::command::Ok` — config/agents/favorites/add.rs, config/agents/favorites/del.rs, config/agents/favorites/edit.rs, config/functions/favorites/add.rs, config/functions/favorites/del.rs, config/functions/favorites/edit.rs, config/functions/inventions/remote/set.rs, config/functions/profiles/favorites/add.rs, config/functions/profiles/favorites/del.rs, config/functions/profiles/favorites/edit.rs, config/functions/profiles/pairs/favorites/add.rs, config/functions/profiles/pairs/favorites/del.rs, config/functions/profiles/pairs/favorites/edit.rs, config/mcp/address/set.rs, config/mcp/port/set.rs, config/swarms/favorites/add.rs, config/swarms/favorites/del.rs, config/swarms/favorites/edit.rs, config/viewer/address/set.rs, config/viewer/port/set.rs, config/viewer/secret/set.rs, config/viewer/signature/set.rs
+- `crate::cli::command::Ok` — config/agents/favorites/add.rs, config/agents/favorites/del.rs, config/agents/favorites/edit.rs, config/functions/favorites/add.rs, config/functions/favorites/del.rs, config/functions/favorites/edit.rs, config/functions/profiles/favorites/add.rs, config/functions/profiles/favorites/del.rs, config/functions/profiles/favorites/edit.rs, config/functions/profiles/pairs/favorites/add.rs, config/functions/profiles/pairs/favorites/del.rs, config/functions/profiles/pairs/favorites/edit.rs, config/mcp/address/set.rs, config/mcp/port/set.rs, config/swarms/favorites/add.rs, config/swarms/favorites/del.rs, config/swarms/favorites/edit.rs, config/viewer/address/set.rs, config/viewer/port/set.rs, config/viewer/secret/set.rs, config/viewer/signature/set.rs
 - `crate::functions::executions::request::FunctionExecutionCreateParamsLog` — logs/functions/executions/request/get.rs, logs/functions/executions/request/subscribe.rs
 - `crate::functions::executions::response::streaming::FunctionExecutionChunkLog` — logs/functions/executions/response/get.rs, logs/functions/executions/response/subscribe.rs
-- `crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParamsLog` — logs/functions/inventions/recursive/request/get.rs, logs/functions/inventions/recursive/request/subscribe.rs
-- `crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunkLog` — logs/functions/inventions/recursive/response/get.rs, logs/functions/inventions/recursive/response/subscribe.rs
-- `crate::functions::inventions::request::FunctionInventionCreateParams` — logs/functions/inventions/request/get.rs, logs/functions/inventions/request/subscribe.rs
-- `crate::functions::inventions::response::streaming::FunctionInventionChunkLog` — logs/functions/inventions/response/get.rs, logs/functions/inventions/response/subscribe.rs
-- `crate::functions::inventions::state::response::GetFunctionInventionStateResponse` — functions/inventions/state/get.rs
 - `crate::functions::profiles::response::GetProfileResponse` — functions/profiles/get.rs
 - `crate::functions::response::GetFunctionResponse` — functions/get.rs
-- `crate::Remote` — config/functions/inventions/remote/get.rs
+- `crate::Remote` — (no remaining callers)
 - `crate::swarm::response::GetSwarmResponse` — swarms/get.rs
 - `crate::vector::completions::request::VectorCompletionCreateParams` — logs/vector/completions/request/get.rs, logs/vector/completions/request/subscribe.rs
 - `crate::vector::completions::response::streaming::VectorCompletionChunkLog` — logs/vector/completions/response/get.rs, logs/vector/completions/response/subscribe.rs
 - `Option<ResponseManifest>` — plugins/get.rs, tools/get.rs
-- `String` — agents/spawn.rs, functions/executions/create/standard.rs, functions/executions/create/swiss_system.rs, functions/inventions/recursive/create/alpha_scalar.rs, functions/inventions/recursive/create/alpha_vector.rs, functions/inventions/recursive/create/remote.rs, logs/agents/completions/request/messages/text/get.rs, logs/agents/completions/request/notifications/text/get.rs, logs/agents/completions/response/continuations/get.rs, logs/agents/completions/response/continuations/subscribe.rs, logs/agents/completions/response/messages/reasoning/get.rs, logs/agents/completions/response/messages/reasoning/subscribe.rs, logs/agents/completions/response/messages/refusal/get.rs, logs/agents/completions/response/messages/refusal/subscribe.rs, logs/agents/completions/response/messages/text/get.rs, logs/agents/completions/response/messages/tool/text/get.rs, logs/functions/executions/response/retry_tokens/get.rs, logs/functions/executions/response/retry_tokens/subscribe.rs
+- `String` — agents/spawn.rs, functions/executions/create/standard.rs, functions/executions/create/swiss_system.rs, logs/agents/completions/request/messages/text/get.rs, logs/agents/completions/request/notifications/text/get.rs, logs/agents/completions/response/continuations/get.rs, logs/agents/completions/response/continuations/subscribe.rs, logs/agents/completions/response/messages/reasoning/get.rs, logs/agents/completions/response/messages/reasoning/subscribe.rs, logs/agents/completions/response/messages/refusal/get.rs, logs/agents/completions/response/messages/refusal/subscribe.rs, logs/agents/completions/response/messages/text/get.rs, logs/agents/completions/response/messages/tool/text/get.rs, logs/functions/executions/response/retry_tokens/get.rs, logs/functions/executions/response/retry_tokens/subscribe.rs
 
 ### Inline-defined structures (78)
 
@@ -58,7 +53,6 @@ _Each line: full leaf path :: `Response|ResponseItem` (struct|enum)._
 - `config::agents::get::Response (<inline struct>)`
 - `config::functions::favorites::get::ResponseItem (<inline struct>)`
 - `config::functions::get::Response (<inline struct>)`
-- `config::functions::inventions::get::Response (<inline struct>)`
 - `config::functions::profiles::favorites::get::ResponseItem (<inline struct>)`
 - `config::functions::profiles::get::Response (<inline struct>)`
 - `config::functions::profiles::pairs::favorites::get::ResponseItem (<inline struct>)`
@@ -75,9 +69,6 @@ _Each line: full leaf path :: `Response|ResponseItem` (struct|enum)._
 - `config::viewer::signature::get::Response (<inline struct>)`
 - `functions::executions::create::standard::ResponseItem (<inline enum>)`
 - `functions::executions::create::swiss_system::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::alpha_scalar::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::alpha_vector::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::remote::ResponseItem (<inline enum>)`
 - `functions::list::Response (<inline struct>)`
 - `functions::list::ResponseItem (<inline enum>)`
 - `functions::profiles::list::Response (<inline struct>)`
@@ -100,10 +91,6 @@ _Each line: full leaf path :: `Response|ResponseItem` (struct|enum)._
 - `logs::functions::executions::response::clear::Response (<inline struct>)`
 - `logs::functions::executions::response::list::ResponseItem (<inline struct>)`
 - `logs::functions::executions::response::retry_tokens::clear::Response (<inline struct>)`
-- `logs::functions::inventions::recursive::response::clear::Response (<inline struct>)`
-- `logs::functions::inventions::recursive::response::list::ResponseItem (<inline struct>)`
-- `logs::functions::inventions::response::clear::Response (<inline struct>)`
-- `logs::functions::inventions::response::list::ResponseItem (<inline struct>)`
 - `logs::vector::completions::response::clear::Response (<inline struct>)`
 - `logs::vector::completions::response::list::ResponseItem (<inline struct>)`
 - `mcp::kill::Response (<inline struct>)`
@@ -141,7 +128,6 @@ Same as the inline section above — leaves whose `Response` / `ResponseItem` is
 - `config::agents::get::Response (<inline struct>)`
 - `config::functions::favorites::get::ResponseItem (<inline struct>)`
 - `config::functions::get::Response (<inline struct>)`
-- `config::functions::inventions::get::Response (<inline struct>)`
 - `config::functions::profiles::favorites::get::ResponseItem (<inline struct>)`
 - `config::functions::profiles::get::Response (<inline struct>)`
 - `config::functions::profiles::pairs::favorites::get::ResponseItem (<inline struct>)`
@@ -158,9 +144,6 @@ Same as the inline section above — leaves whose `Response` / `ResponseItem` is
 - `config::viewer::signature::get::Response (<inline struct>)`
 - `functions::executions::create::standard::ResponseItem (<inline enum>)`
 - `functions::executions::create::swiss_system::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::alpha_scalar::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::alpha_vector::ResponseItem (<inline enum>)`
-- `functions::inventions::recursive::create::remote::ResponseItem (<inline enum>)`
 - `functions::list::Response (<inline struct>)`
 - `functions::list::ResponseItem (<inline enum>)`
 - `functions::profiles::list::Response (<inline struct>)`
@@ -183,10 +166,6 @@ Same as the inline section above — leaves whose `Response` / `ResponseItem` is
 - `logs::functions::executions::response::clear::Response (<inline struct>)`
 - `logs::functions::executions::response::list::ResponseItem (<inline struct>)`
 - `logs::functions::executions::response::retry_tokens::clear::Response (<inline struct>)`
-- `logs::functions::inventions::recursive::response::clear::Response (<inline struct>)`
-- `logs::functions::inventions::recursive::response::list::ResponseItem (<inline struct>)`
-- `logs::functions::inventions::response::clear::Response (<inline struct>)`
-- `logs::functions::inventions::response::list::ResponseItem (<inline struct>)`
 - `logs::vector::completions::response::clear::Response (<inline struct>)`
 - `logs::vector::completions::response::list::ResponseItem (<inline struct>)`
 - `mcp::kill::Response (<inline struct>)`

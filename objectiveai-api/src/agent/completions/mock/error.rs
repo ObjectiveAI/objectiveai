@@ -9,17 +9,8 @@ pub enum Error {
     #[error("tools not allowed but response format requires a tool call")]
     ToolsNotAllowedWithRequiredToolCall,
 
-    #[error("invention agent requires invention tools")]
-    InventionAgentWithoutInventionTools,
-
     #[error("mock tool call limit exceeded ({0})")]
     MaxToolCallsExceeded(u32),
-
-    #[error("mock invention AppendTask returned unexpected result: {0}")]
-    AppendTaskFailed(String),
-
-    #[error("mock invention WriteInputSchema returned unexpected result: {0}")]
-    WriteInputSchemaFailed(String),
 
     #[error("MCP list_tools error ({url}): {error}")]
     McpListTools {
@@ -34,10 +25,7 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::ExpectedError => 500,
             Self::UnsupportedResponseFormat(_) => 400,
             Self::ToolsNotAllowedWithRequiredToolCall => 400,
-            Self::InventionAgentWithoutInventionTools => 400,
             Self::MaxToolCallsExceeded(_) => 429,
-            Self::AppendTaskFailed(_) => 500,
-            Self::WriteInputSchemaFailed(_) => 500,
             Self::McpListTools { .. } => 502,
         }
     }

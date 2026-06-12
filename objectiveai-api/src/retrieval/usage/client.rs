@@ -32,12 +32,6 @@ pub trait Client<CTXEXT>: Send + Sync + 'static {
         params: &objectiveai_sdk::functions::profiles::request::GetProfileRequest,
     ) -> Result<objectiveai_sdk::functions::profiles::response::UsageProfileResponse, ResponseError>;
 
-    async fn get_prompt_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai_sdk::functions::inventions::prompts::request::GetPromptRequest,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::UsagePromptResponse, ResponseError>;
-
     async fn get_function_profile_pair_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,

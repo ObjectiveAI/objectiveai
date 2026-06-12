@@ -168,15 +168,6 @@ fn single_placeholder_scalar_task_rejected() {
         },
         tasks: vec![BranchTaskExpression::PlaceholderScalarFunction(
             PlaceholderScalarFunctionTaskExpression {
-                params: crate::functions::inventions::Params {
-                    depth: 1,
-                    min_branch_width: 1,
-                    max_branch_width: 3,
-                    min_leaf_width: 1,
-                    max_leaf_width: 3,
-                    spec: "Score each item".to_string(),
-                    name: "test".to_string(),
-                },
                 input_schema: ObjectInputSchema {
                     r#type: Default::default(),
                     description: None,
@@ -299,15 +290,6 @@ fn valid_single_placeholder_vector() {
         },
         tasks: vec![BranchTaskExpression::PlaceholderVectorFunction(
             PlaceholderVectorFunctionTaskExpression {
-                params: crate::functions::inventions::Params {
-                    depth: 1,
-                    min_branch_width: 1,
-                    max_branch_width: 3,
-                    min_leaf_width: 1,
-                    max_leaf_width: 3,
-                    spec: "Rank items".to_string(),
-                    name: "test".to_string(),
-                },
                 input_schema: VectorFunctionInputSchema {
                     context: None,
                     items: InputSchema::String(StringInputSchema {
@@ -408,15 +390,6 @@ fn valid_mixed_placeholder_vector_tasks() {
             ),
             BranchTaskExpression::PlaceholderVectorFunction(
                 PlaceholderVectorFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 3,
-                        spec: "Rank items differently".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: VectorFunctionInputSchema {
                         context: None,
                         items: InputSchema::String(StringInputSchema {
@@ -554,15 +527,6 @@ fn input_diversity_pass_placeholder_vector_tasks() {
         tasks: vec![
             BranchTaskExpression::PlaceholderVectorFunction(
                 PlaceholderVectorFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 3,
-                        spec: "Rank items by quality".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: VectorFunctionInputSchema {
                         context: None,
                         items: InputSchema::String(StringInputSchema {
@@ -582,15 +546,6 @@ fn input_diversity_pass_placeholder_vector_tasks() {
             ),
             BranchTaskExpression::PlaceholderVectorFunction(
                 PlaceholderVectorFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 3,
-                        spec: "Rank items by relevance".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: VectorFunctionInputSchema {
                         context: None,
                         items: InputSchema::String(StringInputSchema {

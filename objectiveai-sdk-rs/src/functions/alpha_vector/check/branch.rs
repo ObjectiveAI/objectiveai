@@ -187,11 +187,6 @@ pub fn check_alpha_branch_vector_function(
                 input,
                 output: None,
                 map: None,
-                tasks_min: None,
-                tasks_max: None,
-                depth: None,
-                name: None,
-                spec: None,
             });
             let ol: usize = transpiled_output_length
                 .clone()

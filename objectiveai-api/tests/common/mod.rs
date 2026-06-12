@@ -3,9 +3,8 @@
 //! Each integration test binary (`tests/<layer>.rs`) starts the
 //! `objectiveai-api` binary as a child process and drives it via HTTP.
 //! Each test binary owns its own server process — separate ephemeral
-//! port pool, separate MCP proxy, separate invention server. Cargo
-//! runs the test binaries in parallel, so layer-level isolation is
-//! automatic.
+//! port pool, separate MCP proxy. Cargo runs the test binaries in
+//! parallel, so layer-level isolation is automatic.
 //!
 //! Wiring conventions:
 //!
@@ -20,7 +19,6 @@
 
 #![allow(dead_code)]
 
-pub mod inventions;
 pub mod mcp_server;
 pub mod server;
 pub mod stream_harness;

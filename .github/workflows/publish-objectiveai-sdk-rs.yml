@@ -24,20 +24,7 @@ jobs:
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Stage JSON schemas into the crate
-        # build.rs needs the schemas at build time; the sibling
-        # objectiveai-json-schema directory is not part of the published
-        # tarball, so copy them into objectiveai-sdk-rs/schemas/ where
-        # build.rs finds them as a packaged fallback and the Cargo
-        # `include` field bundles them.
-        run: |
-          mkdir -p objectiveai-sdk-rs/schemas
-          cp objectiveai-json-schema/*.json objectiveai-sdk-rs/schemas/
-
       - name: cargo publish
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
-        # --allow-dirty: the schemas/ directory is staged by the previous
-        # step and is gitignored, so cargo would otherwise refuse to
-        # publish with "untracked changes."
-        run: cargo publish --allow-dirty -p objectiveai-sdk
+        run: cargo publish -p objectiveai-sdk

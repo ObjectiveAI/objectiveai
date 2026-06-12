@@ -135,31 +135,6 @@ where
         }
     }
 
-    pub async fn list_prompts(
-        &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
-        source: Option<SourceFilter>,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse, ResponseError> {
-        use objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse;
-        match source {
-            Some(SourceFilter::Objectiveai) => self.objectiveai.list_prompts(ctx).await,
-            Some(SourceFilter::Filesystem) => self.filesystem.list_prompts(ctx).await,
-            Some(SourceFilter::Mock) => self.mock.list_prompts(ctx).await,
-            Some(SourceFilter::All) | None => {
-                let (o, f, m) = futures::future::join3(
-                    self.objectiveai.list_prompts(ctx),
-                    self.filesystem.list_prompts(ctx),
-                    self.mock.list_prompts(ctx),
-                ).await;
-                let mut data = Vec::new();
-                data.extend(o?.data);
-                data.extend(f?.data);
-                data.extend(m?.data);
-                Ok(ListPromptResponse { data })
-            }
-        }
-    }
-
     pub async fn list_function_profile_pairs(
         &self,
         ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,

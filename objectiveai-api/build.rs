@@ -2,9 +2,6 @@ fn main() {
     set_stack_size();
     claude_agent_sdk_runner();
     codex_sdk_runner();
-
-    #[cfg(feature = "orchestrator-bollard")]
-    laboratories_local();
 }
 
 /// Set the main thread stack size to 16 MB for all supported platforms.
@@ -43,49 +40,6 @@ fn run_bash(script: &std::path::Path, args: &[&str]) -> std::process::Output {
             .output()
             .expect("Failed to run bash script")
     }
-}
-
-#[cfg(feature = "orchestrator-bollard")]
-fn laboratories_local() {
-    // The filesystem MCP binary is always linux-musl (for Docker container
-    // injection), regardless of the platform the API is built on. The
-    // mcp-proxy is consumed as a regular cargo dep (in-process), not
-    // embedded.
-    let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
-    let musl_target = format!("{arch}-unknown-linux-musl");
-    let profile = std::env::var("PROFILE").unwrap();
-
-    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
-    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
-
-    let module = "objectiveai-mcp-filesystem";
-    let validate_script = workspace_dir.join(module).join("validate.sh");
-    let mut args: Vec<&str> = vec!["--target", &musl_target];
-    if profile == "release" {
-        args.push("--release");
-    }
-    let output = run_bash(&validate_script, &args);
-
-    assert!(
-        output.status.success(),
-        "{module}/validate.sh failed:\n{}\n{}Run: bash {module}/build.sh --target {musl_target}{}",
-        String::from_utf8_lossy(&output.stdout),
-        String::from_utf8_lossy(&output.stderr),
-        if profile == "release" { " --release" } else { "" }
-    );
-
-    let binary_path = workspace_dir
-        .join(module)
-        .join("embed")
-        .join(&musl_target)
-        .join(&profile)
-        .join(module);
-
-    println!(
-        "cargo:rustc-env=OBJECTIVEAI_MCP_FILESYSTEM_BINARY_PATH={}",
-        binary_path.display()
-    );
-    println!("cargo:rerun-if-changed=../{module}/embed/");
 }
 
 fn codex_sdk_runner() {

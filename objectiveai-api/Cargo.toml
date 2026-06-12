@@ -24,9 +24,8 @@ include = [
 ]
 
 [features]
-default = ["orchestrator-bollard"]
+default = ["sqlite-persistent-cache"]
 sqlite-persistent-cache = ["dep:rusqlite"]
-orchestrator-bollard = ["dep:bollard", "dep:tar"]
 
 [dependencies]
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["http", "mcp", "lockfile"] }
@@ -65,8 +64,6 @@ tokio-util = { version = "0.7.18", features = ["io"] }
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 futures-util = { version = "0.3.32" }
 rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
-bollard = { version = "0.20.2", optional = true }
-tar = { version = "0.4.45", optional = true }
 base64 = { version = "0.22.1" }
 tempfile = { version = "3.27.0" }
 percent-encoding = { version = "2.3.2" }

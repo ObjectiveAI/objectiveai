@@ -259,11 +259,6 @@ fn apply_task_output_expression(
         input,
         output: Some(TaskOutput::Owned(task_output)),
         map: None,
-        tasks_min: None,
-        tasks_max: None,
-        depth: None,
-        name: None,
-        spec: None,
     });
 
     // Evaluate the expression - it transforms the raw output into TaskOutputOwned
@@ -408,8 +403,6 @@ pub struct Client<
             VUSG,
         >,
     >,
-    /// Viewer client for streaming events to the viewer.
-    pub viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
     /// Router for fetching Function and Profile definitions.
     pub retrieve_router:
         Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
@@ -467,7 +460,6 @@ impl<
                 VUSG,
             >,
         >,
-        viewer_client: Arc<crate::viewer::Client<CTXEXT>>,
         retrieve_router: Arc<
             crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>,
         >,
@@ -476,7 +468,6 @@ impl<
         Self {
             agent_client,
             vector_client,
-            viewer_client,
             retrieve_router,
             usage_handler,
         }
@@ -722,22 +713,7 @@ where
         // generate response id
         let response_id = response_id(created);
 
-        // send begin to viewer
-        self.viewer_client.send_function_execution_begin(
-            ctx.clone(),
-            response_id.clone(),
-            request.clone(),
-        );
 
-        // helper: send error to viewer and return it
-        let send_err = |e: super::Error| -> super::Error {
-            self.viewer_client.send_function_execution_error(
-                ctx.clone(),
-                response_id.clone(),
-                &e,
-            );
-            e
-        };
         // parse retry token if provided
         let retry_token = request
             .retry_token
@@ -748,7 +724,7 @@ where
                 )
                 .ok_or(super::Error::InvalidRetryToken)
             })
-            .transpose().map_err(&send_err)?
+            .transpose()?
             .map(Arc::new);
 
         let request_input = request.input.clone();
@@ -765,7 +741,7 @@ where
         if request.split.unwrap_or(false) {
             let elements = match request.input.clone() {
                 objectiveai_sdk::functions::expression::InputValue::Array(arr) => arr,
-                _ => return Err(send_err(super::Error::SplitInputNotArray)),
+                _ => return Err(super::Error::SplitInputNotArray),
             };
 
             // Phase 1: create all inner streams concurrently. First Err wins.
@@ -793,12 +769,8 @@ where
                 }
             });
             let inner_streams = futures::future::try_join_all(setup_futs)
-                .await
-                .map_err(&send_err)?;
+                .await?;
             let n = inner_streams.len();
-
-            let viewer_client = self.viewer_client.clone();
-            let viewer_ctx = ctx.clone();
 
             return Ok(async_stream::stream! {
                 use futures::StreamExt as _;
@@ -943,9 +915,7 @@ where
                     object,
                     usage: Some(total_usage),
                 };
-            }.inspect(move |chunk| {
-                viewer_client.send_function_execution_continue(viewer_ctx.clone(), chunk.clone());
-            }).boxed());
+            }.boxed());
         }
 
         // ── Single execution (no split) ───────────────────────────────
@@ -977,15 +947,6 @@ where
         + 'static,
         super::Error,
     > {
-        let send_err = |e: super::Error| -> super::Error {
-            self.viewer_client.send_function_execution_error(
-                ctx.clone(),
-                response_id.clone(),
-                &e,
-            );
-            e
-        };
-
         // validate that input_split and input_merge are present if strategy is Swiss
         let inline_function = match &request.function {
             objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Inline(f) => Some(f.clone().transpile()),
@@ -1012,10 +973,10 @@ where
                 ),
                 Some(_)
             ) => {
-                return Err(send_err(super::Error::InvalidFunctionForStrategy(
+                return Err(super::Error::InvalidFunctionForStrategy(
                     "With 'swiss_system' strategy, Inline Function must be vector with both `input_split` and `input_merge` present."
                         .to_string(),
-                )));
+                ));
             }
             _ => { }
         }
@@ -1032,7 +993,7 @@ where
                 self.retrieve_router.clone(),
                 std::collections::HashSet::new(),
             )
-            .await.map_err(&send_err)?;
+            .await?;
 
         // validate that ftp type is Vector if strategy is Swiss
         match (&request.strategy, &ftp.r#type) {
@@ -1044,10 +1005,10 @@ where
                 ),
                 functions::FunctionType::Scalar,
             ) => {
-                return Err(send_err(super::Error::InvalidFunctionForStrategy(
+                return Err(super::Error::InvalidFunctionForStrategy(
                     "With 'swiss_system' strategy, Function must be of type 'vector'."
                         .to_string(),
-                )));
+                ));
             }
             _ => { }
         }
@@ -1175,8 +1136,6 @@ where
         //   - `cumulative_scores`: running total per original index, used for
         //     re-sorting between rounds.
         let choice_indexer = Arc::new(ChoiceIndexer::new(0));
-        let viewer_client = self.viewer_client.clone();
-        let viewer_ctx = ctx.clone();
         if let Some(
             objectiveai_sdk::functions::executions::request::Strategy::SwissSystem {
                 pool,
@@ -1200,10 +1159,10 @@ where
             let pool = pool.unwrap_or(10);
             let rounds = rounds.unwrap_or(3);
             if pool <= 1 || rounds == 0 {
-                return Err(send_err(super::Error::InvalidStrategy(
+                return Err(super::Error::InvalidStrategy(
                     "For 'swiss_system' strategy, 'pool' must be > 1 and 'rounds' must be > 0."
                         .to_string(),
-                )));
+                ));
             }
 
             // Split the original input into N individual sub-inputs (one per item to rank).
@@ -1214,14 +1173,9 @@ where
                         input: &input,
                         output: None,
                         map: None,
-                        tasks_min: None,
-                        tasks_max: None,
-                        depth: None,
-                        name: None,
-                        spec: None,
                     }
                 ),
-            ).map_err(super::Error::from).map_err(&send_err)?;
+            ).map_err(super::Error::from)?;
 
             // ── Round 1: build flat task profiles per pool ──────────────
             // Group sub-inputs into pool-sized chunks, merge each chunk back
@@ -1246,14 +1200,9 @@ where
                             ),
                             output: None,
                             map: None,
-                            tasks_min: None,
-                            tasks_max: None,
-                            depth: None,
-                            name: None,
-                            spec: None,
                         }
                     )
-                ).map_err(super::Error::from).map_err(&send_err)?;
+                ).map_err(super::Error::from)?;
                 ftp_futs.push(functions::get_flat_task_profile(
                     &ctx,
                     Vec::new(),
@@ -1266,7 +1215,7 @@ where
                     std::collections::HashSet::new(),
                 ));
             }
-            let mut ftps = futures::future::try_join_all(ftp_futs).await.map_err(&send_err)?;
+            let mut ftps = futures::future::try_join_all(ftp_futs).await?;
 
             // setup reasoning data for Swiss system
             let (mut swiss_vector_completions, mut swiss_index_maps, swiss_confidence_responses) = if reasoning {
@@ -1572,11 +1521,6 @@ where
                                         ),
                                         output: None,
                                         map: None,
-                                        tasks_min: None,
-                                        tasks_max: None,
-                                        depth: None,
-                                        name: None,
-                                        spec: None,
                                     }
                                 )
                             ) {
@@ -1833,9 +1777,7 @@ where
                     object,
                     usage: Some(usage),
                 };
-            }.inspect(move |chunk| {
-                viewer_client.send_function_execution_continue(viewer_ctx.clone(), chunk.clone());
-            })))
+            }))
         } else {
             // get function stream
             let stream = self
@@ -2040,9 +1982,7 @@ where
                     // yield final chunk
                     yield final_chunk;
                 }
-            }.inspect(move |chunk| {
-                viewer_client.send_function_execution_continue(viewer_ctx.clone(), chunk.clone());
-            })))
+            }))
         }
     }
 
@@ -3042,11 +2982,6 @@ where
                 None, // disable_tools
                 vec![], // extra_mcp_servers
                 indexmap::IndexMap::new(), // extra_mcp_headers
-                None,
-                false,
-                None,
-                None,
-                None,
                 None,
             )
             .await

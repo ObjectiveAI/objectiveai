@@ -56,21 +56,6 @@ pub struct ParamsOwned {
     pub output: Option<TaskOutputOwned>,
     /// Current map index. Only populated for mapped task expressions.
     pub map: Option<u64>,
-    /// Resolved minimum task count for this node type.
-    /// Only provided for invention prompt expressions.
-    pub tasks_min: Option<u64>,
-    /// Resolved maximum task count for this node type.
-    /// Only provided for invention prompt expressions.
-    pub tasks_max: Option<u64>,
-    /// Current recursion depth.
-    /// Only provided for invention prompt expressions.
-    pub depth: Option<u64>,
-    /// The function's name.
-    /// Only provided for invention prompt expressions.
-    pub name: Option<String>,
-    /// The specification text.
-    /// Only provided for invention prompt expressions.
-    pub spec: Option<String>,
 }
 
 /// Borrowed version of expression parameters.
@@ -83,21 +68,6 @@ pub struct ParamsRef<'i, 'to> {
     pub output: Option<TaskOutput<'to>>,
     /// Current map index. Only populated for mapped task expressions.
     pub map: Option<u64>,
-    /// Resolved minimum task count for this node type.
-    /// Only provided for invention prompt expressions.
-    pub tasks_min: Option<u64>,
-    /// Resolved maximum task count for this node type.
-    /// Only provided for invention prompt expressions.
-    pub tasks_max: Option<u64>,
-    /// Current recursion depth.
-    /// Only provided for invention prompt expressions.
-    pub depth: Option<u64>,
-    /// The function's name.
-    /// Only provided for invention prompt expressions.
-    pub name: Option<&'i str>,
-    /// The specification text.
-    /// Only provided for invention prompt expressions.
-    pub spec: Option<&'i str>,
 }
 
 /// Output from an executed task.

@@ -111,16 +111,6 @@ int32_t objectiveai_function_execution_chunk_merged(
     const uint8_t *b_in, size_t b_in_len,
     uint8_t **json_out, size_t *json_out_len);
 
-int32_t objectiveai_function_invention_chunk_merged(
-    const uint8_t *a_in, size_t a_in_len,
-    const uint8_t *b_in, size_t b_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_function_invention_recursive_chunk_merged(
-    const uint8_t *a_in, size_t a_in_len,
-    const uint8_t *b_in, size_t b_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
 int32_t objectiveai_function_profile_computation_chunk_merged(
     const uint8_t *a_in, size_t a_in_len,
     const uint8_t *b_in, size_t b_in_len,
@@ -136,14 +126,6 @@ int32_t objectiveai_vector_completion_chunk_normalized(
     uint8_t **json_out, size_t *json_out_len);
 
 int32_t objectiveai_function_execution_chunk_normalized(
-    const uint8_t *json_in, size_t json_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_function_invention_chunk_normalized(
-    const uint8_t *json_in, size_t json_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_function_invention_recursive_chunk_normalized(
     const uint8_t *json_in, size_t json_in_len,
     uint8_t **json_out, size_t *json_out_len);
 
@@ -164,14 +146,6 @@ int32_t objectiveai_function_execution_chunk_to_unary(
     const uint8_t *json_in, size_t json_in_len,
     uint8_t **json_out, size_t *json_out_len);
 
-int32_t objectiveai_function_invention_chunk_to_unary(
-    const uint8_t *json_in, size_t json_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_function_invention_recursive_chunk_to_unary(
-    const uint8_t *json_in, size_t json_in_len,
-    uint8_t **json_out, size_t *json_out_len);
-
 int32_t objectiveai_function_profile_computation_chunk_to_unary(
     const uint8_t *json_in, size_t json_in_len,
     uint8_t **json_out, size_t *json_out_len);
@@ -186,14 +160,6 @@ int32_t objectiveai_generate_vector_completion_chunk(
     uint8_t **json_out, size_t *json_out_len);
 
 int32_t objectiveai_generate_function_execution_chunk(
-    int32_t has_seed, int64_t seed,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_generate_function_invention_chunk(
-    int32_t has_seed, int64_t seed,
-    uint8_t **json_out, size_t *json_out_len);
-
-int32_t objectiveai_generate_function_invention_recursive_chunk(
     int32_t has_seed, int64_t seed,
     uint8_t **json_out, size_t *json_out_len);
 

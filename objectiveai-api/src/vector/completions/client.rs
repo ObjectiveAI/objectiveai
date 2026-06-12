@@ -968,11 +968,6 @@ where
                     vec![],
                     indexmap::IndexMap::new(),
                     Some(transform_messages.clone()),
-                    false,
-                    None,
-                    None,
-                    None,
-                    None,
                 ).await?;
                 let aggregate: Option<
                     objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk,
@@ -1112,11 +1107,6 @@ where
                                 vec![],
                                 indexmap::IndexMap::new(),
                                 Some(transform_messages.clone()),
-                                false,
-                                None,
-                                None,
-                                None,
-                                None,
                             ).await {
                                 Ok(mut retry_stream) => {
                                     let mut retry_agg: Option<
@@ -1247,11 +1237,6 @@ where
                                 vec![],
                                 indexmap::IndexMap::new(),
                                 Some(transform_messages.clone()),
-                                false,
-                                None,
-                                None,
-                                None,
-                                None,
                             ).await {
                                 Ok(mut retry_stream) => {
                                     let mut retry_agg: Option<

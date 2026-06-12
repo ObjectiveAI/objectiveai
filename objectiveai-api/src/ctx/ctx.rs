@@ -36,10 +36,6 @@ pub struct Context<CTXEXT, PC> {
     github_authorization: Option<Arc<String>>,
     /// Per-request MCP authorization headers.
     mcp_authorization: Option<Arc<HashMap<String, String>>>,
-    /// Per-request viewer signature.
-    viewer_signature: Option<Arc<String>>,
-    /// Per-request viewer address.
-    viewer_address: Option<Arc<String>>,
     /// Per-request commit author name.
     commit_author_name: Option<Arc<String>>,
     /// Per-request commit author email.
@@ -69,10 +65,6 @@ pub struct Context<CTXEXT, PC> {
     github_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved MCP authorization (self + ext merged).
     mcp_authorization_cached: Arc<OnceCell<Option<Arc<HashMap<String, String>>>>>,
-    /// Cached resolved viewer signature (self + ext).
-    viewer_signature_cached: Arc<OnceCell<Option<Arc<String>>>>,
-    /// Cached resolved viewer address (self + ext).
-    viewer_address_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved commit author name (self + ext).
     commit_author_name_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved commit author email (self + ext).
@@ -162,8 +154,6 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             openrouter_authorization: self.openrouter_authorization.clone(),
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
-            viewer_signature: self.viewer_signature.clone(),
-            viewer_address: self.viewer_address.clone(),
             commit_author_name: self.commit_author_name.clone(),
             commit_author_email: self.commit_author_email.clone(),
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
@@ -172,8 +162,6 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
             mcp_authorization_cached: self.mcp_authorization_cached.clone(),
-            viewer_signature_cached: self.viewer_signature_cached.clone(),
-            viewer_address_cached: self.viewer_address_cached.clone(),
             commit_author_name_cached: self.commit_author_name_cached.clone(),
             commit_author_email_cached: self.commit_author_email_cached.clone(),
             cancelled: self.cancelled.clone(),
@@ -238,20 +226,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             .and_then(|s| serde_json::from_str::<HashMap<String, String>>(s).ok())
             .map(Arc::new);
 
-        let viewer_signature = headers
-            .get("X-VIEWER-SIGNATURE")
-            .or_else(|| headers.get("VIEWER-SIGNATURE"))
-            .or_else(|| headers.get("X-OBJECTIVEAI-SIGNATURE"))
-            .or_else(|| headers.get("OBJECTIVEAI-SIGNATURE"))
-            .and_then(|v| v.to_str().ok())
-            .map(|s| Arc::new(s.to_owned()));
-
-        let viewer_address = headers
-            .get("X-VIEWER-ADDRESS")
-            .or_else(|| headers.get("VIEWER-ADDRESS"))
-            .and_then(|v| v.to_str().ok())
-            .map(|s| Arc::new(s.to_owned()));
-
         let commit_author_name = headers
             .get("X-COMMIT-AUTHOR-NAME")
             .or_else(|| headers.get("COMMIT-AUTHOR-NAME"))
@@ -279,8 +253,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             github_authorization,
             mcp_authorization,
             objectiveai_authorization,
-            viewer_signature,
-            viewer_address,
             commit_author_name,
             commit_author_email,
             agent_instance_hierarchy,
@@ -289,8 +261,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
-            viewer_signature_cached: Arc::new(OnceCell::new()),
-            viewer_address_cached: Arc::new(OnceCell::new()),
             commit_author_name_cached: Arc::new(OnceCell::new()),
             commit_author_email_cached: Arc::new(OnceCell::new()),
             cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
@@ -529,38 +499,6 @@ impl<CTXEXT: super::ContextExt, PC> Context<CTXEXT, PC> {
                         }
                         Some(Arc::new(merged))
                     }
-                }
-            })
-            .await
-            .clone()
-    }
-
-    /// Returns the resolved ObjectiveAI signature.
-    ///
-    /// Checks the per-request signature first, falls back to the BYOK signature
-    /// from the context extension. Result is cached for subsequent calls.
-    pub async fn viewer_signature(&self) -> Option<Arc<String>> {
-        self.viewer_signature_cached
-            .get_or_init(|| async {
-                match (&self.viewer_signature, self.ext.viewer_signature().await) {
-                    (Some(self_sig), _) => Some(self_sig.clone()),
-                    (None, byok) => byok,
-                }
-            })
-            .await
-            .clone()
-    }
-
-    /// Returns the resolved ObjectiveAI viewer address.
-    ///
-    /// Checks the per-request address first, falls back to the BYOK address
-    /// from the context extension. Result is cached for subsequent calls.
-    pub async fn viewer_address(&self) -> Option<Arc<String>> {
-        self.viewer_address_cached
-            .get_or_init(|| async {
-                match (&self.viewer_address, self.ext.viewer_address().await) {
-                    (Some(self_addr), _) => Some(self_addr.clone()),
-                    (None, byok) => byok,
                 }
             })
             .await

@@ -29,11 +29,6 @@ pub trait Client<CTXEXT>: Send + Sync + 'static {
         ctx: &ctx::Context<CTXEXT, PC>,
     ) -> Result<objectiveai_sdk::functions::profiles::response::ListProfileResponse, ResponseError>;
 
-    async fn list_prompts<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse, ResponseError>;
-
     /// Only ObjectiveAI implements meaningfully; Mock/Filesystem → `unimplemented!()`
     async fn list_function_profile_pairs<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,

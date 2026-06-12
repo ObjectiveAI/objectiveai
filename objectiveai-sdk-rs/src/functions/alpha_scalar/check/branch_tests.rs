@@ -189,15 +189,6 @@ fn valid_single_placeholder_scalar() {
         },
         tasks: vec![BranchTaskExpression::PlaceholderScalarFunction(
             PlaceholderScalarFunctionTaskExpression {
-                params: crate::functions::inventions::Params {
-                    depth: 1,
-                    min_branch_width: 1,
-                    max_branch_width: 3,
-                    min_leaf_width: 1,
-                    max_leaf_width: 5,
-                    spec: "test spec".to_string(),
-                    name: "test".to_string(),
-                },
                 input_schema: ObjectInputSchema {
                     r#type: Default::default(),
                     description: None,
@@ -250,15 +241,6 @@ fn valid_multiple_tasks() {
             ),
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 5,
-                        spec: "test spec".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: ObjectInputSchema {
                         r#type: Default::default(),
                         description: None,
@@ -605,15 +587,6 @@ fn scalar_diversity_pass_placeholder_with_transform() {
         tasks: vec![
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 5,
-                        spec: "test spec".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: ObjectInputSchema {
                         r#type: Default::default(),
                         description: None,
@@ -634,15 +607,6 @@ fn scalar_diversity_pass_placeholder_with_transform() {
             ),
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 5,
-                        spec: "test spec".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: ObjectInputSchema {
                         r#type: Default::default(),
                         description: None,
@@ -991,15 +955,6 @@ fn placeholder_field_validation_single_permutation() {
             ),
             BranchTaskExpression::PlaceholderScalarFunction(
                 PlaceholderScalarFunctionTaskExpression {
-                    params: crate::functions::inventions::Params {
-                        depth: 1,
-                        min_branch_width: 1,
-                        max_branch_width: 3,
-                        min_leaf_width: 1,
-                        max_leaf_width: 5,
-                        spec: "test spec".to_string(),
-                        name: "test".to_string(),
-                    },
                     input_schema: ObjectInputSchema {
                         r#type: Default::default(),
                         description: None,

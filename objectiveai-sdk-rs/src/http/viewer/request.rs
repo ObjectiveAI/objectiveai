@@ -61,46 +61,6 @@ pub enum FunctionExecutionRequest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "http.viewer.FunctionInventionRecursiveCreateParams")]
-pub struct FunctionInventionRecursiveCreateParams {
-    pub id: String,
-    #[serde(flatten)]
-    pub inner: Arc<crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "http.viewer.FunctionInventionRecursiveRequest")]
-#[serde(untagged)]
-pub enum FunctionInventionRecursiveRequest {
-    #[schemars(title = "Begin")]
-    Begin(FunctionInventionRecursiveCreateParams),
-    #[schemars(title = "Continue")]
-    Continue(crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk),
-    #[schemars(title = "Error")]
-    Error(ResponseError),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "http.viewer.LaboratoryExecutionCreateParams")]
-pub struct LaboratoryExecutionCreateParams {
-    pub id: String,
-    #[serde(flatten)]
-    pub inner: Arc<crate::laboratories::executions::request::LaboratoryExecutionCreateParams>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "http.viewer.LaboratoryExecutionRequest")]
-#[serde(untagged)]
-pub enum LaboratoryExecutionRequest {
-    #[schemars(title = "Begin")]
-    Begin(LaboratoryExecutionCreateParams),
-    #[schemars(title = "Continue")]
-    Continue(crate::laboratories::executions::response::streaming::LaboratoryExecutionChunk),
-    #[schemars(title = "Error")]
-    Error(ResponseError),
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "http.viewer.Request")]
 #[serde(untagged)]
 pub enum Request {
@@ -108,8 +68,4 @@ pub enum Request {
     AgentCompletion(AgentCompletionRequest),
     #[schemars(title = "FunctionExecution")]
     FunctionExecution(FunctionExecutionRequest),
-    #[schemars(title = "FunctionInventionRecursive")]
-    FunctionInventionRecursive(FunctionInventionRecursiveRequest),
-    #[schemars(title = "LaboratoryExecution")]
-    LaboratoryExecution(LaboratoryExecutionRequest),
 }

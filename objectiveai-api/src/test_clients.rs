@@ -2,8 +2,8 @@
 //!
 //! Every test in this crate reuses these singletons. Each layered
 //! client embeds its dependencies as `Arc<_>`, so sharing the root
-//! agent client transitively shares the proxy spawner, the
-//! invention-server spawner, and every stub. That collapses the
+//! agent client transitively shares the proxy spawner and every
+//! stub. That collapses the
 //! per-test loopback listener count from O(770+) to O(1) per
 //! `cargo test` process — eliminating the WinSock SYN-backlog and
 //! ephemeral-port exhaustion that surfaced as flaky `ECONNREFUSED` /
@@ -60,29 +60,6 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
         _path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError> {
-        Err(objectiveai_sdk::error::ResponseError {
-            code: 501,
-            message: serde_json::json!("stub retrieve client should not be called"),
-        })
-    }
-
-    async fn get_prompt<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai_sdk::RemotePath,
-    ) -> Result<Option<objectiveai_sdk::functions::inventions::prompts::RemotePrompt>, objectiveai_sdk::error::ResponseError> {
-        Err(objectiveai_sdk::error::ResponseError {
-            code: 501,
-            message: serde_json::json!("stub retrieve client should not be called"),
-        })
-    }
-
-    async fn get_function_invention_state_file<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
-        _path: &objectiveai_sdk::RemotePath,
-        _filename: &'static str,
-    ) -> Result<Option<String>, objectiveai_sdk::error::ResponseError> {
         Err(objectiveai_sdk::error::ResponseError {
             code: 501,
             message: serde_json::json!("stub retrieve client should not be called"),
@@ -147,51 +124,6 @@ impl crate::functions::executions::usage_handler::UsageHandler<ctx::DefaultConte
         _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
         _request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         _response: objectiveai_sdk::functions::executions::response::unary::FunctionExecution,
-    ) {
-    }
-}
-
-pub(crate) struct StubInventionUsageHandler;
-
-#[async_trait::async_trait]
-impl crate::functions::inventions::usage_handler::UsageHandler<ctx::DefaultContextExt>
-    for StubInventionUsageHandler
-{
-    async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai_sdk::functions::inventions::request::FunctionInventionCreateParams>,
-        _response: objectiveai_sdk::functions::inventions::response::unary::FunctionInvention,
-    ) {
-    }
-}
-
-pub(crate) struct StubRecursiveUsageHandler;
-
-#[async_trait::async_trait]
-impl crate::functions::inventions::recursive::usage_handler::UsageHandler<ctx::DefaultContextExt>
-    for StubRecursiveUsageHandler
-{
-    async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai_sdk::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams>,
-        _response: objectiveai_sdk::functions::inventions::recursive::response::unary::FunctionInventionRecursive,
-    ) {
-    }
-}
-
-pub(crate) struct StubLabUsageHandler;
-
-#[async_trait::async_trait]
-impl crate::laboratories::executions::usage_handler::UsageHandler<ctx::DefaultContextExt>
-    for StubLabUsageHandler
-{
-    async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _request: Arc<objectiveai_sdk::laboratories::executions::request::LaboratoryExecutionCreateParams>,
-        _response: objectiveai_sdk::laboratories::executions::response::unary::LaboratoryExecution,
     ) {
     }
 }
@@ -301,58 +233,11 @@ pub(crate) type FunctionExecutionsClient = crate::functions::executions::Client<
     StubFunctionUsageHandler,
 >;
 
-pub(crate) type FunctionInventionsClient = crate::functions::inventions::Client<
-    ctx::DefaultContextExt,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    crate::agent::completions::mock::Client,
-    StubRetrieveClient,
-    StubRetrieveClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    StubAgentUsageHandler,
-    StubInventionUsageHandler,
-    crate::retrieval::retrieve::mock::MockClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    crate::retrieval::retrieve::mock::MockClient,
->;
-
-pub(crate) type FunctionRecursiveInventionsClient = crate::functions::inventions::recursive::Client<
-    ctx::DefaultContextExt,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    crate::agent::completions::mock::Client,
-    StubRetrieveClient,
-    StubRetrieveClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    StubAgentUsageHandler,
-    StubInventionUsageHandler,
-    crate::retrieval::retrieve::mock::MockClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    StubRecursiveUsageHandler,
->;
-
-pub(crate) type LaboratoryClient = crate::laboratories::executions::Client<
-    ctx::DefaultContextExt,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    UnimplementedUpstreamClient,
-    crate::agent::completions::mock::Client,
-    StubRetrieveClient,
-    StubRetrieveClient,
-    crate::retrieval::retrieve::mock::MockClient,
-    StubAgentUsageHandler,
-    StubLabUsageHandler,
-    crate::laboratories::orchestrator::mock::Orchestrator,
->;
-
 // ---------------------------------------------------------------------------
 // Process-wide background runtime.
 //
-// Every long-lived listener task (the proxy's `axum::serve`, the invention
-// server's `axum::serve`) lives on this runtime so it survives across
+// Every long-lived listener task (the proxy's `axum::serve`) lives
+// on this runtime so it survives across
 // `#[tokio::test]` runtimes that drop at end-of-test. Without this, the
 // first test to call `proxy_spawner().get().await` would anchor the
 // listener task to its own runtime; that runtime drops; the listener task
@@ -373,8 +258,8 @@ static BACKGROUND_RUNTIME: LazyLock<tokio::runtime::Runtime> = LazyLock::new(|| 
 // ---------------------------------------------------------------------------
 // Process-wide cap on how many `#[tokio::test]`s in this crate may be in
 // flight at once. Read from `TOKIO_TEST_PARALLELISM`; default 10. The
-// bound exists because all tests share one in-process MCP proxy and one
-// invention server (the singletons in this file), so they also share the
+// bound exists because all tests share one in-process MCP proxy
+// (the singletons in this file), so they also share the
 // same `(127.0.0.1, proxy_port)` outbound 4-tuple — uncapped parallelism
 // saturates Windows' ephemeral source-port range and surfaces as
 // `WSAEADDRINUSE` (10048). Bound parallelism = bound port churn.
@@ -421,53 +306,6 @@ static AGENT_RETRIEVE_ROUTER: LazyLock<Arc<AgentRetrieveRouter>> = LazyLock::new
     ))
 });
 
-static FUNCTION_RETRIEVE_ROUTER: LazyLock<Arc<FunctionRetrieveRouter>> = LazyLock::new(|| {
-    Arc::new(crate::retrieval::retrieve::Router::new(
-        MOCK_RETRIEVE_CLIENT.clone(),
-        MOCK_RETRIEVE_CLIENT.clone(),
-        MOCK_RETRIEVE_CLIENT.clone(),
-    ))
-});
-
-static VIEWER_CLIENT: LazyLock<Arc<crate::viewer::Client<ctx::DefaultContextExt>>> = LazyLock::new(|| {
-    Arc::new(crate::viewer::Client::new(
-        reqwest::Client::new(),
-        None,
-        None,
-        Duration::ZERO,
-        Duration::ZERO,
-        0.0,
-        1.0,
-        Duration::ZERO,
-        Duration::from_millis(1),
-    ))
-});
-
-static GITHUB_CLIENT: LazyLock<Arc<crate::github::Client>> = LazyLock::new(|| {
-    Arc::new(crate::github::Client::new(
-        reqwest::Client::new(),
-        None,
-        false,
-        String::new(),
-        String::new(),
-        String::new(),
-        Duration::ZERO,
-        Duration::ZERO,
-        0.0,
-        1.0,
-        Duration::ZERO,
-        Duration::ZERO,
-    ))
-});
-
-static FILESYSTEM_CLIENT: LazyLock<Arc<crate::filesystem::Client>> = LazyLock::new(|| {
-    Arc::new(crate::filesystem::Client::new(
-        std::path::PathBuf::from("/tmp/objectiveai-test"),
-        "ObjectiveAI".to_string(),
-        "noreply@objectiveai.dev".to_string(),
-    ))
-});
-
 // MCP backoff + timeout config used by both the singleton MCP client
 // (api → proxy) and the in-process proxy spawner (proxy → upstream).
 // Values match `objectiveai-api/src/run.rs::ConfigBuilder::build`'s
@@ -500,7 +338,7 @@ static MCP_CLIENT: LazyLock<Arc<objectiveai_sdk::mcp::Client>> = LazyLock::new(|
     // runtime drops, every cached connection's dispatch task dies and
     // subsequent tests using this `LazyLock` see
     // `runtime dropped the dispatch task` errors on POSTs to the
-    // proxy, which manifest as parallel-only invention test flakes.
+    // proxy, which manifest as parallel-only test flakes.
     let _guard = BACKGROUND_RUNTIME.handle().enter();
     let reqwest = reqwest::Client::builder()
         .build()
@@ -539,13 +377,6 @@ static PROXY_SPAWNER: LazyLock<Arc<crate::agent::completions::ProxySpawner>> = L
     ))
 });
 
-static INVENTION_SERVER_SPAWNER: LazyLock<Arc<crate::functions::inventions::InventionServerSpawner>> =
-    LazyLock::new(|| {
-        Arc::new(crate::functions::inventions::InventionServerSpawner::new_with_handle(
-            BACKGROUND_RUNTIME.handle().clone(),
-        ))
-    });
-
 // --- single shared instances of every Stub / Unimplemented / Mock client ---
 
 static STUB_RETRIEVE_CLIENT: LazyLock<Arc<StubRetrieveClient>> =
@@ -558,12 +389,6 @@ static STUB_VECTOR_USAGE_HANDLER: LazyLock<Arc<StubVectorUsageHandler>> =
     LazyLock::new(|| Arc::new(StubVectorUsageHandler));
 static STUB_FUNCTION_USAGE_HANDLER: LazyLock<Arc<StubFunctionUsageHandler>> =
     LazyLock::new(|| Arc::new(StubFunctionUsageHandler));
-static STUB_INVENTION_USAGE_HANDLER: LazyLock<Arc<StubInventionUsageHandler>> =
-    LazyLock::new(|| Arc::new(StubInventionUsageHandler));
-static STUB_RECURSIVE_USAGE_HANDLER: LazyLock<Arc<StubRecursiveUsageHandler>> =
-    LazyLock::new(|| Arc::new(StubRecursiveUsageHandler));
-static STUB_LAB_USAGE_HANDLER: LazyLock<Arc<StubLabUsageHandler>> =
-    LazyLock::new(|| Arc::new(StubLabUsageHandler));
 static STUB_COMPLETION_VOTES_FETCHER: LazyLock<Arc<StubCompletionVotesFetcher>> =
     LazyLock::new(|| Arc::new(StubCompletionVotesFetcher));
 static STUB_CACHE_VOTE_FETCHER: LazyLock<Arc<StubCacheVoteFetcher>> =
@@ -574,10 +399,8 @@ static UNIMPLEMENTED_CLAUDE_AGENT_SDK: LazyLock<Arc<UnimplementedUpstreamClient>
     LazyLock::new(|| Arc::new(UnimplementedUpstreamClient));
 static UNIMPLEMENTED_CODEX_SDK: LazyLock<Arc<UnimplementedUpstreamClient>> =
     LazyLock::new(|| Arc::new(UnimplementedUpstreamClient));
-static MOCK_ORCHESTRATOR: LazyLock<Arc<crate::laboratories::orchestrator::mock::Orchestrator>> =
-    LazyLock::new(|| Arc::new(crate::laboratories::orchestrator::mock::Orchestrator));
 
-// --- the six API client singletons, each constructed once, ever ---
+// --- the API client singletons, each constructed once, ever ---
 
 static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
     Arc::new(crate::agent::completions::Client::new(
@@ -590,7 +413,6 @@ static AGENT: LazyLock<Arc<AgentClient>> = LazyLock::new(|| {
         UNIMPLEMENTED_CLAUDE_AGENT_SDK.clone(),
         UNIMPLEMENTED_CODEX_SDK.clone(),
         MOCK_UPSTREAM.clone(),
-        VIEWER_CLIENT.clone(),
         Duration::ZERO,
         Duration::ZERO,
         0.0,
@@ -616,54 +438,9 @@ static FUNCTION_EXECUTIONS: LazyLock<Arc<FunctionExecutionsClient>> = LazyLock::
     Arc::new(crate::functions::executions::Client::new(
         AGENT.clone(),
         VECTOR.clone(),
-        VIEWER_CLIENT.clone(),
         AGENT_RETRIEVE_ROUTER.clone(),
         STUB_FUNCTION_USAGE_HANDLER.clone(),
     ))
-});
-
-static FUNCTION_INVENTIONS: LazyLock<Arc<FunctionInventionsClient>> = LazyLock::new(|| {
-    Arc::new(crate::functions::inventions::Client::new(
-        AGENT.clone(),
-        GITHUB_CLIENT.clone(),
-        FILESYSTEM_CLIENT.clone(),
-        FUNCTION_RETRIEVE_ROUTER.clone(),
-        STUB_INVENTION_USAGE_HANDLER.clone(),
-        INVENTION_SERVER_SPAWNER.clone(),
-        true,
-        false,
-        // Test override matching production default. The earlier 5 s
-        // value relied on quiet test conditions to make a hang surface
-        // as a clean `ToolSubscriptionTimeout`, but under the full
-        // suite's parallel load (recursive inventions × ≤10
-        // concurrent tests × 5 sub-inventions per recursive depth)
-        // BG_RUNTIME's 2 workers are oversubscribed and the listener
-        // task can be delayed past 5 s, surfacing as snapshot
-        // mismatches because step 2 (Input Schema) bails with
-        // `ToolSubscriptionTimeout` after only step 1 (Essay)
-        // completes. Lifting to the production default eliminates
-        // load-induced false-timeout flakes; a real hang still surfaces
-        // within a single test's wall-clock budget.
-        std::time::Duration::from_secs(30),
-    ))
-});
-
-static FUNCTION_RECURSIVE_INVENTIONS: LazyLock<Arc<FunctionRecursiveInventionsClient>> = LazyLock::new(|| {
-    Arc::new(crate::functions::inventions::recursive::Client::new(
-        FUNCTION_INVENTIONS.clone(),
-        VIEWER_CLIENT.clone(),
-        STUB_RECURSIVE_USAGE_HANDLER.clone(),
-    ))
-});
-
-static LABORATORY: LazyLock<Arc<LaboratoryClient>> = LazyLock::new(|| {
-    Arc::new(crate::laboratories::executions::Client {
-        agent_client: AGENT.clone(),
-        retrieve_router: AGENT_RETRIEVE_ROUTER.clone(),
-        usage_handler: STUB_LAB_USAGE_HANDLER.clone(),
-        viewer: VIEWER_CLIENT.clone(),
-        orchestrator: MOCK_ORCHESTRATOR.clone(),
-    })
 });
 
 // ---------------------------------------------------------------------------
@@ -681,7 +458,7 @@ pub(crate) fn proxy_spawner() -> Arc<crate::agent::completions::ProxySpawner> {
 
 /// Drive `fut` on the long-lived `BACKGROUND_RUNTIME` instead of a per-
 /// `#[test]` runtime. Required for any test that exercises the
-/// proxy/invention pipeline because reqwest's hyper connection pool
+/// proxy pipeline because reqwest's hyper connection pool
 /// spawns its dispatch tasks on whatever runtime is current when a
 /// connection is established and reused. A short-lived per-test runtime
 /// drops mid-flight, killing pooled dispatch tasks the instant another
@@ -692,10 +469,6 @@ pub(crate) fn proxy_spawner() -> Arc<crate::agent::completions::ProxySpawner> {
 /// flakes that disappear under solo execution.
 pub(crate) fn run_test<F: std::future::Future>(fut: F) -> F::Output {
     BACKGROUND_RUNTIME.block_on(fut)
-}
-
-pub(crate) fn invention_server_spawner() -> Arc<crate::functions::inventions::InventionServerSpawner> {
-    INVENTION_SERVER_SPAWNER.clone()
 }
 
 pub(crate) fn mcp_client() -> Arc<objectiveai_sdk::mcp::Client> {
@@ -714,14 +487,3 @@ pub(crate) fn function_executions() -> Arc<FunctionExecutionsClient> {
     FUNCTION_EXECUTIONS.clone()
 }
 
-pub(crate) fn function_inventions() -> Arc<FunctionInventionsClient> {
-    FUNCTION_INVENTIONS.clone()
-}
-
-pub(crate) fn function_recursive_inventions() -> Arc<FunctionRecursiveInventionsClient> {
-    FUNCTION_RECURSIVE_INVENTIONS.clone()
-}
-
-pub(crate) fn laboratory() -> Arc<LaboratoryClient> {
-    LABORATORY.clone()
-}

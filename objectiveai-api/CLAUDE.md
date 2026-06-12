@@ -5,7 +5,7 @@
 The API server is built on a **stream-first, zero-collect** philosophy. Every layer produces a `Stream` of typed chunks and yields them immediately to the consumer. Nothing is buffered or collected in the hot path — chunks flow from upstream LLM providers through to the HTTP response with minimal per-chunk overhead.
 
 This enables:
-- **Consistent progress notifications** at every level (upstream tokens → agent completions → vector votes → function execution → invention steps)
+- **Consistent progress notifications** at every level (upstream tokens → agent completions → vector votes → function execution)
 - **Low memory overhead** — no intermediate `Vec<Chunk>` allocations in the streaming path
 - **Composable concurrency** — parallel streams are merged via `select_all`, not joined-then-collected
 
@@ -14,8 +14,8 @@ This enables:
 The system has 4 layers, each defining its own chunk type and wrapping the layer below:
 
 ```
-Layer 4: Function Executions / Inventions
-         ↓ FunctionExecutionChunk / FunctionInventionChunk
+Layer 4: Function Executions
+         ↓ FunctionExecutionChunk
 Layer 3: Vector Completions
          ↓ VectorCompletionChunk
 Layer 2: Agent Completions
@@ -52,7 +52,7 @@ Orchestrates upstream selection, backoff retry across agents (primary + fallback
 
 **`run_agent_loop()`** is the core: it creates the upstream stream and enters an `async_stream::stream!` that yields chunks as they arrive. Uses a **one-ahead buffer** — the previous chunk is yielded immediately, the current chunk is held — so usage can be attached to the final chunk without collecting everything.
 
-After each assistant turn, checks for callable tool calls in the accumulated response. If tools were called, executes them (MCP or invention tools), yields tool-response chunks, pushes results onto the continuation, and calls `upstream.create()` again for the next turn. All of this happens within the same stream — no intermediate collection.
+After each assistant turn, checks for callable tool calls in the accumulated response. If tools were called, executes them (MCP), yields tool-response chunks, pushes results onto the continuation, and calls `upstream.create()` again for the next turn. All of this happens within the same stream — no intermediate collection.
 
 ### Vector Completions Client (Layer 3)
 
@@ -62,17 +62,13 @@ Each LLM's agent stream is wrapped: every `AgentCompletionChunk` becomes a `Vect
 
 The main stream uses the same **one-ahead buffer** pattern: it updates running `weights` and `scores` from each vote as it arrives and attaches cumulative scores to every outgoing chunk. The consumer sees scores converge in real time as votes arrive.
 
-### Function Executions Client (Layer 4a)
+### Function Executions Client (Layer 4)
 
 Fetches function + profile, flattens into `FlatTaskProfile` tasks, executes all vector completion tasks via the vector client's `create_streaming()`. Each task's vector stream is wrapped into `FunctionExecutionChunk` — **immediate passthrough**. After all tasks complete, applies output expressions and optionally runs a reasoning summary via the agent client.
 
-### Function Inventions Client (Layer 4b)
-
-Runs 5 sequential steps (essay, input schema, essay tasks, tasks, description). Each step calls `agent_client.create_streaming()` with invention tools. Every `StreamItem::Chunk` from the agent stream is wrapped into a `FunctionInventionChunk` — **immediate passthrough**. Between steps, state chunks are yielded to update the consumer on invention progress. If validation fails, retries by pushing a retry prompt onto the continuation within the same stream.
-
 ### The `create_streaming_handle_usage()` Pattern
 
-Every layer (agent, vector, function executions, inventions) follows the same pattern for decoupled usage reporting:
+Every layer (agent, vector, function executions) follows the same pattern for decoupled usage reporting:
 
 ```
 let (tx, rx) = unbounded_channel();
@@ -117,16 +113,6 @@ Several test suites use snapshot files. Set the corresponding env var to `1` to 
 | `UPDATE_AGENT_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS` | `agent::completions::client_tests` | `assets/agent/completions/client_tests/` |
 | `UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS` | `vector::completions::client_tests` | `assets/vector/completions/client_tests/` |
 | `UPDATE_FUNCTIONS_EXECUTIONS_CLIENT_TESTS_SNAPSHOTS` | `functions::executions::client_tests` | `assets/functions/executions/client_tests/` |
-| `UPDATE_FUNCTIONS_INVENTIONS_CLIENT_TESTS_SNAPSHOTS` | `functions::inventions::client_tests` | `assets/functions/inventions/client_tests/` |
-| `UPDATE_FUNCTIONS_INVENTIONS_RECURSIVE_CLIENT_TESTS_SNAPSHOTS` | `functions::inventions::recursive::client_tests` | `assets/functions/inventions/recursive/client_tests/` |
-
-Example — regenerate all invention snapshots (regular + recursive) in one command:
-
-```bash
-UPDATE_FUNCTIONS_INVENTIONS_CLIENT_TESTS_SNAPSHOTS=1 \
-UPDATE_FUNCTIONS_INVENTIONS_RECURSIVE_CLIENT_TESTS_SNAPSHOTS=1 \
-cargo test -p objectiveai-api "functions::inventions"
-```
 
 Example — regenerate all snapshots at once:
 
@@ -134,7 +120,5 @@ Example — regenerate all snapshots at once:
 UPDATE_AGENT_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1 \
 UPDATE_VECTOR_COMPLETIONS_CLIENT_TESTS_SNAPSHOTS=1 \
 UPDATE_FUNCTIONS_EXECUTIONS_CLIENT_TESTS_SNAPSHOTS=1 \
-UPDATE_FUNCTIONS_INVENTIONS_CLIENT_TESTS_SNAPSHOTS=1 \
-UPDATE_FUNCTIONS_INVENTIONS_RECURSIVE_CLIENT_TESTS_SNAPSHOTS=1 \
 cargo test -p objectiveai-api
 ```

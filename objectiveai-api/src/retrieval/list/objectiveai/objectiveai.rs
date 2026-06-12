@@ -82,24 +82,6 @@ where
         .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn list_prompts<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
-    ) -> Result<objectiveai_sdk::functions::inventions::prompts::response::ListPromptResponse, ResponseError>
-    {
-        let client = self.client.with_authorization(ctx).await;
-        objectiveai_sdk::functions::inventions::prompts::list_prompts(
-            &client,
-            objectiveai_sdk::functions::inventions::prompts::request::ListPromptsRequest {
-                source: Some(
-                    objectiveai_sdk::functions::inventions::prompts::request::ListPromptsSource::Objectiveai,
-                ),
-            },
-        )
-        .await
-        .map_err(|e| ResponseError::from(&e))
-    }
-
     async fn list_function_profile_pairs<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,
         ctx: &ctx::Context<CTXEXT, PC>,

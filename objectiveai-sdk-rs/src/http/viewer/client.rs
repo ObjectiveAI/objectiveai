@@ -18,9 +18,7 @@ use tokio::sync::mpsc;
 
 use super::request::{
     AgentCompletionCreateParams, AgentCompletionRequest,
-    FunctionExecutionCreateParams, FunctionExecutionRequest,
-    FunctionInventionRecursiveCreateParams, FunctionInventionRecursiveRequest,
-    LaboratoryExecutionCreateParams, LaboratoryExecutionRequest, Request,
+    FunctionExecutionCreateParams, FunctionExecutionRequest, Request,
     ResponseError,
 };
 
@@ -118,12 +116,6 @@ impl Client {
                     }
                     Request::FunctionExecution(_) => {
                         format!("{}/functions/executions", address)
-                    }
-                    Request::FunctionInventionRecursive(_) => {
-                        format!("{}/functions/inventions/recursive", address)
-                    }
-                    Request::LaboratoryExecution(_) => {
-                        format!("{}/laboratories/executions", address)
                     }
                 };
 
@@ -308,107 +300,4 @@ impl Client {
         );
     }
 
-    pub fn send_function_invention_recursive_begin(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        id: String,
-        request: Arc<
-            crate::functions::inventions::recursive::request::FunctionInventionRecursiveCreateParams,
-        >,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::FunctionInventionRecursive(
-                FunctionInventionRecursiveRequest::Begin(
-                    FunctionInventionRecursiveCreateParams {
-                        id,
-                        inner: request,
-                    },
-                ),
-            ),
-        );
-    }
-
-    pub fn send_function_invention_recursive_continue(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        chunk: crate::functions::inventions::recursive::response::streaming::FunctionInventionRecursiveChunk,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::FunctionInventionRecursive(
-                FunctionInventionRecursiveRequest::Continue(chunk),
-            ),
-        );
-    }
-
-    pub fn send_function_invention_recursive_error(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        id: String,
-        error: crate::error::ResponseError,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::FunctionInventionRecursive(
-                FunctionInventionRecursiveRequest::Error(ResponseError {
-                    id,
-                    inner: error,
-                }),
-            ),
-        );
-    }
-
-    pub fn send_laboratory_execution_begin(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        id: String,
-        request: Arc<crate::laboratories::executions::request::LaboratoryExecutionCreateParams>,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::LaboratoryExecution(LaboratoryExecutionRequest::Begin(
-                LaboratoryExecutionCreateParams { id, inner: request },
-            )),
-        );
-    }
-
-    pub fn send_laboratory_execution_continue(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        chunk: crate::laboratories::executions::response::streaming::LaboratoryExecutionChunk,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::LaboratoryExecution(LaboratoryExecutionRequest::Continue(
-                chunk,
-            )),
-        );
-    }
-
-    pub fn send_laboratory_execution_error(
-        &self,
-        address: Option<Arc<String>>,
-        signature: Option<Arc<String>>,
-        id: String,
-        error: crate::error::ResponseError,
-    ) {
-        self.enqueue(
-            address,
-            signature,
-            Request::LaboratoryExecution(LaboratoryExecutionRequest::Error(
-                ResponseError { id, inner: error },
-            )),
-        );
-    }
 }

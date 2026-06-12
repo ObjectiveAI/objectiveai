@@ -18,14 +18,6 @@ impl super::ContextExt for DefaultContextExt {
         None
     }
 
-    async fn viewer_signature(&self) -> Option<std::sync::Arc<String>> {
-        None
-    }
-
-    async fn viewer_address(&self) -> Option<std::sync::Arc<String>> {
-        None
-    }
-
     async fn commit_author_name(&self) -> Option<std::sync::Arc<String>> {
         None
     }

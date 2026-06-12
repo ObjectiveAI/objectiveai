@@ -8,7 +8,7 @@
 //! turn walks the continuation to count how many [`Call`]s have
 //! already been satisfied; the next un-matched [`Call`] is what that
 //! turn emits. Once every [`Call`] has been satisfied, the mock falls
-//! through to its normal mode-driven dispatcher.
+//! through to its normal dispatcher.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

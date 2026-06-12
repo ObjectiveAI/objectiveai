@@ -456,42 +456,6 @@ where
                         heap.alloc(m as i64)
                     }),
                 );
-                module.set(
-                    "tasks_min",
-                    owned.tasks_min.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "tasks_max",
-                    owned.tasks_max.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "depth",
-                    owned.depth.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "name",
-                    owned
-                        .name
-                        .as_ref()
-                        .map_or(StarlarkValue::new_none(), |v| {
-                            heap.alloc(v.as_str())
-                        }),
-                );
-                module.set(
-                    "spec",
-                    owned
-                        .spec
-                        .as_ref()
-                        .map_or(StarlarkValue::new_none(), |v| {
-                            heap.alloc(v.as_str())
-                        }),
-                );
             }
             super::Params::Ref(r) => {
                 module.set("input", r.input.to_starlark_value(heap));
@@ -506,32 +470,6 @@ where
                     r.map.map_or(StarlarkValue::new_none(), |m| {
                         heap.alloc(m as i64)
                     }),
-                );
-                module.set(
-                    "tasks_min",
-                    r.tasks_min.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "tasks_max",
-                    r.tasks_max.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "depth",
-                    r.depth.map_or(StarlarkValue::new_none(), |v| {
-                        heap.alloc(v as i64)
-                    }),
-                );
-                module.set(
-                    "name",
-                    r.name.map_or(StarlarkValue::new_none(), |v| heap.alloc(v)),
-                );
-                module.set(
-                    "spec",
-                    r.spec.map_or(StarlarkValue::new_none(), |v| heap.alloc(v)),
                 );
             }
         }

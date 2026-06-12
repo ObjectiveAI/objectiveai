@@ -1,7 +1,6 @@
 //! Tests for [`ChatCompletionCreateParams`] construction.
 
 use super::*;
-use std::sync::Arc;
 
 /// Helper to resolve tools and build params via the per-agent proxy
 /// connection. Pass `None` when the test needs no tools.
@@ -215,7 +214,7 @@ async fn test_top_logprobs_zero_omits_logprobs() {
 }
 
 #[tokio::test]
-async fn test_multiple_invention_tools_no_conflicts() {
+async fn test_multiple_mcp_tools_no_conflicts() {
     let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
         objectiveai_sdk::agent::openrouter::AgentBase {
@@ -277,33 +276,25 @@ async fn test_multiple_invention_tools_no_conflicts() {
         m
     };
 
-    let invention_tools = vec![
-        objectiveai_sdk::functions::inventions::InventionTool {
-            name: "search".to_string(),
-            description: "Search the web",
-            parameters: search_params.clone(),
-            call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
-        },
-        objectiveai_sdk::functions::inventions::InventionTool {
-            name: "calculate".to_string(),
-            description: "Evaluate a math expression",
-            parameters: calculate_params.clone(),
-            call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
-        },
-        objectiveai_sdk::functions::inventions::InventionTool {
-            name: "translate".to_string(),
-            description: "Translate text to another language",
-            parameters: translate_params.clone(),
-            call: Arc::new(|_| Box::pin(async { Ok("".into()) })),
-        },
+    let mcp_tools = vec![
+        crate::test_mcp_server::TestTool::from_parts(
+            "search",
+            "Search the web",
+            search_params.clone(),
+        ),
+        crate::test_mcp_server::TestTool::from_parts(
+            "calculate",
+            "Evaluate a math expression",
+            calculate_params.clone(),
+        ),
+        crate::test_mcp_server::TestTool::from_parts(
+            "translate",
+            "Translate text to another language",
+            translate_params.clone(),
+        ),
     ];
 
-    let inv_server = crate::test_mcp_server::spawn(
-        "test",
-        invention_tools.into_iter()
-            .map(crate::test_mcp_server::TestTool::from_invention)
-            .collect(),
-    ).await;
+    let inv_server = crate::test_mcp_server::spawn("test", mcp_tools).await;
     let conn = crate::test_mcp_server::connect_through_proxy(&[&inv_server]).await;
     let mut result = build_params(
         &agent,
@@ -491,7 +482,7 @@ async fn test_toolcall_not_required_uses_auto_choice() {
 }
 
 #[tokio::test]
-async fn test_invention_tool_parameters_preserved() {
+async fn test_mcp_tool_parameters_preserved() {
     let _permit = crate::test_clients::acquire_test_permit().await;
     let agent = objectiveai_sdk::agent::openrouter::Agent::try_from(
         objectiveai_sdk::agent::openrouter::AgentBase {
@@ -550,21 +541,15 @@ async fn test_invention_tool_parameters_preserved() {
         serde_json::Value::Bool(false),
     );
 
-    let invention_tools = vec![
-        objectiveai_sdk::functions::inventions::InventionTool {
-            name: "analyze".to_string(),
-            description: "Analyze data",
-            parameters: inv_params.clone(),
-            call: Arc::new(|_| Box::pin(async { Ok("ok".into()) })),
-        },
+    let mcp_tools = vec![
+        crate::test_mcp_server::TestTool::from_parts(
+            "analyze",
+            "Analyze data",
+            inv_params.clone(),
+        ),
     ];
 
-    let inv_server = crate::test_mcp_server::spawn(
-        "test",
-        invention_tools.into_iter()
-            .map(crate::test_mcp_server::TestTool::from_invention)
-            .collect(),
-    ).await;
+    let inv_server = crate::test_mcp_server::spawn("test", mcp_tools).await;
     let conn = crate::test_mcp_server::connect_through_proxy(&[&inv_server]).await;
     let result = build_params(
         &agent,

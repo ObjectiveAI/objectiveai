@@ -61,51 +61,6 @@ impl BranchTaskExpression {
     arbitrary::Arbitrary,
 )]
 #[serde(tag = "type")]
-#[schemars(
-    rename = "functions.alpha_scalar.PartialPlaceholderBranchTaskExpression"
-)]
-pub enum PartialPlaceholderBranchTaskExpression {
-    #[serde(rename = "placeholder.alpha.scalar.function")]
-    PlaceholderScalarFunction(PartialPlaceholderScalarFunctionTaskExpression),
-}
-
-impl PartialPlaceholderBranchTaskExpression {
-    pub fn complete(
-        self,
-        name: String,
-        depth: u64,
-        min_branch_width: u64,
-        max_branch_width: u64,
-        min_leaf_width: u64,
-        max_leaf_width: u64,
-    ) -> BranchTaskExpression {
-        match self {
-            PartialPlaceholderBranchTaskExpression::PlaceholderScalarFunction(
-                task,
-            ) => BranchTaskExpression::PlaceholderScalarFunction(
-                task.complete(
-                    name,
-                    depth,
-                    min_branch_width,
-                    max_branch_width,
-                    min_leaf_width,
-                    max_leaf_width,
-                ),
-            ),
-        }
-    }
-}
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    arbitrary::Arbitrary,
-)]
-#[serde(tag = "type")]
 #[schemars(rename = "functions.alpha_scalar.LeafTaskExpression")]
 pub enum LeafTaskExpression {
     #[serde(rename = "vector.completion")]
@@ -176,8 +131,6 @@ impl ScalarFunctionTaskExpression {
     rename = "functions.alpha_scalar.PlaceholderScalarFunctionTaskExpression"
 )]
 pub struct PlaceholderScalarFunctionTaskExpression {
-    #[serde(flatten)]
-    pub params: functions::inventions::Params,
     pub input_schema: super::expression::ScalarFunctionInputSchema,
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -212,54 +165,6 @@ impl PlaceholderScalarFunctionTaskExpression {
     ) -> ScalarFunctionTaskExpression {
         ScalarFunctionTaskExpression {
             path: path.clone(),
-            skip: self.skip,
-            input: self.input,
-        }
-    }
-}
-
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    arbitrary::Arbitrary,
-)]
-#[schemars(
-    rename = "functions.alpha_scalar.PartialPlaceholderScalarFunctionTaskExpression"
-)]
-pub struct PartialPlaceholderScalarFunctionTaskExpression {
-    pub spec: String,
-    pub input_schema: super::expression::ScalarFunctionInputSchema,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub skip: Option<functions::expression::Expression>,
-    pub input: super::expression::ScalarFunctionInputValueExpression,
-}
-
-impl PartialPlaceholderScalarFunctionTaskExpression {
-    pub fn complete(
-        self,
-        name: String,
-        depth: u64,
-        min_branch_width: u64,
-        max_branch_width: u64,
-        min_leaf_width: u64,
-        max_leaf_width: u64,
-    ) -> PlaceholderScalarFunctionTaskExpression {
-        PlaceholderScalarFunctionTaskExpression {
-            params: functions::inventions::Params {
-                depth,
-                min_branch_width,
-                max_branch_width,
-                min_leaf_width,
-                max_leaf_width,
-                name,
-                spec: self.spec,
-            },
-            input_schema: self.input_schema,
             skip: self.skip,
             input: self.input,
         }

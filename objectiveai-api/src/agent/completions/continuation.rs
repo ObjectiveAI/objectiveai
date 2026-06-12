@@ -62,7 +62,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
     }
 
     /// The single MCP proxy connection for this agent (or `None` if the
-    /// agent had no MCP servers and no invention tools).
+    /// agent had no MCP servers).
     pub fn mcp_connection(&self) -> Option<&mcp::Connection> {
         match self {
             Self::Openrouter { mcp_connection, .. }
