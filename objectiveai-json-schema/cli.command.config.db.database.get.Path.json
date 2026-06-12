@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.db.database.get.Path",
-  "type": "string",
-  "enum": [
-    "config/db/database/get"
-  ]
-}

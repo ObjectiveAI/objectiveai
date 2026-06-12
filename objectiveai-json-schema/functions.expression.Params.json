@@ -3,19 +3,6 @@
   "description": "Owned version of expression parameters.",
   "type": "object",
   "properties": {
-    "depth": {
-      "description": "Current recursion depth.\nOnly provided for invention prompt expressions.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "input": {
       "description": "The function's input data.",
       "$ref": "functions.expression.InputValue"
@@ -33,59 +20,11 @@
         }
       ]
     },
-    "name": {
-      "description": "The function's name.\nOnly provided for invention prompt expressions.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "output": {
       "description": "Results from executed tasks. Only populated for task output expressions.",
       "anyOf": [
         {
           "$ref": "functions.expression.TaskOutput"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "spec": {
-      "description": "The specification text.\nOnly provided for invention prompt expressions.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "tasks_max": {
-      "description": "Resolved maximum task count for this node type.\nOnly provided for invention prompt expressions.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
-    "tasks_min": {
-      "description": "Resolved minimum task count for this node type.\nOnly provided for invention prompt expressions.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
         },
         {
           "type": "null"

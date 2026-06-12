@@ -4,7 +4,7 @@
   "type": "object",
   "properties": {
     "calls": {
-      "description": "Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal mode-driven\ndispatcher. Pure addition — agents without `calls` are\nunaffected.",
+      "description": "Deterministic-script override. When `Some`, the mock agent\nemits each [`super::Call`] as its own assistant turn —\n`tool_calls` first, then `content` — in array order. Each\nsubsequent turn inspects the continuation to count how many\n`Call`s have already been satisfied (assistant message with\nexactly that `Call`'s `tool_calls` (by name+arguments) and\n`content`); the next un-matched `Call` is what that turn\nemits. Once every `Call` has been satisfied in the\ncontinuation, the mock falls through to its normal\ndispatcher. Pure addition — agents without `calls` are\nunaffected.",
       "anyOf": [
         {
           "type": "array",
@@ -68,18 +68,6 @@
           "items": {
             "$ref": "agent.McpServer"
           }
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "mode": {
-      "description": "Mock agent mode. Defaults to `default`.",
-      "anyOf": [
-        {
-          "$ref": "agent.mock.Mode"
         },
         {
           "type": "null"

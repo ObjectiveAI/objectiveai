@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.objectiveai_authorization.get.Response",
+  "type": "object",
+  "properties": {
+    "objectiveai_authorization": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

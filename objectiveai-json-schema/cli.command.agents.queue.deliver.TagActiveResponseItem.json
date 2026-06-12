@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.queue.deliver.TagActiveResponseItem",
+  "description": "This un-upgraded tag's lock was held by a live owner — another\nprocess is already materializing it; the queued rows will reach\nthe agent it mints. Nothing was spawned for it.",
+  "type": "object",
+  "properties": {
+    "agent_tag": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "cli.command.agents.queue.deliver.TagActiveType"
+    }
+  }
+}

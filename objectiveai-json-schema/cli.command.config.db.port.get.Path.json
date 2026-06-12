@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.db.port.get.Path",
-  "type": "string",
-  "enum": [
-    "config/db/port/get"
-  ]
-}

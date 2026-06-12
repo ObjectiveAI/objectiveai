@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.viewer.port.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/viewer/port/get/request_schema"
-  ]
-}

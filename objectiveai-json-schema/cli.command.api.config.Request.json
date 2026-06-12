@@ -1,0 +1,57 @@
+{
+  "title": "cli.command.api.config.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.api.config.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.api.config.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.api.config.get.response_schema.Request"
+    },
+    {
+      "title": "Address",
+      "$ref": "cli.command.api.config.address.Request"
+    },
+    {
+      "title": "ObjectiveaiAuthorization",
+      "$ref": "cli.command.api.config.objectiveai_authorization.Request"
+    },
+    {
+      "title": "OpenrouterAuthorization",
+      "$ref": "cli.command.api.config.openrouter_authorization.Request"
+    },
+    {
+      "title": "GithubAuthorization",
+      "$ref": "cli.command.api.config.github_authorization.Request"
+    },
+    {
+      "title": "McpAuthorization",
+      "$ref": "cli.command.api.config.mcp_authorization.Request"
+    },
+    {
+      "title": "UserAgent",
+      "$ref": "cli.command.api.config.user_agent.Request"
+    },
+    {
+      "title": "HttpReferer",
+      "$ref": "cli.command.api.config.http_referer.Request"
+    },
+    {
+      "title": "XTitle",
+      "$ref": "cli.command.api.config.x_title.Request"
+    },
+    {
+      "title": "CommitAuthorName",
+      "$ref": "cli.command.api.config.commit_author_name.Request"
+    },
+    {
+      "title": "CommitAuthorEmail",
+      "$ref": "cli.command.api.config.commit_author_email.Request"
+    }
+  ]
+}

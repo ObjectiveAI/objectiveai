@@ -1,13 +1,4 @@
 {
   "title": "cli.command.agents.list.ResponseItem",
-  "anyOf": [
-    {
-      "title": "Favorite",
-      "$ref": "cli.command.agents.list.ResponseFavorite"
-    },
-    {
-      "title": "Item",
-      "$ref": "RemotePath"
-    }
-  ]
+  "$ref": "RemotePath"
 }

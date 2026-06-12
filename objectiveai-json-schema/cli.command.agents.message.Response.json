@@ -1,10 +1,10 @@
 {
   "title": "cli.command.agents.message.Response",
-  "description": "Unary response (stream=false). Exactly one of these per call.\nInternally tagged via `type`; bare unit variant `Delivered`\nserializes as `{\"type\":\"delivered\"}`.",
+  "description": "Unary response. Exactly one of these per call. Internally tagged\nvia `type`; bare unit variant `Delivered` serializes as\n`{\"type\":\"delivered\"}`.",
   "anyOf": [
     {
       "title": "Delivered",
-      "description": "The queue row reached a live agent (the API stamped its id\nonto an assistant chunk's `request_message_ids`) before\nany other race finalized.",
+      "description": "The queue row reached a live agent (its row flipped to\ninactive — the API stamped its id onto an assistant chunk's\n`request_message_ids`) before the agent's lock freed up.",
       "type": "object",
       "properties": {
         "type": {
@@ -16,48 +16,8 @@
       }
     },
     {
-      "title": "Enqueued",
-      "description": "The target's tag wasn't bound at call time (PENDING /\nABSENT). The message was deferred into the queue.",
-      "type": "object",
-      "properties": {
-        "agent_instance_hierarchy": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "omitempty": true
-        },
-        "agent_tag": {
-          "anyOf": [
-            {
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "omitempty": true
-        },
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "enqueued"
-          ]
-        }
-      }
-    },
-    {
       "title": "Id",
-      "description": "The stream=false path re-execed itself as a detached\nsubprocess (stream=true) and the subprocess yielded a\n`ResponseItem::Id` first. Same payload as spawn's\n`ResponseItem::Id(String)` — the bare\n`agent_instance_hierarchy` string the runner just minted.",
+      "description": "The handler execed a detached `agents spawn` child (with the\nagent's lock transferred into it) and the child yielded its\n`Id` first item — the bare `agent_instance_hierarchy` the\nrunner just minted or resumed.",
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {

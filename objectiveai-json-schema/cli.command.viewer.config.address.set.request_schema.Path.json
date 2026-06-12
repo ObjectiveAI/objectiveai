@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.viewer.config.address.set.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "viewer/config/address/set/request_schema"
+  ]
+}

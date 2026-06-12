@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.user_agent.get.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "api/config/user_agent/get/request_schema"
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.db.port.set.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/db/port/set/request_schema"
-  ]
-}

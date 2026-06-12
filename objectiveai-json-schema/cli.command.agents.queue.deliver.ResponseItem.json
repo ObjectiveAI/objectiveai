@@ -1,6 +1,6 @@
 {
   "title": "cli.command.agents.queue.deliver.ResponseItem",
-  "description": "One stream item from `agents queue deliver`. Untagged — the\nvariants are disjoint on the wire: `Value` requires `value`,\n`AgentActive` / `AgentSpawned` carry distinct `type` markers, and\n`AllAgentsActive` is the bare string `\"AllAgentsActive\"`.",
+  "description": "One stream item from `agents queue deliver`. Untagged — the\nvariants are disjoint on the wire: `Value` requires `value`,\n`AgentActive` / `AgentSpawned` / `TagActive` / `TagSpawned` carry\ndistinct `type` markers, and `AllAgentsActive` is the bare string\n`\"AllAgentsActive\"`.",
   "anyOf": [
     {
       "title": "Value",
@@ -13,6 +13,14 @@
     {
       "title": "AgentSpawned",
       "$ref": "cli.command.agents.queue.deliver.AgentSpawnedResponseItem"
+    },
+    {
+      "title": "TagActive",
+      "$ref": "cli.command.agents.queue.deliver.TagActiveResponseItem"
+    },
+    {
+      "title": "TagSpawned",
+      "$ref": "cli.command.agents.queue.deliver.TagSpawnedResponseItem"
     },
     {
       "title": "AllAgentsActive",

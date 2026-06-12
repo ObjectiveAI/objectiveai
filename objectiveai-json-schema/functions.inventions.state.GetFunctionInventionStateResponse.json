@@ -1,6 +1,0 @@
-{
-  "title": "functions.inventions.state.GetFunctionInventionStateResponse",
-  "description": "Response from retrieving a function invention state.",
-  "type": "object",
-  "$ref": "RemotePath"
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.x_title.set.Path",
-  "type": "string",
-  "enum": [
-    "config/api/x_title/set"
-  ]
-}

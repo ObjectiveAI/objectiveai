@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.api.config.user_agent.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.api.config.user_agent.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.api.config.user_agent.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.api.config.user_agent.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.api.config.user_agent.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.api.config.user_agent.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.api.config.user_agent.set.response_schema.Request"
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "title": "cli.command.agents.enqueue.Request",
+  "type": "object",
+  "properties": {
+    "agent": {
+      "description": "Whose queue the message lands in — an instance hierarchy or\na tag (parked against the tag NAME; the queue's two-rule\nread predicate resolves BOUND tags to their hierarchy). A\nplain ref has no queue identity and errors.",
+      "$ref": "cli.command.agents.AgentSelector"
+    },
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "key": {
+      "description": "Idempotency key, scoped per target: any pre-existing active\nrow with the same `(agent_instance_hierarchy, key)` or\n`(agent_tag, key)` pair is deleted before the insert lands.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "message": {
+      "description": "Required payload. The queue row carries this exact\n`RichContent`.",
+      "$ref": "cli.command.agents.message.RequestMessage"
+    },
+    "path_type": {
+      "$ref": "cli.command.agents.enqueue.Path"
+    }
+  }
+}

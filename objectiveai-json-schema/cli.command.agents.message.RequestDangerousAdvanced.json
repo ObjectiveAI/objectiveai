@@ -3,23 +3,12 @@
   "type": "object",
   "properties": {
     "seed": {
-      "description": "Deterministic seed for the upstream model's RNG. Plumbed\nonto `AgentCompletionCreateParams.seed` on the\nspawn-takeover path. `None` here ⇒ the api picks; tests\nshould always pin a value to keep continuation turns\nreproducible.",
+      "description": "Deterministic seed for the upstream model's RNG. Forwarded\nonto the spawn child's `AgentCompletionCreateParams.seed`.\n`None` here ⇒ the api picks; tests should always pin a\nvalue to keep continuation turns reproducible.",
       "anyOf": [
         {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "stream": {
-      "anyOf": [
-        {
-          "type": "boolean"
         },
         {
           "type": "null"

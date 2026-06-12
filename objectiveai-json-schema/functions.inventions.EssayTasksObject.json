@@ -1,9 +1,0 @@
-{
-  "title": "functions.inventions.EssayTasksObject",
-  "type": "object",
-  "properties": {
-    "essay_tasks": {
-      "type": "string"
-    }
-  }
-}

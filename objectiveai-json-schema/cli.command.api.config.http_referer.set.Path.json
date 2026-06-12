@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.http_referer.set.Path",
+  "type": "string",
+  "enum": [
+    "api/config/http_referer/set"
+  ]
+}

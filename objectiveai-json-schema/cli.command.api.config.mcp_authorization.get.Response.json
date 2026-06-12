@@ -1,0 +1,20 @@
+{
+  "title": "cli.command.api.config.mcp_authorization.get.Response",
+  "type": "object",
+  "properties": {
+    "mcp_authorization": {
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

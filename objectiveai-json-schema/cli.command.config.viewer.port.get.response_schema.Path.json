@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.viewer.port.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/viewer/port/get/response_schema"
-  ]
-}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.github_authorization.get.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/api/github_authorization/get/request_schema"
-  ]
-}

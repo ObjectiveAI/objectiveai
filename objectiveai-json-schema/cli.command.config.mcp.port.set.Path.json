@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.mcp.port.set.Path",
-  "type": "string",
-  "enum": [
-    "config/mcp/port/set"
-  ]
-}

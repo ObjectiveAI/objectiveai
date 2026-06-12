@@ -1,0 +1,34 @@
+{
+  "title": "cli.command.agents.enqueue.Response",
+  "description": "The freshly parked queue row: its id and the target it's scoped\nto (exactly one of `agent_instance_hierarchy` / `agent_tag` is\nset).",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "agent_tag": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    }
+  }
+}

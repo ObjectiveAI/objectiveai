@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.favorites.del.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/favorites/del"
-  ]
-}

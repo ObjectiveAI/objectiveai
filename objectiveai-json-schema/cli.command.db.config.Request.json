@@ -1,0 +1,33 @@
+{
+  "title": "cli.command.db.config.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.db.config.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.db.config.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.db.config.get.response_schema.Request"
+    },
+    {
+      "title": "Address",
+      "$ref": "cli.command.db.config.address.Request"
+    },
+    {
+      "title": "User",
+      "$ref": "cli.command.db.config.user.Request"
+    },
+    {
+      "title": "Password",
+      "$ref": "cli.command.db.config.password.Request"
+    },
+    {
+      "title": "Database",
+      "$ref": "cli.command.db.config.database.Request"
+    }
+  ]
+}

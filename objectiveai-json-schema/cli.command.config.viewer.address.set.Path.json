@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.viewer.address.set.Path",
-  "type": "string",
-  "enum": [
-    "config/viewer/address/set"
-  ]
-}

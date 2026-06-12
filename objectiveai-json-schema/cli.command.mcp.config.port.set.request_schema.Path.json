@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.mcp.config.port.set.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "mcp/config/port/set/request_schema"
+  ]
+}

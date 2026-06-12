@@ -2,6 +2,10 @@
   "title": "cli.command.viewer.Request",
   "anyOf": [
     {
+      "title": "Config",
+      "$ref": "cli.command.viewer.config.Request"
+    },
+    {
       "title": "GenerateSecretSignaturePair",
       "$ref": "cli.command.viewer.generate_secret_signature_pair.Request"
     },

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.profiles.favorites.add.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/profiles/favorites/add"
-  ]
-}

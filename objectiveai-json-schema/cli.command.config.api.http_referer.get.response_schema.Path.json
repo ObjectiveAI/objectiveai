@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.http_referer.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/api/http_referer/get/response_schema"
-  ]
-}

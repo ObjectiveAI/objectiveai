@@ -1,0 +1,63 @@
+{
+  "title": "cli.command.agents.AgentSelector",
+  "anyOf": [
+    {
+      "title": "Ref",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "cli.command.agents.AgentRef"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "ref"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Instance",
+      "type": "object",
+      "properties": {
+        "agent_instance": {
+          "description": "Leaf id of the target agent instance.",
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "instance"
+          ]
+        },
+        "parent_agent_instance_hierarchy": {
+          "description": "Lineage prefix to prepend to `agent_instance`. When\n`None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        }
+      }
+    }
+  ]
+}

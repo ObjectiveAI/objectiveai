@@ -8,18 +8,6 @@
     {
       "title": "FunctionExecution",
       "$ref": "http.viewer.FunctionExecutionRequest"
-    },
-    {
-      "title": "FunctionInventionRecursive",
-      "$ref": "http.viewer.FunctionInventionRecursiveRequest"
-    },
-    {
-      "title": "LaboratoryExecution",
-      "$ref": "http.viewer.LaboratoryExecutionRequest"
-    },
-    {
-      "title": "AgentsFavoritesChanged",
-      "$ref": "agent.favorites.ChangedNotification"
     }
   ]
 }

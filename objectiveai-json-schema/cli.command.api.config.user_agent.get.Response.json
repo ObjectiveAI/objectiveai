@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.user_agent.get.Response",
+  "type": "object",
+  "properties": {
+    "user_agent": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

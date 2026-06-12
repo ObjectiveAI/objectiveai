@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.api.config.user_agent.set.Request",
+  "type": "object",
+  "properties": {
+    "path_type": {
+      "$ref": "cli.command.api.config.user_agent.set.Path"
+    },
+    "scope": {
+      "$ref": "cli.command.SetScope"
+    },
+    "value": {
+      "type": "string"
+    }
+  }
+}

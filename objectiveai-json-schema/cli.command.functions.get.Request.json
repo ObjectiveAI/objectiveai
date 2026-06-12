@@ -13,7 +13,7 @@
       ]
     },
     "path": {
-      "$ref": "cli.command.RemotePathCommitOptionalOrFavorite"
+      "$ref": "RemotePathCommitOptional"
     },
     "path_type": {
       "$ref": "cli.command.functions.get.Path"

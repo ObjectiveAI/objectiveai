@@ -1,8 +1,0 @@
-{
-  "title": "functions.inventions.response.unary.Object",
-  "type": "string",
-  "enum": [
-    "alpha.scalar.function.invention",
-    "alpha.vector.function.invention"
-  ]
-}

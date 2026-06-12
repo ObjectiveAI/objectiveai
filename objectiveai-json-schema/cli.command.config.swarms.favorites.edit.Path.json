@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.swarms.favorites.edit.Path",
-  "type": "string",
-  "enum": [
-    "config/swarms/favorites/edit"
-  ]
-}

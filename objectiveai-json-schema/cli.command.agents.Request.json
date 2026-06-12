@@ -2,6 +2,18 @@
   "title": "cli.command.agents.Request",
   "anyOf": [
     {
+      "title": "Enqueue",
+      "$ref": "cli.command.agents.enqueue.Request"
+    },
+    {
+      "title": "EnqueueRequestSchema",
+      "$ref": "cli.command.agents.enqueue.request_schema.Request"
+    },
+    {
+      "title": "EnqueueResponseSchema",
+      "$ref": "cli.command.agents.enqueue.response_schema.Request"
+    },
+    {
       "title": "Get",
       "$ref": "cli.command.agents.get.Request"
     },

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.db.address.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/db/address/get/response_schema"
-  ]
-}

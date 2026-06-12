@@ -14,6 +14,10 @@
     },
     "path_type": {
       "$ref": "cli.command.api.kill.Path"
+    },
+    "scope": {
+      "description": "Always Global — api has a single machine-wide lock.",
+      "$ref": "cli.command.SetScope"
     }
   }
 }

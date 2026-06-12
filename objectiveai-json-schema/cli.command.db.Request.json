@@ -2,6 +2,10 @@
   "title": "cli.command.db.Request",
   "anyOf": [
     {
+      "title": "Config",
+      "$ref": "cli.command.db.config.Request"
+    },
+    {
       "title": "Kill",
       "$ref": "cli.command.db.kill.Request"
     },

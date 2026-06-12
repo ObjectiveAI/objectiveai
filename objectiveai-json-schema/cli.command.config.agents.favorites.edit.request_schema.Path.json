@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.agents.favorites.edit.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/agents/favorites/edit/request_schema"
-  ]
-}

@@ -1,13 +1,4 @@
 {
   "title": "cli.command.swarms.list.ResponseItem",
-  "anyOf": [
-    {
-      "title": "Favorite",
-      "$ref": "cli.command.swarms.list.ResponseFavorite"
-    },
-    {
-      "title": "Item",
-      "$ref": "RemotePath"
-    }
-  ]
+  "$ref": "RemotePath"
 }

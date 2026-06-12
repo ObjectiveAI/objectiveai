@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.viewer.config.signature.set.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "viewer/config/signature/set/response_schema"
+  ]
+}

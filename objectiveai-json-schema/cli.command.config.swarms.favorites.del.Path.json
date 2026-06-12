@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.swarms.favorites.del.Path",
-  "type": "string",
-  "enum": [
-    "config/swarms/favorites/del"
-  ]
-}

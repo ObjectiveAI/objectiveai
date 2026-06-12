@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.openrouter_authorization.get.Response",
+  "type": "object",
+  "properties": {
+    "openrouter_authorization": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,9 +1,0 @@
-{
-  "title": "functions.inventions.DescriptionObject",
-  "type": "object",
-  "properties": {
-    "description": {
-      "type": "string"
-    }
-  }
-}

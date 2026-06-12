@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.x_title.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/api/x_title/get/response_schema"
-  ]
-}

@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.mcp.config.address.set.Request",
+  "type": "object",
+  "properties": {
+    "path_type": {
+      "$ref": "cli.command.mcp.config.address.set.Path"
+    },
+    "scope": {
+      "$ref": "cli.command.SetScope"
+    },
+    "value": {
+      "type": "string"
+    }
+  }
+}

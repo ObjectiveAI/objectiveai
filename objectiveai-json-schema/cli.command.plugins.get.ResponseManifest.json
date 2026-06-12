@@ -13,11 +13,24 @@
       ],
       "omitempty": true
     },
-    "binaries": {
-      "$ref": "cli.command.plugins.get.ResponseBinaries"
+    "cli_zip": {
+      "description": "GitHub-release asset filename for the plugin's cli bundle — a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` → `viewer/`.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "description": {
       "type": "string"
+    },
+    "exec": {
+      "description": "Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Empty when\nthe plugin is viewer-only.",
+      "$ref": "cli.command.tools.get.Exec"
     },
     "homepage": {
       "anyOf": [

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.mcp_authorization.add.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/api/mcp_authorization/add/request_schema"
-  ]
-}

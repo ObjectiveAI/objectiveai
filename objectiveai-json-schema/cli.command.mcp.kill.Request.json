@@ -14,6 +14,9 @@
     },
     "path_type": {
       "$ref": "cli.command.mcp.kill.Path"
+    },
+    "scope": {
+      "$ref": "cli.command.SetScope"
     }
   }
 }

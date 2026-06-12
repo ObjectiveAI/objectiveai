@@ -1,8 +1,0 @@
-{
-  "title": "functions.inventions.recursive.response.unary.Object",
-  "type": "string",
-  "enum": [
-    "alpha.scalar.function.invention.recursive",
-    "alpha.vector.function.invention.recursive"
-  ]
-}

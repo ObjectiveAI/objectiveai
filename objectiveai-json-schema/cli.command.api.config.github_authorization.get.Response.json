@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.github_authorization.get.Response",
+  "type": "object",
+  "properties": {
+    "github_authorization": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

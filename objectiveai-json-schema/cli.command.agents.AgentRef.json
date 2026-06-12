@@ -1,0 +1,46 @@
+{
+  "title": "cli.command.agents.AgentRef",
+  "description": "Wire form of a direct agent definition. `Resolved` carries the\ntyped inline-or-remote spec (the `--agent <ref>` string is parsed\ninto `Resolved(Remote(..))` at argv-parse time); the other\nvariants defer IO / Python execution to the CLI handler.",
+  "anyOf": [
+    {
+      "title": "Resolved",
+      "type": "object",
+      "properties": {
+        "Resolved": {
+          "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "File": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonInline",
+      "type": "object",
+      "properties": {
+        "PythonInline": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "title": "PythonFile",
+      "type": "object",
+      "properties": {
+        "PythonFile": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.openrouter_authorization.get.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "api/config/openrouter_authorization/get/response_schema"
+  ]
+}

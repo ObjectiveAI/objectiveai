@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.api.config.x_title.get.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.api.config.x_title.get.Path"
+    },
+    "scope": {
+      "$ref": "cli.command.GetScope"
+    }
+  }
+}

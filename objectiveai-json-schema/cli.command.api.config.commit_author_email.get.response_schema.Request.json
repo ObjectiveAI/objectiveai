@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.api.config.commit_author_email.get.response_schema.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.api.config.commit_author_email.get.response_schema.Path"
+    }
+  }
+}

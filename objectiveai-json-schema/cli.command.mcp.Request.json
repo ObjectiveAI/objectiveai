@@ -2,6 +2,10 @@
   "title": "cli.command.mcp.Request",
   "anyOf": [
     {
+      "title": "Config",
+      "$ref": "cli.command.mcp.config.Request"
+    },
+    {
       "title": "Kill",
       "$ref": "cli.command.mcp.kill.Request"
     },

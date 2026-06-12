@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.address.get.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "api/config/address/get/response_schema"
+  ]
+}

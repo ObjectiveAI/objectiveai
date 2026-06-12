@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.commit_author_email.get.Response",
+  "type": "object",
+  "properties": {
+    "commit_author_email": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

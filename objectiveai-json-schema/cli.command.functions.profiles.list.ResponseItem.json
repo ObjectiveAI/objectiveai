@@ -1,13 +1,4 @@
 {
   "title": "cli.command.functions.profiles.list.ResponseItem",
-  "anyOf": [
-    {
-      "title": "Favorite",
-      "$ref": "cli.command.functions.profiles.list.ResponseFavorite"
-    },
-    {
-      "title": "Item",
-      "$ref": "RemotePath"
-    }
-  ]
+  "$ref": "RemotePath"
 }

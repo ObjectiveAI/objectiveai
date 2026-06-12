@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.viewer.config.signature.set.Request",
+  "type": "object",
+  "properties": {
+    "path_type": {
+      "$ref": "cli.command.viewer.config.signature.set.Path"
+    },
+    "scope": {
+      "$ref": "cli.command.SetScope"
+    },
+    "value": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.viewer.config.signature.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.viewer.config.signature.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.viewer.config.signature.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.viewer.config.signature.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.viewer.config.signature.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.viewer.config.signature.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.viewer.config.signature.set.response_schema.Request"
+    }
+  ]
+}

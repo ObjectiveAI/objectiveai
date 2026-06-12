@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.enqueue.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/enqueue/response_schema"
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.x_title.get.Response",
+  "type": "object",
+  "properties": {
+    "x_title": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.mcp.config.address.set.Path",
+  "type": "string",
+  "enum": [
+    "mcp/config/address/set"
+  ]
+}

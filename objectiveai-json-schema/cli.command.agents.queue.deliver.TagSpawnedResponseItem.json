@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.queue.deliver.TagSpawnedResponseItem",
+  "description": "This un-upgraded tag's lock was won and a fresh spawn of the\ngroup's stored agent spec has started. The minted\n`agent_instance_hierarchy` isn't known yet at this point — it\narrives as the FIRST inner item (the spawn `Id`) of the\n[`ValueResponseItem`]s that follow (in `stream_spawns` mode).",
+  "type": "object",
+  "properties": {
+    "agent_tag": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "cli.command.agents.queue.deliver.TagSpawnedType"
+    }
+  }
+}

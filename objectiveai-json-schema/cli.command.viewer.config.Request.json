@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.viewer.config.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.viewer.config.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.viewer.config.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.viewer.config.get.response_schema.Request"
+    },
+    {
+      "title": "Address",
+      "$ref": "cli.command.viewer.config.address.Request"
+    },
+    {
+      "title": "Secret",
+      "$ref": "cli.command.viewer.config.secret.Request"
+    },
+    {
+      "title": "Signature",
+      "$ref": "cli.command.viewer.config.signature.Request"
+    }
+  ]
+}

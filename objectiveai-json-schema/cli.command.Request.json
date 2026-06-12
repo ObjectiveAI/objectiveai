@@ -10,10 +10,6 @@
       "$ref": "cli.command.api.Request"
     },
     {
-      "title": "Config",
-      "$ref": "cli.command.config.Request"
-    },
-    {
       "title": "Db",
       "$ref": "cli.command.db.Request"
     },

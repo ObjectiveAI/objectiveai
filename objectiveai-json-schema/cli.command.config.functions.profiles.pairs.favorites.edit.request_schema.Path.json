@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.functions.profiles.pairs.favorites.edit.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/functions/profiles/pairs/favorites/edit/request_schema"
-  ]
-}

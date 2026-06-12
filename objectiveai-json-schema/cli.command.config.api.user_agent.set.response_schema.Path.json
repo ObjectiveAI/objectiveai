@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.config.api.user_agent.set.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "config/api/user_agent/set/response_schema"
-  ]
-}

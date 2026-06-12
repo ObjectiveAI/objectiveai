@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.api.config.openrouter_authorization.get.request_schema.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "path_type": {
+      "$ref": "cli.command.api.config.openrouter_authorization.get.request_schema.Path"
+    }
+  }
+}

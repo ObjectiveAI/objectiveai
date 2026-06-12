@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.api.config.commit_author_email.set.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "api/config/commit_author_email/set/request_schema"
+  ]
+}

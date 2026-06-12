@@ -1,8 +1,0 @@
-{
-  "title": "functions.inventions.response.streaming.Object",
-  "type": "string",
-  "enum": [
-    "alpha.scalar.function.invention.chunk",
-    "alpha.vector.function.invention.chunk"
-  ]
-}

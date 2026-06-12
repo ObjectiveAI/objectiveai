@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.GetScope",
+  "description": "Which config layer a read targets.",
+  "type": "string",
+  "enum": [
+    "global",
+    "state",
+    "final"
+  ]
+}
