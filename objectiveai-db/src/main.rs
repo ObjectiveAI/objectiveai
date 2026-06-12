@@ -94,6 +94,62 @@ async fn main() {
 
 async fn run(env: &Args) -> Result<i32, String> {
     ensure_installed(env).await?;
+
+    // Per-state spawns race: the state's db lock is only claimed once
+    // postgres is READY, so two concurrent spawns (two agents in one
+    // state) both pass the spawner's try_read and both run initdb /
+    // postgres against the same data dir. The loser dies on initdb's
+    // non-empty check (or the postmaster's data-dir lock) BEFORE the
+    // winner publishes, and the loser's spawning cli then sees a dead
+    // child + a free lock = spurious failure. Serialize the whole
+    // init-to-claim window behind a blocking sibling lock — the same
+    // pattern `ensure_installed` uses for the shared extract — and
+    // bow out gracefully when a winner already published.
+    let lock_dir = env.state_dir().join("locks");
+    let init_claim =
+        objectiveai_sdk::lockfile::wait_acquire(&lock_dir, "db-init", "initializing")
+            .await
+            .map_err(|e| format!("wait_acquire(db-init lock): {e}"))?;
+    let already_served = objectiveai_sdk::lockfile::try_read(&lock_dir, "db")
+        .await
+        .map_err(|e| format!("try_read(db lock): {e}"))?
+        .is_some();
+    if already_served {
+        // A sibling won while we waited; its published lock is what
+        // the spawning cli's wait_read is watching, so just leave.
+        init_claim
+            .release()
+            .map_err(|e| format!("release(db-init lock): {e}"))?;
+        eprintln!("a sibling objectiveai-db already serves this state");
+        return Ok(0);
+    }
+    let started = init_and_claim(env, &lock_dir).await;
+    init_claim
+        .release()
+        .map_err(|e| format!("release(db-init lock): {e}"))?;
+    let (mut child, port) = started?;
+
+    // The readiness line objectiveai-cli's `db spawn` waits for
+    // (`spawn_and_wait_for_listening` matches on "listening",
+    // case-insensitive) — same protocol as objectiveai-api and
+    // objectiveai-viewer.
+    eprintln!("listening on 127.0.0.1:{port}");
+
+    // Resident from here on: live exactly as long as the postmaster.
+    let status = child
+        .wait()
+        .await
+        .map_err(|e| format!("wait on postgres: {e}"))?;
+    Ok(status.code().unwrap_or(1))
+}
+
+/// initdb (if needed) → spawn postgres → wait ready → claim the
+/// state's db lock with the connection string. Runs entirely inside
+/// the caller's `db-init` sibling lock.
+async fn init_and_claim(
+    env: &Args,
+    lock_dir: &Path,
+) -> Result<(tokio::process::Child, u16), String> {
     ensure_initdb(env).await?;
 
     let port = free_port()?;
@@ -110,8 +166,7 @@ async fn run(env: &Args) -> Result<i32, String> {
     // too, so lock liveness ⇔ postmaster liveness. Failure means a
     // sibling objectiveai-db already serves this state.
     let contents = connection_string(env, port);
-    let lock_dir = env.state_dir().join("locks");
-    if objectiveai_sdk::lockfile::try_acquire(&lock_dir, "db", &contents)
+    if objectiveai_sdk::lockfile::try_acquire(lock_dir, "db", &contents)
         .await
         .is_none()
     {
@@ -121,19 +176,7 @@ async fn run(env: &Args) -> Result<i32, String> {
                 .to_string(),
         );
     }
-
-    // The readiness line objectiveai-cli's `db spawn` waits for
-    // (`spawn_and_wait_for_listening` matches on "listening",
-    // case-insensitive) — same protocol as objectiveai-api and
-    // objectiveai-viewer.
-    eprintln!("listening on 127.0.0.1:{port}");
-
-    // Resident from here on: live exactly as long as the postmaster.
-    let status = child
-        .wait()
-        .await
-        .map_err(|e| format!("wait on postgres: {e}"))?;
-    Ok(status.code().unwrap_or(1))
+    Ok((child, port))
 }
 
 /// Phase 1: ensure the shared postgres install at
@@ -164,17 +207,45 @@ async fn ensure_installed(env: &Args) -> Result<(), String> {
     // 3. Re-check under the lock — the sibling may have finished
     //    while we waited.
     if !tokio::fs::try_exists(&marker).await.unwrap_or(false) {
-        // 4. Install. A partial extract has no marker — wipe it
-        //    first so `install()`'s exists() early-return can't
-        //    accept it.
+        // 4. Install. A partial extract has no marker — get it out of
+        //    the way first so `install()`'s exists() early-return
+        //    can't accept it. Rename-then-delete, NOT delete-in-place:
+        //    Windows directory deletion is asynchronous, so a plain
+        //    `remove_dir_all` returns while the tree is still
+        //    pending-delete and the immediate re-create inside
+        //    `pg.setup()` fails with ACCESS_DENIED. The rename frees
+        //    the name instantly; deleting the renamed tree is
+        //    best-effort (a leftover trash dir is inert and inside
+        //    the gitignored pg-bin namespace).
         if tokio::fs::try_exists(&install_dir).await.unwrap_or(false) {
-            tokio::fs::remove_dir_all(&install_dir)
+            let trash = env.bin_dir().join(format!(
+                "pg-bin.trash-{}",
+                std::process::id()
+            ));
+            tokio::fs::rename(&install_dir, &trash)
                 .await
-                .map_err(|e| format!("rm partial {install_dir:?}: {e}"))?;
+                .map_err(|e| format!("move partial {install_dir:?} aside: {e}"))?;
+            let _ = tokio::fs::remove_dir_all(&trash).await;
         }
         let scratch = std::env::temp_dir()
             .join(format!("objectiveai-pg-scratch-{}", std::process::id()));
-        let result = extract_install(env, &install_dir, &scratch).await;
+        // The scratch dir must exist BEFORE `pg.setup()`: it writes
+        // the throwaway initdb's `--pwfile` into it without creating
+        // parent directories, and dies with os error 3 otherwise.
+        tokio::fs::create_dir_all(&scratch)
+            .await
+            .map_err(|e| format!("mkdir scratch {scratch:?}: {e}"))?;
+        // A couple of retries paper over transient Windows
+        // interference (antivirus briefly pinning just-extracted
+        // files) without masking real failures.
+        let mut result = extract_install(env, &install_dir, &scratch).await;
+        for _ in 0..2 {
+            if result.is_ok() {
+                break;
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+            result = extract_install(env, &install_dir, &scratch).await;
+        }
         let _ = tokio::fs::remove_dir_all(&scratch).await;
         result?;
         tokio::fs::write(&marker, b"")
@@ -198,7 +269,11 @@ async fn extract_install(
 ) -> Result<(), String> {
     let mut settings = postgresql_embedded::Settings::default();
     settings.installation_dir = PathBuf::from(install_dir);
-    settings.data_dir = PathBuf::from(scratch);
+    // The throwaway data dir is a SUBDIRECTORY of scratch and the
+    // password file its sibling: `pg.setup()` writes the pwfile
+    // before running initdb, and initdb refuses a non-empty data
+    // directory (initdb itself creates the missing subdir).
+    settings.data_dir = scratch.join("data");
     settings.password_file = scratch.join(".pgpass-scratch");
     settings.temporary = true;
     settings.password = env.pg_password.clone();
@@ -233,6 +308,29 @@ async fn ensure_initdb(env: &Args) -> Result<(), String> {
     // stops postmasters it launched, and we launch ours directly.
 }
 
+/// Locate `bin/postgres(.exe)` under the shared install.
+/// `postgresql_embedded` extracts each release into a VERSIONED
+/// subdirectory (`pg-bin/<version>/bin/...`), so the version dir is
+/// resolved at runtime instead of hard-coding one; with multiple
+/// versions present (a stale install beside a fresh one) the
+/// lexically-highest wins.
+fn postgres_binary(env: &Args) -> Result<PathBuf, String> {
+    let install_dir = env.bin_dir().join("pg-bin");
+    let leaf = Path::new("bin")
+        .join(if cfg!(windows) { "postgres.exe" } else { "postgres" });
+    let entries = std::fs::read_dir(&install_dir)
+        .map_err(|e| format!("read {install_dir:?}: {e}"))?;
+    let mut candidates: Vec<PathBuf> = entries
+        .flatten()
+        .map(|entry| entry.path().join(&leaf))
+        .filter(|candidate| candidate.is_file())
+        .collect();
+    candidates.sort();
+    candidates
+        .pop()
+        .ok_or_else(|| format!("no <version>/bin/postgres under {install_dir:?}"))
+}
+
 /// A random free port on loopback. postgres can't bind port 0
 /// itself, so randomness is resolved here (bind, read, release —
 /// the usual TOCTOU caveat, narrowed by spawning immediately after).
@@ -260,11 +358,7 @@ fn free_port() -> Result<u16, String> {
 ///   postmaster until `db kill`.
 fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String> {
     let data_dir = env.state_dir().join("db");
-    let postgres = env
-        .bin_dir()
-        .join("pg-bin")
-        .join("bin")
-        .join(if cfg!(windows) { "postgres.exe" } else { "postgres" });
+    let postgres = postgres_binary(env)?;
 
     let mut cmd = tokio::process::Command::new(&postgres);
     cmd.arg("-D")

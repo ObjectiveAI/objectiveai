@@ -3,6 +3,9 @@
 state/
 bin/locks/
 bin/pg-bin/
+# objectiveai-db moves a partial pg-bin aside (rename-then-delete)
+# before re-extracting; a leftover trash dir is inert.
+bin/pg-bin.trash-*/
 bin/config.json
 # Committed api test settings — re-include against the root `.env*`.
 !.env

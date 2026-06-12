@@ -109,21 +109,25 @@ async fn spawn_then_message_propagates_response_continuation() {
         jq: None,
     };
     // The unary `agents message` leaf no longer surfaces chunks, so
-    // the second turn's response_id can't be mined from the stream —
-    // fall back to the spawn turn's id (the resumed instance keeps
-    // the same response_id).
+    // the second turn's response_id can't be mined from the stream.
+    // It can't equal the spawn turn's id either: request rows are
+    // PK'd by response_id and plain-INSERTed, so the resumed turn
+    // mints a fresh one. In this test's isolated state the new
+    // turn's row is simply the one that ISN'T the spawn's.
     let _resp: MessageResponse =
         cli_test_util::execute_one(&executor, message_request).await;
-    let new_response_id = spawn_response_id;
 
     // ── 4. Read the new turn's request body's continuation ──────
     // `logs.agent_completion_requests.body->>'continuation'` is
     // exactly what the cli stamped onto the second turn's request
     // before sending it upstream.
-    let request_continuation =
-        cli_test_util::wait_for_request_continuation(&executor, &new_response_id, Duration::from_secs(30))
-            .await
-            .expect("second turn's request body must carry a continuation");
+    let request_continuation = cli_test_util::wait_for_new_request_continuation(
+        &executor,
+        &spawn_response_id,
+        Duration::from_secs(30),
+    )
+    .await
+    .expect("second turn's request body must carry a continuation");
 
     // ── 5. The smoking gun ──────────────────────────────────────
     assert_eq!(

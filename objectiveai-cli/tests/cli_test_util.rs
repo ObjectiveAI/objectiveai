@@ -244,6 +244,49 @@ where
     }
 }
 
+/// Wait until a SECOND `logs.agent_completion_requests` row exists —
+/// one whose response_id differs from `excluding_response_id` — and
+/// return that row's `body->>'continuation'` (None if the new turn's
+/// request blob didn't carry one). Request rows are PK'd by
+/// response_id and plain-INSERTed, so a resumed turn always mints a
+/// fresh response_id; and since every test runs in its own isolated
+/// state (its own postgres), "the row that isn't the spawn's" IS the
+/// new turn. (`sender_agent_instance_hierarchy` can't disambiguate
+/// here: it records the CALLER's hierarchy — the root `"cli"` for
+/// both turns — not the agent instance's.) Panics if `timeout`
+/// elapses with no second row.
+pub async fn wait_for_new_request_continuation<E>(
+    executor: &E,
+    excluding_response_id: &str,
+    timeout: Duration,
+) -> Option<String>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
+    let sql = format!(
+        "SELECT body->>'continuation' FROM logs.agent_completion_requests \
+         WHERE response_id <> '{}' \
+         ORDER BY inserted_at DESC LIMIT 1",
+        sql_escape(excluding_response_id),
+    );
+    let deadline = Instant::now() + timeout;
+    loop {
+        let rows = db_query(executor, &sql).await;
+        if let Some(mut row) = rows.into_iter().next() {
+            return row.pop().and_then(|v| v.as_str().map(str::to_string));
+        }
+        if Instant::now() >= deadline {
+            panic!(
+                "no second logs.agent_completion_requests row \
+                 (response_id <> {excluding_response_id}) after {:?}",
+                timeout,
+            );
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+}
+
 /// Wait until a `logs.agent_completion_requests` row exists for
 /// the given response_id, returning the row's `body->>'continuation'`
 /// JSON field as a `Option<String>` (None if the request blob

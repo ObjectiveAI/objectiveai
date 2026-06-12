@@ -128,6 +128,8 @@ struct EnvConfigBuilder {
     mcp_connect_timeout: Option<u64>,
     #[envconfig(from = "MCP_CALL_TIMEOUT")]
     mcp_call_timeout: Option<u64>,
+    #[envconfig(from = "REVERSE_CHANNEL_TIMEOUT")]
+    reverse_channel_timeout: Option<u64>,
     #[envconfig(from = "MCP_ENCRYPTION_KEY")]
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_DIR")]
@@ -196,6 +198,7 @@ impl EnvConfigBuilder {
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
             mcp_connect_timeout: self.mcp_connect_timeout,
             mcp_call_timeout: self.mcp_call_timeout,
+            reverse_channel_timeout: self.reverse_channel_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
             objectiveai_state: self.objectiveai_state,
@@ -254,6 +257,7 @@ pub struct ConfigBuilder {
     pub agent_completions_other_chunk_timeout: Option<u64>,
     pub mcp_connect_timeout: Option<u64>,
     pub mcp_call_timeout: Option<u64>,
+    pub reverse_channel_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
     pub objectiveai_state: Option<String>,
@@ -326,6 +330,7 @@ impl ConfigBuilder {
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
             mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
+            reverse_channel_timeout: self.reverse_channel_timeout.unwrap_or(30000),
             mcp_encryption_key: self.mcp_encryption_key,
             // Layout root (OBJECTIVEAI_DIR). Kept on Config for the
             // paths that live OUTSIDE the state dir — e.g. the
@@ -406,6 +411,12 @@ pub struct Config {
     pub agent_completions_other_chunk_timeout: u64,
     pub mcp_connect_timeout: u64,
     pub mcp_call_timeout: u64,
+    /// Budget (ms) for one WS reverse-channel round-trip — how long
+    /// a forwarded MCP server-request or a message-queue read may
+    /// wait for the CLI's reply. Long enough that a healthy but
+    /// heavily loaded CLI answers in time, short enough that a
+    /// wedged WS doesn't stall callers indefinitely.
+    pub reverse_channel_timeout: u64,
     /// Base64-encoded 32-byte key. Forwarded to the spawned proxy as
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
     /// per process.
@@ -474,6 +485,7 @@ pub async fn setup(
         agent_completions_other_chunk_timeout,
         mcp_connect_timeout,
         mcp_call_timeout,
+        reverse_channel_timeout,
         mcp_encryption_key,
         objectiveai_dir: _,
         config_base_dir,
@@ -484,6 +496,13 @@ pub async fn setup(
         port,
         suppress_output,
     } = config;
+
+    // Publish the WS reverse-channel budget for its two crate-wide
+    // consumers (the MCP forward path and the agent client's
+    // message-queue reads).
+    crate::objectiveai_mcp::set_reverse_channel_timeout(
+        std::time::Duration::from_millis(reverse_channel_timeout),
+    );
 
     // HTTP Client
     let http_client = reqwest::Client::new();

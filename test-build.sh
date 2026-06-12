@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Builds the five binaries the committed `.objectiveai/bin` shims
 # point at (`target/debug/objectiveai{-cli,-api,-viewer,-mcp,-db}`),
-# plus the `test-cleanup` binary `test-cleanup.sh` execs.
+# the `test-cleanup` binary `test-cleanup.sh` execs, and the fixture
+# tool/plugin crates whose committed manifests `cargo run` them at
+# test runtime — pre-building turns that runtime cargo into a fast
+# freshness check instead of a cold compile that blows the 30s MCP
+# reverse-channel timeout on a test's first tool call.
 #
 # One cargo invocation = one feature resolution and maximal internal
 # parallelism across the graphs. The shims themselves never invoke
@@ -29,4 +33,11 @@ cargo build \
   --bin objectiveai-viewer \
   --bin objectiveai-mcp \
   --bin objectiveai-db \
-  --bin test-cleanup
+  --bin test-cleanup \
+  --bin count-tool \
+  --bin test-mcp-plugin-named \
+  --bin hello-plugin \
+  --bin test-mcp-plugin \
+  --bin test-mcp-plugin-foo-headers \
+  --bin hello-tool \
+  --bin error-tool
