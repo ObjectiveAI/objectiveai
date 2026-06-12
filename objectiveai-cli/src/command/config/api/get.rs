@@ -11,9 +11,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     let api = config.api();
     Ok(Response {
         address: api.get_address().map(String::from),
-        port: api.get_port(),
-        claude_agent_sdk: api.get_claude_agent_sdk(),
-        codex_sdk: api.get_codex_sdk(),
         objectiveai_authorization: api.get_objectiveai_authorization().map(String::from),
         openrouter_authorization: api.get_openrouter_authorization().map(String::from),
         github_authorization: api.get_github_authorization().map(String::from),

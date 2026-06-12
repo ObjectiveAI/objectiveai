@@ -9,8 +9,6 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod address;
-pub mod claude_agent_sdk;
-pub mod codex_sdk;
 pub mod commit_author_email;
 pub mod commit_author_name;
 pub mod get;
@@ -19,7 +17,6 @@ pub mod http_referer;
 pub mod mcp_authorization;
 pub mod objectiveai_authorization;
 pub mod openrouter_authorization;
-pub mod port;
 pub mod user_agent;
 pub mod x_title;
 
@@ -48,18 +45,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Address(req) => {
             let inner = address::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Address)))
-        }
-        Request::Port(req) => {
-            let inner = port::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::Port)))
-        }
-        Request::ClaudeAgentSdk(req) => {
-            let inner = claude_agent_sdk::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::ClaudeAgentSdk)))
-        }
-        Request::CodexSdk(req) => {
-            let inner = codex_sdk::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::CodexSdk)))
         }
         Request::ObjectiveaiAuthorization(req) => {
             let inner = objectiveai_authorization::execute(ctx, req).await?;

@@ -13,7 +13,7 @@ fn cleanup(d: &std::path::Path) {
 }
 
 fn client_for(base: &std::path::Path) -> Client {
-    Client::new(Some(base.to_path_buf()), None::<&str>, None::<&str>)
+    Client::new(Some(base.to_path_buf()), None::<String>, None::<&str>, None::<&str>)
 }
 
 fn minimal_manifest_json() -> String {

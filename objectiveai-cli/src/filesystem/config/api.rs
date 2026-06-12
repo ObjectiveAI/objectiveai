@@ -10,15 +10,6 @@ pub struct ApiConfig {
     pub address: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub port: Option<u16>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub claude_agent_sdk: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub codex_sdk: Option<bool>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
     pub objectiveai_authorization: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -52,9 +43,6 @@ pub struct ApiConfig {
 impl ApiConfig {
     pub fn is_empty(&self) -> bool {
         self.address.is_none()
-            && self.port.is_none()
-            && self.claude_agent_sdk.is_none()
-            && self.codex_sdk.is_none()
             && self.objectiveai_authorization.is_none()
             && self.openrouter_authorization.is_none()
             && self.github_authorization.is_none()
@@ -77,26 +65,8 @@ impl ApiConfig {
         self.address = Some(value.into());
     }
 
-    pub fn get_port(&self) -> Option<u16> {
-        self.port
-    }
-    pub fn set_port(&mut self, value: u16) {
-        self.port = Some(value);
-    }
 
-    pub fn get_claude_agent_sdk(&self) -> Option<bool> {
-        self.claude_agent_sdk
-    }
-    pub fn set_claude_agent_sdk(&mut self, value: bool) {
-        self.claude_agent_sdk = Some(value);
-    }
 
-    pub fn get_codex_sdk(&self) -> Option<bool> {
-        self.codex_sdk
-    }
-    pub fn set_codex_sdk(&mut self, value: bool) {
-        self.codex_sdk = Some(value);
-    }
 
     pub fn get_objectiveai_authorization(&self) -> Option<&str> {
         self.objectiveai_authorization.as_deref()

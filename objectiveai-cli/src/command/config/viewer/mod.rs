@@ -10,7 +10,6 @@ use crate::error::Error;
 
 pub mod address;
 pub mod get;
-pub mod port;
 pub mod secret;
 pub mod signature;
 
@@ -39,10 +38,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Address(req) => {
             let inner = address::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Address)))
-        }
-        Request::Port(req) => {
-            let inner = port::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::Port)))
         }
         Request::Secret(req) => {
             let inner = secret::execute(ctx, req).await?;

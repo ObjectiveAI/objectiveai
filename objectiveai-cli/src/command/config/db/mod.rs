@@ -12,7 +12,6 @@ pub mod address;
 pub mod database;
 pub mod get;
 pub mod password;
-pub mod port;
 pub mod user;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<Response, Error>> + Send>>;
@@ -40,10 +39,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Address(req) => {
             let inner = address::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::Address)))
-        }
-        Request::Port(req) => {
-            let inner = port::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::Port)))
         }
         Request::User(req) => {
             let inner = user::execute(ctx, req).await?;

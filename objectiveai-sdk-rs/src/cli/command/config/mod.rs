@@ -1,3 +1,6 @@
+mod scope;
+pub use scope::*;
+
 pub mod agents;
 pub mod api;
 pub mod db;

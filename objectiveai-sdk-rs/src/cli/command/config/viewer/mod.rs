@@ -1,6 +1,5 @@
 pub mod address;
 pub mod get;
-pub mod port;
 pub mod secret;
 pub mod signature;
 
@@ -10,10 +9,6 @@ pub enum Command {
     Address {
         #[command(subcommand)]
         command: address::Command,
-    },
-    Port {
-        #[command(subcommand)]
-        command: port::Command,
     },
     Secret {
         #[command(subcommand)]
@@ -37,8 +32,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Address")]
     Address(address::Request),
-    #[schemars(title = "Port")]
-    Port(port::Request),
     #[schemars(title = "Secret")]
     Secret(secret::Request),
     #[schemars(title = "Signature")]
@@ -60,8 +53,6 @@ pub enum Response {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Address")]
     Address(address::Response),
-    #[schemars(title = "Port")]
-    Port(port::Response),
     #[schemars(title = "Secret")]
     Secret(secret::Response),
     #[schemars(title = "Signature")]
@@ -76,7 +67,6 @@ impl crate::cli::command::CommandResponse for Response {
             Response::GetRequestSchema(v) => v.into_mcp(),
             Response::GetResponseSchema(v) => v.into_mcp(),
             Response::Address(v) => v.into_mcp(),
-            Response::Port(v) => v.into_mcp(),
             Response::Secret(v) => v.into_mcp(),
             Response::Signature(v) => v.into_mcp(),
         }
@@ -96,8 +86,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Address { command } =>
                 Ok(Request::Address(address::Request::try_from(command)?)),
-            Command::Port { command } =>
-                Ok(Request::Port(port::Request::try_from(command)?)),
             Command::Secret { command } =>
                 Ok(Request::Secret(secret::Request::try_from(command)?)),
             Command::Signature { command } =>
@@ -113,7 +101,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
             Request::Address(inner) => inner.into_command(),
-            Request::Port(inner) => inner.into_command(),
             Request::Secret(inner) => inner.into_command(),
             Request::Signature(inner) => inner.into_command(),
         }
@@ -155,10 +142,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let inner = address::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Address)))
             }
-            Request::Port(req) => {
-                let inner = port::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::Port)))
-            }
             Request::Secret(req) => {
                 let inner = secret::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Secret)))
@@ -198,10 +181,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Address(req) => {
                 let inner = address::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Port(req) => {
-                let inner = port::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Secret(req) => {

@@ -1,6 +1,4 @@
 pub mod address;
-pub mod claude_agent_sdk;
-pub mod codex_sdk;
 pub mod commit_author_email;
 pub mod commit_author_name;
 pub mod get;
@@ -9,7 +7,6 @@ pub mod http_referer;
 pub mod mcp_authorization;
 pub mod objectiveai_authorization;
 pub mod openrouter_authorization;
-pub mod port;
 pub mod user_agent;
 pub mod x_title;
 
@@ -19,18 +16,6 @@ pub enum Command {
     Address {
         #[command(subcommand)]
         command: address::Command,
-    },
-    Port {
-        #[command(subcommand)]
-        command: port::Command,
-    },
-    ClaudeAgentSdk {
-        #[command(subcommand)]
-        command: claude_agent_sdk::Command,
-    },
-    CodexSdk {
-        #[command(subcommand)]
-        command: codex_sdk::Command,
     },
     ObjectiveaiAuthorization {
         #[command(subcommand)]
@@ -82,12 +67,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Address")]
     Address(address::Request),
-    #[schemars(title = "Port")]
-    Port(port::Request),
-    #[schemars(title = "ClaudeAgentSdk")]
-    ClaudeAgentSdk(claude_agent_sdk::Request),
-    #[schemars(title = "CodexSdk")]
-    CodexSdk(codex_sdk::Request),
     #[schemars(title = "ObjectiveaiAuthorization")]
     ObjectiveaiAuthorization(objectiveai_authorization::Request),
     #[schemars(title = "OpenrouterAuthorization")]
@@ -123,12 +102,6 @@ pub enum Response {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Address")]
     Address(address::Response),
-    #[schemars(title = "Port")]
-    Port(port::Response),
-    #[schemars(title = "ClaudeAgentSdk")]
-    ClaudeAgentSdk(claude_agent_sdk::Response),
-    #[schemars(title = "CodexSdk")]
-    CodexSdk(codex_sdk::Response),
     #[schemars(title = "ObjectiveaiAuthorization")]
     ObjectiveaiAuthorization(objectiveai_authorization::Response),
     #[schemars(title = "OpenrouterAuthorization")]
@@ -157,9 +130,6 @@ impl crate::cli::command::CommandResponse for Response {
             Response::GetRequestSchema(v) => v.into_mcp(),
             Response::GetResponseSchema(v) => v.into_mcp(),
             Response::Address(v) => v.into_mcp(),
-            Response::Port(v) => v.into_mcp(),
-            Response::ClaudeAgentSdk(v) => v.into_mcp(),
-            Response::CodexSdk(v) => v.into_mcp(),
             Response::ObjectiveaiAuthorization(v) => v.into_mcp(),
             Response::OpenrouterAuthorization(v) => v.into_mcp(),
             Response::GithubAuthorization(v) => v.into_mcp(),
@@ -186,12 +156,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Address { command } =>
                 Ok(Request::Address(address::Request::try_from(command)?)),
-            Command::Port { command } =>
-                Ok(Request::Port(port::Request::try_from(command)?)),
-            Command::ClaudeAgentSdk { command } =>
-                Ok(Request::ClaudeAgentSdk(claude_agent_sdk::Request::try_from(command)?)),
-            Command::CodexSdk { command } =>
-                Ok(Request::CodexSdk(codex_sdk::Request::try_from(command)?)),
             Command::ObjectiveaiAuthorization { command } =>
                 Ok(Request::ObjectiveaiAuthorization(objectiveai_authorization::Request::try_from(command)?)),
             Command::OpenrouterAuthorization { command } =>
@@ -221,9 +185,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
             Request::Address(inner) => inner.into_command(),
-            Request::Port(inner) => inner.into_command(),
-            Request::ClaudeAgentSdk(inner) => inner.into_command(),
-            Request::CodexSdk(inner) => inner.into_command(),
             Request::ObjectiveaiAuthorization(inner) => inner.into_command(),
             Request::OpenrouterAuthorization(inner) => inner.into_command(),
             Request::GithubAuthorization(inner) => inner.into_command(),
@@ -271,18 +232,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Address(req) => {
                 let inner = address::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Address)))
-            }
-            Request::Port(req) => {
-                let inner = port::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::Port)))
-            }
-            Request::ClaudeAgentSdk(req) => {
-                let inner = claude_agent_sdk::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::ClaudeAgentSdk)))
-            }
-            Request::CodexSdk(req) => {
-                let inner = codex_sdk::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::CodexSdk)))
             }
             Request::ObjectiveaiAuthorization(req) => {
                 let inner = objectiveai_authorization::execute(executor, req, agent_arguments).await?;
@@ -351,18 +300,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Address(req) => {
                 let inner = address::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Port(req) => {
-                let inner = port::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::ClaudeAgentSdk(req) => {
-                let inner = claude_agent_sdk::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::CodexSdk(req) => {
-                let inner = codex_sdk::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::ObjectiveaiAuthorization(req) => {

@@ -2,7 +2,6 @@ pub mod address;
 pub mod database;
 pub mod get;
 pub mod password;
-pub mod port;
 pub mod user;
 
 #[derive(clap::Subcommand)]
@@ -11,10 +10,6 @@ pub enum Command {
     Address {
         #[command(subcommand)]
         command: address::Command,
-    },
-    Port {
-        #[command(subcommand)]
-        command: port::Command,
     },
     User {
         #[command(subcommand)]
@@ -42,8 +37,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Address")]
     Address(address::Request),
-    #[schemars(title = "Port")]
-    Port(port::Request),
     #[schemars(title = "User")]
     User(user::Request),
     #[schemars(title = "Password")]
@@ -67,8 +60,6 @@ pub enum Response {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Address")]
     Address(address::Response),
-    #[schemars(title = "Port")]
-    Port(port::Response),
     #[schemars(title = "User")]
     User(user::Response),
     #[schemars(title = "Password")]
@@ -85,7 +76,6 @@ impl crate::cli::command::CommandResponse for Response {
             Response::GetRequestSchema(v) => v.into_mcp(),
             Response::GetResponseSchema(v) => v.into_mcp(),
             Response::Address(v) => v.into_mcp(),
-            Response::Port(v) => v.into_mcp(),
             Response::User(v) => v.into_mcp(),
             Response::Password(v) => v.into_mcp(),
             Response::Database(v) => v.into_mcp(),
@@ -106,8 +96,6 @@ impl TryFrom<Command> for Request {
             },
             Command::Address { command } =>
                 Ok(Request::Address(address::Request::try_from(command)?)),
-            Command::Port { command } =>
-                Ok(Request::Port(port::Request::try_from(command)?)),
             Command::User { command } =>
                 Ok(Request::User(user::Request::try_from(command)?)),
             Command::Password { command } =>
@@ -125,7 +113,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
             Request::Address(inner) => inner.into_command(),
-            Request::Port(inner) => inner.into_command(),
             Request::User(inner) => inner.into_command(),
             Request::Password(inner) => inner.into_command(),
             Request::Database(inner) => inner.into_command(),
@@ -167,10 +154,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Address(req) => {
                 let inner = address::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::Address)))
-            }
-            Request::Port(req) => {
-                let inner = port::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::Port)))
             }
             Request::User(req) => {
                 let inner = user::execute(executor, req, agent_arguments).await?;
@@ -215,10 +198,6 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
             }
             Request::Address(req) => {
                 let inner = address::execute_jq(executor, req, jq, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Port(req) => {
-                let inner = port::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::User(req) => {

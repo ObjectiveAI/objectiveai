@@ -47,9 +47,6 @@ pub struct ViewerConfig {
     pub address: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub port: Option<u16>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
     pub secret: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -59,7 +56,6 @@ pub struct ViewerConfig {
 impl ViewerConfig {
     pub fn is_empty(&self) -> bool {
         self.address.is_none()
-            && self.port.is_none()
             && self.secret.is_none()
             && self.signature.is_none()
     }
@@ -76,13 +72,6 @@ impl ViewerConfig {
         self.address = Some(value.into());
     }
 
-    pub fn get_port(&self) -> Option<u16> {
-        self.port
-    }
-
-    pub fn set_port(&mut self, value: u16) {
-        self.port = Some(value);
-    }
 
     pub fn get_secret(&self) -> Option<&str> {
         self.secret.as_deref()

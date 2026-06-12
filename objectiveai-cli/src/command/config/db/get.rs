@@ -11,7 +11,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     let db = config.db();
     Ok(Response {
         address: db.get_address().map(String::from),
-        port: db.get_port(),
         user: db.get_user().map(String::from),
         password: db.get_password().map(String::from),
         database: db.get_database().map(String::from),

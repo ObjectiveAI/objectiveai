@@ -11,7 +11,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     let viewer = config.viewer();
     Ok(Response {
         address: viewer.get_address().map(String::from),
-        port: viewer.get_port(),
         secret: viewer.get_secret().map(String::from),
         signature: viewer.get_signature().map(String::from),
     })

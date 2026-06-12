@@ -2,11 +2,8 @@ use serde::{Deserialize, Serialize};
 
 /// Defaults applied wherever a `DbConfig` field is unset. They match
 /// objectiveai-db's own env defaults, so a fresh install can
-/// `objectiveai db spawn` and connect with zero config. Port 5433
-/// sits one off the system-postgres default (5432) so the embedded
-/// cluster coexists with a locally installed PostgreSQL.
+/// `objectiveai db spawn` and connect with zero config.
 pub const DB_DEFAULT_ADDRESS: &str = "127.0.0.1";
-pub const DB_DEFAULT_PORT: u16 = 5433;
 pub const DB_DEFAULT_USER: &str = "postgres";
 pub const DB_DEFAULT_PASSWORD: &str = "objectiveai";
 pub const DB_DEFAULT_DATABASE: &str = "objectiveai";
@@ -21,9 +18,6 @@ pub struct DbConfig {
     pub address: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub port: Option<u16>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
     pub user: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -36,7 +30,6 @@ pub struct DbConfig {
 impl DbConfig {
     pub fn is_empty(&self) -> bool {
         self.address.is_none()
-            && self.port.is_none()
             && self.user.is_none()
             && self.password.is_none()
             && self.database.is_none()
@@ -54,13 +47,6 @@ impl DbConfig {
         self.address = Some(value.into());
     }
 
-    pub fn get_port(&self) -> Option<u16> {
-        self.port
-    }
-
-    pub fn set_port(&mut self, value: u16) {
-        self.port = Some(value);
-    }
 
     pub fn get_user(&self) -> Option<&str> {
         self.user.as_deref()

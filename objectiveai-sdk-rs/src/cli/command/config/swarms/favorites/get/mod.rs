@@ -6,6 +6,7 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.config.swarms.favorites.get.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub scope: crate::cli::command::config::GetScope,
     pub jq: Option<String>,
 }
 
@@ -18,6 +19,11 @@ pub enum Path {
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["config".to_string(), "swarms".to_string(), "favorites".to_string(), "get".to_string()];
+        argv.push(match self.scope {
+            crate::cli::command::config::GetScope::Global => "--global".to_string(),
+            crate::cli::command::config::GetScope::State => "--state".to_string(),
+            crate::cli::command::config::GetScope::Final => "--final".to_string(),
+        });
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
@@ -37,6 +43,15 @@ pub struct ResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Read the global config layer.
+    #[arg(long)]
+    pub global: bool,
+    /// Read the state config layer.
+    #[arg(long)]
+    pub state: bool,
+    /// Read the final merged config view.
+    #[arg(long)]
+    pub r#final: bool,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -62,7 +77,21 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let scope = match (args.global, args.state, args.r#final) {
+            (true, false, false) => crate::cli::command::config::GetScope::Global,
+            (false, true, false) => crate::cli::command::config::GetScope::State,
+            (false, false, true) => crate::cli::command::config::GetScope::Final,
+            _ => {
+                return Err(crate::cli::command::FromArgsError {
+                    field: "scope",
+                    source: crate::cli::command::FromArgsErrorSource::Plain(
+                        "exactly one of --global, --state, --final is required".to_string(),
+                    ),
+                });
+            }
+        };
         Ok(Self { path_type: Path::ConfigSwarmsFavoritesGet,
+            scope,
             jq: args.jq,
         })
     }

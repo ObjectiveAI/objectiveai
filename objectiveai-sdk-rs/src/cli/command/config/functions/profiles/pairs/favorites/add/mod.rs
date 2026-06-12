@@ -7,6 +7,7 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.config.functions.profiles.pairs.favorites.add.Request")]
 pub struct Request {
     pub path_type: Path,
+    pub scope: crate::cli::command::config::SetScope,
     pub name: String,
     pub function: RemotePathCommitOptional,
     pub profile: RemotePathCommitOptional,
@@ -22,7 +23,7 @@ pub enum Path {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        vec![
+        let mut argv = vec![
             "config".to_string(),
             "functions".to_string(),
             "profiles".to_string(),
@@ -37,7 +38,12 @@ impl CommandRequest for Request {
             crate::cli::command::remote_path_to_arg_string(&self.profile),
             "--note".to_string(),
             self.note.clone(),
-        ]
+        ];
+        argv.push(match self.scope {
+            crate::cli::command::config::SetScope::Global => "--global".to_string(),
+            crate::cli::command::config::SetScope::State => "--state".to_string(),
+        });
+        argv
     }
 }
 
@@ -45,6 +51,12 @@ pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Mutate the global config layer.
+    #[arg(long)]
+    pub global: bool,
+    /// Mutate the state config layer.
+    #[arg(long)]
+    pub state: bool,
     /// Favorite name.
     #[arg(long)]
     pub name: String,
@@ -79,6 +91,18 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let scope = match (args.global, args.state) {
+            (true, false) => crate::cli::command::config::SetScope::Global,
+            (false, true) => crate::cli::command::config::SetScope::State,
+            _ => {
+                return Err(crate::cli::command::FromArgsError {
+                    field: "scope",
+                    source: crate::cli::command::FromArgsErrorSource::Plain(
+                        "exactly one of --global, --state is required".to_string(),
+                    ),
+                });
+            }
+        };
         let function = args
             .function
             .parse::<RemotePathCommitOptional>()
@@ -88,6 +112,7 @@ impl TryFrom<Args> for Request {
             .parse::<RemotePathCommitOptional>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("profile", msg))?;
         Ok(Self { path_type: Path::ConfigFunctionsProfilesPairsFavoritesAdd,
+            scope,
             name: args.name,
             function,
             profile,
