@@ -12,7 +12,6 @@
 pub mod agents;
 pub mod api;
 pub mod command;
-pub mod config;
 pub mod db;
 pub mod functions;
 pub mod mcp;

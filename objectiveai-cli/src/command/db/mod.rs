@@ -3,12 +3,13 @@
 
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::db::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
 
+pub mod config;
 pub mod kill;
 pub mod query;
 pub mod spawn;
@@ -23,6 +24,10 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
+        Request::Config(req) => {
+            let inner = config::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Config)))
+        }
         Request::Kill(req) => {
             let value = kill::execute(ctx, req).await?;
             once(Ok(ResponseItem::Kill(value)))

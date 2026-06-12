@@ -4,12 +4,13 @@
 
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::viewer::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
+pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
 pub mod send;
@@ -25,6 +26,10 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
+        Request::Config(req) => {
+            let inner = config::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(Response::Config)))
+        }
         Request::GenerateSecretSignaturePair(req) => {
             let value = generate_secret_signature_pair::execute(ctx, req).await?;
             once(Ok(Response::GenerateSecretSignaturePair(value)))

@@ -1,3 +1,4 @@
+pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
 pub mod send;
@@ -5,6 +6,10 @@ pub mod spawn;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
+    Config {
+        #[command(subcommand)]
+        command: config::Command,
+    },
     GenerateSecretSignaturePair(generate_secret_signature_pair::Command),
     Kill(kill::Command),
     Send(send::Command),
@@ -15,6 +20,8 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.viewer.Request")]
 pub enum Request {
+    #[schemars(title = "Config")]
+    Config(config::Request),
     #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Request),
     #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
@@ -48,6 +55,8 @@ pub enum Request {
 #[schemars(rename = "cli.command.viewer.Response")]
 #[serde(untagged)]
 pub enum Response {
+    #[schemars(title = "Config")]
+    Config(config::Response),
     #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Response),
     #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
@@ -78,6 +87,7 @@ pub enum Response {
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
+            Response::Config(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePair(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePairRequestSchema(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePairResponseSchema(v) => v.into_mcp(),
@@ -98,6 +108,8 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
+            Command::Config { command } =>
+                Ok(Request::Config(config::Request::try_from(command)?)),
             Command::GenerateSecretSignaturePair(cmd) => match cmd.schema {
                 None => Ok(Request::GenerateSecretSignaturePair(generate_secret_signature_pair::Request::try_from(cmd.args)?)),
                 Some(generate_secret_signature_pair::Schema::RequestSchema(args)) =>
@@ -133,6 +145,7 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
+            Request::Config(inner) => inner.into_command(),
             Request::GenerateSecretSignaturePair(inner) => inner.into_command(),
             Request::GenerateSecretSignaturePairRequestSchema(inner) => inner.into_command(),
             Request::GenerateSecretSignaturePairResponseSchema(inner) => inner.into_command(),
@@ -162,6 +175,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
+            Request::Config(req) => {
+                let inner = config::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(Response::Config)))
+            }
             Request::GenerateSecretSignaturePair(req) => {
                 let value = generate_secret_signature_pair::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
@@ -251,6 +268,10 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
+            Request::Config(req) => {
+                let inner = config::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(inner)
+            }
             Request::GenerateSecretSignaturePair(req) => {
                 let value = generate_secret_signature_pair::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))

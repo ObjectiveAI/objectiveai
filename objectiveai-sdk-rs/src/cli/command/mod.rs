@@ -37,12 +37,14 @@ pub use ok::*;
 mod path_ref;
 pub use path_ref::*;
 
+mod scope;
+pub use scope::*;
+
 mod response_schema;
 pub use response_schema::*;
 
 pub mod agents;
 pub mod api;
-pub mod config;
 pub mod db;
 pub mod functions;
 pub mod mcp;
