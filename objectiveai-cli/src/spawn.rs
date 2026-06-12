@@ -43,9 +43,12 @@ pub fn kill_pid(pid: u32) -> usize {
 ///    it to init when the cli exits).
 /// 3. Subscribe to the lock ([`objectiveai_sdk::lockfile::wait_read`]),
 ///    racing the child's exit. Lock published → the server is up and
-///    its URL is returned. Child exited first → the server failed to
-///    start (or lost a concurrent claim race) → error; without this arm
-///    the subscribing read would wait forever on a dead child.
+///    its URL is returned. Child exited first → one last `try_read`:
+///    the child may have died because it lost the claim race to a
+///    concurrently spawned server, and a held lock now means one won
+///    in reality — return its URL. Only a dead child AND a free lock
+///    is a failure. (Without the child arm the subscribing read would
+///    wait forever on a dead child.)
 pub async fn spawn_until_lock_published(
     exe: &Path,
     lock_dir: &Path,
@@ -98,7 +101,16 @@ pub async fn spawn_until_lock_published(
     let listening = tokio::select! {
         read = objectiveai_sdk::lockfile::wait_read(lock_dir, key) => read.map_err(lock_err)?,
         _ = child.wait() => {
-            return Err(crate::error::Error::SpawnExitedBeforePublishing { name });
+            // The child may have lost the claim race to a concurrently
+            // spawned server — re-probe before declaring failure. Held
+            // now ⇒ one won in reality ⇒ success.
+            return match objectiveai_sdk::lockfile::try_read(lock_dir, key)
+                .await
+                .map_err(lock_err)?
+            {
+                Some(listening) => Ok(listening),
+                None => Err(crate::error::Error::SpawnExitedBeforePublishing { name }),
+            };
         }
     };
 
