@@ -399,13 +399,6 @@ impl ConfigBuilder {
                         .join(".objectiveai"),
                 };
                 let state = self.objectiveai_state.unwrap_or_else(|| "default".to_string());
-                assert!(
-                    !state.is_empty()
-                        && state
-                            .chars()
-                            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-'),
-                    "OBJECTIVEAI_STATE {state:?} is invalid: state names must match [A-Za-z0-9_-]+",
-                );
                 dir.join("state").join(state)
             },
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),

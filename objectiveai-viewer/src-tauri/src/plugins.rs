@@ -18,19 +18,13 @@ use objectiveai_sdk::cli::command::plugins::list::{
 
 use objectiveai_sdk::viewer::{Event, EventSender};
 
-/// `<objectiveai_dir|~/.objectiveai>/bin/plugins` — the root the
-/// `plugin://` URI scheme serves assets from. Mirrors
-/// [`BinaryExecutor::new`]'s dir resolution so the assets and the
-/// spawned cli always agree on the install root (plugins are
-/// machine-wide, shared by every state).
-pub(crate) fn plugins_dir(objectiveai_dir: Option<&str>) -> std::path::PathBuf {
-    let dir = match objectiveai_dir {
-        Some(d) => std::path::PathBuf::from(d),
-        None => dirs::home_dir()
-            .expect("no home directory and no OBJECTIVEAI_DIR")
-            .join(".objectiveai"),
-    };
-    dir.join("bin").join("plugins")
+/// `<objectiveai_dir>/bin/plugins` — the root the `plugin://` URI
+/// scheme serves assets from (plugins are machine-wide, shared by
+/// every state). The dir arrives already resolved by
+/// `ConfigBuilder::build`, so assets and the spawned cli always
+/// agree on the install root.
+pub(crate) fn plugins_dir(objectiveai_dir: &std::path::Path) -> std::path::PathBuf {
+    objectiveai_dir.join("bin").join("plugins")
 }
 
 /// List every installed plugin manifest by spawning

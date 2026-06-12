@@ -76,12 +76,23 @@ impl Envconfig for ConfigBuilder {
 impl ConfigBuilder {
     pub fn build(self) -> Config {
         Config {
-            address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
-            port: self.port.unwrap_or(5001),
+            // Loopback + ephemeral by default: the actual bound port
+            // is read back from the listener and published in the
+            // viewer lock file, so a fixed default is unnecessary.
+            address: self.address.unwrap_or_else(|| "127.0.0.1".to_string()),
+            port: self.port.unwrap_or(0),
             suppress_output: self.suppress_output.unwrap_or(false),
             secret: self.secret,
-            objectiveai_dir: self.objectiveai_dir,
-            objectiveai_state: self.objectiveai_state,
+            // Layout root (OBJECTIVEAI_DIR). Same default as the api.
+            objectiveai_dir: match self.objectiveai_dir {
+                Some(dir) => PathBuf::from(dir),
+                None => dirs::home_dir()
+                    .unwrap_or_else(|| PathBuf::from("."))
+                    .join(".objectiveai"),
+            },
+            objectiveai_state: self
+                .objectiveai_state
+                .unwrap_or_else(|| "default".to_string()),
         }
     }
 }
@@ -91,8 +102,10 @@ pub struct Config {
     pub port: u16,
     pub suppress_output: bool,
     pub secret: Option<String>,
-    pub objectiveai_dir: Option<String>,
-    pub objectiveai_state: Option<String>,
+    /// Layout root (`OBJECTIVEAI_DIR`); default `~/.objectiveai`.
+    pub objectiveai_dir: PathBuf,
+    /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
+    pub objectiveai_state: String,
 }
 
 pub async fn setup(
@@ -157,14 +170,13 @@ pub async fn setup(
     // viewer serves `plugin://` assets from, even when the viewer's
     // own config came from a programmatic `ConfigBuilder` rather
     // than the env.
-    let mut executor = BinaryExecutor::new(config.objectiveai_dir.clone());
-    if let Some(dir) = &config.objectiveai_dir {
-        executor = executor.env("OBJECTIVEAI_DIR", dir.clone());
-    }
-    if let Some(state) = &config.objectiveai_state {
-        executor = executor.env("OBJECTIVEAI_STATE", state.clone());
-    }
-    let plugins_dir = crate::plugins::plugins_dir(config.objectiveai_dir.as_deref());
+    let executor = BinaryExecutor::new(Some(config.objectiveai_dir.clone()))
+        .env(
+            "OBJECTIVEAI_DIR",
+            config.objectiveai_dir.to_string_lossy().into_owned(),
+        )
+        .env("OBJECTIVEAI_STATE", config.objectiveai_state.clone());
+    let plugins_dir = crate::plugins::plugins_dir(&config.objectiveai_dir);
 
     // Scan installed plugins and register any viewer routes they
     // declare. Listing is once-at-startup; the user opts in to
@@ -275,9 +287,43 @@ pub fn serve(
 /// The caller should use `std::process::exit(code)` with the returned value.
 pub async fn run(config: Config) -> std::io::Result<i32> {
     let suppress_output = config.suppress_output;
+    let lock_dir = config
+        .objectiveai_dir
+        .join("state")
+        .join(&config.objectiveai_state)
+        .join("locks");
     let (listener, app, events_tx, rx, executor, plugins_dir) = setup(config).await?;
+
+    // There is only ever ONE viewer per STATE (unlike the api, which
+    // is one per OBJECTIVEAI_DIR): claim key "viewer" in
+    // <dir>/state/<state>/locks the moment the listen address is
+    // known, publishing the URL clients connect with (wildcard binds
+    // map to loopback). Anyone can lockfile::try_read it without
+    // owning the claim; the claim itself is held until process death
+    // (LockClaim leaks on drop by design) and the kernel releases it
+    // on any exit, crash included.
+    let addr = listener.local_addr()?;
+    let connect_ip = match addr.ip() {
+        std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
+            std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+        }
+        std::net::IpAddr::V6(v6) if v6.is_unspecified() => {
+            std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
+        }
+        ip => ip,
+    };
+    let connect_url =
+        format!("http://{}", std::net::SocketAddr::new(connect_ip, addr.port()));
+    if objectiveai_sdk::lockfile::try_acquire(&lock_dir, "viewer", &connect_url)
+        .await
+        .is_none()
+    {
+        return Err(std::io::Error::other(
+            "another objectiveai-viewer instance already holds the viewer lock for this state",
+        ));
+    }
+
     if !suppress_output {
-        let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");
     }
     Ok(serve(listener, app, events_tx, rx, executor, plugins_dir, None))
