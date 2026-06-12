@@ -22,7 +22,7 @@ pub struct Args {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv: Vec<String> = vec!["config", "viewer", "get", "response-schema"].into_iter().map(String::from).collect();
+        let mut argv: Vec<String> = vec!["viewer", "config", "get", "response-schema"].into_iter().map(String::from).collect();
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
             argv.push(jq.clone());
