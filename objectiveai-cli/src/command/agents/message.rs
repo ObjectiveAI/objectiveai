@@ -3,10 +3,6 @@
 //! The agent input is the shared [`AgentSelector`] — the same shape
 //! `agents spawn` takes, so an unspawned agent can be messaged:
 //!
-//! - **enqueue mode** (`--enqueue` / `--enqueue-with-key`):
-//!   short-circuit straight into `message_queue` against the
-//!   instance hierarchy or tag name (a ref can't be enqueued
-//!   against; an ABSENT tag errors). Returns `Enqueued`.
 //! - **ref**: nothing to lock — exec a detached `agents spawn`
 //!   child (stream=true) carrying the resolved agent + message
 //!   inline, return its first item as `Id`.
@@ -22,13 +18,12 @@
 //!
 //! The message payload is resolved ONCE in this process (file IO /
 //! Python run here); spawn children always receive the resolved
-//! `RichContent` via `--inline`.
+//! `RichContent` via `--inline`. Fire-and-forget parking without
+//! the race lives in `agents enqueue`.
 
 use futures::StreamExt;
 use objectiveai_sdk::agent::completions::message::RichContent;
-use objectiveai_sdk::cli::command::agents::message::{
-    EnqueueMode, Request, RequestMessage, Response,
-};
+use objectiveai_sdk::cli::command::agents::message::{Request, RequestMessage, Response};
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn as spawn_sdk;
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
@@ -41,15 +36,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let Request {
         agent,
         message,
-        enqueue,
         dangerous_advanced,
         ..
     } = request;
     let seed = dangerous_advanced.as_ref().and_then(|a| a.seed);
-
-    if let Some(mode) = enqueue {
-        return execute_enqueue(ctx, agent, message, mode).await;
-    }
 
     // Resolve the payload once, in this process.
     let content = resolve_message(message)?;
@@ -239,62 +229,6 @@ async fn spawn_child(
             "agents spawn child emitted a chunk before its id".to_string(),
         )),
     }
-}
-
-/// `--enqueue` / `--enqueue-with-key` handler. Bypasses the lock
-/// race and spawn child entirely; writes one row into
-/// `message_queue` against the target. `Keyed` mode threads the key
-/// through; `db::message_queue::enqueue_with_content` deletes any
-/// prior row scoped to the same (target, key) pair before insert,
-/// so re-issuing with the same key reliably replaces the prior
-/// payload. Refs have no queue identity — error. Tags must exist
-/// (BOUND or GROUPED); the row is parked against the tag NAME
-/// either way, and the two-rule read predicate resolves it.
-async fn execute_enqueue(
-    ctx: &Context,
-    agent: AgentSelector,
-    message: RequestMessage,
-    mode: EnqueueMode,
-) -> Result<Response, Error> {
-    let content = resolve_message(message)?;
-    let key = match mode {
-        EnqueueMode::Plain => None,
-        EnqueueMode::Keyed { key } => Some(key),
-    };
-    let (hier, tag) = match agent {
-        AgentSelector::Instance {
-            parent_agent_instance_hierarchy,
-            agent_instance,
-        } => {
-            let parent = parent_agent_instance_hierarchy
-                .as_deref()
-                .unwrap_or(&ctx.config.agent_instance_hierarchy);
-            (Some(format!("{parent}/{agent_instance}")), None)
-        }
-        AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
-                crate::db::tags::LookupState::Absent => {
-                    return Err(Error::TagNotFound(agent_tag));
-                }
-                _ => (None, Some(agent_tag)),
-            }
-        }
-        AgentSelector::Ref { .. } => return Err(Error::EnqueueRefTarget),
-    };
-    let id = crate::db::message_queue::enqueue_with_content(
-        ctx.db_client().await?,
-        hier.clone(),
-        tag.clone(),
-        &ctx.config.agent_instance_hierarchy,
-        key,
-        content,
-    )
-    .await?;
-    Ok(Response::Enqueued {
-        id,
-        agent_instance_hierarchy: hier,
-        agent_tag: tag,
-    })
 }
 
 pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {

@@ -12,6 +12,7 @@ use objectiveai_sdk::cli::command::agents::{Request, ResponseItem};
 use crate::context::Context;
 use crate::error::Error;
 
+pub mod enqueue;
 pub mod get;
 pub mod instances;
 pub mod list;
@@ -33,6 +34,18 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
+        Request::Enqueue(req) => {
+            let value = enqueue::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Enqueue(value)))
+        }
+        Request::EnqueueRequestSchema(req) => {
+            let value = enqueue::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::EnqueueRequestSchema(value)))
+        }
+        Request::EnqueueResponseSchema(req) => {
+            let value = enqueue::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::EnqueueResponseSchema(value)))
+        }
         Request::Get(req) => {
             let value = get::execute(ctx, req).await?;
             once(Ok(ResponseItem::Get(value)))

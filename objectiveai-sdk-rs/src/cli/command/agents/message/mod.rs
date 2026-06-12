@@ -1,13 +1,13 @@
 //! `agents message` — unary delivery primitive.
 //!
 //! Addresses an agent with the same shape as `agents spawn` (ref /
-//! tag / instance). Enqueue mode short-circuits straight into the
-//! queue. Otherwise the handler races a lock: winning it (or
+//! tag / instance). The handler races a lock: winning it (or
 //! targeting a plain ref) execs a detached `agents spawn` child
 //! with the lock TRANSFERRED into it and returns the child's first
 //! item (`Id`); losing it enqueues, then waits for whichever comes
 //! first — the queue row marked inactive (`Delivered`) or the lock
-//! freeing up (exec the spawn child after all → `Id`).
+//! freeing up (exec the spawn child after all → `Id`). For
+//! fire-and-forget parking without the race, see `agents enqueue`.
 
 use crate::agent::completions::message::RichContent;
 use crate::cli::command::CommandRequest;
@@ -28,15 +28,6 @@ pub struct Request {
     /// always carries this exact `RichContent` as its single
     /// user message.
     pub message: RequestMessage,
-    /// `None` (default) → run the full delivery flow (resolve
-    /// target, lock-race, spawn child). `Some(_)` →
-    /// short-circuit straight into the queue against the target;
-    /// no race, no spawn. With `Keyed { key }`, any pre-existing
-    /// row scoped to the same target + key is deleted before
-    /// insert.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub enqueue: Option<EnqueueMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
@@ -112,29 +103,6 @@ pub struct RequestDangerousAdvanced {
     pub seed: Option<i64>,
 }
 
-/// "Fire and forget into the queue" mode. When attached to a
-/// [`Request`] via [`Request::enqueue`], the handler short-circuits:
-/// no tag lookup, no lock-file race, no spawn-takeover, no detached
-/// respawn — just one INSERT (preceded by a key-collision DELETE
-/// when `Keyed`) and a [`Response::Enqueued`] reply.
-///
-/// Key scope is per-target: the row's `(agent_instance_hierarchy,
-/// key)` or `(agent_tag, key)` pair is unique. Replacing an existing
-/// row scoped to one target leaves rows under other targets alone.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(tag = "by", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.message.EnqueueMode")]
-pub enum EnqueueMode {
-    /// `--enqueue` — bare enqueue, no idempotency key.
-    #[schemars(title = "Plain")]
-    Plain,
-    /// `--enqueue-with-key <KEY>` — idempotent enqueue. Existing
-    /// queue rows scoped to the same target (AIH or tag) AND key
-    /// are deleted before the insert lands.
-    #[schemars(title = "Keyed")]
-    Keyed { key: String },
-}
-
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "message".to_string()];
@@ -146,14 +114,6 @@ impl CommandRequest for Request {
                 serde_json::to_string(advanced)
                     .expect("RequestDangerousAdvanced serializes"),
             );
-        }
-        match &self.enqueue {
-            None => {}
-            Some(EnqueueMode::Plain) => argv.push("--enqueue".to_string()),
-            Some(EnqueueMode::Keyed { key }) => {
-                argv.push("--enqueue-with-key".to_string());
-                argv.push(key.clone());
-            }
         }
         if let Some(jq) = &self.jq {
             argv.push("--jq".to_string());
@@ -175,17 +135,6 @@ pub enum Response {
     /// `request_message_ids`) before the agent's lock freed up.
     #[schemars(title = "Delivered")]
     Delivered,
-    /// The message was deferred into the queue (enqueue mode).
-    #[schemars(title = "Enqueued")]
-    Enqueued {
-        id: i64,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        agent_instance_hierarchy: Option<String>,
-        #[serde(default, skip_serializing_if = "Option::is_none")]
-        #[schemars(extend("omitempty" = true))]
-        agent_tag: Option<String>,
-    },
     /// The handler execed a detached `agents spawn` child (with the
     /// agent's lock transferred into it) and the child yielded its
     /// `Id` first item — the bare `agent_instance_hierarchy` the
@@ -204,17 +153,6 @@ pub struct Args {
     /// `{"seed":42}`).
     #[arg(long)]
     pub dangerous_advanced: Option<String>,
-    /// Persist the message into the queue against the target and
-    /// return immediately. No tag lookup, no delivery race, no
-    /// spawn-takeover. Mutually exclusive with
-    /// `--enqueue-with-key`.
-    #[arg(long, conflicts_with = "enqueue_with_key")]
-    pub enqueue: bool,
-    /// Persist with an idempotency key — existing queue rows
-    /// scoped to the same target + key are deleted before insert.
-    /// Mutually exclusive with `--enqueue`.
-    #[arg(long)]
-    pub enqueue_with_key: Option<String>,
     /// jq filter applied to the JSON output.
     #[arg(long)]
     pub jq: Option<String>,
@@ -294,19 +232,10 @@ impl TryFrom<Args> for Request {
             } else {
                 None
             };
-        let enqueue = match (args.enqueue, args.enqueue_with_key) {
-            (false, None) => None,
-            (true, None) => Some(EnqueueMode::Plain),
-            (false, Some(key)) => Some(EnqueueMode::Keyed { key }),
-            (true, Some(_)) => unreachable!(
-                "clap `conflicts_with` prevents --enqueue + --enqueue-with-key"
-            ),
-        };
         Ok(Self {
             path_type: Path::AgentsMessage,
             agent,
             message,
-            enqueue,
             dangerous_advanced,
             jq: args.jq,
         })

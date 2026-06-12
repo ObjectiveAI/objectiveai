@@ -328,6 +328,13 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli")]
     schemas.extend([
         schemars::schema_for!(crate::cli::command::AgentArguments),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::Path),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::Request),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::Response),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::enqueue::response_schema::Request),
         schemars::schema_for!(crate::cli::command::agents::get::Path),
         schemars::schema_for!(crate::cli::command::agents::get::Request),
         schemars::schema_for!(crate::cli::command::agents::get::request_schema::Path),
@@ -393,7 +400,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Path),
         schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::response_schema::Request),
         schemars::schema_for!(crate::cli::command::agents::logs::read::subscribe::ResponseItem),
-        schemars::schema_for!(crate::cli::command::agents::message::EnqueueMode),
         schemars::schema_for!(crate::cli::command::agents::message::Path),
         schemars::schema_for!(crate::cli::command::agents::message::Request),
         schemars::schema_for!(crate::cli::command::agents::message::request_schema::Path),

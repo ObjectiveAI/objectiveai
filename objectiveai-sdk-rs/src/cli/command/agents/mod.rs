@@ -1,3 +1,4 @@
+pub mod enqueue;
 pub mod get;
 pub mod instances;
 pub mod list;
@@ -11,6 +12,9 @@ pub mod tags;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
+    /// Park a message in the queue against an agent instance or tag
+    /// and return immediately (no delivery race, no spawn).
+    Enqueue(enqueue::Command),
     /// Get an agent by remote path.
     Get(get::Command),
     /// Caller-side handles for live spawned agents that didn't earn
@@ -51,6 +55,12 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.agents.Request")]
 pub enum Request {
+    #[schemars(title = "Enqueue")]
+    Enqueue(enqueue::Request),
+    #[schemars(title = "EnqueueRequestSchema")]
+    EnqueueRequestSchema(enqueue::request_schema::Request),
+    #[schemars(title = "EnqueueResponseSchema")]
+    EnqueueResponseSchema(enqueue::response_schema::Request),
     #[schemars(title = "Get")]
     Get(get::Request),
     #[schemars(title = "GetRequestSchema")]
@@ -98,6 +108,12 @@ pub enum Request {
 #[schemars(rename = "cli.command.agents.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
+    #[schemars(title = "Enqueue")]
+    Enqueue(enqueue::Response),
+    #[schemars(title = "EnqueueRequestSchema")]
+    EnqueueRequestSchema(enqueue::request_schema::Response),
+    #[schemars(title = "EnqueueResponseSchema")]
+    EnqueueResponseSchema(enqueue::response_schema::Response),
     #[schemars(title = "Get")]
     Get(get::Response),
     #[schemars(title = "GetRequestSchema")]
@@ -142,6 +158,9 @@ pub enum ResponseItem {
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
+            ResponseItem::Enqueue(v) => v.into_mcp(),
+            ResponseItem::EnqueueRequestSchema(v) => v.into_mcp(),
+            ResponseItem::EnqueueResponseSchema(v) => v.into_mcp(),
             ResponseItem::Get(v) => v.into_mcp(),
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
@@ -169,6 +188,13 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
+            Command::Enqueue(cmd) => match cmd.schema {
+                None => Ok(Request::Enqueue(enqueue::Request::try_from(cmd.args)?)),
+                Some(enqueue::Schema::RequestSchema(args)) =>
+                    Ok(Request::EnqueueRequestSchema(enqueue::request_schema::Request::try_from(args)?)),
+                Some(enqueue::Schema::ResponseSchema(args)) =>
+                    Ok(Request::EnqueueResponseSchema(enqueue::response_schema::Request::try_from(args)?)),
+            },
             Command::Get(cmd) => match cmd.schema {
                 None => Ok(Request::Get(get::Request::try_from(cmd.args)?)),
                 Some(get::Schema::RequestSchema(args)) =>
@@ -219,6 +245,9 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         match self {
+            Request::Enqueue(inner) => inner.into_command(),
+            Request::EnqueueRequestSchema(inner) => inner.into_command(),
+            Request::EnqueueResponseSchema(inner) => inner.into_command(),
             Request::Get(inner) => inner.into_command(),
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
@@ -255,6 +284,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
+            Request::Enqueue(req) => {
+                let value = enqueue::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::Enqueue(value),
+                )))
+            }
+            Request::EnqueueRequestSchema(req) => {
+                let value = enqueue::request_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::EnqueueRequestSchema(value),
+                )))
+            }
+            Request::EnqueueResponseSchema(req) => {
+                let value = enqueue::response_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    ResponseItem::EnqueueResponseSchema(value),
+                )))
+            }
             Request::Get(req) => {
                 let value = get::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
@@ -386,6 +433,20 @@ pub async fn execute_jq<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
+            Request::Enqueue(req) => {
+                let value = enqueue::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::EnqueueRequestSchema(req) => {
+                let value =
+                    enqueue::request_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::EnqueueResponseSchema(req) => {
+                let value =
+                    enqueue::response_schema::execute_jq(executor, req, jq, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
             Request::Get(req) => {
                 let value = get::execute_jq(executor, req, jq, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
