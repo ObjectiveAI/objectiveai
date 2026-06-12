@@ -50,6 +50,15 @@ pub struct BinaryExecutor {
     /// otherwise the child's inherited console closes with the parent
     /// and the child gets a `CTRL_CLOSE_EVENT`. Defaults to `false`.
     detach: bool,
+    /// One-shot lockfile claim to hand off to the next spawned child
+    /// ([`crate::lockfile::LockClaim::prepare_transfer`] before the
+    /// spawn, [`crate::lockfile::LockClaim::transfer`] after) — the
+    /// child becomes the sole owner and the lock lives until the
+    /// child exits. Consumed by the first `execute`; interior
+    /// mutability because [`CommandExecutor::execute`] takes `&self`.
+    /// Set via [`Self::transfer_lock`].
+    #[cfg(feature = "lockfile")]
+    transfer_lock: std::sync::Mutex<Option<crate::lockfile::LockClaim>>,
 }
 
 impl BinaryExecutor {
@@ -60,6 +69,8 @@ impl BinaryExecutor {
             extra_env: Vec::new(),
             kill_on_drop: false,
             detach: false,
+            #[cfg(feature = "lockfile")]
+            transfer_lock: std::sync::Mutex::new(None),
         }
     }
 
@@ -74,7 +85,22 @@ impl BinaryExecutor {
             extra_env: Vec::new(),
             kill_on_drop: false,
             detach: false,
+            #[cfg(feature = "lockfile")]
+            transfer_lock: std::sync::Mutex::new(None),
         }
+    }
+
+    /// Hand `claim` off to the next spawned child: ownership of the
+    /// lock transfers into the child process, which keeps it until it
+    /// exits (the parent retains nothing). One-shot — consumed by the
+    /// first `execute`. On spawn failure the claim is released; on
+    /// transfer failure the child is killed best-effort, the claim is
+    /// released, and `execute` returns [`Error::LockTransfer`] —
+    /// either way the lock slot is retryable afterwards.
+    #[cfg(feature = "lockfile")]
+    pub fn transfer_lock(mut self, claim: crate::lockfile::LockClaim) -> Self {
+        self.transfer_lock = std::sync::Mutex::new(Some(claim));
+        self
     }
 
     /// Set an environment variable on every child the executor spawns.
@@ -159,6 +185,11 @@ pub enum Error {
     /// `execute_one` was called but the stream produced no items.
     #[error("cli binary stream produced no items")]
     Empty,
+    /// Transferring the lockfile claim into the spawned child failed.
+    /// The child was killed best-effort and the claim released.
+    #[cfg(feature = "lockfile")]
+    #[error("transfer lockfile claim into cli binary child: {0}")]
+    LockTransfer(std::io::Error),
 }
 
 /// Per-line untagged decode. `Err` is listed first so serde tries it
@@ -218,7 +249,6 @@ impl CommandExecutor for BinaryExecutor {
         // for free.
         #[cfg(windows)]
         if self.detach {
-            use std::os::windows::process::CommandExt;
             const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
             const DETACHED_PROCESS: u32 = 0x0000_0008;
             command.creation_flags(CREATE_NEW_PROCESS_GROUP | DETACHED_PROCESS);
@@ -231,7 +261,44 @@ impl CommandExecutor for BinaryExecutor {
         if let Some(args) = agent_arguments {
             args.apply_to_command(&mut command);
         }
-        let mut child = command.spawn().map_err(Error::Spawn)?;
+        // Lockfile-claim handoff, step 1 of 2: arm the command so the
+        // child inherits/duplicates the claim's handles at spawn.
+        #[cfg(feature = "lockfile")]
+        let transfer_claim = self
+            .transfer_lock
+            .lock()
+            .expect("transfer_lock mutex poisoned")
+            .take();
+        #[cfg(feature = "lockfile")]
+        if let Some(claim) = transfer_claim.as_ref() {
+            claim.prepare_transfer(&mut command);
+        }
+        let spawned = command.spawn();
+        // Step 2 of 2: complete (or unwind) the handoff. Dropping a
+        // claim does NOT release it (ManuallyDrop), so every failure
+        // path must release explicitly to keep the lock slot
+        // retryable.
+        #[cfg(feature = "lockfile")]
+        let spawned = match spawned {
+            Ok(child) => {
+                if let Some(claim) = transfer_claim {
+                    if let Err((claim, e)) = claim.transfer(&child) {
+                        let mut child = child;
+                        let _ = child.start_kill();
+                        let _ = claim.release();
+                        return Err(Error::LockTransfer(e));
+                    }
+                }
+                Ok(child)
+            }
+            Err(e) => {
+                if let Some(claim) = transfer_claim {
+                    let _ = claim.release();
+                }
+                Err(e)
+            }
+        };
+        let mut child = spawned.map_err(Error::Spawn)?;
 
         let stdout = child.stdout.take().ok_or(Error::NoStdout)?;
         let lines = BufReader::new(stdout).lines();
