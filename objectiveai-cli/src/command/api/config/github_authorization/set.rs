@@ -6,6 +6,12 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    if !matches!(
+        request.scope,
+        objectiveai_sdk::cli::command::SetScope::Global
+    ) {
+        return Err(Error::AuthorizationGlobalOnly);
+    }
     let mut config = ctx.filesystem.read_config().await?;
     config.api().set_github_authorization(request.value);
     ctx.filesystem.write_config(&config).await?;
