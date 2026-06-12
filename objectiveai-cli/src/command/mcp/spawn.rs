@@ -28,10 +28,16 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // Fresh env: layout coordinates + the configured bind address and
-    // port, each omitted when unset so the server falls back to its
-    // own defaults.
+    // The child inherits the cli's environment; every env key the mcp
+    // server's config reads (`EnvConfigBuilder` in
+    // `objectiveai-mcp/src/run.rs`: ADDRESS, PORT, SUPPRESS_OUTPUT,
+    // OBJECTIVEAI_DIR, OBJECTIVEAI_STATE) is either set explicitly
+    // here or scrubbed, so the spawning shell's settings can't leak
+    // in. ADDRESS/PORT come from on-disk config, each scrubbed when
+    // unset so the server falls back to its own defaults.
     let listening = crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "mcp", |cmd| {
+        cmd.env_remove("ADDRESS");
+        cmd.env_remove("PORT");
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true");

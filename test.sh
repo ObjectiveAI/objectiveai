@@ -4,9 +4,11 @@
 # that need the api run `objectiveai api spawn` themselves, and the
 # api lockfile singleton guarantees exactly one server materializes
 # no matter how many suites ask. This script owns the bracketing —
-# it resets the shared root (kill lockfile owners + wipe state/) at
-# start and end via test-cleanup.sh, and tells the inner scripts to
-# skip their own bracketing through OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT.
+# at start it resets the shared root (kill lockfile owners + wipe
+# state/) via test-cleanup.sh while test-build.sh builds the five
+# shim-target binaries in parallel, at the very end it always runs
+# test-cleanup.sh again, and it tells the inner scripts to skip
+# their own bracketing through OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT.
 #
 # Usage:
 #   bash test.sh
@@ -16,14 +18,31 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/test"
 CLEANUP_LOG="$LOG_DIR/test-cleanup.txt"
+BUILD_LOG="$LOG_DIR/test-build.txt"
 
 mkdir -p "$LOG_DIR"
 : > "$CLEANUP_LOG"
+: > "$BUILD_LOG"
 
 export OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT=1
 
-bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1
-trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true' EXIT INT TERM
+# Reset the shared root and build the shim binaries, in parallel.
+# Cleanup kills every lockfile-owning process first thing, so nothing
+# is left running the binaries the build is about to relink.
+bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 & CLEANUP_PID=$!
+bash "$REPO_ROOT/test-build.sh" >>"$BUILD_LOG" 2>&1 & BUILD_PID=$!
+wait "$CLEANUP_PID"
+wait "$BUILD_PID"
+
+# The root ALWAYS reruns test-cleanup.sh at the very end, exactly
+# once — the EXIT trap covers success, failure, and interruption.
+FINAL_CLEANUP_DONE=false
+final_cleanup() {
+  $FINAL_CLEANUP_DONE && return 0
+  FINAL_CLEANUP_DONE=true
+  bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
+}
+trap final_cleanup EXIT INT TERM
 
 # Run all test suites in parallel.
 # Each script prints exactly one line: "$MODULE: PASS N/N" or "$MODULE: FAIL N/N".

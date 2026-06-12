@@ -3,14 +3,16 @@
 # Output is captured to .logs/test/objectiveai-cli.txt.
 #
 # No preparation step: tests run against the repo's committed shared
-# test root (`.objectiveai/`). The cli under test is the cargo-run
-# shim at `.objectiveai/bin/objectiveai`, fixtures are committed
-# manifests whose exec entries cargo-run their crates in place, and
-# servers (api/db) self-spawn behind lockfile singletons when a test
-# first needs them. `test-cleanup.sh` brackets the run — killing
-# every lockfile-owning process under `.objectiveai` and wiping the
-# transient `state/` tree — unless the root `test.sh` owns the
-# bracketing (OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT).
+# test root (`.objectiveai/`). The cli under test is the shim at
+# `.objectiveai/bin/objectiveai` (a pointer to the pre-built
+# `target/debug/objectiveai-cli` — `test-build.sh` builds it),
+# fixtures are committed manifests whose exec entries cargo-run their
+# crates in place, and servers (api/db) self-spawn behind lockfile
+# singletons when a test first needs them. `test-cleanup.sh` brackets
+# the run — killing every lockfile-owning process under
+# `.objectiveai` and wiping the transient `state/` tree — unless the
+# root `test.sh` owns the bracketing
+# (OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT).
 #
 # Usage:
 #   bash objectiveai-cli/test.sh
@@ -28,11 +30,15 @@ NEXTEST="$REPO_ROOT/bin/cargo-nextest"
 mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
 
-# Reset the shared test root at start AND end when running
-# standalone; the root test.sh brackets the whole multi-suite run
-# itself and tells us to skip via the env var.
 if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
-  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1
+  # Standalone run: reset the shared test root and (re)build the shim
+  # binaries, in parallel — cleanup kills every lockfile-owning
+  # process first thing, so nothing is left running the binaries the
+  # build may relink. The trap reruns cleanup at the very end.
+  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 & _CLEANUP_PID=$!
+  bash "$REPO_ROOT/test-build.sh" >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
+  wait "$_CLEANUP_PID"
+  wait "$_BUILD_PID"
   trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
 fi
 

@@ -3,11 +3,12 @@
 # Output is captured to .logs/test/objectiveai-viewer.txt.
 #
 # No preparation and no server lifecycle: the `cli_command`
-# integration test drives the cargo-run cli shim from the repo's
-# committed `.objectiveai` test root, and any servers the cli needs
-# self-spawn behind lockfile singletons. `test-cleanup.sh` brackets
-# the run unless the root test.sh owns the bracketing
-# (OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT).
+# integration test drives the cli shim from the repo's committed
+# `.objectiveai` test root (a pointer to the pre-built
+# `target/debug/objectiveai-cli` — `test-build.sh` builds it), and
+# any servers the cli needs self-spawn behind lockfile singletons.
+# `test-cleanup.sh` brackets the run unless the root test.sh owns
+# the bracketing (OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT).
 #
 # Usage:
 #   bash objectiveai-viewer/test.sh
@@ -26,7 +27,14 @@ mkdir -p "$LOG_DIR"
 : > "$LOG_FILE"
 
 if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
-  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1
+  # Standalone run: reset the shared test root and (re)build the shim
+  # binaries, in parallel — cleanup kills every lockfile-owning
+  # process first thing, so nothing is left running the binaries the
+  # build may relink. The trap reruns cleanup at the very end.
+  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 & _CLEANUP_PID=$!
+  bash "$REPO_ROOT/test-build.sh" >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
+  wait "$_CLEANUP_PID"
+  wait "$_BUILD_PID"
   trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
 fi
 

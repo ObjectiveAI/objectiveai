@@ -30,11 +30,20 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // Fresh env: layout coordinates + the configured secret (omitted
-    // when unset so the viewer falls back to its own default). No
-    // ADDRESS/PORT — the viewer defaults to 127.0.0.1 on an ephemeral
-    // port and publishes the bound URL in its lock.
+    // The child inherits the cli's environment; every env key the
+    // viewer's config reads (`EnvConfigBuilder` in
+    // `objectiveai-viewer/src-tauri/src/run.rs`: ADDRESS, PORT,
+    // VIEWER_SECRET, SUPPRESS_OUTPUT, OBJECTIVEAI_DIR,
+    // OBJECTIVEAI_STATE) is either set explicitly here or scrubbed,
+    // so the spawning shell's settings can't leak in. ADDRESS/PORT
+    // are always scrubbed — the viewer defaults to 127.0.0.1 on an
+    // ephemeral port and publishes the bound URL in its lock. The
+    // secret comes from on-disk config, scrubbed when unset so the
+    // viewer falls back to its own default.
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
+        cmd.env_remove("ADDRESS");
+        cmd.env_remove("PORT");
+        cmd.env_remove("VIEWER_SECRET");
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true");

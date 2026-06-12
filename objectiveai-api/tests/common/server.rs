@@ -6,9 +6,9 @@
 //! runs `objectiveai api spawn` against the repo's committed
 //! `.objectiveai` test root, and the api lockfile singleton
 //! guarantees exactly one server ever materializes — whoever asks
-//! first spawns it (the bin entry is a cargo-run shim, so the server
-//! always reflects the working tree), everyone else gets the
-//! already-published URL back. The URL itself is read from the `api`
+//! first spawns it (the bin entry points at the pre-built
+//! `target/debug` binary from `test-build.sh`, which `test.sh` runs
+//! up front), everyone else gets the already-published URL back. The URL itself is read from the `api`
 //! lockfile's published contents. Cross-binary state isolation is
 //! handled inside the api (per-request) and inside the tests
 //! (per-test states), not at the OS process level.
@@ -41,13 +41,19 @@ fn resolve_base_url() -> String {
     } else {
         "objectiveai"
     });
-    let status = std::process::Command::new(&shim)
+    // Capture stdout: the cli reports errors as JSON lines on stdout,
+    // so on failure the captured bytes ARE the diagnosis.
+    let output = std::process::Command::new(&shim)
         .args(["api", "spawn"])
         .env("OBJECTIVEAI_DIR", &dir)
-        .stdout(std::process::Stdio::null())
-        .status()
+        .output()
         .expect("run the objectiveai shim for `api spawn`");
-    assert!(status.success(), "`objectiveai api spawn` failed");
+    assert!(
+        output.status.success(),
+        "`objectiveai api spawn` failed ({}): {}",
+        output.status,
+        String::from_utf8_lossy(&output.stdout),
+    );
 
     let locks_dir = dir.join("bin").join("locks");
     std::thread::spawn(move || {

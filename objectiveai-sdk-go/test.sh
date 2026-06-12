@@ -31,18 +31,22 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Reset the shared test root (kill lockfile owners + wipe state/) at
-# start and end when running standalone; the root test.sh brackets
-# the whole multi-suite run itself and tells us to skip via the env.
 if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
-  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1
+  # Standalone run: reset the shared test root and (re)build the shim
+  # binaries, in parallel — cleanup kills every lockfile-owning
+  # process first thing, so nothing is left running the binaries the
+  # build may relink. The trap reruns cleanup at the very end.
+  bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 & _CLEANUP_PID=$!
+  bash "$REPO_ROOT/test-build.sh" >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
+  wait "$_CLEANUP_PID"
+  wait "$_BUILD_PID"
   trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
 fi
 
 # Spawn-or-discover THE shared api server through the committed
 # `.objectiveai` test root: `api spawn` is idempotent behind the api
-# lockfile singleton — whoever asks first spawns it (the bin entry is
-# a cargo-run shim, so the server reflects the working tree),
+# lockfile singleton — whoever asks first spawns it (the bin entry
+# points at the pre-built target/debug binary from test-build.sh),
 # everyone else gets the already-published URL back. The port feeds
 # the suite's in-language gate var.
 OAI_DIR="$REPO_ROOT/.objectiveai"
