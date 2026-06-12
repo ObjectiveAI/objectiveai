@@ -314,11 +314,47 @@ pub async fn wait_acquire(
     }
 }
 
+/// How long to sleep between re-probes while a claim is observed
+/// mid-flight (gate locked, announce not yet): on the order of a
+/// small filesystem write, the operation the holder is in the middle
+/// of. (tokio's timer rounds this up to its wheel granularity — the
+/// intent is "yield, then look again almost immediately".)
+const PARTIAL_STATE_POLL: std::time::Duration = std::time::Duration::from_micros(100);
+
 /// Is some live process currently holding this claim? Held ⇔ BOTH
-/// the gate and the announce are locked — a gate-only state is an
-/// acquisition in progress (content in flux) and reports false.
-pub fn try_held(dir: &Path, key: &str) -> bool {
-    file_locked(&gate_path(dir, key)) && file_locked(&announce_path(dir, key))
+/// the gate and the announce are locked.
+///
+/// NEVER reports from a partial state. The observable combinations:
+///
+/// - gate unlocked → **false**, immediately. (This includes the
+///   microseconds-wide owner-death window where the kernel has
+///   closed the gate but not yet the announce — handle-close order
+///   on process death is unspecified, so announce-without-gate IS
+///   transiently representable there, and it correctly reads as
+///   "no live owner".)
+/// - gate AND announce locked → **true**, immediately.
+/// - gate locked, announce not → an acquisition (or release, or
+///   death cleanup) is in flight. The holder is a live process
+///   actively between two file operations, so the state resolves in
+///   microseconds: spin on a tiny sleep until it flips one way or
+///   the other. A pathologically stalled peer (suspended mid-
+///   acquire) therefore parks this probe instead of producing a
+///   spurious answer — waiting is the contract.
+///
+/// This is what makes "`try_acquire` failed ⇒ an immediately
+/// following [`try_read`] sees the winner" a true invariant: probes
+/// can no longer observe the winner's gate→announce window as
+/// "not held".
+pub async fn try_held(dir: &Path, key: &str) -> bool {
+    let gate = gate_path(dir, key);
+    let announce = announce_path(dir, key);
+    loop {
+        match (file_locked(&gate), file_locked(&announce)) {
+            (false, _) => return false,
+            (true, true) => return true,
+            (true, false) => tokio::time::sleep(PARTIAL_STATE_POLL).await,
+        }
+    }
 }
 
 /// Try to read the published content of `(dir, key)` right now.
@@ -342,7 +378,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
             Err(e) => return Err(e),
         };
-        if !try_held(dir, key) {
+        if !try_held(dir, key).await {
             return Ok(None);
         }
         let contents = match tokio::fs::read_to_string(&gate).await {
@@ -351,7 +387,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
             Err(e) => return Err(e),
         };
-        if !try_held(dir, key) {
+        if !try_held(dir, key).await {
             // Owner died (the next iteration returns None) or a
             // successor is mid-acquisition (retry until announced).
             continue;
@@ -386,7 +422,7 @@ pub async fn wait_held(dir: &Path, key: &str) -> std::io::Result<()> {
     let announce = announce_path(dir, key);
     loop {
         let watcher = HeldWatcher::arm(dir, &announce)?;
-        if try_held(dir, key) {
+        if try_held(dir, key).await {
             return Ok(());
         }
         watcher.wait().await?;

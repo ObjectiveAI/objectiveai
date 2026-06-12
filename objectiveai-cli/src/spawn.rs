@@ -176,6 +176,16 @@ pub async fn spawn_until_lock_published(
                         Ok(Ok(buf)) => buf,
                         _ => Vec::new(),
                     };
+                    // One last probe before declaring failure: the
+                    // drain gave a concurrently-spawned winner extra
+                    // time to publish, and a lost race is a success.
+                    if let Some(listening) =
+                        objectiveai_sdk::lockfile::try_read(lock_dir, key)
+                            .await
+                            .map_err(lock_err)?
+                    {
+                        return Ok(listening);
+                    }
                     Err(crate::error::Error::SpawnExitedBeforePublishing {
                         name,
                         status: status.map_err(|e| crate::error::Error::Spawn(key.to_string(), e))?,

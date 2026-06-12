@@ -101,11 +101,19 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 return;
             }
 
-            // Step 2: filter to held-lock targets.
+            // Step 2: filter to held-lock targets — probe every lock
+            // concurrently (a probe can briefly park on a mid-flight
+            // acquisition; joined, the wait is the max, not the sum).
+            let probes = futures::future::join_all(
+                resolved
+                    .iter()
+                    .map(|r| objectiveai_sdk::lockfile::try_held(&r.lock_dir, &r.lock_key)),
+            )
+            .await;
             let held: Vec<Resolved> = resolved
                 .iter()
-                .filter(|r| objectiveai_sdk::lockfile::try_held(&r.lock_dir, &r.lock_key))
-                .cloned()
+                .zip(probes)
+                .filter_map(|(r, held)| held.then(|| r.clone()))
                 .collect();
             if held.is_empty() {
                 yield Ok(ResponseItem::AgentsInactive(
