@@ -111,6 +111,14 @@ pub enum Error {
     #[error("tag {0:?} is not registered")]
     TagNotFound(String),
     #[error(
+        "agent instance {agent_instance_hierarchy:?} is already active (its lock is held by a live process)"
+    )]
+    AgentInstanceActive { agent_instance_hierarchy: String },
+    #[error("agent tag {tag:?} is already being spawned (its lock is held by a live process)")]
+    AgentTagActive { tag: String },
+    #[error("cannot enqueue against an agent ref; enqueue targets an instance or a tag")]
+    EnqueueRefTarget,
+    #[error(
         "queued message {id} was sent by {sender_agent_instance_hierarchy:?}; it can only be deleted by the sender or a parent of the sender (caller is {caller_agent_instance_hierarchy:?})"
     )]
     QueueDeleteUnauthorized {

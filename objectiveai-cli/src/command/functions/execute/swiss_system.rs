@@ -65,12 +65,7 @@ async fn execute_streaming(
         stream: Some(true),
         continuation: request.continuation,
     };
-    let agents_dir = ctx
-        .filesystem
-        .state_dir()
-        .join("instances")
-        .join("agents");
-    let inner = super::runner::run(ctx.clone(), params, agents_dir);
+    let inner = super::runner::run(ctx.clone(), params);
     Ok(Box::pin(inner.map(|r| {
         r.map(|ev| match ev {
             super::runner::Event::Id(id) => ResponseItem::Id(id),

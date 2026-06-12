@@ -15,6 +15,7 @@ use crate::error::Error;
 pub mod get;
 pub mod instances;
 pub mod list;
+pub mod locks;
 pub mod logs;
 pub mod message;
 pub mod publish;
@@ -65,8 +66,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
         }
         Request::Message(req) => {
-            let inner = message::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Message)))
+            let value = message::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Message(value)))
         }
         Request::MessageRequestSchema(req) => {
             let value = message::request_schema::execute(ctx, req).await?;

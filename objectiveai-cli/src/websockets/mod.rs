@@ -6,11 +6,10 @@
 //! through it. The pieces below are the cross-cutting state every
 //! such call needs:
 //!
-//! - [`agent_registry`] — process-owned `flock`-style claim files
-//!   keyed by `agent_instance_hierarchy`. Mutual exclusion across
-//!   processes for a given agent slot. Backed by the crate-root
-//!   [`crate::lock_file`] primitive (objectiveai-db keeps a copy
-//!   for its postgres bootstrap mutex).
+//! - [`agent_registry`] — process-owned lock claims keyed by
+//!   `agent_instance_hierarchy`. Mutual exclusion across processes
+//!   for a given agent slot. Backed by [`objectiveai_sdk::lockfile`]
+//!   at the per-agent layout in [`crate::command::agents::locks`].
 //! - [`mcp_server`] — the in-process `objectiveai-mcp` server handle
 //!   the conduit forwards plugin tool calls to.
 //! - [`conduit`] — the MCP reverse-attach proxy that routes WS

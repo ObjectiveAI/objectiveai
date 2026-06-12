@@ -25,8 +25,6 @@
 //! the buffer is non-empty, we `wait_written_once().await` and then
 //! emit the deferred Id + buffer drain before finalizing.
 
-use std::path::PathBuf;
-
 use futures::Stream;
 use futures::StreamExt;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
@@ -56,13 +54,9 @@ pub enum Event {
 pub fn run(
     ctx: Context,
     params: FunctionExecutionCreateParams,
-    agents_dir: PathBuf,
 ) -> impl Stream<Item = Result<Event, Error>> + Send {
     async_stream::try_stream! {
-        let mut registry = AgentInstanceRegistry::new(agents_dir)
-            .map_err(|e| Error::Instance(format!(
-                "failed to open agent claim registry: {e}"
-            )))?;
+        let mut registry = AgentInstanceRegistry::new(ctx.filesystem.state_dir());
 
         // Per-call resources.
         let mcp_server = crate::websockets::mcp_server::spawn(ctx.clone());
@@ -128,7 +122,7 @@ pub fn run(
                     //    yields, the rows are persisted.
                     let mut continuation_upserts: Vec<_> = Vec::new();
                     for (hier, continuation) in chunk.agent_instance_hierarchies() {
-                        registry.observe(hier);
+                        registry.observe(hier).await;
                         if let Some(c) = continuation {
                             continuation_upserts.push(
                                 crate::db::agent_continuations::upsert(ctx.db_client().await?, hier, c),

@@ -1,70 +1,106 @@
-//! Process-owned exclusive claim files keyed by
-//! `agent_instance_hierarchy`.
+//! Process-owned exclusive claims keyed by
+//! `agent_instance_hierarchy`, backed by
+//! [`objectiveai_sdk::lockfile`] at the per-agent lock layout
+//! ([`crate::command::agents::locks`]).
 //!
-//! Thin index over [`crate::lock_file`]'s OS-managed claim
-//! primitive: a `HashMap<hierarchy, LockClaim>` that dedupes
-//! repeat `observe` calls and lets the owner explicitly release
-//! a single hierarchy mid-stream via `destroy`.
+//! A `HashMap<hierarchy, LockClaim>` that attempts each hierarchy's
+//! lock exactly once ([`AgentInstanceRegistry::observe`] is
+//! best-effort — a failed try_acquire is silently dropped, which
+//! also covers the case where this process already holds the lock
+//! via handles a parent transferred in). The registry can carry one
+//! tag claim ([`AgentInstanceRegistry::hold_tag_claim`]) for spawns
+//! materializing an un-upgraded tag; the FIRST successful AIH claim
+//! releases it — once the minted hierarchy's lock is held, the tag
+//! lock's job is done.
 //!
-//! See [`crate::lock_file`] for platform semantics — Windows
-//! uses `FILE_FLAG_DELETE_ON_CLOSE` (file existence ⇔
-//! liveness); Unix uses persistent file + `flock` (lock state ⇔
-//! liveness).
-//!
-//! Every operation is best-effort: [`observe`] returns `()` and
-//! silently swallows IO errors. The registry only tracks claims it
-//! actually owns.
+//! SDK claims do NOT release on drop (their handles are leaked on
+//! purpose so a lock normally lives until process death). The
+//! registry restores scope-bound semantics: its `Drop` explicitly
+//! releases every claim it owns, so an in-process streaming spawn
+//! frees its slots when its stream ends. Transferred-in locks have
+//! no claim object here and die with the process — by design, since
+//! the process IS the spawn.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 
-use crate::lock_file::{self, LockClaim};
+use objectiveai_sdk::lockfile::LockClaim;
 
 pub struct AgentInstanceRegistry {
-    root: PathBuf,
+    state_dir: PathBuf,
     open: HashMap<String, LockClaim>,
+    /// Every hierarchy `observe` has ever tried — exactly one
+    /// try_acquire per AIH per registry lifetime, success or not.
+    attempted: HashSet<String>,
+    /// Tag claim guarding an un-upgraded (GROUPED) tag spawn.
+    /// Released on the first successful AIH claim, held to the end
+    /// otherwise.
+    tag_claim: Option<LockClaim>,
 }
 
 impl AgentInstanceRegistry {
-    pub fn new(root: PathBuf) -> std::io::Result<Self> {
-        std::fs::create_dir_all(&root)?;
-        Ok(Self {
-            root,
+    pub fn new(state_dir: PathBuf) -> Self {
+        Self {
+            state_dir,
             open: HashMap::new(),
-        })
+            attempted: HashSet::new(),
+            tag_claim: None,
+        }
     }
 
-    /// Path the registry uses for `hier`. Exposed so callers
-    /// (notably [`crate::command::agents::message`])
-    /// can subscribe to release / acquisition events on the same
-    /// physical lock file without going through the registry's
-    /// owned-handle API.
-    pub fn path_for(&self, hier: &str) -> PathBuf {
-        self.root.join(hier.replace('/', "_"))
+    /// Hand the registry an AIH claim acquired up-front (the
+    /// historic-spawn initial lock), so the mid-stream `observe` of
+    /// the same hierarchy dedupes and the claim is released on drop
+    /// with the rest.
+    pub fn preseed(&mut self, hier: String, claim: LockClaim) {
+        self.attempted.insert(hier.clone());
+        self.open.insert(hier, claim);
     }
 
-    /// Idempotent, best-effort. The first time we see `hier`, try
-    /// to acquire its lock file. Repeat calls are no-ops. Any
-    /// failure (file already claimed live, illegal chars, ENOSPC,
-    /// …) is silently dropped — the registry only tracks claims
-    /// it really owns.
-    pub fn observe(&mut self, hier: &str) {
-        if self.open.contains_key(hier) {
+    /// Hand the registry the un-upgraded tag's claim. Released by
+    /// the first successful AIH claim, or on drop.
+    pub fn hold_tag_claim(&mut self, claim: LockClaim) {
+        self.tag_claim = Some(claim);
+    }
+
+    /// Idempotent, best-effort. The first time we see `hier`, try to
+    /// acquire its instance lock; repeat calls are no-ops. Any
+    /// failure (held by another process — or by THIS process via
+    /// transferred handles) is silently dropped: the registry only
+    /// tracks claims it really owns. On the first success, the held
+    /// tag claim (if any) is released.
+    pub async fn observe(&mut self, hier: &str) {
+        if !self.attempted.insert(hier.to_string()) {
             return;
         }
-        let path = self.path_for(hier);
-        if let Some(claim) = lock_file::try_acquire(&path) {
+        let (dir, key) = crate::command::agents::locks::agent_instance_lock(&self.state_dir, hier);
+        if let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
             self.open.insert(hier.to_string(), claim);
+            // The minted hierarchy is now guarded directly — the tag
+            // lock has served its purpose.
+            if let Some(tag_claim) = self.tag_claim.take() {
+                let _ = tag_claim.release();
+            }
         }
     }
 
-    /// Release the claim immediately. On Windows the file is gone
-    /// from disk (DELETE_ON_CLOSE fires when the underlying
-    /// handle drops). On Unix the file persists but the `flock`
-    /// is released — another process can detect the unlocked
-    /// state and reclaim the hierarchy. No-op if `hier` was never
-    /// observed or never produced a successful claim.
+    /// Release `hier`'s claim immediately — another process can then
+    /// acquire the slot. No-op if `hier` was never observed or never
+    /// produced a successful claim.
     pub fn destroy(&mut self, hier: &str) {
-        self.open.remove(hier);
+        if let Some(claim) = self.open.remove(hier) {
+            let _ = claim.release();
+        }
+    }
+}
+
+impl Drop for AgentInstanceRegistry {
+    fn drop(&mut self) {
+        for (_, claim) in self.open.drain() {
+            let _ = claim.release();
+        }
+        if let Some(claim) = self.tag_claim.take() {
+            let _ = claim.release();
+        }
     }
 }

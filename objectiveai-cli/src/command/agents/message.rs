@@ -1,405 +1,268 @@
-//! `agents message` — stream-aware delivery primitive.
+//! `agents message` — unary delivery primitive.
 //!
-//! See the SDK's `agents::message` module doc for the
-//! external semantics. The cli-side decision tree:
+//! The agent input is the shared [`AgentSelector`] — the same shape
+//! `agents spawn` takes, so an unspawned agent can be messaged:
 //!
-//! 1. **Resolve target.** Direct → compose `{parent}/{instance}`.
-//!    Tag → look up in `tags`; BOUND falls through as a Direct
-//!    equivalent, PENDING/ABSENT falls back to pure enqueue
-//!    against the tag (or errors when message is `None`).
-//! 2. **Resolve content.** `Some(rm)` → `resolve_message` →
-//!    `RichContent`. `None` → tracked through the rest of the
-//!    flow; the eventual spawn (if any) gets an empty `messages`
-//!    vec.
-//! 3. **Branch on `dangerous_advanced.stream`:**
-//!    - `stream=true` → `execute_streaming`.
-//!    - `stream=false | None` → `execute_unary`.
+//! - **enqueue mode** (`--enqueue` / `--enqueue-with-key`):
+//!   short-circuit straight into `message_queue` against the
+//!   instance hierarchy or tag name (a ref can't be enqueued
+//!   against; an ABSENT tag errors). Returns `Enqueued`.
+//! - **ref**: nothing to lock — exec a detached `agents spawn`
+//!   child (stream=true) carrying the resolved agent + message
+//!   inline, return its first item as `Id`.
+//! - **instance / BOUND tag** (the AIH lock) and **GROUPED tag**
+//!   (the tag lock): try_acquire. Won → exec the spawn child with
+//!   the claim TRANSFERRED into it (`skip_lock=true`; the lock then
+//!   lives exactly as long as the child) → `Id`. Lost → enqueue the
+//!   message, then race `subscribe_delivered` (the row flipping
+//!   inactive means a live agent consumed it → `Delivered`) against
+//!   `wait_acquire` (the slot freed up first → reclaim our queue
+//!   row, exec the spawn child with the fresh claim transferred →
+//!   `Id`).
+//!
+//! The message payload is resolved ONCE in this process (file IO /
+//! Python run here); spawn children always receive the resolved
+//! `RichContent` via `--inline`.
 
-use std::path::PathBuf;
-use std::pin::Pin;
-
-use futures::{Stream, StreamExt};
-use objectiveai_sdk::agent::completions::message::{Message, RichContent, UserMessage};
-use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
+use futures::StreamExt;
+use objectiveai_sdk::agent::completions::message::RichContent;
 use objectiveai_sdk::cli::command::agents::message::{
-    EnqueueMode, MessageTarget, Request, RequestDangerousAdvanced, RequestMessage, ResponseItem,
+    EnqueueMode, Request, RequestMessage, Response,
 };
-use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseItem;
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
+use objectiveai_sdk::cli::command::agents::spawn as spawn_sdk;
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
+use objectiveai_sdk::lockfile::LockClaim;
 
 use crate::context::Context;
-use crate::db::tags::LookupState;
 use crate::error::Error;
-use crate::lock_file;
 
-type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
+pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    let Request {
+        agent,
+        message,
+        enqueue,
+        dangerous_advanced,
+        ..
+    } = request;
+    let seed = dangerous_advanced.as_ref().and_then(|a| a.seed);
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    // Fire-and-forget short-circuit. `--enqueue` /
-    // `--enqueue-with-key` skip every interactive step (no
-    // `tags::lookup`, no lock-file race, no spawn-takeover, no
-    // detached respawn) and just persist into `message_queue`.
-    if let Some(mode) = request.enqueue {
-        return execute_enqueue(ctx, request.target, request.message, mode).await;
+    if let Some(mode) = enqueue {
+        return execute_enqueue(ctx, agent, message, mode).await;
     }
-    let want_stream = request
-        .dangerous_advanced
-        .as_ref()
-        .and_then(|a| a.stream)
-        .unwrap_or(false);
-    let agents_dir = ctx
-        .filesystem
-        .state_dir()
-        .join("instances")
-        .join("agents");
 
-    // Phase 1: resolve target → (hierarchy, tag) or early-return.
-    let (hierarchy, _tag) = match resolve_target(ctx, &request).await? {
-        ResolvedTarget::Hierarchy { hierarchy, tag } => (hierarchy, tag),
-        ResolvedTarget::EnqueueAgainstTag { id, agent_tag } => {
-            return Ok(once_item(ResponseItem::Enqueued {
-                id,
-                agent_instance_hierarchy: None,
-                agent_tag: Some(agent_tag),
-            }));
+    // Resolve the payload once, in this process.
+    let content = resolve_message(message)?;
+
+    let state_dir = ctx.filesystem.state_dir();
+    let route = match agent {
+        AgentSelector::Ref { agent } => {
+            // Resolve file/python refs HERE too — the child gets the
+            // typed agent inline and never re-runs the Python.
+            let resolved = super::spawn::resolve_agent_ref(agent)?;
+            Route::Ref {
+                child: AgentSelector::Ref {
+                    agent: AgentRef::Resolved(resolved),
+                },
+            }
         }
-    };
-
-    // Phase 2: resolve the user payload — always required.
-    let message_content = resolve_message(request.message.clone())?;
-
-    if want_stream {
-        let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
-        execute_streaming(ctx, hierarchy, message_content, agents_dir, seed).await
-    } else {
-        execute_unary(ctx, hierarchy, message_content, agents_dir, request).await
-    }
-}
-
-enum ResolvedTarget {
-    /// Successfully resolved to a concrete hierarchy (Direct or
-    /// BOUND tag). Caller continues into the lock-race flow.
-    Hierarchy {
-        hierarchy: String,
-        #[allow(dead_code)] // exposed for future tag-binding hooks.
-        tag: Option<String>,
-    },
-    /// Tag was unresolvable (PENDING / ABSENT). The message was
-    /// already enqueued against the tag name; caller short-circuits
-    /// with the assigned queue row id.
-    EnqueueAgainstTag { id: i64, agent_tag: String },
-}
-
-async fn resolve_target(ctx: &Context, request: &Request) -> Result<ResolvedTarget, Error> {
-    match &request.target {
-        MessageTarget::Direct {
+        AgentSelector::Instance {
             parent_agent_instance_hierarchy,
             agent_instance,
         } => {
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
-            Ok(ResolvedTarget::Hierarchy {
-                hierarchy: format!("{parent}/{agent_instance}"),
-                tag: None,
-            })
+            instance_route(&state_dir, format!("{parent}/{agent_instance}"))
         }
-        MessageTarget::Tag { agent_tag } => {
-            let state = crate::db::tags::lookup(ctx.db_client().await?, agent_tag).await?;
-            match state {
-                LookupState::Bound {
+        AgentSelector::Tag { agent_tag } => {
+            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+                crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
-                } => Ok(ResolvedTarget::Hierarchy {
-                    hierarchy: agent_instance_hierarchy,
-                    tag: Some(agent_tag.clone()),
-                }),
-                LookupState::Grouped { .. } | LookupState::Absent => {
-                    // No live target. Pure enqueue against the
-                    // tag name — the queue reader resolves it later.
-                    let content = resolve_message(request.message.clone())?;
-                    let id = crate::db::message_queue::enqueue_with_content(
-                        ctx.db_client().await?,
-                        None,
-                        Some(agent_tag.clone()),
-                        &ctx.config.agent_instance_hierarchy,
-                        None,
-                        content,
-                    )
-                    .await?;
-                    Ok(ResolvedTarget::EnqueueAgainstTag {
-                        id,
-                        agent_tag: agent_tag.clone(),
-                    })
-                }
-            }
-        }
-    }
-}
-
-/// `stream=true`: try to acquire the lock immediately. If we get
-/// it, skip enqueue + run spawn in-process. If we don't, enqueue +
-/// race DB-delivery against blocking lock acquisition.
-async fn execute_streaming(
-    ctx: &Context,
-    hierarchy: String,
-    message_content: RichContent,
-    agents_dir: PathBuf,
-    seed: Option<i64>,
-) -> Result<ItemStream, Error> {
-    std::fs::create_dir_all(&agents_dir)
-        .map_err(|e| Error::Instance(format!("create agents_dir: {e}")))?;
-    let lock_path = agents_dir.join(hierarchy.replace('/', "_"));
-
-    // Fast path: nobody holds the lock — we win it now.
-    if let Some(claim) = lock_file::try_acquire(&lock_path) {
-        return Ok(run_spawn_with(ctx, claim, hierarchy, message_content, seed).await?);
-    }
-
-    // Slow path: live owner. Enqueue + race.
-    let queue_id = crate::db::message_queue::enqueue_with_content(
-        ctx.db_client().await?,
-        Some(hierarchy.clone()),
-        None,
-        &ctx.config.agent_instance_hierarchy,
-        None,
-        message_content.clone(),
-    )
-    .await?;
-
-    let pool = ctx.db_client().await?.clone();
-    let lock_path_clone = lock_path.clone();
-    tokio::select! {
-        delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
-            delivery?;
-            Ok(once_item(ResponseItem::Delivered))
-        }
-        claim = lock_file::wait_acquire(&lock_path_clone) => {
-            let claim = claim.map_err(|e| Error::Instance(format!(
-                "lock acquisition: {e}"
-            )))?;
-            // We're the new owner. Reclaim our queue row before
-            // spawning — the conduit shouldn't see it again.
-            let _ = crate::db::message_queue::delete_by_id(
-                ctx.db_client().await?,
-                queue_id,
-                &ctx.config.agent_instance_hierarchy,
-            )
-            .await;
-            run_spawn_with(ctx, claim, hierarchy, message_content, seed).await
-        }
-    }
-}
-
-/// Drive `spawn::run_multi_pass` for this hierarchy. Pulls the
-/// agent definition + latest continuation out of the logs DB
-/// (single round-trip), pre-builds an
-/// `AgentCompletionCreateParams` with the continuation stamped,
-/// and threads the held `LockClaim` through the returned stream's
-/// state so the lock is owned for the full spawn lifetime.
-async fn run_spawn_with(
-    ctx: &Context,
-    claim: lock_file::LockClaim,
-    hierarchy: String,
-    message_content: RichContent,
-    seed: Option<i64>,
-) -> Result<ItemStream, Error> {
-    let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
-        .await?
-        .ok_or_else(|| {
-            Error::Instance(format!("no prior session for {hierarchy:?}"))
-        })?;
-
-    let messages = vec![Message::User(UserMessage {
-        content: message_content,
-        name: None,
-    })];
-    let params = AgentCompletionCreateParams {
-        messages,
-        provider: None,
-        agent: lookup.agent,
-        response_format: None,
-        seed,
-        stream: Some(true),
-        continuation: lookup.continuation,
-    };
-    let agents_dir = ctx
-        .filesystem
-        .state_dir()
-        .join("instances")
-        .join("agents");
-
-    let inner = crate::command::agents::spawn::run_multi_pass(
-        ctx.clone(),
-        params,
-        None,
-        agents_dir,
-    );
-
-    // Tie `claim` into the stream's lifetime — drop = release
-    // happens only when the consumer drops our output stream.
-    let stream = async_stream::try_stream! {
-        let _claim = claim;
-        let mut inner = Box::pin(inner);
-        while let Some(item) = inner.next().await {
-            let ev = item?;
-            match ev {
-                SpawnResponseItem::Id(id) => {
-                    yield ResponseItem::Id {
-                        agent_instance_hierarchy: id,
+                } => instance_route(&state_dir, agent_instance_hierarchy),
+                crate::db::tags::LookupState::Grouped { .. } => {
+                    let (dir, key) = super::locks::agent_tag_lock(&state_dir, &agent_tag);
+                    Route::Locked {
+                        dir,
+                        key,
+                        hierarchy: None,
+                        tag: Some(agent_tag.clone()),
+                        child: AgentSelector::Tag { agent_tag },
                     }
                 }
-                SpawnResponseItem::Chunk(c) => yield ResponseItem::Chunk(c),
+                crate::db::tags::LookupState::Absent => {
+                    return Err(Error::TagNotFound(agent_tag));
+                }
             }
         }
     };
-    Ok(Box::pin(stream))
-}
 
-/// `stream=false`: check the lock. If held → enqueue + race
-/// DB-delivery against lock-release; on release, delete the queue
-/// row and re-check. If not held → re-exec ourselves as a detached
-/// subprocess with `stream=true`, take the child's first item.
-async fn execute_unary(
-    ctx: &Context,
-    hierarchy: String,
-    message_content: RichContent,
-    agents_dir: PathBuf,
-    request: Request,
-) -> Result<ItemStream, Error> {
-    std::fs::create_dir_all(&agents_dir)
-        .map_err(|e| Error::Instance(format!("create agents_dir: {e}")))?;
-    let lock_path = agents_dir.join(hierarchy.replace('/', "_"));
+    match route {
+        Route::Ref { child } => spawn_child(child, content, seed, None).await,
+        Route::Locked {
+            dir,
+            key,
+            hierarchy,
+            tag,
+            child,
+        } => {
+            // Fast path: nobody holds the lock — exec the spawn child
+            // with the claim transferred into it.
+            if let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                return spawn_child(child, content, seed, Some(claim)).await;
+            }
 
-    loop {
-        if lock_file::is_held(&lock_path) {
-            // Live agent — enqueue + race delivery vs release.
+            // Slow path: live owner. Park the message, then wait for
+            // whichever comes first — the row flipping inactive (the
+            // owner consumed it) or the lock freeing up (the owner
+            // died / finished without consuming; we take over).
             let queue_id = crate::db::message_queue::enqueue_with_content(
                 ctx.db_client().await?,
-                Some(hierarchy.clone()),
-                None,
+                hierarchy,
+                tag,
                 &ctx.config.agent_instance_hierarchy,
                 None,
-                message_content.clone(),
+                content.clone(),
             )
             .await?;
-
             let pool = ctx.db_client().await?.clone();
-            let lock_path_clone = lock_path.clone();
-            let race_outcome = tokio::select! {
+            tokio::select! {
                 delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
                     delivery?;
-                    RaceOutcome::Delivered
+                    Ok(Response::Delivered)
                 }
-                release = lock_file::wait_release(&lock_path_clone) => {
-                    release.map_err(|e| Error::Instance(format!(
-                        "lock release wait: {e}"
-                    )))?;
-                    RaceOutcome::Released
-                }
-            };
-            match race_outcome {
-                RaceOutcome::Delivered => {
-                    return Ok(once_item(ResponseItem::Delivered));
-                }
-                RaceOutcome::Released => {
-                    // Lock dropped — delete the queue row and
-                    // loop back to re-check (a new live agent may
-                    // have claimed it already, or no one will and
-                    // we'll fall through to the detached respawn).
+                claim = objectiveai_sdk::lockfile::wait_acquire(&dir, &key, "") => {
+                    let claim = claim.map_err(|e| Error::Lockfile {
+                        key: key.clone(),
+                        source: e,
+                    })?;
+                    // We own the slot now. Reclaim our queue row so
+                    // the spawn child doesn't see it again — the
+                    // message rides inline instead.
                     let _ = crate::db::message_queue::delete_by_id(
-                ctx.db_client().await?,
-                queue_id,
-                &ctx.config.agent_instance_hierarchy,
-            )
-            .await;
-                    continue;
+                        ctx.db_client().await?,
+                        queue_id,
+                        &ctx.config.agent_instance_hierarchy,
+                    )
+                    .await;
+                    spawn_child(child, content, seed, Some(claim)).await
                 }
             }
         }
-
-        // No live agent — re-exec the cli as a detached subprocess
-        // running this same command with stream=true. The child
-        // will acquire the lock and drive `spawn::run_multi_pass`.
-        return execute_unary_respawn(&hierarchy, &request).await;
     }
 }
 
-enum RaceOutcome {
-    Delivered,
-    Released,
+/// Resolved delivery route for the non-enqueue flow.
+enum Route {
+    /// Plain agent ref — nothing to lock or enqueue against; always
+    /// spawns a fresh agent carrying the message.
+    Ref { child: AgentSelector },
+    /// Lockable target: the lock coordinates, the queue target
+    /// (exactly one of `hierarchy` / `tag` is `Some`), and the
+    /// selector the spawn child receives.
+    Locked {
+        dir: std::path::PathBuf,
+        key: String,
+        hierarchy: Option<String>,
+        tag: Option<String>,
+        child: AgentSelector,
+    },
 }
 
-async fn execute_unary_respawn(
-    hierarchy: &str,
-    original: &Request,
-) -> Result<ItemStream, Error> {
-    // Convert Tag → Direct (the subprocess sees the resolved
-    // hierarchy, not the original tag).
-    let (parent, leaf) = match hierarchy.rsplit_once('/') {
-        Some((p, l)) => (p.to_string(), l.to_string()),
-        None => (String::new(), hierarchy.to_string()),
+/// Route for a fully resolved `agent_instance_hierarchy`: the AIH
+/// lock, queued against the hierarchy, child re-addressed as an
+/// explicit Instance (parent + leaf) so it doesn't depend on the
+/// child process's own identity.
+fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
+    let (dir, key) = super::locks::agent_instance_lock(state_dir, &hierarchy);
+    let child = AgentSelector::Instance {
+        parent_agent_instance_hierarchy: Some(
+            crate::db::tags::parent_of(&hierarchy).to_string(),
+        ),
+        agent_instance: crate::db::tags::leaf_of(&hierarchy).to_string(),
     };
-    let mut child_request = original.clone();
-    child_request.target = MessageTarget::Direct {
-        parent_agent_instance_hierarchy: Some(parent),
-        agent_instance: leaf,
-    };
-    match child_request.dangerous_advanced.as_mut() {
-        Some(adv) => adv.stream = Some(true),
-        None => {
-            child_request.dangerous_advanced = Some(RequestDangerousAdvanced {
-                stream: Some(true),
-                ..Default::default()
-            })
-        }
+    Route::Locked {
+        dir,
+        key,
+        hierarchy: Some(hierarchy),
+        tag: None,
+        child,
     }
+}
+
+/// Exec a detached `agents spawn` child (stream=true) and return its
+/// first item as the unary response. When `claim` is `Some`, the
+/// lock is transferred into the child (which is told to skip its own
+/// initial acquisition via `skip_lock`) — the child becomes the sole
+/// owner and the lock lives until it exits. The child's first item
+/// is always its `Id` (chunks are gated behind it); the rest of the
+/// stream is dropped and the orphan keeps running.
+async fn spawn_child(
+    agent: AgentSelector,
+    content: RichContent,
+    seed: Option<i64>,
+    claim: Option<LockClaim>,
+) -> Result<Response, Error> {
+    let skip_lock = claim.is_some().then_some(true);
+    let child_request = spawn_sdk::Request {
+        path_type: spawn_sdk::Path::AgentsSpawn,
+        message: RequestMessage::Inline(content),
+        agent,
+        dangerous_advanced: Some(spawn_sdk::RequestDangerousAdvanced {
+            stream: Some(true),
+            seed,
+            skip_lock,
+        }),
+        jq: None,
+    };
 
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
-    let executor = BinaryExecutor::from_path(exe).detach(true);
+    let mut executor = BinaryExecutor::from_path(exe).detach(true);
+    if let Some(claim) = claim {
+        executor = executor.transfer_lock(claim);
+    }
     let mut stream = executor
-        .execute::<Request, ResponseItem>(child_request, None)
+        .execute::<spawn_sdk::Request, spawn_sdk::ResponseItem>(child_request, None)
         .await
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for agents message: {e}"
-        )))?;
+        .map_err(|e| Error::Instance(format!("exec agents spawn child: {e}")))?;
     let first = stream
         .next()
         .await
         .ok_or(Error::EmptyStream)?
-        .map_err(|e| Error::Instance(format!(
-            "self-respawn for agents message: {e}"
-        )))?;
-    Ok(once_item(first))
+        .map_err(|e| Error::Instance(format!("exec agents spawn child: {e}")))?;
+    match first {
+        spawn_sdk::ResponseItem::Id(agent_instance_hierarchy) => Ok(Response::Id {
+            agent_instance_hierarchy,
+        }),
+        spawn_sdk::ResponseItem::Chunk(_) => Err(Error::Instance(
+            "agents spawn child emitted a chunk before its id".to_string(),
+        )),
+    }
 }
 
-fn once_item(item: ResponseItem) -> ItemStream {
-    Box::pin(futures::stream::once(async move {
-        Ok::<ResponseItem, Error>(item)
-    }))
-}
-
-/// `--enqueue` / `--enqueue-with-key` handler. Bypasses every
-/// delivery-side concern (tag resolution, lock-file race, spawn
-/// takeover, detached respawn) and writes one row into
+/// `--enqueue` / `--enqueue-with-key` handler. Bypasses the lock
+/// race and spawn child entirely; writes one row into
 /// `message_queue` against the target. `Keyed` mode threads the key
 /// through; `db::message_queue::enqueue_with_content` deletes any
 /// prior row scoped to the same (target, key) pair before insert,
 /// so re-issuing with the same key reliably replaces the prior
-/// payload.
+/// payload. Refs have no queue identity — error. Tags must exist
+/// (BOUND or GROUPED); the row is parked against the tag NAME
+/// either way, and the two-rule read predicate resolves it.
 async fn execute_enqueue(
     ctx: &Context,
-    target: MessageTarget,
+    agent: AgentSelector,
     message: RequestMessage,
     mode: EnqueueMode,
-) -> Result<ItemStream, Error> {
+) -> Result<Response, Error> {
     let content = resolve_message(message)?;
     let key = match mode {
         EnqueueMode::Plain => None,
         EnqueueMode::Keyed { key } => Some(key),
     };
-    let (hier, tag) = match target {
-        MessageTarget::Direct {
+    let (hier, tag) = match agent {
+        AgentSelector::Instance {
             parent_agent_instance_hierarchy,
             agent_instance,
         } => {
@@ -408,7 +271,15 @@ async fn execute_enqueue(
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             (Some(format!("{parent}/{agent_instance}")), None)
         }
-        MessageTarget::Tag { agent_tag } => (None, Some(agent_tag)),
+        AgentSelector::Tag { agent_tag } => {
+            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
+                crate::db::tags::LookupState::Absent => {
+                    return Err(Error::TagNotFound(agent_tag));
+                }
+                _ => (None, Some(agent_tag)),
+            }
+        }
+        AgentSelector::Ref { .. } => return Err(Error::EnqueueRefTarget),
     };
     let id = crate::db::message_queue::enqueue_with_content(
         ctx.db_client().await?,
@@ -419,11 +290,11 @@ async fn execute_enqueue(
         content,
     )
     .await?;
-    Ok(once_item(ResponseItem::Enqueued {
+    Ok(Response::Enqueued {
         id,
         agent_instance_hierarchy: hier,
         agent_tag: tag,
-    }))
+    })
 }
 
 pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {

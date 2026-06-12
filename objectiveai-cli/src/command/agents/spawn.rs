@@ -1,33 +1,38 @@
 //! `agents spawn` — in-process chunk-or-id streaming handler.
 //!
-//! Stream-true (`dangerous_advanced.stream = Some(true)`): drive
-//! the SDK streaming WS connection directly inside this cli
-//! process. Per-chunk: claim a process-owned file for every new
-//! `agent_instance_hierarchy` and upgrade any PENDING tags that
-//! map to it. End-of-stream: check whether any seen hierarchy has
-//! undelivered `message_queue` rows; destroy the claim files of
-//! the ones that don't (free their slot); if any do, restart with
-//! the same params minus messages plus the latest captured
-//! continuation. Yields chunks straight through as they arrive —
+//! The agent input is the shared [`AgentSelector`] — a direct ref
+//! (inline / file / python / remote), a tag, or an existing
+//! instance. Tags resolve first: BOUND → the live hierarchy
+//! (historic case), GROUPED → the group's stored spec plus the tag
+//! threaded into the conduit for the BOUND upgrade, ABSENT → error.
+//!
+//! Stream-true (`dangerous_advanced.stream = Some(true)`): resolve
+//! + lock + drive the SDK streaming WS connection inside this cli
+//! process. The INITIAL lock (try_acquire, failure = error; skipped
+//! when `dangerous_advanced.skip_lock` says a parent already
+//! transferred the claim into this process): historic case → the
+//! AIH lock, un-upgraded tag case → the tag lock, plain ref → no
+//! initial lock. Historic spawns load their agent params +
+//! continuation from the stored session. Mid-stream, every newly
+//! revealed hierarchy gets a best-effort AIH claim
+//! ([`AgentInstanceRegistry::observe`]); the first success releases
+//! the tag claim. End-of-stream: if the hierarchy has undelivered
+//! `message_queue` rows, restart with the latest continuation —
 //! restart passes flow into the same output stream.
 //!
-//! Stream-false (`dangerous_advanced.stream = None | Some(false)`,
-//! the default): re-invoke `objectiveai-cli agents spawn
-//! ...` as a **detached subprocess** with the same arguments plus
-//! `stream = true`, read the first `ResponseItem::Id` line off the
+//! Stream-false (the default): re-invoke `objectiveai-cli agents
+//! spawn ...` as a **detached subprocess** with the same arguments
+//! plus `stream = true` (so the resolution + locking above runs in
+//! the child), read the first `ResponseItem::Id` line off the
 //! child's stdout, yield it, and return. The subprocess runs
 //! orphaned to completion (Unix: kernel re-parents to init;
 //! Windows: `DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP` keeps
-//! it alive past parent exit). This is how `agents spawn` has
-//! always behaved externally — only the implementation moved from
-//! the dedicated `instance` subcommand to a self-respawn of the
-//! ordinary cli command.
+//! it alive past parent exit).
 //!
 //! `params.stream` on the wire is always `Some(true)`; the
 //! `dangerous_advanced.stream` setting only controls cli-side
 //! output.
 
-use std::path::PathBuf;
 use std::pin::Pin;
 
 use futures::Stream;
@@ -35,8 +40,9 @@ use futures::StreamExt;
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::agent::completions::message::{Message, UserMessage};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
+use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentResolution, AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
+    AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
 };
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
@@ -116,6 +122,20 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
     ))
 }
 
+/// Spawn modes after selector resolution: a fresh agent (direct
+/// ref, or a GROUPED tag carrying the tag name for the conduit
+/// upgrade) or an existing hierarchy resumed via its stored
+/// session + continuation.
+enum Mode {
+    Fresh {
+        agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+        tag: Option<String>,
+    },
+    Historic {
+        hierarchy: String,
+    },
+}
+
 async fn execute_streaming(
     ctx: &Context,
     request: Request,
@@ -131,46 +151,101 @@ async fn execute_streaming(
         content,
         name: None,
     })];
-    // Dispatch on the resolution mode:
-    // - Direct → use the `AgentSpec` as-is.
-    // - Tag    → look the tag up: BOUND is rejected (the AIH is
-    //   already live; `agents message` is the right entry
-    //   point). Grouped takes the group's stored AgentSpec.
-    let (agent_spec, agent_tag) = match request.agent {
-        AgentResolution::Direct { agent_spec } => (agent_spec, None),
-        AgentResolution::Tag { agent_tag } => {
+    let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
+    let skip_lock = request
+        .dangerous_advanced
+        .as_ref()
+        .and_then(|a| a.skip_lock)
+        .unwrap_or(false);
+
+    let mode = match request.agent {
+        AgentSelector::Ref { agent } => Mode::Fresh {
+            agent: resolve_agent_ref(agent)?,
+            tag: None,
+        },
+        AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    return Err(Error::Instance(format!(
-                        "tag {agent_tag:?} is already bound to {agent_instance_hierarchy:?}; \
-                         use `agents message` to deliver to the live spawn"
-                    )));
+                    Mode::Historic {
+                        hierarchy: agent_instance_hierarchy,
+                    }
                 }
-                crate::db::tags::LookupState::Grouped {
-                    agent_spec,
-                    ..
-                } => (agent_spec, Some(agent_tag)),
+                crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
+                    let AgentSpec::Resolved(agent) = agent_spec;
+                    Mode::Fresh {
+                        agent,
+                        tag: Some(agent_tag),
+                    }
+                }
                 crate::db::tags::LookupState::Absent => {
                     return Err(Error::TagNotFound(agent_tag));
                 }
             }
         }
+        AgentSelector::Instance {
+            parent_agent_instance_hierarchy,
+            agent_instance,
+        } => {
+            let parent = parent_agent_instance_hierarchy
+                .as_deref()
+                .unwrap_or(&ctx.config.agent_instance_hierarchy);
+            Mode::Historic {
+                hierarchy: format!("{parent}/{agent_instance}"),
+            }
+        }
     };
-    let agent = resolve_agent(ctx, agent_spec).await?;
-    let agents_dir = ctx
-        .filesystem
-        .state_dir()
-        .join("instances")
-        .join("agents");
+
+    // Initial lock + params assembly. try_acquire only — a held lock
+    // means the agent (or another spawn of the tag) is already live,
+    // and this spawn errors out. `skip_lock` skips exactly this step:
+    // the parent `agents message` already holds the lock through the
+    // handles it transferred into this process (re-acquiring would
+    // fail against ourselves). Mid-stream best-effort AIH claims in
+    // `run_multi_pass` are unaffected.
+    let state_dir = ctx.filesystem.state_dir();
+    let mut registry = AgentInstanceRegistry::new(state_dir.clone());
+    let (agent, agent_tag, continuation) = match mode {
+        Mode::Fresh { agent, tag } => {
+            if !skip_lock {
+                if let Some(tag) = &tag {
+                    let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
+                    match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                        Some(claim) => registry.hold_tag_claim(claim),
+                        None => return Err(Error::AgentTagActive { tag: tag.clone() }),
+                    }
+                }
+            }
+            (agent, tag, None)
+        }
+        Mode::Historic { hierarchy } => {
+            if !skip_lock {
+                let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
+                match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                    Some(claim) => registry.preseed(hierarchy.clone(), claim),
+                    None => {
+                        return Err(Error::AgentInstanceActive {
+                            agent_instance_hierarchy: hierarchy,
+                        });
+                    }
+                }
+            }
+            let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
+                .await?
+                .ok_or(Error::AgentNoPriorRequest {
+                    agent_instance_hierarchy: hierarchy,
+                })?;
+            (lookup.agent, None, lookup.continuation)
+        }
+    };
 
     let params = AgentCompletionCreateParams {
         messages,
         provider: None,
         agent,
         response_format: None,
-        seed: request.dangerous_advanced.as_ref().and_then(|a| a.seed),
+        seed,
         stream: Some(true),
-        continuation: None,
+        continuation,
     };
 
     // Message-queue delivery to the live API happens through the
@@ -179,26 +254,23 @@ async fn execute_streaming(
     // their ids onto the first emitted assistant chunk's
     // `request_message_ids`. No pre-spawn drain + prepend here.
     let ctx_clone = ctx.clone();
-    Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, agents_dir)))
+    Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, registry)))
 }
 
 /// Drives one or more stream passes until no seen hierarchy has
 /// pending `message_queue` items. Each pass opens a fresh WS
 /// stream + log writer + MCP server + conduit; the
-/// [`AgentInstanceRegistry`] persists across passes so an agent's
-/// process-owned claim file stays held for the whole spawn
-/// lifetime, not per-pass.
+/// [`AgentInstanceRegistry`] (carrying any initial AIH/tag claim)
+/// persists across passes so an agent's lock stays held for the
+/// whole spawn lifetime, not per-pass — and is released when the
+/// stream (and with it the registry) drops.
 pub(crate) fn run_multi_pass(
     ctx: Context,
     initial_params: AgentCompletionCreateParams,
     agent_tag: Option<String>,
-    agents_dir: PathBuf,
+    mut registry: AgentInstanceRegistry,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
-        let mut registry = AgentInstanceRegistry::new(agents_dir)
-            .map_err(|e| Error::Instance(format!(
-                "failed to open agent claim registry: {e}"
-            )))?;
         let mut params = initial_params;
         // A spawn has exactly one `(agent_instance_hierarchy,
         // agent_full_id)` pair — set by the API on the very first
@@ -281,7 +353,7 @@ pub(crate) fn run_multi_pass(
                 if identity.is_none() {
                     let hier = chunk.agent_instance_hierarchy.clone();
                     let full_id = chunk.agent_full_id.clone();
-                    registry.observe(&hier);
+                    registry.observe(&hier).await;
                     identity = Some((hier, full_id));
                 }
 
@@ -417,13 +489,28 @@ pub(crate) fn run_multi_pass(
     }
 }
 
-async fn resolve_agent(
-    ctx: &Context,
-    spec: AgentSpec,
+/// Resolve an [`AgentRef`] into a typed agent. `Resolved` passes
+/// through; `File` / `PythonInline` / `PythonFile` run their IO /
+/// Python here via the shared 5-variant resolver (the `simple`
+/// slot is never populated for agent refs — `--agent <ref>`
+/// strings parse at the clap layer).
+pub(crate) fn resolve_agent_ref(
+    agent: AgentRef,
 ) -> Result<InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Error> {
-    match spec {
-        AgentSpec::Resolved(resolved) => Ok(resolved),
-    }
+    let (file, python_inline, python_file) = match agent {
+        AgentRef::Resolved(resolved) => return Ok(resolved),
+        AgentRef::File(p) => (Some(p), None, None),
+        AgentRef::PythonInline(code) => (None, Some(code), None),
+        AgentRef::PythonFile(p) => (None, None, Some(p)),
+    };
+    crate::source_resolver::resolve_source(
+        None,
+        None,
+        file,
+        python_inline,
+        python_file,
+        |_| unreachable!("agent refs have no plain-text variant"),
+    )
 }
 
 pub mod request_schema {
