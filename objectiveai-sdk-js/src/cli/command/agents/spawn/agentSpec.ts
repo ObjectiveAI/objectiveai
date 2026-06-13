@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema } from "../../../../agent/inlineAgentBaseWithFallbacksOrRemoteCommitOptional";
 
-export const CliCommandAgentsSpawnAgentSpecSchema = AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.describe("CLI-surface form for the `--agent` / `--agent-inline` argument: a\nfully resolved inline-or-remote spec.").meta({ title: "cli.command.agents.spawn.AgentSpec" });
+export const CliCommandAgentsSpawnAgentSpecSchema = z.lazy(() => AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema).describe("CLI-surface form for the `--agent` / `--agent-inline` argument: a\nfully resolved inline-or-remote spec.").meta({ title: "cli.command.agents.spawn.AgentSpec" });
 export type CliCommandAgentsSpawnAgentSpec = z.infer<typeof CliCommandAgentsSpawnAgentSpecSchema>;

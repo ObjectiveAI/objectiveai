@@ -540,6 +540,27 @@ function convertTopLevel(schema, refs, lazyRefs, selfTitle, cyclicTitles) {
     return expr;
   }
 
+  // Bare top-level $ref (a newtype/flatten wrapper — `$ref` with no sibling
+  // properties and no committed `type: "object"`). The canonical schema is
+  // just `{$ref}`. Emitting `TargetSchema.meta({title})` would re-title a
+  // clone of the target, so the roundtrip converter — which walks the root
+  // inline rather than $ref-ing it — would inline the target's whole
+  // structure under this title. Wrapping in `z.lazy` keeps the target a
+  // distinct titled node the converter resolves to a `$ref` (mirrors the
+  // `.and(z.object({}))` trick the `type: "object"` $ref path uses).
+  if (schema.$ref && !schema.properties && schema.type !== "object") {
+    refs.add(schema.$ref);
+    const baseName = titleToPascal(schema.$ref) + "Schema";
+    let expr = `z.lazy(() => ${baseName})`;
+    if (schema.default !== undefined) {
+      expr += `.default(${JSON.stringify(schema.default)})`;
+    }
+    if (schema.description) {
+      expr += `.describe(${JSON.stringify(schema.description)})`;
+    }
+    return expr;
+  }
+
   return convert(schema, refs, lazyRefs, selfTitle, cyclicTitles);
 }
 

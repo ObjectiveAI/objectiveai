@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { RemotePathSchema } from "../../../../remotePath";
 
-export const CliCommandSwarmsListResponseItemSchema = RemotePathSchema.meta({ title: "cli.command.swarms.list.ResponseItem" });
+export const CliCommandSwarmsListResponseItemSchema = z.lazy(() => RemotePathSchema).meta({ title: "cli.command.swarms.list.ResponseItem" });
 export type CliCommandSwarmsListResponseItem = z.infer<typeof CliCommandSwarmsListResponseItemSchema>;
