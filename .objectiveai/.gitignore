@@ -2,6 +2,9 @@
 # else in this tree is committed and fixed — no preparation step.
 state/
 bin/locks/
+# Request/response trace the api's in-process mcp-proxy writes when
+# OBJECTIVEAI_LOGS is on (<dir>/bin/api/logs/mcp-proxy.jsonl).
+bin/api/
 bin/pg-bin/
 # objectiveai-db moves a partial pg-bin aside (rename-then-delete)
 # before re-extracting; a leftover trash dir is inert.
