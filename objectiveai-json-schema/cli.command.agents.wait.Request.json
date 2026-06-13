@@ -17,6 +17,20 @@
         }
       ]
     },
+    "max_tokens": {
+      "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "path_type": {
       "$ref": "cli.command.agents.wait.Path"
     },
@@ -32,10 +46,18 @@
       ]
     },
     "timeout_seconds": {
-      "description": "Wall-clock cap across the WHOLE wait (both subscriptions on\nthe tag route), in whole seconds. Parsed from `--timeout`\n(humantime), `> 0` enforced at `TryFrom<Args>` time.",
-      "type": "integer",
-      "minimum": 0,
-      "maximum": 18446744073709551615
+      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     }
   }
 }

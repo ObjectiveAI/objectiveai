@@ -23,7 +23,7 @@
       }
     },
     "truncated": {
-      "description": "Always `false` in the current design — over-budget\nresponses return `TokenBudgetExceeded` rather than a\npartial result. Reserved on the wire so a future \"soft\ntruncation\" mode can be added without a shape break.",
+      "description": "Always `false` in the current design. Reserved on the wire\nso a future \"soft truncation\" mode can be added without a\nshape break.",
       "type": "boolean"
     }
   }

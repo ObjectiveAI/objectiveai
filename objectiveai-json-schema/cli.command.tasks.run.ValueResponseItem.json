@@ -24,7 +24,7 @@
       "omitempty": true
     },
     "value": {
-      "description": "The typed root item emitted by the scheduled command."
+      "description": "What the scheduled command emitted — either the typed root item\n(no transform) or post-transform JSON. See [`RunValue`]. Schema\nis opaqued to `serde_json::Value`."
     },
     "version": {
       "description": "The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).",

@@ -13,6 +13,20 @@
         }
       ]
     },
+    "max_tokens": {
+      "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "path_type": {
       "$ref": "cli.command.functions.profiles.list.Path"
     },
@@ -29,6 +43,20 @@
     },
     "source": {
       "$ref": "cli.command.functions.profiles.list.RequestSource"
+    },
+    "timeout_seconds": {
+      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     }
   }
 }
