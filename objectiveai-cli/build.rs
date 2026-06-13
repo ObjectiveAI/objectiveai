@@ -30,7 +30,7 @@ const RUSTPYTHON_VERSION: &str = "0.5.0";
 /// Build-recipe tag. Bump whenever the wasm build flags change: the
 /// cache filename rolls over and the old blob is simply orphaned —
 /// the final path is never rebuilt in place.
-const RECIPE: &str = "v1";
+const RECIPE: &str = "v2";
 
 fn main() {
     set_stack_size();
@@ -245,7 +245,7 @@ fn ensure_wasip1_target() {
 /// `cargo install`.
 ///
 /// The feature recipe is FIXED at `--no-default-features --features
-/// freeze-stdlib`, for two reasons:
+/// freeze-stdlib,stdio`, for these reasons:
 ///
 /// - **Determinism**: one blob filename ⇔ one feature set on every
 ///   machine. An adaptive ladder would let the same cache name carry
@@ -254,14 +254,23 @@ fn ensure_wasip1_target() {
 ///   whose C build for a wasm target requires clang; the minimal
 ///   recipe builds with nothing beyond rustc + the wasip1 target.
 ///   (Cost: no `zlib` module inside the sandbox.)
+/// - **`stdio` is mandatory**: without it RustPython's `set_stdio`
+///   takes the `#[cfg(not(feature = "stdio"))]` path and sets
+///   `sys.stdout`/`sys.stderr` to `None`, so every write is silently
+///   discarded and the shutdown flush trips "Exception ignored in:
+///   None: 'NoneType' object has no attribute 'flush'". `host_env`
+///   stays OFF, so `stdio` selects `SandboxStdio` — a thin
+///   `std::io::stdout()`/`stderr()` writer (fd 1/2 → the wasmtime
+///   `MemoryOutputPipe`), no host-environment access. This is what the
+///   harness's envelope on stdout depends on.
 ///
 /// The attempt ladder varies ONLY `--locked` (first success wins):
 /// the crate's bundled lockfile is preferred for reproducibility but
 /// may be absent or stale against a newer toolchain.
 fn run_cargo_install(cache: &Path) -> std::io::Result<()> {
     let attempts: [&[&str]; 2] = [
-        &["--locked", "--no-default-features", "--features", "freeze-stdlib"],
-        &["--no-default-features", "--features", "freeze-stdlib"],
+        &["--locked", "--no-default-features", "--features", "freeze-stdlib,stdio"],
+        &["--no-default-features", "--features", "freeze-stdlib,stdio"],
     ];
     let mut failures = String::new();
     for extra in attempts {
