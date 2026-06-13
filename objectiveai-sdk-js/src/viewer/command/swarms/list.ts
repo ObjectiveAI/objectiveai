@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandSwarmsListRequest } from "../../../cli/command/swarms/list/request";
 import { type CliCommandSwarmsListRequestSchemaRequest } from "../../../cli/command/swarms/list/request_schema/request";
-import { CliCommandSwarmsListResponseItemSchema, type CliCommandSwarmsListResponseItem } from "../../../cli/command/swarms/list/responseItem";
 import { type CliCommandSwarmsListResponseSchemaRequest } from "../../../cli/command/swarms/list/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
+import { RemotePathSchema, type RemotePath } from "../../../remotePath";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
 /** `swarms list execute` — streaming; mirror of the Rust fn of the same path. */
-export function swarmsListExecute(request: Omit<CliCommandSwarmsListRequest, "path_type">): CliStream<CliError | CliCommandSwarmsListResponseItem> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "swarms/list" }), z.union([CliErrorSchema, CliCommandSwarmsListResponseItemSchema]));
+export function swarmsListExecute(request: Omit<CliCommandSwarmsListRequest, "path_type">): CliStream<CliError | RemotePath> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "swarms/list" }), z.union([CliErrorSchema, RemotePathSchema]));
 }
 
 /** `swarms list execute_transform` — streaming; mirror of the Rust fn of the same path. */

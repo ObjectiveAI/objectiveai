@@ -89,7 +89,7 @@ pub enum LookupState {
     #[schemars(title = "Grouped")]
     Grouped {
         tag_group_id: i64,
-        agent_spec: super::super::spawn::AgentSpec,
+        agent_spec: crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         parent_agent_instance_hierarchy: String,
     },
 }

@@ -37,7 +37,7 @@ func (v *CliCommandAgentsTagsApplyResponseAgentInstance) UnmarshalJSON(data []by
 func (CliCommandAgentsTagsApplyResponseAgentInstance) SchemaVariantTitle() string { return "AgentInstance" }
 
 type CliCommandAgentsTagsApplyResponseAgent struct {
-	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
+	AgentSpec AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent_spec"`
 	By string `json:"by" validate:"oneof=agent"`
 	Name string `json:"name"`
 	ParentAgentInstanceHierarchy string `json:"parent_agent_instance_hierarchy"`
@@ -93,7 +93,7 @@ func (v *CliCommandAgentsTagsApplyResponseAgentTagBound) UnmarshalJSON(data []by
 func (CliCommandAgentsTagsApplyResponseAgentTagBound) SchemaVariantTitle() string { return "Bound" }
 
 type CliCommandAgentsTagsApplyResponseAgentTagGrouped struct {
-	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
+	AgentSpec AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent_spec"`
 	AgentTag string `json:"agent_tag"`
 	By string `json:"by" validate:"oneof=agent_tag"`
 	Name string `json:"name"`

@@ -22,7 +22,7 @@
       "type": "object",
       "properties": {
         "agent_spec": {
-          "$ref": "cli.command.agents.spawn.AgentSpec"
+          "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
         },
         "parent_agent_instance_hierarchy": {
           "type": "string"

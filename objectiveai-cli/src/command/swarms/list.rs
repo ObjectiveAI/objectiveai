@@ -48,7 +48,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
 fn paths_to_stream(paths: Vec<RemotePath>) -> ItemStream {
     Box::pin(futures::stream::iter(
-        paths.into_iter().map(ResponseItem::Item).map(Ok),
+        paths.into_iter().map(Ok),
     ))
 }
 
@@ -73,15 +73,13 @@ fn merge_all(
     fs_items: Vec<RemotePath>,
     oai_items: Vec<RemotePath>,
 ) -> Vec<ResponseItem> {
-    let mut items: Vec<ResponseItem> =
-        fs_items.into_iter().map(ResponseItem::Item).collect();
+    // `ResponseItem` is an alias of `RemotePath`, so items are paths.
+    let mut items: Vec<ResponseItem> = fs_items;
 
     for path in oai_items {
-        let dominated = items.iter().any(|existing| {
-            matches!(existing, ResponseItem::Item(p) if p == &path)
-        });
+        let dominated = items.iter().any(|existing| existing == &path);
         if !dominated {
-            items.push(ResponseItem::Item(path));
+            items.push(path);
         }
     }
 

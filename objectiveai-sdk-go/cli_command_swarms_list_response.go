@@ -8,7 +8,7 @@ import (
 )
 
 type CliCommandSwarmsListResponse struct {
-	Items []CliCommandSwarmsListResponseItem `json:"items"`
+	Items []RemotePath `json:"items"`
 }
 
 func (CliCommandSwarmsListResponse) SchemaTitle() string { return "cli.command.swarms.list.Response" }

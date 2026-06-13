@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel
-from objectiveai_sdk.cli.command.agents.spawn.agent_spec import AgentSpec
+from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
 
 
 class TargetAgentInstance(BaseModel):
@@ -23,7 +23,7 @@ row pointing at it. Multiple subsequent
 `Target::AgentTag` applies can join the new tag's group."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Agent'})
 
-    agent_spec: AgentSpec
+    agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional
     by: Literal['agent']
     parent_agent_instance_hierarchy: Optional[str] = Field(None, description='Optional parent scope. `None` ⇒ cli substitutes\n`Config.agent_instance_hierarchy`.', json_schema_extra={'omitempty': True})
 

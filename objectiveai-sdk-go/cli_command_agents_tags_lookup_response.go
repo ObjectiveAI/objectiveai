@@ -62,7 +62,7 @@ func (v *CliCommandAgentsTagsLookupResponseTagBound) UnmarshalJSON(data []byte) 
 func (CliCommandAgentsTagsLookupResponseTagBound) SchemaVariantTitle() string { return "Bound" }
 
 type CliCommandAgentsTagsLookupResponseTagGrouped struct {
-	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
+	AgentSpec AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent_spec"`
 	By string `json:"by" validate:"oneof=tag"`
 	ParentAgentInstanceHierarchy string `json:"parent_agent_instance_hierarchy"`
 	State string `json:"state" validate:"oneof=grouped"`

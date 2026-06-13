@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandFunctionsProfilesListRequest } from "../../../../cli/command/functions/profiles/list/request";
 import { type CliCommandFunctionsProfilesListRequestSchemaRequest } from "../../../../cli/command/functions/profiles/list/request_schema/request";
-import { CliCommandFunctionsProfilesListResponseItemSchema, type CliCommandFunctionsProfilesListResponseItem } from "../../../../cli/command/functions/profiles/list/responseItem";
 import { type CliCommandFunctionsProfilesListResponseSchemaRequest } from "../../../../cli/command/functions/profiles/list/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
+import { RemotePathSchema, type RemotePath } from "../../../../remotePath";
 import { CliStream } from "../../../cliStream";
 import { invokeCliRequest } from "../../../invoke";
 
 /** `functions profiles list execute` — streaming; mirror of the Rust fn of the same path. */
-export function functionsProfilesListExecute(request: Omit<CliCommandFunctionsProfilesListRequest, "path_type">): CliStream<CliError | CliCommandFunctionsProfilesListResponseItem> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/profiles/list" }), z.union([CliErrorSchema, CliCommandFunctionsProfilesListResponseItemSchema]));
+export function functionsProfilesListExecute(request: Omit<CliCommandFunctionsProfilesListRequest, "path_type">): CliStream<CliError | RemotePath> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/profiles/list" }), z.union([CliErrorSchema, RemotePathSchema]));
 }
 
 /** `functions profiles list execute_transform` — streaming; mirror of the Rust fn of the same path. */

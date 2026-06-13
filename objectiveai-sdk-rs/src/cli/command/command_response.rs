@@ -112,6 +112,17 @@ impl CommandResponse for schemars::Schema {
     }
 }
 
+// The `agents`/`functions`/`functions profiles`/`swarms` `list` leaves all
+// alias their `ResponseItem` to [`crate::RemotePath`], so the shared JSONL
+// projection lives here — one impl for every aliasing leaf (a per-leaf impl
+// would be a duplicate `impl … for RemotePath`).
+#[cfg(feature = "mcp")]
+impl CommandResponse for crate::RemotePath {
+    fn into_mcp(self) -> McpResponseItem {
+        McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
+
 #[cfg(feature = "mcp")]
 impl CommandResponse for crate::cli::command::ResponseSchema {
     fn into_mcp(self) -> McpResponseItem {

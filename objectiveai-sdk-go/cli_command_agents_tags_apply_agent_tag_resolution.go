@@ -33,7 +33,7 @@ func (v *CliCommandAgentsTagsApplyAgentTagResolutionBound) UnmarshalJSON(data []
 func (CliCommandAgentsTagsApplyAgentTagResolutionBound) SchemaVariantTitle() string { return "Bound" }
 
 type CliCommandAgentsTagsApplyAgentTagResolutionGrouped struct {
-	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
+	AgentSpec AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent_spec"`
 	ParentAgentInstanceHierarchy string `json:"parent_agent_instance_hierarchy"`
 	State string `json:"state" validate:"oneof=grouped"`
 	TagGroupID int64 `json:"tag_group_id" validate:"min=-9223372036854775808,max=9223372036854775807"`

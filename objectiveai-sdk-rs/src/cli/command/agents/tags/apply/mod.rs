@@ -51,7 +51,7 @@ pub enum Target {
     /// `Target::AgentTag` applies can join the new tag's group.
     #[schemars(title = "Agent")]
     Agent {
-        agent_spec: super::super::spawn::AgentSpec,
+        agent_spec: crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         /// Optional parent scope. `None` ⇒ cli substitutes
         /// `Config.agent_instance_hierarchy`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -80,7 +80,7 @@ pub enum AgentTagResolution {
     #[schemars(title = "Grouped")]
     Grouped {
         tag_group_id: i64,
-        agent_spec: super::super::spawn::AgentSpec,
+        agent_spec: crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         parent_agent_instance_hierarchy: String,
     },
 }
@@ -119,7 +119,7 @@ impl CommandRequest for Request {
             } => {
                 argv.push("--agent-inline".to_string());
                 argv.push(
-                    serde_json::to_string(agent_spec).expect("AgentSpec serializes"),
+                    serde_json::to_string(agent_spec).expect("agent spec serializes"),
                 );
                 if let Some(parent) = parent_agent_instance_hierarchy {
                     argv.push("--parent-agent-instance-hierarchy".to_string());
@@ -162,7 +162,7 @@ pub enum Response {
     Agent {
         name: String,
         tag_group_id: i64,
-        agent_spec: super::super::spawn::AgentSpec,
+        agent_spec: crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         parent_agent_instance_hierarchy: String,
     },
     /// Wire shape mirrors the resolved source state:
@@ -245,14 +245,11 @@ impl TryFrom<Args> for Request {
             },
             (None, Some(s), None, None) => {
                 use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-                use super::super::spawn::AgentSpec;
                 let path: crate::RemotePathCommitOptional = s
                     .parse()
                     .map_err(|e| crate::cli::command::FromArgsError::path_parse("agent", e))?;
                 Target::Agent {
-                    agent_spec: AgentSpec::Resolved(
-                        InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
-                    ),
+                    agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(path),
                     parent_agent_instance_hierarchy: args.parent_agent_instance_hierarchy,
                 }
             }

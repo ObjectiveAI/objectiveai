@@ -60,12 +60,11 @@ impl CommandRequest for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.list.ResponseItem")]
-pub enum ResponseItem {
-    Item(crate::RemotePath),
-}
+/// The list endpoints return remote paths verbatim, so this is a plain
+/// alias of [`crate::RemotePath`] (not a wrapper enum) — its published
+/// schema is therefore the bare `RemotePath` `$ref` with no distinct
+/// named type for the SDK code generators to reconstruct.
+pub type ResponseItem = crate::RemotePath;
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -126,12 +125,9 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor.execute(request, agent_arguments).await
 }
 
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for ResponseItem {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
-    }
-}
+// `ResponseItem` is `crate::RemotePath`; its `CommandResponse` impl lives
+// on `RemotePath` in `crate::remote` (one impl shared by every list leaf
+// that aliases it).
 
 pub mod request_schema;
 

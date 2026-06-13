@@ -3,7 +3,7 @@
 from __future__ import annotations
 from typing import Literal, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel
-from objectiveai_sdk.cli.command.agents.spawn.agent_spec import AgentSpec
+from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
 
 
 class LookupStateBound(BaseModel):
@@ -16,7 +16,7 @@ class LookupStateBound(BaseModel):
 class LookupStateGrouped(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Grouped'})
 
-    agent_spec: AgentSpec
+    agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional
     parent_agent_instance_hierarchy: str
     state: Literal['grouped']
     tag_group_id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)

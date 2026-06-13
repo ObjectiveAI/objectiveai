@@ -53,7 +53,6 @@ use objectiveai_sdk::cli::command::agents::queue::deliver::{
     AllAgentsActive, Request, RequestDangerousAdvanced, ResponseItem, TagActiveResponseItem,
     TagActiveType, TagSpawnedResponseItem, TagSpawnedType, ValueResponseItem,
 };
-use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
 use objectiveai_sdk::cli::command::agents::spawn::ResponseItem as SpawnResponseItem;
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
@@ -335,8 +334,7 @@ fn deliver_one_tag(
         };
         let agent = match crate::db::tags::lookup(pool, &agent_tag).await {
             Ok(crate::db::tags::LookupState::Grouped { agent_spec, .. }) => {
-                let AgentSpec::Resolved(agent) = agent_spec;
-                agent
+                agent_spec
             }
             Ok(crate::db::tags::LookupState::Bound { agent_instance_hierarchy }) => {
                 // Raced to BOUND — the tag lock has no further job;

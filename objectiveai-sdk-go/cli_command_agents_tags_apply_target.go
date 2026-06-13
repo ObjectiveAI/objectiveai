@@ -42,7 +42,7 @@ func (CliCommandAgentsTagsApplyTargetAgentInstance) SchemaVariantTitle() string 
 // row pointing at it. Multiple subsequent
 // `Target::AgentTag` applies can join the new tag's group.
 type CliCommandAgentsTagsApplyTargetAgent struct {
-	AgentSpec CliCommandAgentsSpawnAgentSpec `json:"agent_spec"`
+	AgentSpec AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent_spec"`
 	By string `json:"by" validate:"oneof=agent"`
 	// Optional parent scope. `None` ⇒ cli substitutes
 	// `Config.agent_instance_hierarchy`.

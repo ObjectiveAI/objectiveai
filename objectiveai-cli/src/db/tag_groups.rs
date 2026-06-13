@@ -10,7 +10,7 @@
 //! `agents spawn` when it resolves a `--agent-tag`
 //! invocation into a runnable `AgentSpec` + parent.
 
-use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use sqlx::Row as _;
 
 use super::{Error, Pool};
@@ -18,7 +18,7 @@ use super::{Error, Pool};
 #[derive(Debug, Clone)]
 pub struct TagGroup {
     pub id: i64,
-    pub agent_spec: AgentSpec,
+    pub agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     pub parent_agent_instance_hierarchy: String,
 }
 
@@ -37,7 +37,8 @@ pub async fn fetch(pool: &Pool, id: i64) -> Result<Option<TagGroup>, Error> {
     let Some(row) = row else { return Ok(None) };
     let id: i64 = row.try_get(0)?;
     let spec_value: serde_json::Value = row.try_get(1)?;
-    let agent_spec: AgentSpec = serde_json::from_value(spec_value)?;
+    let agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
+        serde_json::from_value(spec_value)?;
     let parent: String = row.try_get(2)?;
     Ok(Some(TagGroup {
         id,

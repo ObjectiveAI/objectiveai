@@ -19,7 +19,7 @@
 //! (the postgres analog of sqlite's `INSERT OR REPLACE`), so the
 //! prior binding is silently displaced.
 
-use objectiveai_sdk::cli::command::agents::spawn::AgentSpec;
+use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use sqlx::Row as _;
 
 use super::{Error, Pool};
@@ -39,7 +39,7 @@ pub enum LookupState {
     },
     Grouped {
         tag_group_id: i64,
-        agent_spec: AgentSpec,
+        agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         parent_agent_instance_hierarchy: String,
     },
     Absent,
@@ -63,7 +63,7 @@ pub enum ResolvedApplyTarget {
     /// then a `tags` row pointing at it.
     Agent {
         parent_agent_instance_hierarchy: String,
-        agent_spec: AgentSpec,
+        agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     },
     /// Clone another tag's resolution. If source is BOUND, the
     /// new tag also binds to the same AIH. If source is GROUPED,
@@ -177,7 +177,8 @@ fn decode_lookup_row(
             agent_instance_hierarchy: h,
         }),
         (None, Some(id), Some(spec_value), Some(parent)) => {
-            let agent_spec: AgentSpec = serde_json::from_value(spec_value)?;
+            let agent_spec: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
+                serde_json::from_value(spec_value)?;
             Ok(LookupState::Grouped {
                 tag_group_id: id,
                 agent_spec,

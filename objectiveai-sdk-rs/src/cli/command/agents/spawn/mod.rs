@@ -1,6 +1,5 @@
 ﻿//! `agents spawn` — async handler stub.
 
-use crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use crate::cli::command::CommandRequest;
 use crate::cli::command::agents::message::RequestMessage;
 use crate::cli::command::agents::selector::AgentSelector;
@@ -33,15 +32,6 @@ pub struct Request {
 pub enum Path {
     #[serde(rename = "agents/spawn")]
     AgentsSpawn,
-}
-
-/// CLI-surface form for the `--agent` / `--agent-inline` argument: a
-/// fully resolved inline-or-remote spec.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.spawn.AgentSpec")]
-pub enum AgentSpec {
-    Resolved(InlineAgentBaseWithFallbacksOrRemoteCommitOptional),
 }
 
 impl CommandRequest for Request {

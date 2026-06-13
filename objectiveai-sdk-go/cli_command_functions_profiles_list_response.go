@@ -8,7 +8,7 @@ import (
 )
 
 type CliCommandFunctionsProfilesListResponse struct {
-	Items []CliCommandFunctionsProfilesListResponseItem `json:"items"`
+	Items []RemotePath `json:"items"`
 }
 
 func (CliCommandFunctionsProfilesListResponse) SchemaTitle() string { return "cli.command.functions.profiles.list.Response" }

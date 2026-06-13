@@ -42,7 +42,7 @@ use objectiveai_sdk::agent::completions::message::{Message, UserMessage};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn::{
-    AgentSpec, Request, RequestDangerousAdvanced, ResponseItem,
+    Request, RequestDangerousAdvanced, ResponseItem,
 };
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 
@@ -182,7 +182,7 @@ async fn execute_streaming(
                     }
                 }
                 crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
-                    let AgentSpec::Resolved(agent) = agent_spec;
+                    let agent = agent_spec;
                     Mode::Fresh {
                         agent,
                         tag: Some(agent_tag),

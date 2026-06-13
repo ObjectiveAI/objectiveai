@@ -1,5 +1,0 @@
-{
-  "title": "cli.command.agents.spawn.AgentSpec",
-  "description": "CLI-surface form for the `--agent` / `--agent-inline` argument: a\nfully resolved inline-or-remote spec.",
-  "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
-}

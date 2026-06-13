@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandFunctionsListRequest } from "../../../cli/command/functions/list/request";
 import { type CliCommandFunctionsListRequestSchemaRequest } from "../../../cli/command/functions/list/request_schema/request";
-import { CliCommandFunctionsListResponseItemSchema, type CliCommandFunctionsListResponseItem } from "../../../cli/command/functions/list/responseItem";
 import { type CliCommandFunctionsListResponseSchemaRequest } from "../../../cli/command/functions/list/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
+import { RemotePathSchema, type RemotePath } from "../../../remotePath";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
 /** `functions list execute` — streaming; mirror of the Rust fn of the same path. */
-export function functionsListExecute(request: Omit<CliCommandFunctionsListRequest, "path_type">): CliStream<CliError | CliCommandFunctionsListResponseItem> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/list" }), z.union([CliErrorSchema, CliCommandFunctionsListResponseItemSchema]));
+export function functionsListExecute(request: Omit<CliCommandFunctionsListRequest, "path_type">): CliStream<CliError | RemotePath> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/list" }), z.union([CliErrorSchema, RemotePathSchema]));
 }
 
 /** `functions list execute_transform` — streaming; mirror of the Rust fn of the same path. */

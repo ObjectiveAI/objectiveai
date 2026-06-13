@@ -32,7 +32,7 @@
       "type": "object",
       "properties": {
         "agent_spec": {
-          "$ref": "cli.command.agents.spawn.AgentSpec"
+          "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
         },
         "by": {
           "type": "string",
@@ -89,7 +89,7 @@
           "type": "object",
           "properties": {
             "agent_spec": {
-              "$ref": "cli.command.agents.spawn.AgentSpec"
+              "$ref": "agent.InlineAgentBaseWithFallbacksOrRemoteCommitOptional"
             },
             "agent_tag": {
               "type": "string"

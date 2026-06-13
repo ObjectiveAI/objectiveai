@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandAgentsListRequest } from "../../../cli/command/agents/list/request";
 import { type CliCommandAgentsListRequestSchemaRequest } from "../../../cli/command/agents/list/request_schema/request";
-import { CliCommandAgentsListResponseItemSchema, type CliCommandAgentsListResponseItem } from "../../../cli/command/agents/list/responseItem";
 import { type CliCommandAgentsListResponseSchemaRequest } from "../../../cli/command/agents/list/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
+import { RemotePathSchema, type RemotePath } from "../../../remotePath";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
 /** `agents list execute` — streaming; mirror of the Rust fn of the same path. */
-export function agentsListExecute(request: Omit<CliCommandAgentsListRequest, "path_type">): CliStream<CliError | CliCommandAgentsListResponseItem> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/list" }), z.union([CliErrorSchema, CliCommandAgentsListResponseItemSchema]));
+export function agentsListExecute(request: Omit<CliCommandAgentsListRequest, "path_type">): CliStream<CliError | RemotePath> {
+  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/list" }), z.union([CliErrorSchema, RemotePathSchema]));
 }
 
 /** `agents list execute_transform` — streaming; mirror of the Rust fn of the same path. */
