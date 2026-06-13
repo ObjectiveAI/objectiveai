@@ -771,6 +771,7 @@ MODULES = [
     'objectiveai_sdk.cli.command.tasks.run.response_item',
     'objectiveai_sdk.cli.command.tasks.run.response_schema.path',
     'objectiveai_sdk.cli.command.tasks.run.response_schema.request',
+    'objectiveai_sdk.cli.command.tasks.run.run_value',
     'objectiveai_sdk.cli.command.tasks.run.success_response_item',
     'objectiveai_sdk.cli.command.tasks.run.value_response_item',
     'objectiveai_sdk.cli.command.tasks.schedule.path',
