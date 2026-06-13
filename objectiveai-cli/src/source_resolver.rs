@@ -28,7 +28,12 @@ use serde::de::DeserializeOwned;
 /// `#[group(required = true, multiple = false)]`. Panics on the
 /// "all `None`" path with an `unreachable!()` rather than returning
 /// an error, since the clap group makes that state impossible.
-pub fn resolve_source<T, F>(
+///
+/// The python variants run on [`crate::context::Context::python`],
+/// initialized lazily INSIDE those arms — non-python sources never
+/// touch the wasm runtime.
+pub async fn resolve_source<T, F>(
+    ctx: &crate::context::Context,
     simple: Option<String>,
     inline: Option<String>,
     file: Option<PathBuf>,
@@ -56,10 +61,10 @@ where
             .map_err(crate::error::Error::InlineDeserialize);
     }
     if let Some(code) = python_inline {
-        return crate::python::exec_code(&code);
+        return ctx.python().await?.exec_code(&code).await;
     }
     if let Some(path) = python_file {
-        return crate::python::exec_file(&path);
+        return ctx.python().await?.exec_file(&path).await;
     }
     unreachable!("clap group ensures one of the five flags is set")
 }

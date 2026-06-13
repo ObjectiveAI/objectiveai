@@ -43,8 +43,8 @@ async fn execute_streaming(
     let input = match request.input {
         RequestInput::Inline(v) => v,
         RequestInput::File(path) => super::resolve_input_file(path)?,
-        RequestInput::PythonInline(code) => super::resolve_input_python_inline(code)?,
-        RequestInput::PythonFile(path) => super::resolve_input_python_file(path)?,
+        RequestInput::PythonInline(code) => super::resolve_input_python_inline(ctx, code).await?,
+        RequestInput::PythonFile(path) => super::resolve_input_python_file(ctx, path).await?,
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
     let params = FunctionExecutionCreateParams {

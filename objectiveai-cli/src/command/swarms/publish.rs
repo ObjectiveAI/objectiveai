@@ -1,8 +1,7 @@
 //! `swarms publish` — write a `RemoteSwarmBase` to the local filesystem
 //! under `<base>/swarms/<repository>` and return the resulting git
 //! commit SHA. Body and commit message can be supplied inline, from a
-//! JSON file, or produced by Python (rustpython if compiled-in, system
-//! python otherwise).
+//! JSON file, or produced by Python (the embedded WASI rustpython).
 
 use objectiveai_sdk::cli::command::swarms::publish::{
     Request, RequestBody, RequestPublishMessage, Response,
@@ -21,7 +20,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         ..
     } = request;
 
-    let swarm: RemoteSwarmBase = resolve_body(body)?;
+    let swarm: RemoteSwarmBase = resolve_body(ctx, body).await?;
     let msg = resolve_message(message)?;
     let sha = crate::filesystem::publish::publish_swarm(
         &ctx.filesystem,
@@ -34,7 +33,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     Ok(Response { sha })
 }
 
-fn resolve_body(body: RequestBody) -> Result<RemoteSwarmBase, Error> {
+async fn resolve_body(ctx: &Context, body: RequestBody) -> Result<RemoteSwarmBase, Error> {
     match body {
         RequestBody::Inline(swarm) => Ok(swarm),
         RequestBody::File(path) => {
@@ -43,8 +42,8 @@ fn resolve_body(body: RequestBody) -> Result<RemoteSwarmBase, Error> {
             let mut de = serde_json::Deserializer::from_str(&contents);
             serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)
         }
-        RequestBody::PythonInline(code) => crate::python::exec_code(&code),
-        RequestBody::PythonFile(path) => crate::python::exec_file(&path),
+        RequestBody::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
+        RequestBody::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
     }
 }
 

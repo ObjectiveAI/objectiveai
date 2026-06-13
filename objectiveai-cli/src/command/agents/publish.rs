@@ -14,7 +14,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let body = resolve_body(request.body)?;
+    let body = resolve_body(ctx, request.body).await?;
     let message = resolve_publish_message(request.message)?;
     let sha = crate::filesystem::publish::publish_agent(
         &ctx.filesystem,
@@ -27,21 +27,24 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     Ok(Response { sha })
 }
 
-fn resolve_body(body: RequestBody) -> Result<RemoteAgentBaseWithFallbacks, Error> {
+async fn resolve_body(
+    ctx: &Context,
+    body: RequestBody,
+) -> Result<RemoteAgentBaseWithFallbacks, Error> {
     match body {
         RequestBody::Inline(v) => Ok(v),
         RequestBody::File(p) => crate::source_resolver::resolve_source(
-            None, None, Some(p), None, None,
+            ctx, None, None, Some(p), None, None,
             |_| unreachable!(),
-        ),
+        ).await,
         RequestBody::PythonInline(s) => crate::source_resolver::resolve_source(
-            None, None, None, Some(s), None,
+            ctx, None, None, None, Some(s), None,
             |_| unreachable!(),
-        ),
+        ).await,
         RequestBody::PythonFile(p) => crate::source_resolver::resolve_source(
-            None, None, None, None, Some(p),
+            ctx, None, None, None, None, Some(p),
             |_| unreachable!(),
-        ),
+        ).await,
     }
 }
 

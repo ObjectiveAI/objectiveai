@@ -43,14 +43,14 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let seed = dangerous_advanced.as_ref().and_then(|a| a.seed);
 
     // Resolve the payload once, in this process.
-    let content = resolve_message(message)?;
+    let content = resolve_message(ctx, message).await?;
 
     let state_dir = ctx.filesystem.state_dir();
     let route = match agent {
         AgentSelector::Ref { agent } => {
             // Resolve file/python refs HERE too — the child gets the
             // typed agent inline and never re-runs the Python.
-            let resolved = super::spawn::resolve_agent_ref(agent)?;
+            let resolved = super::spawn::resolve_agent_ref(ctx, agent).await?;
             Route::Ref {
                 child: AgentSelector::Ref {
                     agent: AgentRef::Resolved(resolved),
@@ -259,7 +259,10 @@ async fn spawn_child(
     }
 }
 
-pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {
+pub async fn resolve_message(
+    ctx: &Context,
+    message: RequestMessage,
+) -> Result<RichContent, Error> {
     let (simple, inline, file, python_inline, python_file) = match message {
         RequestMessage::Inline(rich) => return Ok(rich),
         RequestMessage::Simple(s) => (Some(s), None, None, None, None),
@@ -268,6 +271,7 @@ pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {
         RequestMessage::PythonFile(p) => (None, None, None, None, Some(p)),
     };
     crate::source_resolver::resolve_source(
+        ctx,
         simple,
         inline,
         file,
@@ -275,6 +279,7 @@ pub fn resolve_message(message: RequestMessage) -> Result<RichContent, Error> {
         python_file,
         RichContent::Text,
     )
+    .await
 }
 
 pub mod request_schema {

@@ -150,7 +150,7 @@ async fn execute_streaming(
     // EMPTY `messages` array — never a user message with an empty
     // string — and let the API drive from the continuation + the
     // conduit's queue drain.
-    let content = super::message::resolve_message(request.message)?;
+    let content = super::message::resolve_message(ctx, request.message).await?;
     let messages = if content.is_empty() {
         Vec::new()
     } else {
@@ -168,7 +168,7 @@ async fn execute_streaming(
 
     let mode = match request.agent {
         AgentSelector::Ref { agent } => Mode::Fresh {
-            agent: resolve_agent_ref(agent)?,
+            agent: resolve_agent_ref(ctx, agent).await?,
             tag: None,
         },
         AgentSelector::Tag { agent_tag } => {
@@ -502,7 +502,8 @@ pub(crate) fn run_multi_pass(
 /// Python here via the shared 5-variant resolver (the `simple`
 /// slot is never populated for agent refs — `--agent <ref>`
 /// strings parse at the clap layer).
-pub(crate) fn resolve_agent_ref(
+pub(crate) async fn resolve_agent_ref(
+    ctx: &Context,
     agent: AgentRef,
 ) -> Result<InlineAgentBaseWithFallbacksOrRemoteCommitOptional, Error> {
     let (file, python_inline, python_file) = match agent {
@@ -512,6 +513,7 @@ pub(crate) fn resolve_agent_ref(
         AgentRef::PythonFile(p) => (None, None, Some(p)),
     };
     crate::source_resolver::resolve_source(
+        ctx,
         None,
         None,
         file,
@@ -519,6 +521,7 @@ pub(crate) fn resolve_agent_ref(
         python_file,
         |_| unreachable!("agent refs have no plain-text variant"),
     )
+    .await
 }
 
 pub mod request_schema {

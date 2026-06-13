@@ -34,7 +34,8 @@ src/
 ├── get.rs               # Reusable GetArgs, GetPairArgs
 ├── list.rs              # Reusable list helpers (favorites, single, all, pair_*)
 ├── favorite.rs          # Reusable AddFavorite, EditFavorite arg structs
-├── python.rs            # Python execution harness (system + rustpython)
+├── python.rs            # Python execution harness (embedded WASI rustpython via wasmtime)
+├── python_wasm.rs       # The embedded rustpython.wasm blob + its build-time hash
 ├── api/                 # API config (mode, remote, local, headers)
 ├── agents/              # Agent commands (get, list, config, favorites)
 ├── swarms/              # Swarm commands

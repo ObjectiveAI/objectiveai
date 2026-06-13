@@ -29,8 +29,8 @@ pub(super) async fn resolve_function(
     match spec {
         FunctionSpec::Resolved(r) => Ok(r),
         FunctionSpec::File(path) => read_json_file(&path),
-        FunctionSpec::PythonInline(code) => crate::python::exec_code(&code),
-        FunctionSpec::PythonFile(path) => crate::python::exec_file(&path),
+        FunctionSpec::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
+        FunctionSpec::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
     }
 }
 
@@ -41,8 +41,8 @@ pub(super) async fn resolve_profile(
     match spec {
         ProfileSpec::Resolved(r) => Ok(r),
         ProfileSpec::File(path) => read_json_file(&path),
-        ProfileSpec::PythonInline(code) => crate::python::exec_code(&code),
-        ProfileSpec::PythonFile(path) => crate::python::exec_file(&path),
+        ProfileSpec::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
+        ProfileSpec::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
     }
 }
 
@@ -50,12 +50,18 @@ pub(super) fn resolve_input_file(path: PathBuf) -> Result<InputValue, Error> {
     read_json_file(&path)
 }
 
-pub(super) fn resolve_input_python_inline(code: String) -> Result<InputValue, Error> {
-    crate::python::exec_code(&code)
+pub(super) async fn resolve_input_python_inline(
+    ctx: &Context,
+    code: String,
+) -> Result<InputValue, Error> {
+    ctx.python().await?.exec_code(&code).await
 }
 
-pub(super) fn resolve_input_python_file(path: PathBuf) -> Result<InputValue, Error> {
-    crate::python::exec_file(&path)
+pub(super) async fn resolve_input_python_file(
+    ctx: &Context,
+    path: PathBuf,
+) -> Result<InputValue, Error> {
+    ctx.python().await?.exec_file(&path).await
 }
 
 /// Read a JSON file and deserialize as `T`. Used by every `*-file`

@@ -17,7 +17,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let content = super::message::resolve_message(request.message)?;
+    let content = super::message::resolve_message(ctx, request.message).await?;
     let (hier, tag) = match request.agent {
         AgentSelector::Instance {
             parent_agent_instance_hierarchy,

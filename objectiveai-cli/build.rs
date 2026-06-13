@@ -58,6 +58,7 @@ fn embed_rustpython_wasm() -> std::io::Result<()> {
         let stub = out_dir().join(blob_filename());
         std::fs::write(&stub, [])?;
         println!("cargo:rustc-env=RUSTPYTHON_WASM_ZSTD_PATH={}", stub.display());
+        emit_blob_hash(&stub)?;
         return Ok(());
     }
 
@@ -70,7 +71,7 @@ fn embed_rustpython_wasm() -> std::io::Result<()> {
     // Fast path: a complete blob is only ever observable at the final
     // path (publish is tmp + rename under the lock).
     if blob.exists() {
-        return Ok(());
+        return emit_blob_hash(&blob);
     }
 
     let runtime = tokio::runtime::Builder::new_current_thread()
@@ -94,7 +95,8 @@ fn embed_rustpython_wasm() -> std::io::Result<()> {
         // claim is released by process death.
         claim.release()?;
         result
-    })
+    })?;
+    emit_blob_hash(&blob)
 }
 
 /// Where the blob cache lives.
@@ -121,6 +123,16 @@ fn resolve_cache_dir() -> PathBuf {
 
 fn out_dir() -> PathBuf {
     PathBuf::from(std::env::var_os("OUT_DIR").expect("cargo sets OUT_DIR"))
+}
+
+/// Hash the blob (xxhash3_128, the project's content-addressing hash)
+/// and emit `RUSTPYTHON_WASM_HASH`. The runtime keys the machine-wide
+/// JIT artifact cache and its bin lock off this constant.
+fn emit_blob_hash(blob: &Path) -> std::io::Result<()> {
+    let bytes = std::fs::read(blob)?;
+    let hash = twox_hash::XxHash3_128::oneshot(&bytes);
+    println!("cargo:rustc-env=RUSTPYTHON_WASM_HASH={hash:032x}");
+    Ok(())
 }
 
 /// Build rustpython for wasm32-wasip1, compress, and publish the blob

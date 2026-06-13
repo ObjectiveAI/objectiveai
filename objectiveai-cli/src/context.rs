@@ -45,6 +45,10 @@ pub struct Context {
     /// [`Context::db_handle`]. No per-request identity; always
     /// shared across clones.
     db: Arc<OnceCell<db::DbHandle>>,
+    /// Lazily-initialized WASI python runtime — see
+    /// [`Context::python`]. No per-request identity; always shared
+    /// across clones.
+    python: Arc<OnceCell<crate::python::Python>>,
 }
 
 impl Context {
@@ -67,7 +71,20 @@ impl Context {
             api: Arc::new(OnceCell::new()),
             viewer: Arc::new(OnceCell::new()),
             db: Arc::new(OnceCell::new()),
+            python: Arc::new(OnceCell::new()),
         }
+    }
+
+    /// The WASI python runtime, initialized on first use and
+    /// memoized. First use machine-wide JIT-compiles the embedded
+    /// interpreter and publishes `<bin>/cache/rustpython-<hash>.cwasm`
+    /// under the bin lock; later uses deserialize that artifact in
+    /// milliseconds. Commands that never execute python never pay
+    /// either cost.
+    pub async fn python(&self) -> Result<&crate::python::Python, crate::error::Error> {
+        self.python
+            .get_or_try_init(|| crate::python::Python::initialize(self.filesystem.bin_dir()))
+            .await
     }
 
     /// The API `HttpClient`, built on first use and memoized.
