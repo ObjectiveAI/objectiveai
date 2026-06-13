@@ -6,4 +6,11 @@
 /// (`["objectiveai-cli"]`, `["objectiveai-cli", "instance"]`, …).
 pub trait CommandRequest {
     fn into_command(&self) -> Vec<String>;
+
+    /// The request's flattened [`RequestBase`] envelope (`jq` /
+    /// `python` / `timeout` / `max_tokens`). Every leaf embeds one,
+    /// so the implementation is `&self.base`.
+    ///
+    /// [`RequestBase`]: crate::cli::command::RequestBase
+    fn request_base(&self) -> &crate::cli::command::RequestBase;
 }
