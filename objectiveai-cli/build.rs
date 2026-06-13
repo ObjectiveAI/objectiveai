@@ -30,7 +30,7 @@ const RUSTPYTHON_VERSION: &str = "0.5.0";
 /// Build-recipe tag. Bump whenever the wasm build flags change: the
 /// cache filename rolls over and the old blob is simply orphaned —
 /// the final path is never rebuilt in place.
-const RECIPE: &str = "v2";
+const RECIPE: &str = "v3";
 
 fn main() {
     set_stack_size();
@@ -245,32 +245,39 @@ fn ensure_wasip1_target() {
 /// `cargo install`.
 ///
 /// The feature recipe is FIXED at `--no-default-features --features
-/// freeze-stdlib,stdio`, for these reasons:
+/// freeze-stdlib,stdio,host_env`, for these reasons:
 ///
 /// - **Determinism**: one blob filename ⇔ one feature set on every
 ///   machine. An adaptive ladder would let the same cache name carry
 ///   different contents depending on the host.
-/// - **No host C toolchain**: default features pull `libz-sys`,
-///   whose C build for a wasm target requires clang; the minimal
+/// - **No host C toolchain**: default features pull `ssl-rustls` and
+///   `libz-sys`, whose C build for a wasm target requires clang; this
 ///   recipe builds with nothing beyond rustc + the wasip1 target.
-///   (Cost: no `zlib` module inside the sandbox.)
+///   (Cost: no `ssl` / `zlib` modules inside the sandbox.)
 /// - **`stdio` is mandatory**: without it RustPython's `set_stdio`
 ///   takes the `#[cfg(not(feature = "stdio"))]` path and sets
 ///   `sys.stdout`/`sys.stderr` to `None`, so every write is silently
 ///   discarded and the shutdown flush trips "Exception ignored in:
-///   None: 'NoneType' object has no attribute 'flush'". `host_env`
-///   stays OFF, so `stdio` selects `SandboxStdio` — a thin
-///   `std::io::stdout()`/`stderr()` writer (fd 1/2 → the wasmtime
-///   `MemoryOutputPipe`), no host-environment access. This is what the
-///   harness's envelope on stdout depends on.
+///   None: 'NoneType' object has no attribute 'flush'".
+/// - **`host_env` is mandatory too**: the frozen `io.py` does
+///   `from _io import FileIO` at import time, but `_io.FileIO` is
+///   `#[cfg(feature = "host_env")]` — so without it `import io` (which
+///   the harness, and almost all stdlib, needs) fails with
+///   `ImportError: cannot import name 'FileIO' from '_io'`. With it on,
+///   `stdio` builds sys.stdout/stderr as real `io.TextIOWrapper`s over
+///   fd 1/2 (→ the wasmtime `MemoryOutputPipe`). This does NOT widen the
+///   sandbox: the security boundary is wasmtime's capability model —
+///   the `WasiCtxBuilder` grants no preopened dirs, env vars, or
+///   sockets, so `host_env`'s file/env code paths hit an empty WASI and
+///   still cannot reach the host.
 ///
 /// The attempt ladder varies ONLY `--locked` (first success wins):
 /// the crate's bundled lockfile is preferred for reproducibility but
 /// may be absent or stale against a newer toolchain.
 fn run_cargo_install(cache: &Path) -> std::io::Result<()> {
     let attempts: [&[&str]; 2] = [
-        &["--locked", "--no-default-features", "--features", "freeze-stdlib,stdio"],
-        &["--no-default-features", "--features", "freeze-stdlib,stdio"],
+        &["--locked", "--no-default-features", "--features", "freeze-stdlib,stdio,host_env"],
+        &["--no-default-features", "--features", "freeze-stdlib,stdio,host_env"],
     ];
     let mut failures = String::new();
     for extra in attempts {
