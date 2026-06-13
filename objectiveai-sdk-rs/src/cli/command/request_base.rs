@@ -90,6 +90,18 @@ impl RequestBase {
         self.python = None;
     }
 
+    /// The active output transform, if any — the read side of the
+    /// `jq` / `python` pair, resolving the python-overrides-jq rule:
+    /// `python` set ⇒ `Transform::Python`, else `jq` set ⇒
+    /// `Transform::Jq`, else `None`. Clones the owned filter/code.
+    pub fn transform(&self) -> Option<Transform> {
+        if let Some(code) = &self.python {
+            Some(Transform::Python(code.clone()))
+        } else {
+            self.jq.as_ref().map(|filter| Transform::Jq(filter.clone()))
+        }
+    }
+
     /// Install `transform`, displacing any other — `execute_transform`'s
     /// contract: exactly the requested transform is active.
     pub fn set_transform(&mut self, transform: Transform) {
