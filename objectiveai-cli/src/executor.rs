@@ -7,11 +7,12 @@
 //! `objectiveai_sdk::cli::command::execute(&executor, request)` call
 //! flows back through this executor down to each leaf.
 
+use std::any::{Any, TypeId};
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest, CommandResponse, parse_request,
+    AgentArguments, CommandExecutor, CommandRequest, CommandResponse, ResponseItem, parse_request,
 };
 use serde_json::Value;
 
@@ -111,6 +112,28 @@ impl CommandExecutor for CliCommandExecutor {
         })?;
         let ctx = self.resolve_ctx(agent_arguments);
         let stream = crate::command::command::execute(&ctx, sdk_request).await?;
+
+        // Fast path: when the caller's `T` IS the root `ResponseItem`
+        // (e.g. a consumer that wants the whole stream verbatim), the
+        // dispatcher already yields exactly that type — hand each item
+        // through by identity instead of round-tripping it through
+        // `serde_json::Value` + `extract_leaf`. Both types are
+        // `'static`, so `std::any` settles the equality at runtime; the
+        // check is per-call, not per-item, and the cast itself is
+        // alloc-free (the value moves straight out of the `Option`).
+        if TypeId::of::<T>() == TypeId::of::<ResponseItem>() {
+            let mapped = stream.map(|r| {
+                r.map(|item| {
+                    let mut slot = Some(item);
+                    (&mut slot as &mut dyn Any)
+                        .downcast_mut::<Option<T>>()
+                        .and_then(Option::take)
+                        .expect("TypeId check guarantees T == ResponseItem")
+                })
+            });
+            return Ok(Box::pin(mapped));
+        }
+
         let mapped = stream.map(|r| {
             r.and_then(|item| {
                 let value = serde_json::to_value(item).map_err(Error::InlineJson)?;
