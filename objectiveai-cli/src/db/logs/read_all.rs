@@ -68,12 +68,12 @@ struct MsgRow {
     /// a key set; lives at block level on the emitted
     /// `ClientNotification`.
     message_queue_key: Option<String>,
-    /// `objectiveai.assistant_response_tool_calls.function_name` for
-    /// tool-call rows. Empty string for every other table.
-    /// Surfaced on [`AssistantResponsePart::function_name`] so
+    /// `objectiveai.assistant_response_tool_calls.function_name` —
+    /// `Some` only for tool-call rows; NULL → `None` for every other
+    /// table. Surfaced on [`AssistantResponsePart::function_name`] so
     /// callers can dedupe tool calls by name without a round-trip
     /// through `agents logs read id`.
-    function_name: String,
+    function_name: Option<String>,
 }
 
 /// Coarse block-class for a `objectiveai.message_table` value. Block
@@ -178,7 +178,7 @@ const SELECT_SHAPE: &str = "SELECT \
     mq.id AS message_queue_id, \
     mq.enqueued_at AS timestamp_queued, \
     mq.key AS message_queue_key, \
-    COALESCE(atc.function_name, '') AS function_name";
+    atc.function_name AS function_name";
 
 const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.message_queue_contents mqc \
