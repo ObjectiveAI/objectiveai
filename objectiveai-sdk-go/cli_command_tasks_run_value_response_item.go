@@ -28,7 +28,9 @@ type CliCommandTasksRunValueResponseItem struct {
 	Name string `json:"name"`
 	// The plugin that registered the source schedule, if any.
 	Plugin *CliCommandTasksListPlugin `json:"plugin,omitempty"`
-	// The typed root item emitted by the scheduled command.
+	// What the scheduled command emitted — either the typed root item
+	// (no transform) or post-transform JSON. See [`RunValue`]. Schema
+	// is opaqued to `serde_json::Value`.
 	Value JsonValue `json:"value"`
 	// The source schedule's version (`1` on first creation,
 	// incremented per `schedule --overwrite`).

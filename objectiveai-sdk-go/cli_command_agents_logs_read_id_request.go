@@ -9,8 +9,22 @@ import (
 
 type CliCommandAgentsLogsReadIdRequest struct {
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	PathType CliCommandAgentsLogsReadIdPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandAgentsLogsReadIdRequest) SchemaTitle() string { return "cli.command.agents.logs.read.id.Request" }

@@ -9,10 +9,13 @@ export const CliCommandTasksListRequestSchema = z.object({
   count: z.number().int().min(0).max(18446744073709552000).nullable().describe("Per-target row cap — each target's query returns at most this\nmany rows (ascending id, after `after_id`). `None` = unlimited.").meta({ omitempty: true }).optional(),
   exhausted: z.boolean().describe("Show only schedules NOT currently runnable — fired\noneshots (visible briefly before the runner deletes\nthem) and interval rows that are cooling down. Mutually\nexclusive with `pending`."),
   interval: z.boolean().describe("Filter to recurring rows only. Mutually exclusive with `oneshot`."),
-  jq: z.string().nullable().optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   oneshot: z.boolean().describe("Filter to oneshot rows only. Mutually exclusive with `interval`."),
   path_type: CliCommandTasksListPathSchema,
   pending: z.boolean().describe("Show only schedules currently runnable — oneshots that\nhave never fired, and interval rows whose interval has\nelapsed. Mutually exclusive with `exhausted`."),
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   targets: z.array(CliCommandAgentsLogsReadAllTargetSchema).describe("One or more targets to list schedules for. Each resolves to a\nsingle AIH (`me` → the cli's own; `instance=L[,parent=P]`;\n`tag=T` BOUND-only — PENDING / ABSENT error), and rows whose\n`agent_instance_hierarchy` equals any resolved AIH are returned."),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.tasks.list.Request" });
 export type CliCommandTasksListRequest = z.infer<typeof CliCommandTasksListRequestSchema>;

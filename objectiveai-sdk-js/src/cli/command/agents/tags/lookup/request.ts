@@ -6,13 +6,19 @@ import { CliCommandAgentsTagsLookupPathSchema } from "./path";
 export const CliCommandAgentsTagsLookupRequestSchema = z.union([z.object({
   agent_instance: z.string().describe("Leaf id of the target agent."),
   by: z.literal("agent_instance_hierarchy"),
-  jq: z.string().nullable().meta({ omitempty: true }).optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   parent_agent_instance_hierarchy: z.string().nullable().describe("Lineage prefix to prepend to [`Self::agent_instance`].\nWhen `None`, the CLI substitutes its own\n`Config.agent_instance_hierarchy`. Full hierarchy is\n`\"{parent}/{instance}\"`.").meta({ omitempty: true }).optional(),
   path_type: CliCommandAgentsTagsLookupPathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({"variantTitle":"AgentInstanceHierarchy"}), z.object({
   by: z.literal("tag"),
-  jq: z.string().nullable().meta({ omitempty: true }).optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandAgentsTagsLookupPathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   tag: z.string(),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({"variantTitle":"Tag"})]).meta({ title: "cli.command.agents.tags.lookup.Request" });
 export type CliCommandAgentsTagsLookupRequest = z.infer<typeof CliCommandAgentsTagsLookupRequestSchema>;

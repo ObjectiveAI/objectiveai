@@ -10,10 +10,24 @@ import (
 type CliCommandPluginsInstallGithubRequest struct {
 	AllowUntrusted bool `json:"allow_untrusted"`
 	CommitSha *string `json:"commit_sha"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	Owner string `json:"owner"`
 	PathType CliCommandPluginsInstallGithubPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	Repository string `json:"repository"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandPluginsInstallGithubRequest) SchemaTitle() string { return "cli.command.plugins.install.github.Request" }

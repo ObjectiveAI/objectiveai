@@ -13,13 +13,27 @@ type CliCommandFunctionsExecuteSwissSystemRequest struct {
 	Function CliCommandFunctionsExecuteFunctionSpec `json:"function"`
 	Input CliCommandFunctionsExecuteSwissSystemRequestInput `json:"input"`
 	Invert bool `json:"invert"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	PathType CliCommandFunctionsExecuteSwissSystemPath `json:"path_type"`
 	Pool *uint32 `json:"pool" validate:"omitempty,min=0,max=4294967295"`
 	Profile CliCommandFunctionsExecuteProfileSpec `json:"profile"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	RetryToken *string `json:"retry_token"`
 	Rounds *uint32 `json:"rounds" validate:"omitempty,min=0,max=4294967295"`
 	Split bool `json:"split"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandFunctionsExecuteSwissSystemRequest) SchemaTitle() string { return "cli.command.functions.execute.swiss_system.Request" }

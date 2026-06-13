@@ -17,7 +17,13 @@ type CliCommandAgentsSpawnRequest struct {
 	// `agents message`'s `agent`.
 	Agent CliCommandAgentsAgentSelector `json:"agent"`
 	DangerousAdvanced *CliCommandAgentsSpawnRequestDangerousAdvanced `json:"dangerous_advanced"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Initial user message. The CLI turns it into a single
 	// `Message::User` at the head of the `messages` array on the
 	// API call. Same wire shape as `agents message`'s
@@ -25,6 +31,14 @@ type CliCommandAgentsSpawnRequest struct {
 	// `File`, `PythonInline`, `PythonFile`.
 	Message CliCommandAgentsMessageRequestMessage `json:"message"`
 	PathType CliCommandAgentsSpawnPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandAgentsSpawnRequest) SchemaTitle() string { return "cli.command.agents.spawn.Request" }

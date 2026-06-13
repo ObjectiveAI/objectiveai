@@ -4,8 +4,11 @@ import { z } from "zod";
 import { CliCommandTasksRunPathSchema } from "./path";
 
 export const CliCommandTasksRunRequestSchema = z.object({
-  jq: z.string().nullable().optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandTasksRunPathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   stream_all: z.boolean().describe("Stream every item every fired task emits (each a\n[`ValueResponseItem`]). When false — the default — each task\nyields exactly one [`SuccessResponseItem`] summary instead; the\nfull output still lands in `tasks_logs` either way."),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.tasks.run.Request" });
 export type CliCommandTasksRunRequest = z.infer<typeof CliCommandTasksRunRequestSchema>;

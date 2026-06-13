@@ -27,6 +27,6 @@ path; consumers that want to peer inside parse it case-by-case."""
     agent_instance_hierarchy: str = Field(..., description="The source schedule's `agent_instance_hierarchy`.")
     name: str = Field(..., description="The source schedule's `--name`.")
     plugin: Optional[Plugin] = Field(None, description='The plugin that registered the source schedule, if any.', json_schema_extra={'omitempty': True})
-    value: JsonValue = Field(..., description='The typed root item emitted by the scheduled command.')
+    value: JsonValue = Field(..., description='What the scheduled command emitted — either the typed root item\n(no transform) or post-transform JSON. See [`RunValue`]. Schema\nis opaqued to `serde_json::Value`.')
     version: int = Field(..., description="The source schedule's version (`1` on first creation,\nincremented per `schedule --overwrite`).", ge=0, le=18446744073709551615)
 

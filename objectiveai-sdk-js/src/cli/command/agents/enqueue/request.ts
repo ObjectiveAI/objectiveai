@@ -7,9 +7,12 @@ import { CliCommandAgentsMessageRequestMessageSchema } from "../message/requestM
 
 export const CliCommandAgentsEnqueueRequestSchema = z.object({
   agent: CliCommandAgentsAgentSelectorSchema.describe("Whose queue the message lands in — an instance hierarchy or\na tag (parked against the tag NAME; the queue's two-rule\nread predicate resolves BOUND tags to their hierarchy). A\nplain ref has no queue identity and errors."),
-  jq: z.string().nullable().optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   key: z.string().nullable().describe("Idempotency key, scoped per target: any pre-existing active\nrow with the same `(agent_instance_hierarchy, key)` or\n`(agent_tag, key)` pair is deleted before the insert lands.").meta({ omitempty: true }).optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   message: CliCommandAgentsMessageRequestMessageSchema.describe("Required payload. The queue row carries this exact\n`RichContent`."),
   path_type: CliCommandAgentsEnqueuePathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.agents.enqueue.Request" });
 export type CliCommandAgentsEnqueueRequest = z.infer<typeof CliCommandAgentsEnqueueRequestSchema>;

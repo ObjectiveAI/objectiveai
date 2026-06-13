@@ -30,6 +30,9 @@ type CliCommandAgentsRequest struct {
 	SpawnRequestSchema *CliCommandAgentsSpawnRequestSchemaRequest 
 	SpawnResponseSchema *CliCommandAgentsSpawnResponseSchemaRequest 
 	Tags *CliCommandAgentsTagsRequest 
+	Wait *CliCommandAgentsWaitRequest 
+	WaitRequestSchema *CliCommandAgentsWaitRequestSchemaRequest 
+	WaitResponseSchema *CliCommandAgentsWaitResponseSchemaRequest 
 }
 
 func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
@@ -98,6 +101,15 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Tags != nil {
 		return json.Marshal(v.Tags)
+	}
+	if v.Wait != nil {
+		return json.Marshal(v.Wait)
+	}
+	if v.WaitRequestSchema != nil {
+		return json.Marshal(v.WaitRequestSchema)
+	}
+	if v.WaitResponseSchema != nil {
+		return json.Marshal(v.WaitResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -345,6 +357,39 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsWaitRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.Wait = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsWaitRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.WaitRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsWaitResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.WaitResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsRequest")
 }
 
@@ -372,6 +417,9 @@ func (v CliCommandAgentsRequest) Validate() error {
 	if v.SpawnRequestSchema != nil { count++ }
 	if v.SpawnResponseSchema != nil { count++ }
 	if v.Tags != nil { count++ }
+	if v.Wait != nil { count++ }
+	if v.WaitRequestSchema != nil { count++ }
+	if v.WaitResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsRequest: exactly one variant must be set, got %d", count)
 	}

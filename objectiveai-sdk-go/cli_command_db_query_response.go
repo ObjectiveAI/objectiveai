@@ -27,10 +27,9 @@ type CliCommandDbQueryResponse struct {
 	// when the statement returns no rows (no-row command OR a
 	// SELECT with no matches).
 	Rows [][]JsonValue `json:"rows"`
-	// Always `false` in the current design — over-budget
-	// responses return `TokenBudgetExceeded` rather than a
-	// partial result. Reserved on the wire so a future "soft
-	// truncation" mode can be added without a shape break.
+	// Always `false` in the current design. Reserved on the wire
+	// so a future "soft truncation" mode can be added without a
+	// shape break.
 	Truncated bool `json:"truncated"`
 }
 

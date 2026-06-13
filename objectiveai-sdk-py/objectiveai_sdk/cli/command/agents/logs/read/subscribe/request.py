@@ -12,9 +12,12 @@ class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.logs.read.subscribe.Request')
 
     after_id: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description='Skip rows with `logs.messages."index" <= after_id`.', json_schema_extra={'omitempty': True})
-    jq: Optional[str] = None
+    jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
     kinds: Optional[KindFilter] = Field(None, description='Filter to rows whose `MessageTable` falls in the selected\nbucket(s). `None` on the wire = no filter (all kinds).', json_schema_extra={'omitempty': True})
     limit: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description='Cap on rows scanned per target.', json_schema_extra={'omitempty': True})
+    max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
+    python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
     targets: list[Target]
+    timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 

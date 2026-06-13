@@ -10,14 +10,28 @@ import (
 type CliCommandAgentsLogsReadSubscribeRequest struct {
 	// Skip rows with `logs.messages."index" <= after_id`.
 	AfterID *int64 `json:"after_id,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
 	// Filter to rows whose `MessageTable` falls in the selected
 	// bucket(s). `None` on the wire = no filter (all kinds).
 	Kinds *CliCommandAgentsLogsReadSubscribeKindFilter `json:"kinds,omitempty"`
 	// Cap on rows scanned per target.
 	Limit *int64 `json:"limit,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	PathType CliCommandAgentsLogsReadSubscribePath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	Targets []CliCommandAgentsLogsReadAllTarget `json:"targets"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandAgentsLogsReadSubscribeRequest) SchemaTitle() string { return "cli.command.agents.logs.read.subscribe.Request" }

@@ -7,9 +7,12 @@ export const CliCommandTasksScheduleRequestSchema = z.object({
   command: z.array(z.string()).describe("argv to invoke on each scheduled poll."),
   description: z.string().describe("Human-readable label. Required — surfaces on every\n`agents tasks list` row, and the runner uses it in\nobservability output."),
   interval_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Floor on wall-clock seconds between invocations. `None`\nmarks a **oneshot** schedule — the runner fires it once on\nthe next poll and deletes the row. `Some(n)` is a recurring\nschedule with `n` seconds as the minimum gap between\ninvocations.").meta({ omitempty: true }).optional(),
-  jq: z.string().nullable().optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   name: z.string().describe("User-facing identifier. Unique per agent instance hierarchy —\na second `schedule` with the same `(name, aih)` fails the\n`schedules` UNIQUE constraint unless `overwrite` is set.\n`agents tasks run` tags every streamed output line with this\nname so the caller can attribute output to its source schedule."),
   overwrite: z.boolean().describe("Shadow an existing `(name, agent_instance_hierarchy)` schedule\ninstead of erroring on collision: a NEW row is inserted with\n`version = max + 1`. Older versions never list or run again but\nare kept so run history stays per-version; the new version has\nno runs yet, so it fires fresh."),
   path_type: CliCommandTasksSchedulePathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.tasks.schedule.Request" });
 export type CliCommandTasksScheduleRequest = z.infer<typeof CliCommandTasksScheduleRequestSchema>;

@@ -14,9 +14,12 @@ class Request(BaseModel):
     count: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description="Per-target row cap — each target's query returns at most this\nmany rows (ascending id, after `after_id`). `None` = unlimited.", json_schema_extra={'omitempty': True})
     exhausted: bool = Field(..., description='Show only schedules NOT currently runnable — fired\noneshots (visible briefly before the runner deletes\nthem) and interval rows that are cooling down. Mutually\nexclusive with `pending`.')
     interval: bool = Field(..., description='Filter to recurring rows only. Mutually exclusive with `oneshot`.')
-    jq: Optional[str] = None
+    jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
+    max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     oneshot: bool = Field(..., description='Filter to oneshot rows only. Mutually exclusive with `interval`.')
     path_type: Path
     pending: bool = Field(..., description='Show only schedules currently runnable — oneshots that\nhave never fired, and interval rows whose interval has\nelapsed. Mutually exclusive with `exhausted`.')
+    python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
     targets: list[Target] = Field(..., description="One or more targets to list schedules for. Each resolves to a\nsingle AIH (`me` → the cli's own; `instance=L[,parent=P]`;\n`tag=T` BOUND-only — PENDING / ABSENT error), and rows whose\n`agent_instance_hierarchy` equals any resolved AIH are returned.")
+    timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 

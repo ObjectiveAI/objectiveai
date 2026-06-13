@@ -21,7 +21,13 @@ type CliCommandTasksListRequest struct {
 	Exhausted bool `json:"exhausted"`
 	// Filter to recurring rows only. Mutually exclusive with `oneshot`.
 	Interval bool `json:"interval"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Filter to oneshot rows only. Mutually exclusive with `interval`.
 	Oneshot bool `json:"oneshot"`
 	PathType CliCommandTasksListPath `json:"path_type"`
@@ -29,11 +35,19 @@ type CliCommandTasksListRequest struct {
 	// have never fired, and interval rows whose interval has
 	// elapsed. Mutually exclusive with `exhausted`.
 	Pending bool `json:"pending"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	// One or more targets to list schedules for. Each resolves to a
 	// single AIH (`me` → the cli's own; `instance=L[,parent=P]`;
 	// `tag=T` BOUND-only — PENDING / ABSENT error), and rows whose
 	// `agent_instance_hierarchy` equals any resolved AIH are returned.
 	Targets []CliCommandAgentsLogsReadAllTarget `json:"targets"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandTasksListRequest) SchemaTitle() string { return "cli.command.tasks.list.Request" }

@@ -8,20 +8,25 @@ import (
 )
 
 type CliCommandDbQueryRequest struct {
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
-	// Optional response token budget. `None` ⇒ no limit;
-	// `Some(n)` requires `n >= 1`. When set, the CLI errors
-	// with `TokenBudgetExceeded` if the per-part token sum
-	// exceeds the limit. Skip-serialized when None.
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
 	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	PathType CliCommandDbQueryPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	// SQL statement to execute. Single statement only (multi-
 	// statement input is rejected by the CLI handler).
 	Query string `json:"query"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
-	// `--timeout` (humantime), `> 0` enforced at
-	// `TryFrom<Args>` time so this never carries 0 on the wire.
-	TimeoutSeconds uint64 `json:"timeout_seconds" validate:"min=0,max=18446744073709551615"`
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandDbQueryRequest) SchemaTitle() string { return "cli.command.db.query.Request" }
@@ -34,7 +39,7 @@ func (v *CliCommandDbQueryRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type", "query", "timeout_seconds"} {
+	for _, key := range []string{"path_type", "query"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandDbQueryRequest: missing required field %q", key)
 		}

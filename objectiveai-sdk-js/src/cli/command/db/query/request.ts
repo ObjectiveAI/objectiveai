@@ -4,10 +4,11 @@ import { z } from "zod";
 import { CliCommandDbQueryPathSchema } from "./path";
 
 export const CliCommandDbQueryRequestSchema = z.object({
-  jq: z.string().nullable().optional(),
-  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Optional response token budget. `None` ⇒ no limit;\n`Some(n)` requires `n >= 1`. When set, the CLI errors\nwith `TokenBudgetExceeded` if the per-part token sum\nexceeds the limit. Skip-serialized when None.").meta({ omitempty: true }).optional(),
+  jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandDbQueryPathSchema,
+  python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   query: z.string().describe("SQL statement to execute. Single statement only (multi-\nstatement input is rejected by the CLI handler)."),
-  timeout_seconds: z.number().int().min(0).max(18446744073709552000).describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime), `> 0` enforced at\n`TryFrom<Args>` time so this never carries 0 on the wire."),
+  timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.db.query.Request" });
 export type CliCommandDbQueryRequest = z.infer<typeof CliCommandDbQueryRequestSchema>;

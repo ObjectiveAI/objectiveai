@@ -11,7 +11,9 @@ import (
 // required fields (`value` vs `success`) are disjoint, so the wire
 // shape is just the inner object. Which variant flows is decided by
 // the request's `stream_all`: `true` streams every emitted item as a
-// [`ValueResponseItem`]; `false` (default) yields exactly one
+// [`ValueResponseItem`] (whose `value` is the typed root item for a
+// no-transform command, or the post-transform JSON otherwise — see
+// [`RunValue`]); `false` (default) yields exactly one
 // [`SuccessResponseItem`] per task when its stream completes.
 type CliCommandTasksRunResponseItem struct {
 	Value *CliCommandTasksRunValueResponseItem 

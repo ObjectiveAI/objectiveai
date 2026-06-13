@@ -13,15 +13,29 @@ type CliCommandAgentsEnqueueRequest struct {
 	// read predicate resolves BOUND tags to their hierarchy). A
 	// plain ref has no queue identity and errors.
 	Agent CliCommandAgentsAgentSelector `json:"agent"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
 	// Idempotency key, scoped per target: any pre-existing active
 	// row with the same `(agent_instance_hierarchy, key)` or
 	// `(agent_tag, key)` pair is deleted before the insert lands.
 	Key *string `json:"key,omitempty"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Required payload. The queue row carries this exact
 	// `RichContent`.
 	Message CliCommandAgentsMessageRequestMessage `json:"message"`
 	PathType CliCommandAgentsEnqueuePath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (CliCommandAgentsEnqueueRequest) SchemaTitle() string { return "cli.command.agents.enqueue.Request" }

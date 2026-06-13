@@ -9,9 +9,10 @@ from objectiveai_sdk.cli.command.db.query.path import Path
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.db.query.Request')
 
-    jq: Optional[str] = None
-    max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Optional response token budget. `None` ⇒ no limit;\n`Some(n)` requires `n >= 1`. When set, the CLI errors\nwith `TokenBudgetExceeded` if the per-part token sum\nexceeds the limit. Skip-serialized when None.', json_schema_extra={'omitempty': True})
+    jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
+    max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
+    python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
     query: str = Field(..., description='SQL statement to execute. Single statement only (multi-\nstatement input is rejected by the CLI handler).')
-    timeout_seconds: int = Field(..., description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime), `> 0` enforced at\n`TryFrom<Args>` time so this never carries 0 on the wire.', ge=0, le=18446744073709551615)
+    timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 

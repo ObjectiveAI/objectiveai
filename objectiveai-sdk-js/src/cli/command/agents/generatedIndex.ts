@@ -10,6 +10,7 @@ export * from "./publish/index";
 export * from "./queue/index";
 export * from "./spawn/index";
 export * from "./tags/index";
+export * from "./wait/index";
 export * from "./agentRef";
 export * from "./agentSelector";
 export * from "./request";

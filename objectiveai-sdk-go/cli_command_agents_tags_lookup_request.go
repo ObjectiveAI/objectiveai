@@ -11,13 +11,27 @@ type CliCommandAgentsTagsLookupRequestAgentInstanceHierarchy struct {
 	// Leaf id of the target agent.
 	AgentInstance string `json:"agent_instance"`
 	By string `json:"by" validate:"oneof=agent_instance_hierarchy"`
-	Jq *string `json:"jq,omitempty"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
+	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Lineage prefix to prepend to [`Self::agent_instance`].
 	// When `None`, the CLI substitutes its own
 	// `Config.agent_instance_hierarchy`. Full hierarchy is
 	// `"{parent}/{instance}"`.
 	ParentAgentInstanceHierarchy *string `json:"parent_agent_instance_hierarchy,omitempty"`
 	PathType CliCommandAgentsTagsLookupPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (v *CliCommandAgentsTagsLookupRequestAgentInstanceHierarchy) UnmarshalJSON(data []byte) error {
@@ -42,9 +56,23 @@ func (CliCommandAgentsTagsLookupRequestAgentInstanceHierarchy) SchemaVariantTitl
 
 type CliCommandAgentsTagsLookupRequestTag struct {
 	By string `json:"by" validate:"oneof=tag"`
-	Jq *string `json:"jq,omitempty"`
+	// jq filter applied to the JSON output. Ignored when `python`
+	// is also set — python overrides jq.
+	Jq *string `json:"jq"`
+	// Response token budget, `>= 1` (`0` is rejected at parse
+	// time — omit entirely for unlimited). Forward-compatible
+	// envelope data — no leaf enforces it yet.
+	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	PathType CliCommandAgentsTagsLookupPath `json:"path_type"`
+	// Python transform applied to the JSON output. Overrides `jq`
+	// when both are provided.
+	Python *string `json:"python"`
 	Tag string `json:"tag"`
+	// Wall-clock execution cap, in whole seconds. Parsed from
+	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
+	// enforced at parse time. `db query` threads it to postgres
+	// when set; omit for uncapped.
+	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 }
 
 func (v *CliCommandAgentsTagsLookupRequestTag) UnmarshalJSON(data []byte) error {

@@ -18,11 +18,14 @@ class Request(BaseModel):
     function: FunctionSpec
     input: RequestInput
     invert: bool
-    jq: Optional[str] = None
+    jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
+    max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
     pool: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = None
     profile: ProfileSpec
+    python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
     retry_token: Optional[str] = None
     rounds: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = None
     split: bool
+    timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 
