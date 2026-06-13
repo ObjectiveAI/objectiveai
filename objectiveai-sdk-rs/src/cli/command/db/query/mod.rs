@@ -7,12 +7,11 @@
 //! - **Read-only**: wrapped in `SET LOCAL TRANSACTION READ ONLY`
 //!   server-side. Write attempts come back as
 //!   `Error::QueryReadOnlyViolation`.
-//! - **Timeout**: rides the [`RequestBase`] envelope (`--timeout`,
-//!   humantime: `30s`, `5m`, `1h30m`) but is REQUIRED for this
-//!   leaf — enforced at `TryFrom<Args>` time and re-checked by the
-//!   CLI handler for wire-built requests. The CLI threads it to
-//!   postgres as `SET LOCAL statement_timeout` / `lock_timeout`;
-//!   enforcement is the server's alone.
+//! - **Timeout**: the [`RequestBase`] envelope's optional
+//!   `--timeout` (humantime: `30s`, `5m`, `1h30m`). When set, the
+//!   CLI threads it to postgres as `SET LOCAL statement_timeout` /
+//!   `lock_timeout` — enforcement is the server's alone. When
+//!   omitted, the query runs uncapped.
 //!
 //! [`RequestBase`]: crate::cli::command::RequestBase
 //!
@@ -30,8 +29,7 @@ pub struct Request {
     /// SQL statement to execute. Single statement only (multi-
     /// statement input is rejected by the CLI handler).
     pub query: String,
-    // Carries `timeout_seconds` — REQUIRED for this leaf; see the
-    // module doc.
+    // Carries the optional `timeout_seconds`; see the module doc.
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -124,15 +122,6 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        // The timeout rides the shared envelope (which validates
-        // format and `> 0`), but THIS leaf requires it — the cap is
-        // what keeps a runaway query from poisoning the pool.
-        if args.base.timeout.is_none() {
-            return Err(crate::cli::command::FromArgsError {
-                field: "timeout",
-                source: "required for db query".to_string().into(),
-            });
-        }
         Ok(Self {
             path_type: Path::DbQuery,
             query: args.query,

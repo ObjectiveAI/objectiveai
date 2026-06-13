@@ -14,8 +14,8 @@ pub enum Error {
     MissingArgs(&'static str),
     #[error("invalid path: {0}")]
     PathParse(String),
-    #[error("no python interpreter found (install Python or enable the rustpython feature)")]
-    PythonNotFound,
+    #[error("python wasm runtime error: {0}")]
+    PythonWasm(String),
     #[error("failed to read python file {0}: {1}")]
     PythonFileRead(std::path::PathBuf, std::io::Error),
     #[error("failed to read prompt file {0}: {1}")]
@@ -151,11 +151,6 @@ pub enum Error {
     /// on the postgres-backed `logs.*` reader that's still in flight.
     #[error("not implemented: {0}")]
     NotImplemented(&'static str),
-    /// A wire-built request (MCP / JSON — argv parsing enforces this
-    /// earlier) omitted an envelope field the leaf requires, e.g.
-    /// `timeout_seconds` for `db query` / `agents wait`.
-    #[error("missing required field `{field}` for this command")]
-    MissingRequestField { field: &'static str },
     #[error("invalid query: {0}")]
     InvalidQuery(String),
     #[error("query exceeded timeout")]

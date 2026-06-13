@@ -1,11 +1,12 @@
 //! `objectiveai db query` — read-only SQL executor.
 //!
 //! Wraps the user's single statement in a short-lived read-only
-//! transaction with server-side `statement_timeout` and
-//! `lock_timeout` set to the request's budget. Enforcement is
-//! postgres's alone — there is no client-side timer; when the
-//! server cancels (SQLSTATE 57014) the error maps to
+//! transaction. When a timeout is provided, server-side
+//! `statement_timeout` and `lock_timeout` are set to its budget —
+//! enforcement is postgres's alone; there is no client-side timer.
+//! When the server cancels (SQLSTATE 57014) the error maps to
 //! [`Error::QueryTimeout`] and the transaction unwinds cleanly.
+//! Without a timeout the query runs uncapped.
 //!
 //! Each result cell is decoded to a `serde_json::Value` by
 //! [`pg_value_to_json`], which dispatches on
@@ -38,23 +39,25 @@ pub struct Column {
 pub async fn run_readonly_query(
     pool: &crate::db::Pool,
     sql: &str,
-    timeout: Duration,
+    timeout: Option<Duration>,
 ) -> Result<RawQueryResult, Error> {
     let mut tx = pool.begin().await.map_err(crate::db::Error::Sqlx)?;
 
-    let server_ms = timeout.as_millis().max(1) as u64;
     sqlx::query("SET LOCAL TRANSACTION READ ONLY")
         .execute(&mut *tx)
         .await
         .map_err(crate::db::Error::Sqlx)?;
-    sqlx::query(&format!("SET LOCAL statement_timeout = {server_ms}"))
-        .execute(&mut *tx)
-        .await
-        .map_err(crate::db::Error::Sqlx)?;
-    sqlx::query(&format!("SET LOCAL lock_timeout = {server_ms}"))
-        .execute(&mut *tx)
-        .await
-        .map_err(crate::db::Error::Sqlx)?;
+    if let Some(timeout) = timeout {
+        let server_ms = timeout.as_millis().max(1) as u64;
+        sqlx::query(&format!("SET LOCAL statement_timeout = {server_ms}"))
+            .execute(&mut *tx)
+            .await
+            .map_err(crate::db::Error::Sqlx)?;
+        sqlx::query(&format!("SET LOCAL lock_timeout = {server_ms}"))
+            .execute(&mut *tx)
+            .await
+            .map_err(crate::db::Error::Sqlx)?;
+    }
 
     let rows: Vec<PgRow> = sqlx::query(sql)
         .fetch_all(&mut *tx)

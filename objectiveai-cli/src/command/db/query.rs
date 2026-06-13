@@ -1,5 +1,6 @@
 //! `db query` — pre-flight validate, then run under the request's
-//! timeout (threaded to postgres as `statement_timeout`).
+//! optional timeout (threaded to postgres as `statement_timeout`
+//! when set; uncapped when omitted).
 //!
 //! Pre-flight rejects shapes the response variant can't represent:
 //! - multi-statement input (any unquoted `;` followed by non-empty
@@ -21,11 +22,7 @@ use crate::error::Error;
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     pre_flight_validate(&request.query)?;
 
-    let timeout_seconds = request
-        .base
-        .timeout_seconds
-        .ok_or(Error::MissingRequestField { field: "timeout_seconds" })?;
-    let timeout = Duration::from_secs(timeout_seconds);
+    let timeout = request.base.timeout_seconds.map(Duration::from_secs);
     let raw = crate::db::query::run_readonly_query(ctx.db_client().await?, &request.query, timeout).await?;
 
     let RawQueryResult { command_tag, columns, rows } = raw;
