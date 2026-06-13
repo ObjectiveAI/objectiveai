@@ -8,9 +8,12 @@
 //! flows back through this executor down to each leaf.
 
 use std::any::{Any, TypeId};
+use std::future::Future;
+use std::marker::PhantomData;
 use std::pin::Pin;
+use std::task::{Context as TaskContext, Poll};
 
-use futures::{Stream, StreamExt};
+use futures::{Stream, StreamExt, TryStreamExt};
 use objectiveai_sdk::cli::command::{
     AgentArguments, CommandExecutor, CommandRequest, CommandResponse, ResponseItem, parse_request,
 };
@@ -103,44 +106,62 @@ impl CommandExecutor for CliCommandExecutor {
     ) -> Result<Self::Stream<T>, Self::Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
+        // Pull the envelope controls off the request up front, before
+        // the stream is built — upcoming conditional transforms consume
+        // these: the output transform (owned: jq / python, python wins),
+        // the timeout cap, and the max-tokens cap.
+        let base = request.request_base();
+        let transform = base.transform();
+        let timeout = base.timeout_seconds;
+        let max_tokens = base.max_tokens;
+
         let argv = request.into_command();
         let sdk_request = parse_request(&argv).map_err(|e| match e {
             objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
             objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
         })?;
-        let ctx = self.resolve_ctx(agent_arguments);
-        let stream = crate::command::command::execute(&ctx, sdk_request).await?;
+        // Own the ctx so the deferred dispatch future can hold it —
+        // the returned stream is `'static` and outlives this call.
+        let ctx = self.resolve_ctx(agent_arguments).into_owned();
 
-        // Fast path: when the caller's `T` IS the root `ResponseItem`
-        // (e.g. a consumer that wants the whole stream verbatim), the
-        // dispatcher already yields exactly that type — hand each item
-        // through by identity instead of round-tripping it through
-        // `serde_json::Value` + `extract_leaf`. Both types are
-        // `'static`, so `std::any` settles the equality at runtime; the
-        // check is per-call, not per-item, and the cast itself is
-        // alloc-free (the value moves straight out of the `Option`).
-        if TypeId::of::<T>() == TypeId::of::<ResponseItem>() {
-            let mapped = stream.map(|r| {
-                r.map(|item| {
-                    let mut slot = Some(item);
-                    (&mut slot as &mut dyn Any)
-                        .downcast_mut::<Option<T>>()
-                        .and_then(Option::take)
-                        .expect("TypeId check guarantees T == ResponseItem")
-                })
-            });
-            return Ok(Box::pin(mapped));
+        // Base stream ("the first one"): don't await the dispatcher
+        // here. Wrap the `Future<Result<Stream<Result<ResponseItem>>>>`
+        // as a stream that, on first poll, drives the future and
+        // flattens into its inner stream — so `execute` returns
+        // instantly and a dispatch setup error surfaces as the stream's
+        // first item rather than an eager `Err`. Box it so the wrappers
+        // below can hold it `Unpin`.
+        let source = futures::stream::once(async move {
+            crate::command::command::execute(&ctx, sdk_request).await
+        })
+        .try_flatten();
+        let source: Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>> =
+            Box::pin(source);
+
+        // Layer the wrapper adapters on top of the base, conditionally.
+        //
+        // Always: convert root `ResponseItem` items to the caller's `T`
+        // ([`ConvertStream`] — identity fast-path when `T ==
+        // ResponseItem`, else a serde round-trip).
+        let mut stream: Self::Stream<T> = Box::pin(ConvertStream::new(source));
+
+        // Conditional: a running token budget over the serialized output
+        // ([`TokenCountStream`]). Sits BEFORE the timeout so the deadline
+        // still bounds it.
+        if let Some(max_tokens) = max_tokens {
+            stream = Box::pin(TokenCountStream::new(stream, max_tokens));
         }
 
-        let mapped = stream.map(|r| {
-            r.and_then(|item| {
-                let value = serde_json::to_value(item).map_err(Error::InlineJson)?;
-                extract_leaf::<T>(value).map_err(Error::InlineJson)
-            })
-        });
-        Ok(Box::pin(mapped))
+        // Conditional: a single whole-stream deadline ([`TimeoutStream`]
+        // — anchored at first poll; the stream never outlives it). Last,
+        // so it's the outermost cap over every other adapter.
+        if let Some(timeout_seconds) = timeout {
+            stream = Box::pin(TimeoutStream::new(stream, timeout_seconds));
+        }
+
+        Ok(stream)
     }
 
     async fn execute_one<R, T>(
@@ -150,13 +171,207 @@ impl CommandExecutor for CliCommandExecutor {
     ) -> Result<T, Self::Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream: Self::Stream<T> =
             self.execute::<R, T>(request, agent_arguments).await?;
         match stream.next().await {
             Some(item) => item,
             None => Err(Error::EmptyStream),
+        }
+    }
+}
+
+/// Stream adapter: convert the dispatcher's root [`ResponseItem`] items
+/// into the caller's `T`.
+///
+/// Mode is decided once at construction by a `TypeId` compare:
+/// - `T == ResponseItem`: identity — move each item straight through
+///   with no serialization (the alloc-free `Option` downcast).
+/// - otherwise: serialize to `serde_json::Value` and walk the
+///   externally-tagged wrappers down to `T` via [`extract_leaf`].
+struct ConvertStream<S, T> {
+    inner: S,
+    /// `true` ⇔ `T` is the root `ResponseItem` (take the identity path).
+    identity: bool,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<S, T: 'static> ConvertStream<S, T> {
+    fn new(inner: S) -> Self {
+        Self {
+            inner,
+            identity: TypeId::of::<T>() == TypeId::of::<ResponseItem>(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, T> Stream for ConvertStream<S, T>
+where
+    S: Stream<Item = Result<ResponseItem, Error>> + Unpin,
+    T: serde::de::DeserializeOwned + 'static,
+{
+    type Item = Result<T, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        match Pin::new(&mut this.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(item))) => Poll::Ready(Some(convert_item::<T>(item, this.identity))),
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => Poll::Ready(None),
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+/// Convert one root item to `T`, per the mode [`ConvertStream`] chose.
+fn convert_item<T: serde::de::DeserializeOwned + 'static>(
+    item: ResponseItem,
+    identity: bool,
+) -> Result<T, Error> {
+    if identity {
+        let mut slot = Some(item);
+        Ok((&mut slot as &mut dyn Any)
+            .downcast_mut::<Option<T>>()
+            .and_then(Option::take)
+            .expect("identity flag guarantees T == ResponseItem"))
+    } else {
+        let value = serde_json::to_value(item).map_err(Error::InlineJson)?;
+        extract_leaf::<T>(value).map_err(Error::InlineJson)
+    }
+}
+
+/// Stream adapter: a running token budget over the serialized output.
+///
+/// Each item is `serde_json::to_string`'d and tokenized (tiktoken
+/// `o200k_base`, the same encoding the old `db query` budget used); the
+/// token count is added to a running total. The moment the total
+/// exceeds `max_tokens`, the adapter yields one final
+/// `Err(Error::TokenBudgetExceeded)` IN PLACE OF the item that pushed
+/// it over, and then ends. The encoder is built once at construction.
+struct TokenCountStream<S> {
+    inner: S,
+    max_tokens: u64,
+    total: u64,
+    encoder: tiktoken_rs::CoreBPE,
+    /// Set once the budget was blown or the inner stream ended.
+    finished: bool,
+}
+
+impl<S> TokenCountStream<S> {
+    fn new(inner: S, max_tokens: u64) -> Self {
+        Self {
+            inner,
+            max_tokens,
+            total: 0,
+            // Embedded BPE data — loading it is effectively infallible.
+            encoder: tiktoken_rs::o200k_base()
+                .expect("o200k_base BPE data is embedded and always loads"),
+            finished: false,
+        }
+    }
+}
+
+impl<S, I> Stream for TokenCountStream<S>
+where
+    S: Stream<Item = Result<I, Error>> + Unpin,
+    I: serde::Serialize,
+{
+    type Item = Result<I, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        if this.finished {
+            return Poll::Ready(None);
+        }
+        match Pin::new(&mut this.inner).poll_next(cx) {
+            Poll::Ready(Some(Ok(item))) => {
+                // Tally before yielding: serialize, tokenize, accumulate.
+                let json = match serde_json::to_string(&item) {
+                    Ok(s) => s,
+                    Err(e) => {
+                        this.finished = true;
+                        return Poll::Ready(Some(Err(Error::InlineJson(e))));
+                    }
+                };
+                this.total += this.encoder.encode_with_special_tokens(&json).len() as u64;
+                if this.total > this.max_tokens {
+                    this.finished = true;
+                    return Poll::Ready(Some(Err(Error::TokenBudgetExceeded {
+                        limit: this.max_tokens,
+                        actual: this.total,
+                    })));
+                }
+                Poll::Ready(Some(Ok(item)))
+            }
+            Poll::Ready(Some(Err(e))) => Poll::Ready(Some(Err(e))),
+            Poll::Ready(None) => {
+                this.finished = true;
+                Poll::Ready(None)
+            }
+            Poll::Pending => Poll::Pending,
+        }
+    }
+}
+
+/// Stream adapter: a single whole-stream deadline.
+///
+/// The `tokio::time::sleep` is created on the FIRST `poll_next`, so the
+/// deadline anchors at first poll, not at construction. Every poll
+/// races the deadline against the inner stream; once it elapses — even
+/// mid-wait on a slow item — the adapter yields one final
+/// `Err(Error::Timeout)` and then ends. The stream can never outlive
+/// `timeout_seconds`.
+struct TimeoutStream<S> {
+    inner: S,
+    timeout_seconds: u64,
+    /// Created lazily on first poll so the deadline anchors there.
+    deadline: Option<Pin<Box<tokio::time::Sleep>>>,
+    /// Set once the deadline fired or the inner stream ended.
+    finished: bool,
+}
+
+impl<S> TimeoutStream<S> {
+    fn new(inner: S, timeout_seconds: u64) -> Self {
+        Self {
+            inner,
+            timeout_seconds,
+            deadline: None,
+            finished: false,
+        }
+    }
+}
+
+impl<S, I> Stream for TimeoutStream<S>
+where
+    S: Stream<Item = Result<I, Error>> + Unpin,
+{
+    type Item = Result<I, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        if this.finished {
+            return Poll::Ready(None);
+        }
+        let secs = this.timeout_seconds;
+        let deadline = this.deadline.get_or_insert_with(|| {
+            Box::pin(tokio::time::sleep(std::time::Duration::from_secs(secs)))
+        });
+        // Deadline first: it's a hard cap, so it wins ties.
+        if deadline.as_mut().poll(cx).is_ready() {
+            this.finished = true;
+            return Poll::Ready(Some(Err(Error::Timeout {
+                timeout_seconds: secs,
+            })));
+        }
+        match Pin::new(&mut this.inner).poll_next(cx) {
+            Poll::Ready(Some(item)) => Poll::Ready(Some(item)),
+            Poll::Ready(None) => {
+                this.finished = true;
+                Poll::Ready(None)
+            }
+            Poll::Pending => Poll::Pending,
         }
     }
 }

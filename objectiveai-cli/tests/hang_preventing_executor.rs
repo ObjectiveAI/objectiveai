@@ -119,7 +119,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
     ) -> Result<Self::Stream<T>, Self::Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let inner_stream: Pin<
             Box<
@@ -171,7 +171,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
     ) -> Result<T, Self::Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         match stream.next().await {

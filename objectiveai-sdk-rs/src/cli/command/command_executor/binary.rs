@@ -225,7 +225,7 @@ impl CommandExecutor for BinaryExecutor {
     ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let argv = request.into_command();
         let binary = self.binary_path()?;
@@ -333,7 +333,7 @@ impl CommandExecutor for BinaryExecutor {
     ) -> Result<T, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         stream.next().await.ok_or(Error::Empty)?

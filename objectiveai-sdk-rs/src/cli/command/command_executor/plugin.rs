@@ -178,7 +178,7 @@ impl CommandExecutor for PluginExecutor {
     ) -> Result<Self::Stream<T>, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponseTrait + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let id = self.counter.fetch_add(1, Ordering::Relaxed).to_string();
         let (tx, rx) = mpsc::unbounded_channel::<serde_json::Value>();
@@ -257,7 +257,7 @@ impl CommandExecutor for PluginExecutor {
     ) -> Result<T, Error>
     where
         R: CommandRequest + Send,
-        T: CommandResponseTrait + serde::de::DeserializeOwned + Send + 'static,
+        T: CommandResponseTrait + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
         stream.next().await.ok_or(Error::Empty)?

@@ -58,6 +58,7 @@ indexmap = "2.13"
 hashbrown = "0.15"
 sysinfo = { version = "0.38.4", default-features = false, features = ["system"] }
 dashmap = "6.1.0"
+tiktoken-rs = "0.12.0"
 wasmtime = "45.0.1"
 wasmtime-wasi = "45.0.1"
 zstd = "0.13"

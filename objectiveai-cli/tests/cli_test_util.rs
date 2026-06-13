@@ -138,7 +138,7 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
-    T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+    T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
         .execute::<R, T>(request, None)
@@ -159,7 +159,7 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
     R: CommandRequest + Send,
-    T: CommandResponse + serde::de::DeserializeOwned + Send + 'static,
+    T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
 {
     executor
         .execute_one::<R, T>(request, None)

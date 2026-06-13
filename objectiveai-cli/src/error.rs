@@ -157,6 +157,15 @@ pub enum Error {
     QueryTimeout,
     #[error("query attempted a write in a read-only context")]
     QueryReadOnlyViolation,
+    /// The executor's whole-stream deadline elapsed. Yielded as the
+    /// stream's final item; the stream never outlives the timeout.
+    #[error("timed out after {timeout_seconds}s")]
+    Timeout { timeout_seconds: u64 },
+    /// The executor's running token tally over the serialized output
+    /// exceeded the request's `max_tokens` budget. Yielded as the
+    /// stream's final item in place of the item that pushed it over.
+    #[error("response exceeded token budget — actual {actual} tokens, limit {limit}")]
+    TokenBudgetExceeded { limit: u64, actual: u64 },
 }
 
 impl Error {
