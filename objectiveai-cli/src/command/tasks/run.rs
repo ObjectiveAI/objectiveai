@@ -272,10 +272,6 @@ async fn run_one(ctx: &Context, row: db::tasks::RunRow) -> Result<RootStream, Er
 
     let mut args = vec!["objectiveai-cli".to_string()];
     args.extend(row.command);
-    // Re-entering the top-level entry — the fired schedule's command
-    // must not carry an inherited transform / token budget into this
-    // run (timeout survives).
-    crate::command::reexec::strip_inherited_args(&mut args);
     crate::run(args, Some(task_ctx)).await
 }
 
