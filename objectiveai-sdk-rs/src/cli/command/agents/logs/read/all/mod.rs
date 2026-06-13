@@ -223,12 +223,14 @@ pub struct AssistantResponsePart {
     pub id: i64,
     pub timestamp_delivered: i64,
     pub r#type: AssistantResponsePartType,
-    /// `function.name` for `type = tool_call` rows
-    /// (`logs.assistant_response_tool_calls.function_name`).
-    /// Empty string for non-tool-call rows. Surfaced here so
-    /// callers can dedupe tool calls by name without a per-row
+    /// `function.name`, present only for `type = tool_call` rows
+    /// (`objectiveai.assistant_response_tool_calls.function_name`);
+    /// absent for every other part type. Surfaced here so callers
+    /// can dedupe tool calls by name without a per-row
     /// `agents logs read id` round-trip.
-    pub function_name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub function_name: Option<String>,
 }
 
 /// Type tag for one `ToolResponse` part. `Container` is the

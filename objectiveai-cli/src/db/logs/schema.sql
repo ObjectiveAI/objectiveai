@@ -1,5 +1,5 @@
 -- =====================================================================
--- objectiveai-cli `logs.*` schema — 20 tables, hybrid blob + streaming.
+-- objectiveai-cli `objectiveai.*` schema — 20 tables, hybrid blob + streaming.
 -- =====================================================================
 --
 -- Design:
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_file (
 -- the NULL slots as equal, so the writer's INSERT path conflicts
 -- correctly with prior rows.
 --
--- `objectiveai.message_table` enumerates every `logs.*` table the writer
+-- `objectiveai.message_table` enumerates every `objectiveai.*` table the writer
 -- emits a messages row for. The three response-blob tables
 -- (agent / vector / function `_responses`) are intentionally absent
 -- — they're not events, just the latest snapshot.
@@ -344,7 +344,7 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
     -- `sender_agent_instance_hierarchy` is NOT stored here — the
     -- read-all path JOINs to the row's source table by `response_id`
     -- (for request blob / assistant_response_* / tool_response*
-    -- rows → the matching `logs.<tier>_completion_requests` /
+    -- rows → the matching `objectiveai.<tier>_completion_requests` /
     -- `objectiveai.function_execution_requests` table) or via
     -- `row_index` → `message_queue_contents.id` → `message_queue`
     -- (for `message_queue_*` rows). Same story for `timestamp_queued`
@@ -464,9 +464,9 @@ DO $logs_role_bootstrap$ BEGIN
         CREATE ROLE log_reader NOLOGIN;
     END IF;
 END $logs_role_bootstrap$;
-REVOKE ALL ON SCHEMA logs FROM PUBLIC;
-REVOKE ALL ON ALL TABLES IN SCHEMA logs FROM PUBLIC;
-GRANT USAGE ON SCHEMA logs TO log_reader;
-GRANT SELECT ON ALL TABLES IN SCHEMA logs TO log_reader;
-ALTER DEFAULT PRIVILEGES IN SCHEMA logs GRANT SELECT ON TABLES TO log_reader;
-ALTER ROLE log_reader SET search_path = logs;
+REVOKE ALL ON SCHEMA objectiveai FROM PUBLIC;
+REVOKE ALL ON ALL TABLES IN SCHEMA objectiveai FROM PUBLIC;
+GRANT USAGE ON SCHEMA objectiveai TO log_reader;
+GRANT SELECT ON ALL TABLES IN SCHEMA objectiveai TO log_reader;
+ALTER DEFAULT PRIVILEGES IN SCHEMA objectiveai GRANT SELECT ON TABLES TO log_reader;
+ALTER ROLE log_reader SET search_path = objectiveai;

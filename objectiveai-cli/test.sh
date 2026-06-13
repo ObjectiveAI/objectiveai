@@ -39,7 +39,10 @@ if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
   bash "$REPO_ROOT/test-build.sh" >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
   wait "$_CLEANUP_PID"
   wait "$_BUILD_PID"
-  trap 'bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
+  # Post-test cleanup is kill-only: processes die but `state/` survives
+  # so the run's db can be re-spawned and inspected. (Pre-test cleanup
+  # above ran without the env var, so it still wiped a stale tree.)
+  trap 'OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY=1 bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 || true' EXIT INT TERM
 fi
 
 # Parse flags

@@ -136,6 +136,11 @@ struct EnvConfigBuilder {
     objectiveai_dir: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_STATE")]
     objectiveai_state: Option<String>,
+    /// `OBJECTIVEAI_LOGS` — master switch (default on) for writing
+    /// request/response traces. When on, the in-process mcp-proxy logs
+    /// to `<OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl`.
+    #[envconfig(from = "OBJECTIVEAI_LOGS")]
+    logs: Option<String>,
     #[envconfig(from = "PERSISTENT_CACHE_TRANSIENT_TTL_MS")]
     persistent_cache_transient_ttl_ms: Option<u64>,
     #[envconfig(from = "MOCK_DELAY_MS")]
@@ -202,6 +207,7 @@ impl EnvConfigBuilder {
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
             objectiveai_state: self.objectiveai_state,
+            logs: self.logs.map(|s| parse_bool(&s)),
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
@@ -261,6 +267,7 @@ pub struct ConfigBuilder {
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
     pub objectiveai_state: Option<String>,
+    pub logs: Option<bool>,
     pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
@@ -354,6 +361,7 @@ impl ConfigBuilder {
                 let state = self.objectiveai_state.unwrap_or_else(|| "default".to_string());
                 dir.join("state").join(state)
             },
+            logs: self.logs.unwrap_or(true),
             persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
@@ -425,6 +433,10 @@ pub struct Config {
     /// per-state dir derived from it.
     pub objectiveai_dir: std::path::PathBuf,
     pub config_base_dir: std::path::PathBuf,
+    /// Master switch (default on) for request/response trace logging.
+    /// When on, the in-process mcp-proxy writes to
+    /// `<objectiveai_dir>/bin/api/logs/mcp-proxy.jsonl`.
+    pub logs: bool,
     pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
@@ -487,8 +499,9 @@ pub async fn setup(
         mcp_call_timeout,
         reverse_channel_timeout,
         mcp_encryption_key,
-        objectiveai_dir: _,
+        objectiveai_dir,
         config_base_dir,
+        logs,
         persistent_cache_transient_ttl_ms,
         mock_delay_ms,
         mock_max_tool_calls,
@@ -600,8 +613,23 @@ pub async fn setup(
                 None
             }
         });
+    // When logging is on, route the in-process proxy's request/response
+    // trace to <OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl.
+    let proxy_logs_dir: Option<String> = if logs {
+        Some(
+            objectiveai_dir
+                .join("bin")
+                .join("api")
+                .join("logs")
+                .to_string_lossy()
+                .into_owned(),
+        )
+    } else {
+        None
+    };
     let proxy_spawner = Arc::new(agent::completions::ProxySpawner::new(move || {
         objectiveai_mcp_proxy::ConfigBuilder {
+            logs_dir: proxy_logs_dir.clone(),
             mcp_connect_timeout: Some(mcp_connect_timeout),
             mcp_call_timeout: Some(mcp_call_timeout),
             mcp_backoff_current_interval: Some(mcp_backoff_current_interval),

@@ -169,7 +169,11 @@ async fn duplicate_server_names_routed_across_turns() {
         if let ReadAllItem::AssistantResponse { parts, .. } = block {
             for part in parts {
                 if matches!(part.r#type, AssistantResponsePartType::ToolCall) {
-                    names.push(part.function_name.clone());
+                    names.push(
+                        part.function_name
+                            .clone()
+                            .expect("ToolCall part must carry function_name"),
+                    );
                 }
             }
         }

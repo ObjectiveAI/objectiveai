@@ -18,6 +18,9 @@
 //!    "Access is denied".
 //! 4. Deletes `state/` (and the runtime `bin/locks/`) with retries —
 //!    Windows releases dead processes' file handles asynchronously.
+//!    Skipped when `OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY` is set
+//!    (steps 1–3 only), leaving the run's db data on disk so a later
+//!    `objectiveai` invocation can re-spawn the db and read it.
 //!
 //! Invoked (as the pre-built `target/debug` binary — `test-build.sh`
 //! compiles it) by the repo-root `test-cleanup.sh`, which every
@@ -28,6 +31,15 @@
 use std::path::{Path, PathBuf};
 
 fn main() {
+    // `OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY` (set non-empty) skips the
+    // `state/` wipe (step 4 below): kill everything, but leave the
+    // on-disk per-state db data so a later `objectiveai` run can
+    // re-spawn against it and read what the tests wrote. An env var
+    // (not a flag) so it rides process inheritance through the shell
+    // wrappers without each layer having to forward argv.
+    let kill_only = std::env::var_os("OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY")
+        .is_some_and(|v| !v.is_empty());
+
     // <repo>/objectiveai-tests/test-cleanup → <repo>.
     let repo = Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -69,6 +81,19 @@ fn main() {
     }
 
     killed += kill_target_processes(&repo.join("target"));
+
+    // Kill-only: stop here with `state/` and `bin/locks/` intact. The
+    // stale locks are harmless — the SDK lockfile gate re-acquires
+    // once it sees the recorded owner is no longer alive — so the next
+    // `objectiveai` invocation re-spawns the db against the preserved
+    // data dirs.
+    if kill_only {
+        println!(
+            "test-cleanup: {} lockfile(s) inspected, {killed} process(es) killed, state/ preserved (kill-only)",
+            gates.len()
+        );
+        return;
+    }
 
     remove_with_retry(&root.join("state"));
     remove_with_retry(&root.join("bin").join("locks"));

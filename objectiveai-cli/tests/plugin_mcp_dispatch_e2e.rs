@@ -180,7 +180,11 @@ async fn plugin_mcp_dispatch_round_trip() {
         if let ReadAllItem::AssistantResponse { parts, .. } = block {
             for part in parts {
                 if matches!(part.r#type, AssistantResponsePartType::ToolCall) {
-                    tool_call_names.push(part.function_name.clone());
+                    tool_call_names.push(
+                        part.function_name
+                            .clone()
+                            .expect("ToolCall part must carry function_name"),
+                    );
                 }
             }
         }
