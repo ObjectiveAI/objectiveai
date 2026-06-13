@@ -28,7 +28,7 @@ pub async fn upsert(
     continuation: &str,
 ) -> Result<(), Error> {
     sqlx::query(
-        "INSERT INTO agent_continuations \
+        "INSERT INTO objectiveai.agent_continuations \
              (agent_instance_hierarchy, continuation, updated_at) \
          VALUES ($1, $2, $3) \
          ON CONFLICT (agent_instance_hierarchy) DO UPDATE SET \

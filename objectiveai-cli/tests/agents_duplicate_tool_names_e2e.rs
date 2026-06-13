@@ -7,7 +7,7 @@
 //! A bare-bones plain mock agent runs three CLI turns against the same
 //! `agent_instance_hierarchy`: one `agents spawn`, two `agents message`.
 //! After every turn the cli persists tool calls to
-//! `logs.assistant_response_tool_calls` (one row per call,
+//! `objectiveai.assistant_response_tool_calls` (one row per call,
 //! INSERT-then-UPDATE so every turn's calls survive across the
 //! continuation chain). We read them back via `agents logs read all`
 //! and collect each `AssistantResponsePart`'s `function_name`.

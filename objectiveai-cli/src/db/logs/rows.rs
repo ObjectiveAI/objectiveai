@@ -13,7 +13,7 @@
 //!
 //! Every yielded `RowValue` carries the enclosing agent-completion
 //! chunk's `response_id` AND `agent_instance_hierarchy`, so the
-//! writer can populate `logs.messages` / `logs.messages_queue`
+//! writer can populate `objectiveai.messages` / `objectiveai.messages_queue`
 //! without a side-channel.
 
 use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart};
@@ -112,7 +112,7 @@ fn assistant_response_chunk_rows<'a>(
 
     // Prepend: `MessageQueueContent` rows for every consumed
     // `message_queue_contents.id` the API stamped. Yielded ahead
-    // of the message body so `logs.messages` chronicles
+    // of the message body so `objectiveai.messages` chronicles
     // consumption before the body the agent produced from it.
     let message_queue_iter = chunk
         .request_message_ids

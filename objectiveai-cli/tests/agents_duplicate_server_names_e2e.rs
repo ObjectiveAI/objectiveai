@@ -7,7 +7,7 @@
 //! A bare-bones plain mock agent runs three CLI turns against the
 //! same `agent_instance_hierarchy`: one `agents spawn`, two
 //! `agents message`. After every turn the cli writes its response
-//! blob to `logs.agent_completion_responses`; we extract every
+//! blob to `objectiveai.agent_completion_responses`; we extract every
 //! tool-call's `function.name` from
 //! `body.messages[*].tool_calls[*].function.name` via `db query` and
 //! dedupe.

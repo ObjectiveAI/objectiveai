@@ -28,7 +28,7 @@ pub struct TagGroup {
 pub async fn fetch(pool: &Pool, id: i64) -> Result<Option<TagGroup>, Error> {
     let row = sqlx::query(
         "SELECT id, agent_spec, parent_agent_instance_hierarchy \
-         FROM tag_groups \
+         FROM objectiveai.tag_groups \
          WHERE id = $1",
     )
     .bind(id)

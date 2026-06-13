@@ -15,7 +15,7 @@
 //!
 //! Driven through the SDK `BinaryExecutor` for every cli leaf
 //! invocation, including the postgres reads — `db query` reads
-//! `agent_continuations` directly and `logs.agent_completion_requests`'s
+//! `agent_continuations` directly and `objectiveai.agent_completion_requests`'s
 //! `body->>continuation` for the new turn.
 
 mod cli_test_util;
@@ -62,7 +62,7 @@ async fn spawn_then_message_propagates_response_continuation() {
     let spawn_items: Vec<SpawnResponseItem> =
         cli_test_util::collect_stream(&executor, spawn_request).await;
     // `chunk.agent_instance_hierarchy` is the full lineage the cli
-    // writes to `logs.messages` and `agent_continuations` (the api
+    // writes to `objectiveai.messages` and `agent_continuations` (the api
     // server's slot id, shape `cli/{agent_full_id}-{response_id}`).
     // It's the only string that lines up with what's in the DB.
     let spawn_chunk_aih = spawn_items
@@ -130,7 +130,7 @@ async fn spawn_then_message_propagates_response_continuation() {
         .expect("resumed spawn must emit a Chunk with a fresh response id");
 
     // ── 4. Read the new turn's request body's continuation ──────
-    // `logs.agent_completion_requests.body->>'continuation'` is
+    // `objectiveai.agent_completion_requests.body->>'continuation'` is
     // exactly what the cli stamped onto the second turn's request
     // before sending it upstream.
     let request_continuation =

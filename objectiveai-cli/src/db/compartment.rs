@@ -4,10 +4,10 @@
 //! `(kind, owner, name, version)`. Inside its own schema the role has
 //! full DDL/DML freedom (it owns it); through the shared
 //! `objectiveai_read` group (provisioned by [`super::init`]) it has
-//! READONLY access to the base `public` + `logs` tables; and it has
-//! no privileges on any other compartment's schema. Postgres caveat,
-//! accepted by design: other compartments' object NAMES remain
-//! visible through `pg_catalog` — their data does not.
+//! READONLY access to the base `objectiveai` schema's tables; and it
+//! has no privileges on any other compartment's schema. Postgres
+//! caveat, accepted by design: other compartments' object NAMES
+//! remain visible through `pg_catalog` — their data does not.
 //!
 //! [`ensure`] is idempotent and runs on every `tools run` /
 //! `plugins run` spawn, returning the role-specific connection URL
@@ -98,12 +98,12 @@ pub async fn ensure(
         .execute(&mut *tx)
         .await?;
     // 5. Own schema first on the search path: unqualified CREATEs
-    //    land in the compartment (the role has no CREATE on
-    //    `public`), unqualified SELECTs still reach the base public
-    //    tables; `logs.*` stays explicitly qualified.
+    //    land in the compartment (the role owns no other schema),
+    //    unqualified SELECTs fall through to the base objectiveai
+    //    tables.
     sqlx::query(&format!(
         "ALTER ROLE {role} IN DATABASE {database_identifier} \
-         SET search_path = {role}, public",
+         SET search_path = {role}, objectiveai",
     ))
     .execute(&mut *tx)
     .await?;

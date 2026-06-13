@@ -1,5 +1,5 @@
 //! `agents logs read all` / `agents logs read pending` backend:
-//! SELECT `logs.messages` rows for a target AIH (or every child
+//! SELECT `objectiveai.messages` rows for a target AIH (or every child
 //! AIH of a parent), JOIN through to the row's source table to
 //! pull `sender_agent_instance_hierarchy` (+ `timestamp_queued`
 //! for `message_queue_*` kinds), coalesce consecutive rows into
@@ -12,7 +12,7 @@
 //! `message_queue_contents` for the five `message_queue_*` row
 //! kinds. We LEFT JOIN all four sources unconditionally and let
 //! the `CASE` over `m."table"` pick the right column. No
-//! denormalized shadow copies on `logs.messages`.
+//! denormalized shadow copies on `objectiveai.messages`.
 //!
 //! Block-coalesce rule: a new block starts when ANY of `(class,
 //! agent_instance_hierarchy, response_id)` changes — PLUS, for
@@ -24,7 +24,7 @@
 //! `read pending` is read-and-advance, expressed as a single
 //! CTE-chained SQL statement: the SELECT returns the pending rows,
 //! and a paired UPDATE bumps each affected
-//! `logs.messages_queue.read_index` to `GREATEST(current,
+//! `objectiveai.messages_queue.read_index` to `GREATEST(current,
 //! max_returned)` — never downgraded.
 
 use objectiveai_sdk::cli::command::agents::logs::read::all::{
@@ -36,10 +36,10 @@ use sqlx::Row as _;
 use super::super::{Error, Pool};
 use super::row::MessageTable;
 
-/// One materialized `logs.messages` row plus the joined-in sender
+/// One materialized `objectiveai.messages` row plus the joined-in sender
 /// (and queue parent + enqueued_at for `message_queue_*` rows).
 struct MsgRow {
-    /// `logs.messages."index"` — pass to `agents logs read id`
+    /// `objectiveai.messages."index"` — pass to `agents logs read id`
     /// for the full typed payload.
     id: i64,
     response_id: String,
@@ -68,7 +68,7 @@ struct MsgRow {
     /// a key set; lives at block level on the emitted
     /// `ClientNotification`.
     message_queue_key: Option<String>,
-    /// `logs.assistant_response_tool_calls.function_name` for
+    /// `objectiveai.assistant_response_tool_calls.function_name` for
     /// tool-call rows. Empty string for every other table.
     /// Surfaced on [`AssistantResponsePart::function_name`] so
     /// callers can dedupe tool calls by name without a round-trip
@@ -76,7 +76,7 @@ struct MsgRow {
     function_name: String,
 }
 
-/// Coarse block-class for a `logs.message_table` value. Block
+/// Coarse block-class for a `objectiveai.message_table` value. Block
 /// boundaries are drawn whenever this changes between consecutive
 /// rows (or AIH / response_id / sender for ClientNotification).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -180,24 +180,24 @@ const SELECT_SHAPE: &str = "SELECT \
     mq.key AS message_queue_key, \
     COALESCE(atc.function_name, '') AS function_name";
 
-const FROM_JOINS: &str = "FROM logs.messages m \
-    LEFT JOIN message_queue_contents mqc \
+const FROM_JOINS: &str = "FROM objectiveai.messages m \
+    LEFT JOIN objectiveai.message_queue_contents mqc \
         ON m.row_index = mqc.id \
         AND m.\"table\" IN ( \
             'message_queue_text', 'message_queue_image', 'message_queue_audio', \
             'message_queue_video', 'message_queue_file' \
         ) \
-    LEFT JOIN message_queue mq ON mqc.message_queue_id = mq.id \
-    LEFT JOIN logs.agent_completion_requests acr \
+    LEFT JOIN objectiveai.message_queue mq ON mqc.message_queue_id = mq.id \
+    LEFT JOIN objectiveai.agent_completion_requests acr \
         ON m.response_id = acr.response_id \
         AND m.\"table\" = 'agent_completion_request' \
-    LEFT JOIN logs.vector_completion_requests vcr \
+    LEFT JOIN objectiveai.vector_completion_requests vcr \
         ON m.response_id = vcr.response_id \
         AND m.\"table\" = 'vector_completion_request' \
-    LEFT JOIN logs.function_execution_requests fer \
+    LEFT JOIN objectiveai.function_execution_requests fer \
         ON m.response_id = fer.response_id \
         AND m.\"table\" = 'function_execution_request' \
-    LEFT JOIN logs.assistant_response_tool_calls atc \
+    LEFT JOIN objectiveai.assistant_response_tool_calls atc \
         ON m.response_id = atc.response_id \
         AND m.row_index = atc.\"index\" \
         AND m.row_sub_index = atc.tool_call_index \
@@ -437,7 +437,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     out
 }
 
-/// Materialize every `logs.messages` row for `agent_instance_hierarchy`
+/// Materialize every `objectiveai.messages` row for `agent_instance_hierarchy`
 /// (filtered by `after_id` / `limit`), coalesced into `ResponseItem`
 /// blocks.
 pub async fn read_all_for_hierarchy(
@@ -466,9 +466,9 @@ pub async fn read_all_for_hierarchy(
     Ok(coalesce_into_blocks(msg_rows))
 }
 
-/// Materialize every unread `logs.messages` row for the children
+/// Materialize every unread `objectiveai.messages` row for the children
 /// spawned by `parent_agent_instance_hierarchy` (per
-/// `logs.messages_queue` watermarks), coalesced into `ResponseItem`
+/// `objectiveai.messages_queue` watermarks), coalesced into `ResponseItem`
 /// blocks. Bumps each affected child's `read_index` to
 /// `GREATEST(current, max_returned)` atomically in the same SQL
 /// statement.
@@ -481,7 +481,7 @@ pub async fn read_pending_for_parent(
     // CTE-chained read-and-bump:
     //   * `selected` — the rows to return; same JOIN topology as
     //     `read_all_for_hierarchy` plus a JOIN to
-    //     `logs.messages_queue` for the watermark filter.
+    //     `objectiveai.messages_queue` for the watermark filter.
     //   * `maxes` — per-spawned max returned `id`.
     //   * `bump` — UPDATE that lifts each child's `read_index` to
     //     `GREATEST(current, max_id)`. Always runs (Postgres
@@ -493,7 +493,7 @@ pub async fn read_pending_for_parent(
         "WITH selected AS ( \
              {select} \
              {from} \
-             JOIN logs.messages_queue q \
+             JOIN objectiveai.messages_queue q \
                ON q.spawned_agent_instance_hierarchy = m.agent_instance_hierarchy \
              WHERE q.parent_agent_instance_hierarchy = $1 \
                AND m.\"index\" > GREATEST(q.read_index, COALESCE($2, 0)) \
@@ -506,7 +506,7 @@ pub async fn read_pending_for_parent(
               GROUP BY agent_instance_hierarchy \
          ), \
          bump AS ( \
-             UPDATE logs.messages_queue qq \
+             UPDATE objectiveai.messages_queue qq \
                 SET read_index = GREATEST(qq.read_index, mx.max_id) \
                FROM maxes mx \
               WHERE qq.parent_agent_instance_hierarchy = $1 \
@@ -536,7 +536,7 @@ pub async fn read_pending_for_parent(
 
 /// Side-effect-free existence check used by
 /// `agents logs read subscribe`'s wait loop. Returns `true` iff
-/// `logs.messages_queue` has at least one unread row past the
+/// `objectiveai.messages_queue` has at least one unread row past the
 /// watermark for any child of `parent_agent_instance_hierarchy`
 /// whose `m."table"` falls in `kinds`. When `kinds` is `None` or
 /// empty, the kind filter is dropped (existence check across all
@@ -568,8 +568,8 @@ pub async fn any_pending_matching_kinds(
     };
     let sql = format!(
         "SELECT EXISTS( \
-             SELECT 1 FROM logs.messages m \
-             JOIN logs.messages_queue q \
+             SELECT 1 FROM objectiveai.messages m \
+             JOIN objectiveai.messages_queue q \
                ON q.spawned_agent_instance_hierarchy = m.agent_instance_hierarchy \
              WHERE q.parent_agent_instance_hierarchy = $1 \
                AND m.\"index\" > GREATEST(q.read_index, COALESCE($2, 0)) \

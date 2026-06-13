@@ -1,6 +1,6 @@
 //! Per-table flat INSERT and UPDATE helpers — each issuing one CTE
 //! that fires the streaming-content / request-blob write AND the
-//! `logs.messages` / `logs.messages_queue` bookkeeping in a single
+//! `objectiveai.messages` / `objectiveai.messages_queue` bookkeeping in a single
 //! postgres round-trip.
 //!
 //! Insert path (streaming-content INSERT or request-blob INSERT):
@@ -8,11 +8,11 @@
 //! WITH data_ins AS (
 //!     INSERT INTO logs.<table> (…) VALUES (…) RETURNING response_id
 //! )
-//! INSERT INTO logs.messages (response_id, "table", row_index,
+//! INSERT INTO objectiveai.messages (response_id, "table", row_index,
 //!                            row_sub_index, "index",
 //!                            agent_instance_hierarchy, "timestamp")
 //! SELECT $resp, $msg_table, $row_idx, $row_sub_idx,
-//!        nextval('logs.messages_index_seq'),
+//!        nextval('objectiveai.messages_index_seq'),
 //!        $hier, $ts
 //! FROM data_ins;
 //! ```
@@ -24,12 +24,12 @@
 //!         UPDATE logs.<table> SET … WHERE … RETURNING response_id
 //!     ),
 //!     msg AS (
-//!         SELECT "index" AS msg_index FROM logs.messages
+//!         SELECT "index" AS msg_index FROM objectiveai.messages
 //!         WHERE response_id = $resp AND "table" = $msg_table
 //!           AND row_index IS NOT DISTINCT FROM $row_idx
 //!           AND row_sub_index IS NOT DISTINCT FROM $row_sub_idx
 //!     )
-//! UPDATE logs.messages_queue
+//! UPDATE objectiveai.messages_queue
 //! SET read_index = msg.msg_index - 1
 //! FROM msg, data_upd
 //! WHERE spawned_agent_instance_hierarchy = $hier
@@ -37,7 +37,7 @@
 //! ```
 //!
 //! Response-blob writes (the three `_responses` tables) DON'T touch
-//! `logs.messages` — they're not events, just the latest snapshot.
+//! `objectiveai.messages` — they're not events, just the latest snapshot.
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use serde::Serialize;
@@ -67,7 +67,7 @@ async fn insert_value<'a>(
     timestamp: i64,
 ) -> Result<(), Error> {
     // MessageQueueContent: branch early, its helper resolves
-    // both the kind (and thus the logs.message_table enum value)
+    // both the kind (and thus the objectiveai.message_table enum value)
     // and the parent message_queue.id from `message_queue_contents`
     // via SQL CASE/subquery. No call into `value.message_table()`
     // — that returns `None` for this variant by design.
@@ -100,10 +100,10 @@ async fn insert_value<'a>(
         RowValue::ToolResponse { tool_call_id, .. } => {
             sqlx::query(
                 "WITH data_ins AS (\
-                    INSERT INTO logs.tool_response (response_id, \"index\", tool_call_id) \
+                    INSERT INTO objectiveai.tool_response (response_id, \"index\", tool_call_id) \
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
-                 INSERT INTO logs.messages \
+                 INSERT INTO objectiveai.messages \
                     (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
                  SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
@@ -122,10 +122,10 @@ async fn insert_value<'a>(
         RowValue::AssistantResponseRefusal { text, .. } => {
             sqlx::query(
                 "WITH data_ins AS (\
-                    INSERT INTO logs.assistant_response_refusal (response_id, \"index\", text) \
+                    INSERT INTO objectiveai.assistant_response_refusal (response_id, \"index\", text) \
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
-                 INSERT INTO logs.messages \
+                 INSERT INTO objectiveai.messages \
                     (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
                  SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
@@ -144,10 +144,10 @@ async fn insert_value<'a>(
         RowValue::AssistantResponseReasoning { text, .. } => {
             sqlx::query(
                 "WITH data_ins AS (\
-                    INSERT INTO logs.assistant_response_reasoning (response_id, \"index\", text) \
+                    INSERT INTO objectiveai.assistant_response_reasoning (response_id, \"index\", text) \
                     VALUES ($1, $2, $3) RETURNING response_id\
                  )\
-                 INSERT INTO logs.messages \
+                 INSERT INTO objectiveai.messages \
                     (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
                  SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
@@ -168,11 +168,11 @@ async fn insert_value<'a>(
         } => {
             sqlx::query(
                 "WITH data_ins AS (\
-                    INSERT INTO logs.assistant_response_tool_calls \
+                    INSERT INTO objectiveai.assistant_response_tool_calls \
                         (response_id, \"index\", tool_call_index, tool_call_id, function_name, arguments) \
                     VALUES ($1, $2, $3, $4, $5, $6) RETURNING response_id\
                  )\
-                 INSERT INTO logs.messages \
+                 INSERT INTO objectiveai.messages \
                     (response_id, \"table\", row_index, row_sub_index, \
                      agent_instance_hierarchy, \"timestamp\") \
                  SELECT $1, $7, $8, $9, $10, $11 FROM data_ins",
@@ -192,34 +192,34 @@ async fn insert_value<'a>(
             .await?;
         }
         RowValue::AssistantResponseContentText { text, .. } => {
-            insert_text_part_with_msg(pool, "logs.assistant_response_content_text", value, text, timestamp).await?;
+            insert_text_part_with_msg(pool, "objectiveai.assistant_response_content_text", value, text, timestamp).await?;
         }
         RowValue::ToolResponseContentText { text, .. } => {
-            insert_text_part_with_msg(pool, "logs.tool_response_content_text", value, text, timestamp).await?;
+            insert_text_part_with_msg(pool, "objectiveai.tool_response_content_text", value, text, timestamp).await?;
         }
         RowValue::AssistantResponseContentImage { image_url, .. } => {
-            insert_image_part_with_msg(pool, "logs.assistant_response_content_image", value, image_url, timestamp).await?;
+            insert_image_part_with_msg(pool, "objectiveai.assistant_response_content_image", value, image_url, timestamp).await?;
         }
         RowValue::ToolResponseContentImage { image_url, .. } => {
-            insert_image_part_with_msg(pool, "logs.tool_response_content_image", value, image_url, timestamp).await?;
+            insert_image_part_with_msg(pool, "objectiveai.tool_response_content_image", value, image_url, timestamp).await?;
         }
         RowValue::AssistantResponseContentAudio { input_audio, .. } => {
-            insert_audio_part_with_msg(pool, "logs.assistant_response_content_audio", value, input_audio, timestamp).await?;
+            insert_audio_part_with_msg(pool, "objectiveai.assistant_response_content_audio", value, input_audio, timestamp).await?;
         }
         RowValue::ToolResponseContentAudio { input_audio, .. } => {
-            insert_audio_part_with_msg(pool, "logs.tool_response_content_audio", value, input_audio, timestamp).await?;
+            insert_audio_part_with_msg(pool, "objectiveai.tool_response_content_audio", value, input_audio, timestamp).await?;
         }
         RowValue::AssistantResponseContentVideo { video_url, .. } => {
-            insert_video_part_with_msg(pool, "logs.assistant_response_content_video", value, video_url, timestamp).await?;
+            insert_video_part_with_msg(pool, "objectiveai.assistant_response_content_video", value, video_url, timestamp).await?;
         }
         RowValue::ToolResponseContentVideo { video_url, .. } => {
-            insert_video_part_with_msg(pool, "logs.tool_response_content_video", value, video_url, timestamp).await?;
+            insert_video_part_with_msg(pool, "objectiveai.tool_response_content_video", value, video_url, timestamp).await?;
         }
         RowValue::AssistantResponseContentFile { file, .. } => {
-            insert_file_part_with_msg(pool, "logs.assistant_response_content_file", value, file, timestamp).await?;
+            insert_file_part_with_msg(pool, "objectiveai.assistant_response_content_file", value, file, timestamp).await?;
         }
         RowValue::ToolResponseContentFile { file, .. } => {
-            insert_file_part_with_msg(pool, "logs.tool_response_content_file", value, file, timestamp).await?;
+            insert_file_part_with_msg(pool, "objectiveai.tool_response_content_file", value, file, timestamp).await?;
         }
     }
     Ok(())
@@ -246,7 +246,7 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::ToolResponse { tool_call_id, .. } => {
             run_update_with_downgrade(
                 pool,
-                "UPDATE logs.tool_response SET tool_call_id = $A \
+                "UPDATE objectiveai.tool_response SET tool_call_id = $A \
                  WHERE response_id = $RESP AND \"index\" = $RI",
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(tool_call_id))],
@@ -256,7 +256,7 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseRefusal { text, .. } => {
             run_update_with_downgrade(
                 pool,
-                "UPDATE logs.assistant_response_refusal SET text = $A \
+                "UPDATE objectiveai.assistant_response_refusal SET text = $A \
                  WHERE response_id = $RESP AND \"index\" = $RI",
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(text))],
@@ -266,7 +266,7 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseReasoning { text, .. } => {
             run_update_with_downgrade(
                 pool,
-                "UPDATE logs.assistant_response_reasoning SET text = $A \
+                "UPDATE objectiveai.assistant_response_reasoning SET text = $A \
                  WHERE response_id = $RESP AND \"index\" = $RI",
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(text))],
@@ -276,7 +276,7 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseToolCalls { tool_call_index, tool_call_id, function_name, arguments, .. } => {
             run_update_with_downgrade(
                 pool,
-                "UPDATE logs.assistant_response_tool_calls SET tool_call_id = $A, function_name = $B, arguments = $C \
+                "UPDATE objectiveai.assistant_response_tool_calls SET tool_call_id = $A, function_name = $B, arguments = $C \
                  WHERE response_id = $RESP AND \"index\" = $RI AND tool_call_index = $RSI",
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(tool_call_id)), ("B", BindVal::Str(function_name)), ("C", BindVal::Str(arguments))],
@@ -287,8 +287,8 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseContentText { text, .. }
         | RowValue::ToolResponseContentText { text, .. } => {
             let table = match *value {
-                RowValue::AssistantResponseContentText { .. } => "logs.assistant_response_content_text",
-                _ => "logs.tool_response_content_text",
+                RowValue::AssistantResponseContentText { .. } => "objectiveai.assistant_response_content_text",
+                _ => "objectiveai.tool_response_content_text",
             };
             let sql = format!(
                 "UPDATE {table} SET text = $A \
@@ -304,8 +304,8 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseContentImage { image_url, .. }
         | RowValue::ToolResponseContentImage { image_url, .. } => {
             let table = match *value {
-                RowValue::AssistantResponseContentImage { .. } => "logs.assistant_response_content_image",
-                _ => "logs.tool_response_content_image",
+                RowValue::AssistantResponseContentImage { .. } => "objectiveai.assistant_response_content_image",
+                _ => "objectiveai.tool_response_content_image",
             };
             let detail = image_url.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
             let sql = format!(
@@ -322,8 +322,8 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseContentAudio { input_audio, .. }
         | RowValue::ToolResponseContentAudio { input_audio, .. } => {
             let table = match *value {
-                RowValue::AssistantResponseContentAudio { .. } => "logs.assistant_response_content_audio",
-                _ => "logs.tool_response_content_audio",
+                RowValue::AssistantResponseContentAudio { .. } => "objectiveai.assistant_response_content_audio",
+                _ => "objectiveai.tool_response_content_audio",
             };
             let sql = format!(
                 "UPDATE {table} SET data = $A, format = $B \
@@ -342,8 +342,8 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseContentVideo { video_url, .. }
         | RowValue::ToolResponseContentVideo { video_url, .. } => {
             let table = match *value {
-                RowValue::AssistantResponseContentVideo { .. } => "logs.assistant_response_content_video",
-                _ => "logs.tool_response_content_video",
+                RowValue::AssistantResponseContentVideo { .. } => "objectiveai.assistant_response_content_video",
+                _ => "objectiveai.tool_response_content_video",
             };
             let sql = format!(
                 "UPDATE {table} SET url = $A \
@@ -359,8 +359,8 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::AssistantResponseContentFile { file, .. }
         | RowValue::ToolResponseContentFile { file, .. } => {
             let table = match *value {
-                RowValue::AssistantResponseContentFile { .. } => "logs.assistant_response_content_file",
-                _ => "logs.tool_response_content_file",
+                RowValue::AssistantResponseContentFile { .. } => "objectiveai.assistant_response_content_file",
+                _ => "objectiveai.tool_response_content_file",
             };
             let sql = format!(
                 "UPDATE {table} SET file_data = $A, file_id = $B, filename = $C, file_url = $D \
@@ -396,7 +396,7 @@ async fn insert_text_part_with_msg<'a>(
             INSERT INTO {table} (response_id, \"index\", part_index, text) \
             VALUES ($1, $2, $3, $4) RETURNING response_id\
          )\
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          SELECT $1, $5, $6, $7, $8, $9 FROM data_ins"
@@ -429,7 +429,7 @@ async fn insert_image_part_with_msg<'a>(
             INSERT INTO {table} (response_id, \"index\", part_index, url, detail) \
             VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
          )\
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
@@ -462,7 +462,7 @@ async fn insert_audio_part_with_msg<'a>(
             INSERT INTO {table} (response_id, \"index\", part_index, data, format) \
             VALUES ($1, $2, $3, $4, $5) RETURNING response_id\
          )\
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          SELECT $1, $6, $7, $8, $9, $10 FROM data_ins"
@@ -492,7 +492,7 @@ async fn insert_audio_part_with_msg<'a>(
 ///    parent (no-op if already false via the `AND active = TRUE`
 ///    guard, so repeat content_ids sharing one parent fire the
 ///    flip exactly once).
-/// 3. INSERT a `logs.messages` row with `"table"` chosen by SQL
+/// 3. INSERT a `objectiveai.messages` row with `"table"` chosen by SQL
 ///    CASE off the content's kind (`message_queue_text` / `_image`
 ///    / `_audio` / `_video` / `_file`), `row_index = content_id`,
 ///    no sub-index.
@@ -506,26 +506,26 @@ async fn insert_message_queue_content_with_msg(
     sqlx::query(
         "WITH content AS (\
              SELECT id, kind, message_queue_id \
-             FROM message_queue_contents \
+             FROM objectiveai.message_queue_contents \
              WHERE id = $1 \
          ), \
          flip AS (\
-             UPDATE message_queue \
+             UPDATE objectiveai.message_queue \
              SET active = FALSE \
              WHERE id = (SELECT message_queue_id FROM content) \
                AND active = TRUE \
              RETURNING id \
          ) \
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
              (response_id, \"table\", row_index, row_sub_index, \
               agent_instance_hierarchy, \"timestamp\") \
          SELECT $2, \
                 CASE (SELECT kind FROM content) \
-                    WHEN 'text'  THEN 'message_queue_text'::logs.message_table \
-                    WHEN 'image' THEN 'message_queue_image'::logs.message_table \
-                    WHEN 'audio' THEN 'message_queue_audio'::logs.message_table \
-                    WHEN 'video' THEN 'message_queue_video'::logs.message_table \
-                    WHEN 'file'  THEN 'message_queue_file'::logs.message_table \
+                    WHEN 'text'  THEN 'message_queue_text'::objectiveai.message_table \
+                    WHEN 'image' THEN 'message_queue_image'::objectiveai.message_table \
+                    WHEN 'audio' THEN 'message_queue_audio'::objectiveai.message_table \
+                    WHEN 'video' THEN 'message_queue_video'::objectiveai.message_table \
+                    WHEN 'file'  THEN 'message_queue_file'::objectiveai.message_table \
                 END, \
                 $1, NULL, $3, $4 \
          FROM content",
@@ -551,7 +551,7 @@ async fn insert_video_part_with_msg<'a>(
             INSERT INTO {table} (response_id, \"index\", part_index, url) \
             VALUES ($1, $2, $3, $4) RETURNING response_id\
          )\
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          SELECT $1, $5, $6, $7, $8, $9 FROM data_ins"
@@ -583,7 +583,7 @@ async fn insert_file_part_with_msg<'a>(
             INSERT INTO {table} (response_id, \"index\", part_index, file_data, file_id, filename, file_url) \
             VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING response_id\
          )\
-         INSERT INTO logs.messages \
+         INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          SELECT $1, $8, $9, $10, $11, $12 FROM data_ins"
@@ -690,13 +690,13 @@ async fn run_update_with_downgrade<'a>(
         "WITH \
             data_upd AS ({sql} RETURNING response_id),\
             msg AS (\
-                SELECT \"index\" AS msg_index FROM logs.messages \
+                SELECT \"index\" AS msg_index FROM objectiveai.messages \
                 WHERE response_id = ${resp_pos} \
                   AND \"table\" = ${mt_pos} \
                   AND row_index IS NOT DISTINCT FROM ${ri_for_msg_pos} \
                   AND row_sub_index IS NOT DISTINCT FROM ${rsi_for_msg_pos}\
             )\
-         UPDATE logs.messages_queue \
+         UPDATE objectiveai.messages_queue \
          SET read_index = msg.msg_index - 1 \
          FROM msg, data_upd \
          WHERE spawned_agent_instance_hierarchy = ${hier_pos} \
@@ -745,16 +745,16 @@ pub enum Tier {
 impl Tier {
     pub fn request_table(self) -> &'static str {
         match self {
-            Tier::Agent => "logs.agent_completion_requests",
-            Tier::Vector => "logs.vector_completion_requests",
-            Tier::Function => "logs.function_execution_requests",
+            Tier::Agent => "objectiveai.agent_completion_requests",
+            Tier::Vector => "objectiveai.vector_completion_requests",
+            Tier::Function => "objectiveai.function_execution_requests",
         }
     }
     pub fn response_table(self) -> &'static str {
         match self {
-            Tier::Agent => "logs.agent_completion_responses",
-            Tier::Vector => "logs.vector_completion_responses",
-            Tier::Function => "logs.function_execution_responses",
+            Tier::Agent => "objectiveai.agent_completion_responses",
+            Tier::Vector => "objectiveai.vector_completion_responses",
+            Tier::Function => "objectiveai.function_execution_responses",
         }
     }
     /// The matching [`MessageTable`] for this tier's request blob.
@@ -772,7 +772,7 @@ impl Tier {
 /// arrival. Request blobs don't carry `agent_instance_hierarchy` —
 /// they're shared across every agent that participates in the stream.
 /// The per-agent "the request was made for me" linkage lives in
-/// `logs.messages` and is written separately by
+/// `objectiveai.messages` and is written separately by
 /// [`insert_request_messages_row`] the first time each agent appears
 /// in the chunk's row iterator.
 pub async fn insert_request_blob<P: Serialize>(
@@ -800,7 +800,7 @@ pub async fn insert_request_blob<P: Serialize>(
     Ok(())
 }
 
-/// INSERT a `logs.messages` row that registers this stream's request
+/// INSERT a `objectiveai.messages` row that registers this stream's request
 /// blob in the agent's history. Called once per (stream, agent) pair
 /// — the writer tracks which agents it has already seen and only
 /// emits this row the first time it encounters a new one in the row
@@ -816,7 +816,7 @@ pub async fn insert_request_messages_row(
     timestamp: i64,
 ) -> Result<(), Error> {
     sqlx::query(
-        "INSERT INTO logs.messages \
+        "INSERT INTO objectiveai.messages \
             (response_id, \"table\", row_index, row_sub_index, \
              agent_instance_hierarchy, \"timestamp\") \
          VALUES ($1, $2, NULL, NULL, $3, $4)",

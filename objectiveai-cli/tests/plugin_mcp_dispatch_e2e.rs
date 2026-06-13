@@ -16,9 +16,9 @@
 //! Driven through the SDK `BinaryExecutor`. Snapshot inputs come
 //! from postgres via `db query`:
 //! - `tool_calls`  — `function.name` for every assistant tool-call
-//!   (extracted from `logs.agent_completion_responses.body`).
+//!   (extracted from `objectiveai.agent_completion_responses.body`).
 //! - `tool_results` — `text` rows from
-//!   `logs.tool_response_content_text` for this response_id.
+//!   `objectiveai.tool_response_content_text` for this response_id.
 
 mod cli_test_util;
 
@@ -74,7 +74,7 @@ where
     E::Error: std::fmt::Debug,
 {
     let sql = format!(
-        "SELECT text FROM logs.tool_response_content_text \
+        "SELECT text FROM objectiveai.tool_response_content_text \
          WHERE response_id = '{}' ORDER BY \"index\", part_index",
         response_id.replace('\'', "''"),
     );
@@ -155,10 +155,10 @@ async fn plugin_mcp_dispatch_round_trip() {
 
     // `tool_calls`: every assistant `AssistantResponsePart` of
     // type `ToolCall` carries its `function_name` (sourced from
-    // `logs.assistant_response_tool_calls.function_name`, which
+    // `objectiveai.assistant_response_tool_calls.function_name`, which
     // is per-row INSERT-then-UPDATE — accumulates across turns
     // and survives continuation, unlike the response blob).
-    // `tool_results`: every `logs.tool_response_content_text`
+    // `tool_results`: every `objectiveai.tool_response_content_text`
     // row for this `response_id` (append-only).
     let target_instance = full_aih
         .rsplit_once('/')

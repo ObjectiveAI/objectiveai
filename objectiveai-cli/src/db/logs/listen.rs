@@ -1,7 +1,7 @@
 //! `logs_messages_inserted` channel subscriber.
 //!
 //! The trigger in `logs/schema.sql` fires NOTIFY on every new
-//! `logs.messages` row with `NEW.agent_instance_hierarchy` as the
+//! `objectiveai.messages` row with `NEW.agent_instance_hierarchy` as the
 //! payload. This helper attaches a `PgListener`, drops every
 //! notification whose payload doesn't equal `target_aih`, and
 //! returns `Ok(())` on the first match. The caller is expected to
@@ -17,7 +17,7 @@ use sqlx::postgres::PgListener;
 
 use super::super::{Error, Pool};
 
-/// Block until the next `logs.messages` INSERT whose
+/// Block until the next `objectiveai.messages` INSERT whose
 /// `agent_instance_hierarchy` payload equals `target_aih`.
 /// Mismatching notifications are silently consumed.
 pub async fn wait_for_logs_message_at(

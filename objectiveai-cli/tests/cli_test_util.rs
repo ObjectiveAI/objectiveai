@@ -170,7 +170,7 @@ where
 /// Run a one-shot read-only SQL query through the CLI's `db query`
 /// leaf and return the raw row set as `serde_json::Value`s. Tests
 /// use this to look up rows in `agent_continuations`,
-/// `logs.agent_completion_requests`, etc. — the postgres tables that
+/// `objectiveai.agent_completion_requests`, etc. — the postgres tables that
 /// replaced the old `logs/...` on-disk tree.
 pub async fn db_query<E>(executor: &E, sql: &str) -> Vec<Vec<serde_json::Value>>
 where
@@ -210,7 +210,7 @@ where
     E::Error: std::fmt::Debug,
 {
     let sql = format!(
-        "SELECT continuation FROM agent_continuations \
+        "SELECT continuation FROM objectiveai.agent_continuations \
          WHERE agent_instance_hierarchy = '{}'",
         sql_escape(aih),
     );
@@ -244,7 +244,7 @@ where
     }
 }
 
-/// Wait until a `logs.agent_completion_requests` row exists for
+/// Wait until a `objectiveai.agent_completion_requests` row exists for
 /// the given response_id, returning the row's `body->>'continuation'`
 /// JSON field as a `Option<String>` (None if the request blob
 /// didn't carry a continuation — e.g. a fresh spawn).
@@ -258,7 +258,7 @@ where
     E::Error: std::fmt::Debug,
 {
     let sql = format!(
-        "SELECT body->>'continuation' FROM logs.agent_completion_requests \
+        "SELECT body->>'continuation' FROM objectiveai.agent_completion_requests \
          WHERE response_id = '{}'",
         sql_escape(response_id),
     );
@@ -270,7 +270,7 @@ where
         }
         if Instant::now() >= deadline {
             panic!(
-                "no logs.agent_completion_requests row for response_id={response_id} after {:?}",
+                "no objectiveai.agent_completion_requests row for response_id={response_id} after {:?}",
                 timeout,
             );
         }
@@ -280,10 +280,10 @@ where
 
 /// Pull every `function.name` that appears in any
 /// `assistant_response_chunk`'s `tool_calls` for the given
-/// `response_id`. The current `logs.assistant_response_tool_calls`
+/// `response_id`. The current `objectiveai.assistant_response_tool_calls`
 /// table only persists `tool_call_id` and `arguments`; the
 /// function name lives inside the full response body
-/// (`logs.agent_completion_responses.body.messages[*].tool_calls[*].function.name`),
+/// (`objectiveai.agent_completion_responses.body.messages[*].tool_calls[*].function.name`),
 /// so we extract it via a `jsonb_path_query` over the body.
 ///
 /// Returns names in arrival order; the caller dedupes if needed.
@@ -294,7 +294,7 @@ where
 {
     let sql = format!(
         "SELECT jsonb_path_query(body, '$.messages[*].tool_calls[*].function.name')::text \
-         FROM logs.agent_completion_responses WHERE response_id = '{}'",
+         FROM objectiveai.agent_completion_responses WHERE response_id = '{}'",
         sql_escape(response_id),
     );
     let rows = db_query(executor, &sql).await;

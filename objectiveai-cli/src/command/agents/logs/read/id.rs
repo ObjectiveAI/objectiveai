@@ -1,4 +1,4 @@
-//! `agents logs read id <id>` — resolve a `logs.messages."index"`
+//! `agents logs read id <id>` — resolve a `objectiveai.messages."index"`
 //! to its typed [`Response`] variant. The dispatch logic lives in
 //! [`crate::db::logs::read_by_id`]; this handler is a thin wrapper.
 
@@ -12,7 +12,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .await?
         .ok_or_else(|| {
             Error::Filesystem(crate::filesystem::Error::NotFound(format!(
-                "logs.messages row at index {}",
+                "objectiveai.messages row at index {}",
                 request.id
             )))
         })

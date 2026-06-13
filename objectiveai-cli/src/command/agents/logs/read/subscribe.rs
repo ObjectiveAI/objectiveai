@@ -124,7 +124,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 
             // Step 3: per-target subscription race. First to fire wins;
             // restart the loop regardless of which arm fired.
-            // - DB ping: a new logs.messages row landed at that AIH;
+            // - DB ping: a new objectiveai.messages row landed at that AIH;
             //   the existence check at the top will re-decide if it
             //   matched our kinds filter.
             // - Lock release: that target dropped; the next iteration

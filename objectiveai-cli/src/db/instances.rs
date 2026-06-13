@@ -1,7 +1,7 @@
 //! `instances` tier — aggregate enumeration backing
 //! `agents instances {list, get}`.
 //!
-//! Reports per-agent stats joined across three tiers: `logs.messages`
+//! Reports per-agent stats joined across three tiers: `objectiveai.messages`
 //! (spawn/active timestamps + total logged), `message_queue` (active
 //! queued count, resolving tag-targeted rows through `tags`), and
 //! `tags` (the tag names bound to each agent).
@@ -43,7 +43,7 @@ async fn aggregate(
                     MIN(\"timestamp\") AS spawned, \
                     MAX(\"timestamp\") AS active, \
                     COUNT(*) AS logged \
-             FROM logs.messages \
+             FROM objectiveai.messages \
              WHERE ( \
                  ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
                  OR ($2::text IS NOT NULL \
@@ -59,8 +59,8 @@ async fn aggregate(
                             mq.agent_instance_hierarchy, \
                             t.agent_instance_hierarchy \
                         ) AS eff_aih \
-                 FROM message_queue mq \
-                 LEFT JOIN tags t \
+                 FROM objectiveai.message_queue mq \
+                 LEFT JOIN objectiveai.tags t \
                      ON mq.agent_tag IS NOT NULL AND t.name = mq.agent_tag \
                  WHERE mq.active = TRUE \
              ) x \
@@ -90,7 +90,7 @@ async fn aggregate(
     // Tag bindings for the same scope in one query, grouped per AIH
     // (newest-bound first), so we avoid a per-agent round trip.
     let tag_rows = sqlx::query(
-        "SELECT agent_instance_hierarchy, name FROM tags \
+        "SELECT agent_instance_hierarchy, name FROM objectiveai.tags \
          WHERE ( \
              ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
              OR ($2::text IS NOT NULL \

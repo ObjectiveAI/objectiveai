@@ -27,7 +27,7 @@ const CLAIM_LOCK_KEY: i64 = 0x7461_736b_735f_7275; // "tasks_ru"
 /// version of its `(name, agent_instance_hierarchy)` — older versions
 /// are shadowed: never listed, never run.
 const LATEST_VERSION_PREDICATE: &str = "s.version = ( \
-    SELECT MAX(s2.version) FROM schedules s2 \
+    SELECT MAX(s2.version) FROM objectiveai.schedules s2 \
     WHERE s2.name = s.name \
       AND s2.agent_instance_hierarchy = s.agent_instance_hierarchy \
 )";
@@ -125,13 +125,13 @@ pub async fn insert_schedule(
     // the schedule already exists (rows are never deleted). Overwrite
     // computes max+1 in the INSERT itself.
     let version_expr = if overwrite {
-        "(SELECT COALESCE(MAX(version), 0) + 1 FROM schedules \
+        "(SELECT COALESCE(MAX(version), 0) + 1 FROM objectiveai.schedules \
           WHERE name = $1 AND agent_instance_hierarchy = $4)"
     } else {
         "1"
     };
     let query = format!(
-        "INSERT INTO schedules {columns} \
+        "INSERT INTO objectiveai.schedules {columns} \
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, {version_expr}) \
          RETURNING id, version"
     );
@@ -224,10 +224,10 @@ pub async fn list_schedules(
                 s.plugin_repository, \
                 s.plugin_version, \
                 s.version \
-         FROM schedules s \
+         FROM objectiveai.schedules s \
          LEFT JOIN LATERAL ( \
              SELECT MAX(r.ran_at) AS last_ran_at \
-             FROM tasks_runs r WHERE r.schedule_id = s.id \
+             FROM objectiveai.tasks_runs r WHERE r.schedule_id = s.id \
          ) lr ON TRUE \
          WHERE s.agent_instance_hierarchy = ANY($1) \
              AND {LATEST_VERSION_PREDICATE} \
@@ -327,7 +327,7 @@ pub async fn claim_pending(pool: &Pool, parent: &str) -> Result<Vec<RunRow>, Err
              SELECT s.id, s.name, s.agent_instance_hierarchy, s.version, \
                     s.command, s.agent_arguments, \
                     s.plugin_owner, s.plugin_repository, s.plugin_version \
-             FROM schedules s \
+             FROM objectiveai.schedules s \
              WHERE ( \
                      s.agent_instance_hierarchy = $1 \
                      OR s.agent_instance_hierarchy LIKE ($1 || '/%') \
@@ -336,19 +336,19 @@ pub async fn claim_pending(pool: &Pool, parent: &str) -> Result<Vec<RunRow>, Err
                  AND ( \
                      (s.interval_seconds IS NULL \
                       AND NOT EXISTS ( \
-                          SELECT 1 FROM tasks_runs r WHERE r.schedule_id = s.id \
+                          SELECT 1 FROM objectiveai.tasks_runs r WHERE r.schedule_id = s.id \
                       )) \
                      OR \
                      (s.interval_seconds IS NOT NULL \
                       AND COALESCE( \
-                          $2 - (SELECT MAX(r.ran_at) FROM tasks_runs r \
+                          $2 - (SELECT MAX(r.ran_at) FROM objectiveai.tasks_runs r \
                                 WHERE r.schedule_id = s.id) \
                               >= s.interval_seconds, \
                           TRUE)) \
                  ) \
          ), \
          ins AS ( \
-             INSERT INTO tasks_runs (schedule_id, ran_at) \
+             INSERT INTO objectiveai.tasks_runs (schedule_id, ran_at) \
              SELECT id, $2 FROM eligible \
              RETURNING id AS run_id, schedule_id \
          ) \
@@ -400,7 +400,7 @@ pub async fn claim_pending(pool: &Pool, parent: &str) -> Result<Vec<RunRow>, Err
 /// Append one emitted item to a run's log. `value` is the serialized
 /// `tasks::run::ResponseItem` exactly as it crossed the wire.
 pub async fn insert_task_log(pool: &Pool, run_id: i64, value: &str) -> Result<(), Error> {
-    sqlx::query("INSERT INTO tasks_logs (run_id, value, created_at) VALUES ($1, $2, $3)")
+    sqlx::query("INSERT INTO objectiveai.tasks_logs (run_id, value, created_at) VALUES ($1, $2, $3)")
         .bind(run_id)
         .bind(value)
         .bind(now_seconds())

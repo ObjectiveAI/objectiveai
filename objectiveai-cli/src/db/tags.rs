@@ -108,7 +108,7 @@ pub async fn tags_for_hierarchy(
     agent_instance_hierarchy: &str,
 ) -> Result<Vec<String>, Error> {
     let rows = sqlx::query(
-        "SELECT name FROM tags \
+        "SELECT name FROM objectiveai.tags \
          WHERE agent_instance_hierarchy = $1 \
          ORDER BY updated_at DESC",
     )
@@ -129,7 +129,7 @@ pub async fn hierarchy_for_tag(
     name: &str,
 ) -> Result<Option<String>, Error> {
     let row = sqlx::query(
-        "SELECT agent_instance_hierarchy FROM tags WHERE name = $1",
+        "SELECT agent_instance_hierarchy FROM objectiveai.tags WHERE name = $1",
     )
     .bind(name)
     .fetch_optional(&**pool)
@@ -149,8 +149,8 @@ pub async fn lookup(pool: &Pool, name: &str) -> Result<LookupState, Error> {
                 t.tag_group, \
                 g.agent_spec, \
                 g.parent_agent_instance_hierarchy \
-         FROM tags t \
-         LEFT JOIN tag_groups g ON g.id = t.tag_group \
+         FROM objectiveai.tags t \
+         LEFT JOIN objectiveai.tag_groups g ON g.id = t.tag_group \
          WHERE t.name = $1",
     )
     .bind(name)
@@ -209,7 +209,7 @@ pub async fn apply(
         } => {
             let hier = format!("{parent_agent_instance_hierarchy}/{agent_instance}");
             sqlx::query(
-                "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                "INSERT INTO objectiveai.tags (name, agent_instance_hierarchy, tag_group, updated_at) \
                  VALUES ($1, $2, NULL, $3) \
                  ON CONFLICT (name) DO UPDATE SET \
                      agent_instance_hierarchy = EXCLUDED.agent_instance_hierarchy, \
@@ -231,7 +231,7 @@ pub async fn apply(
         } => {
             let spec_value = serde_json::to_value(&agent_spec)?;
             let group_id: i64 = sqlx::query_scalar(
-                "INSERT INTO tag_groups (agent_spec, parent_agent_instance_hierarchy, created_at) \
+                "INSERT INTO objectiveai.tag_groups (agent_spec, parent_agent_instance_hierarchy, created_at) \
                  VALUES ($1, $2, $3) RETURNING id",
             )
             .bind(&spec_value)
@@ -240,7 +240,7 @@ pub async fn apply(
             .fetch_one(&mut *tx)
             .await?;
             sqlx::query(
-                "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                "INSERT INTO objectiveai.tags (name, agent_instance_hierarchy, tag_group, updated_at) \
                  VALUES ($1, NULL, $2, $3) \
                  ON CONFLICT (name) DO UPDATE SET \
                      agent_instance_hierarchy = NULL, \
@@ -273,8 +273,8 @@ pub async fn apply(
                         t.tag_group, \
                         g.agent_spec, \
                         g.parent_agent_instance_hierarchy \
-                 FROM tags t \
-                 LEFT JOIN tag_groups g ON g.id = t.tag_group \
+                 FROM objectiveai.tags t \
+                 LEFT JOIN objectiveai.tag_groups g ON g.id = t.tag_group \
                  WHERE t.name = $1",
             )
             .bind(&agent_tag)
@@ -291,7 +291,7 @@ pub async fn apply(
                     agent_instance_hierarchy,
                 } => {
                     sqlx::query(
-                        "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                        "INSERT INTO objectiveai.tags (name, agent_instance_hierarchy, tag_group, updated_at) \
                          VALUES ($1, $2, NULL, $3) \
                          ON CONFLICT (name) DO UPDATE SET \
                              agent_instance_hierarchy = EXCLUDED.agent_instance_hierarchy, \
@@ -313,7 +313,7 @@ pub async fn apply(
                     parent_agent_instance_hierarchy,
                 } => {
                     sqlx::query(
-                        "INSERT INTO tags (name, agent_instance_hierarchy, tag_group, updated_at) \
+                        "INSERT INTO objectiveai.tags (name, agent_instance_hierarchy, tag_group, updated_at) \
                          VALUES ($1, NULL, $2, $3) \
                          ON CONFLICT (name) DO UPDATE SET \
                              agent_instance_hierarchy = NULL, \

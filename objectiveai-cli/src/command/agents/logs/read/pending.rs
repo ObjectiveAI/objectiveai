@@ -25,7 +25,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let default_parent = default_parent.clone();
             inflight.push(async move {
                 // Treat the resolved target AIH as the *parent* in
-                // `logs.messages_queue` — read pending events emitted
+                // `objectiveai.messages_queue` — read pending events emitted
                 // by every spawned child under it.
                 let (_parent, spawned, _leaf) =
                     resolve_target(&db, target, &default_parent).await?;

@@ -96,7 +96,7 @@ async fn read_content_on_conn(
     conn: &mut PgConnection,
     id: i64,
 ) -> Result<Option<ContentRow>, Error> {
-    let row = sqlx::query("SELECT kind FROM message_queue_contents WHERE id = $1")
+    let row = sqlx::query("SELECT kind FROM objectiveai.message_queue_contents WHERE id = $1")
         .bind(id)
         .fetch_optional(&mut *conn)
         .await?;
@@ -104,14 +104,14 @@ async fn read_content_on_conn(
     let kind: String = row.try_get(0)?;
     let result = match kind.as_str() {
         "text" => {
-            let r = sqlx::query("SELECT text FROM message_queue_texts WHERE id = $1")
+            let r = sqlx::query("SELECT text FROM objectiveai.message_queue_texts WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
             ContentRow::Text(r.try_get(0)?)
         }
         "image" => {
-            let r = sqlx::query("SELECT url, detail FROM message_queue_images WHERE id = $1")
+            let r = sqlx::query("SELECT url, detail FROM objectiveai.message_queue_images WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -124,7 +124,7 @@ async fn read_content_on_conn(
             ContentRow::Image(ImageUrl { url, detail })
         }
         "audio" => {
-            let r = sqlx::query("SELECT data, format FROM message_queue_audios WHERE id = $1")
+            let r = sqlx::query("SELECT data, format FROM objectiveai.message_queue_audios WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -134,7 +134,7 @@ async fn read_content_on_conn(
             })
         }
         "video" => {
-            let r = sqlx::query("SELECT url FROM message_queue_videos WHERE id = $1")
+            let r = sqlx::query("SELECT url FROM objectiveai.message_queue_videos WHERE id = $1")
                 .bind(id)
                 .fetch_one(&mut *conn)
                 .await?;
@@ -143,7 +143,7 @@ async fn read_content_on_conn(
         "file" => {
             let r = sqlx::query(
                 "SELECT file_data, file_id, filename, file_url \
-                 FROM message_queue_files WHERE id = $1",
+                 FROM objectiveai.message_queue_files WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&mut *conn)
@@ -218,7 +218,7 @@ async fn enqueue_with_content_in_tx(
         // `message_queue_contents` children survive untouched —
         // they're invisible to readers via `active = FALSE`.
         sqlx::query(
-            "UPDATE message_queue SET active = FALSE \
+            "UPDATE objectiveai.message_queue SET active = FALSE \
              WHERE active = TRUE \
                AND key = $3 \
                AND ( \
@@ -238,7 +238,7 @@ async fn enqueue_with_content_in_tx(
         .await?;
     }
     let message_queue_id: i64 = sqlx::query_scalar(
-        "INSERT INTO message_queue \
+        "INSERT INTO objectiveai.message_queue \
             (agent_instance_hierarchy, agent_tag, \
              sender_agent_instance_hierarchy, enqueued_at, key) \
          VALUES ($1, $2, $3, $4, $5) \
@@ -305,7 +305,7 @@ async fn mint_content_id(
     kind: &str,
 ) -> Result<i64, Error> {
     let id: i64 = sqlx::query_scalar(
-        "INSERT INTO message_queue_contents (message_queue_id, kind) VALUES ($1, $2) RETURNING id",
+        "INSERT INTO objectiveai.message_queue_contents (message_queue_id, kind) VALUES ($1, $2) RETURNING id",
     )
     .bind(message_queue_id)
     .bind(kind)
@@ -320,7 +320,7 @@ async fn insert_content_text(
     text: &str,
 ) -> Result<i64, Error> {
     let id = mint_content_id(tx, message_queue_id, "text").await?;
-    sqlx::query("INSERT INTO message_queue_texts (id, text) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO objectiveai.message_queue_texts (id, text) VALUES ($1, $2)")
         .bind(id)
         .bind(text)
         .execute(&mut **tx)
@@ -340,7 +340,7 @@ async fn insert_content_image(
         .map(|d| serde_json::to_value(d).map(|v| v.as_str().map(str::to_string)))
         .transpose()?
         .flatten();
-    sqlx::query("INSERT INTO message_queue_images (id, url, detail) VALUES ($1, $2, $3)")
+    sqlx::query("INSERT INTO objectiveai.message_queue_images (id, url, detail) VALUES ($1, $2, $3)")
         .bind(id)
         .bind(&image.url)
         .bind(detail)
@@ -355,7 +355,7 @@ async fn insert_content_audio(
     audio: &InputAudio,
 ) -> Result<i64, Error> {
     let id = mint_content_id(tx, message_queue_id, "audio").await?;
-    sqlx::query("INSERT INTO message_queue_audios (id, data, format) VALUES ($1, $2, $3)")
+    sqlx::query("INSERT INTO objectiveai.message_queue_audios (id, data, format) VALUES ($1, $2, $3)")
         .bind(id)
         .bind(&audio.data)
         .bind(&audio.format)
@@ -370,7 +370,7 @@ async fn insert_content_video(
     video: &VideoUrl,
 ) -> Result<i64, Error> {
     let id = mint_content_id(tx, message_queue_id, "video").await?;
-    sqlx::query("INSERT INTO message_queue_videos (id, url) VALUES ($1, $2)")
+    sqlx::query("INSERT INTO objectiveai.message_queue_videos (id, url) VALUES ($1, $2)")
         .bind(id)
         .bind(&video.url)
         .execute(&mut **tx)
@@ -385,7 +385,7 @@ async fn insert_content_file(
 ) -> Result<i64, Error> {
     let id = mint_content_id(tx, message_queue_id, "file").await?;
     sqlx::query(
-        "INSERT INTO message_queue_files (id, file_data, file_id, filename, file_url) \
+        "INSERT INTO objectiveai.message_queue_files (id, file_data, file_id, filename, file_url) \
          VALUES ($1, $2, $3, $4, $5)",
     )
     .bind(id)
@@ -399,7 +399,7 @@ async fn insert_content_file(
 }
 
 // ---------------------------------------------------------------------------
-// List — JOIN message_queue ⨝ tags with three-rule predicate (Direct child /
+// List — JOIN objectiveai.message_queue ⨝ tags with three-rule predicate (Direct child /
 // BOUND tag / PENDING tag).
 // ---------------------------------------------------------------------------
 
@@ -451,8 +451,8 @@ pub async fn list_pending_for_targets(
                 p.key                             AS key, \
                 c.id                              AS content_id, \
                 c.kind                            AS content_kind \
-         FROM message_queue p \
-         JOIN message_queue_contents c ON c.message_queue_id = p.id \
+         FROM objectiveai.message_queue p \
+         JOIN objectiveai.message_queue_contents c ON c.message_queue_id = p.id \
          WHERE p.active = TRUE \
            AND ( \
                 ( $1::text[] IS NOT NULL \
@@ -599,7 +599,7 @@ async fn reconstruct_and_delete(
     for row in rows {
         let content = reconstruct_rich_content(tx, row.message_queue_id).await?;
         sqlx::query(
-            "UPDATE message_queue SET active = FALSE \
+            "UPDATE objectiveai.message_queue SET active = FALSE \
              WHERE id = $1 AND active = TRUE",
         )
         .bind(row.message_queue_id)
@@ -687,7 +687,7 @@ pub async fn delete_by_id(
                 p.key, \
                 p.enqueued_at, \
                 p.sender_agent_instance_hierarchy \
-         FROM message_queue p \
+         FROM objectiveai.message_queue p \
          WHERE p.id = $1 AND p.active = TRUE",
     )
     .bind(id)
@@ -752,12 +752,12 @@ pub async fn read_pending_and_upgrade_tag(
     if let Some(tag) = agent_tag {
         let now = now_seconds();
         sqlx::query(
-            "UPDATE tags \
+            "UPDATE objectiveai.tags \
              SET agent_instance_hierarchy = $2, \
                  tag_group                = NULL, \
                  updated_at               = $3 \
              WHERE tag_group = ( \
-                 SELECT tag_group FROM tags \
+                 SELECT tag_group FROM objectiveai.tags \
                  WHERE name = $1 AND tag_group IS NOT NULL \
              )",
         )
@@ -773,14 +773,14 @@ pub async fn read_pending_and_upgrade_tag(
                 p.agent_tag, \
                 p.key, \
                 p.enqueued_at \
-         FROM message_queue p \
+         FROM objectiveai.message_queue p \
          WHERE p.active = TRUE \
            AND ( \
                 p.agent_instance_hierarchy = $1 \
              OR ( \
                 p.agent_tag IS NOT NULL \
                 AND EXISTS ( \
-                    SELECT 1 FROM tags t \
+                    SELECT 1 FROM objectiveai.tags t \
                     WHERE t.name = p.agent_tag \
                       AND t.agent_instance_hierarchy = $1 \
                 ) \
@@ -839,7 +839,7 @@ async fn fetch_content_parts_for_queue_id(
     message_queue_id: i64,
 ) -> Result<(Vec<i64>, Vec<RichContentPart>), Error> {
     let id_rows = sqlx::query(
-        "SELECT id FROM message_queue_contents \
+        "SELECT id FROM objectiveai.message_queue_contents \
          WHERE message_queue_id = $1 \
          ORDER BY id ASC",
     )
@@ -884,8 +884,8 @@ pub async fn list_delivery_targets(
     let hier_rows = sqlx::query(
         "SELECT DISTINCT \
                 COALESCE(t.agent_instance_hierarchy, p.agent_instance_hierarchy) AS hier \
-         FROM message_queue p \
-         LEFT JOIN tags t \
+         FROM objectiveai.message_queue p \
+         LEFT JOIN objectiveai.tags t \
              ON p.agent_tag = t.name \
              AND t.agent_instance_hierarchy IS NOT NULL \
          WHERE p.active = TRUE AND ( \
@@ -915,11 +915,11 @@ pub async fn list_delivery_targets(
     .await?;
     let tag_rows = sqlx::query(
         "SELECT DISTINCT p.agent_tag \
-         FROM message_queue p \
-         JOIN tags t \
+         FROM objectiveai.message_queue p \
+         JOIN objectiveai.tags t \
              ON p.agent_tag = t.name \
              AND t.tag_group IS NOT NULL \
-         JOIN tag_groups g \
+         JOIN objectiveai.tag_groups g \
              ON g.id = t.tag_group \
          WHERE p.active = TRUE AND ( \
              g.parent_agent_instance_hierarchy = $1 \
@@ -968,14 +968,14 @@ pub async fn check_any_pending(
 ) -> Result<bool, Error> {
     let row = sqlx::query(
         "SELECT EXISTS ( \
-             SELECT 1 FROM message_queue p \
+             SELECT 1 FROM objectiveai.message_queue p \
              WHERE p.active = TRUE \
                AND ( \
                     p.agent_instance_hierarchy = $1 \
                  OR ( \
                     p.agent_tag IS NOT NULL \
                     AND EXISTS ( \
-                        SELECT 1 FROM tags t \
+                        SELECT 1 FROM objectiveai.tags t \
                         WHERE t.name = p.agent_tag \
                           AND t.agent_instance_hierarchy = $1 \
                     ) \
@@ -1016,7 +1016,7 @@ pub async fn subscribe_delivered(pool: &Pool, id: i64) -> Result<(), Error> {
     // delivered. After this point the LISTEN is attached so any
     // future flip will wake us.
     let still_active: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM message_queue \
+        "SELECT EXISTS(SELECT 1 FROM objectiveai.message_queue \
          WHERE id = $1 AND active = TRUE)",
     )
     .bind(id)

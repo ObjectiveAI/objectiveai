@@ -5,8 +5,8 @@
 //!   sum type, one variant per streaming-content table. Every variant
 //!   carries `response_id` (the enclosing agent_completion_chunk's id)
 //!   AND `agent_instance_hierarchy` (the enclosing chunk's spawned
-//!   agent id) so the writer can address `logs.messages` /
-//!   `logs.messages_queue` without going back to the chunk.
+//!   agent id) so the writer can address `objectiveai.messages` /
+//!   `objectiveai.messages_queue` without going back to the chunk.
 //! - [`RowKey<'a>`] — what [`RowValue::key`] returns. Borrowed key
 //!   used for shadow-map lookups; no allocation.
 //! - [`OwnedRowKey`] — same variants as `RowKey`, but with `String`
@@ -26,7 +26,7 @@ use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, V
 
 /// Every table in the `logs.*` schema, plus the synthetic
 /// `MessageQueueContent` variant for queue-consumption rows.
-/// The latter writes to `logs.messages` with a `"table"` value
+/// The latter writes to `objectiveai.messages` with a `"table"` value
 /// chosen at write time via SQL CASE (one of `message_queue_text`,
 /// `_image`, `_audio`, `_video`, `_file`) — the Rust-side variant
 /// is kind-less because the dispatch happens in SQL.
@@ -40,7 +40,7 @@ pub enum RowTable {
     FunctionExecutionResponses,
 
     /// Synthetic — kind-less at the Rust level. The writer's
-    /// helper picks the per-kind `logs.message_table` enum value
+    /// helper picks the per-kind `objectiveai.message_table` enum value
     /// via SQL CASE against `message_queue_contents.kind` and
     /// flips the parent `message_queue.active = FALSE` in the
     /// same statement.
@@ -65,13 +65,13 @@ pub enum RowTable {
     ToolResponseContentFile,
 }
 
-/// The subset of [`RowTable`] that produces a `logs.messages` event
-/// row when written. Maps 1:1 to the postgres `logs.message_table`
+/// The subset of [`RowTable`] that produces a `objectiveai.messages` event
+/// row when written. Maps 1:1 to the postgres `objectiveai.message_table`
 /// ENUM in `schema.sql` — same names, same order. The three
 /// response-blob tables are intentionally absent; they're not events,
 /// just the latest snapshot.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
-#[sqlx(type_name = "logs.message_table", rename_all = "snake_case")]
+#[sqlx(type_name = "objectiveai.message_table", rename_all = "snake_case")]
 pub enum MessageTable {
     AgentCompletionRequest,
     VectorCompletionRequest,
@@ -166,30 +166,30 @@ impl RowTable {
 
     pub fn fq_name(self) -> &'static str {
         match self {
-            RowTable::AgentCompletionRequests => "logs.agent_completion_requests",
-            RowTable::AgentCompletionResponses => "logs.agent_completion_responses",
-            RowTable::VectorCompletionRequests => "logs.vector_completion_requests",
-            RowTable::VectorCompletionResponses => "logs.vector_completion_responses",
-            RowTable::FunctionExecutionRequests => "logs.function_execution_requests",
-            RowTable::FunctionExecutionResponses => "logs.function_execution_responses",
+            RowTable::AgentCompletionRequests => "objectiveai.agent_completion_requests",
+            RowTable::AgentCompletionResponses => "objectiveai.agent_completion_responses",
+            RowTable::VectorCompletionRequests => "objectiveai.vector_completion_requests",
+            RowTable::VectorCompletionResponses => "objectiveai.vector_completion_responses",
+            RowTable::FunctionExecutionRequests => "objectiveai.function_execution_requests",
+            RowTable::FunctionExecutionResponses => "objectiveai.function_execution_responses",
             // Synthetic — kind chosen at write time via SQL CASE.
             // No per-kind table name surfaces through fq_name();
             // the writer's helper builds its SQL inline.
             RowTable::MessageQueueContent => "message_queue_contents",
-            RowTable::ToolResponse => "logs.tool_response",
-            RowTable::AssistantResponseRefusal => "logs.assistant_response_refusal",
-            RowTable::AssistantResponseReasoning => "logs.assistant_response_reasoning",
-            RowTable::AssistantResponseToolCalls => "logs.assistant_response_tool_calls",
-            RowTable::AssistantResponseContentText => "logs.assistant_response_content_text",
-            RowTable::AssistantResponseContentImage => "logs.assistant_response_content_image",
-            RowTable::AssistantResponseContentAudio => "logs.assistant_response_content_audio",
-            RowTable::AssistantResponseContentVideo => "logs.assistant_response_content_video",
-            RowTable::AssistantResponseContentFile => "logs.assistant_response_content_file",
-            RowTable::ToolResponseContentText => "logs.tool_response_content_text",
-            RowTable::ToolResponseContentImage => "logs.tool_response_content_image",
-            RowTable::ToolResponseContentAudio => "logs.tool_response_content_audio",
-            RowTable::ToolResponseContentVideo => "logs.tool_response_content_video",
-            RowTable::ToolResponseContentFile => "logs.tool_response_content_file",
+            RowTable::ToolResponse => "objectiveai.tool_response",
+            RowTable::AssistantResponseRefusal => "objectiveai.assistant_response_refusal",
+            RowTable::AssistantResponseReasoning => "objectiveai.assistant_response_reasoning",
+            RowTable::AssistantResponseToolCalls => "objectiveai.assistant_response_tool_calls",
+            RowTable::AssistantResponseContentText => "objectiveai.assistant_response_content_text",
+            RowTable::AssistantResponseContentImage => "objectiveai.assistant_response_content_image",
+            RowTable::AssistantResponseContentAudio => "objectiveai.assistant_response_content_audio",
+            RowTable::AssistantResponseContentVideo => "objectiveai.assistant_response_content_video",
+            RowTable::AssistantResponseContentFile => "objectiveai.assistant_response_content_file",
+            RowTable::ToolResponseContentText => "objectiveai.tool_response_content_text",
+            RowTable::ToolResponseContentImage => "objectiveai.tool_response_content_image",
+            RowTable::ToolResponseContentAudio => "objectiveai.tool_response_content_audio",
+            RowTable::ToolResponseContentVideo => "objectiveai.tool_response_content_video",
+            RowTable::ToolResponseContentFile => "objectiveai.tool_response_content_file",
         }
     }
 }
@@ -198,8 +198,8 @@ impl RowTable {
 /// variant lifts string / media payloads from the owning chunk by
 /// reference. Every variant also carries the enclosing chunk's
 /// `agent_instance_hierarchy` so the writer can populate
-/// `logs.messages.agent_instance_hierarchy` and key the
-/// `logs.messages_queue` downgrade against the right spawned agent.
+/// `objectiveai.messages.agent_instance_hierarchy` and key the
+/// `objectiveai.messages_queue` downgrade against the right spawned agent.
 #[derive(Debug, Clone)]
 pub enum RowValue<'a> {
     /// Consumption signal: the API stamped this
@@ -207,10 +207,10 @@ pub enum RowValue<'a> {
     /// `request_message_ids` field. The writer's helper:
     /// 1) resolves the row's kind via SQL CASE against
     ///    `message_queue_contents.kind`,
-    /// 2) `UPDATE message_queue SET active=FALSE WHERE id =
-    ///    (SELECT message_queue_id FROM message_queue_contents
+    /// 2) `UPDATE objectiveai.message_queue SET active=FALSE WHERE id =
+    ///    (SELECT message_queue_id FROM objectiveai.message_queue_contents
     ///     WHERE id = $content_id) AND active=TRUE`, and
-    /// 3) `INSERT logs.messages` with `"table"` picked from the
+    /// 3) `INSERT objectiveai.messages` with `"table"` picked from the
     ///    five `message_queue_*` enum values matching the kind
     ///    and `row_index = content_id`, so the read path
     ///    dispatches directly to the right per-kind table.

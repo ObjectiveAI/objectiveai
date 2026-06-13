@@ -157,7 +157,7 @@ async fn continue_agent(
 /// Pull every count value the count-tool emitted to its tool
 /// responses for the agent identified by `response_id`. The
 /// count-tool prints `N\n` per call; that lands in
-/// `logs.tool_response_content_text.text` as a base-10 string.
+/// `objectiveai.tool_response_content_text.text` as a base-10 string.
 /// Reading via `db query` sidesteps the
 /// `Response::Text(String)`-can't-serialize bug in the
 /// `agents logs read id` MCP projection.
@@ -166,7 +166,7 @@ async fn read_tool_response_counts(
     response_id: &str,
 ) -> Vec<u64> {
     let sql = format!(
-        "SELECT text FROM logs.tool_response_content_text \
+        "SELECT text FROM objectiveai.tool_response_content_text \
          WHERE response_id = '{}' ORDER BY \"index\", part_index",
         response_id.replace('\'', "''"),
     );

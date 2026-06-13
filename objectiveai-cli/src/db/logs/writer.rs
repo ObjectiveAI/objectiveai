@@ -30,12 +30,12 @@
 //!
 //! 1. **First chunk**: capture the chunk's `response_id`, INSERT the
 //!    request blob (no `agent_instance_hierarchy` on the blob — that
-//!    linkage lives in `logs.messages`).
+//!    linkage lives in `objectiveai.messages`).
 //! 2. **Every chunk**: walk `chunk_rows(chunk)`, gate each yielded
 //!    [`RowValue`] through the shadow (Skip path is pure-memory),
 //!    bucket the survivors by `agent_instance_hierarchy`. For every
 //!    agent the writer hasn't seen yet in this stream's lifetime,
-//!    prepend a `logs.messages` row that registers the request blob
+//!    prepend a `objectiveai.messages` row that registers the request blob
 //!    in that agent's history.
 //! 3. **Per-bucket execution**: rows within one agent's bucket fire
 //!    sequentially (so the per-agent ORDER BY `"index"` matches the
@@ -215,7 +215,7 @@ struct LogWriterState<C> {
     request_written: bool,
     /// Every `agent_instance_hierarchy` we've observed in this
     /// stream's lifetime. The first time an agent appears in the row
-    /// iterator we insert a `logs.messages` row registering the
+    /// iterator we insert a `objectiveai.messages` row registering the
     /// request blob in that agent's history; subsequent ticks see
     /// the agent already-marked and skip the registration.
     seen_agents: HashSet<String>,

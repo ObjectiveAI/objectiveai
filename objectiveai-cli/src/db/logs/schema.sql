@@ -25,7 +25,7 @@
 -- row through the same shared UPSERT path regardless of which
 -- enclosing chunk produced it.
 
-CREATE SCHEMA IF NOT EXISTS logs;
+CREATE SCHEMA IF NOT EXISTS objectiveai;
 
 -- =====================================================================
 -- Tier blobs (6)
@@ -36,34 +36,34 @@ CREATE SCHEMA IF NOT EXISTS logs;
 -- Neither request nor response blobs carry agent_instance_hierarchy
 -- directly. A single request can be the entry point for many agents
 -- (vector / function tiers; nested function tasks), so the "which
--- agent is this for?" linkage lives in `logs.messages` — one row
+-- agent is this for?" linkage lives in `objectiveai.messages` — one row
 -- there per (request_response_id, agent_instance_hierarchy) pair,
 -- written by the LogWriter the first time it sees each agent in the
 -- chunk's row iterator. All three tiers share the same blob shape.
-CREATE TABLE IF NOT EXISTS logs.agent_completion_requests (
+CREATE TABLE IF NOT EXISTS objectiveai.agent_completion_requests (
     response_id                     TEXT PRIMARY KEY,
     body                            JSONB NOT NULL,
     created_at                      BIGINT NOT NULL,
     -- AIH of the caller who issued this completion request
     -- (from `ctx.config.agent_instance_hierarchy` at request
-    -- time). Denormalized into `logs.messages.sender_*` for
+    -- time). Denormalized into `objectiveai.messages.sender_*` for
     -- fast filtering on the read-all path.
     sender_agent_instance_hierarchy TEXT NOT NULL,
     inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_acreq_body_gin
-    ON logs.agent_completion_requests USING GIN (body);
+    ON objectiveai.agent_completion_requests USING GIN (body);
 
-CREATE TABLE IF NOT EXISTS logs.agent_completion_responses (
+CREATE TABLE IF NOT EXISTS objectiveai.agent_completion_responses (
     response_id              TEXT PRIMARY KEY,
     body                     JSONB NOT NULL,
     created_at               BIGINT NOT NULL,
     inserted_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_acresp_body_gin
-    ON logs.agent_completion_responses USING GIN (body);
+    ON objectiveai.agent_completion_responses USING GIN (body);
 
-CREATE TABLE IF NOT EXISTS logs.vector_completion_requests (
+CREATE TABLE IF NOT EXISTS objectiveai.vector_completion_requests (
     response_id                     TEXT PRIMARY KEY,
     body                            JSONB NOT NULL,
     created_at                      BIGINT NOT NULL,
@@ -71,18 +71,18 @@ CREATE TABLE IF NOT EXISTS logs.vector_completion_requests (
     inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_vcreq_body_gin
-    ON logs.vector_completion_requests USING GIN (body);
+    ON objectiveai.vector_completion_requests USING GIN (body);
 
-CREATE TABLE IF NOT EXISTS logs.vector_completion_responses (
+CREATE TABLE IF NOT EXISTS objectiveai.vector_completion_responses (
     response_id TEXT PRIMARY KEY,
     body        JSONB NOT NULL,
     created_at  BIGINT NOT NULL,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_vcresp_body_gin
-    ON logs.vector_completion_responses USING GIN (body);
+    ON objectiveai.vector_completion_responses USING GIN (body);
 
-CREATE TABLE IF NOT EXISTS logs.function_execution_requests (
+CREATE TABLE IF NOT EXISTS objectiveai.function_execution_requests (
     response_id                     TEXT PRIMARY KEY,
     body                            JSONB NOT NULL,
     created_at                      BIGINT NOT NULL,
@@ -90,16 +90,16 @@ CREATE TABLE IF NOT EXISTS logs.function_execution_requests (
     inserted_at                     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_fereq_body_gin
-    ON logs.function_execution_requests USING GIN (body);
+    ON objectiveai.function_execution_requests USING GIN (body);
 
-CREATE TABLE IF NOT EXISTS logs.function_execution_responses (
+CREATE TABLE IF NOT EXISTS objectiveai.function_execution_responses (
     response_id TEXT PRIMARY KEY,
     body        JSONB NOT NULL,
     created_at  BIGINT NOT NULL,
     inserted_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_feresp_body_gin
-    ON logs.function_execution_responses USING GIN (body);
+    ON objectiveai.function_execution_responses USING GIN (body);
 
 -- =====================================================================
 -- Streaming content: tool response container (1)
@@ -108,7 +108,7 @@ CREATE INDEX IF NOT EXISTS idx_feresp_body_gin
 -- chunk's messages array. Keyed by (response_id, index) — the index
 -- is the message's position within `messages[]`.
 
-CREATE TABLE IF NOT EXISTS logs.tool_response (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response (
     response_id  TEXT   NOT NULL,
     "index"      BIGINT NOT NULL,
     tool_call_id TEXT   NOT NULL,
@@ -120,7 +120,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response (
 -- Streaming content: assistant scalar slots (3)
 -- =====================================================================
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_refusal (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_refusal (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     text        TEXT   NOT NULL,
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_refusal (
     PRIMARY KEY (response_id, "index")
 );
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_reasoning (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_reasoning (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     text        TEXT   NOT NULL,
@@ -139,7 +139,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_reasoning (
 -- One row per tool call within an assistant response. `index` is the
 -- assistant message's position in `messages[]`; `tool_call_index` is
 -- the call's position within the message's `tool_calls[]`.
-CREATE TABLE IF NOT EXISTS logs.assistant_response_tool_calls (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_tool_calls (
     response_id     TEXT   NOT NULL,
     "index"         BIGINT NOT NULL,
     tool_call_index BIGINT NOT NULL,
@@ -157,7 +157,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_tool_calls (
 -- the owning assistant message within `messages[]`; `part_index` =
 -- position of this part within the message's rich content array.
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_content_text (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_content_text (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -166,7 +166,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_text (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_content_image (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_content_image (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -176,7 +176,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_image (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_content_audio (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_content_audio (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_audio (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_content_video (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_content_video (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -195,7 +195,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_video (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.assistant_response_content_file (
+CREATE TABLE IF NOT EXISTS objectiveai.assistant_response_content_file (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -213,7 +213,7 @@ CREATE TABLE IF NOT EXISTS logs.assistant_response_content_file (
 -- Same shape as the assistant variants, parented to `tool_response`
 -- rows via shared (response_id, index).
 
-CREATE TABLE IF NOT EXISTS logs.tool_response_content_text (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_text (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -222,7 +222,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_text (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.tool_response_content_image (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_image (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -232,7 +232,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_image (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.tool_response_content_audio (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_audio (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -242,7 +242,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_audio (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.tool_response_content_video (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_video (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -251,7 +251,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_video (
     PRIMARY KEY (response_id, "index", part_index)
 );
 
-CREATE TABLE IF NOT EXISTS logs.tool_response_content_file (
+CREATE TABLE IF NOT EXISTS objectiveai.tool_response_content_file (
     response_id TEXT   NOT NULL,
     "index"     BIGINT NOT NULL,
     part_index  BIGINT NOT NULL,
@@ -270,7 +270,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_file (
 -- One row per (response_id, "table", row_index, row_sub_index) — the
 -- writer INSERTs exactly once per logical row, on its initial
 -- streaming-content INSERT or request-blob INSERT. The `"index"`
--- column is drawn from `logs.messages_index_seq` at that moment and
+-- column is drawn from `objectiveai.messages_index_seq` at that moment and
 -- never bumps thereafter — it's the position of this event in the
 -- agent's full history, the monotonic watermark that
 -- `messages_queue.read_index` paginates against. Updates re-deliver
@@ -286,7 +286,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_file (
 -- the NULL slots as equal, so the writer's INSERT path conflicts
 -- correctly with prior rows.
 --
--- `logs.message_table` enumerates every `logs.*` table the writer
+-- `objectiveai.message_table` enumerates every `logs.*` table the writer
 -- emits a messages row for. The three response-blob tables
 -- (agent / vector / function `_responses`) are intentionally absent
 -- — they're not events, just the latest snapshot.
@@ -294,7 +294,7 @@ CREATE TABLE IF NOT EXISTS logs.tool_response_content_file (
 -- Postgres enums have no `IF NOT EXISTS` shortcut; we wrap in a DO
 -- block that swallows `duplicate_object`.
 DO $logs_message_table_bootstrap$ BEGIN
-    CREATE TYPE logs.message_table AS ENUM (
+    CREATE TYPE objectiveai.message_table AS ENUM (
         'agent_completion_request',
         'vector_completion_request',
         'function_execution_request',
@@ -321,16 +321,16 @@ DO $logs_message_table_bootstrap$ BEGIN
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $logs_message_table_bootstrap$;
 
-CREATE TABLE IF NOT EXISTS logs.messages (
+CREATE TABLE IF NOT EXISTS objectiveai.messages (
     response_id              TEXT                NOT NULL,
-    "table"                  logs.message_table  NOT NULL,
+    "table"                  objectiveai.message_table  NOT NULL,
     row_index                BIGINT              NULL,
     row_sub_index            BIGINT              NULL,
     -- Position of this event in the agent's full history (and in the
     -- global cross-agent event stream — the column is BIGSERIAL, so
     -- per-agent values are gappy but strictly increasing). Assigned
     -- once on INSERT via the implicit sequence postgres creates for
-    -- BIGSERIAL (`logs.messages_index_seq`); never bumped on UPDATE.
+    -- BIGSERIAL (`objectiveai.messages_index_seq`); never bumped on UPDATE.
     -- Readers paginate `WHERE "index" > read_index`; the writer
     -- downgrades `messages_queue.read_index` when an UPDATE needs to
     -- re-deliver an already-consumed row to a caller.
@@ -345,7 +345,7 @@ CREATE TABLE IF NOT EXISTS logs.messages (
     -- read-all path JOINs to the row's source table by `response_id`
     -- (for request blob / assistant_response_* / tool_response*
     -- rows → the matching `logs.<tier>_completion_requests` /
-    -- `logs.function_execution_requests` table) or via
+    -- `objectiveai.function_execution_requests` table) or via
     -- `row_index` → `message_queue_contents.id` → `message_queue`
     -- (for `message_queue_*` rows). Same story for `timestamp_queued`
     -- on ClientNotification parts — derived from `message_queue.enqueued_at`
@@ -400,19 +400,19 @@ CREATE TABLE IF NOT EXISTS logs.messages (
     UNIQUE NULLS NOT DISTINCT (response_id, "table", row_index, row_sub_index, agent_instance_hierarchy)
 );
 CREATE INDEX IF NOT EXISTS messages_index_idx
-    ON logs.messages("index");
+    ON objectiveai.messages("index");
 CREATE INDEX IF NOT EXISTS messages_response_index_idx
-    ON logs.messages(response_id, "index");
+    ON objectiveai.messages(response_id, "index");
 CREATE INDEX IF NOT EXISTS messages_agent_hier_index_idx
-    ON logs.messages(agent_instance_hierarchy, "index");
+    ON objectiveai.messages(agent_instance_hierarchy, "index");
 
--- Fires NOTIFY on every new logs.messages row. Payload is the
+-- Fires NOTIFY on every new objectiveai.messages row. Payload is the
 -- producing agent's `agent_instance_hierarchy` — subscribers
 -- (`agents logs read subscribe`) filter on AIH match, then
 -- re-call `read_pending_for_parent` to drain anything new.
 -- Keeps the trigger stupid: no per-kind filtering here, all the
 -- type filtering happens in the read query.
-CREATE OR REPLACE FUNCTION logs.notify_messages_inserted()
+CREATE OR REPLACE FUNCTION objectiveai.notify_messages_inserted()
 RETURNS trigger AS $logs_msg_notify$
 BEGIN
     PERFORM pg_notify(
@@ -423,8 +423,8 @@ BEGIN
 END;
 $logs_msg_notify$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER logs_messages_inserted_notify
-AFTER INSERT ON logs.messages
-FOR EACH ROW EXECUTE FUNCTION logs.notify_messages_inserted();
+AFTER INSERT ON objectiveai.messages
+FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_messages_inserted();
 
 -- =====================================================================
 -- messages_queue: per-caller read watermark
@@ -434,7 +434,7 @@ FOR EACH ROW EXECUTE FUNCTION logs.notify_messages_inserted();
 -- `read_index` advances as the caller consumes events from the
 -- spawned agent's stream:
 --
---     SELECT … FROM logs.messages
+--     SELECT … FROM objectiveai.messages
 --     WHERE agent_instance_hierarchy = $spawned
 --       AND "index" > $read_index
 --     ORDER BY "index";
@@ -447,14 +447,14 @@ FOR EACH ROW EXECUTE FUNCTION logs.notify_messages_inserted();
 -- spawned agent. Because `"index"` stays fixed at the row's original
 -- INSERT, the only way to re-deliver an updated row to a caller who
 -- has already moved past it is to walk their watermark back.
-CREATE TABLE IF NOT EXISTS logs.messages_queue (
+CREATE TABLE IF NOT EXISTS objectiveai.messages_queue (
     parent_agent_instance_hierarchy  TEXT   NOT NULL,
     spawned_agent_instance_hierarchy TEXT   NOT NULL,
     read_index                       BIGINT NOT NULL,
     PRIMARY KEY (parent_agent_instance_hierarchy, spawned_agent_instance_hierarchy)
 );
 CREATE INDEX IF NOT EXISTS messages_queue_spawned_idx
-    ON logs.messages_queue(spawned_agent_instance_hierarchy);
+    ON objectiveai.messages_queue(spawned_agent_instance_hierarchy);
 
 -- =====================================================================
 -- log_reader role: read-only access for the future LLM SQL endpoint.

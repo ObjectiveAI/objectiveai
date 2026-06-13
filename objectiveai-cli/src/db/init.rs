@@ -29,6 +29,12 @@ use super::{Error, Pool};
 /// No migration framework: nobody is on this DB yet, and adding one
 /// would add ceremony we don't need.
 const SCHEMA: &str = r#"
+-- Every base objectiveai table lives in the `objectiveai` schema —
+-- one namespace for what used to be split across `public` and
+-- `logs`. Plugin/tool compartments (see `db::compartment`) get
+-- readonly over exactly this schema and never touch `public`.
+CREATE SCHEMA IF NOT EXISTS objectiveai;
+
 -- `tag_groups`: explicit grouping container that lets many tags
 -- share one resolved `AgentSpec` + parent lineage. The cli's
 -- `agents tags apply` either creates a group on the fly (for the
@@ -38,7 +44,7 @@ const SCHEMA: &str = r#"
 -- in the group from `tag_group` to `agent_instance_hierarchy` in
 -- one UPDATE inside the read transaction — see
 -- `db::message_queue::read_pending_and_upgrade_tag`.
-CREATE TABLE IF NOT EXISTS tag_groups (
+CREATE TABLE IF NOT EXISTS objectiveai.tag_groups (
     id                              BIGSERIAL PRIMARY KEY,
     -- Resolved `agents::spawn::AgentSpec`; serialized
     -- as JSONB. References are resolved at apply-time, never at
@@ -52,7 +58,7 @@ CREATE TABLE IF NOT EXISTS tag_groups (
     created_at                      BIGINT NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS tags (
+CREATE TABLE IF NOT EXISTS objectiveai.tags (
     name                     TEXT PRIMARY KEY NOT NULL,
     -- BOUND when set: this tag resolves to a live AIH.
     agent_instance_hierarchy TEXT,
@@ -66,24 +72,24 @@ CREATE TABLE IF NOT EXISTS tags (
         OR
         (agent_instance_hierarchy IS NULL AND tag_group IS NOT NULL)
     ),
-    FOREIGN KEY (tag_group) REFERENCES tag_groups(id) ON DELETE CASCADE
+    FOREIGN KEY (tag_group) REFERENCES objectiveai.tag_groups(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
-    ON tags(agent_instance_hierarchy);
+    ON objectiveai.tags(agent_instance_hierarchy);
 CREATE INDEX IF NOT EXISTS tags_tag_group_idx
-    ON tags(tag_group);
+    ON objectiveai.tags(tag_group);
 
 -- Latest continuation token per agent_instance_hierarchy. Upserted
 -- per streamed chunk by the chunk-yielder loops in `agents spawn`
 -- and `functions execute`. No GC, no history — querying it gives
 -- the single most recent continuation for that AIH.
-CREATE TABLE IF NOT EXISTS agent_continuations (
+CREATE TABLE IF NOT EXISTS objectiveai.agent_continuations (
     agent_instance_hierarchy TEXT PRIMARY KEY NOT NULL,
     continuation             TEXT             NOT NULL,
     updated_at               BIGINT           NOT NULL
 );
 
-CREATE TABLE IF NOT EXISTS message_queue (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue (
     id                              BIGSERIAL PRIMARY KEY,
     agent_instance_hierarchy        TEXT,
     agent_tag                       TEXT,
@@ -113,72 +119,72 @@ CREATE TABLE IF NOT EXISTS message_queue (
     )
 );
 CREATE INDEX IF NOT EXISTS message_queue_hierarchy_idx
-    ON message_queue(agent_instance_hierarchy, id)
+    ON objectiveai.message_queue(agent_instance_hierarchy, id)
     WHERE agent_instance_hierarchy IS NOT NULL;
 CREATE INDEX IF NOT EXISTS message_queue_tag_idx
-    ON message_queue(agent_tag, id)
+    ON objectiveai.message_queue(agent_tag, id)
     WHERE agent_tag IS NOT NULL;
 -- Per-target idempotency keys. The `AND active = TRUE` clause
 -- means inactive prior rows don't count toward uniqueness — an
 -- `agents message --enqueue-with-key k` after a prior consumption
 -- inserts cleanly without UNIQUE-violating the soft-flipped row.
 CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_hierarchy_unique_idx
-    ON message_queue(agent_instance_hierarchy, key)
+    ON objectiveai.message_queue(agent_instance_hierarchy, key)
     WHERE agent_instance_hierarchy IS NOT NULL
       AND key IS NOT NULL
       AND active = TRUE;
 CREATE UNIQUE INDEX IF NOT EXISTS message_queue_key_tag_unique_idx
-    ON message_queue(agent_tag, key)
+    ON objectiveai.message_queue(agent_tag, key)
     WHERE agent_tag IS NOT NULL
       AND key IS NOT NULL
       AND active = TRUE;
 
-CREATE TABLE IF NOT EXISTS message_queue_contents (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_contents (
     id               BIGSERIAL PRIMARY KEY,
     message_queue_id BIGINT NOT NULL,
     kind             TEXT   NOT NULL
         CHECK (kind IN ('text','image','audio','video','file')),
-    FOREIGN KEY (message_queue_id) REFERENCES message_queue(id) ON DELETE CASCADE
+    FOREIGN KEY (message_queue_id) REFERENCES objectiveai.message_queue(id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS message_queue_contents_parent_idx
-    ON message_queue_contents(message_queue_id);
+    ON objectiveai.message_queue_contents(message_queue_id);
 
-CREATE TABLE IF NOT EXISTS message_queue_texts (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_texts (
     id   BIGINT PRIMARY KEY,
     text TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES objectiveai.message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS message_queue_images (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_images (
     id     BIGINT PRIMARY KEY,
     url    TEXT   NOT NULL,
     detail TEXT,
-    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES objectiveai.message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS message_queue_audios (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_audios (
     id     BIGINT PRIMARY KEY,
     data   TEXT   NOT NULL,
     format TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES objectiveai.message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS message_queue_videos (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_videos (
     id  BIGINT PRIMARY KEY,
     url TEXT   NOT NULL,
-    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES objectiveai.message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS message_queue_files (
+CREATE TABLE IF NOT EXISTS objectiveai.message_queue_files (
     id        BIGINT PRIMARY KEY,
     file_data TEXT,
     file_id   TEXT,
     filename  TEXT,
     file_url  TEXT,
-    FOREIGN KEY (id) REFERENCES message_queue_contents(id) ON DELETE CASCADE
+    FOREIGN KEY (id) REFERENCES objectiveai.message_queue_contents(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS schedules (
+CREATE TABLE IF NOT EXISTS objectiveai.schedules (
     id                       BIGSERIAL PRIMARY KEY,
     name                     TEXT   NOT NULL,
     command                  TEXT   NOT NULL,
@@ -216,24 +222,24 @@ CREATE TABLE IF NOT EXISTS schedules (
 -- has a run; a recurring row's readiness keys off its newest run.
 -- Written atomically by the same claim query that selects the tasks
 -- `tasks run` fires, so concurrent runners never double-claim.
-CREATE TABLE IF NOT EXISTS tasks_runs (
+CREATE TABLE IF NOT EXISTS objectiveai.tasks_runs (
     id          BIGSERIAL PRIMARY KEY,
-    schedule_id BIGINT NOT NULL REFERENCES schedules(id),
+    schedule_id BIGINT NOT NULL REFERENCES objectiveai.schedules(id),
     ran_at      BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS tasks_runs_schedule_idx
-    ON tasks_runs(schedule_id, ran_at DESC);
+    ON objectiveai.tasks_runs(schedule_id, ran_at DESC);
 
 -- One row per item a fired task emitted on `tasks run`'s stream,
 -- serialized exactly as the wire envelope, linked to its run.
-CREATE TABLE IF NOT EXISTS tasks_logs (
+CREATE TABLE IF NOT EXISTS objectiveai.tasks_logs (
     id         BIGSERIAL PRIMARY KEY,
-    run_id     BIGINT NOT NULL REFERENCES tasks_runs(id),
+    run_id     BIGINT NOT NULL REFERENCES objectiveai.tasks_runs(id),
     value      TEXT   NOT NULL,
     created_at BIGINT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS tasks_logs_run_idx
-    ON tasks_logs(run_id, id);
+    ON objectiveai.tasks_logs(run_id, id);
 
 -- AFTER-UPDATE trigger on `message_queue.active`: every soft-flip
 -- (TRUE → FALSE) emits a `NOTIFY message_queue_inactive '<id>'`
@@ -241,7 +247,7 @@ CREATE INDEX IF NOT EXISTS tasks_logs_run_idx
 -- wakes up the instant a consumption flip lands. Pure native
 -- LISTEN/NOTIFY — no polling. We no longer hard-delete, so the
 -- prior AFTER DELETE trigger is gone.
-CREATE OR REPLACE FUNCTION notify_message_queue_inactive()
+CREATE OR REPLACE FUNCTION objectiveai.notify_message_queue_inactive()
 RETURNS trigger AS $$
 BEGIN
     IF OLD.active = TRUE AND NEW.active = FALSE THEN
@@ -251,8 +257,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 CREATE OR REPLACE TRIGGER message_queue_inactive_notify
-AFTER UPDATE OF active ON message_queue
-FOR EACH ROW EXECUTE FUNCTION notify_message_queue_inactive();
+AFTER UPDATE OF active ON objectiveai.message_queue
+FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_message_queue_inactive();
 
 "#;
 
@@ -264,13 +270,13 @@ const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 
 /// The shared readonly group every plugin/tool compartment role
 /// joins (see [`super::compartment`]): USAGE + SELECT over the base
-/// `public` and `logs` schemas, with default privileges so tables
-/// the base schema grows LATER are covered automatically. Applied
-/// inside the same advisory-locked schema-apply step as the table
-/// DDL; `CREATE ROLE` has no `IF NOT EXISTS`, hence the DO block
-/// (roles are cluster-wide — a sibling database in the same cluster
-/// may have created it already; the GRANTs are per-database and
-/// re-run for each).
+/// `objectiveai` schema, with default privileges so tables the base
+/// schema grows LATER are covered automatically. Applied inside the
+/// same advisory-locked schema-apply step as the table DDL;
+/// `CREATE ROLE` has no `IF NOT EXISTS`, hence the DO block (roles
+/// are cluster-wide — a sibling database in the same cluster may
+/// have created it already; the GRANTs are per-database and re-run
+/// for each).
 const READER_GROUP: &str = r#"
 DO $$
 BEGIN
@@ -279,12 +285,9 @@ EXCEPTION WHEN duplicate_object THEN
     NULL;
 END
 $$;
-GRANT USAGE ON SCHEMA public TO objectiveai_read;
-GRANT USAGE ON SCHEMA logs TO objectiveai_read;
-GRANT SELECT ON ALL TABLES IN SCHEMA public TO objectiveai_read;
-GRANT SELECT ON ALL TABLES IN SCHEMA logs TO objectiveai_read;
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO objectiveai_read;
-ALTER DEFAULT PRIVILEGES IN SCHEMA logs GRANT SELECT ON TABLES TO objectiveai_read;
+GRANT USAGE ON SCHEMA objectiveai TO objectiveai_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA objectiveai TO objectiveai_read;
+ALTER DEFAULT PRIVILEGES IN SCHEMA objectiveai GRANT SELECT ON TABLES TO objectiveai_read;
 "#;
 
 /// Open the admin pool against `url` (no database path — lands on the

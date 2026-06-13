@@ -1,4 +1,4 @@
-//! `agents logs read id` backend: take a `logs.messages."index"`
+//! `agents logs read id` backend: take a `objectiveai.messages."index"`
 //! BIGSERIAL, dispatch to the per-tier target table, and build the
 //! SDK `agents::logs::read::id::Response` variant with a typed
 //! payload.
@@ -19,13 +19,13 @@ use sqlx::Row as _;
 use super::super::{Error, Pool};
 use super::row::MessageTable;
 
-/// Resolve one `logs.messages."index"` to the matching SDK
+/// Resolve one `objectiveai.messages."index"` to the matching SDK
 /// `Response` variant. Returns `Ok(None)` when no row exists at
 /// that index.
 pub async fn read_by_id(pool: &Pool, id: i64) -> Result<Option<Response>, Error> {
     let Some(msg) = sqlx::query(
         "SELECT response_id, \"table\" AS table_kind, row_index, row_sub_index \
-         FROM logs.messages \
+         FROM objectiveai.messages \
          WHERE \"index\" = $1",
     )
     .bind(id)
@@ -66,7 +66,7 @@ async fn load_payload(
         MessageTable::MessageQueueText => {
             let id = require_row_index(table_kind, row_index)?;
             let text: String = sqlx::query_scalar(
-                "SELECT text FROM message_queue_texts WHERE id = $1",
+                "SELECT text FROM objectiveai.message_queue_texts WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&**pool)
@@ -76,7 +76,7 @@ async fn load_payload(
         MessageTable::MessageQueueImage => {
             let id = require_row_index(table_kind, row_index)?;
             let row = sqlx::query(
-                "SELECT url, detail FROM message_queue_images WHERE id = $1",
+                "SELECT url, detail FROM objectiveai.message_queue_images WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&**pool)
@@ -92,7 +92,7 @@ async fn load_payload(
         MessageTable::MessageQueueAudio => {
             let id = require_row_index(table_kind, row_index)?;
             let row = sqlx::query(
-                "SELECT data, format FROM message_queue_audios WHERE id = $1",
+                "SELECT data, format FROM objectiveai.message_queue_audios WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&**pool)
@@ -105,7 +105,7 @@ async fn load_payload(
         MessageTable::MessageQueueVideo => {
             let id = require_row_index(table_kind, row_index)?;
             let url: String = sqlx::query_scalar(
-                "SELECT url FROM message_queue_videos WHERE id = $1",
+                "SELECT url FROM objectiveai.message_queue_videos WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&**pool)
@@ -116,7 +116,7 @@ async fn load_payload(
             let id = require_row_index(table_kind, row_index)?;
             let row = sqlx::query(
                 "SELECT file_data, file_id, filename, file_url \
-                 FROM message_queue_files WHERE id = $1",
+                 FROM objectiveai.message_queue_files WHERE id = $1",
             )
             .bind(id)
             .fetch_one(&**pool)
@@ -130,7 +130,7 @@ async fn load_payload(
         }
         MessageTable::AgentCompletionRequest => {
             let (body, created_at, sender) =
-                fetch_request_blob(pool, "logs.agent_completion_requests", response_id).await?;
+                fetch_request_blob(pool, "objectiveai.agent_completion_requests", response_id).await?;
             let body: AgentCompletionCreateParams = serde_json::from_value(body)?;
             Ok(Response::AgentCompletionRequest {
                 response_id: response_id.to_string(),
@@ -141,7 +141,7 @@ async fn load_payload(
         }
         MessageTable::VectorCompletionRequest => {
             let (body, created_at, sender) =
-                fetch_request_blob(pool, "logs.vector_completion_requests", response_id).await?;
+                fetch_request_blob(pool, "objectiveai.vector_completion_requests", response_id).await?;
             let body: VectorCompletionCreateParams = serde_json::from_value(body)?;
             Ok(Response::VectorCompletionRequest {
                 response_id: response_id.to_string(),
@@ -152,7 +152,7 @@ async fn load_payload(
         }
         MessageTable::FunctionExecutionRequest => {
             let (body, created_at, sender) =
-                fetch_request_blob(pool, "logs.function_execution_requests", response_id).await?;
+                fetch_request_blob(pool, "objectiveai.function_execution_requests", response_id).await?;
             let body: FunctionExecutionCreateParams = serde_json::from_value(body)?;
             Ok(Response::FunctionExecutionRequest {
                 response_id: response_id.to_string(),
@@ -164,7 +164,7 @@ async fn load_payload(
         MessageTable::ToolResponse => {
             let index = require_row_index(table_kind, row_index)?;
             let row = sqlx::query(
-                "SELECT tool_call_id FROM logs.tool_response \
+                "SELECT tool_call_id FROM objectiveai.tool_response \
                  WHERE response_id = $1 AND \"index\" = $2",
             )
             .bind(response_id)
@@ -181,7 +181,7 @@ async fn load_payload(
             let index = require_row_index(table_kind, row_index)?;
             let text = fetch_indexed_text(
                 pool,
-                "logs.assistant_response_refusal",
+                "objectiveai.assistant_response_refusal",
                 response_id,
                 index,
             )
@@ -192,7 +192,7 @@ async fn load_payload(
             let index = require_row_index(table_kind, row_index)?;
             let text = fetch_indexed_text(
                 pool,
-                "logs.assistant_response_reasoning",
+                "objectiveai.assistant_response_reasoning",
                 response_id,
                 index,
             )
@@ -204,7 +204,7 @@ async fn load_payload(
             let tool_call_index = require_row_sub_index(table_kind, row_sub_index)?;
             let row = sqlx::query(
                 "SELECT tool_call_id, function_name, arguments \
-                 FROM logs.assistant_response_tool_calls \
+                 FROM objectiveai.assistant_response_tool_calls \
                  WHERE response_id = $1 AND \"index\" = $2 AND tool_call_index = $3",
             )
             .bind(response_id)
@@ -226,7 +226,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let text = fetch_content_text(
                 pool,
-                "logs.assistant_response_content_text",
+                "objectiveai.assistant_response_content_text",
                 response_id,
                 index,
                 part_index,
@@ -239,7 +239,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let image_url = fetch_content_image(
                 pool,
-                "logs.assistant_response_content_image",
+                "objectiveai.assistant_response_content_image",
                 response_id,
                 index,
                 part_index,
@@ -252,7 +252,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let input_audio = fetch_content_audio(
                 pool,
-                "logs.assistant_response_content_audio",
+                "objectiveai.assistant_response_content_audio",
                 response_id,
                 index,
                 part_index,
@@ -265,7 +265,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let video_url = fetch_content_video(
                 pool,
-                "logs.assistant_response_content_video",
+                "objectiveai.assistant_response_content_video",
                 response_id,
                 index,
                 part_index,
@@ -278,7 +278,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let file = fetch_content_file(
                 pool,
-                "logs.assistant_response_content_file",
+                "objectiveai.assistant_response_content_file",
                 response_id,
                 index,
                 part_index,
@@ -291,7 +291,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let text = fetch_content_text(
                 pool,
-                "logs.tool_response_content_text",
+                "objectiveai.tool_response_content_text",
                 response_id,
                 index,
                 part_index,
@@ -304,7 +304,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let image_url = fetch_content_image(
                 pool,
-                "logs.tool_response_content_image",
+                "objectiveai.tool_response_content_image",
                 response_id,
                 index,
                 part_index,
@@ -317,7 +317,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let input_audio = fetch_content_audio(
                 pool,
-                "logs.tool_response_content_audio",
+                "objectiveai.tool_response_content_audio",
                 response_id,
                 index,
                 part_index,
@@ -330,7 +330,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let video_url = fetch_content_video(
                 pool,
-                "logs.tool_response_content_video",
+                "objectiveai.tool_response_content_video",
                 response_id,
                 index,
                 part_index,
@@ -343,7 +343,7 @@ async fn load_payload(
                 require_full_indices(table_kind, row_index, row_sub_index)?;
             let file = fetch_content_file(
                 pool,
-                "logs.tool_response_content_file",
+                "objectiveai.tool_response_content_file",
                 response_id,
                 index,
                 part_index,
@@ -511,7 +511,7 @@ fn require_row_index(
 ) -> Result<i64, Error> {
     row_index.ok_or_else(|| {
         Error::InvalidData(format!(
-            "logs.messages row for table {table_kind:?} is missing row_index"
+            "objectiveai.messages row for table {table_kind:?} is missing row_index"
         ))
     })
 }
@@ -522,7 +522,7 @@ fn require_row_sub_index(
 ) -> Result<i64, Error> {
     row_sub_index.ok_or_else(|| {
         Error::InvalidData(format!(
-            "logs.messages row for table {table_kind:?} is missing row_sub_index"
+            "objectiveai.messages row for table {table_kind:?} is missing row_sub_index"
         ))
     })
 }

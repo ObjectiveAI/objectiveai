@@ -4,7 +4,7 @@
 //! Two sources, one round-trip:
 //!
 //! - **agent definition** — extracted from
-//!   `logs.agent_completion_requests.body.agent` (the request blob
+//!   `objectiveai.agent_completion_requests.body.agent` (the request blob
 //!   is a serialized `AgentCompletionCreateParams`). The request
 //!   row is PK'd by `response_id`, which is the trailing suffix of
 //!   the AIH after the final `-`
@@ -58,8 +58,8 @@ pub async fn lookup_session(
     // `agent_continuations` yet for this AIH.
     let row = sqlx::query(
         "SELECT req.body AS request_body, cont.continuation AS continuation \
-         FROM logs.agent_completion_requests req \
-         LEFT JOIN agent_continuations cont \
+         FROM objectiveai.agent_completion_requests req \
+         LEFT JOIN objectiveai.agent_continuations cont \
            ON cont.agent_instance_hierarchy = $2 \
          WHERE req.response_id = $1",
     )
