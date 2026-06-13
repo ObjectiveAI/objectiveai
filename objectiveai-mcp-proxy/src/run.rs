@@ -61,6 +61,11 @@ struct EnvConfigBuilder {
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "SUPPRESS_OUTPUT")]
     suppress_output: Option<String>,
+    /// When set, the proxy appends a JSONL request/response trace to
+    /// `<dir>/mcp-proxy.jsonl`. Unset → logging off. (The embedding API
+    /// passes this through [`ConfigBuilder::logs_dir`] instead.)
+    #[envconfig(from = "OBJECTIVEAI_LOGS_DIR")]
+    logs_dir: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -92,6 +97,7 @@ impl EnvConfigBuilder {
             suppress_output: self.suppress_output.map(|v| {
                 matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
             }),
+            logs_dir: self.logs_dir,
         }
     }
 }
@@ -116,6 +122,9 @@ pub struct ConfigBuilder {
     /// doc.
     pub mcp_encryption_key: Option<[u8; 32]>,
     pub suppress_output: Option<bool>,
+    /// Directory for the proxy's JSONL request/response trace. `Some`
+    /// → append to `<dir>/mcp-proxy.jsonl`; `None` → logging off.
+    pub logs_dir: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -162,6 +171,7 @@ impl ConfigBuilder {
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(40000),
             mcp_encryption_key: self.mcp_encryption_key,
             suppress_output: self.suppress_output.unwrap_or(false),
+            logs_dir: self.logs_dir.map(std::path::PathBuf::from),
         }
     }
 }
@@ -183,6 +193,9 @@ pub struct Config {
     /// `None` → caller / proxy will generate one ephemeral key.
     pub mcp_encryption_key: Option<[u8; 32]>,
     pub suppress_output: bool,
+    /// `Some` → append a JSONL request/response trace to
+    /// `<dir>/mcp-proxy.jsonl`; `None` → logging off.
+    pub logs_dir: Option<std::path::PathBuf>,
 }
 
 pub async fn setup(
@@ -205,6 +218,7 @@ pub async fn setup(
         mcp_backoff_max_elapsed_time,
         mcp_encryption_key,
         suppress_output: _,
+        logs_dir,
     } = config;
 
     let client = Client::new(
@@ -240,6 +254,17 @@ pub async fn setup(
                 .delete(mcp::handle_delete),
         )
         .with_state(state);
+
+    // Optional JSONL request/response trace. Layered after `with_state`
+    // so it wraps every route with its own (logger) state, independent
+    // of the handlers' `AppState`.
+    let router = match logs_dir {
+        Some(dir) => router.layer(axum::middleware::from_fn_with_state(
+            std::sync::Arc::new(crate::logging::ProxyLogger::new(dir)),
+            crate::logging::log_layer,
+        )),
+        None => router,
+    };
 
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
 
