@@ -129,8 +129,10 @@ impl CommandExecutor for CliCommandExecutor {
         let ctx = self.resolve_ctx(agent_arguments).into_owned();
         // The Python transform adapter needs its own ctx handle (for
         // the python runtime); clone one before `ctx` is moved into the
-        // dispatch future, but only when a transform is actually set.
-        let transform_ctx = transform.as_ref().map(|_| ctx.clone());
+        // dispatch future, but only for a Python transform (jq needs no
+        // ctx).
+        let transform_ctx =
+            matches!(transform, Some(Transform::Python(_))).then(|| ctx.clone());
 
         // Base stream ("the first one"): don't await the dispatcher
         // here. Wrap the `Future<Result<Stream<Result<ResponseItem>>>>`
@@ -153,18 +155,20 @@ impl CommandExecutor for CliCommandExecutor {
         // ResponseItem`, else a serde round-trip).
         let mut stream: Self::Stream<T> = Box::pin(ConvertStream::new(source));
 
-        // Conditional: an output transform ([`PythonTransformStream`]) — each
-        // item is fed to the script and its (non-null) output replaces
-        // it; null output skips the item. Comes BEFORE the token budget
-        // so the budget counts the transformed output.
+        // Conditional: an output transform — each item is run through
+        // the transform and its (non-null) output replaces it; a null
+        // output skips the item. Comes BEFORE the token budget so the
+        // budget counts the transformed output. python overrides jq
+        // (resolved upstream by `RequestBase::transform`).
         if let Some(transform) = transform {
             match transform {
                 Transform::Python(code) => {
-                    let ctx = transform_ctx.expect("cloned whenever a transform is present");
+                    let ctx = transform_ctx.expect("cloned whenever a python transform is present");
                     stream = Box::pin(PythonTransformStream::new(stream, ctx, code));
                 }
-                // jq output transform is not yet implemented.
-                Transform::Jq(_) => unimplemented!("jq output transform"),
+                Transform::Jq(filter) => {
+                    stream = Box::pin(JqTransformStream::new(stream, filter));
+                }
             }
         }
 
@@ -275,7 +279,7 @@ struct PythonTransformStream<S, T> {
     inner: S,
     ctx: Context,
     code: Arc<str>,
-    pending: Option<Pin<Box<dyn Future<Output = Result<Option<T>, Error>> + Send>>>,
+    pending: Option<Pin<Box<dyn Future<Output = Result<Option<serde_json::Value>, Error>> + Send>>>,
     _marker: PhantomData<fn() -> T>,
 }
 
@@ -301,14 +305,22 @@ where
     fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
         let this = self.get_mut();
         loop {
-            // Drive an in-flight transform to completion first.
+            // Drive an in-flight transform to completion first. The
+            // script's output arrives as a raw `Value`: a null result
+            // (or no output) skips the item; only a non-null `Value` is
+            // deserialized into `T` and yielded.
             if let Some(fut) = this.pending.as_mut() {
                 match fut.as_mut().poll(cx) {
-                    Poll::Ready(Ok(Some(t))) => {
+                    Poll::Ready(Ok(Some(value))) => {
                         this.pending = None;
-                        return Poll::Ready(Some(Ok(t)));
+                        if !value.is_null() {
+                            return Poll::Ready(Some(
+                                serde_json::from_value::<T>(value).map_err(Error::InlineJson),
+                            ));
+                        }
+                        // null output → skip; fall through to the next item.
                     }
-                    // null output → skip; fall through to pull the next item.
+                    // no output → skip; fall through to pull the next item.
                     Poll::Ready(Ok(None)) => this.pending = None,
                     Poll::Ready(Err(e)) => {
                         this.pending = None;
@@ -336,14 +348,90 @@ where
 }
 
 /// Run the Python transform for one item: feed it as `input`, take the
-/// output. `None` ⇔ the script produced no output (skip the item);
-/// otherwise the output deserialized back into `T`.
-async fn transform_item<T: serde::Serialize + serde::de::DeserializeOwned>(
+/// output as a raw `serde_json::Value` (NOT yet `T`). `None` ⇔ the
+/// script produced no output. The caller decides skip-vs-yield: a null
+/// `Value` (or `None`) skips, and only a non-null `Value` is
+/// deserialized into `T` — so a non-nullable `T` never errors on a
+/// "skip" result.
+async fn transform_item<I: serde::Serialize>(
     ctx: &Context,
     code: &str,
-    item: T,
-) -> Result<Option<T>, Error> {
+    item: I,
+) -> Result<Option<serde_json::Value>, Error> {
     ctx.python().await?.exec_code(code, Some(item)).await
+}
+
+/// Stream adapter: a jq output transform with null-skip.
+///
+/// Each upstream item is run through the jq `filter` (jaq, via
+/// [`crate::filesystem::run_jq`]); the multi-result vector is collapsed
+/// the historical way — 0 results → null, exactly 1 → that result
+/// AS-IS, >1 → an array. A null collapsed result SKIPS the item (so a
+/// jq `select(...)` that yields nothing filters it out); any other
+/// result is deserialized into `T` and yielded. Upstream errors pass
+/// through. jaq is a synchronous CPU call, so the transform runs inline
+/// in `poll_next` — no held future.
+struct JqTransformStream<S, T> {
+    inner: S,
+    filter: Arc<str>,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<S, T> JqTransformStream<S, T> {
+    fn new(inner: S, filter: String) -> Self {
+        Self {
+            inner,
+            filter: Arc::from(filter),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, T> Stream for JqTransformStream<S, T>
+where
+    S: Stream<Item = Result<T, Error>> + Unpin,
+    T: serde::Serialize + serde::de::DeserializeOwned,
+{
+    type Item = Result<T, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        loop {
+            match Pin::new(&mut this.inner).poll_next(cx) {
+                Poll::Ready(Some(Ok(item))) => match jq_apply::<T>(&item, &this.filter) {
+                    Ok(Some(t)) => return Poll::Ready(Some(Ok(t))),
+                    // null collapsed result → skip; loop to the next item.
+                    Ok(None) => {}
+                    Err(e) => return Poll::Ready(Some(Err(e))),
+                },
+                Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
+                Poll::Ready(None) => return Poll::Ready(None),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+    }
+}
+
+/// Run the jq filter for one item and collapse its results the
+/// historical way (length-1 → as-is). `None` ⇔ the collapsed result is
+/// null (skip the item); otherwise the result deserialized into `T`.
+fn jq_apply<T: serde::Serialize + serde::de::DeserializeOwned>(
+    item: &T,
+    filter: &str,
+) -> Result<Option<T>, Error> {
+    let mut results = crate::filesystem::run_jq(item, filter).map_err(Error::Filesystem)?;
+    let value = match results.len() {
+        0 => serde_json::Value::Null,
+        1 => results.remove(0),
+        _ => serde_json::Value::Array(results),
+    };
+    if value.is_null() {
+        Ok(None)
+    } else {
+        serde_json::from_value::<T>(value)
+            .map(Some)
+            .map_err(Error::InlineJson)
+    }
 }
 
 /// Stream adapter: a running token budget over the serialized output.
