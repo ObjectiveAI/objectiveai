@@ -32,11 +32,14 @@ async fn py() -> &'static Python {
     .await
 }
 
-async fn exec<T: serde::de::DeserializeOwned>(code: &str) -> Result<T, crate::error::Error> {
-    py().await
-        .exec_code::<(), T>(code, None)
-        .await?
-        .ok_or(crate::error::Error::PythonNoOutput)
+/// `Ok(None)` ⇒ the script produced no usable output (no trailing
+/// expression and nothing printed); `Ok(Some(v))` ⇒ a value (including
+/// `Some(serde_json::Value::Null)` when the script explicitly emits JSON
+/// `null` on stdout). Callers that require a value `.unwrap()` the option.
+async fn exec<T: serde::de::DeserializeOwned>(
+    code: &str,
+) -> Result<Option<T>, crate::error::Error> {
+    py().await.exec_code::<(), T>(code, None).await
 }
 
 // -- Bare expressions and prints --
@@ -44,7 +47,7 @@ async fn exec<T: serde::de::DeserializeOwned>(code: &str) -> Result<T, crate::er
 /// Bare dict literal, starlark-style — no print, just an expression.
 #[tokio::test]
 async fn eval_dict_literal() {
-    let result: Foo = exec(r#"{"foo": "bar"}"#).await.unwrap();
+    let result: Foo = exec(r#"{"foo": "bar"}"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -53,7 +56,7 @@ async fn eval_dict_literal() {
 async fn print_dict() {
     let result: Foo = exec(r#"import json; print(json.dumps({"foo": "bar"}))"#)
         .await
-        .unwrap();
+        .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -72,7 +75,7 @@ if __name__ == "__main__":
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -88,7 +91,7 @@ if __name__ == "__main__":
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -106,7 +109,7 @@ print(json.dumps(main()))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -124,7 +127,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -138,7 +141,7 @@ sys.stdout.write(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -154,7 +157,7 @@ get()
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -168,7 +171,7 @@ x
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -183,49 +186,49 @@ async fn multiline_dict_expression() {
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Dict comprehension as a bare expression.
 #[tokio::test]
 async fn dict_comprehension() {
-    let result: Foo = exec(r#"{k: v for k, v in [("foo", "bar")]}"#).await.unwrap();
+    let result: Foo = exec(r#"{k: v for k, v in [("foo", "bar")]}"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Ternary/conditional expression returning a dict.
 #[tokio::test]
 async fn ternary_expression() {
-    let result: Foo = exec(r#"{"foo": "bar"} if True else None"#).await.unwrap();
+    let result: Foo = exec(r#"{"foo": "bar"} if True else None"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Walrus operator (:=) as a bare expression.
 #[tokio::test]
 async fn walrus_operator() {
-    let result: Foo = exec(r#"(x := {"foo": "bar"})"#).await.unwrap();
+    let result: Foo = exec(r#"(x := {"foo": "bar"})"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Immediately-invoked lambda returning a dict.
 #[tokio::test]
 async fn lambda_call() {
-    let result: Foo = exec(r#"(lambda: {"foo": "bar"})()"#).await.unwrap();
+    let result: Foo = exec(r#"(lambda: {"foo": "bar"})()"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Two statements on one line separated by semicolon, last is a bare expression.
 #[tokio::test]
 async fn semicolons_one_line() {
-    let result: Foo = exec(r#"x = 1; {"foo": "bar"}"#).await.unwrap();
+    let result: Foo = exec(r#"x = 1; {"foo": "bar"}"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Uses dict() constructor instead of literal syntax.
 #[tokio::test]
 async fn nested_function_call_dict() {
-    let result: Foo = exec(r#"dict(foo="bar")"#).await.unwrap();
+    let result: Foo = exec(r#"dict(foo="bar")"#).await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -240,7 +243,7 @@ print("debug info", file=sys.stderr)
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -255,7 +258,7 @@ print("some random debug output")
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -272,7 +275,7 @@ C().get()
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -281,7 +284,7 @@ C().get()
 async fn print_no_newline() {
     let result: Foo = exec(r#"import json; print(json.dumps({"foo": "bar"}), end="")"#)
         .await
-        .unwrap();
+        .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -296,21 +299,21 @@ async fn multiple_bare_expressions_last_wins() {
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Bare expression followed by trailing blank lines.
 #[tokio::test]
 async fn trailing_blank_lines() {
-    let result: Foo = exec("{\"foo\": \"bar\"}\n\n\n").await.unwrap();
+    let result: Foo = exec("{\"foo\": \"bar\"}\n\n\n").await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
 /// Bare expression followed by a trailing comment.
 #[tokio::test]
 async fn trailing_comment_after_expression() {
-    let result: Foo = exec("{\"foo\": \"bar\"}\n# done").await.unwrap();
+    let result: Foo = exec("{\"foo\": \"bar\"}\n# done").await.unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -328,7 +331,7 @@ pass
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -344,7 +347,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -361,7 +364,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -376,7 +379,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -392,7 +395,7 @@ builtins.print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -406,7 +409,7 @@ x = "bar"
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -421,7 +424,7 @@ print(json.dumps(result))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -438,7 +441,7 @@ except:
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -453,7 +456,7 @@ if __name__ == "__main__":
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -469,7 +472,7 @@ for i in range(3):
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -485,7 +488,7 @@ with io.StringIO() as f:
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -503,7 +506,7 @@ finally:
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -517,7 +520,7 @@ globals()["x"] = "bar"
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -531,7 +534,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -544,7 +547,7 @@ async fn deeply_nested_dict() {
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result["a"]["b"]["c"]["foo"], "bar");
 }
 
@@ -562,7 +565,7 @@ print("this is not executed")
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -579,7 +582,7 @@ async fn unicode_emoji_value() {
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(
         result,
         Uni {
@@ -600,7 +603,7 @@ make("ignored", foo="bar")
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -614,7 +617,7 @@ MyClass().get()
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -627,7 +630,7 @@ async fn list_comprehension_indexed() {
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -644,7 +647,7 @@ print(json.dumps({"foo": "bar"}))
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, expected());
 }
 
@@ -806,7 +809,7 @@ dict(os.environ)
 "#,
     )
     .await
-    .unwrap();
+    .unwrap().unwrap();
     assert_eq!(result, serde_json::json!({}));
 }
 
@@ -833,11 +836,15 @@ async fn error_deser_bare_list() {
     assert!(matches!(err, crate::error::Error::PythonDeserialize(_)));
 }
 
-/// Bare None expression — eval is null, stdout is empty.
+/// Bare `None` expression — `eval` serializes to JSON `null`, which the
+/// harness treats as "no trailing expression"; stdout is empty too, so the
+/// envelope carries no usable output and `exec` yields `Ok(None)`. This is
+/// distinct from an explicit JSON `null` printed to stdout, which yields
+/// `Ok(Some(Value::Null))` — see `output_explicit_json_null`.
 #[tokio::test]
-async fn error_deser_bare_none() {
-    let err = exec::<Foo>("None").await.unwrap_err();
-    assert!(matches!(err, crate::error::Error::PythonDeserialize(_)));
+async fn no_output_bare_none() {
+    let out = exec::<serde_json::Value>("None").await.unwrap();
+    assert_eq!(out, None);
 }
 
 /// Print Python repr (single quotes) instead of JSON — not valid JSON.
@@ -854,18 +861,28 @@ async fn error_deser_wrong_shape() {
     assert!(matches!(err, crate::error::Error::PythonDeserialize(_)));
 }
 
-/// Empty code — no output at all.
+/// Empty code — no output at all → `Ok(None)`.
 #[tokio::test]
-async fn error_deser_empty_code() {
-    let err = exec::<Foo>("").await.unwrap_err();
-    assert!(matches!(err, crate::error::Error::PythonDeserialize(_)));
+async fn no_output_empty_code() {
+    let out = exec::<serde_json::Value>("").await.unwrap();
+    assert_eq!(out, None);
 }
 
-/// Only comments — no output.
+/// Only comments — no output → `Ok(None)`.
 #[tokio::test]
-async fn error_deser_only_comments() {
-    let err = exec::<Foo>("# nothing here").await.unwrap_err();
-    assert!(matches!(err, crate::error::Error::PythonDeserialize(_)));
+async fn no_output_only_comments() {
+    let out = exec::<serde_json::Value>("# nothing here").await.unwrap();
+    assert_eq!(out, None);
+}
+
+/// Explicit JSON `null` on stdout — distinct from no output: the envelope
+/// carries a value, so `exec` yields `Ok(Some(Value::Null))`.
+#[tokio::test]
+async fn output_explicit_json_null() {
+    let out = exec::<serde_json::Value>("import json; print(json.dumps(None))")
+        .await
+        .unwrap();
+    assert_eq!(out, Some(serde_json::Value::Null));
 }
 
 /// Print valid JSON but an array of Foos, not a single Foo.
