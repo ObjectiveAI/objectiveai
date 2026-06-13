@@ -22,9 +22,10 @@
 
 use std::path::{Path, PathBuf};
 
-/// Pinned RustPython version. Kept at parity with the native
-/// `rustpython` dependency in Cargo.toml until the WASI swap lands.
-const RUSTPYTHON_VERSION: &str = "0.4.0";
+/// Pinned RustPython version. 0.5.0 is the oldest release that
+/// compiles for wasm32-wasip1 on a current toolchain (0.4.0's
+/// rustpython-vm uses libc constants that no longer exist for WASI).
+const RUSTPYTHON_VERSION: &str = "0.5.0";
 
 /// Build-recipe tag. Bump whenever the wasm build flags change: the
 /// cache filename rolls over and the old blob is simply orphaned —
@@ -231,16 +232,23 @@ fn ensure_wasip1_target() {
 /// Build the pinned rustpython bin for wasm32-wasip1 via a nested
 /// `cargo install`.
 ///
-/// Attempt ladder (first success wins; a 2024 crate built by a newer
-/// toolchain may need each relaxation):
+/// The feature recipe is FIXED at `--no-default-features --features
+/// freeze-stdlib`, for two reasons:
 ///
-/// 1. `--locked` with `--features freeze-stdlib`
-/// 2. without `--locked`
-/// 3. without `--locked`, `--no-default-features --features freeze-stdlib`
+/// - **Determinism**: one blob filename ⇔ one feature set on every
+///   machine. An adaptive ladder would let the same cache name carry
+///   different contents depending on the host.
+/// - **No host C toolchain**: default features pull `libz-sys`,
+///   whose C build for a wasm target requires clang; the minimal
+///   recipe builds with nothing beyond rustc + the wasip1 target.
+///   (Cost: no `zlib` module inside the sandbox.)
+///
+/// The attempt ladder varies ONLY `--locked` (first success wins):
+/// the crate's bundled lockfile is preferred for reproducibility but
+/// may be absent or stale against a newer toolchain.
 fn run_cargo_install(cache: &Path) -> std::io::Result<()> {
-    let attempts: [&[&str]; 3] = [
-        &["--locked", "--features", "freeze-stdlib"],
-        &["--features", "freeze-stdlib"],
+    let attempts: [&[&str]; 2] = [
+        &["--locked", "--no-default-features", "--features", "freeze-stdlib"],
         &["--no-default-features", "--features", "freeze-stdlib"],
     ];
     let mut failures = String::new();
