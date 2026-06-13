@@ -251,6 +251,13 @@ function parseParams(params, context) {
       out.push({ name: "request" });
     } else if (bare === "jq" && type === "String") {
       out.push({ name: "jq" });
+    } else if (
+      bare === "transform" &&
+      (type === "Transform" || type === "crate::cli::command::Transform")
+    ) {
+      // The output transform (jq | python). `_transform`-named params
+      // (leaves that accept-and-ignore it) strip to `transform` above.
+      out.push({ name: "transform" });
     } else {
       throw new Error(`${context}: unrecognized param \`${raw}\``);
     }
@@ -264,11 +271,19 @@ function parseParams(params, context) {
  * which executor method finishes it. Hard-errors on residue.
  */
 function parseBody(body, context) {
-  const mutations = { jq: null, stream: null };
+  const mutations = { jq: null, transform: null, stream: null };
   let rest = body;
   const fragments = [
     [/^request\.jq = None;\s*/, () => (mutations.jq = "clear")],
     [/^request\.jq = Some\(jq\);\s*/, () => (mutations.jq = "set")],
+    [
+      /^request\.base\.clear_transform\(\);\s*/,
+      () => (mutations.transform = "clear"),
+    ],
+    [
+      /^request\.base\.set_transform\(transform\);\s*/,
+      () => (mutations.transform = "set"),
+    ],
     [
       /^let mut advanced = request\.dangerous_advanced\.unwrap_or_default\(\); advanced\.stream = Some\(true\); request\.dangerous_advanced = Some\(advanced\);\s*/,
       () => (mutations.stream = "set"),
@@ -599,17 +614,27 @@ function main() {
         // The caller never passes the discriminator — it's injected.
         const requestParamType = `Omit<${requestModule.pascal}, ${JSON.stringify(pathConst.field)}>`;
         const jsParams = params
-          .map((p) =>
-            p.name === "request"
-              ? `request: ${requestParamType}`
-              : "jq: string",
-          )
+          .map((p) => {
+            if (p.name === "request") return `request: ${requestParamType}`;
+            if (p.name === "transform")
+              return "transform: { jq: string } | { python: string }";
+            return "jq: string";
+          })
           .join(", ");
 
         // Wire value: mutations + injected discriminator.
         const fields = [`...request`];
         if (mutations.jq === "clear") fields.push("jq: undefined");
         if (mutations.jq === "set") fields.push("jq");
+        // The transform pair (jq | python). Clear nulls both; set nulls
+        // both then spreads the chosen one (python overrides jq is moot
+        // — the param is exactly one variant).
+        if (mutations.transform === "clear") {
+          fields.push("jq: undefined", "python: undefined");
+        }
+        if (mutations.transform === "set") {
+          fields.push("jq: undefined", "python: undefined", "...transform");
+        }
         if (mutations.stream === "set") {
           fields.push(
             "dangerous_advanced: { ...(request.dangerous_advanced ?? {}), stream: true }",
