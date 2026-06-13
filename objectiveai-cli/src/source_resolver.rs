@@ -61,10 +61,20 @@ where
             .map_err(crate::error::Error::InlineDeserialize);
     }
     if let Some(code) = python_inline {
-        return ctx.python().await?.exec_code(&code).await;
+        return ctx
+            .python()
+            .await?
+            .exec_code(&code, None::<()>)
+            .await?
+            .ok_or(crate::error::Error::PythonNoOutput);
     }
     if let Some(path) = python_file {
-        return ctx.python().await?.exec_file(&path).await;
+        return ctx
+            .python()
+            .await?
+            .exec_file(&path, None::<()>)
+            .await?
+            .ok_or(crate::error::Error::PythonNoOutput);
     }
     unreachable!("clap group ensures one of the five flags is set")
 }

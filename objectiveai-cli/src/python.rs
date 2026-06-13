@@ -96,14 +96,25 @@ impl Python {
     }
 
     /// Execute inline Python code and deserialize its output as JSON
-    /// into `T`. The harness envelope carries `eval` (bare trailing
-    /// expression value) and `stdout` (captured prints); `eval` is
-    /// tried first, then `stdout`.
-    pub async fn exec_code<T: serde::de::DeserializeOwned>(
-        &self,
-        code: &str,
-    ) -> Result<T, Error> {
-        let wrapped = wrap_code(code);
+    /// into `T`. `input` (any serializable value, or `None`) is exposed
+    /// to the code as a global `input` variable.
+    ///
+    /// The harness envelope carries `eval` (bare trailing expression
+    /// value) and `stdout` (captured prints); `eval` is tried first,
+    /// then `stdout`. `Ok(None)` means the script produced NO output
+    /// (no trailing expression and nothing printed) — callers that
+    /// require a value treat that as an error; output transforms treat
+    /// it as "skip".
+    pub async fn exec_code<I, T>(&self, code: &str, input: Option<I>) -> Result<Option<T>, Error>
+    where
+        I: serde::Serialize,
+        T: serde::de::DeserializeOwned,
+    {
+        let input = match input {
+            Some(i) => serde_json::to_value(i).map_err(Error::InlineJson)?,
+            None => serde_json::Value::Null,
+        };
+        let wrapped = wrap_code(code, &input);
         let engine = self.engine.clone();
         let module = self.module.clone();
         // Wasm execution is blocking CPU work.
@@ -114,15 +125,17 @@ impl Python {
     }
 
     /// Execute a Python script file (read host-side) and deserialize
-    /// its output as JSON into `T`.
-    pub async fn exec_file<T: serde::de::DeserializeOwned>(
-        &self,
-        path: &Path,
-    ) -> Result<T, Error> {
+    /// its output as JSON into `T`. See [`Self::exec_code`] for the
+    /// `input` and `Ok(None)` semantics.
+    pub async fn exec_file<I, T>(&self, path: &Path, input: Option<I>) -> Result<Option<T>, Error>
+    where
+        I: serde::Serialize,
+        T: serde::de::DeserializeOwned,
+    {
         let code = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| Error::PythonFileRead(path.to_path_buf(), e))?;
-        self.exec_code(&code).await
+        self.exec_code(&code, input).await
     }
 }
 
@@ -259,7 +272,8 @@ fn wasm_err(e: wasmtime::Error) -> Error {
 
 /// Parse the harness envelope: `eval` first (non-null means the last
 /// statement was a bare expression), then the captured `stdout`.
-fn parse_envelope<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, Error> {
+/// `Ok(None)` means no output at all — a null `eval` AND empty stdout.
+fn parse_envelope<T: serde::de::DeserializeOwned>(raw: &str) -> Result<Option<T>, Error> {
     let envelope: HarnessOutput = serde_json::from_str(raw)
         .map_err(|e| Error::PythonHarnessBroken(e.to_string()))?;
 
@@ -267,16 +281,26 @@ fn parse_envelope<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, Error>
         let eval_str = envelope.eval.to_string();
         let mut de = serde_json::Deserializer::from_str(&eval_str);
         match serde_path_to_error::deserialize(&mut de) {
-            Ok(result) => return Ok(result),
+            Ok(result) => return Ok(Some(result)),
             Err(e) => Some(e),
         }
     } else {
         None
     };
 
+    // No usable `eval`. Empty stdout ⇒ genuinely no output (`None`);
+    // an `eval` that was present but failed to deserialize is a real
+    // error, not "no output".
+    if envelope.stdout.trim().is_empty() {
+        return match eval_err {
+            Some(e) => Err(Error::PythonDeserialize(e)),
+            None => Ok(None),
+        };
+    }
+
     let mut de = serde_json::Deserializer::from_str(&envelope.stdout);
     match serde_path_to_error::deserialize(&mut de) {
-        Ok(result) => Ok(result),
+        Ok(result) => Ok(Some(result)),
         Err(stdout_err) => Err(Error::PythonDeserialize(eval_err.unwrap_or(stdout_err))),
     }
 }
@@ -287,17 +311,23 @@ fn parse_envelope<T: serde::de::DeserializeOwned>(raw: &str) -> Result<T, Error>
 /// user code is base64-embedded purely so arbitrary source text
 /// survives inclusion in the harness source. No defensive measures —
 /// see the module docs.
-fn wrap_code(code: &str) -> String {
+fn wrap_code(code: &str, input: &serde_json::Value) -> String {
     use base64::Engine as _;
     let encoded = base64::engine::general_purpose::STANDARD.encode(code);
+    // Serializing a `Value` is infallible; fall back to JSON null.
+    let input_json = serde_json::to_string(input).unwrap_or_else(|_| "null".to_string());
+    let encoded_input = base64::engine::general_purpose::STANDARD.encode(input_json);
+    // `input` is exposed to user code as a global, decoded from JSON at
+    // runtime (JSON literals aren't Python literals — `true`/`null`).
     format!(
         r#"
 import ast as __oai_ast, json as __oai_json, sys as __oai_sys, io as __oai_io, base64 as __oai_b64
 __oai_tree = __oai_ast.parse(__oai_b64.b64decode("{encoded}").decode())
+__oai_input = __oai_json.loads(__oai_b64.b64decode("{encoded_input}").decode())
 __oai_capture = __oai_io.StringIO()
 __oai_sys.stdout = __oai_capture
 __oai_eval = None
-__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__}}
+__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__, "input": __oai_input}}
 if __oai_tree.body and isinstance(__oai_tree.body[-1], __oai_ast.Expr):
     __oai_last = __oai_tree.body.pop()
     exec(compile(__oai_tree, "<inline>", "exec"), __oai_globals)

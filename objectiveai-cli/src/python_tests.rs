@@ -33,7 +33,10 @@ async fn py() -> &'static Python {
 }
 
 async fn exec<T: serde::de::DeserializeOwned>(code: &str) -> Result<T, crate::error::Error> {
-    py().await.exec_code(code).await
+    py().await
+        .exec_code::<(), T>(code, None)
+        .await?
+        .ok_or(crate::error::Error::PythonNoOutput)
 }
 
 // -- Bare expressions and prints --
@@ -907,7 +910,7 @@ async fn error_deser_bare_tuple() {
 async fn error_file_not_found() {
     let err = py()
         .await
-        .exec_file::<Foo>(std::path::Path::new("/nonexistent/path/script.py"))
+        .exec_file::<(), Foo>(std::path::Path::new("/nonexistent/path/script.py"), None)
         .await
         .unwrap_err();
     assert!(matches!(err, crate::error::Error::PythonFileRead(_, _)));

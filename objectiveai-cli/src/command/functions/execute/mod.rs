@@ -29,8 +29,8 @@ pub(super) async fn resolve_function(
     match spec {
         FunctionSpec::Resolved(r) => Ok(r),
         FunctionSpec::File(path) => read_json_file(&path),
-        FunctionSpec::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
-        FunctionSpec::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
+        FunctionSpec::PythonInline(code) => ctx.python().await?.exec_code(&code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        FunctionSpec::PythonFile(path) => ctx.python().await?.exec_file(&path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
@@ -41,8 +41,8 @@ pub(super) async fn resolve_profile(
     match spec {
         ProfileSpec::Resolved(r) => Ok(r),
         ProfileSpec::File(path) => read_json_file(&path),
-        ProfileSpec::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
-        ProfileSpec::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
+        ProfileSpec::PythonInline(code) => ctx.python().await?.exec_code(&code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        ProfileSpec::PythonFile(path) => ctx.python().await?.exec_file(&path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
@@ -54,14 +54,14 @@ pub(super) async fn resolve_input_python_inline(
     ctx: &Context,
     code: String,
 ) -> Result<InputValue, Error> {
-    ctx.python().await?.exec_code(&code).await
+    ctx.python().await?.exec_code(&code, None::<()>).await?.ok_or(Error::PythonNoOutput)
 }
 
 pub(super) async fn resolve_input_python_file(
     ctx: &Context,
     path: PathBuf,
 ) -> Result<InputValue, Error> {
-    ctx.python().await?.exec_file(&path).await
+    ctx.python().await?.exec_file(&path, None::<()>).await?.ok_or(Error::PythonNoOutput)
 }
 
 /// Read a JSON file and deserialize as `T`. Used by every `*-file`

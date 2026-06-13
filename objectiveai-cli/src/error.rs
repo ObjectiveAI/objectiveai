@@ -24,6 +24,8 @@ pub enum Error {
     JsonFileRead(std::path::PathBuf, std::io::Error),
     #[error("python exception:\n{0}")]
     PythonException(String),
+    #[error("python script produced no output")]
+    PythonNoOutput,
     #[error("python output deserialization failed: {0}")]
     PythonDeserialize(serde_path_to_error::Error<serde_json::Error>),
     #[error("internal error: python harness output is malformed: {0}")]

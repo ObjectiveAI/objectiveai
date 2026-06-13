@@ -11,11 +11,13 @@ use std::any::{Any, TypeId};
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
+use std::sync::Arc;
 use std::task::{Context as TaskContext, Poll};
 
 use futures::{Stream, StreamExt, TryStreamExt};
 use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest, CommandResponse, ResponseItem, parse_request,
+    AgentArguments, CommandExecutor, CommandRequest, CommandResponse, ResponseItem, Transform,
+    parse_request,
 };
 use serde_json::Value;
 
@@ -125,6 +127,10 @@ impl CommandExecutor for CliCommandExecutor {
         // Own the ctx so the deferred dispatch future can hold it —
         // the returned stream is `'static` and outlives this call.
         let ctx = self.resolve_ctx(agent_arguments).into_owned();
+        // The Python transform adapter needs its own ctx handle (for
+        // the python runtime); clone one before `ctx` is moved into the
+        // dispatch future, but only when a transform is actually set.
+        let transform_ctx = transform.as_ref().map(|_| ctx.clone());
 
         // Base stream ("the first one"): don't await the dispatcher
         // here. Wrap the `Future<Result<Stream<Result<ResponseItem>>>>`
@@ -146,6 +152,21 @@ impl CommandExecutor for CliCommandExecutor {
         // ([`ConvertStream`] — identity fast-path when `T ==
         // ResponseItem`, else a serde round-trip).
         let mut stream: Self::Stream<T> = Box::pin(ConvertStream::new(source));
+
+        // Conditional: an output transform ([`PythonTransformStream`]) — each
+        // item is fed to the script and its (non-null) output replaces
+        // it; null output skips the item. Comes BEFORE the token budget
+        // so the budget counts the transformed output.
+        if let Some(transform) = transform {
+            match transform {
+                Transform::Python(code) => {
+                    let ctx = transform_ctx.expect("cloned whenever a transform is present");
+                    stream = Box::pin(PythonTransformStream::new(stream, ctx, code));
+                }
+                // jq output transform is not yet implemented.
+                Transform::Jq(_) => unimplemented!("jq output transform"),
+            }
+        }
 
         // Conditional: a running token budget over the serialized output
         // ([`TokenCountStream`]). Sits BEFORE the timeout so the deadline
@@ -240,6 +261,89 @@ fn convert_item<T: serde::de::DeserializeOwned + 'static>(
         let value = serde_json::to_value(item).map_err(Error::InlineJson)?;
         extract_leaf::<T>(value).map_err(Error::InlineJson)
     }
+}
+
+/// Stream adapter: a Python output transform with null-skip.
+///
+/// Each upstream item is fed to the script as the global `input`; the
+/// script's output is taken back. NO output (a null result / nothing
+/// printed) SKIPS the item (nothing is yielded); any other output is
+/// deserialized back into `T` and yielded. Upstream errors pass
+/// through. The runtime call is async, so the in-flight future is held
+/// across polls (one item transformed at a time).
+struct PythonTransformStream<S, T> {
+    inner: S,
+    ctx: Context,
+    code: Arc<str>,
+    pending: Option<Pin<Box<dyn Future<Output = Result<Option<T>, Error>> + Send>>>,
+    _marker: PhantomData<fn() -> T>,
+}
+
+impl<S, T> PythonTransformStream<S, T> {
+    fn new(inner: S, ctx: Context, code: String) -> Self {
+        Self {
+            inner,
+            ctx,
+            code: Arc::from(code),
+            pending: None,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<S, T> Stream for PythonTransformStream<S, T>
+where
+    S: Stream<Item = Result<T, Error>> + Unpin,
+    T: serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
+{
+    type Item = Result<T, Error>;
+
+    fn poll_next(self: Pin<&mut Self>, cx: &mut TaskContext<'_>) -> Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        loop {
+            // Drive an in-flight transform to completion first.
+            if let Some(fut) = this.pending.as_mut() {
+                match fut.as_mut().poll(cx) {
+                    Poll::Ready(Ok(Some(t))) => {
+                        this.pending = None;
+                        return Poll::Ready(Some(Ok(t)));
+                    }
+                    // null output → skip; fall through to pull the next item.
+                    Poll::Ready(Ok(None)) => this.pending = None,
+                    Poll::Ready(Err(e)) => {
+                        this.pending = None;
+                        return Poll::Ready(Some(Err(e)));
+                    }
+                    Poll::Pending => return Poll::Pending,
+                }
+            }
+            // No in-flight transform — pull the next upstream item.
+            match Pin::new(&mut this.inner).poll_next(cx) {
+                Poll::Ready(Some(Ok(item))) => {
+                    let ctx = this.ctx.clone();
+                    let code = Arc::clone(&this.code);
+                    this.pending = Some(Box::pin(async move {
+                        transform_item::<T>(&ctx, &code, item).await
+                    }));
+                    // loop to poll the freshly-built future
+                }
+                Poll::Ready(Some(Err(e))) => return Poll::Ready(Some(Err(e))),
+                Poll::Ready(None) => return Poll::Ready(None),
+                Poll::Pending => return Poll::Pending,
+            }
+        }
+    }
+}
+
+/// Run the Python transform for one item: feed it as `input`, take the
+/// output. `None` ⇔ the script produced no output (skip the item);
+/// otherwise the output deserialized back into `T`.
+async fn transform_item<T: serde::Serialize + serde::de::DeserializeOwned>(
+    ctx: &Context,
+    code: &str,
+    item: T,
+) -> Result<Option<T>, Error> {
+    ctx.python().await?.exec_code(code, Some(item)).await
 }
 
 /// Stream adapter: a running token budget over the serialized output.

@@ -42,8 +42,8 @@ async fn resolve_body(ctx: &Context, body: RequestBody) -> Result<RemoteSwarmBas
             let mut de = serde_json::Deserializer::from_str(&contents);
             serde_path_to_error::deserialize(&mut de).map_err(Error::InlineDeserialize)
         }
-        RequestBody::PythonInline(code) => ctx.python().await?.exec_code(&code).await,
-        RequestBody::PythonFile(path) => ctx.python().await?.exec_file(&path).await,
+        RequestBody::PythonInline(code) => ctx.python().await?.exec_code(&code, None::<()>).await?.ok_or(Error::PythonNoOutput),
+        RequestBody::PythonFile(path) => ctx.python().await?.exec_file(&path, None::<()>).await?.ok_or(Error::PythonNoOutput),
     }
 }
 
