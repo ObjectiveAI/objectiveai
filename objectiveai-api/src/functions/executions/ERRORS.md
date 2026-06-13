@@ -8,12 +8,7 @@ Every unique error path that can occur during a function execution, including de
 
 These terminate the stream before any chunks are produced.
 
-### 1.1 `InvalidRetryToken` (400)
-**Trigger:** `retry_token` field contains a string that fails `RetryToken::try_from_string()`.
-**Location:** `client.rs:682-688`
-**Strategy:** Pass a garbage `retry_token` string in the request body. Does NOT require any mock function/profile — just an invalid token string. However, current test setup always uses `retry_token: None`. Would need to add a test that sets `retry_token: Some("invalid")`.
-
-### 1.2 `InvalidFunctionForStrategy` — missing input_split/input_merge (400)
+### 1.1 `InvalidFunctionForStrategy` — missing input_split/input_merge (400)
 **Trigger:** Request has `strategy: SwissSystem` but the inline function is not a vector type with both `input_split` and `input_merge`.
 **Location:** `client.rs:705-717`
 **Strategy:** UNABLE TO TRIGGER with mock remote functions. This check only fires for `request.inline_function()` which returns `Some(...)` only for `Request::FunctionInlineProfileRemote` or `Request::FunctionInlineProfileInline` variants. Our tests use `Request::FunctionRemoteProfileRemote`. Would need a new request variant with an inline scalar function + Swiss strategy.
@@ -252,8 +247,7 @@ These are non-fatal — execution completes and the error is reported in the fin
 
 | # | Error | Triggerable? | Notes |
 |---|-------|-------------|-------|
-| 1.1 | InvalidRetryToken | Yes | Invalid retry_token string |
-| 1.2 | InvalidFunctionForStrategy (inline) | No | Requires inline function request variant |
+| 1.1 | InvalidFunctionForStrategy (inline) | No | Requires inline function request variant |
 | 1.3 | InvalidFunctionForStrategy (scalar) | Yes | Scalar function + Swiss strategy |
 | 1.4 | InvalidStrategy | Yes | pool=1 or rounds=0 with Swiss |
 | 2.1 | FunctionNotFound | Yes | Non-existent mock repo |

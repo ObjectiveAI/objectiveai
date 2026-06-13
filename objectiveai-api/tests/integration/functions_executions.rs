@@ -38,8 +38,6 @@ fn make_request(
                 name: profile_repo.to_string(),
             },
         ),
-        retry_token: None,
-        from_cache: None,
         reasoning: None,
         strategy: None,
         input,
@@ -1032,8 +1030,6 @@ async fn test_inline_scalar_placeholder_seed_42() {
                 },
             ),
         ),
-        retry_token: None,
-        from_cache: None,
         reasoning: None,
         strategy: None,
         input: InputValue::Object(indexmap::indexmap! {
@@ -1259,22 +1255,6 @@ async fn test_mock_24_scalar_mapped_branch_with_func_2_items_seed_42() {
 // ===========================================================================
 // Error tests
 // ===========================================================================
-
-#[tokio::test]
-async fn test_error_1_1_invalid_retry_token() {
-    let request = make_request_with_overrides(
-        "binary-classifier",
-        "solo-instruction",
-        |p| {
-            p.retry_token = Some("not-a-valid-retry-token!!!".to_string());
-            p.input = InputValue::Object(indexmap::indexmap! {
-                "text".into() => InputValue::String("test".into()),
-            });
-        },
-    );
-    let body = post_expect_err_kind(request, 400).await;
-    assert!(body.contains("invalid_retry_token"), "unexpected error: {body}");
-}
 
 #[tokio::test]
 async fn test_error_1_3_scalar_function_swiss_strategy() {
@@ -1713,8 +1693,6 @@ async fn test_split_scalar_binary_seed_42() {
                 name: "solo-instruction".to_string(),
             },
         ),
-        retry_token: None,
-        from_cache: None,
         reasoning: None,
         strategy: None,
         input: InputValue::Array(vec![
@@ -1812,8 +1790,6 @@ async fn test_split_tweet_scorer_10_tweets_seed_42() {
                 vec![Decimal::ONE, Decimal::ONE],
             )),
         ),
-        retry_token: None,
-        from_cache: None,
         reasoning: None,
         strategy: None,
         input,
@@ -1853,8 +1829,6 @@ async fn test_vector_tweet_ranker_10_tweets_seed_42() {
                 vec![Decimal::new(4, 1), Decimal::new(6, 1)],
             )),
         ),
-        retry_token: None,
-        from_cache: None,
         reasoning: None,
         strategy: None,
         input: InputValue::Object(indexmap::indexmap! {

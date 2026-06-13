@@ -129,48 +129,6 @@ impl crate::functions::executions::usage_handler::UsageHandler<ctx::DefaultConte
 }
 
 // ---------------------------------------------------------------------------
-// Stub vector completion vote fetchers — always return None.
-// ---------------------------------------------------------------------------
-
-pub(crate) struct StubCompletionVotesFetcher;
-
-#[async_trait::async_trait]
-impl crate::vector::completions::completion_votes_fetcher::Fetcher<ctx::DefaultContextExt>
-    for StubCompletionVotesFetcher
-{
-    async fn fetch<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _id: &str,
-    ) -> Result<
-        Option<Vec<objectiveai_sdk::vector::completions::response::Vote>>,
-        objectiveai_sdk::error::ResponseError,
-    > {
-        Ok(None)
-    }
-}
-
-pub(crate) struct StubCacheVoteFetcher;
-
-#[async_trait::async_trait]
-impl crate::vector::completions::cache_vote_fetcher::Fetcher<ctx::DefaultContextExt>
-    for StubCacheVoteFetcher
-{
-    async fn fetch<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
-        _agent: &objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote,
-        _messages: &[objectiveai_sdk::agent::completions::message::Message],
-        _responses: &[objectiveai_sdk::agent::completions::message::RichContent],
-    ) -> Result<
-        Option<objectiveai_sdk::vector::completions::response::Vote>,
-        objectiveai_sdk::error::ResponseError,
-    > {
-        Ok(None)
-    }
-}
-
-// ---------------------------------------------------------------------------
 // Concrete-type aliases.
 // ---------------------------------------------------------------------------
 
@@ -212,8 +170,6 @@ pub(crate) type VectorClient = crate::vector::completions::Client<
     StubRetrieveClient,
     crate::retrieval::retrieve::mock::MockClient,
     StubAgentUsageHandler,
-    StubCompletionVotesFetcher,
-    StubCacheVoteFetcher,
     StubVectorUsageHandler,
 >;
 
@@ -224,8 +180,6 @@ pub(crate) type FunctionExecutionsClient = crate::functions::executions::Client<
     UnimplementedUpstreamClient,
     crate::agent::completions::mock::Client,
     StubAgentUsageHandler,
-    StubCompletionVotesFetcher,
-    StubCacheVoteFetcher,
     StubVectorUsageHandler,
     StubRetrieveClient,
     StubRetrieveClient,
@@ -389,10 +343,6 @@ static STUB_VECTOR_USAGE_HANDLER: LazyLock<Arc<StubVectorUsageHandler>> =
     LazyLock::new(|| Arc::new(StubVectorUsageHandler));
 static STUB_FUNCTION_USAGE_HANDLER: LazyLock<Arc<StubFunctionUsageHandler>> =
     LazyLock::new(|| Arc::new(StubFunctionUsageHandler));
-static STUB_COMPLETION_VOTES_FETCHER: LazyLock<Arc<StubCompletionVotesFetcher>> =
-    LazyLock::new(|| Arc::new(StubCompletionVotesFetcher));
-static STUB_CACHE_VOTE_FETCHER: LazyLock<Arc<StubCacheVoteFetcher>> =
-    LazyLock::new(|| Arc::new(StubCacheVoteFetcher));
 static UNIMPLEMENTED_OPENROUTER: LazyLock<Arc<UnimplementedUpstreamClient>> =
     LazyLock::new(|| Arc::new(UnimplementedUpstreamClient));
 static UNIMPLEMENTED_CLAUDE_AGENT_SDK: LazyLock<Arc<UnimplementedUpstreamClient>> =
@@ -428,8 +378,6 @@ static VECTOR: LazyLock<Arc<VectorClient>> = LazyLock::new(|| {
     Arc::new(crate::vector::completions::Client::new(
         AGENT.clone(),
         AGENT_RETRIEVE_ROUTER.clone(),
-        STUB_COMPLETION_VOTES_FETCHER.clone(),
-        STUB_CACHE_VOTE_FETCHER.clone(),
         STUB_VECTOR_USAGE_HANDLER.clone(),
     ))
 });

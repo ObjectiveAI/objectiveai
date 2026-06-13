@@ -11,14 +11,6 @@ pub struct FunctionProfileComputationCreateParams {
     /// The function to compute a profile for (inline definition or remote path).
     pub function: functions::FullInlineFunctionOrRemoteCommitOptional,
 
-    // --- Caching and retry options ---
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub from_cache: Option<bool>,
-
     // --- Core configuration ---
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

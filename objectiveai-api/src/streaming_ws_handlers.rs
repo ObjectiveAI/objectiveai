@@ -157,8 +157,6 @@ pub(crate) async fn create_vector_completion_ws<
         vector::completions::Client<
             ctx::DefaultContextExt,
             OR, CAG, CX, MK, RG, RF, RM, AU,
-            impl vector::completions::completion_votes_fetcher::Fetcher<ctx::DefaultContextExt> + Send + Sync + 'static,
-            impl vector::completions::cache_vote_fetcher::Fetcher<ctx::DefaultContextExt> + Send + Sync + 'static,
             impl vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
@@ -276,12 +274,12 @@ where
 }
 
 pub(crate) async fn execute_function_ws<
-    OR, CAG, CX, MK, AU, CVF, CACHEF, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         functions::executions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, AU, CVF, CACHEF, VAU, RG, RF, RM, FAU,
+            OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU,
         >,
     >,
     _agent_completions_client: Arc<
@@ -307,8 +305,6 @@ where
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send + Sync + 'static,
     AU: agent::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
-    CVF: vector::completions::completion_votes_fetcher::Fetcher<ctx::DefaultContextExt> + Send + Sync + 'static,
-    CACHEF: vector::completions::cache_vote_fetcher::Fetcher<ctx::DefaultContextExt> + Send + Sync + 'static,
     VAU: vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
     RG: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     RF: retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,

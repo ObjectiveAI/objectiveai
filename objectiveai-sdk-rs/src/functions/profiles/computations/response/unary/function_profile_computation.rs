@@ -15,7 +15,6 @@ pub struct FunctionProfileComputation {
     pub executions_errors: bool,
     pub profile: functions::InlineTasksProfile,
     pub fitting_stats: response::FittingStats,
-    pub retry_token: Option<String>,
     pub created: u64,
     pub function: Option<crate::RemotePath>,
     pub object: super::Object,
@@ -40,7 +39,6 @@ impl From<response::streaming::FunctionProfileComputationChunk>
             executions_errors,
             profile,
             fitting_stats,
-            retry_token,
             created,
             function,
             object,
@@ -60,7 +58,6 @@ impl From<response::streaming::FunctionProfileComputationChunk>
             }),
             fitting_stats: fitting_stats
                 .unwrap_or(response::FittingStats::default()),
-            retry_token,
             created,
             function,
             object: object.into(),

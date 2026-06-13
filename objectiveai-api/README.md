@@ -173,8 +173,6 @@ Each layer uses traits for dependency injection:
 
 ### Vector Completions
 - `POST /vector/completions` - Create vector completion
-- `POST /vector/completions/{id}` - Get completion votes
-- `POST /vector/completions/cache` - Get cached vote
 
 ### Functions
 - `GET /functions` - List functions

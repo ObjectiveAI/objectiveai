@@ -12,16 +12,6 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "vector.completions.request.VectorCompletionCreateParams")]
 pub struct VectorCompletionCreateParams {
-    // --- Caching and retry options ---
-    /// If present, reuses votes from a previous request with this ID.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry: Option<String>,
-    /// If true, uses cached votes when available.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub from_cache: Option<bool>,
-
     // --- Core configuration ---
     /// The conversation messages (the prompt).
     pub messages: Vec<agent::completions::message::Message>,

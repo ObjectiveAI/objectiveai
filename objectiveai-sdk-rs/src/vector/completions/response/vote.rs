@@ -66,18 +66,6 @@ pub struct Vote {
     #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)]
     pub weight: rust_decimal::Decimal,
 
-    // --- Source flags ---
-    /// If true, this vote was reused from a previous request via the `retry`
-    /// parameter. All fields reflect the original request's values.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry: Option<bool>,
-
-    /// If true, this vote was retrieved from cache rather than generated fresh.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub from_cache: Option<bool>,
-
     // --- Internal ---
     /// Internal index for correlating with completions. Not serialized.
     #[serde(skip)]
@@ -102,8 +90,6 @@ impl ToStarlarkValue for Vote {
             ("responses_ids", self.responses_ids.to_starlark_value(heap)),
             ("vote", self.vote.to_starlark_value(heap)),
             ("weight", self.weight.to_starlark_value(heap)),
-            ("retry", self.retry.to_starlark_value(heap)),
-            ("from_cache", self.from_cache.to_starlark_value(heap)),
         ]))
     }
 }

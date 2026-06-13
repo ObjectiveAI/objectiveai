@@ -12,7 +12,6 @@ pub struct Request {
     pub profile: ProfileSpec,
     pub input: RequestInput,
     pub continuation: Option<String>,
-    pub retry_token: Option<String>,
     pub split: bool,
     pub invert: bool,
     pub pool: Option<usize>,
@@ -78,10 +77,6 @@ impl CommandRequest for Request {
         if let Some(c) = &self.continuation {
             argv.push("--continuation".to_string());
             argv.push(c.clone());
-        }
-        if let Some(t) = &self.retry_token {
-            argv.push("--retry-token".to_string());
-            argv.push(t.clone());
         }
         if self.split {
             argv.push("--split".to_string());
@@ -184,9 +179,6 @@ pub struct Args {
     /// Continuation token from a previous response.
     #[arg(long)]
     pub continuation: Option<String>,
-    /// Retry token from a previous execution.
-    #[arg(long)]
-    pub retry_token: Option<String>,
     /// Treat input as an array and execute once per element.
     #[arg(long)]
     pub split: bool,
@@ -254,7 +246,6 @@ impl TryFrom<Args> for Request {
             profile,
             input,
             continuation: args.continuation,
-            retry_token: args.retry_token,
             split: args.split,
             invert: args.invert,
             pool: args.pool,

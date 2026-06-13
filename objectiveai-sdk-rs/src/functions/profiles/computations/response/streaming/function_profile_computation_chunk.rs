@@ -30,9 +30,6 @@ pub struct FunctionProfileComputationChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub fitting_stats: Option<response::FittingStats>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<String>,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
     pub function: Option<crate::RemotePath>,
@@ -64,7 +61,6 @@ impl FunctionProfileComputationChunk {
             executions_errors,
             profile,
             fitting_stats,
-            retry_token,
             usage,
             ..
         }: &FunctionProfileComputationChunk,
@@ -78,9 +74,6 @@ impl FunctionProfileComputationChunk {
         }
         if let Some(fitting_stats) = fitting_stats {
             self.fitting_stats = Some(fitting_stats.clone());
-        }
-        if let Some(retry_token) = retry_token {
-            self.retry_token = Some(retry_token.clone());
         }
         match (&mut self.usage, usage) {
             (Some(self_usage), Some(other_usage)) => {

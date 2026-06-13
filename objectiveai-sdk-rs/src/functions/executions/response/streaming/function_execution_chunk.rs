@@ -30,9 +30,6 @@ pub struct FunctionExecutionChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub error: Option<error::ResponseError>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<String>,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
     pub function: Option<crate::RemotePath>,
@@ -167,7 +164,6 @@ impl FunctionExecutionChunk {
             tasks_errors,
             reasoning,
             output,
-            retry_token,
             error,
             usage,
             ..
@@ -188,9 +184,6 @@ impl FunctionExecutionChunk {
         }
         if let Some(output) = output {
             self.output = Some(output.clone());
-        }
-        if let Some(retry_token) = retry_token {
-            self.retry_token = Some(retry_token.clone());
         }
         if let Some(error) = error {
             self.error = Some(error.clone());

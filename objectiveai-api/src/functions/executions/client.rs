@@ -376,8 +376,6 @@ pub struct Client<
     CODEXSDK,
     MOCK,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
     RETRG,
     RETRF,
@@ -398,8 +396,6 @@ pub struct Client<
             RETRF,
             RETRM,
             ACUSG,
-            FVVOTE,
-            FCVOTE,
             VUSG,
         >,
     >,
@@ -417,8 +413,6 @@ impl<
     CODEXSDK,
     MOCK,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
     RETRG,
     RETRF,
@@ -432,8 +426,6 @@ impl<
         CODEXSDK,
         MOCK,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
         RETRG,
         RETRF,
@@ -455,8 +447,6 @@ impl<
                 RETRF,
                 RETRM,
                 ACUSG,
-                FVVOTE,
-                FCVOTE,
                 VUSG,
             >,
         >,
@@ -481,8 +471,6 @@ impl<
     CODEXSDK,
     MOCK,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
     RETRG,
     RETRF,
@@ -496,8 +484,6 @@ impl<
         CODEXSDK,
         MOCK,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
         RETRG,
         RETRF,
@@ -511,14 +497,6 @@ where
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-        FVVOTE: vector::completions::completion_votes_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-    FCVOTE: vector::completions::cache_vote_fetcher::Fetcher<CTXEXT>
         + Send
         + Sync
         + 'static,
@@ -636,8 +614,6 @@ impl<
     CODEXSDK,
     MOCK,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
     RETRG,
     RETRF,
@@ -651,8 +627,6 @@ impl<
         CODEXSDK,
         MOCK,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
         RETRG,
         RETRF,
@@ -666,14 +640,6 @@ where
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-        FVVOTE: vector::completions::completion_votes_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-    FCVOTE: vector::completions::cache_vote_fetcher::Fetcher<CTXEXT>
         + Send
         + Sync
         + 'static,
@@ -699,11 +665,6 @@ where
         futures::stream::BoxStream<'static, objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk>,
         super::Error,
     >{
-        // Reject conflicting from_cache + continuation.
-        if request.from_cache.is_some_and(|b| b) && request.continuation.is_some() {
-            return Err(super::Error::CacheAndContinuationConflict);
-        }
-
         // timestamp the completion
         let created = time::SystemTime::now()
             .duration_since(time::UNIX_EPOCH)
@@ -712,20 +673,6 @@ where
 
         // generate response id
         let response_id = response_id(created);
-
-
-        // parse retry token if provided
-        let retry_token = request
-            .retry_token
-            .as_ref()
-            .map(|token_str| {
-                objectiveai_sdk::functions::executions::RetryToken::try_from_string(
-                    token_str,
-                )
-                .ok_or(super::Error::InvalidRetryToken)
-            })
-            .transpose()?
-            .map(Arc::new);
 
         let request_input = request.input.clone();
 
@@ -752,14 +699,12 @@ where
                 let this = self.clone();
                 let ctx = ctx.clone();
                 let request = request.clone();
-                let retry_token = retry_token.clone();
                 let inner_response_id = self::response_id(created);
                 async move {
                     this.execute_for_input(
                         ctx,
                         request,
                         element,
-                        retry_token,
                         inner_response_id,
                         created,
                         Some(split_idx as u64),
@@ -859,7 +804,6 @@ where
                         reasoning: None,
                         output: None,
                         error: None,
-                        retry_token: None,
                         created,
                         function: function_path.clone(),
                         profile: profile_path.clone(),
@@ -908,7 +852,6 @@ where
                     reasoning: None,
                     output: Some(objectiveai_sdk::functions::executions::response::Output { output: combined }),
                     error: None,
-                    retry_token: None,
                     created,
                     function: function_path,
                     profile: profile_path,
@@ -923,7 +866,6 @@ where
             ctx,
             request,
             request_input,
-            retry_token,
             response_id,
             created,
             None,
@@ -937,7 +879,6 @@ where
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         input: objectiveai_sdk::functions::expression::InputValue,
-        retry_token: Option<Arc<objectiveai_sdk::functions::executions::RetryToken>>,
         response_id: String,
         created: u64,
         split_index: Option<u64>,
@@ -1282,22 +1223,6 @@ where
             let mut usage =
                 objectiveai_sdk::agent::completions::response::Usage::default();
 
-            // track retry token index
-            let mut retry_token_indices = Vec::new();
-            let mut retry_token_index = 0;
-
-            // first round retry token (only first round gets retry tokens)
-            // calculate total task_index_len for first round before draining
-            let first_round_task_index_len: usize = ftps.iter()
-                .map(|ftp| ftp.task_index_len())
-                .sum();
-            let mut first_round_retry_token = objectiveai_sdk::functions::executions::RetryToken(
-                Vec::with_capacity(first_round_task_index_len),
-            );
-            for _ in 0..first_round_task_index_len {
-                first_round_retry_token.0.push(None);
-            }
-
             // track original indices: current_position -> original_index
             let num_items = split_input.len();
             let mut current_to_original: Vec<usize> = (0..num_items).collect();
@@ -1327,7 +1252,6 @@ where
                 // Each iteration: execute all pools, collect scores, re-sort
                 // items by cumulative score, re-pool for the next round.
                 'rounds: for current_round in 0..rounds {
-                    let is_first_round = current_round == 0;
                     let is_last_round = current_round == rounds - 1;
 
                     // Execute all pools for this round concurrently. Each pool
@@ -1336,7 +1260,6 @@ where
                     let mut streams = Vec::with_capacity(ftps.len());
 
                     for (i, ftp) in ftps.drain(..).enumerate() {
-                        let task_index_len = ftp.task_index_len();
                         let pool_task_index = swiss_task_index;
                         swiss_task_index += 1;
 
@@ -1345,15 +1268,6 @@ where
                             self.clone().execute_function_ftp_streaming(
                                 ctx.clone(),
                                 request.clone(),
-                                if is_first_round {
-                                    retry_token.clone().map(|retry_token| {
-                                        Arc::new(retry_token.clone_slice(
-                                            retry_token_index..retry_token_index + task_index_len,
-                                        ))
-                                    })
-                                } else {
-                                    None
-                                },
                                 ftp,
                                 None,
                                 created,
@@ -1364,8 +1278,6 @@ where
                                 split_index,
                             ).boxed(),
                         ));
-                        retry_token_indices.push(retry_token_index);
-                        retry_token_index += task_index_len;
                     }
 
                     // collect outputs from this round, keyed by pool index
@@ -1412,7 +1324,6 @@ where
                                     reasoning: None,
                                     output: None,
                                     error: None,
-                                    retry_token: None,
                                     created,
                                     function: function.clone(),
                                     profile: profile.clone(),
@@ -1420,13 +1331,7 @@ where
                                     usage: None,
                                 };
                             }
-                            FtpStreamChunk::OutputChunk { retry_token: chunk_retry_token, .. } => {
-                                // capture retry tokens from first round only
-                                if is_first_round {
-                                    let insert_idx = retry_token_indices.get(pool_idx).copied().unwrap_or(0);
-                                    first_round_retry_token.insert(insert_idx, chunk_retry_token);
-                                }
-                            }
+                            FtpStreamChunk::OutputChunk { .. } => {}
                             FtpStreamChunk::VectorCompletionTaskChunk(chunk) => {
                                 // track usage and errors
                                 tasks_errors |= chunk.error.is_some();
@@ -1598,10 +1503,6 @@ where
                                 index_maps.insert((next_round as u64, pool_idx), ftp_index_map);
                             }
                         }
-
-                        // reset retry token tracking for next round
-                        retry_token_indices.clear();
-                        retry_token_index = 0;
                     }
                 }
 
@@ -1748,7 +1649,6 @@ where
                             reasoning: Some(chunk),
                             output: None,
                             error: None,
-                            retry_token: None,
                             created,
                             function: function.clone(),
                             profile: profile.clone(),
@@ -1770,7 +1670,6 @@ where
                     reasoning: None,
                     output: Some(objectiveai_sdk::functions::executions::response::Output { output: objectiveai_sdk::functions::expression::TaskOutputOwned::Vector(final_output) }),
                     error: subsequent_round_error,
-                    retry_token: Some(first_round_retry_token.to_string()),
                     created,
                     function,
                     profile,
@@ -1785,7 +1684,6 @@ where
                 .execute_function_ftp_streaming(
                     ctx.clone(),
                     request.clone(),
-                    retry_token,
                     ftp,
                     Some(response_id.clone()),
                     created,
@@ -1970,7 +1868,6 @@ where
                             reasoning: Some(chunk),
                             output: None,
                             error: None,
-                            retry_token: None,
                             created: final_chunk.created,
                             function: final_chunk.function.clone(),
                             profile: final_chunk.profile.clone(),
@@ -1990,9 +1887,6 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
-        root_retry_token: Option<
-            Arc<objectiveai_sdk::functions::executions::RetryToken>,
-        >,
         ftp: functions::FlatTaskProfile,
         created: u64,
         task_index: u64,
@@ -2007,7 +1901,6 @@ where
                 .execute_function_ftp_streaming(
                     ctx,
                     request,
-                    root_retry_token,
                     function_ftp,
                     None,
                     created,
@@ -2023,7 +1916,6 @@ where
                 .execute_map_function_ftp_streaming(
                     ctx,
                     request,
-                    root_retry_token,
                     map_function_ftp,
                     created,
                     task_index,
@@ -2038,7 +1930,6 @@ where
                     self.clone().execute_vector_ftp_streaming(
                         ctx,
                         request,
-                        root_retry_token,
                         vector_ftp,
                         task_index,
                         choice_indexer,
@@ -2052,7 +1943,6 @@ where
                     self.clone().execute_map_vector_ftp_streaming(
                         ctx,
                         request,
-                        root_retry_token,
                         map_vector_ftp,
                         task_index,
                         choice_indexer,
@@ -2069,10 +1959,6 @@ where
                     FtpStreamChunk::OutputChunk {
                         task_index,
                         output,
-                        retry_token:
-                            objectiveai_sdk::functions::executions::RetryToken(
-                                vec![None],
-                            ),
                     }
                 })
                 .boxed()
@@ -2084,15 +1970,10 @@ where
                         .map(|_| rust_decimal::Decimal::new(5, 1))
                         .collect(),
                 );
-                let retry_len = ftp.task_index_len();
                 futures::stream::once(async move {
                     FtpStreamChunk::OutputChunk {
                         task_index,
                         output,
-                        retry_token:
-                            objectiveai_sdk::functions::executions::RetryToken(
-                                vec![None; retry_len],
-                            ),
                     }
                 })
                 .boxed()
@@ -2111,10 +1992,6 @@ where
                     FtpStreamChunk::OutputChunk {
                         task_index,
                         output,
-                        retry_token:
-                            objectiveai_sdk::functions::executions::RetryToken(
-                                vec![None],
-                            ),
                     }
                 })
                 .boxed()
@@ -2134,15 +2011,10 @@ where
                         })
                         .collect(),
                 );
-                let retry_len = ftp.task_index_len();
                 futures::stream::once(async move {
                     FtpStreamChunk::OutputChunk {
                         task_index,
                         output,
-                        retry_token:
-                            objectiveai_sdk::functions::executions::RetryToken(
-                                vec![None; retry_len],
-                            ),
                     }
                 })
                 .boxed()
@@ -2154,9 +2026,6 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
-        root_retry_token: Option<
-            Arc<objectiveai_sdk::functions::executions::RetryToken>,
-        >,
         ftp: functions::MapFunctionFlatTaskProfile,
         created: u64,
         task_index: u64,
@@ -2181,15 +2050,6 @@ where
             );
         }
 
-        // initialize retry token
-        let ftp_task_index_len = ftp.task_index_len();
-        let mut retry_token = objectiveai_sdk::functions::executions::RetryToken(
-            Vec::with_capacity(ftp_task_index_len),
-        );
-        for _ in 0..ftp_task_index_len {
-            retry_token.0.push(None);
-        }
-
         // Combine all mapped instance streams, polling them concurrently.
         // SelectAll polls every contained stream on every outer poll, so
         // the N mapped function instances actually run in parallel.
@@ -2202,7 +2062,6 @@ where
                 self.clone().execute_function_ftp_streaming(
                     ctx.clone(),
                     request.clone(),
-                    root_retry_token.clone(),
                     inner_ftp,
                     None,
                     created,
@@ -2227,7 +2086,6 @@ where
                     FtpStreamChunk::OutputChunk {
                         task_index: chunk_task_index,
                         output: chunk_output,
-                        retry_token: chunk_retry_token,
                     } => {
                         // get local index
                         let local_index = task_indices
@@ -2236,8 +2094,6 @@ where
                                 ti == (chunk_task_index - task_index)
                             })
                             .unwrap();
-                        // insert retry token into correct position
-                        retry_token.insert(local_index, chunk_retry_token);
                         // insert output into correct position
                         output[local_index] = chunk_output;
                     }
@@ -2282,7 +2138,6 @@ where
             yield FtpStreamChunk::OutputChunk {
                 task_index,
                 output: collected_output,
-                retry_token,
             };
         }
     }
@@ -2291,9 +2146,6 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
-        root_retry_token: Option<
-            Arc<objectiveai_sdk::functions::executions::RetryToken>,
-        >,
         ftp: functions::FunctionFlatTaskProfile,
         response_id: Option<String>,
         created: u64,
@@ -2391,15 +2243,6 @@ where
             }
         }
 
-        // initialize retry token
-        let ftp_task_index_len = ftp.task_index_len();
-        let mut retry_token = objectiveai_sdk::functions::executions::RetryToken(
-            Vec::with_capacity(ftp_task_index_len),
-        );
-        for _ in 0..ftp_task_index_len {
-            retry_token.0.push(None);
-        }
-
         // create new choice indexer for children
         let child_choice_indexer = Arc::new(ChoiceIndexer::new(0));
 
@@ -2420,7 +2263,6 @@ where
                     select.push(self.clone().execute_ftp_streaming(
                         ctx.clone(),
                         request.clone(),
-                        root_retry_token.clone(),
                         inner_ftp,
                         created,
                         task_index + task_indices[i],
@@ -2485,7 +2327,6 @@ where
                                     reasoning: None,
                                     output: None,
                                     error: None,
-                                    retry_token: None,
                                     created,
                                     function: function.clone(),
                                     profile: profile.clone(),
@@ -2526,7 +2367,6 @@ where
                                     reasoning: None,
                                     output: None,
                                     error: None,
-                                    retry_token: None,
                                     created,
                                     function: function.clone(),
                                     profile: profile.clone(),
@@ -2539,7 +2379,6 @@ where
                     FtpStreamChunk::OutputChunk {
                         task_index: chunk_task_index,
                         output: chunk_output,
-                        retry_token: chunk_retry_token,
                     } => {
                         // get local index
                         let local_index = task_indices
@@ -2548,8 +2387,6 @@ where
                                 ti == (chunk_task_index - task_index)
                             })
                             .unwrap();
-                        // insert retry token into correct position
-                        retry_token.insert(local_index, chunk_retry_token);
                         // apply task output expression to transform raw output into TaskOutputOwned
                         // All non-skipped tasks have required output expressions
                         let (expr, invert_output) = task_output_expressions[local_index]
@@ -2615,7 +2452,6 @@ where
                         reasoning: None,
                         output: Some(objectiveai_sdk::functions::executions::response::Output { output: output.clone() }),
                         error: output_error,
-                        retry_token: Some(retry_token.to_string()),
                         created,
                         function,
                         profile,
@@ -2629,7 +2465,6 @@ where
             yield FtpStreamChunk::OutputChunk {
                 task_index,
                 output,
-                retry_token,
             };
         }
     }
@@ -2638,9 +2473,6 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
-        root_retry_token: Option<
-            Arc<objectiveai_sdk::functions::executions::RetryToken>,
-        >,
         ftp: functions::MapVectorCompletionFlatTaskProfile,
         task_index: u64,
         choice_indexer: Arc<ChoiceIndexer>,
@@ -2650,15 +2482,6 @@ where
         let mut output: Vec<Vec<rust_decimal::Decimal>> = Vec::with_capacity(ftp_inner_len);
         for _ in 0..ftp_inner_len {
             output.push(Vec::new());
-        }
-
-        // intiialize retry token
-        let ftp_task_index_len = ftp.task_index_len();
-        let mut retry_token = objectiveai_sdk::functions::executions::RetryToken(
-            Vec::with_capacity(ftp_task_index_len),
-        );
-        for _ in 0..ftp_task_index_len {
-            retry_token.0.push(None);
         }
 
         // Combine all mapped vector-completion instance streams, polling
@@ -2677,7 +2500,6 @@ where
                 self.clone().execute_vector_ftp_streaming(
                     ctx.clone(),
                     request.clone(),
-                    root_retry_token.clone(),
                     inner_ftp,
                     task_index + i as u64,
                     choice_indexer.clone(),
@@ -2701,13 +2523,10 @@ where
                     FtpStreamChunk::OutputChunk {
                         task_index: chunk_task_index,
                         output: chunk_output,
-                        retry_token: chunk_retry_token,
                     } => {
                         // get local index
                         let local_index =
                             (chunk_task_index - task_index) as usize;
-                        // insert retry token into correct position
-                        retry_token.insert(local_index, chunk_retry_token);
                         // insert output into correct position
                         output[local_index] = match chunk_output {
                             objectiveai_sdk::functions::expression::TaskOutputOwned::Vector(scores) => scores,
@@ -2723,7 +2542,6 @@ where
             yield FtpStreamChunk::OutputChunk {
                 task_index,
                 output: objectiveai_sdk::functions::expression::TaskOutputOwned::Vectors(output),
-                retry_token,
             };
         }
     }
@@ -2732,17 +2550,11 @@ where
         self: Arc<Self>,
         ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
-        root_retry_token: Option<
-            Arc<objectiveai_sdk::functions::executions::RetryToken>,
-        >,
         ftp: functions::VectorCompletionFlatTaskProfile,
         task_index: u64,
         choice_indexer: Arc<ChoiceIndexer>,
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         let request_base = &*request;
-        let retry_token = root_retry_token
-            .and_then(|rt| rt.0.get(task_index as usize).cloned())
-            .flatten();
         let request_responses_len = ftp.responses.len();
         let mut stream = match self
             .vector_client
@@ -2751,8 +2563,6 @@ where
                 ctx,
                 Arc::new(
                     objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams {
-                        retry: retry_token.clone(),
-                        from_cache: request_base.from_cache,
                         messages: ftp.messages,
                         provider: request_base.provider.clone(),
                         swarm: objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::SwarmBase(
@@ -2794,7 +2604,6 @@ where
                                     n
                                 ]
                             }),
-                            retry_token: objectiveai_sdk::functions::executions::RetryToken(vec![retry_token]),
                         }
                     )),
                 );
@@ -2834,19 +2643,6 @@ where
             // yield output chunk
             yield FtpStreamChunk::OutputChunk {
                 task_index,
-                retry_token: objectiveai_sdk::functions::executions::RetryToken(vec![{
-                    let any_ok_completions = aggregate
-                        .completions
-                        .iter()
-                        .any(|c| c.inner.error.is_none());
-                    if any_ok_completions {
-                        Some(aggregate.id.clone())
-                    } else {
-                        // vector completion is not stored, so reuse same retry next time
-                        // it is not stored because it succeeded 0 retries
-                        retry_token
-                    }
-                }]),
                 output: objectiveai_sdk::functions::expression::TaskOutputOwned::Vector(aggregate.scores),
             };
         })
@@ -3063,14 +2859,12 @@ enum FtpStreamChunk {
     FunctionExecutionChunk(
         objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionTaskChunk,
     ),
-    /// The final output of a task with its retry token.
+    /// The final output of a task.
     OutputChunk {
         /// Index of the task in the flattened structure.
         task_index: u64,
         /// The computed output of the task.
         output: objectiveai_sdk::functions::expression::TaskOutputOwned,
-        /// Token for retrying from this point.
-        retry_token: objectiveai_sdk::functions::executions::RetryToken,
     },
 }
 

@@ -13,14 +13,6 @@ pub struct FunctionExecutionCreateParams {
     /// The profile to use (inline definition or remote path).
     pub profile: functions::InlineProfileOrRemoteCommitOptional,
 
-    // --- Caching and retry options ---
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub retry_token: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub from_cache: Option<bool>,
-
     // --- Reasoning configuration ---
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]

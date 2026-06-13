@@ -188,8 +188,6 @@ fn params(
     responses: Vec<RichContent>,
 ) -> VectorCompletionCreateParams {
     VectorCompletionCreateParams {
-        retry: None,
-        from_cache: None,
         messages,
         provider: None,
         swarm,

@@ -68,8 +68,6 @@ pub struct Client<
     RETRF,
     RETRM,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
 > {
     /// The underlying agent completion client.
@@ -89,10 +87,6 @@ pub struct Client<
     /// Retrieve router for resolving swarms and agents.
     pub retrieve_router:
         Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
-    /// Fetcher for votes from historical completions.
-    pub completion_votes_fetcher: Arc<FVVOTE>,
-    /// Fetcher for votes from the global cache.
-    pub cache_vote_fetcher: Arc<FCVOTE>,
     /// Handler for usage tracking.
     pub usage_handler: Arc<VUSG>,
 }
@@ -107,8 +101,6 @@ impl<
     RETRF,
     RETRM,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
 >
     Client<
@@ -121,8 +113,6 @@ impl<
         RETRF,
         RETRM,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
     >
 {
@@ -144,15 +134,11 @@ impl<
         retrieve_router: Arc<
             crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>,
         >,
-        completion_votes_fetcher: Arc<FVVOTE>,
-        cache_vote_fetcher: Arc<FCVOTE>,
         usage_handler: Arc<VUSG>,
     ) -> Self {
         Self {
             agent_client,
             retrieve_router,
-            completion_votes_fetcher,
-            cache_vote_fetcher,
             usage_handler,
         }
     }
@@ -168,8 +154,6 @@ impl<
     RETRF,
     RETRM,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
 >
     Client<
@@ -182,8 +166,6 @@ impl<
         RETRF,
         RETRM,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
     >
 where
@@ -219,11 +201,6 @@ where
         + Send
         + Sync
         + 'static,
-    FVVOTE: super::completion_votes_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-    FCVOTE: super::cache_vote_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     VUSG: super::usage_handler::UsageHandler<CTXEXT> + Send + Sync + 'static,
 {
     /// Creates a unary (non-streaming) vector completion with usage tracking.
@@ -328,8 +305,6 @@ impl<
     RETRF,
     RETRM,
     ACUSG,
-    FVVOTE,
-    FCVOTE,
     VUSG,
 >
     Client<
@@ -342,8 +317,6 @@ impl<
         RETRF,
         RETRM,
         ACUSG,
-        FVVOTE,
-        FCVOTE,
         VUSG,
     >
 where
@@ -379,11 +352,6 @@ where
         + Send
         + Sync
         + 'static,
-    FVVOTE: super::completion_votes_fetcher::Fetcher<CTXEXT>
-        + Send
-        + Sync
-        + 'static,
-    FCVOTE: super::cache_vote_fetcher::Fetcher<CTXEXT> + Send + Sync + 'static,
     VUSG: Send + Sync + 'static,
 {
     /// Creates a streaming vector completion.
@@ -400,13 +368,6 @@ where
         + 'static,
         super::Error,
     >{
-        // Reject conflicting from_cache + continuation.
-        if request.from_cache.is_some_and(|b| b)
-            && request.continuation.is_some()
-        {
-            return Err(super::Error::CacheAndContinuationConflict);
-        }
-
         // timestamp and identify the completion
         let created = time::SystemTime::now()
             .duration_since(time::UNIX_EPOCH)
@@ -429,31 +390,6 @@ where
             .await
             .map_err(|e| super::Error::InvalidSwarm(e.message.to_string()))?
             .into_inline();
-
-        // fetch retry votes if needed
-        let mut static_votes = match &request.retry {
-            Some(retry) => {
-                let mut votes = self
-                    .completion_votes_fetcher
-                    .fetch(ctx.clone(), retry)
-                    .map(|result| match result {
-                        Ok(Some(votes)) => Ok(votes),
-                        Ok(None) => Err(super::Error::RetryNotFound),
-                        Err(e) => Err(super::Error::FetchRetry(e)),
-                    })
-                    .await?;
-                votes.iter_mut().for_each(|vote| {
-                    vote.retry = Some(true);
-                    vote.from_cache = Some(true);
-                    vote.completion_index = None;
-                });
-                votes
-            }
-            None => Vec::new(),
-        };
-
-        // prune votes that don't match responses length
-        static_votes.retain(|vote| vote.vote.len() == request_responses_len);
 
         // extract profile weights from swarm (already validated during conversion)
         let agent_count = swarm.agents.len();
@@ -487,7 +423,7 @@ where
         // only ones that may stream
         let flat_swarm_len =
             swarm.agents.iter().map(|a| a.count as usize).sum::<usize>();
-        let mut llms = swarm
+        let llms = swarm
             .agents
             .into_iter()
             .enumerate()
@@ -502,12 +438,6 @@ where
                     if weight <= Decimal::ZERO {
                         // skip agents with zero weight
                         None
-                    } else if static_votes
-                        .iter()
-                        .any(|v| v.flat_swarm_index == flat_swarm_index as u64)
-                    {
-                        // skip agents that have votes already
-                        None
                     } else {
                         Some((
                             flat_swarm_index,
@@ -520,102 +450,6 @@ where
                 },
             )
             .collect::<Vec<_>>();
-
-        // fetch from cache if requested
-        if request.from_cache.is_some_and(|bool| bool) {
-            // collect agent refs so they're owned here
-            let mut agent_refs: Vec<
-                objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote,
-            > = Vec::with_capacity(llms.len());
-            for (_, _, agent, _, _) in &llms {
-                let inline_wf = match &agent.inner {
-                    objectiveai_sdk::agent::AgentWithFallbacks::Remote(r) => {
-                        &r.inner
-                    }
-                    objectiveai_sdk::agent::AgentWithFallbacks::Inline(i) => i,
-                };
-                let primary_base = inline_wf.inner.base().to_owned();
-                let fallback_bases = inline_wf.fallbacks.as_ref().map(|fbs| {
-                    fbs.iter().map(|fb| fb.base().to_owned()).collect()
-                });
-                agent_refs.push(
-                    objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemote::AgentBase(
-                        objectiveai_sdk::agent::InlineAgentBaseWithFallbacks {
-                            inner: primary_base,
-                            fallbacks: fallback_bases,
-                        },
-                    ),
-                );
-            }
-            // execute the futures
-            let mut futs = Vec::with_capacity(llms.len());
-            for ((flat_swarm_index, swarm_index, _, weight, _), agent_ref) in
-                llms.iter().zip(agent_refs.iter())
-            {
-                let cache_vote_fetcher = self.cache_vote_fetcher.clone();
-                let request = request.clone();
-                let ctx = ctx.clone();
-                let responses_ids = responses_ids.clone();
-                futs.push(async move {
-                    match cache_vote_fetcher.fetch(
-                        ctx,
-                        agent_ref,
-                        &request.messages,
-                        &request.responses,
-                    ).await {
-                        Ok(Some(mut vote)) => {
-                            // update fields
-                            vote.swarm_index = *swarm_index as u64;
-                            vote.flat_swarm_index = *flat_swarm_index as u64;
-                            vote.weight = *weight;
-                            vote.retry = None;
-                            vote.from_cache = Some(true);
-                            vote.completion_index = None;
-
-                            // rearrange vote vector to match response order
-                            let mut rearranged_vote = vec![
-                                Decimal::ZERO;
-                                request_responses_len
-                            ];
-                            for (i, response_id) in
-                                responses_ids.iter().enumerate()
-                            {
-                                let pos = vote
-                                    .responses_ids
-                                    .iter()
-                                    .position(|id| id == response_id)
-                                    .expect(
-                                        "data integrity error: response ID not found in vote responses IDs",
-                                    );
-                                rearranged_vote[i] = vote.vote[pos];
-                            }
-                            vote.vote = rearranged_vote;
-                            vote.responses_ids = responses_ids;
-
-                            // return vote
-                            Ok(Some(vote))
-                        }
-                        Ok(None) => Ok(None),
-                        Err(e) => Err(super::Error::FetchCacheVote(e))
-                    }
-                });
-            }
-            let cached_votes = futures::future::try_join_all(futs).await?;
-            static_votes.reserve(cached_votes.iter().flatten().count());
-            for vote in cached_votes.into_iter().flatten() {
-                static_votes.push(vote);
-            }
-        }
-
-        // filter LLMs that now have votes from cache
-        llms.retain(|(flat_swarm_index, _, _, _, _)| {
-            !static_votes
-                .iter()
-                .any(|v| v.flat_swarm_index == *flat_swarm_index as u64)
-        });
-
-        // sort retry/cached/rng votes
-        static_votes.sort_by_key(|vote| vote.flat_swarm_index);
 
         // track usage
         let mut usage =
@@ -657,39 +491,11 @@ where
                 },
             ));
 
-        // validate there is at least one retried vote
+        // require at least one agent with positive weight to vote
         if vote_stream.len() == 0 {
-            if static_votes.len() > 0 {
-                // update weights
-                for vote in &static_votes {
-                    for (i, v) in vote.vote.iter().enumerate() {
-                        weights[i] += *v * vote.weight;
-                    }
-                }
-                // update scores
-                let weight_sum: Decimal = weights.iter().sum();
-                if weight_sum > Decimal::ZERO {
-                    for (i, score) in scores.iter_mut().enumerate() {
-                        *score = weights[i] / weight_sum;
-                    }
-                }
-                // return stream of existing votes
-                return Ok(futures::future::Either::Left(StreamOnce::new(
-                    objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk {
-                        id: request.retry.clone().unwrap_or_default(),
-                        completions: Vec::new(),
-                        votes: static_votes,
-                        scores,
-                        weights,
-                        created,
-                        swarm: swarm.id,
-                        object: objectiveai_sdk::vector::completions::response::streaming::Object::VectorCompletionChunk,
-                        usage: None,
-                    }
-                )));
-            } else {
-                unreachable!()
-            }
+            return Err(super::Error::InvalidSwarm(
+                "swarm has no agents with positive weight".to_string(),
+            ));
         }
 
         // initial chunk
@@ -701,19 +507,11 @@ where
             }
         };
 
-        Ok(futures::future::Either::Right(async_stream::stream! {
+        Ok(async_stream::stream! {
             // stream all chunks
             while let Some(mut chunk) = next_chunk.take() {
                 // prepare next chunk
                 next_chunk = vote_stream.next().await;
-
-                // if retry votes were provided, add them to the first chunk
-                if static_votes.len() > 0 {
-                    for vote in chunk.votes.drain(..) {
-                        static_votes.push(vote);
-                    }
-                    chunk.votes = std::mem::take(&mut static_votes);
-                }
 
                 // import usage from each completion
                 for completion in &chunk.completions
@@ -753,7 +551,7 @@ where
 
                 yield chunk;
             }
-        }))
+        })
     }
 
     /// Creates a completion for a single LLM in the swarm, extracting its vote.
@@ -1067,8 +865,6 @@ where
                                 responses_ids: responses_ids.clone(),
                                 vote,
                                 weight,
-                                retry: None,
-                                from_cache: None,
                                 completion_index: Some(indexer.get(flat_swarm_index)),
                             });
                         } else if let Some(mut cont) = continuation.take() {
@@ -1150,8 +946,6 @@ where
                                                 responses_ids: responses_ids.clone(),
                                                 vote: retry_vote,
                                                 weight,
-                                                retry: None,
-                                                from_cache: None,
                                                 completion_index: Some(indexer.get(flat_swarm_index + flat_swarm_len)),
                                             });
                                         }
@@ -1174,8 +968,6 @@ where
                                             responses_ids: responses_ids.clone(),
                                             vote,
                                             weight,
-                                            retry: None,
-                                            from_cache: None,
                                             completion_index: Some(indexer.get(flat_swarm_index)),
                                         });
                                     }
@@ -1199,8 +991,6 @@ where
                                 responses_ids: responses_ids.clone(),
                                 vote,
                                 weight,
-                                retry: None,
-                                from_cache: None,
                                 completion_index: Some(indexer.get(flat_swarm_index)),
                             });
                         } else if let Some(mut cont) = continuation.take() {
@@ -1284,8 +1074,6 @@ where
                                                         responses_ids: responses_ids.clone(),
                                                         vote: retry_vote,
                                                         weight,
-                                                        retry: None,
-                                                        from_cache: None,
                                                         completion_index: Some(indexer.get(flat_swarm_index + flat_swarm_len)),
                                                     });
                                                 }
@@ -1315,8 +1103,6 @@ where
                                 responses_ids: responses_ids.clone(),
                                 vote,
                                 weight,
-                                retry: None,
-                                from_cache: None,
                                 completion_index: Some(indexer.get(flat_swarm_index)),
                             });
                         }

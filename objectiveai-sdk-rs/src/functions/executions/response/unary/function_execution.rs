@@ -23,8 +23,6 @@ pub struct FunctionExecution {
     pub output: super::super::Output,
     /// Error details if the execution failed.
     pub error: Option<error::ResponseError>,
-    /// Token for retrying this execution with cached votes.
-    pub retry_token: Option<String>,
     /// Unix timestamp when the execution was created.
     pub created: u64,
     /// The function used (if remote).
@@ -46,7 +44,6 @@ impl FunctionExecution {
     pub fn normalize_for_tests(&mut self) {
         self.id = String::new();
         self.created = 0;
-        self.retry_token = None;
         for task in &mut self.tasks {
             match task {
                 super::Task::VectorCompletion(vt) => {
@@ -76,7 +73,6 @@ impl From<response::streaming::FunctionExecutionChunk> for FunctionExecution {
             reasoning,
             output,
             error,
-            retry_token,
             created,
             function,
             profile,
@@ -95,7 +91,6 @@ impl From<response::streaming::FunctionExecutionChunk> for FunctionExecution {
                 },
             }),
             error,
-            retry_token,
             created,
             function,
             profile,

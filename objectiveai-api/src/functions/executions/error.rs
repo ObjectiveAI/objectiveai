@@ -29,15 +29,6 @@ pub enum Error {
     /// The Swarm definition is invalid.
     #[error("invalid swarm: {0}")]
     InvalidSwarm(String),
-    /// Failed to fetch retry data.
-    #[error("fetch retry error: {0}")]
-    FetchRetry(objectiveai_sdk::error::ResponseError),
-    /// The retry data was not found.
-    #[error("retry not found")]
-    RetryNotFound,
-    /// The retry token is malformed.
-    #[error("invalid retry token")]
-    InvalidRetryToken,
     /// An expression (JMESPath or Starlark) in the Function is invalid.
     #[error("invalid function expression: {0}")]
     InvalidAppExpression(
@@ -72,9 +63,6 @@ pub enum Error {
     /// A circular dependency was detected between functions.
     #[error("circular dependency detected: {0:?}")]
     CircularDependency(objectiveai_sdk::RemotePath),
-    /// Cannot use both from_cache and continuation at the same time.
-    #[error("from_cache and continuation are mutually exclusive")]
-    CacheAndContinuationConflict,
     /// Split requires input to be an array.
     #[error("split requires input to be an array")]
     SplitInputNotArray,
@@ -100,9 +88,6 @@ impl objectiveai_sdk::error::StatusError for Error {
             Error::FetchSwarm(e) => e.status(),
             Error::SwarmNotFound => 404,
             Error::InvalidSwarm(_) => 400,
-            Error::FetchRetry(e) => e.status(),
-            Error::RetryNotFound => 404,
-            Error::InvalidRetryToken => 400,
             Error::InvalidAppExpression(_) => 400,
             Error::Vector(e) => e.status(),
             Error::InputSchemaMismatch => 400,
@@ -113,7 +98,6 @@ impl objectiveai_sdk::error::StatusError for Error {
             Error::NoValidTaskOutputs => 400,
             Error::TaskOutputExpressionErrors(_) => 400,
             Error::CircularDependency(_) => 400,
-            Error::CacheAndContinuationConflict => 400,
             Error::SplitInputNotArray => 400,
         }
     }
@@ -153,18 +137,6 @@ impl objectiveai_sdk::error::StatusError for Error {
                 Error::InvalidSwarm(msg) => serde_json::json!({
                     "kind": "invalid_swarm",
                     "error": msg,
-                }),
-                Error::FetchRetry(e) => serde_json::json!({
-                    "kind": "fetch_retry",
-                    "error": e.message(),
-                }),
-                Error::RetryNotFound => serde_json::json!({
-                    "kind": "retry_not_found",
-                    "error": "retry not found",
-                }),
-                Error::InvalidRetryToken => serde_json::json!({
-                    "kind": "invalid_retry_token",
-                    "error": "invalid retry token",
                 }),
                 Error::InvalidAppExpression(e) => serde_json::json!({
                     "kind": "invalid_expression",
@@ -208,10 +180,6 @@ impl objectiveai_sdk::error::StatusError for Error {
                 Error::CircularDependency(path) => serde_json::json!({
                     "kind": "circular_dependency",
                     "error": format!("circular dependency detected: {}", path.url()),
-                }),
-                Error::CacheAndContinuationConflict => serde_json::json!({
-                    "kind": "cache_and_continuation_conflict",
-                    "error": "from_cache and continuation are mutually exclusive",
                 }),
                 Error::SplitInputNotArray => serde_json::json!({
                     "kind": "split_input_not_array",

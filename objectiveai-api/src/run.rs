@@ -526,20 +526,6 @@ pub async fn setup(
         Some(Arc::new(commit_author_email.clone())),
     ));
 
-    // Vector Completion Votes Fetcher
-    let completion_votes_fetcher = Arc::new(
-        vector::completions::completion_votes_fetcher::ObjectiveAiFetcher::new(
-            objectiveai_http_client.clone(),
-        ),
-    );
-
-    // Vector Cache Vote Fetcher
-    let cache_vote_fetcher = Arc::new(
-        vector::completions::cache_vote_fetcher::ObjectiveAiFetcher::new(
-            objectiveai_http_client.clone(),
-        ),
-    );
-
     // GitHub Client
     let github_client = Arc::new(github::Client::new(
         http_client.clone(),
@@ -707,17 +693,8 @@ pub async fn setup(
     let vector_completions_client = Arc::new(vector::completions::Client::new(
         agent_completions_client.clone(),
         retrieve_router.clone(),
-        completion_votes_fetcher.clone(),
-        cache_vote_fetcher.clone(),
         Arc::new(vector::completions::usage_handler::LogUsageHandler),
     ));
-
-    // Vector Completions Cache Client
-    let vector_completions_cache_client =
-        Arc::new(vector::completions::cache::Client::new(
-            completion_votes_fetcher.clone(),
-            cache_vote_fetcher.clone(),
-        ));
 
     // Retrieval: List Router
     let list_router = Arc::new(retrieval::list::Router::new(
@@ -844,46 +821,6 @@ pub async fn setup(
                             }
                         }
                     }
-                }
-            }),
-        )
-        // Vector Completions - get completion votes
-        .route(
-            "/vector/completions/votes",
-            axum::routing::post({
-                let vector_completions_cache_client =
-                    vector_completions_cache_client.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai_sdk::vector::completions::cache::request::GetCompletionVotesRequest,
-                >| {
-                    get_vector_completion_votes(
-                        vector_completions_cache_client,
-                        headers,
-                        persistent_cache,
-                        suppress_output,
-                        body,
-                    )
-                }
-            }),
-        )
-        // Vector Completions - get cache vote
-        .route(
-            "/vector/completions/cache",
-            axum::routing::post({
-                let vector_completions_cache_client =
-                    vector_completions_cache_client.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(body): Json<
-                    objectiveai_sdk::vector::completions::cache::request::CacheVoteRequestOwned,
-                >| {
-                    get_vector_cache_vote(
-                        vector_completions_cache_client,
-                        headers,
-                        persistent_cache,
-                        suppress_output,
-                        body,
-                    )
                 }
             }),
         )
@@ -1503,16 +1440,6 @@ async fn create_vector_completion(
             > + Send
             + Sync
             + 'static,
-            impl vector::completions::completion_votes_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl vector::completions::cache_vote_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
             impl vector::completions::usage_handler::UsageHandler<
                 ctx::DefaultContextExt,
             > + Send
@@ -1615,16 +1542,6 @@ async fn execute_function(
             + Sync
             + 'static,
             impl agent::completions::usage_handler::UsageHandler<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl vector::completions::completion_votes_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl vector::completions::cache_vote_fetcher::Fetcher<
                 ctx::DefaultContextExt,
             > + Send
             + Sync
@@ -1751,72 +1668,6 @@ async fn get_function_profile_pair_usage(
 ) -> axum::response::Response {
     let ctx = context(&headers, persistent_cache, suppress_output);
     match usage_router.get_function_profile_pair_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Vector Completions Cache
-
-async fn get_vector_completion_votes(
-    client: Arc<
-        vector::completions::cache::Client<
-            ctx::DefaultContextExt,
-            impl vector::completions::completion_votes_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl vector::completions::cache_vote_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-        >,
-    >,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    body: objectiveai_sdk::vector::completions::cache::request::GetCompletionVotesRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match client.fetch_completion_votes(ctx, &body.id).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_vector_cache_vote(
-    client: Arc<
-        vector::completions::cache::Client<
-            ctx::DefaultContextExt,
-            impl vector::completions::completion_votes_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-            impl vector::completions::cache_vote_fetcher::Fetcher<
-                ctx::DefaultContextExt,
-            > + Send
-            + Sync
-            + 'static,
-        >,
-    >,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    body: objectiveai_sdk::vector::completions::cache::request::CacheVoteRequestOwned,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match client
-        .fetch_cache_vote(
-            ctx,
-            &body.agent,
-            &body.messages,
-            &body.responses,
-        )
-        .await
-    {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
     }
