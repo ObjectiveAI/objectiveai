@@ -147,6 +147,40 @@ impl crate::cli::command::CommandRequest for Request {
             Request::RunResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Get(inner) => inner.request_base(),
+            Request::GetRequestSchema(inner) => inner.request_base(),
+            Request::GetResponseSchema(inner) => inner.request_base(),
+            Request::Install(inner) => inner.request_base(),
+            Request::InstallRequestSchema(inner) => inner.request_base(),
+            Request::InstallResponseSchema(inner) => inner.request_base(),
+            Request::List(inner) => inner.request_base(),
+            Request::ListRequestSchema(inner) => inner.request_base(),
+            Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Run(inner) => inner.request_base(),
+            Request::RunRequestSchema(inner) => inner.request_base(),
+            Request::RunResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Get(inner) => inner.request_base_mut(),
+            Request::GetRequestSchema(inner) => inner.request_base_mut(),
+            Request::GetResponseSchema(inner) => inner.request_base_mut(),
+            Request::Install(inner) => inner.request_base_mut(),
+            Request::InstallRequestSchema(inner) => inner.request_base_mut(),
+            Request::InstallResponseSchema(inner) => inner.request_base_mut(),
+            Request::List(inner) => inner.request_base_mut(),
+            Request::ListRequestSchema(inner) => inner.request_base_mut(),
+            Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Run(inner) => inner.request_base_mut(),
+            Request::RunRequestSchema(inner) => inner.request_base_mut(),
+            Request::RunResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

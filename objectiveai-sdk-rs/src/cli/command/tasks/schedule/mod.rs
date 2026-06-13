@@ -90,6 +90,14 @@ impl CommandRequest for Request {
         argv.extend(self.command.iter().cloned());
         argv
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        &self.base
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        Some(&mut self.base)
+    }
 }
 
 /// The created schedule's user-facing identity: its `--name`, the

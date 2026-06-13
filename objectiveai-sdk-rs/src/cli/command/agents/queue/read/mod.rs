@@ -108,6 +108,28 @@ impl CommandRequest for Request {
             Request::PendingResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Id(inner) => inner.request_base(),
+            Request::IdRequestSchema(inner) => inner.request_base(),
+            Request::IdResponseSchema(inner) => inner.request_base(),
+            Request::Pending(inner) => inner.request_base(),
+            Request::PendingRequestSchema(inner) => inner.request_base(),
+            Request::PendingResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Id(inner) => inner.request_base_mut(),
+            Request::IdRequestSchema(inner) => inner.request_base_mut(),
+            Request::IdResponseSchema(inner) => inner.request_base_mut(),
+            Request::Pending(inner) => inner.request_base_mut(),
+            Request::PendingRequestSchema(inner) => inner.request_base_mut(),
+            Request::PendingResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

@@ -192,6 +192,42 @@ impl super::CommandRequest for Request {
             Request::Viewer(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Agents(inner) => inner.request_base(),
+            Request::Api(inner) => inner.request_base(),
+            Request::Db(inner) => inner.request_base(),
+            Request::Functions(inner) => inner.request_base(),
+            Request::Mcp(inner) => inner.request_base(),
+            Request::Plugins(inner) => inner.request_base(),
+            Request::Swarms(inner) => inner.request_base(),
+            Request::Tasks(inner) => inner.request_base(),
+            Request::Tools(inner) => inner.request_base(),
+            Request::Update(inner) => inner.request_base(),
+            Request::UpdateRequestSchema(inner) => inner.request_base(),
+            Request::UpdateResponseSchema(inner) => inner.request_base(),
+            Request::Viewer(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Agents(inner) => inner.request_base_mut(),
+            Request::Api(inner) => inner.request_base_mut(),
+            Request::Db(inner) => inner.request_base_mut(),
+            Request::Functions(inner) => inner.request_base_mut(),
+            Request::Mcp(inner) => inner.request_base_mut(),
+            Request::Plugins(inner) => inner.request_base_mut(),
+            Request::Swarms(inner) => inner.request_base_mut(),
+            Request::Tasks(inner) => inner.request_base_mut(),
+            Request::Tools(inner) => inner.request_base_mut(),
+            Request::Update(inner) => inner.request_base_mut(),
+            Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
+            Request::UpdateResponseSchema(inner) => inner.request_base_mut(),
+            Request::Viewer(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

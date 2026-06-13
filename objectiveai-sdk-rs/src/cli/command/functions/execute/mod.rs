@@ -301,6 +301,28 @@ impl crate::cli::command::CommandRequest for Request {
             Request::SwissSystemResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Standard(inner) => inner.request_base(),
+            Request::StandardRequestSchema(inner) => inner.request_base(),
+            Request::StandardResponseSchema(inner) => inner.request_base(),
+            Request::SwissSystem(inner) => inner.request_base(),
+            Request::SwissSystemRequestSchema(inner) => inner.request_base(),
+            Request::SwissSystemResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Standard(inner) => inner.request_base_mut(),
+            Request::StandardRequestSchema(inner) => inner.request_base_mut(),
+            Request::StandardResponseSchema(inner) => inner.request_base_mut(),
+            Request::SwissSystem(inner) => inner.request_base_mut(),
+            Request::SwissSystemRequestSchema(inner) => inner.request_base_mut(),
+            Request::SwissSystemResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

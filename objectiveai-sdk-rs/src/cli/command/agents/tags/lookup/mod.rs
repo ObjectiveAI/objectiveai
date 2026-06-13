@@ -119,6 +119,17 @@ impl CommandRequest for Request {
         }
         argv
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::AgentInstanceHierarchy { base, .. } => base,
+            Request::Tag { base, .. } => base,
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        Some(self.base_mut())
+    }
 }
 
 #[derive(clap::Args)]

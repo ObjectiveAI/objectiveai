@@ -196,6 +196,42 @@ impl crate::cli::command::CommandRequest for Request {
             Request::CommitAuthorEmail(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Get(inner) => inner.request_base(),
+            Request::GetRequestSchema(inner) => inner.request_base(),
+            Request::GetResponseSchema(inner) => inner.request_base(),
+            Request::Address(inner) => inner.request_base(),
+            Request::ObjectiveaiAuthorization(inner) => inner.request_base(),
+            Request::OpenrouterAuthorization(inner) => inner.request_base(),
+            Request::GithubAuthorization(inner) => inner.request_base(),
+            Request::McpAuthorization(inner) => inner.request_base(),
+            Request::UserAgent(inner) => inner.request_base(),
+            Request::HttpReferer(inner) => inner.request_base(),
+            Request::XTitle(inner) => inner.request_base(),
+            Request::CommitAuthorName(inner) => inner.request_base(),
+            Request::CommitAuthorEmail(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Get(inner) => inner.request_base_mut(),
+            Request::GetRequestSchema(inner) => inner.request_base_mut(),
+            Request::GetResponseSchema(inner) => inner.request_base_mut(),
+            Request::Address(inner) => inner.request_base_mut(),
+            Request::ObjectiveaiAuthorization(inner) => inner.request_base_mut(),
+            Request::OpenrouterAuthorization(inner) => inner.request_base_mut(),
+            Request::GithubAuthorization(inner) => inner.request_base_mut(),
+            Request::McpAuthorization(inner) => inner.request_base_mut(),
+            Request::UserAgent(inner) => inner.request_base_mut(),
+            Request::HttpReferer(inner) => inner.request_base_mut(),
+            Request::XTitle(inner) => inner.request_base_mut(),
+            Request::CommitAuthorName(inner) => inner.request_base_mut(),
+            Request::CommitAuthorEmail(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

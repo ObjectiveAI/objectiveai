@@ -140,6 +140,34 @@ impl CommandRequest for Request {
             Request::RunResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Schedule(inner) => inner.request_base(),
+            Request::ScheduleRequestSchema(inner) => inner.request_base(),
+            Request::ScheduleResponseSchema(inner) => inner.request_base(),
+            Request::List(inner) => inner.request_base(),
+            Request::ListRequestSchema(inner) => inner.request_base(),
+            Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Run(inner) => inner.request_base(),
+            Request::RunRequestSchema(inner) => inner.request_base(),
+            Request::RunResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Schedule(inner) => inner.request_base_mut(),
+            Request::ScheduleRequestSchema(inner) => inner.request_base_mut(),
+            Request::ScheduleResponseSchema(inner) => inner.request_base_mut(),
+            Request::List(inner) => inner.request_base_mut(),
+            Request::ListRequestSchema(inner) => inner.request_base_mut(),
+            Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Run(inner) => inner.request_base_mut(),
+            Request::RunRequestSchema(inner) => inner.request_base_mut(),
+            Request::RunResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

@@ -160,6 +160,42 @@ impl crate::cli::command::CommandRequest for Request {
             Request::SpawnResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Config(inner) => inner.request_base(),
+            Request::GenerateSecretSignaturePair(inner) => inner.request_base(),
+            Request::GenerateSecretSignaturePairRequestSchema(inner) => inner.request_base(),
+            Request::GenerateSecretSignaturePairResponseSchema(inner) => inner.request_base(),
+            Request::Kill(inner) => inner.request_base(),
+            Request::KillRequestSchema(inner) => inner.request_base(),
+            Request::KillResponseSchema(inner) => inner.request_base(),
+            Request::Send(inner) => inner.request_base(),
+            Request::SendRequestSchema(inner) => inner.request_base(),
+            Request::SendResponseSchema(inner) => inner.request_base(),
+            Request::Spawn(inner) => inner.request_base(),
+            Request::SpawnRequestSchema(inner) => inner.request_base(),
+            Request::SpawnResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Config(inner) => inner.request_base_mut(),
+            Request::GenerateSecretSignaturePair(inner) => inner.request_base_mut(),
+            Request::GenerateSecretSignaturePairRequestSchema(inner) => inner.request_base_mut(),
+            Request::GenerateSecretSignaturePairResponseSchema(inner) => inner.request_base_mut(),
+            Request::Kill(inner) => inner.request_base_mut(),
+            Request::KillRequestSchema(inner) => inner.request_base_mut(),
+            Request::KillResponseSchema(inner) => inner.request_base_mut(),
+            Request::Send(inner) => inner.request_base_mut(),
+            Request::SendRequestSchema(inner) => inner.request_base_mut(),
+            Request::SendResponseSchema(inner) => inner.request_base_mut(),
+            Request::Spawn(inner) => inner.request_base_mut(),
+            Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
+            Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

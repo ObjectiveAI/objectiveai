@@ -142,6 +142,30 @@ impl CommandRequest for Request {
             Request::Read(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Delete(inner) => inner.request_base(),
+            Request::DeleteRequestSchema(inner) => inner.request_base(),
+            Request::DeleteResponseSchema(inner) => inner.request_base(),
+            Request::Deliver(inner) => inner.request_base(),
+            Request::DeliverRequestSchema(inner) => inner.request_base(),
+            Request::DeliverResponseSchema(inner) => inner.request_base(),
+            Request::Read(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Delete(inner) => inner.request_base_mut(),
+            Request::DeleteRequestSchema(inner) => inner.request_base_mut(),
+            Request::DeleteResponseSchema(inner) => inner.request_base_mut(),
+            Request::Deliver(inner) => inner.request_base_mut(),
+            Request::DeliverRequestSchema(inner) => inner.request_base_mut(),
+            Request::DeliverResponseSchema(inner) => inner.request_base_mut(),
+            Request::Read(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

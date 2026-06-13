@@ -151,6 +151,40 @@ impl crate::cli::command::CommandRequest for Request {
             Request::SubscribeResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::All(inner) => inner.request_base(),
+            Request::AllRequestSchema(inner) => inner.request_base(),
+            Request::AllResponseSchema(inner) => inner.request_base(),
+            Request::Id(inner) => inner.request_base(),
+            Request::IdRequestSchema(inner) => inner.request_base(),
+            Request::IdResponseSchema(inner) => inner.request_base(),
+            Request::Pending(inner) => inner.request_base(),
+            Request::PendingRequestSchema(inner) => inner.request_base(),
+            Request::PendingResponseSchema(inner) => inner.request_base(),
+            Request::Subscribe(inner) => inner.request_base(),
+            Request::SubscribeRequestSchema(inner) => inner.request_base(),
+            Request::SubscribeResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::All(inner) => inner.request_base_mut(),
+            Request::AllRequestSchema(inner) => inner.request_base_mut(),
+            Request::AllResponseSchema(inner) => inner.request_base_mut(),
+            Request::Id(inner) => inner.request_base_mut(),
+            Request::IdRequestSchema(inner) => inner.request_base_mut(),
+            Request::IdResponseSchema(inner) => inner.request_base_mut(),
+            Request::Pending(inner) => inner.request_base_mut(),
+            Request::PendingRequestSchema(inner) => inner.request_base_mut(),
+            Request::PendingResponseSchema(inner) => inner.request_base_mut(),
+            Request::Subscribe(inner) => inner.request_base_mut(),
+            Request::SubscribeRequestSchema(inner) => inner.request_base_mut(),
+            Request::SubscribeResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

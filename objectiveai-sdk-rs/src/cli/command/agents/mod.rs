@@ -298,6 +298,66 @@ impl crate::cli::command::CommandRequest for Request {
             Request::WaitResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Enqueue(inner) => inner.request_base(),
+            Request::EnqueueRequestSchema(inner) => inner.request_base(),
+            Request::EnqueueResponseSchema(inner) => inner.request_base(),
+            Request::Get(inner) => inner.request_base(),
+            Request::GetRequestSchema(inner) => inner.request_base(),
+            Request::GetResponseSchema(inner) => inner.request_base(),
+            Request::Instances(inner) => inner.request_base(),
+            Request::List(inner) => inner.request_base(),
+            Request::ListRequestSchema(inner) => inner.request_base(),
+            Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Logs(inner) => inner.request_base(),
+            Request::Message(inner) => inner.request_base(),
+            Request::MessageRequestSchema(inner) => inner.request_base(),
+            Request::MessageResponseSchema(inner) => inner.request_base(),
+            Request::Publish(inner) => inner.request_base(),
+            Request::PublishRequestSchema(inner) => inner.request_base(),
+            Request::PublishResponseSchema(inner) => inner.request_base(),
+            Request::Queue(inner) => inner.request_base(),
+            Request::Spawn(inner) => inner.request_base(),
+            Request::SpawnRequestSchema(inner) => inner.request_base(),
+            Request::SpawnResponseSchema(inner) => inner.request_base(),
+            Request::Tags(inner) => inner.request_base(),
+            Request::Wait(inner) => inner.request_base(),
+            Request::WaitRequestSchema(inner) => inner.request_base(),
+            Request::WaitResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Enqueue(inner) => inner.request_base_mut(),
+            Request::EnqueueRequestSchema(inner) => inner.request_base_mut(),
+            Request::EnqueueResponseSchema(inner) => inner.request_base_mut(),
+            Request::Get(inner) => inner.request_base_mut(),
+            Request::GetRequestSchema(inner) => inner.request_base_mut(),
+            Request::GetResponseSchema(inner) => inner.request_base_mut(),
+            Request::Instances(inner) => inner.request_base_mut(),
+            Request::List(inner) => inner.request_base_mut(),
+            Request::ListRequestSchema(inner) => inner.request_base_mut(),
+            Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Logs(inner) => inner.request_base_mut(),
+            Request::Message(inner) => inner.request_base_mut(),
+            Request::MessageRequestSchema(inner) => inner.request_base_mut(),
+            Request::MessageResponseSchema(inner) => inner.request_base_mut(),
+            Request::Publish(inner) => inner.request_base_mut(),
+            Request::PublishRequestSchema(inner) => inner.request_base_mut(),
+            Request::PublishResponseSchema(inner) => inner.request_base_mut(),
+            Request::Queue(inner) => inner.request_base_mut(),
+            Request::Spawn(inner) => inner.request_base_mut(),
+            Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
+            Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
+            Request::Tags(inner) => inner.request_base_mut(),
+            Request::Wait(inner) => inner.request_base_mut(),
+            Request::WaitRequestSchema(inner) => inner.request_base_mut(),
+            Request::WaitResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

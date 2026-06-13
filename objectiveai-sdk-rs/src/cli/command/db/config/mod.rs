@@ -118,6 +118,30 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Database(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Get(inner) => inner.request_base(),
+            Request::GetRequestSchema(inner) => inner.request_base(),
+            Request::GetResponseSchema(inner) => inner.request_base(),
+            Request::Address(inner) => inner.request_base(),
+            Request::User(inner) => inner.request_base(),
+            Request::Password(inner) => inner.request_base(),
+            Request::Database(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Get(inner) => inner.request_base_mut(),
+            Request::GetRequestSchema(inner) => inner.request_base_mut(),
+            Request::GetResponseSchema(inner) => inner.request_base_mut(),
+            Request::Address(inner) => inner.request_base_mut(),
+            Request::User(inner) => inner.request_base_mut(),
+            Request::Password(inner) => inner.request_base_mut(),
+            Request::Database(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

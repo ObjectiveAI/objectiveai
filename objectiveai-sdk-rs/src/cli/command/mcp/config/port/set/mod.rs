@@ -6,6 +6,8 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.mcp.config.port.set.Request")]
 pub struct Request {
     pub path_type: Path,
+    #[serde(flatten)]
+    pub base: crate::cli::command::RequestBase,
     pub scope: crate::cli::command::SetScope,
     pub value: u16,
 }
@@ -24,7 +26,16 @@ impl CommandRequest for Request {
             crate::cli::command::SetScope::Global => "--global".to_string(),
             crate::cli::command::SetScope::State => "--state".to_string(),
         });
+        self.base.push_flags(&mut argv);
         argv
+    }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        &self.base
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        Some(&mut self.base)
     }
 }
 
@@ -38,6 +49,8 @@ pub struct Args {
     /// Mutate the state config layer.
     #[arg(long)]
     pub state: bool,
+    #[command(flatten)]
+    pub base: crate::cli::command::RequestBaseArgs,
     /// New port value.
     pub value: u16,
 }
@@ -74,7 +87,8 @@ impl TryFrom<Args> for Request {
                 });
             }
         };
-        Ok(Self { path_type: Path::McpConfigPortSet,
+        Ok(Self {
+            base: args.base.into(), path_type: Path::McpConfigPortSet,
             scope,
             value: args.value,
         })

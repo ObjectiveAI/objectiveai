@@ -37,6 +37,14 @@ impl CommandRequest for Request {
         }
         argv
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        &self.base
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        Some(&mut self.base)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

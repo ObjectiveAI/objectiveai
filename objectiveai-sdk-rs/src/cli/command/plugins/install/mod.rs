@@ -93,6 +93,28 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GithubResponseSchema(inner) => inner.into_command(),
         }
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Filesystem(inner) => inner.request_base(),
+            Request::FilesystemRequestSchema(inner) => inner.request_base(),
+            Request::FilesystemResponseSchema(inner) => inner.request_base(),
+            Request::Github(inner) => inner.request_base(),
+            Request::GithubRequestSchema(inner) => inner.request_base(),
+            Request::GithubResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Filesystem(inner) => inner.request_base_mut(),
+            Request::FilesystemRequestSchema(inner) => inner.request_base_mut(),
+            Request::FilesystemResponseSchema(inner) => inner.request_base_mut(),
+            Request::Github(inner) => inner.request_base_mut(),
+            Request::GithubRequestSchema(inner) => inner.request_base_mut(),
+            Request::GithubResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
 }
 
 #[cfg(feature = "cli-executor")]

@@ -39,6 +39,14 @@ impl CommandRequest for Request {
         self.base.push_flags(&mut argv);
         argv
     }
+
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        &self.base
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        Some(&mut self.base)
+    }
 }
 
 /// One discovered agent instance under a target. Aggregated from the
