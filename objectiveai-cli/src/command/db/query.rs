@@ -1,5 +1,5 @@
-//! `db query` — pre-flight validate, run, and (optionally)
-//! tokenize the response against a per-part budget.
+//! `db query` — pre-flight validate, then run under the request's
+//! timeout (threaded to postgres as `statement_timeout`).
 //!
 //! Pre-flight rejects shapes the response variant can't represent:
 //! - multi-statement input (any unquoted `;` followed by non-empty
@@ -9,13 +9,6 @@
 //!   `ROLLBACK`, `SAVEPOINT`, `RELEASE`) — the handler runs the
 //!   user query inside its own read-only tx and these would
 //!   collide.
-//!
-//! Tokenization rule (from the issue): tokenize each part of the
-//! response separately via `serde_json::to_string` →
-//! `tiktoken-rs` `o200k_base` `encode_with_special_tokens`, sum
-//! the per-part counts, and reject if the sum exceeds the cap.
-//! "Each part" means `command_tag`, the full serialized
-//! `columns` array, and one serialization per row.
 
 use std::time::Duration;
 
@@ -34,13 +27,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .ok_or(Error::MissingRequestField { field: "timeout_seconds" })?;
     let timeout = Duration::from_secs(timeout_seconds);
     let raw = crate::db::query::run_readonly_query(ctx.db_client().await?, &request.query, timeout).await?;
-
-    if let Some(limit) = request.base.max_tokens {
-        let actual = count_tokens(&raw)?;
-        if actual > limit {
-            return Err(Error::TokenBudgetExceeded { limit, actual });
-        }
-    }
 
     let RawQueryResult { command_tag, columns, rows } = raw;
     Ok(Response {
@@ -167,20 +153,6 @@ fn has_trailing_statement(sql: &str) -> bool {
 fn has_copy_stdin_stdout(sql: &str) -> bool {
     let upper = sql.to_ascii_uppercase();
     upper.contains("STDIN") || upper.contains("STDOUT")
-}
-
-fn count_tokens(raw: &RawQueryResult) -> Result<u64, Error> {
-    let enc = tiktoken_rs::o200k_base()
-        .map_err(|e| Error::InvalidQuery(format!("tiktoken init: {e}")))?;
-    let mut total: u64 = 0;
-    total += enc.encode_with_special_tokens(&raw.command_tag).len() as u64;
-    let columns_json = serde_json::to_string(&raw.columns).map_err(crate::db::Error::Json)?;
-    total += enc.encode_with_special_tokens(&columns_json).len() as u64;
-    for row in &raw.rows {
-        let row_json = serde_json::to_string(row).map_err(crate::db::Error::Json)?;
-        total += enc.encode_with_special_tokens(&row_json).len() as u64;
-    }
-    Ok(total)
 }
 
 pub mod request_schema {

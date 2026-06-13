@@ -1,12 +1,11 @@
 //! `objectiveai db query` — read-only SQL executor.
 //!
 //! Wraps the user's single statement in a short-lived read-only
-//! transaction with a server-side `statement_timeout` and a
-//! client-side `tokio::time::timeout`. The server timeout is set
-//! to `requested - 100ms` so Postgres always wins the race and
-//! cleans up its own state; if it misses (or the budget is
-//! sub-200ms) the Rust-side timeout drops the future and the
-//! connection, which lets sqlx return it to the pool.
+//! transaction with server-side `statement_timeout` and
+//! `lock_timeout` set to the request's budget. Enforcement is
+//! postgres's alone — there is no client-side timer; when the
+//! server cancels (SQLSTATE 57014) the error maps to
+//! [`Error::QueryTimeout`] and the transaction unwinds cleanly.
 //!
 //! Each result cell is decoded to a `serde_json::Value` by
 //! [`pg_value_to_json`], which dispatches on
@@ -41,23 +40,9 @@ pub async fn run_readonly_query(
     sql: &str,
     timeout: Duration,
 ) -> Result<RawQueryResult, Error> {
-    match tokio::time::timeout(timeout, run_inner(pool, sql, timeout)).await {
-        Ok(res) => res,
-        Err(_) => Err(Error::QueryTimeout),
-    }
-}
-
-async fn run_inner(
-    pool: &crate::db::Pool,
-    sql: &str,
-    timeout: Duration,
-) -> Result<RawQueryResult, Error> {
     let mut tx = pool.begin().await.map_err(crate::db::Error::Sqlx)?;
 
-    let server_ms = timeout
-        .saturating_sub(Duration::from_millis(100))
-        .as_millis()
-        .max(1) as u64;
+    let server_ms = timeout.as_millis().max(1) as u64;
     sqlx::query("SET LOCAL TRANSACTION READ ONLY")
         .execute(&mut *tx)
         .await

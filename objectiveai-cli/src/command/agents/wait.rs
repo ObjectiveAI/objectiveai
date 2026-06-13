@@ -1,8 +1,8 @@
 //! `agents wait` — block until an agent is done.
 //!
 //! Targets an instance hierarchy or a tag (a plain ref has no live
-//! identity — error). The whole wait, across BOTH subscriptions on
-//! the tag route, runs under the request's humantime timeout.
+//! identity — error). The wait is uncapped — it blocks until the
+//! target's lock releases, however long that takes.
 //!
 //! - **Instance**: subscribe to the AIH lock's release
 //!   ([`objectiveai_sdk::lockfile::wait_released`] returns
@@ -25,16 +25,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let timeout_seconds = request
-        .base
-        .timeout_seconds
-        .ok_or(Error::MissingRequestField { field: "timeout_seconds" })?;
-    tokio::time::timeout(
-        std::time::Duration::from_secs(timeout_seconds),
-        wait(ctx, request.agent),
-    )
-    .await
-    .map_err(|_| Error::AgentWaitTimeout { timeout_seconds })?
+    wait(ctx, request.agent).await
 }
 
 async fn wait(ctx: &Context, agent: AgentSelector) -> Result<Response, Error> {

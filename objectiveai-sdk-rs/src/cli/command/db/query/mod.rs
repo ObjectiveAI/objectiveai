@@ -10,16 +10,9 @@
 //! - **Timeout**: rides the [`RequestBase`] envelope (`--timeout`,
 //!   humantime: `30s`, `5m`, `1h30m`) but is REQUIRED for this
 //!   leaf — enforced at `TryFrom<Args>` time and re-checked by the
-//!   CLI handler for wire-built requests. The CLI threads it into
-//!   both `SET LOCAL statement_timeout` (server) and
-//!   `tokio::time::timeout` (client) so cancellation cleanly
-//!   drops the connection without leaving the pool poisoned.
-//! - **Token budget**: the envelope's optional `--max-tokens N`.
-//!   When set, the CLI tokenizes the response per-part
-//!   (`command_tag`, `columns`, each row) via `tiktoken-rs`
-//!   o200k_base and sums. Over-budget responses error with
-//!   `Error::TokenBudgetExceeded { limit, actual }` carrying the
-//!   exact count and a refinement suggestion.
+//!   CLI handler for wire-built requests. The CLI threads it to
+//!   postgres as `SET LOCAL statement_timeout` / `lock_timeout`;
+//!   enforcement is the server's alone.
 //!
 //! [`RequestBase`]: crate::cli::command::RequestBase
 //!
@@ -37,8 +30,8 @@ pub struct Request {
     /// SQL statement to execute. Single statement only (multi-
     /// statement input is rejected by the CLI handler).
     pub query: String,
-    // Carries `timeout_seconds` (REQUIRED for this leaf — see the
-    // module doc) and the optional `max_tokens` budget.
+    // Carries `timeout_seconds` — REQUIRED for this leaf; see the
+    // module doc.
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -96,10 +89,9 @@ pub struct Response {
     /// when the statement returns no rows (no-row command OR a
     /// SELECT with no matches).
     pub rows: Vec<Vec<serde_json::Value>>,
-    /// Always `false` in the current design — over-budget
-    /// responses return `TokenBudgetExceeded` rather than a
-    /// partial result. Reserved on the wire so a future "soft
-    /// truncation" mode can be added without a shape break.
+    /// Always `false` in the current design. Reserved on the wire
+    /// so a future "soft truncation" mode can be added without a
+    /// shape break.
     pub truncated: bool,
 }
 

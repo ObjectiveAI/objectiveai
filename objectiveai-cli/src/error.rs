@@ -125,8 +125,6 @@ pub enum Error {
     EnqueueRefTarget,
     #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
     WaitRefTarget,
-    #[error("agents wait timed out after {timeout_seconds}s")]
-    AgentWaitTimeout { timeout_seconds: u64 },
     #[error(
         "FATAL: tag {tag:?} lock was released without its GROUPED->BOUND upgrade; the spawn flow's upgrade-before-release invariant is broken"
     )]
@@ -164,11 +162,6 @@ pub enum Error {
     QueryTimeout,
     #[error("query attempted a write in a read-only context")]
     QueryReadOnlyViolation,
-    #[error(
-        "response exceeded token budget — actual {actual} tokens, limit {limit}. \
-         Consider narrowing with a WHERE clause, LIMIT, or selecting fewer columns."
-    )]
-    TokenBudgetExceeded { limit: u64, actual: u64 },
 }
 
 impl Error {

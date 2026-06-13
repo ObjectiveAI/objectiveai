@@ -2,13 +2,8 @@
 //!
 //! Takes an instance hierarchy or a tag (the `agents enqueue`
 //! selector shape — a plain ref has no live identity to wait on and
-//! errors) plus a humantime timeout that caps the WHOLE wait,
-//! across both subscriptions on the tag route. The timeout rides
-//! the [`RequestBase`] envelope (`--timeout`) but is REQUIRED for
-//! this leaf — enforced at `TryFrom<Args>` time and re-checked by
-//! the CLI handler for wire-built requests.
-//!
-//! [`RequestBase`]: crate::cli::command::RequestBase
+//! errors). The wait is uncapped — it blocks until the target is
+//! done, however long that takes.
 //!
 //! - **Instance**: subscribe to the AIH lock's release; a free lock
 //!   returns immediately.
@@ -33,9 +28,6 @@ pub struct Request {
     /// Who to wait on — an instance hierarchy or a tag. A plain ref
     /// has no live identity and errors.
     pub agent: AgentSelector,
-    // Carries `timeout_seconds` — the wall-clock cap across the
-    // WHOLE wait (both subscriptions on the tag route). REQUIRED
-    // for this leaf; see the module doc.
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -56,7 +48,7 @@ impl CommandRequest for Request {
     }
 }
 
-/// Success-only: the wait completed inside the timeout.
+/// Success-only: the wait completed — the target is done.
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
@@ -87,15 +79,6 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        // The timeout rides the shared envelope (which validates
-        // format and `> 0`), but THIS leaf requires it — an
-        // uncapped wait on a dead-but-locked agent never returns.
-        if args.base.timeout.is_none() {
-            return Err(crate::cli::command::FromArgsError {
-                field: "timeout",
-                source: "required for agents wait".to_string().into(),
-            });
-        }
         let agent = AgentSelector::try_from(args.agent)?;
         Ok(Self {
             path_type: Path::AgentsWait,

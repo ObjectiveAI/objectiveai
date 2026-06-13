@@ -12,10 +12,10 @@
 //! Carried fields: `jq` + `python` (output transforms), and the
 //! execution caps `timeout_seconds` (`--timeout`, humantime) +
 //! `max_tokens` (`--max-tokens`). The caps' enforcement is
-//! leaf-specific: `db query` and `agents wait` REQUIRE a timeout
-//! (checked in their `TryFrom<Args>` and again by the CLI handler);
-//! every other leaf accepts both caps as forward-compatible
-//! envelope data.
+//! leaf-specific: `db query` REQUIRES a timeout (checked in its
+//! `TryFrom<Args>` and again by the CLI handler, which threads it
+//! to postgres); every other leaf accepts both caps as
+//! forward-compatible envelope data.
 
 // The flattened envelope. One per transform-capable leaf `Request`,
 // as `#[serde(flatten)] pub base: RequestBase`. (Deliberately NOT a
@@ -41,14 +41,14 @@ pub struct RequestBase {
     pub python: Option<String>,
     /// Wall-clock execution cap, in whole seconds. Parsed from
     /// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
-    /// enforced at parse time. Required by `db query` and
-    /// `agents wait`; optional everywhere else.
+    /// enforced at parse time. Required by `db query`; optional
+    /// everywhere else.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub timeout_seconds: Option<u64>,
     /// Response token budget, `>= 1` (`0` is rejected at parse
-    /// time — omit entirely for unlimited). Consumed by leaves
-    /// that tokenize their response (`db query`).
+    /// time — omit entirely for unlimited). Forward-compatible
+    /// envelope data — no leaf enforces it yet.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub max_tokens: Option<u64>,
@@ -126,7 +126,7 @@ pub struct RequestBaseArgs {
     #[arg(long)]
     pub python: Option<String>,
     /// Wall-clock execution cap (humantime: `30s`, `5m`, `1h30m`).
-    /// Required by `db query` and `agents wait`; optional elsewhere.
+    /// Required by `db query`; optional elsewhere.
     #[arg(long, value_parser = parse_timeout_seconds)]
     pub timeout: Option<u64>,
     /// Response token budget. Must be `>= 1` if set (omit the flag
