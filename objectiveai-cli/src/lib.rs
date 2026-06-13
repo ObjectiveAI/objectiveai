@@ -7,6 +7,7 @@ pub mod executor;
 pub mod filesystem;
 pub mod plugin_path;
 mod python;
+mod python_wasm;
 mod source_resolver;
 mod spawn;
 pub mod viewer_client;
