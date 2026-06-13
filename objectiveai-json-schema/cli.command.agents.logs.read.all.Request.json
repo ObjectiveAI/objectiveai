@@ -17,7 +17,7 @@
       "omitempty": true
     },
     "jq": {
-      "description": "jq filter applied to the JSON output.",
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
         {
           "type": "string"
@@ -43,6 +43,17 @@
     },
     "path_type": {
       "$ref": "cli.command.agents.logs.read.all.Path"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "targets": {
       "type": "array",

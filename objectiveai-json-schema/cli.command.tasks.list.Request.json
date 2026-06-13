@@ -39,7 +39,7 @@
       "type": "boolean"
     },
     "jq": {
-      "description": "jq filter applied to the JSON output.",
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
         {
           "type": "string"
@@ -59,6 +59,17 @@
     "pending": {
       "description": "Show only schedules currently runnable — oneshots that\nhave never fired, and interval rows whose interval has\nelapsed. Mutually exclusive with `exhausted`.",
       "type": "boolean"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "targets": {
       "description": "One or more targets to list schedules for. Each resolves to a\nsingle AIH (`me` → the cli's own; `instance=L[,parent=P]`;\n`tag=T` BOUND-only — PENDING / ABSENT error), and rows whose\n`agent_instance_hierarchy` equals any resolved AIH are returned.",

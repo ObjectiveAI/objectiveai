@@ -32,7 +32,7 @@
       "type": "boolean"
     },
     "jq": {
-      "description": "jq filter applied to the JSON output.",
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
         {
           "type": "string"
@@ -47,6 +47,17 @@
     },
     "profile": {
       "$ref": "cli.command.functions.execute.ProfileSpec"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "retry_token": {
       "anyOf": [

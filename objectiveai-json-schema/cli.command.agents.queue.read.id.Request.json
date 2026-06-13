@@ -8,7 +8,7 @@
       "maximum": 9223372036854775807
     },
     "jq": {
-      "description": "jq filter applied to the JSON output.",
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
         {
           "type": "string"
@@ -20,6 +20,17 @@
     },
     "path_type": {
       "$ref": "cli.command.agents.queue.read.id.Path"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
     }
   }
 }
