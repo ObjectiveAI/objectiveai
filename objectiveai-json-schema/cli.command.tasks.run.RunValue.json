@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.tasks.run.RunValue",
+  "description": "The per-item value a fired schedule emits, mirroring the two root\ndispatch paths at the item level (untagged — the wire shape is just\nthe inner value):\n- [`RunValue::ExecuteValue`]: the typed root\n  [`crate::cli::command::ResponseItem`] from a no-transform command.\n  Boxed because the root union transitively contains *this* type\n  (`agents → tasks → run`), and its schema is opaqued to\n  `serde_json::Value` so the published schema doesn't inline the\n  entire root union (the TS7056 blowup the aggregates dodge).\n- [`RunValue::ExecuteTransformValue`]: the post-transform JSON from\n  a command that carried a `--jq` / `--python` transform.",
+  "anyOf": [
+    {},
+    {}
+  ]
+}

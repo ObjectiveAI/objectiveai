@@ -321,7 +321,8 @@ fn wrap_code(code: &str, input: &serde_json::Value) -> String {
     // runtime (JSON literals aren't Python literals — `true`/`null`).
     format!(
         r#"
-import ast as __oai_ast, json as __oai_json, sys as __oai_sys, io as __oai_io, base64 as __oai_b64
+import ast as __oai_ast, json as __oai_json, sys as __oai_sys, io as __oai_io, base64 as __oai_b64, os as __oai_os
+__oai_real_stdout = __oai_sys.stdout
 __oai_tree = __oai_ast.parse(__oai_b64.b64decode("{encoded}").decode())
 __oai_input = __oai_json.loads(__oai_b64.b64decode("{encoded_input}").decode())
 __oai_capture = __oai_io.StringIO()
@@ -334,8 +335,16 @@ if __oai_tree.body and isinstance(__oai_tree.body[-1], __oai_ast.Expr):
     __oai_eval = eval(compile(__oai_ast.Expression(__oai_last.value), "<inline>", "eval"), __oai_globals)
 else:
     exec(compile(__oai_tree, "<inline>", "exec"), __oai_globals)
-__oai_sys.stdout = __oai_sys.__stdout__
+# Restore the REAL captured stdout (not sys.__stdout__, which is None in
+# this WASI build — restoring it would leave a None stream that the
+# interpreter's shutdown flush trips over: "Exception ignored in: None:
+# 'NoneType' object has no attribute 'flush'", a non-zero exit).
+__oai_sys.stdout = __oai_real_stdout
 print(__oai_json.dumps({{"eval": __oai_eval, "stdout": __oai_capture.getvalue()}}))
+# Flush and hard-exit before finalization runs — skips the buggy
+# shutdown flush entirely while preserving the emitted envelope.
+__oai_sys.stdout.flush()
+__oai_os._exit(0)
 "#
     )
 }
