@@ -43,11 +43,11 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::AgentArguments;
 use std::collections::HashMap;
 
-use objectiveai_sdk::cli::command::ResponseItem as RootResponseItem;
 use objectiveai_sdk::cli::command::tasks::run::{
-    Plugin, Request, ResponseItem, SuccessResponseItem, ValueResponseItem,
+    Plugin, Request, ResponseItem, RunValue, SuccessResponseItem, ValueResponseItem,
 };
 
+use crate::RunStream;
 use crate::context::Context;
 use crate::db;
 use crate::error::Error;
@@ -87,7 +87,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     }
 
     // Kick all per-task dispatches off in parallel. Each future
-    // resolves to `(TaskMeta, Result<RootStream, Error>)` — the meta
+    // resolves to `(TaskMeta, Result<RunStream, Error>)` — the meta
     // is cloned out of the `RunRow` before `run_one` consumes it, and
     // tags every emitted item below. Pre-stream errors (parse /
     // handler-rejection) are folded into the merged stream as one-item
@@ -119,7 +119,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         // meta, so the success layer can tell when a task completed.
         let done = meta.clone();
         match result {
-            Ok(stream) => {
+            // Typed (no transform): wrap each root item as an
+            // `ExecuteValue`.
+            Ok(RunStream::Execute(stream)) => {
                 let tagged = stream
                     .map(move |r| {
                         TaskEvent::Item(
@@ -132,7 +134,32 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                                     name: meta.name.clone(),
                                     version: meta.version,
                                     plugin: meta.plugin.clone(),
-                                    value: Box::new(value),
+                                    value: RunValue::ExecuteValue(Box::new(value)),
+                                })
+                            }),
+                        )
+                    })
+                    .chain(futures::stream::once(async move {
+                        TaskEvent::Done(done)
+                    }));
+                select_all.push(Box::pin(tagged) as TaggedStream);
+            }
+            // Transformed: wrap each post-transform JSON as an
+            // `ExecuteTransformValue`.
+            Ok(RunStream::ExecuteTransform(stream)) => {
+                let tagged = stream
+                    .map(move |r| {
+                        TaskEvent::Item(
+                            run_id,
+                            r.map(|output| {
+                                ResponseItem::Value(ValueResponseItem {
+                                    agent_instance_hierarchy: meta
+                                        .agent_instance_hierarchy
+                                        .clone(),
+                                    name: meta.name.clone(),
+                                    version: meta.version,
+                                    plugin: meta.plugin.clone(),
+                                    value: RunValue::ExecuteTransformValue(output),
                                 })
                             }),
                         )
@@ -253,20 +280,14 @@ struct TaskMeta {
     plugin: Option<Plugin>,
 }
 
-/// Per-task stream — yields the typed root `ResponseItem` that
-/// `crate::command::command::execute` already produces. No JSON
-/// round-trip: the executor's `to_value` + `extract_leaf` dance
-/// exists only to let the generic `execute<_, T>` settle on `T`,
-/// and our `T` here *is* the root union, so we keep the value
-/// typed end-to-end.
-type RootStream = Pin<Box<dyn Stream<Item = Result<RootResponseItem, Error>> + Send>>;
-
 /// Dispatch one stored schedule through the root `crate::run` — the
 /// same entry `main.rs` and `plugins run`'s nested-command path use —
 /// against a ctx carrying the schedule's captured identity and the
 /// plugin that registered it. `crate::run` parses the argv itself, so
-/// we prepend a placeholder program name (it strips `argv[0]`).
-async fn run_one(ctx: &Context, row: db::tasks::RunRow) -> Result<RootStream, Error> {
+/// we prepend a placeholder program name (it strips `argv[0]`). The
+/// returned [`RunStream`] tells us whether the scheduled command was
+/// typed or transformed; the caller tags each item accordingly.
+async fn run_one(ctx: &Context, row: db::tasks::RunRow) -> Result<RunStream, Error> {
     let mut task_ctx = apply_agent_arguments(ctx, &row.agent_arguments);
     apply_plugin(&mut task_ctx, row.plugin);
 

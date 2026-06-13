@@ -270,7 +270,7 @@ fn run_nested_command(
         // A mirror of `main.rs::run_command`: drive the same `crate::run`
         // stream, but forward each line into the plugin's stdin (wrapped
         // in a `PluginCommandResponse`) instead of writing it to stdout.
-        let mut stream = match crate::run(args, Some(ctx)).await {
+        let run_stream = match crate::run(args, Some(ctx)).await {
             Ok(s) => s,
             Err(e) => {
                 if let Error::ClapParse(ref clap_err) = e {
@@ -286,24 +286,48 @@ fn run_nested_command(
                 };
             }
         };
-        let mut last_tool_exit: Option<i32> = None;
-        while let Some(item) = stream.next().await {
-            let written = match item {
-                Ok(response) => forward_line(&plugin_stdin, id, &response).await,
-                Err(e) => {
-                    if let Error::ToolExit(code) = &e {
-                        last_tool_exit = Some(*code);
-                    }
-                    forward_error(&plugin_stdin, id, &e, None).await
-                }
-            };
-            if written.is_err() {
-                // Plugin's stdin is gone; abandon the run.
-                break;
-            }
-        }
+        // Both arms forward each item to the plugin's stdin as a line;
+        // `drain` is generic over the item type (typed root items vs
+        // post-transform JSON).
+        let last_tool_exit = match run_stream {
+            crate::RunStream::Execute(stream) => drain(&plugin_stdin, id, stream).await,
+            crate::RunStream::ExecuteTransform(stream) => drain(&plugin_stdin, id, stream).await,
+        };
         last_tool_exit.unwrap_or(0)
     })
+}
+
+/// Drain a run stream into the plugin's stdin — one
+/// [`PluginCommandResponse`] line per item. Returns the last `ToolExit`
+/// code seen (surfaced as an `Err` item). Generic over the item type so
+/// it serves both `RunStream` arms. Stops early if the plugin's stdin
+/// closes.
+async fn drain<S, T>(
+    plugin_stdin: &Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+    mut stream: S,
+) -> Option<i32>
+where
+    S: Stream<Item = Result<T, Error>> + Unpin,
+    T: Serialize,
+{
+    let mut last_tool_exit: Option<i32> = None;
+    while let Some(item) = stream.next().await {
+        let written = match item {
+            Ok(value) => forward_line(plugin_stdin, id, &value).await,
+            Err(e) => {
+                if let Error::ToolExit(code) = &e {
+                    last_tool_exit = Some(*code);
+                }
+                forward_error(plugin_stdin, id, &e, None).await
+            }
+        };
+        if written.is_err() {
+            // Plugin's stdin is gone; abandon the run.
+            break;
+        }
+    }
+    last_tool_exit
 }
 
 /// Mirror of `main.rs::write_line`: serialize `value` and forward it to

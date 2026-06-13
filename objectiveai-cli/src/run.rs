@@ -2,7 +2,7 @@ use std::pin::Pin;
 
 use envconfig::Envconfig;
 use futures::Stream;
-use objectiveai_sdk::cli::command::{ResponseItem, parse_request};
+use objectiveai_sdk::cli::command::{CommandRequest, ResponseItem, parse_request};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -206,7 +206,18 @@ pub struct Config {
     pub plugin_version: Option<String>,
 }
 
-pub type RunStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
+/// What [`run`] yields, mirroring the two SDK root dispatch entry
+/// points. The arm is chosen by whether the parsed request carries an
+/// output transform (`RequestBase::transform`):
+///
+/// - [`RunStream::Execute`]: no transform — the typed root
+///   [`ResponseItem`] stream (identical to what `run` used to return).
+/// - [`RunStream::ExecuteTransform`]: a transform is set — each item is
+///   the transformed JSON output (`serde_json::Value`).
+pub enum RunStream {
+    Execute(Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>),
+    ExecuteTransform(Pin<Box<dyn Stream<Item = Result<serde_json::Value, Error>> + Send>>),
+}
 
 /// Build the top-level CLI config from the process environment.
 pub fn load_config() -> Config {
@@ -229,9 +240,11 @@ pub fn is_informational(e: &clap::Error) -> bool {
 ///
 /// Clap-parse argv against the SDK's top-level command surface;
 /// `TryFrom` it into [`Request`]; resolve [`Context`] (caller-
-/// supplied or built from env); dispatch through
-/// `crate::command::command::execute`. Yields each
-/// [`ResponseItem`] as it arrives.
+/// supplied or built from env); dispatch through the in-process
+/// [`crate::executor::CliCommandExecutor`] via the SDK root
+/// `execute` / `execute_transform` (the latter when the request
+/// carries an output transform). Returns a [`RunStream`] whose
+/// variant reflects that choice.
 ///
 /// The `instance` subprocess subcommand is **not** handled here
 /// — it has its own entry point at [`crate::instance::run`]
@@ -296,8 +309,24 @@ pub async fn run(
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
 
-    // TODO(transform): if the resolved request's `base` carries a
-    // transform (`base.jq`, later python), extract it here and apply
-    // to the returned stream before wrapping.
-    crate::command::command::execute(&ctx, request).await
+    // Drive the request through the in-process executor, picking the
+    // SDK root dispatch entry by whether the request carries an output
+    // transform. The executor applies the transform / token / timeout
+    // adapters; `execute_transform` additionally sets the transform on
+    // the leaf request and yields the post-transform JSON, whereas
+    // `execute` yields the typed root items.
+    let transform = request.request_base().transform();
+    let executor = crate::executor::CliCommandExecutor::new(ctx);
+    match transform {
+        Some(transform) => {
+            let stream =
+                objectiveai_sdk::cli::command::execute_transform(&executor, request, transform, None)
+                    .await?;
+            Ok(RunStream::ExecuteTransform(stream))
+        }
+        None => {
+            let stream = objectiveai_sdk::cli::command::execute(&executor, request, None).await?;
+            Ok(RunStream::Execute(stream))
+        }
+    }
 }

@@ -25,24 +25,16 @@ async fn main() {
 async fn run_command(args: Vec<String>) -> i32 {
     let mut stdout = tokio::io::stdout();
     match objectiveai_cli::run(args, None).await {
-        Ok(mut stream) => {
-            let mut last_tool_exit: Option<i32> = None;
-            while let Some(item) = stream.next().await {
-                match item {
-                    Ok(response) => {
-                        write_line(&mut stdout, &response).await;
-                    }
-                    Err(e) => {
-                        // `ToolExit(code)` carries the exit code the
-                        // upstream tool exited with — propagate it
-                        // even though it's surfaced as an Err item.
-                        if let objectiveai_cli::error::Error::ToolExit(code) = &e {
-                            last_tool_exit = Some(*code);
-                        }
-                        write_error_line(&mut stdout, &e, None).await;
-                    }
+        // Both arms drain to stdout, one JSON line per item — `Execute`
+        // yields typed root items, `ExecuteTransform` yields the
+        // post-transform JSON; `drain` is generic over the item type.
+        Ok(run_stream) => {
+            let last_tool_exit = match run_stream {
+                objectiveai_cli::RunStream::Execute(stream) => drain(&mut stdout, stream).await,
+                objectiveai_cli::RunStream::ExecuteTransform(stream) => {
+                    drain(&mut stdout, stream).await
                 }
-            }
+            };
             last_tool_exit.unwrap_or(0)
         }
         Err(e) => {
@@ -62,6 +54,32 @@ async fn run_command(args: Vec<String>) -> i32 {
             }
         }
     }
+}
+
+/// Drain a run stream to stdout — one JSON line per item. Returns the
+/// last `ToolExit` code observed (surfaced as an `Err` item), if any.
+/// Generic over the item type so it serves both `RunStream` arms.
+async fn drain<S, T>(stdout: &mut tokio::io::Stdout, mut stream: S) -> Option<i32>
+where
+    S: futures::Stream<Item = Result<T, objectiveai_cli::error::Error>> + Unpin,
+    T: serde::Serialize,
+{
+    let mut last_tool_exit: Option<i32> = None;
+    while let Some(item) = stream.next().await {
+        match item {
+            Ok(value) => write_line(stdout, &value).await,
+            Err(e) => {
+                // `ToolExit(code)` carries the exit code the upstream
+                // tool exited with — propagate it even though it's
+                // surfaced as an Err item.
+                if let objectiveai_cli::error::Error::ToolExit(code) = &e {
+                    last_tool_exit = Some(*code);
+                }
+                write_error_line(stdout, &e, None).await;
+            }
+        }
+    }
+    last_tool_exit
 }
 
 async fn write_line<T: serde::Serialize>(

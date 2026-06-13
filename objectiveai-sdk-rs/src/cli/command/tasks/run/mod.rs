@@ -65,7 +65,9 @@ impl CommandRequest for Request {
 /// required fields (`value` vs `success`) are disjoint, so the wire
 /// shape is just the inner object. Which variant flows is decided by
 /// the request's `stream_all`: `true` streams every emitted item as a
-/// [`ValueResponseItem`]; `false` (default) yields exactly one
+/// [`ValueResponseItem`] (whose `value` is the typed root item for a
+/// no-transform command, or the post-transform JSON otherwise — see
+/// [`RunValue`]); `false` (default) yields exactly one
 /// [`SuccessResponseItem`] per task when its stream completes.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
@@ -105,9 +107,30 @@ pub struct ValueResponseItem {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub plugin: Option<Plugin>,
-    /// The typed root item emitted by the scheduled command.
+    /// What the scheduled command emitted — either the typed root item
+    /// (no transform) or post-transform JSON. See [`RunValue`]. Schema
+    /// is opaqued to `serde_json::Value`.
     #[schemars(with = "serde_json::Value")]
-    pub value: Box<crate::cli::command::ResponseItem>,
+    pub value: RunValue,
+}
+
+/// The per-item value a fired schedule emits, mirroring the two root
+/// dispatch paths at the item level (untagged — the wire shape is just
+/// the inner value):
+/// - [`RunValue::ExecuteValue`]: the typed root
+///   [`crate::cli::command::ResponseItem`] from a no-transform command.
+///   Boxed because the root union transitively contains *this* type
+///   (`agents → tasks → run`), and its schema is opaqued to
+///   `serde_json::Value` so the published schema doesn't inline the
+///   entire root union (the TS7056 blowup the aggregates dodge).
+/// - [`RunValue::ExecuteTransformValue`]: the post-transform JSON from
+///   a command that carried a `--jq` / `--python` transform.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.tasks.run.RunValue")]
+pub enum RunValue {
+    ExecuteValue(#[schemars(with = "serde_json::Value")] Box<crate::cli::command::ResponseItem>),
+    ExecuteTransformValue(serde_json::Value),
 }
 
 /// One per-task completion summary (default mode): the same schedule
