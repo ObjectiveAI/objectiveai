@@ -7,18 +7,21 @@
 //! - **Read-only**: wrapped in `SET LOCAL TRANSACTION READ ONLY`
 //!   server-side. Write attempts come back as
 //!   `Error::QueryReadOnlyViolation`.
-//! - **Timeout**: required, humantime-parsed (`30s`, `5m`,
-//!   `1h30m`). `0` is rejected at `TryFrom<Args>` time. The CLI
-//!   threads it into both `SET LOCAL statement_timeout` (server)
-//!   and `tokio::time::timeout` (client) so cancellation cleanly
+//! - **Timeout**: rides the [`RequestBase`] envelope (`--timeout`,
+//!   humantime: `30s`, `5m`, `1h30m`) but is REQUIRED for this
+//!   leaf — enforced at `TryFrom<Args>` time and re-checked by the
+//!   CLI handler for wire-built requests. The CLI threads it into
+//!   both `SET LOCAL statement_timeout` (server) and
+//!   `tokio::time::timeout` (client) so cancellation cleanly
 //!   drops the connection without leaving the pool poisoned.
-//! - **Token budget**: optional `--max-tokens N`. When set, the
-//!   CLI tokenizes the response per-part (`command_tag`,
-//!   `columns`, each row) via `tiktoken-rs` o200k_base and sums.
-//!   Over-budget responses error with `Error::TokenBudgetExceeded
-//!   { limit, actual }` carrying the exact count and a
-//!   refinement suggestion. `0` is rejected at `TryFrom<Args>`
-//!   time (it means "no limit," not "no tokens").
+//! - **Token budget**: the envelope's optional `--max-tokens N`.
+//!   When set, the CLI tokenizes the response per-part
+//!   (`command_tag`, `columns`, each row) via `tiktoken-rs`
+//!   o200k_base and sums. Over-budget responses error with
+//!   `Error::TokenBudgetExceeded { limit, actual }` carrying the
+//!   exact count and a refinement suggestion.
+//!
+//! [`RequestBase`]: crate::cli::command::RequestBase
 //!
 //! Multi-statement queries, `COPY … TO STDOUT|STDIN`, and
 //! transaction-control verbs (`BEGIN` / `COMMIT` / `ROLLBACK`)
@@ -34,17 +37,8 @@ pub struct Request {
     /// SQL statement to execute. Single statement only (multi-
     /// statement input is rejected by the CLI handler).
     pub query: String,
-    /// Wall-clock execution cap, in whole seconds. Parsed from
-    /// `--timeout` (humantime), `> 0` enforced at
-    /// `TryFrom<Args>` time so this never carries 0 on the wire.
-    pub timeout_seconds: u64,
-    /// Optional response token budget. `None` ⇒ no limit;
-    /// `Some(n)` requires `n >= 1`. When set, the CLI errors
-    /// with `TokenBudgetExceeded` if the per-part token sum
-    /// exceeds the limit. Skip-serialized when None.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub max_tokens: Option<u64>,
+    // Carries `timeout_seconds` (REQUIRED for this leaf — see the
+    // module doc) and the optional `max_tokens` budget.
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -63,16 +57,7 @@ impl CommandRequest for Request {
             "query".to_string(),
             "--query".to_string(),
             self.query.clone(),
-            "--timeout".to_string(),
-            humantime::format_duration(
-                std::time::Duration::from_secs(self.timeout_seconds),
-            )
-            .to_string(),
         ];
-        if let Some(n) = self.max_tokens {
-            argv.push("--max-tokens".to_string());
-            argv.push(n.to_string());
-        }
         self.base.push_flags(&mut argv);
         argv
     }
@@ -123,15 +108,6 @@ pub struct Args {
     /// SQL statement to execute. Single statement only.
     #[arg(long)]
     pub query: String,
-    /// Wall-clock execution cap. Humantime — `100ms`, `30s`,
-    /// `5m`, `1h30m`. Must be `> 0`.
-    #[arg(long)]
-    pub timeout: String,
-    /// Optional response token budget. Must be `>= 1` if set
-    /// (`0` is rejected; omit the flag entirely to disable
-    /// limiting).
-    #[arg(long)]
-    pub max_tokens: Option<u64>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -156,38 +132,18 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let parsed_timeout = humantime::parse_duration(&args.timeout)
-            .map_err(|source| crate::cli::command::FromArgsError {
-                field: "timeout",
-                source: source.to_string().into(),
-            })?;
-        let timeout_seconds = parsed_timeout.as_secs();
-        if timeout_seconds == 0 {
-            // Treats sub-second timeouts as 0 too — humantime
-            // accepts `100ms` and we'd `.as_secs()` it down to 0.
-            // Sub-second is a real use case (cancellation
-            // testing); accept it here by rounding up to 1s OR
-            // by switching the storage unit. For now, the
-            // simplest spec-respecting reject path: require ≥
-            // 1s.
+        // The timeout rides the shared envelope (which validates
+        // format and `> 0`), but THIS leaf requires it — the cap is
+        // what keeps a runaway query from poisoning the pool.
+        if args.base.timeout.is_none() {
             return Err(crate::cli::command::FromArgsError {
                 field: "timeout",
-                source: "must be >= 1s".to_string().into(),
-            });
-        }
-        if let Some(0) = args.max_tokens {
-            return Err(crate::cli::command::FromArgsError {
-                field: "max_tokens",
-                source: "must be >= 1 (omit the flag for unlimited)"
-                    .to_string()
-                    .into(),
+                source: "required for db query".to_string().into(),
             });
         }
         Ok(Self {
             path_type: Path::DbQuery,
             query: args.query,
-            timeout_seconds,
-            max_tokens: args.max_tokens,
             base: args.base.into(),
         })
     }

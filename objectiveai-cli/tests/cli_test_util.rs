@@ -183,9 +183,10 @@ where
     let req = DbReq {
         path_type: DbPath::DbQuery,
         query: sql.to_string(),
-        timeout_seconds: 30,
-        max_tokens: None,
-        base: Default::default(),
+        base: objectiveai_sdk::cli::command::RequestBase {
+            timeout_seconds: Some(30),
+            ..Default::default()
+        },
     };
     let resp: DbResp = executor
         .execute_one(req, None)

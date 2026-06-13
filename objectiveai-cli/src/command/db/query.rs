@@ -28,10 +28,14 @@ use crate::error::Error;
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     pre_flight_validate(&request.query)?;
 
-    let timeout = Duration::from_secs(request.timeout_seconds);
+    let timeout_seconds = request
+        .base
+        .timeout_seconds
+        .ok_or(Error::MissingRequestField { field: "timeout_seconds" })?;
+    let timeout = Duration::from_secs(timeout_seconds);
     let raw = crate::db::query::run_readonly_query(ctx.db_client().await?, &request.query, timeout).await?;
 
-    if let Some(limit) = request.max_tokens {
+    if let Some(limit) = request.base.max_tokens {
         let actual = count_tokens(&raw)?;
         if actual > limit {
             return Err(Error::TokenBudgetExceeded { limit, actual });

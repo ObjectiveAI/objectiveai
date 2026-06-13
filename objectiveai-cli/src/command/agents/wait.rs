@@ -25,7 +25,10 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let timeout_seconds = request.timeout_seconds;
+    let timeout_seconds = request
+        .base
+        .timeout_seconds
+        .ok_or(Error::MissingRequestField { field: "timeout_seconds" })?;
     tokio::time::timeout(
         std::time::Duration::from_secs(timeout_seconds),
         wait(ctx, request.agent),

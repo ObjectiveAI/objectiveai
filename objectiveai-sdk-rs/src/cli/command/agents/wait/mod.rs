@@ -2,8 +2,13 @@
 //!
 //! Takes an instance hierarchy or a tag (the `agents enqueue`
 //! selector shape — a plain ref has no live identity to wait on and
-//! errors) plus a required humantime timeout that caps the WHOLE
-//! wait, across both subscriptions on the tag route.
+//! errors) plus a humantime timeout that caps the WHOLE wait,
+//! across both subscriptions on the tag route. The timeout rides
+//! the [`RequestBase`] envelope (`--timeout`) but is REQUIRED for
+//! this leaf — enforced at `TryFrom<Args>` time and re-checked by
+//! the CLI handler for wire-built requests.
+//!
+//! [`RequestBase`]: crate::cli::command::RequestBase
 //!
 //! - **Instance**: subscribe to the AIH lock's release; a free lock
 //!   returns immediately.
@@ -28,10 +33,9 @@ pub struct Request {
     /// Who to wait on — an instance hierarchy or a tag. A plain ref
     /// has no live identity and errors.
     pub agent: AgentSelector,
-    /// Wall-clock cap across the WHOLE wait (both subscriptions on
-    /// the tag route), in whole seconds. Parsed from `--timeout`
-    /// (humantime), `> 0` enforced at `TryFrom<Args>` time.
-    pub timeout_seconds: u64,
+    // Carries `timeout_seconds` — the wall-clock cap across the
+    // WHOLE wait (both subscriptions on the tag route). REQUIRED
+    // for this leaf; see the module doc.
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -47,13 +51,6 @@ impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
         let mut argv = vec!["agents".to_string(), "wait".to_string()];
         self.agent.push_flags(&mut argv);
-        argv.push("--timeout".to_string());
-        argv.push(
-            humantime::format_duration(std::time::Duration::from_secs(
-                self.timeout_seconds,
-            ))
-            .to_string(),
-        );
         self.base.push_flags(&mut argv);
         argv
     }
@@ -66,10 +63,6 @@ pub type Response = crate::cli::command::Ok;
 pub struct Args {
     #[command(flatten)]
     pub agent: crate::cli::command::agents::selector::AgentSelectorArgs,
-    /// Wall-clock cap across the whole wait (humantime: `30s`, `5m`,
-    /// `1h30m`).
-    #[arg(long)]
-    pub timeout: String,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -94,23 +87,19 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        let parsed_timeout = humantime::parse_duration(&args.timeout)
-            .map_err(|source| crate::cli::command::FromArgsError {
-                field: "timeout",
-                source: source.to_string().into(),
-            })?;
-        let timeout_seconds = parsed_timeout.as_secs();
-        if timeout_seconds == 0 {
+        // The timeout rides the shared envelope (which validates
+        // format and `> 0`), but THIS leaf requires it — an
+        // uncapped wait on a dead-but-locked agent never returns.
+        if args.base.timeout.is_none() {
             return Err(crate::cli::command::FromArgsError {
                 field: "timeout",
-                source: "must be >= 1s".to_string().into(),
+                source: "required for agents wait".to_string().into(),
             });
         }
         let agent = AgentSelector::try_from(args.agent)?;
         Ok(Self {
             path_type: Path::AgentsWait,
             agent,
-            timeout_seconds,
             base: args.base.into(),
         })
     }

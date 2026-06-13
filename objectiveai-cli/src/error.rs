@@ -153,6 +153,11 @@ pub enum Error {
     /// on the postgres-backed `logs.*` reader that's still in flight.
     #[error("not implemented: {0}")]
     NotImplemented(&'static str),
+    /// A wire-built request (MCP / JSON — argv parsing enforces this
+    /// earlier) omitted an envelope field the leaf requires, e.g.
+    /// `timeout_seconds` for `db query` / `agents wait`.
+    #[error("missing required field `{field}` for this command")]
+    MissingRequestField { field: &'static str },
     #[error("invalid query: {0}")]
     InvalidQuery(String),
     #[error("query exceeded timeout")]
