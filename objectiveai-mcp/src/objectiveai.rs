@@ -10,10 +10,13 @@ use objectiveai_sdk::cli::ErrorType as CliErrorType;
 use objectiveai_sdk::cli::Level as CliLevel;
 use objectiveai_sdk::cli::command::AgentArguments;
 use objectiveai_sdk::cli::command::CommandExecutor;
+use objectiveai_sdk::cli::command::CommandRequest;
 use objectiveai_sdk::cli::command::CommandResponse;
 use objectiveai_sdk::cli::command::McpResponseItem;
 use objectiveai_sdk::cli::command::Request;
 use objectiveai_sdk::cli::command::ResponseItem;
+use objectiveai_sdk::cli::command::RequestBase;
+use objectiveai_sdk::cli::command::Transform;
 use objectiveai_sdk::cli::command::parse_request;
 use objectiveai_sdk::cli::command::plugins;
 use objectiveai_sdk::cli::command::tools;
@@ -37,18 +40,87 @@ pub struct ObjectiveAiRequest {
         description = "The command arguments to pass to the ObjectiveAI CLI (e.g. [\"agents\", \"list\"] or [\"functions\", \"executions\", \"create\", \"--help\"])"
     )]
     pub command: Vec<String>,
+    #[schemars(
+        description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
+    )]
+    pub timeout: String,
+    #[schemars(description = "Output token budget for the response.")]
+    pub max_tokens: u64,
+    #[schemars(
+        description = "Optional jq filter applied to each output line. Return null to discard the output line. Ignored when `python` is also set."
+    )]
+    pub jq: Option<String>,
+    #[schemars(
+        description = "Optional Python transform applied to each output line. The item arrives as the global `input`; print the transformed result as valid JSON, or return null to discard the output line. Overrides `jq` when both are set."
+    )]
+    pub python: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct PluginRequest {
     #[schemars(description = "Args forwarded to the plugin binary's argv.")]
     pub args: Vec<String>,
+    #[schemars(
+        description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
+    )]
+    pub timeout: String,
+    #[schemars(description = "Output token budget for the response.")]
+    pub max_tokens: u64,
+    #[schemars(
+        description = "Optional jq filter applied to each output line. Return null to discard the output line. Ignored when `python` is also set."
+    )]
+    pub jq: Option<String>,
+    #[schemars(
+        description = "Optional Python transform applied to each output line. The item arrives as the global `input`; print the transformed result as valid JSON, or return null to discard the output line. Overrides `jq` when both are set."
+    )]
+    pub python: Option<String>,
 }
 
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToolRequest {
     #[schemars(description = "Args appended verbatim to the tool's exec command.")]
     pub args: Vec<String>,
+    #[schemars(
+        description = "Timeout for the whole command, humantime (e.g. \"30s\", \"5m\", \"1h30m\")."
+    )]
+    pub timeout: String,
+    #[schemars(description = "Output token budget for the response.")]
+    pub max_tokens: u64,
+    #[schemars(
+        description = "Optional jq filter applied to each output line. Return null to discard the output line. Ignored when `python` is also set."
+    )]
+    pub jq: Option<String>,
+    #[schemars(
+        description = "Optional Python transform applied to each output line. The item arrives as the global `input`; print the transformed result as valid JSON, or return null to discard the output line. Overrides `jq` when both are set."
+    )]
+    pub python: Option<String>,
+}
+
+/// Validate the shared `timeout` / `max_tokens` tool arguments. Parses
+/// the humantime `timeout` to whole seconds (erroring on a bad string
+/// or a sub-second-rounds-to-zero value) and rejects a zero
+/// `max_tokens`. Returns `(timeout_seconds, max_tokens)`.
+fn parse_caps(timeout: &str, max_tokens: u64) -> Result<(u64, u64), String> {
+    let secs = humantime::parse_duration(timeout)
+        .map_err(|e| format!("invalid timeout {timeout:?}: {e}"))?
+        .as_secs();
+    if secs == 0 {
+        return Err("timeout must be >= 1s".to_string());
+    }
+    if max_tokens == 0 {
+        return Err("max_tokens must be >= 1".to_string());
+    }
+    Ok((secs, max_tokens))
+}
+
+/// The active output transform from the tool args — python overrides
+/// jq, matching `RequestBase::transform`.
+fn build_transform(jq: Option<String>, python: Option<String>) -> Option<Transform> {
+    if let Some(code) = python {
+        Some(Transform::Python(code))
+    } else {
+        jq.map(Transform::Jq)
+    }
 }
 
 #[derive(Debug)]
@@ -148,13 +220,27 @@ where
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: PluginRequest = parse_json_object(arguments)?;
+                    let (timeout_seconds, max_tokens) =
+                        match parse_caps(&req.timeout, req.max_tokens) {
+                            Ok(v) => v,
+                            Err(msg) => {
+                                let item = synthetic_error(msg).into_mcp();
+                                return Ok(CallToolResult::success(format_items(vec![item])));
+                            }
+                        };
+                    let transform = build_transform(req.jq, req.python);
                     let request = plugins::run::Request {
                         path_type: plugins::run::Path::PluginsRun,
                         owner: plugin_owner,
                         name: plugin_name,
                         version: plugin_version,
                         args: req.args,
-                        base: Default::default(),
+                        base: RequestBase {
+                            jq: None,
+                            python: None,
+                            timeout_seconds: Some(timeout_seconds),
+                            max_tokens: Some(max_tokens),
+                        },
                     };
                     let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,
@@ -163,6 +249,7 @@ where
                     let blocks = dispatch_plugins_run(
                         &*executor,
                         request,
+                        transform,
                         state.as_deref().map(|s| &s.args),
                     )
                     .await;
@@ -203,13 +290,27 @@ where
                 async move {
                     let arguments = ctx.arguments.unwrap_or_default();
                     let req: ToolRequest = parse_json_object(arguments)?;
+                    let (timeout_seconds, max_tokens) =
+                        match parse_caps(&req.timeout, req.max_tokens) {
+                            Ok(v) => v,
+                            Err(msg) => {
+                                let item = synthetic_error(msg).into_mcp();
+                                return Ok(CallToolResult::success(format_items(vec![item])));
+                            }
+                        };
+                    let transform = build_transform(req.jq, req.python);
                     let request = tools::run::Request {
                         path_type: tools::run::Path::ToolsRun,
                         owner: tool_owner,
                         name: tool_name,
                         version: tool_version,
                         args: req.args,
-                        base: Default::default(),
+                        base: RequestBase {
+                            jq: None,
+                            python: None,
+                            timeout_seconds: Some(timeout_seconds),
+                            max_tokens: Some(max_tokens),
+                        },
                     };
                     let state = match session_id {
                         Some(sid) => registry.get(&sid.into()).await,
@@ -218,6 +319,7 @@ where
                     let blocks = dispatch_tools_run(
                         &*executor,
                         request,
+                        transform,
                         state.as_deref().map(|s| &s.args),
                     )
                     .await;
@@ -241,13 +343,29 @@ where
         Parameters(req): Parameters<ObjectiveAiRequest>,
         Extension(parts): Extension<http::request::Parts>,
     ) -> Result<CallToolResult, rmcp::ErrorData> {
-        let request = match parse_request(&req.command) {
+        // Validate the caps, parse the command, then inject the caps
+        // directly onto the parsed request's base — no argv round-trip.
+        // The transform is passed to dispatch (not into the base) — its
+        // leaf `execute_transform` sets it on the base itself.
+        let (timeout_seconds, max_tokens) = match parse_caps(&req.timeout, req.max_tokens) {
+            Ok(v) => v,
+            Err(msg) => {
+                let item = synthetic_error(msg).into_mcp();
+                return Ok(CallToolResult::success(format_items(vec![item])));
+            }
+        };
+        let mut request = match parse_request(&req.command) {
             Ok(r) => r,
             Err(e) => {
                 let item = synthetic_error(e.to_string()).into_mcp();
                 return Ok(CallToolResult::success(format_items(vec![item])));
             }
         };
+        if let Some(base) = request.request_base_mut() {
+            base.timeout_seconds = Some(timeout_seconds);
+            base.max_tokens = Some(max_tokens);
+        }
+        let transform = build_transform(req.jq, req.python);
         let session_id = session_id_from_headers(&parts.headers);
         let state = match session_id {
             Some(sid) => self.registry.get(&sid.into()).await,
@@ -256,6 +374,7 @@ where
         let blocks = dispatch_root(
             &*self.executor,
             request,
+            transform,
             state.as_deref().map(|s| &s.args),
         )
         .await;
@@ -288,56 +407,110 @@ fn session_id_from_extensions(extensions: &rmcp::model::Extensions) -> Option<St
 async fn dispatch_root<E>(
     executor: &E,
     request: Request,
+    transform: Option<Transform>,
     agent_arguments: Option<&AgentArguments>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match objectiveai_sdk::cli::command::execute(executor, request, agent_arguments)
-        .await
-    {
-        Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<ResponseItem, _>(Err(e))]),
-    };
-    let items: Vec<McpResponseItem> = stream.map(convert::<ResponseItem, _>).collect().await;
-    format_items(items)
+    match transform {
+        None => {
+            let stream =
+                match objectiveai_sdk::cli::command::execute(executor, request, agent_arguments)
+                    .await
+                {
+                    Ok(s) => s,
+                    Err(e) => return format_items(vec![convert::<ResponseItem, _>(Err(e))]),
+                };
+            let items: Vec<McpResponseItem> =
+                stream.map(convert::<ResponseItem, _>).collect().await;
+            format_items(items)
+        }
+        Some(t) => {
+            let stream = match objectiveai_sdk::cli::command::execute_transform(
+                executor,
+                request,
+                t,
+                agent_arguments,
+            )
+            .await
+            {
+                Ok(s) => s,
+                Err(e) => return format_items(vec![convert_value(Err(e))]),
+            };
+            let items: Vec<McpResponseItem> = stream.map(convert_value).collect().await;
+            format_items(items)
+        }
+    }
 }
 
 async fn dispatch_plugins_run<E>(
     executor: &E,
     request: plugins::run::Request,
+    transform: Option<Transform>,
     agent_arguments: Option<&AgentArguments>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match plugins::run::execute(executor, request, agent_arguments).await {
-        Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<plugins::run::ResponseItem, _>(Err(e))]),
-    };
-    let items: Vec<McpResponseItem> =
-        stream.map(convert::<plugins::run::ResponseItem, _>).collect().await;
-    format_items(items)
+    match transform {
+        None => {
+            let stream = match plugins::run::execute(executor, request, agent_arguments).await {
+                Ok(s) => s,
+                Err(e) => {
+                    return format_items(vec![convert::<plugins::run::ResponseItem, _>(Err(e))]);
+                }
+            };
+            let items: Vec<McpResponseItem> =
+                stream.map(convert::<plugins::run::ResponseItem, _>).collect().await;
+            format_items(items)
+        }
+        Some(t) => {
+            let stream =
+                match plugins::run::execute_transform(executor, request, t, agent_arguments).await {
+                    Ok(s) => s,
+                    Err(e) => return format_items(vec![convert_value(Err(e))]),
+                };
+            let items: Vec<McpResponseItem> = stream.map(convert_value).collect().await;
+            format_items(items)
+        }
+    }
 }
 
 async fn dispatch_tools_run<E>(
     executor: &E,
     request: tools::run::Request,
+    transform: Option<Transform>,
     agent_arguments: Option<&AgentArguments>,
 ) -> Vec<rmcp::model::Content>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Display,
 {
-    let stream = match tools::run::execute(executor, request, agent_arguments).await {
-        Ok(s) => s,
-        Err(e) => return format_items(vec![convert::<tools::run::ResponseItem, _>(Err(e))]),
-    };
-    let items: Vec<McpResponseItem> =
-        stream.map(convert::<tools::run::ResponseItem, _>).collect().await;
-    format_items(items)
+    match transform {
+        None => {
+            let stream = match tools::run::execute(executor, request, agent_arguments).await {
+                Ok(s) => s,
+                Err(e) => {
+                    return format_items(vec![convert::<tools::run::ResponseItem, _>(Err(e))]);
+                }
+            };
+            let items: Vec<McpResponseItem> =
+                stream.map(convert::<tools::run::ResponseItem, _>).collect().await;
+            format_items(items)
+        }
+        Some(t) => {
+            let stream =
+                match tools::run::execute_transform(executor, request, t, agent_arguments).await {
+                    Ok(s) => s,
+                    Err(e) => return format_items(vec![convert_value(Err(e))]),
+                };
+            let items: Vec<McpResponseItem> = stream.map(convert_value).collect().await;
+            format_items(items)
+        }
+    }
 }
 
 /// Collapse a `Result<T, ExecErr>` (the executor's per-item shape)
@@ -349,6 +522,19 @@ fn convert<T: CommandResponse, ExecErr: std::fmt::Display>(
 ) -> McpResponseItem {
     let result: Result<T, CliError> = r.map_err(|e| synthetic_error(format!("{e}")));
     result.into_mcp()
+}
+
+/// Like [`convert`], but for the raw `serde_json::Value` items an
+/// `execute_transform` stream yields (the transform replaced the typed
+/// shape). An `Ok` value rides through as JSONL; an executor error
+/// becomes a synthetic `cli::Error`.
+fn convert_value<ExecErr: std::fmt::Display>(
+    r: Result<serde_json::Value, ExecErr>,
+) -> McpResponseItem {
+    match r {
+        Ok(value) => McpResponseItem::JSONL(value),
+        Err(e) => synthetic_error(format!("{e}")).into_mcp(),
+    }
 }
 
 /// Build a `cli::Error` envelope from a free-form message. Used at the

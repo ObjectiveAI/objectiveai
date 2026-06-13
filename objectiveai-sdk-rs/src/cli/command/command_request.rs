@@ -13,4 +13,13 @@ pub trait CommandRequest {
     ///
     /// [`RequestBase`]: crate::cli::command::RequestBase
     fn request_base(&self) -> &crate::cli::command::RequestBase;
+
+    /// Mutable access to the request's flattened [`RequestBase`]
+    /// envelope, when it has one (`Some(&mut self.base)`). Lets a
+    /// caller inject the envelope controls (e.g. `timeout` /
+    /// `max_tokens`) onto an already-parsed request in place, without
+    /// re-serializing it through argv — used by the MCP server.
+    ///
+    /// [`RequestBase`]: crate::cli::command::RequestBase
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase>;
 }
