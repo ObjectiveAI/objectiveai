@@ -24,7 +24,6 @@ type typeInfo struct {
 	underlyingType string // for non-struct type definitions (e.g., type Foo *string)
 	fields         []fieldInfo
 	embeds         []string
-	embedTags      []string // raw struct tag (backticks stripped) per embed, parallel to embeds
 	methods        map[string]string
 }
 
@@ -86,11 +85,6 @@ func parseSourceDir(t *testing.T) map[string]*typeInfo {
 						for _, field := range st.Fields.List {
 							if len(field.Names) == 0 {
 								ti.embeds = append(ti.embeds, typeExprString(field.Type))
-								embedTag := ""
-								if field.Tag != nil {
-									embedTag = strings.TrimPrefix(strings.TrimSuffix(field.Tag.Value, "`"), "`")
-								}
-								ti.embedTags = append(ti.embedTags, embedTag)
 								continue
 							}
 							fi := fieldInfo{
@@ -271,35 +265,6 @@ func reconstructStructSchema(
 	titleMap map[string]string,
 	result map[string]any,
 ) map[string]any {
-	// Pure-embed passthrough: a struct that only embeds one titled type,
-	// with no JSON-tagged fields of its own and no AdditionalProperties,
-	// is a newtype/flatten wrapper. schemars emits a bare `{$ref}` for it
-	// — and stamps `type: "object"` next to the `$ref` only when the
-	// outer schema is committed to being an object, which the codegen
-	// records as an `outerObject:"true"` tag on the embed. (A struct that
-	// embeds AND carries fields is adjacently-tagged and always an object,
-	// handled by the normal path below.)
-	hasJSONField := false
-	for _, f := range ti.fields {
-		jsonTag := getTagValue(f.tags, "json")
-		if jsonTag != "" && jsonTag != "-" {
-			hasJSONField = true
-			break
-		}
-	}
-	_, hasAP := ti.methods["AdditionalProperties"]
-	if len(ti.embeds) == 1 && !hasJSONField && !hasAP {
-		if embedTitle, ok := titleMap[ti.embeds[0]]; ok {
-			outerObject := len(ti.embedTags) == 1 &&
-				getTagValue(ti.embedTags[0], "outerObject") == "true"
-			if outerObject {
-				result["type"] = "object"
-			}
-			result["$ref"] = embedTitle
-			return result
-		}
-	}
-
 	result["type"] = "object"
 
 	for _, embed := range ti.embeds {

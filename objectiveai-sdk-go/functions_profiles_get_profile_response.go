@@ -3,7 +3,7 @@
 package objectiveai
 
 type FunctionsProfilesGetProfileResponse struct {
-	RemotePath `outerObject:"true"`
+	RemotePath
 }
 
 func (FunctionsProfilesGetProfileResponse) SchemaTitle() string { return "functions.profiles.GetProfileResponse" }

@@ -4,7 +4,7 @@ package objectiveai
 
 // Response containing a single Agent with creation timestamp.
 type AgentGetAgentResponse struct {
-	RemotePath `outerObject:"true"`
+	RemotePath
 }
 
 func (AgentGetAgentResponse) SchemaTitle() string { return "agent.GetAgentResponse" }

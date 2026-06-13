@@ -3,7 +3,7 @@
 package objectiveai
 
 type FunctionsGetFunctionResponse struct {
-	RemotePath `outerObject:"true"`
+	RemotePath
 }
 
 func (FunctionsGetFunctionResponse) SchemaTitle() string { return "functions.GetFunctionResponse" }

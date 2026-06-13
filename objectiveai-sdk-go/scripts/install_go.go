@@ -1352,21 +1352,11 @@ func generateTypeCode(title string, schema Schema, allTitles map[string]bool) st
 		return b.String()
 	}
 
-	// Case 4a: $ref without properties → struct embedding the referenced type.
-	// Stamp `outerObject:"true"` on the embed when schemars committed the
-	// outer schema to `type: "object"` next to the `$ref` (the roundtrip
-	// harness reads this tag to re-emit `"type": "object"`). A bare `$ref`
-	// with no `type` embeds untagged and round-trips to a bare `$ref` —
-	// the tag is the only thing distinguishing the two on-disk shapes,
-	// since both lower to the same Go embed.
+	// Case 4a: $ref without properties → struct embedding the referenced type
 	if ref, ok := schema["$ref"].(string); ok {
 		desc, _ := schema["description"].(string)
 		b.WriteString(goDocComment(desc, ""))
-		embedTag := ""
-		if t, _ := schema["type"].(string); t == "object" {
-			embedTag = " `outerObject:\"true\"`"
-		}
-		b.WriteString(fmt.Sprintf("type %s struct {\n\t%s%s\n}\n\n", typeName, toPascal(ref), embedTag))
+		b.WriteString(fmt.Sprintf("type %s struct {\n\t%s\n}\n\n", typeName, toPascal(ref)))
 		b.WriteString(fmt.Sprintf("func (%s) SchemaTitle() string { return %q }\n", typeName, title))
 		b.WriteString(generateValidateMethod(typeName, nil))
 		return b.String()

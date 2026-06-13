@@ -133,17 +133,17 @@ pub struct ValueResponseItem {
 ///   entire root union (the TS7056 blowup the aggregates dodge).
 /// - [`RunValue::ExecuteTransformValue`]: the post-transform JSON from
 ///   a command that carried a `--jq` / `--python` transform.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+///
+/// Deliberately does NOT derive `JsonSchema` and is `json_schema_ignore`d:
+/// its only use site ([`ValueResponseItem::value`]) opaques it to
+/// `serde_json::Value`, so its own schema is never referenced. Deriving
+/// it would publish a degenerate `anyOf` of two type-less `{}` variants
+/// (both arms are wire-opaque), which no SDK code generator can name.
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.tasks.run.RunValue")]
 pub enum RunValue {
-    // Both variants opaque to `serde_json::Value` on the wire, so each
-    // renders as a bare `{}`. The explicit per-variant titles keep the
-    // published `anyOf` entries nameable (downstream SDK codegen names
-    // its variant types off these) — mirrors `ResponseItem` above.
-    #[schemars(title = "ExecuteValue")]
-    ExecuteValue(#[schemars(with = "serde_json::Value")] Box<crate::cli::command::ResponseItem>),
-    #[schemars(title = "ExecuteTransformValue")]
+    ExecuteValue(Box<crate::cli::command::ResponseItem>),
     ExecuteTransformValue(serde_json::Value),
 }
 

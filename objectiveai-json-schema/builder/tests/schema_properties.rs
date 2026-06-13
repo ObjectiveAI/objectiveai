@@ -295,6 +295,72 @@ fn no_any_of_with_sibling_properties_outside_properties() {
     }
 }
 
+/// Walks the schema and records every `anyOf` (2+ variants) that contains a
+/// variant carrying neither a `type` nor any other handle a code generator
+/// can name it by — `$ref`, `anyOf`, `enum`, or a `title`. A bare `{}` arm
+/// is the degenerate shape an untagged enum of two `serde_json::Value`-opaque
+/// variants produces: SDK code generators (Go/TS/Py) cannot name or
+/// discriminate it. A *titled* opaque arm (e.g. an untagged catch-all
+/// `{"title": "Notification"}` that carries raw JSON) is fine — the title is
+/// the name the generators key off. Single-variant `anyOf` is exempt (the
+/// builder flattens those). `inside_properties` is threaded so a user field
+/// literally named "anyOf" is not mistaken for the keyword.
+fn collect_opaque_anyof_variants(
+    value: &serde_json::Value,
+    inside_properties: bool,
+    path: &str,
+    errors: &mut Vec<String>,
+) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if !inside_properties {
+                if let Some(serde_json::Value::Array(variants)) = map.get("anyOf") {
+                    if variants.len() > 1 {
+                        for (i, variant) in variants.iter().enumerate() {
+                            let nameable = variant.as_object().is_some_and(|v| {
+                                v.contains_key("type")
+                                    || v.contains_key("$ref")
+                                    || v.contains_key("anyOf")
+                                    || v.contains_key("enum")
+                                    || v.contains_key("title")
+                            });
+                            if !nameable {
+                                errors.push(format!(
+                                    "{path}/anyOf[{i}] has no type/$ref/anyOf/enum/title"
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            for (k, v) in map {
+                collect_opaque_anyof_variants(v, k == "properties", &format!("{path}/{k}"), errors);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for (i, v) in arr.iter().enumerate() {
+                collect_opaque_anyof_variants(v, false, &format!("{path}[{i}]"), errors);
+            }
+        }
+        _ => {}
+    }
+}
+
+#[test]
+fn no_multi_variant_anyof_with_typeless_variant() {
+    let mut errors = Vec::new();
+    for (name, schema) in load_schemas() {
+        collect_opaque_anyof_variants(&schema, false, &name, &mut errors);
+    }
+    assert!(
+        errors.is_empty(),
+        "anyOf with 2+ variants where a variant has no type (and no \
+         $ref/anyOf/enum/title to name it by) — unnameable by SDK code \
+         generators:\n{}",
+        errors.join("\n")
+    );
+}
+
 #[test]
 fn no_const_outside_properties() {
     for (name, schema) in load_schemas() {

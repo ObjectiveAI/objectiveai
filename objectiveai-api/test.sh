@@ -59,7 +59,17 @@ done
 # Run tests, capture all output. cargo-nextest is installed locally by
 # `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
 # in the root Cargo.toml.
-if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" --no-fail-fast "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
+#
+# --lib --tests: skip the `objectiveai-api` bin target. The server is
+# launched from the PRE-BUILT target/debug/objectiveai-api.exe (built by
+# test-build.sh, spawned via the `.objectiveai/bin` shim behind the api
+# lockfile singleton) — the suite never needs to relink it. Rebuilding
+# the bin here races with a sibling suite that has already spawned the
+# server: cargo can't remove the running .exe to relink it
+# ("failed to remove file ... objectiveai-api.exe: Access is denied").
+# All api test coverage lives in the lib unit tests + integration tests
+# (tests/); main.rs carries none. Mirrors objectiveai-viewer/test.sh.
+if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/Cargo.toml" --lib --tests --no-fail-fast "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
   TOTAL=$((PASSED + FAILED))

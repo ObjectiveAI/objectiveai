@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { RemotePathSchema } from "../../../../../remotePath";
 
-export const CliCommandFunctionsProfilesListResponseItemSchema = z.lazy(() => RemotePathSchema).meta({ title: "cli.command.functions.profiles.list.ResponseItem" });
+export const CliCommandFunctionsProfilesListResponseItemSchema = RemotePathSchema.meta({ title: "cli.command.functions.profiles.list.ResponseItem" });
 export type CliCommandFunctionsProfilesListResponseItem = z.infer<typeof CliCommandFunctionsProfilesListResponseItemSchema>;
