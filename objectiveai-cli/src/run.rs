@@ -256,10 +256,18 @@ pub fn is_informational(e: &clap::Error) -> bool {
 /// Pre-dispatch failures (clap parse error, arg-conversion error,
 /// context build) and child-function errors propagate as the outer
 /// `Err`. On success the caller consumes the stream.
-pub async fn run(
+// NOTE: explicit boxed future (not `async fn`). `run` calls the SDK
+// root dispatch through `CliCommandExecutor`, and `tasks run` /
+// `plugins run` re-enter `run` — so `run`, the executor, and the local
+// command dispatch are mutually recursive. An `async fn`'s opaque
+// return type can't be computed through that cycle (E0391); an explicit
+// `Pin<Box<dyn Future + Send>>` return gives the recursion a known type
+// to terminate on.
+pub fn run(
     args: Vec<String>,
     ctx: Option<Context>,
-) -> Result<RunStream, Error> {
+) -> Pin<Box<dyn std::future::Future<Output = Result<RunStream, Error>> + Send>> {
+    Box::pin(async move {
     // Windows: clear the inheritance flag on this process's
     // stdin/stdout/stderr handles. They were marked inheritable by
     // whoever spawned us via `Stdio::piped()` — necessary so we
@@ -329,4 +337,5 @@ pub async fn run(
             Ok(RunStream::Execute(stream))
         }
     }
+    })
 }

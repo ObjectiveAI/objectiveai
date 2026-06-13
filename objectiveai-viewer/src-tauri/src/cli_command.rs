@@ -18,7 +18,9 @@
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::{BinaryExecutor, Error as BinaryError};
-use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor, CommandRequest};
+use objectiveai_sdk::cli::command::{
+    AgentArguments, CommandExecutor, CommandRequest, RequestBase,
+};
 use objectiveai_sdk::viewer::{Event, EventSender};
 
 /// Per-call identity stamped on every cli child the viewer spawns:
@@ -35,11 +37,22 @@ pub(crate) fn viewer_agent_arguments() -> AgentArguments {
 /// Verbatim argv passthrough. The cli strips its own argv[0] and its
 /// `parse_request` tolerates an optional leading literal
 /// `"objectiveai"`, so whatever shape the iframe sent works unchanged.
-struct RawArgs(Vec<String>);
+/// Raw argv plus an (always-default) envelope — the flags ride inside
+/// the argv itself, so the structured `base` stays empty. It exists
+/// only to satisfy `CommandRequest::request_base`.
+struct RawArgs(Vec<String>, RequestBase);
 
 impl CommandRequest for RawArgs {
     fn into_command(&self) -> Vec<String> {
         self.0.clone()
+    }
+
+    fn request_base(&self) -> &RequestBase {
+        &self.1
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut RequestBase> {
+        Some(&mut self.1)
     }
 }
 
@@ -111,7 +124,7 @@ pub async fn cli_run_impl(
     // borrow doesn't have to live inside the 'static task.
     let agent_arguments = viewer_agent_arguments();
     let stream = executor
-        .execute::<RawArgs, serde_json::Value>(RawArgs(args), Some(&agent_arguments))
+        .execute::<RawArgs, serde_json::Value>(RawArgs(args, RequestBase::default()), Some(&agent_arguments))
         .await;
     tokio::spawn(async move {
         match stream {
