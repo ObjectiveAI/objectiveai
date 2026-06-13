@@ -362,6 +362,31 @@ fn no_multi_variant_anyof_with_typeless_variant() {
 }
 
 #[test]
+fn no_root_ref_without_type() {
+    // A schema whose ROOT object is a bare `$ref` (no `type`) is a pure
+    // alias of another type. SDK code generators can't render it as a
+    // distinct named type — Go embeds the target and reconstructs it as
+    // `{type:"object", $ref}`, TS inlines the target's whole structure —
+    // so the round trip never matches the published `{$ref}`. A root that
+    // carries BOTH `$ref` and `type` (e.g. `{type:"object", $ref}`) is
+    // fine: the type pins the shape the generator emits.
+    let mut errors = Vec::new();
+    for (name, schema) in load_schemas() {
+        if let Some(obj) = schema.as_object() {
+            if obj.contains_key("$ref") && !obj.contains_key("type") {
+                errors.push(name);
+            }
+        }
+    }
+    assert!(
+        errors.is_empty(),
+        "root schemas with a $ref but no type (give them a type or \
+         restructure — SDK code generators cannot name a bare alias):\n{}",
+        errors.join("\n")
+    );
+}
+
+#[test]
 fn no_const_outside_properties() {
     for (name, schema) in load_schemas() {
         assert!(
