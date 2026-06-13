@@ -72,6 +72,20 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .await
         .map_err(Error::PluginSpawn)?;
 
+    // Per-plugin database compartment: an owned schema plus readonly
+    // access to the base objectiveai tables, handed to the child as
+    // a role-scoped connection URL. Provisioning is idempotent; a
+    // failure fails the run loudly rather than spawning a child with
+    // a silently missing database.
+    let postgres_url = crate::db::compartment::ensure(
+        ctx.db_handle().await?,
+        crate::db::compartment::Kind::Plugin,
+        &request.owner,
+        &request.name,
+        &request.version,
+    )
+    .await?;
+
     // Context for nested (plugin-originated) commands: this caller's
     // ctx, stamped with the plugin coordinate. `ctx.plugin` is set so
     // a nested command knows which plugin it runs on behalf of, and
@@ -93,7 +107,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let mut cmd = Command::new(&program);
     cmd.args(argv)
         .current_dir(&cli_dir)
-        .env("STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())

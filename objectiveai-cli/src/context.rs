@@ -41,9 +41,10 @@ pub struct Context {
     /// Lazily-built viewer client — see [`Context::viewer_client`].
     /// No per-request identity; always shared across clones.
     viewer: Arc<OnceCell<ViewerClient>>,
-    /// Lazily-connected db pool — see [`Context::db_client`]. No
-    /// per-request identity; always shared across clones.
-    db: Arc<OnceCell<db::Pool>>,
+    /// Lazily-connected db handle (pool + admin coordinates) — see
+    /// [`Context::db_handle`]. No per-request identity; always
+    /// shared across clones.
+    db: Arc<OnceCell<db::DbHandle>>,
 }
 
 impl Context {
@@ -116,18 +117,29 @@ impl Context {
             .await
     }
 
-    /// The db pool, connected on first use (ensuring the application
-    /// database + schema exist) and memoized. Must NOT connect
-    /// eagerly: commands like `db config ...` and `db spawn` have to
-    /// work before any database exists — they're how you bring one up
-    /// in the first place.
+    /// The db pool, connected on first use and memoized — the
+    /// pool-only view of [`Self::db_handle`].
+    pub async fn db_client(&self) -> Result<&db::Pool, crate::error::Error> {
+        Ok(&self.db_handle().await?.pool)
+    }
+
+    /// The db handle — pool plus the admin coordinates it was built
+    /// from (address, admin user/password, database name), which
+    /// [`crate::db::compartment`] needs to mint derived per-plugin
+    /// connection strings. Connected on first use (ensuring the
+    /// application database + schema exist) and memoized. Must NOT
+    /// connect eagerly: commands like `db config ...` and `db spawn`
+    /// have to work before any database exists — they're how you
+    /// bring one up in the first place.
     ///
     /// URL resolution: when `db.address` is set in the merged config
     /// view, a remote-postgres URL is composed from the `config db`
     /// parts; otherwise the `db spawn` flow returns the local
     /// cluster's lock-published `postgresql://` URL (starting the
-    /// objectiveai-db supervisor if needed).
-    pub async fn db_client(&self) -> Result<&db::Pool, crate::error::Error> {
+    /// objectiveai-db supervisor if needed), whose admin coordinates
+    /// are parsed back out of that URL (our own
+    /// `postgresql://postgres:{password}@{host}:{port}` shape).
+    pub async fn db_handle(&self) -> Result<&db::DbHandle, crate::error::Error> {
         self.db
             .get_or_try_init(|| async {
                 let mut config = self
@@ -135,25 +147,44 @@ impl Context {
                     .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
                     .await?;
                 let address = config.db().get_address().map(String::from);
-                let url = match address {
+                let (url, address, admin_user, admin_password) = match address {
                     Some(address) => {
                         let db = config.db();
-                        db::config_url(
-                            &address,
-                            db.get_user()
-                                .unwrap_or(crate::filesystem::config::DB_DEFAULT_USER),
-                            db.get_password()
-                                .unwrap_or(crate::filesystem::config::DB_DEFAULT_PASSWORD),
-                        )
+                        let user = db
+                            .get_user()
+                            .unwrap_or(crate::filesystem::config::DB_DEFAULT_USER)
+                            .to_string();
+                        let password = db
+                            .get_password()
+                            .unwrap_or(crate::filesystem::config::DB_DEFAULT_PASSWORD)
+                            .to_string();
+                        let url = db::config_url(&address, &user, &password);
+                        (url, address, user, password)
                     }
-                    None => crate::command::db::spawn::spawn(self).await?,
+                    None => {
+                        let url = crate::command::db::spawn::spawn(self).await?;
+                        let (address, user, password) =
+                            parse_spawn_db_url(&url).ok_or_else(|| {
+                                crate::error::Error::Instance(format!(
+                                    "db spawn published an unparseable URL: {url}"
+                                ))
+                            })?;
+                        (url, address, user, password)
+                    }
                 };
                 let database = config
                     .db()
                     .get_database()
                     .unwrap_or(crate::filesystem::config::DB_DEFAULT_DATABASE)
                     .to_string();
-                Ok(db::init(&url, &database).await?)
+                let pool = db::init(&url, &database).await?;
+                Ok(db::DbHandle {
+                    pool,
+                    address,
+                    admin_user,
+                    admin_password,
+                    database,
+                })
             })
             .await
     }
@@ -269,6 +300,24 @@ pub(crate) fn ensure_scheme(a: &str) -> String {
     } else {
         format!("http://{a}")
     }
+}
+
+/// Parse `(host:port, user, password)` out of the db spawn lock's
+/// published URL. The format is OUR OWN — `objectiveai-db` publishes
+/// exactly `postgresql://{user}:{percent-encoded password}@{host}:{port}`
+/// (see its `connection_string`) — so this is a structural split, not
+/// a general URL parser. `None` on any shape mismatch.
+fn parse_spawn_db_url(url: &str) -> Option<(String, String, String)> {
+    let rest = url
+        .strip_prefix("postgresql://")
+        .or_else(|| url.strip_prefix("postgres://"))?;
+    let (credentials, address) = rest.rsplit_once('@')?;
+    let (user, encoded_password) = credentials.split_once(':')?;
+    let password = percent_encoding::percent_decode_str(encoded_password)
+        .decode_utf8()
+        .ok()?
+        .into_owned();
+    Some((address.to_string(), user.to_string(), password))
 }
 
 fn env(name: &str) -> Option<String> {

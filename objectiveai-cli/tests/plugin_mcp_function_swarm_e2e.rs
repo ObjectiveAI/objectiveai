@@ -3,7 +3,7 @@
 //! fixture (`test-mcp-plugin-foo-headers`) but with a different `foo`
 //! argument (`"A"` vs `"B"`). The plugin echoes `foo` as its
 //! `Mcp-Session-Id` on initialize and writes one line to
-//! `<STATE_DIR>/<foo>.txt` per `invoke` tool call, where `STATE_DIR`
+//! `<OBJECTIVEAI_STATE_DIR>/<foo>.txt` per `invoke` tool call, where `OBJECTIVEAI_STATE_DIR`
 //! is the plugin's per-state scratch dir
 //! `<dir>/state/<test>/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0`.
 //!

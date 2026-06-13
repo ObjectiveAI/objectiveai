@@ -262,6 +262,31 @@ FOR EACH ROW EXECUTE FUNCTION notify_message_queue_inactive();
 /// constant baked into Rust source.
 const LOGS_SCHEMA: &str = include_str!("logs/schema.sql");
 
+/// The shared readonly group every plugin/tool compartment role
+/// joins (see [`super::compartment`]): USAGE + SELECT over the base
+/// `public` and `logs` schemas, with default privileges so tables
+/// the base schema grows LATER are covered automatically. Applied
+/// inside the same advisory-locked schema-apply step as the table
+/// DDL; `CREATE ROLE` has no `IF NOT EXISTS`, hence the DO block
+/// (roles are cluster-wide — a sibling database in the same cluster
+/// may have created it already; the GRANTs are per-database and
+/// re-run for each).
+const READER_GROUP: &str = r#"
+DO $$
+BEGIN
+    CREATE ROLE objectiveai_read NOLOGIN;
+EXCEPTION WHEN duplicate_object THEN
+    NULL;
+END
+$$;
+GRANT USAGE ON SCHEMA public TO objectiveai_read;
+GRANT USAGE ON SCHEMA logs TO objectiveai_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO objectiveai_read;
+GRANT SELECT ON ALL TABLES IN SCHEMA logs TO objectiveai_read;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT ON TABLES TO objectiveai_read;
+ALTER DEFAULT PRIVILEGES IN SCHEMA logs GRANT SELECT ON TABLES TO objectiveai_read;
+"#;
+
 /// Open the admin pool against `url` (no database path — lands on the
 /// connecting user's default database, `postgres`), ensure `database`
 /// exists, then open the application pool and apply the inline
@@ -350,6 +375,7 @@ pub async fn init(url: &str, database: &str) -> Result<Pool, Error> {
         let apply_result: Result<(), Error> = async {
             conn.execute(SCHEMA).await?;
             conn.execute(LOGS_SCHEMA).await?;
+            conn.execute(READER_GROUP).await?;
             Ok(())
         }
         .await;

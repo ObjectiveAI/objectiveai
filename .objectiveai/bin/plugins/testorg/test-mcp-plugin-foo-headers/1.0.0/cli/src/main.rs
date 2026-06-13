@@ -30,7 +30,7 @@
 //! - `notifications/initialized` → 202.
 //! - everything else → 404.
 //!
-//! `<state_dir>` is the `STATE_DIR` env the host cli stamps on every
+//! `<state_dir>` is the `OBJECTIVEAI_STATE_DIR` env the host cli stamps on every
 //! plugin spawn (`<dir>/state/<state>/plugins/<owner>/<name>/<version>`)
 //! — the plugin's own install folder is committed and must never be
 //! written to. Per-test-state isolation comes for free.
@@ -78,10 +78,10 @@ async fn main() -> std::io::Result<()> {
     }
     let foo = foo.expect("plugin requires --foo <value>");
 
-    // --- STATE_DIR is stamped by the host cli on every spawn ---
-    let base_dir = std::env::var("STATE_DIR")
+    // --- OBJECTIVEAI_STATE_DIR is stamped by the host cli on every spawn ---
+    let base_dir = std::env::var("OBJECTIVEAI_STATE_DIR")
         .map(std::path::PathBuf::from)
-        .expect("plugin requires STATE_DIR env");
+        .expect("plugin requires OBJECTIVEAI_STATE_DIR env");
 
     let state = AppState {
         inner: Arc::new(Inner {

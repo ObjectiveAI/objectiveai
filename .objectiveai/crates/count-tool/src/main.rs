@@ -1,5 +1,5 @@
 //! Test-fixture tool. Reads `MCP_SESSION_ID` from its env, increments
-//! a per-session counter file at `<STATE_DIR>/data/<session>.txt`,
+//! a per-session counter file at `<OBJECTIVEAI_STATE_DIR>/data/<session>.txt`,
 //! and prints the new count to stdout.
 //!
 //! Used by the `agents_continuation_tool_session_e2e` snapshot test to
@@ -8,7 +8,7 @@
 //! agent (same session) while staying independent across distinct
 //! agents (different sessions).
 //!
-//! `STATE_DIR` is provided by the host cli on every tool spawn
+//! `OBJECTIVEAI_STATE_DIR` is provided by the host cli on every tool spawn
 //! (`<dir>/state/<state>/tools/<owner>/<name>/<version>`) — the
 //! tool's own install folder is committed and must never be written
 //! to. Per-test-state isolation comes for free: each state gets its
@@ -77,6 +77,6 @@ fn main() {
 
 fn state_dir() -> PathBuf {
     PathBuf::from(
-        std::env::var_os("STATE_DIR").expect("STATE_DIR is set by the host cli"),
+        std::env::var_os("OBJECTIVEAI_STATE_DIR").expect("OBJECTIVEAI_STATE_DIR is set by the host cli"),
     )
 }

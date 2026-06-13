@@ -55,10 +55,25 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .await
         .map_err(Error::ToolSpawn)?;
 
+    // Per-tool database compartment: an owned schema plus readonly
+    // access to the base objectiveai tables, handed to the child as
+    // a role-scoped connection URL. Provisioning is idempotent; a
+    // failure fails the run loudly rather than spawning a child with
+    // a silently missing database.
+    let postgres_url = crate::db::compartment::ensure(
+        ctx.db_handle().await?,
+        crate::db::compartment::Kind::Tool,
+        &request.owner,
+        &request.name,
+        &request.version,
+    )
+    .await?;
+
     let mut cmd = Command::new(&program);
     cmd.args(argv)
         .current_dir(&cwd)
-        .env("STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());

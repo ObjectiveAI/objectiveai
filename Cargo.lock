@@ -4244,6 +4244,7 @@ dependencies = [
  "tiktoken-rs",
  "tokio",
  "tokio-stream",
+ "twox-hash",
  "uuid",
  "windows-sys 0.59.0",
  "wiremock",
