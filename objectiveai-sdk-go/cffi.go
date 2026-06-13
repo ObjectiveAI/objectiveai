@@ -522,24 +522,9 @@ func FunctionExecutionChunkMerged(a, b FunctionsExecutionsResponseStreamingFunct
 	return cffi2[FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunk]("objectiveai_function_execution_chunk_merged", a, b)
 }
 
-// FunctionInventionChunkMerged merges two FunctionInventionChunks via push.
-func FunctionInventionChunkMerged(a, b FunctionsInventionsResponseStreamingFunctionInventionChunk) (*FunctionsInventionsResponseStreamingFunctionInventionChunk, error) {
-	return cffi2[FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseStreamingFunctionInventionChunk]("objectiveai_function_invention_chunk_merged", a, b)
-}
-
-// FunctionInventionRecursiveChunkMerged merges two FunctionInventionRecursiveChunks via push.
-func FunctionInventionRecursiveChunkMerged(a, b FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk) (*FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, error) {
-	return cffi2[FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk]("objectiveai_function_invention_recursive_chunk_merged", a, b)
-}
-
 // FunctionProfileComputationChunkMerged merges two FunctionProfileComputationChunks via push.
 func FunctionProfileComputationChunkMerged(a, b FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk) (*FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, error) {
 	return cffi2[FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk]("objectiveai_function_profile_computation_chunk_merged", a, b)
-}
-
-// LaboratoryExecutionChunkMerged merges two LaboratoryExecutionChunks via push.
-func LaboratoryExecutionChunkMerged(a, b LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk) (*LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, error) {
-	return cffi2[LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk]("objectiveai_laboratory_execution_chunk_merged", a, b)
 }
 
 // ---------------------------------------------------------------------------
@@ -561,24 +546,9 @@ func FunctionExecutionChunkNormalized(chunk FunctionsExecutionsResponseStreaming
 	return cffi1[FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunk]("objectiveai_function_execution_chunk_normalized", chunk)
 }
 
-// FunctionInventionChunkNormalized normalizes a FunctionInventionChunk.
-func FunctionInventionChunkNormalized(chunk FunctionsInventionsResponseStreamingFunctionInventionChunk) (*FunctionsInventionsResponseStreamingFunctionInventionChunk, error) {
-	return cffi1[FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseStreamingFunctionInventionChunk]("objectiveai_function_invention_chunk_normalized", chunk)
-}
-
-// FunctionInventionRecursiveChunkNormalized normalizes a FunctionInventionRecursiveChunk.
-func FunctionInventionRecursiveChunkNormalized(chunk FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk) (*FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, error) {
-	return cffi1[FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk]("objectiveai_function_invention_recursive_chunk_normalized", chunk)
-}
-
 // FunctionProfileComputationChunkNormalized normalizes a FunctionProfileComputationChunk.
 func FunctionProfileComputationChunkNormalized(chunk FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk) (*FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, error) {
 	return cffi1[FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk]("objectiveai_function_profile_computation_chunk_normalized", chunk)
-}
-
-// LaboratoryExecutionChunkNormalized normalizes a LaboratoryExecutionChunk.
-func LaboratoryExecutionChunkNormalized(chunk LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk) (*LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, error) {
-	return cffi1[LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk]("objectiveai_laboratory_execution_chunk_normalized", chunk)
 }
 
 // ---------------------------------------------------------------------------
@@ -600,24 +570,9 @@ func FunctionExecutionChunkToUnary(chunk FunctionsExecutionsResponseStreamingFun
 	return cffi1[FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseUnaryFunctionExecution]("objectiveai_function_execution_chunk_to_unary", chunk)
 }
 
-// FunctionInventionChunkToUnary converts an accumulated chunk to a unary FunctionInvention.
-func FunctionInventionChunkToUnary(chunk FunctionsInventionsResponseStreamingFunctionInventionChunk) (*FunctionsInventionsResponseUnaryFunctionInvention, error) {
-	return cffi1[FunctionsInventionsResponseStreamingFunctionInventionChunk, FunctionsInventionsResponseUnaryFunctionInvention]("objectiveai_function_invention_chunk_to_unary", chunk)
-}
-
-// FunctionInventionRecursiveChunkToUnary converts an accumulated chunk to a unary FunctionInventionRecursive.
-func FunctionInventionRecursiveChunkToUnary(chunk FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk) (*FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive, error) {
-	return cffi1[FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive]("objectiveai_function_invention_recursive_chunk_to_unary", chunk)
-}
-
 // FunctionProfileComputationChunkToUnary converts an accumulated chunk to a unary FunctionProfileComputation.
 func FunctionProfileComputationChunkToUnary(chunk FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk) (*FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, error) {
 	return cffi1[FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation]("objectiveai_function_profile_computation_chunk_to_unary", chunk)
-}
-
-// LaboratoryExecutionChunkToUnary converts an accumulated chunk to a unary LaboratoryExecution.
-func LaboratoryExecutionChunkToUnary(chunk LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk) (*LaboratoriesExecutionsResponseUnaryLaboratoryExecution, error) {
-	return cffi1[LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, LaboratoriesExecutionsResponseUnaryLaboratoryExecution]("objectiveai_laboratory_execution_chunk_to_unary", chunk)
 }
 
 // ---------------------------------------------------------------------------
@@ -639,24 +594,9 @@ func NormalizeFunctionExecutionForTests(v FunctionsExecutionsResponseUnaryFuncti
 	return cffi1[FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecution]("objectiveai_normalize_function_execution_for_tests", v)
 }
 
-// NormalizeFunctionInventionForTests normalizes a FunctionInvention by round-tripping through serde.
-func NormalizeFunctionInventionForTests(v FunctionsInventionsResponseUnaryFunctionInvention) (*FunctionsInventionsResponseUnaryFunctionInvention, error) {
-	return cffi1[FunctionsInventionsResponseUnaryFunctionInvention, FunctionsInventionsResponseUnaryFunctionInvention]("objectiveai_normalize_function_invention_for_tests", v)
-}
-
-// NormalizeFunctionInventionRecursiveForTests normalizes a FunctionInventionRecursive by round-tripping through serde.
-func NormalizeFunctionInventionRecursiveForTests(v FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive) (*FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive, error) {
-	return cffi1[FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive, FunctionsInventionsRecursiveResponseUnaryFunctionInventionRecursive]("objectiveai_normalize_function_invention_recursive_for_tests", v)
-}
-
 // NormalizeFunctionProfileComputationForTests normalizes a FunctionProfileComputation by round-tripping through serde.
 func NormalizeFunctionProfileComputationForTests(v FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation) (*FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, error) {
 	return cffi1[FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation]("objectiveai_normalize_function_profile_computation_for_tests", v)
-}
-
-// NormalizeLaboratoryExecutionForTests normalizes a LaboratoryExecution by round-tripping through serde.
-func NormalizeLaboratoryExecutionForTests(v LaboratoriesExecutionsResponseUnaryLaboratoryExecution) (*LaboratoriesExecutionsResponseUnaryLaboratoryExecution, error) {
-	return cffi1[LaboratoriesExecutionsResponseUnaryLaboratoryExecution, LaboratoriesExecutionsResponseUnaryLaboratoryExecution]("objectiveai_normalize_laboratory_execution_for_tests", v)
 }
 
 // ---------------------------------------------------------------------------
@@ -678,22 +618,7 @@ func GenerateFunctionExecutionChunk(hasSeed bool, seed int64) (*FunctionsExecuti
 	return cffiGenerate[FunctionsExecutionsResponseStreamingFunctionExecutionChunk]("objectiveai_generate_function_execution_chunk", hasSeed, seed)
 }
 
-// GenerateFunctionInventionChunk generates a random FunctionInventionChunk from a seed.
-func GenerateFunctionInventionChunk(hasSeed bool, seed int64) (*FunctionsInventionsResponseStreamingFunctionInventionChunk, error) {
-	return cffiGenerate[FunctionsInventionsResponseStreamingFunctionInventionChunk]("objectiveai_generate_function_invention_chunk", hasSeed, seed)
-}
-
-// GenerateFunctionInventionRecursiveChunk generates a random FunctionInventionRecursiveChunk from a seed.
-func GenerateFunctionInventionRecursiveChunk(hasSeed bool, seed int64) (*FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk, error) {
-	return cffiGenerate[FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk]("objectiveai_generate_function_invention_recursive_chunk", hasSeed, seed)
-}
-
 // GenerateFunctionProfileComputationChunk generates a random FunctionProfileComputationChunk from a seed.
 func GenerateFunctionProfileComputationChunk(hasSeed bool, seed int64) (*FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, error) {
 	return cffiGenerate[FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk]("objectiveai_generate_function_profile_computation_chunk", hasSeed, seed)
-}
-
-// GenerateLaboratoryExecutionChunk generates a random LaboratoryExecutionChunk from a seed.
-func GenerateLaboratoryExecutionChunk(hasSeed bool, seed int64) (*LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk, error) {
-	return cffiGenerate[LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk]("objectiveai_generate_laboratory_execution_chunk", hasSeed, seed)
 }

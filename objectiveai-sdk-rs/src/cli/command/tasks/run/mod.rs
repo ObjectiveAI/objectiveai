@@ -137,7 +137,13 @@ pub struct ValueResponseItem {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.tasks.run.RunValue")]
 pub enum RunValue {
+    // Both variants opaque to `serde_json::Value` on the wire, so each
+    // renders as a bare `{}`. The explicit per-variant titles keep the
+    // published `anyOf` entries nameable (downstream SDK codegen names
+    // its variant types off these) — mirrors `ResponseItem` above.
+    #[schemars(title = "ExecuteValue")]
     ExecuteValue(#[schemars(with = "serde_json::Value")] Box<crate::cli::command::ResponseItem>),
+    #[schemars(title = "ExecuteTransformValue")]
     ExecuteTransformValue(serde_json::Value),
 }
 

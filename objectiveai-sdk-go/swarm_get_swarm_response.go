@@ -4,7 +4,7 @@ package objectiveai
 
 // Response containing a single Swarm.
 type SwarmGetSwarmResponse struct {
-	RemotePath
+	RemotePath `outerObject:"true"`
 }
 
 func (SwarmGetSwarmResponse) SchemaTitle() string { return "swarm.GetSwarmResponse" }
