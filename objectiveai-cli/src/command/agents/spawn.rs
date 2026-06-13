@@ -90,6 +90,9 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
             })
         }
     }
+    // The child is a re-exec of this CLI — it must not inherit the
+    // parent's transform / token budget (timeout survives).
+    crate::command::reexec::strip_inherited(&mut child_request.base);
 
     // Self-respawn: point the executor at *this* binary (whichever
     // path the OS recorded for the current process), then arm

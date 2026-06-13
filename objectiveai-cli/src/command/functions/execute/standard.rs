@@ -94,6 +94,8 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
             })
         }
     }
+    // Re-exec of this CLI — strip the parent-only envelope fields.
+    crate::command::reexec::strip_inherited(&mut child_request.base);
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
     let executor = BinaryExecutor::from_path(exe).detach(true);
