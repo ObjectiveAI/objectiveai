@@ -2,9 +2,7 @@ import cn from "classnames";
 import { memo, useMemo, useRef, useEffect, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import { AgentCompletionView } from "../../AgentCompletionView";
-import { FunctionInventionRecursiveView } from "../../FunctionInventionRecursiveView";
 import { FunctionExecutionView } from "../../FunctionExecutionView";
-import { LaboratoryExecutionView } from "./LaboratoryExecutionView";
 import { ErrorBoundary } from "../shared/ErrorBoundary";
 import { InnerErrorsBadge } from "../shared/InnerErrorsBadge";
 import { getEntrySummary } from "../../lib/entrySummary";
@@ -15,14 +13,8 @@ function EntryContent({ entry }: { entry: Entry }) {
   if (entry.kind === "agent-completion") {
     return <AgentCompletionView entry={entry} />;
   }
-  if (entry.kind === "invention") {
-    return <FunctionInventionRecursiveView entry={entry} />;
-  }
   if (entry.kind === "execution") {
     return <FunctionExecutionView entry={entry} />;
-  }
-  if (entry.kind === "laboratory") {
-    return <LaboratoryExecutionView entry={entry} />;
   }
   return null;
 }
@@ -36,15 +28,11 @@ const STATUS_COLOR = {
 const KIND_ACCENT: Record<string, string> = {
   "agent-completion": "border-l-kind-agent",
   execution: "border-l-kind-execution",
-  invention: "border-l-kind-invention",
-  laboratory: "border-l-kind-laboratory",
 };
 
 const KIND_LABEL_STYLE: Record<string, string> = {
   Agent: "text-kind-agent bg-kind-agent/15",
   Execution: "text-kind-execution bg-kind-execution/15",
-  Invention: "text-kind-invention bg-kind-invention/15",
-  Laboratory: "text-kind-laboratory bg-kind-laboratory/15",
 };
 
 function entryTimestamp(entry: Entry): string {

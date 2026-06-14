@@ -9,7 +9,7 @@ import {
   type AgentCompletionsMessageMessage,
   type AgentCompletionsMessageRichContent,
   type AgentCompletionsMessageRichContentPart,
-  type CliCommandConfigAgentsFavoritesGetResponseItem,
+  type RemotePathCommitOptional,
   type ViewerEvent,
 } from "@objectiveai/sdk";
 import { buildAgentCompletionRequest } from "./buildAgentCompletionRequest";
@@ -48,12 +48,12 @@ export function useAgentChat(
     async (
       tabId: string,
       requestId: string,
-      favorite: CliCommandConfigAgentsFavoritesGetResponseItem,
+      agent: RemotePathCommitOptional,
       messages: AgentCompletionsMessageMessage[],
       continuation: string | null,
     ) => {
       const origin = `agent-completion-${requestId}`;
-      const request = buildAgentCompletionRequest(favorite, messages, continuation);
+      const request = buildAgentCompletionRequest(agent, messages, continuation);
 
       let unlisten: UnlistenFn | undefined;
       unlisten = await listen<ViewerEvent>(origin, (ev) => {
@@ -130,7 +130,7 @@ export function useAgentChat(
 
   const finalizeStream = useCallback(
     (tabId: string, requestId: string) => {
-      let scheduleDrain: { favorite: CliCommandConfigAgentsFavoritesGetResponseItem; continuation: string | null; drainRequestId: string } | null = null;
+      let scheduleDrain: { agent: RemotePathCommitOptional; continuation: string | null; drainRequestId: string } | null = null;
       setPanelTabs((prev) => prev.map((t) => {
         if (t.id !== tabId || t.inFlightEntryIndex === null) return t;
         const idx = t.inFlightEntryIndex;
@@ -154,7 +154,7 @@ export function useAgentChat(
             requestId: drainRequestId,
           };
           entries.push(drainEntry);
-          scheduleDrain = { favorite: t.favorite, continuation, drainRequestId };
+          scheduleDrain = { agent: t.agent, continuation, drainRequestId };
           return {
             ...t,
             entries,
@@ -173,8 +173,8 @@ export function useAgentChat(
         };
       }));
       if (scheduleDrain) {
-        const { favorite, continuation, drainRequestId } = scheduleDrain;
-        queueMicrotask(() => startStream(tabId, drainRequestId, favorite, [], continuation));
+        const { agent, continuation, drainRequestId } = scheduleDrain;
+        queueMicrotask(() => startStream(tabId, drainRequestId, agent, [], continuation));
       }
     },
     [setPanelTabs, startStream],
@@ -183,7 +183,7 @@ export function useAgentChat(
   const sendMessage = useCallback(
     (tabId: string) => {
       let startFresh:
-        | { favorite: CliCommandConfigAgentsFavoritesGetResponseItem; continuation: string | null; requestId: string; userMsg: AgentCompletionsMessageMessage }
+        | { agent: RemotePathCommitOptional; continuation: string | null; requestId: string; userMsg: AgentCompletionsMessageMessage }
         | null = null;
       let notifyNow: { responseId: string; content: AgentCompletionsMessageRichContent } | null = null;
       setPanelTabs((prev) => prev.map((t) => {
@@ -224,7 +224,7 @@ export function useAgentChat(
         };
         const entries = [...t.entries, userEntry, completionEntry];
         startFresh = {
-          favorite: t.favorite,
+          agent: t.agent,
           continuation: t.continuation,
           requestId,
           userMsg: built,
@@ -237,9 +237,9 @@ export function useAgentChat(
         };
       }));
       if (startFresh) {
-        const { favorite, continuation, requestId, userMsg } = startFresh;
+        const { agent, continuation, requestId, userMsg } = startFresh;
         queueMicrotask(() =>
-          startStream(tabId, requestId, favorite, [userMsg], continuation),
+          startStream(tabId, requestId, agent, [userMsg], continuation),
         );
       }
       if (notifyNow) {

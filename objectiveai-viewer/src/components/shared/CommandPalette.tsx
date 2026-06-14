@@ -13,7 +13,6 @@ interface GuidedMode {
 
 const QUICK_ACTIONS: { label: string; args: string; guided?: boolean }[] = [
   { label: "Execute function", args: "functions executions create", guided: true },
-  { label: "Invent function", args: "functions inventions recursive create" },
   { label: "List functions", args: "functions list" },
   { label: "List agents", args: "agents list" },
 ];

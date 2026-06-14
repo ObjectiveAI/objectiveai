@@ -4,7 +4,7 @@ import type {
   AgentCompletionsResponseStreamingAssistantResponseChunk,
   AgentCompletionsResponseToolResponse,
 } from "@objectiveai/sdk";
-import type { PanelTab, PanelTabCompletionEntry } from "../RightOverlayPanel";
+import { agentLabel, type PanelTab, type PanelTabCompletionEntry } from "../RightOverlayPanel";
 import { UserBubble } from "./UserBubble";
 import { AssistantBubble } from "./AssistantBubble";
 import { ToolResponseBlock } from "./ToolResponseBlock";
@@ -62,7 +62,7 @@ export function MessageList({ tab, setPanelTabs }: MessageListProps) {
           "italic",
         )}
       >
-        Say hi to {tab.favorite.name}.
+        Say hi to {agentLabel(tab.agent)}.
       </div>
     );
   }

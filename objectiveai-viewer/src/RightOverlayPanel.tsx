@@ -6,11 +6,17 @@ import type {
   AgentCompletionsMessageRichContentPart,
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   ErrorResponseError,
-  CliCommandConfigAgentsFavoritesGetResponseItem,
+  RemotePathCommitOptional,
 } from "@objectiveai/sdk";
-import { useFavoriteAgents } from "./useFavoriteAgents";
 import { ChatPane } from "./ChatPane";
 import { MessageList } from "./chat/MessageList";
+
+/** Human-readable label for an agent's remote path, used as the tab
+ * title and chat header. */
+export function agentLabel(agent: RemotePathCommitOptional): string {
+  if ("name" in agent) return agent.name;
+  return `${agent.owner}/${agent.repository}`;
+}
 
 export interface PanelTabUserEntry {
   kind: "user";
@@ -31,7 +37,7 @@ export type PanelTabEntry = PanelTabUserEntry | PanelTabCompletionEntry;
 
 export interface PanelTab {
   id: string;
-  favorite: CliCommandConfigAgentsFavoritesGetResponseItem;
+  agent: RemotePathCommitOptional;
   draft: string;
   attachments: AgentCompletionsMessageRichContentPart[];
   /** Chronologically-ordered chat entries. Render in order. */
@@ -79,7 +85,6 @@ export function RightOverlayPanel({
   setActivePanelTabId,
   sendMessage,
 }: RightOverlayPanelProps) {
-  const { favorites, loading, error } = useFavoriteAgents();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const plusRef = useRef<HTMLDivElement | null>(null);
 
@@ -94,11 +99,11 @@ export function RightOverlayPanel({
     return () => document.removeEventListener("mousedown", onDocDown);
   }, [dropdownOpen]);
 
-  const openFavorite = (favorite: CliCommandConfigAgentsFavoritesGetResponseItem) => {
+  const openAgent = (agent: RemotePathCommitOptional) => {
     const id = crypto.randomUUID();
     const tab: PanelTab = {
       id,
-      favorite,
+      agent,
       draft: "",
       attachments: [],
       entries: [],
@@ -215,12 +220,12 @@ export function RightOverlayPanel({
                     : cn("text-neutral-600", "dark:text-neutral-400"),
                 )}
               >
-                {tab.favorite.name}
+                {agentLabel(tab.agent)}
               </button>
               <button
                 type="button"
                 onClick={() => closeTab(tab.id)}
-                aria-label={`Close ${tab.favorite.name}`}
+                aria-label={`Close ${agentLabel(tab.agent)}`}
                 className={cn(
                   "pr-2",
                   "py-1",
@@ -241,11 +246,8 @@ export function RightOverlayPanel({
         <div ref={plusRef} className={cn("relative", "flex", "items-stretch")}>
           <button
             type="button"
-            onClick={() => {
-              if (loading) return;
-              setDropdownOpen((v) => !v);
-            }}
-            aria-label="Open favorite"
+            onClick={() => setDropdownOpen((v) => !v)}
+            aria-label="Open agent"
             className={cn(
               "px-3",
               "py-2",
@@ -257,19 +259,13 @@ export function RightOverlayPanel({
               "dark:text-neutral-400",
               "hover:bg-neutral-200",
               "dark:hover:bg-neutral-800",
-              loading ? "cursor-wait" : "cursor-pointer",
+              "cursor-pointer",
             )}
           >
             {"+"}
           </button>
 
-          {dropdownOpen && !loading && (
-            <FavoritesDropdown
-              favorites={favorites}
-              error={error}
-              onPick={openFavorite}
-            />
-          )}
+          {dropdownOpen && <NewAgentForm onOpen={openAgent} />}
         </div>
       </nav>
 
@@ -298,7 +294,7 @@ export function RightOverlayPanel({
               "dark:text-neutral-400",
             )}
           >
-            Open a favorite from + to start a conversation.
+            Open an agent from + to start a conversation.
           </div>
         )}
       </div>
@@ -306,13 +302,47 @@ export function RightOverlayPanel({
   );
 }
 
-interface FavoritesDropdownProps {
-  favorites: CliCommandConfigAgentsFavoritesGetResponseItem[];
-  error: string | null;
-  onPick: (favorite: CliCommandConfigAgentsFavoritesGetResponseItem) => void;
+interface NewAgentFormProps {
+  onOpen: (agent: RemotePathCommitOptional) => void;
 }
 
-function FavoritesDropdown({ favorites, error, onPick }: FavoritesDropdownProps) {
+/** Form to start a chat with a GitHub-hosted agent by `owner`,
+ * `repository`, and optional `commit`. Replaces the removed favorites
+ * list as the agent-selection source. */
+function NewAgentForm({ onOpen }: NewAgentFormProps) {
+  const [owner, setOwner] = useState("");
+  const [repository, setRepository] = useState("");
+  const [commit, setCommit] = useState("");
+
+  const canSubmit = owner.trim().length > 0 && repository.trim().length > 0;
+
+  const submit = () => {
+    if (!canSubmit) return;
+    onOpen({
+      remote: "github",
+      owner: owner.trim(),
+      repository: repository.trim(),
+      commit: commit.trim() === "" ? null : commit.trim(),
+    });
+  };
+
+  const inputClass = cn(
+    "w-full",
+    "px-2",
+    "py-1.5",
+    "rounded",
+    "border",
+    "border-neutral-300",
+    "dark:border-neutral-700",
+    "bg-white",
+    "dark:bg-neutral-950",
+    "text-sm",
+    "text-neutral-900",
+    "dark:text-neutral-50",
+    "outline-none",
+    "focus:border-blue-500",
+  );
+
   return (
     <div
       role="menu"
@@ -321,9 +351,7 @@ function FavoritesDropdown({ favorites, error, onPick }: FavoritesDropdownProps)
         "top-full",
         "left-0",
         "mt-1",
-        "min-w-56",
-        "max-h-80",
-        "overflow-y-auto",
+        "min-w-64",
         "rounded-md",
         "border",
         "border-neutral-300",
@@ -332,76 +360,56 @@ function FavoritesDropdown({ favorites, error, onPick }: FavoritesDropdownProps)
         "dark:bg-neutral-900",
         "shadow-lg",
         "z-20",
-        "py-1",
+        "p-3",
+        "flex",
+        "flex-col",
+        "gap-2",
       )}
     >
-      {error && (
-        <div
-          className={cn(
-            "px-3",
-            "py-2",
-            "text-xs",
-            "text-red-600",
-            "dark:text-red-400",
-          )}
-        >
-          {error}
-        </div>
-      )}
-      {favorites.length === 0 ? (
-        <div
-          className={cn(
-            "px-3",
-            "py-2",
-            "text-sm",
-            "text-neutral-500",
-            "dark:text-neutral-400",
-          )}
-        >
-          (no favorites yet)
-        </div>
-      ) : (
-        favorites.map((fav) => (
-          <button
-            key={fav.name}
-            type="button"
-            role="menuitem"
-            onClick={() => onPick(fav)}
-            className={cn(
-              "block",
-              "w-full",
-              "text-left",
-              "px-3",
-              "py-2",
-              "cursor-pointer",
-              "hover:bg-neutral-100",
-              "dark:hover:bg-neutral-800",
-            )}
-          >
-            <div
-              className={cn(
-                "text-sm",
-                "text-neutral-900",
-                "dark:text-neutral-50",
-              )}
-            >
-              {fav.name}
-            </div>
-            {fav.note && (
-              <div
-                className={cn(
-                  "text-xs",
-                  "text-neutral-500",
-                  "dark:text-neutral-400",
-                  "truncate",
-                )}
-              >
-                {fav.note}
-              </div>
-            )}
-          </button>
-        ))
-      )}
+      <input
+        type="text"
+        value={owner}
+        onChange={(e) => setOwner(e.target.value)}
+        placeholder="owner"
+        aria-label="Agent owner"
+        className={inputClass}
+      />
+      <input
+        type="text"
+        value={repository}
+        onChange={(e) => setRepository(e.target.value)}
+        placeholder="repository"
+        aria-label="Agent repository"
+        className={inputClass}
+      />
+      <input
+        type="text"
+        value={commit}
+        onChange={(e) => setCommit(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") submit();
+        }}
+        placeholder="commit (optional)"
+        aria-label="Agent commit"
+        className={inputClass}
+      />
+      <button
+        type="button"
+        onClick={submit}
+        disabled={!canSubmit}
+        className={cn(
+          "px-3",
+          "py-1.5",
+          "rounded",
+          "text-sm",
+          "text-white",
+          canSubmit
+            ? cn("bg-blue-600", "hover:bg-blue-700", "cursor-pointer")
+            : cn("bg-neutral-400", "dark:bg-neutral-700", "cursor-not-allowed"),
+        )}
+      >
+        Open
+      </button>
     </div>
   );
 }

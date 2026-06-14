@@ -1,19 +1,13 @@
 import {
   AgentCompletionCreateParamsSchema,
   FunctionExecutionCreateParamsSchema,
-  FunctionInventionRecursiveCreateParamsSchema,
-  LaboratoryExecutionCreateParamsSchema,
   ResponseErrorSchema,
   AgentCompletionsResponseStreamingAgentCompletionChunkSchema,
   FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema,
-  FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema,
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema,
 } from "./types";
 import type {
   AgentCompletionEvent,
   FunctionExecutionEvent,
-  FunctionInventionRecursiveEvent,
-  LaboratoryExecutionEvent,
 } from "./types";
 
 let _droppedCount = 0;
@@ -56,34 +50,6 @@ export function classifyFunctionExecution(payload: unknown): FunctionExecutionEv
   const chunkParse = FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.safeParse(payload);
   if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
   recordDrop("functions_executions", payload, [
-    { stage: "begin", issues: beginParse.error.issues },
-    { stage: "chunk", issues: chunkParse.error.issues },
-  ]);
-  return null;
-}
-
-export function classifyFunctionInventionRecursive(payload: unknown): FunctionInventionRecursiveEvent | null {
-  const beginParse = FunctionInventionRecursiveCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  recordDrop("functions_inventions_recursive", payload, [
-    { stage: "begin", issues: beginParse.error.issues },
-    { stage: "chunk", issues: chunkParse.error.issues },
-  ]);
-  return null;
-}
-
-export function classifyLaboratoryExecution(payload: unknown): LaboratoryExecutionEvent | null {
-  const beginParse = LaboratoryExecutionCreateParamsSchema.safeParse(payload);
-  if (beginParse.success) return { type: "begin", data: beginParse.data };
-  const errorParse = ResponseErrorSchema.safeParse(payload);
-  if (errorParse.success) return { type: "error", data: errorParse.data };
-  const chunkParse = LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema.safeParse(payload);
-  if (chunkParse.success) return { type: "chunk", data: chunkParse.data };
-  recordDrop("laboratories_executions", payload, [
     { stage: "begin", issues: beginParse.error.issues },
     { stage: "chunk", issues: chunkParse.error.issues },
   ]);

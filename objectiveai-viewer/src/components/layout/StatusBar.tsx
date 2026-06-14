@@ -35,14 +35,6 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
         return !isLastAssistantDone(e.chunk.messages);
       case "execution":
         return e.chunk.output == null;
-      case "invention":
-        return e.chunk.inventions.length === 0 || !e.chunk.inventions.every(
-          (inv: { function?: unknown; error?: unknown }) => inv.function != null || inv.error != null
-        );
-      case "laboratory":
-        return e.chunk.evaluations.length === 0 || !e.chunk.evaluations.every(
-          (ev: { output?: unknown }) => ev.output != null
-        );
     }
   }).length;
 

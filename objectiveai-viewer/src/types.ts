@@ -4,17 +4,11 @@ import {
   AgentCompletionsResponseStreamingAgentCompletionChunkSchema,
   FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema,
   FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema,
-  FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema,
-  FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema,
-  LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema,
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema,
   ErrorResponseErrorSchema,
 } from "@objectiveai/sdk";
 import type {
   AgentCompletionsResponseStreamingAgentCompletionChunk,
   FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
-  FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk,
-  LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk,
 } from "@objectiveai/sdk";
 
 export const AgentCompletionCreateParamsSchema = AgentCompletionsRequestAgentCompletionCreateParamsSchema.extend({
@@ -27,16 +21,6 @@ export const FunctionExecutionCreateParamsSchema = FunctionsExecutionsRequestFun
 });
 export type FunctionExecutionCreateParams = z.infer<typeof FunctionExecutionCreateParamsSchema>;
 
-export const FunctionInventionRecursiveCreateParamsSchema = FunctionsInventionsRecursiveRequestFunctionInventionRecursiveCreateParamsSchema.extend({
-  id: z.string(),
-});
-export type FunctionInventionRecursiveCreateParams = z.infer<typeof FunctionInventionRecursiveCreateParamsSchema>;
-
-export const LaboratoryExecutionCreateParamsSchema = LaboratoriesExecutionsRequestLaboratoryExecutionCreateParamsSchema.extend({
-  id: z.string(),
-});
-export type LaboratoryExecutionCreateParams = z.infer<typeof LaboratoryExecutionCreateParamsSchema>;
-
 export const ResponseErrorSchema = ErrorResponseErrorSchema.extend({
   id: z.string(),
 });
@@ -44,8 +28,6 @@ export type ResponseError = z.infer<typeof ResponseErrorSchema>;
 
 export { AgentCompletionsResponseStreamingAgentCompletionChunkSchema };
 export { FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema };
-export { FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkSchema };
-export { LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkSchema };
 
 export type AgentCompletionEvent =
   | { type: "begin"; data: AgentCompletionCreateParams }
@@ -55,16 +37,6 @@ export type AgentCompletionEvent =
 export type FunctionExecutionEvent =
   | { type: "begin"; data: FunctionExecutionCreateParams }
   | { type: "chunk"; data: FunctionsExecutionsResponseStreamingFunctionExecutionChunk }
-  | { type: "error"; data: ResponseError };
-
-export type FunctionInventionRecursiveEvent =
-  | { type: "begin"; data: FunctionInventionRecursiveCreateParams }
-  | { type: "chunk"; data: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk }
-  | { type: "error"; data: ResponseError };
-
-export type LaboratoryExecutionEvent =
-  | { type: "begin"; data: LaboratoryExecutionCreateParams }
-  | { type: "chunk"; data: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk }
   | { type: "error"; data: ResponseError };
 
 export interface AgentCompletionEntry {
@@ -85,25 +57,7 @@ export interface FunctionExecutionEntry {
   error: ResponseError | null;
 }
 
-export interface FunctionInventionRecursiveEntry {
-  kind: "invention";
-  id: string;
-  receivedAt: number;
-  request: FunctionInventionRecursiveCreateParams;
-  chunk: FunctionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunk | null;
-  error: ResponseError | null;
-}
-
-export interface LaboratoryExecutionEntry {
-  kind: "laboratory";
-  id: string;
-  receivedAt: number;
-  request: LaboratoryExecutionCreateParams;
-  chunk: LaboratoriesExecutionsResponseStreamingLaboratoryExecutionChunk | null;
-  error: ResponseError | null;
-}
-
-export type Entry = AgentCompletionEntry | FunctionExecutionEntry | FunctionInventionRecursiveEntry | LaboratoryExecutionEntry;
+export type Entry = AgentCompletionEntry | FunctionExecutionEntry;
 
 export interface ViewerInboundEvent {
   type: "inbound";

@@ -41,8 +41,6 @@ function Tip({ label, children }: { label: string; children: ReactNode }) {
 const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
   { kind: "agent-completion", label: "Agent", activeClass: "bg-kind-agent/20 text-kind-agent" },
   { kind: "execution", label: "Execution", activeClass: "bg-kind-execution/20 text-kind-execution" },
-  { kind: "invention", label: "Invention", activeClass: "bg-kind-invention/20 text-kind-invention" },
-  { kind: "laboratory", label: "Laboratory", activeClass: "bg-kind-laboratory/20 text-kind-laboratory" },
 ];
 
 function ObjectiveAIView() {

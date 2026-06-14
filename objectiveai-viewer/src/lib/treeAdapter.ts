@@ -32,8 +32,6 @@ function adaptVote(v: VectorCompletionsResponseVote): InputVote {
     weight: v.weight,
     ensemble_index: v.swarm_index,
     flat_ensemble_index: v.flat_swarm_index,
-    from_cache: v.from_cache ?? undefined,
-    retry: v.retry ?? undefined,
   };
 }
 

@@ -3,15 +3,11 @@ import { tauriListen, tauriInvoke } from "../lib/tauri";
 import {
   agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
-  functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged,
-  laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged,
 } from "@objectiveai/sdk";
 import type { Entry, ViewerEvent } from "../types";
 import {
   classifyAgentCompletion,
   classifyFunctionExecution,
-  classifyFunctionInventionRecursive,
-  classifyLaboratoryExecution,
 } from "../classify";
 
 interface ClassifiedBegin { type: "begin"; data: { id: string } }
@@ -35,16 +31,6 @@ const SUB_TYPE_MAP: Record<string, SubTypeConfig> = {
     kind: "execution",
     classify: classifyFunctionExecution,
     merge: (a, b) => functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(a as never, b as never) as [unknown, boolean],
-  },
-  functions_inventions_recursive: {
-    kind: "invention",
-    classify: classifyFunctionInventionRecursive,
-    merge: (a, b) => functionsInventionsRecursiveResponseStreamingFunctionInventionRecursiveChunkMerged(a as never, b as never) as [unknown, boolean],
-  },
-  laboratories_executions: {
-    kind: "laboratory",
-    classify: classifyLaboratoryExecution,
-    merge: (a, b) => laboratoriesExecutionsResponseStreamingLaboratoryExecutionChunkMerged(a as never, b as never) as [unknown, boolean],
   },
 };
 

@@ -46,15 +46,6 @@ export function getEntrySummary(entry: Entry): EntrySummary {
       const done = entry.chunk.output != null;
       return { status: done ? "complete" : "streaming", ...base, tokens, messageCount };
     }
-    case "invention": {
-      const allDone = entry.chunk.inventions.length > 0 &&
-        entry.chunk.inventions.every((inv: { function?: unknown; error?: unknown }) => inv.function != null || inv.error != null);
-      return { status: allDone ? "complete" : "streaming", ...base, tokens, messageCount };
-    }
-    case "laboratory": {
-      const done = entry.chunk.usage != null;
-      return { status: done ? "complete" : "streaming", ...base, tokens, messageCount };
-    }
   }
 }
 
@@ -76,30 +67,6 @@ function summarizeByKind(entry: Entry): { kindLabel: string; title: string; deta
         kindLabel: "Execution",
         title: fn || "Function",
         detail: taskCount > 0 ? `${taskCount} tasks` : "",
-      };
-    }
-    case "invention": {
-      const count = entry.chunk?.inventions?.length ?? 0;
-      const firstName = entry.chunk?.inventions?.[0];
-      const name = firstName && typeof firstName === "object" && "state" in firstName
-        ? ((firstName as { state?: { name?: string } }).state?.name ?? null)
-        : null;
-      return {
-        kindLabel: "Invention",
-        title: name || "Invention",
-        detail: count > 0 ? `${count} inventions` : "",
-      };
-    }
-    case "laboratory": {
-      const builders = entry.chunk?.builders?.length ?? 0;
-      const evaluations = entry.chunk?.evaluations?.length ?? 0;
-      return {
-        kindLabel: "Laboratory",
-        title: "Laboratory",
-        detail: [
-          builders > 0 ? `${builders} builders` : "",
-          evaluations > 0 ? `${evaluations} evals` : "",
-        ].filter(Boolean).join(", "),
       };
     }
   }
