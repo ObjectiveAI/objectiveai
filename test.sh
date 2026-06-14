@@ -56,11 +56,18 @@ done
 
 # The root ALWAYS reruns test-cleanup.sh at the very end, exactly
 # once — the EXIT trap covers success, failure, and interruption.
+# It's kill-only: every lockfile-owning process dies but `state/`
+# survives, so a failed run's db can be re-spawned and its logs read
+# back with the cli (`OBJECTIVEAI_STATE=<test-fn> objectiveai agents
+# instances list` / `agents logs read`). The START cleanup above ran
+# WITHOUT the env var, so it still wiped a stale tree for a clean
+# slate. Mirrors the per-suite test.sh bracketing.
 FINAL_CLEANUP_DONE=false
 final_cleanup() {
   $FINAL_CLEANUP_DONE && return 0
   FINAL_CLEANUP_DONE=true
-  bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
+  OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY=1 \
+    bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
 }
 trap final_cleanup EXIT INT TERM
 
