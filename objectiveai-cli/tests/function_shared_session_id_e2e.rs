@@ -22,7 +22,6 @@ mod cli_test_util;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::Duration;
 
 use axum::{
     Json, Router,
@@ -234,7 +233,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
     for i in 0..5 {
         let seed = i + 1;
         let aih = spawn_agent(seed).await;
-        cli_test_util::wait_for_continuation(&executor, &aih, Duration::from_secs(180)).await;
+        cli_test_util::wait_for_agent(&executor, &aih).await;
         aihs.push((aih, seed));
     }
 
@@ -271,7 +270,7 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
         let executor = &executor;
         let aih = aih.clone();
         async move {
-            cli_test_util::wait_for_continuation(executor, &aih, Duration::from_secs(180)).await;
+            cli_test_util::wait_for_agent(executor, &aih).await;
         }
     });
     futures::future::join_all(wait_futures).await;

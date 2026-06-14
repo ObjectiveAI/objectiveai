@@ -20,8 +20,6 @@
 
 mod cli_test_util;
 
-use std::time::Duration;
-
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
@@ -86,9 +84,10 @@ async fn spawn_then_message_propagates_response_continuation() {
     // `agent_continuations` is upserted per-chunk; by the time
     // collect_stream returns, the row holds the final continuation
     // value for the chunk's full AIH.
-    let spawn_continuation =
-        cli_test_util::wait_for_continuation(&executor, &spawn_chunk_aih, Duration::from_secs(30))
-            .await;
+    cli_test_util::wait_for_agent(&executor, &spawn_chunk_aih).await;
+    let spawn_continuation = cli_test_util::read_continuation(&executor, &spawn_chunk_aih)
+        .await
+        .expect("spawn's agent_continuations row must carry a continuation");
 
     // ── 3. Resume the agent with a second spawn (a new turn) ────
     // Split `{parent}/{instance}` so the Instance selector composes
@@ -133,8 +132,9 @@ async fn spawn_then_message_propagates_response_continuation() {
     // `objectiveai.agent_completion_requests.body->>'continuation'` is
     // exactly what the cli stamped onto the second turn's request
     // before sending it upstream.
+    cli_test_util::wait_for_agent(&executor, &spawn_chunk_aih).await;
     let request_continuation =
-        cli_test_util::wait_for_request_continuation(&executor, &new_response_id, Duration::from_secs(30))
+        cli_test_util::read_request_continuation(&executor, &new_response_id)
             .await
             .expect("second turn's request body must carry a continuation");
 

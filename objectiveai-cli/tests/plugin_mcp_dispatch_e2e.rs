@@ -24,7 +24,6 @@ mod cli_test_util;
 
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::logs::read::all::{
@@ -151,7 +150,7 @@ async fn plugin_mcp_dispatch_round_trip() {
             _ => None,
         })
         .expect("agents spawn must emit a Chunk with a non-empty id");
-    cli_test_util::wait_for_continuation(&executor, &full_aih, Duration::from_secs(180)).await;
+    cli_test_util::wait_for_agent(&executor, &full_aih).await;
 
     // `tool_calls`: every assistant `AssistantResponsePart` of
     // type `ToolCall` carries its `function_name` (sourced from
