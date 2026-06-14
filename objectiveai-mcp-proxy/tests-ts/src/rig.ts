@@ -1,11 +1,11 @@
 // Test rig for the TypeScript-side compliance suite.
 //
-// Spawns the proxy and N test upstreams as subprocesses (release builds
-// at <workspace>/target/release/), then connects an
+// Spawns the proxy and N test upstreams as subprocesses (debug builds
+// at <workspace>/target/debug/), then connects an
 // `@modelcontextprotocol/sdk` Client through the proxy with whatever
 // custom session-init headers the test wants.
 //
-// Run `cargo build --release -p objectiveai-mcp-proxy -p test-upstream`
+// Run `cargo build -p objectiveai-mcp-proxy -p test-upstream`
 // (or `objectiveai-mcp-proxy/test.sh`) before `pnpm test`.
 
 import { spawn, type ChildProcess } from 'node:child_process';
@@ -250,12 +250,12 @@ function tryConnect(host: string, port: number): Promise<boolean> {
 
 function binaryPath(name: string): string {
   const exeName = process.platform === 'win32' ? `${name}.exe` : name;
-  for (const profile of ['release', 'debug']) {
+  for (const profile of ['debug', 'release']) {
     const candidate = join(WORKSPACE, 'target', profile, exeName);
     if (existsSync(candidate)) return candidate;
   }
   throw new Error(
-    `could not find ${exeName} under ${WORKSPACE}/target/{release,debug}/. ` +
-      `Run \`cargo build --release -p objectiveai-mcp-proxy -p test-upstream\` first.`,
+    `could not find ${exeName} under ${WORKSPACE}/target/{debug,release}/. ` +
+      `Run \`cargo build -p objectiveai-mcp-proxy -p test-upstream\` first.`,
   );
 }
