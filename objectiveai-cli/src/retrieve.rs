@@ -3,7 +3,8 @@
 //! These commands resolve content directly — never via the ObjectiveAI
 //! API. Allowed remotes are **GitHub** (via the SDK `http::github`
 //! methods, authenticated with the client's `x_github_authorization`)
-//! and the local **filesystem**; `mock` is rejected.
+//! and **Client** (the CLI's own local storage — the CLI *is* the
+//! client); `mock` is rejected.
 //!
 //! - `get_*` resolves a single definition and returns it verbatim as the
 //!   base definition (no ID computation, no embedded-agent resolution).
@@ -91,7 +92,7 @@ async fn fetch_agent_base(
                 .ok_or_else(|| not_found("agent", owner, repository))?;
             Ok((base, github_path(owner, repository, commit)))
         }
-        RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
+        RemotePathCommitOptional::Client { owner, repository, commit } => {
             let (base, commit) = ctx
                 .filesystem
                 .read_json::<RemoteAgentBaseWithFallbacks>(
@@ -102,7 +103,7 @@ async fn fetch_agent_base(
                 )
                 .await?
                 .ok_or_else(|| not_found("agent", owner, repository))?;
-            Ok((base, fs_path(owner, repository, commit)))
+            Ok((base, client_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Mock { .. } => {
             Err(Error::RemoteNotSupported("mock"))
@@ -126,7 +127,7 @@ async fn fetch_swarm_base(
                 .ok_or_else(|| not_found("swarm", owner, repository))?;
             Ok((base, github_path(owner, repository, commit)))
         }
-        RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
+        RemotePathCommitOptional::Client { owner, repository, commit } => {
             let (base, commit) = ctx
                 .filesystem
                 .read_json::<RemoteSwarmBase>(
@@ -137,7 +138,7 @@ async fn fetch_swarm_base(
                 )
                 .await?
                 .ok_or_else(|| not_found("swarm", owner, repository))?;
-            Ok((base, fs_path(owner, repository, commit)))
+            Ok((base, client_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Mock { .. } => {
             Err(Error::RemoteNotSupported("mock"))
@@ -161,7 +162,7 @@ async fn fetch_function(
                 .ok_or_else(|| not_found("function", owner, repository))?;
             Ok((inner, github_path(owner, repository, commit)))
         }
-        RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
+        RemotePathCommitOptional::Client { owner, repository, commit } => {
             let (inner, commit) = ctx
                 .filesystem
                 .read_json::<FullRemoteFunction>(
@@ -172,7 +173,7 @@ async fn fetch_function(
                 )
                 .await?
                 .ok_or_else(|| not_found("function", owner, repository))?;
-            Ok((inner, fs_path(owner, repository, commit)))
+            Ok((inner, client_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Mock { .. } => {
             Err(Error::RemoteNotSupported("mock"))
@@ -196,7 +197,7 @@ async fn fetch_profile(
                 .ok_or_else(|| not_found("profile", owner, repository))?;
             Ok((inner, github_path(owner, repository, commit)))
         }
-        RemotePathCommitOptional::Filesystem { owner, repository, commit } => {
+        RemotePathCommitOptional::Client { owner, repository, commit } => {
             let (inner, commit) = ctx
                 .filesystem
                 .read_json::<RemoteProfile>(
@@ -207,7 +208,7 @@ async fn fetch_profile(
                 )
                 .await?
                 .ok_or_else(|| not_found("profile", owner, repository))?;
-            Ok((inner, fs_path(owner, repository, commit)))
+            Ok((inner, client_path(owner, repository, commit)))
         }
         RemotePathCommitOptional::Mock { .. } => {
             Err(Error::RemoteNotSupported("mock"))
@@ -240,8 +241,8 @@ fn github_path(owner: &str, repository: &str, commit: String) -> RemotePath {
     }
 }
 
-fn fs_path(owner: &str, repository: &str, commit: String) -> RemotePath {
-    RemotePath::Filesystem {
+fn client_path(owner: &str, repository: &str, commit: String) -> RemotePath {
+    RemotePath::Client {
         owner: owner.to_string(),
         repository: repository.to_string(),
         commit,

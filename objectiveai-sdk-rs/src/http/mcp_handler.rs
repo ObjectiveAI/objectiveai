@@ -85,6 +85,9 @@ impl McpHandler for RejectHandler {
             server_request::Payload::ReadMessageQueue(_) => {
                 Payload::ReadMessageQueue(reject_err())
             }
+            server_request::Payload::Retrieve(_) => {
+                Payload::Retrieve(reject_err())
+            }
         };
         server_response::Response {
             id: request.id,

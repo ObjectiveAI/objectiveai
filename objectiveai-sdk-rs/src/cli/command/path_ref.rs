@@ -3,7 +3,7 @@
 //! Every cli leaf that takes a docker-style `key=value,key=value` ref
 //! parses it at `TryFrom<Args>` time so each leaf's `Request` carries
 //! the pre-parsed form: [`FromStr for crate::RemotePathCommitOptional`]
-//! accepts `remote=<github|filesystem|mock>` plus the matching
+//! accepts `remote=<github|client|mock>` plus the matching
 //! owner/repository/name/commit fields. Any other key is an
 //! `unknown key` error.
 
@@ -16,7 +16,7 @@ use std::str::FromStr;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, clap::ValueEnum)]
 pub enum Remote {
     Github,
-    Filesystem,
+    Client,
     Mock,
 }
 
@@ -37,7 +37,7 @@ impl Remote {
                 repository: repository?,
                 commit,
             }),
-            Remote::Filesystem => Some(crate::RemotePathCommitOptional::Filesystem {
+            Remote::Client => Some(crate::RemotePathCommitOptional::Client {
                 owner: owner?,
                 repository: repository?,
                 commit,
@@ -49,10 +49,10 @@ impl Remote {
     fn parse_keyword(s: &str) -> Result<Self, String> {
         match s {
             "github" => Ok(Self::Github),
-            "filesystem" => Ok(Self::Filesystem),
+            "client" => Ok(Self::Client),
             "mock" => Ok(Self::Mock),
             other => Err(format!(
-                "unknown remote: {other} (expected github, filesystem, or mock)"
+                "unknown remote: {other} (expected github, client, or mock)"
             )),
         }
     }
@@ -97,7 +97,7 @@ impl FromStr for crate::RemotePathCommitOptional {
         remote
             .into_path(owner, repository, name, commit)
             .ok_or_else(|| {
-                "owner and repository are required for github/filesystem, name for mock"
+                "owner and repository are required for github/client, name for mock"
                     .to_string()
             })
     }
@@ -118,12 +118,12 @@ pub fn remote_path_to_arg_string(path: &crate::RemotePathCommitOptional) -> Stri
             }
             s
         }
-        crate::RemotePathCommitOptional::Filesystem {
+        crate::RemotePathCommitOptional::Client {
             owner,
             repository,
             commit,
         } => {
-            let mut s = format!("remote=filesystem,owner={owner},repository={repository}");
+            let mut s = format!("remote=client,owner={owner},repository={repository}");
             if let Some(c) = commit {
                 s.push_str(&format!(",commit={c}"));
             }

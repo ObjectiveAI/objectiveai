@@ -187,6 +187,9 @@ impl McpHandler for ConduitMcpHandler {
             server_request::Payload::ReadMessageQueue(req) => {
                 dispatch_read_message_queue(&self.inner, req).await
             }
+            server_request::Payload::Retrieve(req) => {
+                dispatch_retrieve(&self.inner, req).await
+            }
         };
 
         server_response::Response { id, payload }
@@ -545,6 +548,141 @@ async fn dispatch_read_message_queue(
             data: None,
         }),
     }
+}
+
+/// Extracts `(owner, repository, commit)` from a `Client` remote path.
+/// Returns `None` for any other variant — the API only forwards
+/// `client` remotes to the conduit for resolution.
+fn retrieve_client_fields(
+    path: &objectiveai_sdk::RemotePath,
+) -> Option<(&str, &str, &str)> {
+    match path {
+        objectiveai_sdk::RemotePath::Client { owner, repository, commit } => {
+            Some((owner, repository, commit))
+        }
+        _ => None,
+    }
+}
+
+/// A `Retrieve` reply carrying a JSON-RPC error.
+fn retrieve_err(message: impl Into<String>) -> server_response::Payload {
+    server_response::Payload::Retrieve(JsonRpcResult::Err {
+        code: -32603,
+        message: message.into(),
+        data: None,
+    })
+}
+
+/// Resolve a `Client` remote from the CLI's own local storage on
+/// behalf of the API, which forwarded the request because the remote
+/// is `client`. Reads the base definition (or resolves the latest
+/// commit) via the filesystem client carried on the conduit's ctx.
+async fn dispatch_retrieve(
+    inner: &Arc<Inner>,
+    req: objectiveai_sdk::client_objectiveai_mcp::retrieve::Request,
+) -> server_response::Payload {
+    use crate::filesystem::publish::Kind;
+    use objectiveai_sdk::client_objectiveai_mcp::retrieve;
+
+    let fs = &inner.ctx.filesystem;
+    let response: retrieve::Response = match req {
+        retrieve::Request::GetAgent { path } => {
+            let Some((owner, repository, commit)) = retrieve_client_fields(&path) else {
+                return retrieve_err("expected a client remote path");
+            };
+            match fs
+                .read_json::<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>(
+                    Kind::Agents,
+                    owner,
+                    repository,
+                    Some(commit),
+                )
+                .await
+            {
+                Ok(opt) => retrieve::Response::GetAgent { agent: opt.map(|(v, _)| v) },
+                Err(e) => return retrieve_err(format!("conduit: retrieve agent: {e}")),
+            }
+        }
+        retrieve::Request::GetSwarm { path } => {
+            let Some((owner, repository, commit)) = retrieve_client_fields(&path) else {
+                return retrieve_err("expected a client remote path");
+            };
+            match fs
+                .read_json::<objectiveai_sdk::swarm::RemoteSwarmBase>(
+                    Kind::Swarms,
+                    owner,
+                    repository,
+                    Some(commit),
+                )
+                .await
+            {
+                Ok(opt) => retrieve::Response::GetSwarm { swarm: opt.map(|(v, _)| v) },
+                Err(e) => return retrieve_err(format!("conduit: retrieve swarm: {e}")),
+            }
+        }
+        retrieve::Request::GetFunction { path } => {
+            let Some((owner, repository, commit)) = retrieve_client_fields(&path) else {
+                return retrieve_err("expected a client remote path");
+            };
+            match fs
+                .read_json::<objectiveai_sdk::functions::FullRemoteFunction>(
+                    Kind::Functions,
+                    owner,
+                    repository,
+                    Some(commit),
+                )
+                .await
+            {
+                Ok(opt) => retrieve::Response::GetFunction { function: opt.map(|(v, _)| v) },
+                Err(e) => return retrieve_err(format!("conduit: retrieve function: {e}")),
+            }
+        }
+        retrieve::Request::GetProfile { path } => {
+            let Some((owner, repository, commit)) = retrieve_client_fields(&path) else {
+                return retrieve_err("expected a client remote path");
+            };
+            match fs
+                .read_json::<objectiveai_sdk::functions::RemoteProfile>(
+                    Kind::Profiles,
+                    owner,
+                    repository,
+                    Some(commit),
+                )
+                .await
+            {
+                Ok(opt) => retrieve::Response::GetProfile { profile: opt.map(|(v, _)| v) },
+                Err(e) => return retrieve_err(format!("conduit: retrieve profile: {e}")),
+            }
+        }
+        retrieve::Request::ResolveLatest { kind, path } => {
+            let kind = match kind {
+                retrieve::Kind::Agents => Kind::Agents,
+                retrieve::Kind::Swarms => Kind::Swarms,
+                retrieve::Kind::Functions => Kind::Functions,
+                retrieve::Kind::Profiles => Kind::Profiles,
+            };
+            match path {
+                objectiveai_sdk::RemotePathCommitOptional::Client {
+                    owner,
+                    repository,
+                    commit,
+                } => {
+                    let resolved = match commit {
+                        Some(c) => Some(c),
+                        None => fs.resolve_head(kind, &owner, &repository).ok(),
+                    };
+                    let path = resolved.map(|commit| objectiveai_sdk::RemotePath::Client {
+                        owner,
+                        repository,
+                        commit,
+                    });
+                    retrieve::Response::ResolveLatest { path }
+                }
+                _ => return retrieve_err("expected a client remote path"),
+            }
+        }
+    };
+    server_response::Payload::Retrieve(JsonRpcResult::Ok { result: response })
 }
 
 fn into_rpc_result<R>(

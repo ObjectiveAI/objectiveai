@@ -23,9 +23,9 @@ pub enum Remote {
     /// GitHub repository.
     #[schemars(title = "Github")]
     Github,
-    /// Local filesystem.
-    #[schemars(title = "Filesystem")]
-    Filesystem,
+    /// The connected client (resolved over the websocket reverse-channel).
+    #[schemars(title = "Client")]
+    Client,
     /// Mock (for testing).
     #[schemars(title = "Mock")]
     Mock,
@@ -35,7 +35,7 @@ impl fmt::Display for Remote {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Remote::Github => write!(f, "github"),
-            Remote::Filesystem => write!(f, "filesystem"),
+            Remote::Client => write!(f, "client"),
             Remote::Mock => write!(f, "mock"),
         }
     }
@@ -61,8 +61,8 @@ pub enum RemotePath {
         repository: String,
         commit: String,
     },
-    #[schemars(title = "Filesystem")]
-    Filesystem {
+    #[schemars(title = "Client")]
+    Client {
         owner: String,
         repository: String,
         commit: String,
@@ -75,7 +75,7 @@ impl RemotePath {
     pub fn remote(&self) -> Remote {
         match self {
             RemotePath::Github { .. } => Remote::Github,
-            RemotePath::Filesystem { .. } => Remote::Filesystem,
+            RemotePath::Client { .. } => Remote::Client,
             RemotePath::Mock { .. } => Remote::Mock,
         }
     }
@@ -83,7 +83,7 @@ impl RemotePath {
     pub fn name(&self) -> &str {
         match self {
             RemotePath::Github { repository, .. } => repository,
-            RemotePath::Filesystem { repository, .. } => repository,
+            RemotePath::Client { repository, .. } => repository,
             RemotePath::Mock { name } => name,
         }
     }
@@ -97,7 +97,7 @@ impl RemotePath {
             } => {
                 format!("{}/{}/{}/{}", self.remote(), owner, repository, commit)
             }
-            RemotePath::Filesystem {
+            RemotePath::Client {
                 owner,
                 repository,
                 commit,
@@ -120,12 +120,12 @@ impl RemotePath {
                 "[{}](https://github.com/{}/{}/commit/{})",
                 repository, owner, repository, commit
             ),
-            RemotePath::Filesystem {
+            RemotePath::Client {
                 owner,
                 repository,
                 commit,
             } => format!(
-                "[{}](file://{}/{}) ({})",
+                "[{}](client://{}/{}) ({})",
                 repository, owner, repository, commit
             ),
             RemotePath::Mock { name } => format!("[{}](mock://{})", name, name),
@@ -153,8 +153,8 @@ pub enum RemotePathCommitOptional {
         repository: String,
         commit: Option<String>,
     },
-    #[schemars(title = "Filesystem")]
-    Filesystem {
+    #[schemars(title = "Client")]
+    Client {
         owner: String,
         repository: String,
         commit: Option<String>,
@@ -167,7 +167,7 @@ impl RemotePathCommitOptional {
     pub fn remote(&self) -> Remote {
         match self {
             RemotePathCommitOptional::Github { .. } => Remote::Github,
-            RemotePathCommitOptional::Filesystem { .. } => Remote::Filesystem,
+            RemotePathCommitOptional::Client { .. } => Remote::Client,
             RemotePathCommitOptional::Mock { .. } => Remote::Mock,
         }
     }
@@ -185,11 +185,11 @@ impl From<RemotePath> for RemotePathCommitOptional {
                 repository,
                 commit: Some(commit),
             },
-            RemotePath::Filesystem {
+            RemotePath::Client {
                 owner,
                 repository,
                 commit,
-            } => RemotePathCommitOptional::Filesystem {
+            } => RemotePathCommitOptional::Client {
                 owner,
                 repository,
                 commit: Some(commit),

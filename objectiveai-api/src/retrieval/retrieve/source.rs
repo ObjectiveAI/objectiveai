@@ -1,11 +1,13 @@
-//! FetchSource trait — implemented by Mock, Filesystem, and GitHub.
+//! Fetch-source trait — implemented by Mock, GitHub, and the
+//! websocket-backed Client resolver.
 
 use crate::ctx;
 use objectiveai_sdk::error::ResponseError;
 
 /// A source that can fetch individual resource definitions by path.
 ///
-/// Implemented by Mock, Filesystem, and GitHub.
+/// Implemented by Mock, GitHub, and the `Client` resolver (which asks
+/// the connected client over the websocket reverse-channel).
 /// ObjectiveAI API does NOT implement this (it proxies to GitHub).
 #[async_trait::async_trait]
 pub trait Client<CTXEXT>: Send + Sync + 'static {
@@ -34,7 +36,7 @@ pub trait Client<CTXEXT>: Send + Sync + 'static {
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError>;
 
     /// Resolves a `RemotePathCommitOptional` to a full `RemotePath`.
-    /// For sources with commits (Github, Filesystem), resolves the latest commit if missing.
+    /// For sources with commits (Github, Client), resolves the latest commit if missing.
     /// For Mock, returns a `RemotePath::Mock` directly.
     async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         &self,

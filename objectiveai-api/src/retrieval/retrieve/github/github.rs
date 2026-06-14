@@ -19,7 +19,7 @@ impl GithubClient {
 fn github_fields(path: &objectiveai_sdk::RemotePath) -> (&str, &str, &str) {
     match path {
         objectiveai_sdk::RemotePath::Github { owner, repository, commit }
-        | objectiveai_sdk::RemotePath::Filesystem { owner, repository, commit } => {
+        | objectiveai_sdk::RemotePath::Client { owner, repository, commit } => {
             (owner, repository, commit)
         }
         objectiveai_sdk::RemotePath::Mock { .. } => {

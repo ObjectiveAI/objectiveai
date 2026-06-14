@@ -74,6 +74,11 @@ pub enum Payload {
     /// release RPC.
     #[schemars(title = "ReadMessageQueue")]
     ReadMessageQueue(ReadMessageQueueRequest),
+
+    /// Resolve a `Client` remote from the client's own local storage
+    /// (agent / swarm / function / profile). Non-MCP — no `mcp_kind`.
+    #[schemars(title = "Retrieve")]
+    Retrieve(super::super::retrieve::Request),
 }
 
 impl Payload {
@@ -88,7 +93,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) => None,
+            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) => None,
         }
     }
 }

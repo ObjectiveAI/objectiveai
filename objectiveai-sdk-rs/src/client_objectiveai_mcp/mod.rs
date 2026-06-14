@@ -15,6 +15,7 @@
 pub mod client_request;
 pub mod client_response;
 mod kind;
+pub mod retrieve;
 pub mod server_request;
 pub mod server_response;
 

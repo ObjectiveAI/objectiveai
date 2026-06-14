@@ -5,30 +5,30 @@ use objectiveai_sdk::error::ResponseError;
 use objectiveai_sdk::Remote;
 use std::sync::Arc;
 
-/// Routes fetch operations by `Remote` to GitHub/Filesystem/Mock,
+/// Routes fetch operations by `Remote` to GitHub/Client/Mock,
 /// with per-request deduplication caching via context caches.
 ///
 /// Main methods accept `CommitOptional` enums (inline or remote ref).
 /// If inline, converts directly. If remote, resolves commit, fetches
 /// from source, converts, and returns the union type.
-pub struct Router<G, F, M, CTXEXT> {
+pub struct Router<G, C, M, CTXEXT> {
     pub github: Arc<G>,
-    pub filesystem: Arc<F>,
+    pub client: Arc<C>,
     pub mock: Arc<M>,
     _ctxext: std::marker::PhantomData<CTXEXT>,
 }
 
-impl<G, F, M, CTXEXT> Router<G, F, M, CTXEXT> {
-    pub fn new(github: Arc<G>, filesystem: Arc<F>, mock: Arc<M>) -> Self {
-        Self { github, filesystem, mock, _ctxext: std::marker::PhantomData }
+impl<G, C, M, CTXEXT> Router<G, C, M, CTXEXT> {
+    pub fn new(github: Arc<G>, client: Arc<C>, mock: Arc<M>) -> Self {
+        Self { github, client, mock, _ctxext: std::marker::PhantomData }
     }
 }
 
 
-impl<G, F, M, CTXEXT> Router<G, F, M, CTXEXT>
+impl<G, C, M, CTXEXT> Router<G, C, M, CTXEXT>
 where
     G: super::Client<CTXEXT>,
-    F: super::Client<CTXEXT>,
+    C: super::Client<CTXEXT>,
     M: super::Client<CTXEXT>,
     CTXEXT: Send + Sync + 'static,
 {
@@ -41,7 +41,7 @@ where
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
         match remote {
             Remote::Github => self.github.resolve_latest(ctx, kind, path).await,
-            Remote::Filesystem => self.filesystem.resolve_latest(ctx, kind, path).await,
+            Remote::Client => self.client.resolve_latest(ctx, kind, path).await,
             Remote::Mock => self.mock.resolve_latest(ctx, kind, path).await,
         }
     }
@@ -54,7 +54,7 @@ where
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_agent(ctx, path).await,
-            Remote::Filesystem => self.filesystem.get_agent(ctx, path).await,
+            Remote::Client => self.client.get_agent(ctx, path).await,
             Remote::Mock => self.mock.get_agent(ctx, path).await,
         }
     }
@@ -67,7 +67,7 @@ where
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_swarm(ctx, path).await,
-            Remote::Filesystem => self.filesystem.get_swarm(ctx, path).await,
+            Remote::Client => self.client.get_swarm(ctx, path).await,
             Remote::Mock => self.mock.get_swarm(ctx, path).await,
         }
     }
@@ -80,7 +80,7 @@ where
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_function(ctx, path).await,
-            Remote::Filesystem => self.filesystem.get_function(ctx, path).await,
+            Remote::Client => self.client.get_function(ctx, path).await,
             Remote::Mock => self.mock.get_function(ctx, path).await,
         }
     }
@@ -93,7 +93,7 @@ where
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         match remote {
             Remote::Github => self.github.get_profile(ctx, path).await,
-            Remote::Filesystem => self.filesystem.get_profile(ctx, path).await,
+            Remote::Client => self.client.get_profile(ctx, path).await,
             Remote::Mock => self.mock.get_profile(ctx, path).await,
         }
     }

@@ -84,6 +84,13 @@ pub enum Payload {
     /// `mcp_kind` to echo.
     #[schemars(title = "ReadMessageQueue")]
     ReadMessageQueue(JsonRpcResult<ReadMessageQueueResult>),
+
+    /// Reply to
+    /// [`super::super::server_request::Payload::Retrieve`]. Carries the
+    /// resolved definition (or `None` if not found) on success, or the
+    /// client's local storage error. Non-MCP — no `mcp_kind`.
+    #[schemars(title = "Retrieve")]
+    Retrieve(JsonRpcResult<super::super::retrieve::Response>),
 }
 
 impl Payload {
@@ -98,7 +105,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) => None,
+            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) => None,
         }
     }
 }

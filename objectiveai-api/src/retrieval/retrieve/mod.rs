@@ -1,8 +1,8 @@
-mod client;
-pub mod filesystem;
+pub mod client;
 pub mod github;
 pub mod mock;
 mod router;
+mod source;
 
-pub use client::*;
 pub use router::*;
+pub use source::*;

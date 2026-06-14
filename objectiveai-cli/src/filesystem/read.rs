@@ -85,7 +85,7 @@ impl Client {
     ///
     /// The outer stream lists the `<owner>` directories; each owner is then
     /// flat-mapped into an inner stream listing its `<repository>`
-    /// directories, and each repo resolves to a `Filesystem` remote path by
+    /// directories, and each repo resolves to a `Client` remote path by
     /// reading HEAD and parsing the kind's JSON. Repos whose HEAD or JSON
     /// fails are skipped. Nothing is buffered into a `Vec`: directories are
     /// walked lazily as the stream is polled.
@@ -145,7 +145,7 @@ fn read_dir_stream(
     })
 }
 
-/// Resolves one candidate repo to a `Filesystem` remote path, or `None` if
+/// Resolves one candidate repo to a `Client` remote path, or `None` if
 /// its HEAD can't be resolved or its JSON doesn't parse.
 async fn resolve_entry(
     kind: Kind,
@@ -165,7 +165,7 @@ async fn resolve_entry(
     if !validates(kind, &content) {
         return None;
     }
-    Some(RemotePath::Filesystem { owner, repository, commit })
+    Some(RemotePath::Client { owner, repository, commit })
 }
 
 /// Resolves the HEAD commit SHA for a repository directory (blocking git).

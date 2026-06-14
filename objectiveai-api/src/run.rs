@@ -13,7 +13,6 @@ use objectiveai_sdk::error::ResponseError;
 use crate::{
     agent, auth, ctx,
     error::ResponseErrorExt,
-    filesystem,
     functions::{self, profiles::computations::Client},
     github, objectiveai_http,
     retrieval, streaming_ws, streaming_ws_handlers,
@@ -519,19 +518,14 @@ pub async fn setup(
         std::time::Duration::from_millis(github_backoff_max_elapsed_time),
     ));
 
-    let filesystem_client = Arc::new(filesystem::Client::new(
-        config_base_dir.clone(),
-    ));
-
-
-    // Retrieval: Retrieve Router
+    // Retrieval: Retrieve Router. The `Client` remote is resolved over
+    // the websocket reverse-channel (see `retrieve::client::ClientClient`);
+    // it holds no state, so no construction args.
     let retrieve_router = Arc::new(retrieval::retrieve::Router::new(
         Arc::new(retrieval::retrieve::github::GithubClient::new(
             github_client.clone(),
         )),
-        Arc::new(retrieval::retrieve::filesystem::FilesystemClient::new(
-            filesystem_client.clone(),
-        )),
+        Arc::new(retrieval::retrieve::client::ClientClient::new()),
         Arc::new(retrieval::retrieve::mock::MockClient),
     ));
 
