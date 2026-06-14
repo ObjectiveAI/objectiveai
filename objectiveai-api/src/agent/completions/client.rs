@@ -1520,7 +1520,7 @@ where
                     results.push(res);
                 }
 
-                for result in results {
+                for ((call_id, ..), result) in callable.iter().zip(results) {
                     match result {
                         Ok(tool_msg) => {
                             let idx = continuation_items.len() as u64;
@@ -1564,9 +1564,51 @@ where
                             continuation_items
                                 .push(super::ContinuationItem::ToolMessage(tool_msg));
                         }
-                        Err(_) => {
-                            had_error = true;
-                            break;
+                        Err(e) => {
+                            // The dispatch itself failed — almost always a
+                            // timeout under load, but also proxy
+                            // -32601/-32603 or a transport drop. Previously
+                            // this set `had_error` and broke, silently
+                            // dropping the tool call: the assistant's
+                            // `tool_call` was left with no `tool_response`
+                            // and the whole turn aborted, leaving an
+                            // orphaned call the next continuation couldn't
+                            // resolve. Forward the failure to the agent
+                            // instead — synthesize an error `tool_response`
+                            // so the call is always answered and the loop
+                            // continues, exactly as an upstream
+                            // `is_error: true` result would. The model sees
+                            // the failure text and can retry or move on.
+                            let tool_msg =
+                                objectiveai_sdk::agent::completions::message::ToolMessage {
+                                    content:
+                                        objectiveai_sdk::agent::completions::message::RichContent::Text(
+                                            format!("tool call failed: {e}"),
+                                        ),
+                                    tool_call_id: call_id.clone(),
+                                    metadata: None,
+                                };
+                            let idx = continuation_items.len() as u64;
+                            // No queue-delegate confirmation on a failed
+                            // dispatch — nothing was delivered.
+                            let chunk = make_tool_chunk(
+                                &id,
+                                &agent_instance_hierarchy_header,
+                                &agent_id,
+                                &agent_full_id,
+                                agent_remote.as_ref(),
+                                created,
+                                upstream_kind,
+                                idx,
+                                &tool_msg,
+                                None,
+                            );
+                            if let Some(ref mut agg) = aggregate {
+                                agg.push(&chunk);
+                            }
+                            yield super::StreamItem::Chunk(chunk);
+                            continuation_items
+                                .push(super::ContinuationItem::ToolMessage(tool_msg));
                         }
                     }
                 }
