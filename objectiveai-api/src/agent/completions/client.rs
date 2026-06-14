@@ -555,12 +555,7 @@ where
             Option<
                 tokio::task::JoinHandle<
                     Result<
-                        (
-                            objectiveai_sdk::mcp::Connection,
-                            Option<
-                                std::sync::Arc<Vec<objectiveai_sdk::mcp::tool::Tool>>,
-                            >,
-                        ),
+                        objectiveai_sdk::mcp::Connection,
                         std::sync::Arc<objectiveai_sdk::mcp::Error>,
                     >,
                 >,
