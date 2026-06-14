@@ -79,10 +79,6 @@ pub enum Error {
     Updater(String),
     #[error("instance runner: {0}")]
     Instance(String),
-    #[error("invalid agent definition: {0}")]
-    AgentConvert(String),
-    #[error("invalid swarm definition: {0}")]
-    SwarmConvert(String),
     #[error("not found: {0}")]
     NotFound(String),
     #[error("{0} remote is not supported for this command")]

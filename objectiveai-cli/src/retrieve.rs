@@ -5,18 +5,14 @@
 //! methods, authenticated with the client's `x_github_authorization`)
 //! and the local **filesystem**; `mock` is rejected.
 //!
-//! - `get_*` resolves a single definition and converts it to the full
-//!   form (computed IDs), matching the API's `Get*Response` shape.
-//!   Swarm conversion first resolves the swarm's embedded remote agents.
+//! - `get_*` resolves a single definition and returns it verbatim as the
+//!   base definition (no ID computation, no embedded-agent resolution).
 //! - `list` enumerates the local filesystem only and returns paths.
 
-use std::collections::HashMap;
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::agent::{
-    InlineAgentBaseWithFallbacksOrRemote, RemoteAgentBaseWithFallbacks,
-};
+use objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks;
 use objectiveai_sdk::cli::command::agents::get::Response as GetAgentResponse;
 use objectiveai_sdk::cli::command::functions::get::Response as GetFunctionResponse;
 use objectiveai_sdk::cli::command::functions::profiles::get::Response as GetProfileResponse;
@@ -46,8 +42,7 @@ pub async fn get_agent(
     path: RemotePathCommitOptional,
 ) -> Result<GetAgentResponse, Error> {
     let http = ctx.github_http_client().await?;
-    let (base, path) = fetch_agent_base(ctx, &http, &path).await?;
-    let inner = base.convert().map_err(Error::AgentConvert)?;
+    let (inner, path) = fetch_agent_base(ctx, &http, &path).await?;
     Ok(GetAgentResponse { path, inner })
 }
 
@@ -56,10 +51,7 @@ pub async fn get_swarm(
     path: RemotePathCommitOptional,
 ) -> Result<GetSwarmResponse, Error> {
     let http = ctx.github_http_client().await?;
-    let (base, path) = fetch_swarm_base(ctx, &http, &path).await?;
-    let remote_agents = resolve_swarm_agents(ctx, &http, &base).await?;
-    let inner =
-        base.convert(remote_agents.as_ref()).map_err(Error::SwarmConvert)?;
+    let (inner, path) = fetch_swarm_base(ctx, &http, &path).await?;
     Ok(GetSwarmResponse { path, inner })
 }
 
@@ -221,35 +213,6 @@ async fn fetch_profile(
             Err(Error::RemoteNotSupported("mock"))
         }
     }
-}
-
-/// Resolves a swarm's embedded remote agent references into the map that
-/// [`RemoteSwarmBase::convert`] needs (mirrors the API's
-/// `resolve_swarm_base`). Returns `None` when there are no remote agents.
-async fn resolve_swarm_agents(
-    ctx: &Context,
-    http: &HttpClient,
-    base: &RemoteSwarmBase,
-) -> Result<
-    Option<HashMap<String, (RemoteAgentBaseWithFallbacks, RemotePath)>>,
-    Error,
-> {
-    let mut map: HashMap<String, (RemoteAgentBaseWithFallbacks, RemotePath)> =
-        HashMap::new();
-    for slot in &base.inner.agents {
-        if let InlineAgentBaseWithFallbacksOrRemote::Remote(remote) =
-            &slot.inner
-        {
-            let key = remote.key();
-            if map.contains_key(&key) {
-                continue;
-            }
-            let agent =
-                fetch_agent_base(ctx, http, &remote.clone().into()).await?;
-            map.insert(key, agent);
-        }
-    }
-    Ok(if map.is_empty() { None } else { Some(map) })
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────
