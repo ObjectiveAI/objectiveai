@@ -1,5 +1,0 @@
-{
-  "title": "functions.GetFunctionResponse",
-  "type": "object",
-  "$ref": "RemotePath"
-}

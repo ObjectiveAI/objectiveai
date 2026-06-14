@@ -15,17 +15,6 @@
       ],
       "omitempty": true
     },
-    "from_cache": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "function": {
       "description": "The function to execute (inline definition or remote path).",
       "$ref": "functions.FullInlineFunctionOrRemoteCommitOptional"
@@ -67,17 +56,6 @@
       "anyOf": [
         {
           "$ref": "functions.executions.request.Reasoning"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
         },
         {
           "type": "null"

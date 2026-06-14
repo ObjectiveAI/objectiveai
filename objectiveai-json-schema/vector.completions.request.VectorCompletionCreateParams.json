@@ -15,18 +15,6 @@
       ],
       "omitempty": true
     },
-    "from_cache": {
-      "description": "If true, uses cached votes when available.",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "messages": {
       "description": "The conversation messages (the prompt).",
       "type": "array",
@@ -52,18 +40,6 @@
       "items": {
         "$ref": "agent.completions.message.RichContent"
       }
-    },
-    "retry": {
-      "description": "If present, reuses votes from a previous request with this ID.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
     },
     "seed": {
       "description": "Random seed for deterministic results.",

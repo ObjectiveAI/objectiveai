@@ -17,18 +17,6 @@
       "minimum": 0,
       "maximum": 18446744073709551615
     },
-    "from_cache": {
-      "description": "If true, this vote was retrieved from cache rather than generated fresh.",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "prompt_id": {
       "description": "Content hash of the request messages (for caching/deduplication).",
       "type": "string"
@@ -39,18 +27,6 @@
       "items": {
         "type": "string"
       }
-    },
-    "retry": {
-      "description": "If true, this vote was reused from a previous request via the `retry`\nparameter. All fields reflect the original request's values.",
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
     },
     "swarm_index": {
       "description": "Index of the agent configuration within the swarm.",

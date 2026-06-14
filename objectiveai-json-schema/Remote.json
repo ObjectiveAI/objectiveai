@@ -11,11 +11,11 @@
       ]
     },
     {
-      "title": "Filesystem",
-      "description": "Local filesystem.",
+      "title": "Client",
+      "description": "The connected client (resolved over the websocket reverse-channel).",
       "type": "string",
       "enum": [
-        "filesystem"
+        "client"
       ]
     },
     {

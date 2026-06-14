@@ -1,0 +1,6 @@
+{
+  "title": "cli.command.functions.get.Response",
+  "description": "Response for `functions get` — a resolved Function with its remote path.",
+  "type": "object",
+  "$ref": "RemotePath"
+}

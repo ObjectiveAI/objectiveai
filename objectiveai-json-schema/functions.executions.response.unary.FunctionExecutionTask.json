@@ -70,17 +70,6 @@
         }
       ]
     },
-    "retry_token": {
-      "description": "Token for retrying this execution with cached votes.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "split_index": {
       "anyOf": [
         {

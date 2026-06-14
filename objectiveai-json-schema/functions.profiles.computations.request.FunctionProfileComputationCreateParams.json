@@ -9,17 +9,6 @@
         "$ref": "functions.profiles.computations.request.DatasetItem"
       }
     },
-    "from_cache": {
-      "anyOf": [
-        {
-          "type": "boolean"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "function": {
       "description": "The function to compute a profile for (inline definition or remote path).",
       "$ref": "functions.FullInlineFunctionOrRemoteCommitOptional"
@@ -46,17 +35,6 @@
       "anyOf": [
         {
           "$ref": "agent.completions.request.Provider"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
         },
         {
           "type": "null"

@@ -1,8 +1,0 @@
-{
-  "title": "functions.ListFunctionProfilePairsSource",
-  "description": "Source filter for listing function-profile pairs.",
-  "type": "string",
-  "enum": [
-    "objectiveai"
-  ]
-}

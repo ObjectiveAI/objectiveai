@@ -41,7 +41,7 @@ impl CommandRequest for Request {
 
 /// Response for `functions get` — a resolved Function with its remote path.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "functions.GetFunctionResponse")]
+#[schemars(rename = "cli.command.functions.get.Response")]
 pub struct Response {
     #[serde(flatten)]
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]

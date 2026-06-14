@@ -41,7 +41,7 @@ impl CommandRequest for Request {
 
 /// Response for `agents get` — an Agent base definition with its remote path.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "agent.GetAgentResponse")]
+#[schemars(rename = "cli.command.agents.get.Response")]
 pub struct Response {
     #[serde(flatten)]
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]

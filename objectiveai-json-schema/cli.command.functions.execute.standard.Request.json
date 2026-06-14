@@ -73,16 +73,6 @@
         }
       ]
     },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "split": {
       "type": "boolean"
     },

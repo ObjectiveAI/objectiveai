@@ -65,17 +65,6 @@
         }
       ]
     },
-    "retry_token": {
-      "description": "Token for retrying this execution with cached votes.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "tasks": {
       "description": "Results from each task in the function.",
       "type": "array",

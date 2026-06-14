@@ -85,16 +85,6 @@
         }
       ]
     },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "rounds": {
       "anyOf": [
         {

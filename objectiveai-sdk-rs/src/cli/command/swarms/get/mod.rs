@@ -41,7 +41,7 @@ impl CommandRequest for Request {
 
 /// Response for `swarms get` — a Swarm base definition with its remote path.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "swarm.GetSwarmResponse")]
+#[schemars(rename = "cli.command.swarms.get.Response")]
 pub struct Response {
     #[serde(flatten)]
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]

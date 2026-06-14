@@ -86,17 +86,6 @@
       "minimum": 0,
       "maximum": 18446744073709551615
     },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "tasks": {
       "type": "array",
       "items": {

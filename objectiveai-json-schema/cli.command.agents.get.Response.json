@@ -1,0 +1,6 @@
+{
+  "title": "cli.command.agents.get.Response",
+  "description": "Response for `agents get` — an Agent base definition with its remote path.",
+  "type": "object",
+  "$ref": "RemotePath"
+}

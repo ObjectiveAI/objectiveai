@@ -1,6 +1,0 @@
-{
-  "title": "swarm.GetSwarmResponse",
-  "description": "Response containing a single Swarm.",
-  "type": "object",
-  "$ref": "RemotePath"
-}

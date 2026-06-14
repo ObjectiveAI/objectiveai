@@ -38,16 +38,6 @@
     "profile": {
       "$ref": "functions.InlineTasksProfile"
     },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
-    },
     "usage": {
       "$ref": "agent.completions.response.Usage"
     }

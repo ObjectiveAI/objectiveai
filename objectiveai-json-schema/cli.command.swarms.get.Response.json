@@ -1,0 +1,6 @@
+{
+  "title": "cli.command.swarms.get.Response",
+  "description": "Response for `swarms get` — a Swarm base definition with its remote path.",
+  "type": "object",
+  "$ref": "RemotePath"
+}

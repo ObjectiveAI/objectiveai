@@ -42,7 +42,7 @@ impl CommandRequest for Request {
 
 /// Response for `functions profiles get` — a resolved Profile with its remote path.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "functions.profiles.GetProfileResponse")]
+#[schemars(rename = "cli.command.functions.profiles.get.Response")]
 pub struct Response {
     #[serde(flatten)]
     #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]

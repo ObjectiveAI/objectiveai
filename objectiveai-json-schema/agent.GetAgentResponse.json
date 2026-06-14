@@ -1,6 +1,0 @@
-{
-  "title": "agent.GetAgentResponse",
-  "description": "Response containing a single Agent with creation timestamp.",
-  "type": "object",
-  "$ref": "RemotePath"
-}

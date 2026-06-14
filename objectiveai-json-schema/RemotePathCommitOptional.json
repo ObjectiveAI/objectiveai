@@ -30,7 +30,7 @@
       }
     },
     {
-      "title": "Filesystem",
+      "title": "Client",
       "type": "object",
       "properties": {
         "commit": {
@@ -49,7 +49,7 @@
         "remote": {
           "type": "string",
           "enum": [
-            "filesystem"
+            "client"
           ]
         },
         "repository": {

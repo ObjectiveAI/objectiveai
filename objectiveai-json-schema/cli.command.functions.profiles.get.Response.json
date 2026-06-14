@@ -1,0 +1,6 @@
+{
+  "title": "cli.command.functions.profiles.get.Response",
+  "description": "Response for `functions profiles get` — a resolved Profile with its remote path.",
+  "type": "object",
+  "$ref": "RemotePath"
+}

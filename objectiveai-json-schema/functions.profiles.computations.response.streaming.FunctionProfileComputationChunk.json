@@ -62,17 +62,6 @@
       ],
       "omitempty": true
     },
-    "retry_token": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "usage": {
       "anyOf": [
         {
