@@ -234,7 +234,6 @@
         "output": 0.0699790336568019
       },
       "error": null,
-      "retry_token": null,
       "created": 0,
       "function": {
         "remote": "mock",
@@ -473,7 +472,6 @@
         "output": 0.0
       },
       "error": null,
-      "retry_token": null,
       "created": 0,
       "function": {
         "remote": "mock",
@@ -496,7 +494,6 @@
     "output": 0.03498951682840093
   },
   "error": null,
-  "retry_token": null,
   "created": 0,
   "function": {
     "remote": "mock",

@@ -368,7 +368,6 @@
             "output": 0.944479513734463
           },
           "error": null,
-          "retry_token": null,
           "created": 0,
           "function": {
             "remote": "mock",
@@ -518,7 +517,6 @@
             "output": 0.5
           },
           "error": null,
-          "retry_token": null,
           "created": 0,
           "function": {
             "remote": "mock",
@@ -541,7 +539,6 @@
         "output": 0.766687708240678
       },
       "error": null,
-      "retry_token": null,
       "created": 0,
       "function": {
         "remote": "mock",
@@ -882,7 +879,6 @@
             "output": 0.186139291534325
           },
           "error": null,
-          "retry_token": null,
           "created": 0,
           "function": {
             "remote": "mock",
@@ -1301,7 +1297,6 @@
             "output": 0.90625
           },
           "error": null,
-          "retry_token": null,
           "created": 0,
           "function": {
             "remote": "mock",
@@ -1633,7 +1628,6 @@
             "output": 0.1471236627302208
           },
           "error": null,
-          "retry_token": null,
           "created": 0,
           "function": {
             "remote": "mock",
@@ -1656,7 +1650,6 @@
         "output": 0.4131709847548486
       },
       "error": null,
-      "retry_token": null,
       "created": 0,
       "function": {
         "remote": "mock",
@@ -1682,7 +1675,6 @@
     "output": 0.607605182672055
   },
   "error": null,
-  "retry_token": null,
   "created": 0,
   "function": {
     "remote": "mock",
