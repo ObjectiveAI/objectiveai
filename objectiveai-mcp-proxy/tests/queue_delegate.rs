@@ -91,6 +91,7 @@ async fn start_proxy(delegate: Option<Arc<dyn QueueDelegate>>) -> String {
         mcp_backoff_max_elapsed_time: 40000,
         mcp_encryption_key: None,
         suppress_output: true,
+        logs_dir: None,
     };
     let (listener, app) = objectiveai_mcp_proxy::setup(config, delegate)
         .await

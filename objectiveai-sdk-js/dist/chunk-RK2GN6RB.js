@@ -403,7 +403,7 @@ var CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema = z.enum(["refusa
 
 // src/cli/command/agents/logs/read/all/assistantResponsePart.ts
 var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = z.object({
-  function_name: z.string().describe("`function.name` for `type = tool_call` rows\n(`logs.assistant_response_tool_calls.function_name`).\nEmpty string for non-tool-call rows. Surfaced here so\ncallers can dedupe tool calls by name without a per-row\n`agents logs read id` round-trip."),
+  function_name: z.string().nullable().describe("`function.name`, present only for `type = tool_call` rows\n(`objectiveai.assistant_response_tool_calls.function_name`);\nabsent for every other part type. Surfaced here so callers\ncan dedupe tool calls by name without a per-row\n`agents logs read id` round-trip.").meta({ omitempty: true }).optional(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
   timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema
@@ -1273,19 +1273,20 @@ var CliCommandAgentsLogsReadIdResponseSchema = z.union([z.object({
   sender_agent_instance_hierarchy: z.string(),
   type: z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), z.object({
-  index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: z.string(),
-  tool_call_id: z.string(),
-  type: z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), z.object({
   arguments: z.string(),
   function_name: z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
   index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z.string(),
   tool_call_id: z.string(),
   tool_call_index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: z.literal("response_tool_calls")
-}).meta({ "variantTitle": "ResponseToolCalls" }), z.object({
+  type: z.literal("tool_call")
+}).meta({ "variantTitle": "ToolCall" }), z.object({
+  index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: z.string(),
+  tool_call_id: z.string(),
+  type: z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" }), z.object({
+  text: z.string(),
   type: z.literal("text")
 }).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(z.object({
   type: z.literal("image")

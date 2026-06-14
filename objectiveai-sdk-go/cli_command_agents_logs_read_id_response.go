@@ -91,6 +91,38 @@ func (v *CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest) UnmarshalJS
 }
 func (CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest) SchemaVariantTitle() string { return "FunctionExecutionRequest" }
 
+type CliCommandAgentsLogsReadIdResponseToolCall struct {
+	Arguments string `json:"arguments"`
+	// Function name from the openai tool_call payload
+	// (`tool_calls[i].function.name`).
+	FunctionName string `json:"function_name"`
+	Index int64 `json:"index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	ResponseID string `json:"response_id"`
+	ToolCallID string `json:"tool_call_id"`
+	ToolCallIndex int64 `json:"tool_call_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=tool_call"`
+}
+
+func (v *CliCommandAgentsLogsReadIdResponseToolCall) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"arguments", "function_name", "index", "response_id", "tool_call_id", "tool_call_index", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadIdResponseToolCall: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadIdResponseToolCall
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadIdResponseToolCall(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadIdResponseToolCall) SchemaVariantTitle() string { return "ToolCall" }
+
 type CliCommandAgentsLogsReadIdResponseToolResponse struct {
 	Index int64 `json:"index" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	ResponseID string `json:"response_id"`
@@ -118,39 +150,8 @@ func (v *CliCommandAgentsLogsReadIdResponseToolResponse) UnmarshalJSON(data []by
 }
 func (CliCommandAgentsLogsReadIdResponseToolResponse) SchemaVariantTitle() string { return "ToolResponse" }
 
-type CliCommandAgentsLogsReadIdResponseResponseToolCalls struct {
-	Arguments string `json:"arguments"`
-	// Function name from the openai tool_call payload
-	// (`tool_calls[i].function.name`).
-	FunctionName string `json:"function_name"`
-	Index int64 `json:"index" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	ResponseID string `json:"response_id"`
-	ToolCallID string `json:"tool_call_id"`
-	ToolCallIndex int64 `json:"tool_call_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	Type string `json:"type" validate:"oneof=response_tool_calls"`
-}
-
-func (v *CliCommandAgentsLogsReadIdResponseResponseToolCalls) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"arguments", "function_name", "index", "response_id", "tool_call_id", "tool_call_index", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsReadIdResponseResponseToolCalls: missing required field %q", key)
-		}
-	}
-	type Alias CliCommandAgentsLogsReadIdResponseResponseToolCalls
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliCommandAgentsLogsReadIdResponseResponseToolCalls(alias)
-	return nil
-}
-func (CliCommandAgentsLogsReadIdResponseResponseToolCalls) SchemaVariantTitle() string { return "ResponseToolCalls" }
-
 type CliCommandAgentsLogsReadIdResponseText struct {
+	Text string `json:"text"`
 	Type string `json:"type" validate:"oneof=text"`
 }
 
@@ -159,7 +160,7 @@ func (v *CliCommandAgentsLogsReadIdResponseText) UnmarshalJSON(data []byte) erro
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"type"} {
+	for _, key := range []string{"text", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadIdResponseText: missing required field %q", key)
 		}
@@ -320,8 +321,8 @@ type CliCommandAgentsLogsReadIdResponse struct {
 	AgentCompletionRequest *CliCommandAgentsLogsReadIdResponseAgentCompletionRequest `outerObject:"true"`
 	VectorCompletionRequest *CliCommandAgentsLogsReadIdResponseVectorCompletionRequest `outerObject:"true"`
 	FunctionExecutionRequest *CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest `outerObject:"true"`
+	ToolCall *CliCommandAgentsLogsReadIdResponseToolCall `outerObject:"true"`
 	ToolResponse *CliCommandAgentsLogsReadIdResponseToolResponse `outerObject:"true"`
-	ResponseToolCalls *CliCommandAgentsLogsReadIdResponseResponseToolCalls `outerObject:"true"`
 	Text *CliCommandAgentsLogsReadIdResponseText `outerObject:"true"`
 	Image *CliCommandAgentsLogsReadIdResponseImage `outerObject:"true"`
 	Audio *CliCommandAgentsLogsReadIdResponseAudio `outerObject:"true"`
@@ -339,11 +340,11 @@ func (v CliCommandAgentsLogsReadIdResponse) MarshalJSON() ([]byte, error) {
 	if v.FunctionExecutionRequest != nil {
 		return json.Marshal(v.FunctionExecutionRequest)
 	}
+	if v.ToolCall != nil {
+		return json.Marshal(v.ToolCall)
+	}
 	if v.ToolResponse != nil {
 		return json.Marshal(v.ToolResponse)
-	}
-	if v.ResponseToolCalls != nil {
-		return json.Marshal(v.ResponseToolCalls)
 	}
 	if v.Text != nil {
 		return json.Marshal(v.Text)
@@ -398,10 +399,10 @@ func (v *CliCommandAgentsLogsReadIdResponse) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsLogsReadIdResponseToolResponse
+		var try CliCommandAgentsLogsReadIdResponseToolCall
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsReadIdResponse{}
-			candidate.ToolResponse = &try
+			candidate.ToolCall = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -409,10 +410,10 @@ func (v *CliCommandAgentsLogsReadIdResponse) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsLogsReadIdResponseResponseToolCalls
+		var try CliCommandAgentsLogsReadIdResponseToolResponse
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsReadIdResponse{}
-			candidate.ResponseToolCalls = &try
+			candidate.ToolResponse = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -482,8 +483,8 @@ func (v CliCommandAgentsLogsReadIdResponse) Validate() error {
 	if v.AgentCompletionRequest != nil { count++ }
 	if v.VectorCompletionRequest != nil { count++ }
 	if v.FunctionExecutionRequest != nil { count++ }
+	if v.ToolCall != nil { count++ }
 	if v.ToolResponse != nil { count++ }
-	if v.ResponseToolCalls != nil { count++ }
 	if v.Text != nil { count++ }
 	if v.Image != nil { count++ }
 	if v.Audio != nil { count++ }

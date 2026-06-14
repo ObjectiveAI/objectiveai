@@ -28,8 +28,8 @@ run_all() {
   # OR them together so a failing nextest run isn't masked by a passing
   # pnpm run (or vice versa).
   local rc=0
-  echo "==> Building release binaries"
-  cargo build --release \
+  echo "==> Building test binaries"
+  cargo build \
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p objectiveai-mcp-proxy \
     -p test-upstream || rc=$?

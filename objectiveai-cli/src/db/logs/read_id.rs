@@ -71,7 +71,7 @@ async fn load_payload(
             .bind(id)
             .fetch_one(&**pool)
             .await?;
-            Ok(Response::Text(text))
+            Ok(Response::Text { text })
         }
         MessageTable::MessageQueueImage => {
             let id = require_row_index(table_kind, row_index)?;
@@ -186,7 +186,7 @@ async fn load_payload(
                 index,
             )
             .await?;
-            Ok(Response::Text(text))
+            Ok(Response::Text { text })
         }
         MessageTable::AssistantResponseReasoning => {
             let index = require_row_index(table_kind, row_index)?;
@@ -197,7 +197,7 @@ async fn load_payload(
                 index,
             )
             .await?;
-            Ok(Response::Text(text))
+            Ok(Response::Text { text })
         }
         MessageTable::AssistantResponseToolCalls => {
             let index = require_row_index(table_kind, row_index)?;
@@ -212,7 +212,7 @@ async fn load_payload(
             .bind(tool_call_index)
             .fetch_one(&**pool)
             .await?;
-            Ok(Response::ResponseToolCalls {
+            Ok(Response::ToolCall {
                 response_id: response_id.to_string(),
                 index,
                 tool_call_index,
@@ -232,7 +232,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Text(text))
+            Ok(Response::Text { text })
         }
         MessageTable::AssistantResponseContentImage => {
             let (index, part_index) =
@@ -297,7 +297,7 @@ async fn load_payload(
                 part_index,
             )
             .await?;
-            Ok(Response::Text(text))
+            Ok(Response::Text { text })
         }
         MessageTable::ToolResponseContentImage => {
             let (index, part_index) =

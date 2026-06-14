@@ -555,12 +555,7 @@ where
             Option<
                 tokio::task::JoinHandle<
                     Result<
-                        (
-                            objectiveai_sdk::mcp::Connection,
-                            Option<
-                                std::sync::Arc<Vec<objectiveai_sdk::mcp::tool::Tool>>,
-                            >,
-                        ),
+                        objectiveai_sdk::mcp::Connection,
                         std::sync::Arc<objectiveai_sdk::mcp::Error>,
                     >,
                 >,
@@ -794,41 +789,34 @@ where
                     .as_ref()
                     .map(|c| c.session_id.clone())
                     .or_else(|| wire_proxy_session_id.clone());
-                // Only agents that declared `client_objectiveai_mcp`
-                // need a `list_tools` round-trip — they're the ones
-                // we have a declaration to validate against. Agents
-                // with only `mcp_servers` / `extra_mcp_servers` skip
-                // it and pay one fewer round-trip.
-                let needs_list_tools = agent.base().client_objectiveai_mcp().is_some();
-                // Per-agent spawn: connect → optionally list_tools.
-                // Every agent's task runs concurrently with every
-                // other agent's, so the proxy `initialize` round-trips
-                // fan out in parallel. The list_tools result is the
-                // union across every declared upstream; the CLI's
-                // conduit applies its `X-OBJECTIVEAI-MCP-CONFIG`
-                // filter to the synthetic-upstream slice.
+                // Per-agent spawn: connect to the proxy. Every agent's
+                // task runs concurrently with every other agent's, so
+                // the proxy `initialize` round-trips fan out in
+                // parallel.
                 //
                 // Plugin MCP upstreams are NOT dialed here — the CLI
                 // dials them inside its `initialize` handler so each
                 // upstream gets the proxy-supplied aggregate session
                 // id for resume on continuation.
                 //
-                // Error type is `Arc<mcp::Error>` because the SDK's
-                // `list_tools` returns shared-ref errors (the cached
-                // refresh-tools task fills the same slot), so wrapping
-                // the `connect` error in `Arc` matches the downstream
-                // error handling shape uniformly.
+                // No `list_tools` round-trip: presence of the agent's
+                // declared `client_objectiveai_mcp` tools/plugins is
+                // enforced by objectiveai-mcp itself, which validates
+                // the `X-OBJECTIVEAI-MCP-{TOOLS,PLUGINS}` filter sets by
+                // `{owner, name, version}` against the installed
+                // manifest and errors at connect time on any miss. The
+                // server must NOT re-validate against the upstream's
+                // advertised tool names — that would wrongly couple it
+                // to the client's tool-name scheme.
+                //
+                // Error type is `Arc<mcp::Error>` to match the SDK's
+                // shared-ref error shape uniformly.
                 Some(tokio::spawn(async move {
                     let conn = mcp_client
                         .connect(proxy_url, session_id, Some(proxy_request_headers))
                         .await
                         .map_err(std::sync::Arc::new)?;
-                    let tools = if needs_list_tools {
-                        Some(conn.list_tools().await?)
-                    } else {
-                        None
-                    };
-                    Ok::<_, std::sync::Arc<objectiveai_sdk::mcp::Error>>((conn, tools))
+                    Ok::<_, std::sync::Arc<objectiveai_sdk::mcp::Error>>(conn)
                 }))
             })
             .collect();
@@ -842,14 +830,7 @@ where
             connect_handle: Option<
                 tokio::task::JoinHandle<
                     Result<
-                        (
-                            objectiveai_sdk::mcp::Connection,
-                            Option<
-                                std::sync::Arc<
-                                    Vec<objectiveai_sdk::mcp::tool::Tool>,
-                                >,
-                            >,
-                        ),
+                        objectiveai_sdk::mcp::Connection,
                         std::sync::Arc<objectiveai_sdk::mcp::Error>,
                     >,
                 >,
@@ -906,64 +887,15 @@ where
                 // Resolve the per-agent proxy connect handle on first
                 // visit. All N connects were spawned up-front so the
                 // initialize round-trips overlap; awaiting individual
-                // handles here is cheap on later retry iterations. The
-                // spawned task also calls `list_tools()` on the new
-                // connection — the union list returned across every
-                // upstream — so we can immediately validate the
-                // agent's declared
-                // tools without an extra round-trip.
+                // handles here is cheap on later retry iterations.
+                // objectiveai-mcp already enforced the agent's declared
+                // tool/plugin set against its installed manifest at
+                // connect time, so there is nothing to re-validate.
                 if !attempt_connect_done[idx] {
                     attempt_connect_done[idx] = true;
                     if let Some(handle) = attempt.connect_handle.take() {
                         match handle.await.unwrap() {
-                            Ok((conn, tools_opt)) => {
-                                // Validate the agent's
-                                // `client_objectiveai_mcp.tools`
-                                // declaration against the actual
-                                // upstream tool list. Missing any
-                                // declared tool fails this attempt.
-                                // `tools_opt` is `Some` iff the agent
-                                // declared `client_objectiveai_mcp`
-                                // (we only paid for the round-trip
-                                // when there was a declaration to
-                                // validate).
-                                let declaration =
-                                    attempt.agent.base().client_objectiveai_mcp();
-                                let mut missing: Option<
-                                    objectiveai_sdk::agent::ClientObjectiveaiMcpEntry,
-                                > = None;
-                                if let (Some(client_mcp), Some(tools)) =
-                                    (declaration, tools_opt.as_ref())
-                                {
-                                    let returned: Vec<&str> = tools
-                                        .iter()
-                                        .map(|t| t.name.as_ref())
-                                        .collect();
-                                    for declared in &client_mcp.tools {
-                                        let suffix = format!("_{}", declared.name);
-                                        let present = returned.iter().any(|n| {
-                                            *n == declared.name.as_str()
-                                                || n.ends_with(&suffix)
-                                        });
-                                        if !present {
-                                            missing = Some(declared.clone());
-                                            break;
-                                        }
-                                    }
-                                }
-                                match missing {
-                                    None => attempt_connections[idx] = Some(conn),
-                                    Some(declared) => {
-                                        errors.push(
-                                            super::Error::ClientObjectiveaiMcpToolMissing {
-                                                owner: declared.owner,
-                                                name: declared.name,
-                                                version: declared.version,
-                                            },
-                                        );
-                                    }
-                                }
-                            }
+                            Ok(conn) => attempt_connections[idx] = Some(conn),
                             Err(e) => {
                                 errors.push(super::Error::McpConnectionArc(e));
                             }

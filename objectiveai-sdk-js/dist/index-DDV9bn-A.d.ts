@@ -1865,7 +1865,7 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodString;
+        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
@@ -8439,19 +8439,20 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
     sender_agent_instance_hierarchy: z.ZodString;
     type: z.ZodLiteral<"function_execution_request">;
 }, z.core.$strip>, z.ZodObject<{
-    index: z.ZodNumber;
-    response_id: z.ZodString;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"tool_response">;
-}, z.core.$strip>, z.ZodObject<{
     arguments: z.ZodString;
     function_name: z.ZodString;
     index: z.ZodNumber;
     response_id: z.ZodString;
     tool_call_id: z.ZodString;
     tool_call_index: z.ZodNumber;
-    type: z.ZodLiteral<"response_tool_calls">;
+    type: z.ZodLiteral<"tool_call">;
 }, z.core.$strip>, z.ZodObject<{
+    index: z.ZodNumber;
+    response_id: z.ZodString;
+    tool_call_id: z.ZodString;
+    type: z.ZodLiteral<"tool_response">;
+}, z.core.$strip>, z.ZodObject<{
+    text: z.ZodString;
     type: z.ZodLiteral<"text">;
 }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
     detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
@@ -8602,7 +8603,7 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodString;
+        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{

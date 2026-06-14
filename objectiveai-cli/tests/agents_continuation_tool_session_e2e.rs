@@ -50,11 +50,11 @@ fn agent_spec() -> AgentSelector {
         })
         .collect();
     let calls = json!([
-        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [{"name": "oai_tool_testorg_tool0_1-0-0", "arguments": "{\"args\":[],\"timeout\":\"60s\",\"max_tokens\":1000}"}], "content": ""},
         {"tool_calls": [], "content": "done1"},
-        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [{"name": "oai_tool_testorg_tool0_1-0-0", "arguments": "{\"args\":[],\"timeout\":\"60s\",\"max_tokens\":1000}"}], "content": ""},
         {"tool_calls": [], "content": "done2"},
-        {"tool_calls": [{"name": "oai_tool0", "arguments": "{\"args\":[]}"}], "content": ""},
+        {"tool_calls": [{"name": "oai_tool_testorg_tool0_1-0-0", "arguments": "{\"args\":[],\"timeout\":\"60s\",\"max_tokens\":1000}"}], "content": ""},
         {"tool_calls": [], "content": "done3"},
     ]);
     let agent_json = json!({

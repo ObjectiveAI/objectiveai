@@ -34,13 +34,40 @@ bash "$REPO_ROOT/test-build.sh" >>"$BUILD_LOG" 2>&1 & BUILD_PID=$!
 wait "$CLEANUP_PID"
 wait "$BUILD_PID"
 
+# Pre-build every suite's TEST binaries up front — BEFORE the parallel
+# test phase spawns any server — so no suite relinks a running `.exe`
+# (the Windows "Access is denied" relink race). test-build.sh above
+# builds the shim bins; this builds the per-suite test binaries cargo
+# would otherwise relink during the parallel phase. Sequential: cargo's
+# target-dir build lock serializes them anyway. Each build-tests.sh
+# runs the suite's `nextest list`, so the later `nextest run` is a pure
+# cache hit. A build failure here aborts before the test phase (set -e).
+for suite in \
+  objectiveai-sdk-rs \
+  objectiveai-api \
+  objectiveai-json-schema \
+  objectiveai-cli \
+  objectiveai-mcp-proxy \
+  objectiveai-viewer \
+  objectiveai-tests \
+; do
+  bash "$REPO_ROOT/$suite/build-tests.sh" >>"$BUILD_LOG" 2>&1
+done
+
 # The root ALWAYS reruns test-cleanup.sh at the very end, exactly
 # once — the EXIT trap covers success, failure, and interruption.
+# It's kill-only: every lockfile-owning process dies but `state/`
+# survives, so a failed run's db can be re-spawned and its logs read
+# back with the cli (`OBJECTIVEAI_STATE=<test-fn> objectiveai agents
+# instances list` / `agents logs read`). The START cleanup above ran
+# WITHOUT the env var, so it still wiped a stale tree for a clean
+# slate. Mirrors the per-suite test.sh bracketing.
 FINAL_CLEANUP_DONE=false
 final_cleanup() {
   $FINAL_CLEANUP_DONE && return 0
   FINAL_CLEANUP_DONE=true
-  bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
+  OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY=1 \
+    bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
 }
 trap final_cleanup EXIT INT TERM
 

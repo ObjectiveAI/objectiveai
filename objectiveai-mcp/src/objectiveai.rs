@@ -193,7 +193,7 @@ where
                 continue;
             }
             plugins_by_tool_name.insert(
-                plugin.name.clone(),
+                plugin.tool_name(),
                 ClientObjectiveaiMcpEntry {
                     owner: plugin.owner.clone(),
                     name: plugin.name.clone(),
@@ -205,7 +205,7 @@ where
             let plugin_version = plugin.version.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
-                Cow::Owned(plugin.name.clone()),
+                Cow::Owned(plugin.tool_name()),
                 Cow::Owned(plugin.description.clone()),
                 schema_for_type::<PluginRequest>(),
             );
@@ -263,7 +263,7 @@ where
                 continue;
             }
             tools_by_tool_name.insert(
-                cli_tool.name.clone(),
+                cli_tool.tool_name(),
                 ClientObjectiveaiMcpEntry {
                     owner: cli_tool.owner.clone(),
                     name: cli_tool.name.clone(),
@@ -275,7 +275,7 @@ where
             let tool_version = cli_tool.version.clone();
             let executor_for_route = executor.clone();
             let tool = Tool::new(
-                Cow::Owned(cli_tool.name.clone()),
+                Cow::Owned(cli_tool.tool_name()),
                 Cow::Owned(cli_tool.description.clone()),
                 schema_for_type::<ToolRequest>(),
             );
