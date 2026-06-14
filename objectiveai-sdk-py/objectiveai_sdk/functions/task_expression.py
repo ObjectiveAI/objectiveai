@@ -55,21 +55,21 @@ Starlark expression:
     root: Union[TaskExpressionScalarFunctionGithubInputExpression, TaskExpressionScalarFunctionGithubInputValue]
 
 
-class TaskExpressionScalarFunctionFilesystemInputExpression(RootModel):
+class TaskExpressionScalarFunctionClientInputExpression(RootModel):
     """An expression (JMESPath or Starlark) to evaluate."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Expression'})
 
     root: Expression
 
 
-class TaskExpressionScalarFunctionFilesystemInputValue(RootModel):
+class TaskExpressionScalarFunctionClientInputValue(RootModel):
     """A literal value."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Value'})
 
     root: InputValueExpression
 
 
-class TaskExpressionScalarFunctionFilesystemInput(RootModel):
+class TaskExpressionScalarFunctionClientInput(RootModel):
     """Expression for the input to pass to the function.
 Receives: `input`, `map` (if mapped).
 
@@ -95,7 +95,7 @@ Starlark expression:
 ```json
 {"$starlark": "input['greeting']"}
 ```"""
-    root: Union[TaskExpressionScalarFunctionFilesystemInputExpression, TaskExpressionScalarFunctionFilesystemInputValue]
+    root: Union[TaskExpressionScalarFunctionClientInputExpression, TaskExpressionScalarFunctionClientInputValue]
 
 
 class TaskExpressionScalarFunctionMockInputExpression(RootModel):
@@ -184,21 +184,21 @@ Starlark expression:
     root: Union[TaskExpressionVectorFunctionGithubInputExpression, TaskExpressionVectorFunctionGithubInputValue]
 
 
-class TaskExpressionVectorFunctionFilesystemInputExpression(RootModel):
+class TaskExpressionVectorFunctionClientInputExpression(RootModel):
     """An expression (JMESPath or Starlark) to evaluate."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Expression'})
 
     root: Expression
 
 
-class TaskExpressionVectorFunctionFilesystemInputValue(RootModel):
+class TaskExpressionVectorFunctionClientInputValue(RootModel):
     """A literal value."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Value'})
 
     root: InputValueExpression
 
 
-class TaskExpressionVectorFunctionFilesystemInput(RootModel):
+class TaskExpressionVectorFunctionClientInput(RootModel):
     """Expression for the input to pass to the function.
 Receives: `input`, `map` (if mapped).
 
@@ -224,7 +224,7 @@ Starlark expression:
 ```json
 {"$starlark": "input['greeting']"}
 ```"""
-    root: Union[TaskExpressionVectorFunctionFilesystemInputExpression, TaskExpressionVectorFunctionFilesystemInputValue]
+    root: Union[TaskExpressionVectorFunctionClientInputExpression, TaskExpressionVectorFunctionClientInputValue]
 
 
 class TaskExpressionVectorFunctionMockInputExpression(RootModel):
@@ -282,12 +282,12 @@ class TaskExpressionScalarFunctionGithub(BaseModel):
     type_: Literal['scalar.function'] = Field(..., alias='type')
 
 
-class TaskExpressionScalarFunctionFilesystem(BaseModel):
+class TaskExpressionScalarFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
-    input: TaskExpressionScalarFunctionFilesystemInput = Field(..., description='Expression for the input to pass to the function.\nReceives: `input`, `map` (if mapped).\n\nA value that can be either a literal or an expression.\n\nThis allows Function definitions to mix static values with dynamic\nexpressions. During compilation, expressions are evaluated while\nliteral values pass through unchanged.\n\n# Example\n\nLiteral value:\n```json\n"hello world"\n```\n\nJMESPath expression:\n```json\n{"$jmespath": "input.greeting"}\n```\n\nStarlark expression:\n```json\n{"$starlark": "input[\'greeting\']"}\n```')
+    input: TaskExpressionScalarFunctionClientInput = Field(..., description='Expression for the input to pass to the function.\nReceives: `input`, `map` (if mapped).\n\nA value that can be either a literal or an expression.\n\nThis allows Function definitions to mix static values with dynamic\nexpressions. During compilation, expressions are evaluated while\nliteral values pass through unchanged.\n\n# Example\n\nLiteral value:\n```json\n"hello world"\n```\n\nJMESPath expression:\n```json\n{"$jmespath": "input.greeting"}\n```\n\nStarlark expression:\n```json\n{"$starlark": "input[\'greeting\']"}\n```')
     map: Optional[Expression] = Field(None, description='Expression that evaluates to the number of mapped task instances.\nEach instance receives `map` as an integer index (0-based).', json_schema_extra={'omitempty': True})
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` which is one of 4 variants:\n- `Scalar(Decimal)` - a single score\n- `Vector(Vec<Decimal>)` - a vector of scores\n- `Vectors(Vec<Vec<Decimal>>)` - multiple vectors (from mapped tasks)\n- `Err(Value)` - an error\n\nThe expression must return a `TaskOutputOwned` that is valid for the parent function's type:\n- For scalar functions: must return `Scalar(value)` where value is in [0, 1]\n- For vector functions: must return `Vector(values)` where values sum to ~1 and match the expected length\n\nThe function's final output is computed as a weighted average of all task outputs using\nprofile weights. If a function has only one task, that task's output becomes the function's\noutput directly.")
     skip: Optional[Expression] = Field(None, description='If this expression evaluates to true, skip the task. Receives: `input`.', json_schema_extra={'omitempty': True})
@@ -307,7 +307,7 @@ class TaskExpressionScalarFunctionMock(BaseModel):
 class TaskExpressionScalarFunction(RootModel):
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.ScalarFunctionTaskExpression', '_expanded_ref_props': ['type'], '_variant_title': 'ScalarFunction'})
 
-    root: Union[TaskExpressionScalarFunctionGithub, TaskExpressionScalarFunctionFilesystem, TaskExpressionScalarFunctionMock]
+    root: Union[TaskExpressionScalarFunctionGithub, TaskExpressionScalarFunctionClient, TaskExpressionScalarFunctionMock]
 
 
 class TaskExpressionVectorFunctionGithub(BaseModel):
@@ -322,12 +322,12 @@ class TaskExpressionVectorFunctionGithub(BaseModel):
     type_: Literal['vector.function'] = Field(..., alias='type')
 
 
-class TaskExpressionVectorFunctionFilesystem(BaseModel):
+class TaskExpressionVectorFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
-    input: TaskExpressionVectorFunctionFilesystemInput = Field(..., description='Expression for the input to pass to the function.\nReceives: `input`, `map` (if mapped).\n\nA value that can be either a literal or an expression.\n\nThis allows Function definitions to mix static values with dynamic\nexpressions. During compilation, expressions are evaluated while\nliteral values pass through unchanged.\n\n# Example\n\nLiteral value:\n```json\n"hello world"\n```\n\nJMESPath expression:\n```json\n{"$jmespath": "input.greeting"}\n```\n\nStarlark expression:\n```json\n{"$starlark": "input[\'greeting\']"}\n```')
+    input: TaskExpressionVectorFunctionClientInput = Field(..., description='Expression for the input to pass to the function.\nReceives: `input`, `map` (if mapped).\n\nA value that can be either a literal or an expression.\n\nThis allows Function definitions to mix static values with dynamic\nexpressions. During compilation, expressions are evaluated while\nliteral values pass through unchanged.\n\n# Example\n\nLiteral value:\n```json\n"hello world"\n```\n\nJMESPath expression:\n```json\n{"$jmespath": "input.greeting"}\n```\n\nStarlark expression:\n```json\n{"$starlark": "input[\'greeting\']"}\n```')
     map: Optional[Expression] = Field(None, description='Expression that evaluates to the number of mapped task instances.\nEach instance receives `map` as an integer index (0-based).', json_schema_extra={'omitempty': True})
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` which is one of 4 variants:\n- `Scalar(Decimal)` - a single score\n- `Vector(Vec<Decimal>)` - a vector of scores\n- `Vectors(Vec<Vec<Decimal>>)` - multiple vectors (from mapped tasks)\n- `Err(Value)` - an error\n\nThe expression must return a `TaskOutputOwned` that is valid for the parent function's type:\n- For scalar functions: must return `Scalar(value)` where value is in [0, 1]\n- For vector functions: must return `Vector(values)` where values sum to ~1 and match the expected length\n\nThe function's final output is computed as a weighted average of all task outputs using\nprofile weights. If a function has only one task, that task's output becomes the function's\noutput directly.")
     skip: Optional[Expression] = Field(None, description='If this expression evaluates to true, skip the task. Receives: `input`.', json_schema_extra={'omitempty': True})
@@ -347,7 +347,7 @@ class TaskExpressionVectorFunctionMock(BaseModel):
 class TaskExpressionVectorFunction(RootModel):
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.VectorFunctionTaskExpression', '_expanded_ref_props': ['type'], '_variant_title': 'VectorFunction'})
 
-    root: Union[TaskExpressionVectorFunctionGithub, TaskExpressionVectorFunctionFilesystem, TaskExpressionVectorFunctionMock]
+    root: Union[TaskExpressionVectorFunctionGithub, TaskExpressionVectorFunctionClient, TaskExpressionVectorFunctionMock]
 
 
 class TaskExpressionVectorCompletion(VectorCompletionTaskExpression):

@@ -22,6 +22,5 @@ class FunctionProfileComputation(BaseModel):
     id: str
     object: Object
     profile: InlineTasksProfile
-    retry_token: Optional[str] = None
     usage: Usage
 

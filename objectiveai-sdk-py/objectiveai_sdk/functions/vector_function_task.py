@@ -17,10 +17,10 @@ class VectorFunctionTaskGithub(BaseModel):
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` as the nested function's result (Scalar or Vector).\nMust return a `TaskOutputOwned` valid for the parent function's type (scalar or vector).\nSee [`VectorFunctionTaskExpression::output`] for full documentation.")
 
 
-class VectorFunctionTaskFilesystem(BaseModel):
+class VectorFunctionTaskClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: InputValue = Field(..., description='The resolved input to pass to the function.')
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` as the nested function's result (Scalar or Vector).\nMust return a `TaskOutputOwned` valid for the parent function's type (scalar or vector).\nSee [`VectorFunctionTaskExpression::output`] for full documentation.")
@@ -37,5 +37,5 @@ class VectorFunctionTask(RootModel):
     """A compiled vector function task ready for execution."""
     model_config = ConfigDict(title='functions.VectorFunctionTask', json_schema_extra={'_expanded_ref': 'RemotePath', '_expanded_ref_props': ['input', 'output']})
 
-    root: Union[VectorFunctionTaskGithub, VectorFunctionTaskFilesystem, VectorFunctionTaskMock]
+    root: Union[VectorFunctionTaskGithub, VectorFunctionTaskClient, VectorFunctionTaskMock]
 

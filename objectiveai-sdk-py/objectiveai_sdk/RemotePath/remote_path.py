@@ -14,12 +14,12 @@ class RemotePathGithub(BaseModel):
     repository: str
 
 
-class RemotePathFilesystem(BaseModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Filesystem'})
+class RemotePathClient(BaseModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Client'})
 
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
 
 
@@ -33,5 +33,5 @@ class RemotePathMock(BaseModel):
 class RemotePath(RootModel):
     model_config = ConfigDict(title='RemotePath')
 
-    root: Union[RemotePathGithub, RemotePathFilesystem, RemotePathMock]
+    root: Union[RemotePathGithub, RemotePathClient, RemotePathMock]
 

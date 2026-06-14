@@ -12,11 +12,11 @@ class RemoteGithub(RootModel):
     root: Literal['github']
 
 
-class RemoteFilesystem(RootModel):
-    """Local filesystem."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Filesystem'})
+class RemoteClient(RootModel):
+    """The connected client (resolved over the websocket reverse-channel)."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Client'})
 
-    root: Literal['filesystem']
+    root: Literal['client']
 
 
 class RemoteMock(RootModel):
@@ -30,5 +30,5 @@ class Remote(RootModel):
     """The remote source where a function, profile, or agent is hosted."""
     model_config = ConfigDict(title='Remote')
 
-    root: Union[RemoteGithub, RemoteFilesystem, RemoteMock]
+    root: Union[RemoteGithub, RemoteClient, RemoteMock]
 

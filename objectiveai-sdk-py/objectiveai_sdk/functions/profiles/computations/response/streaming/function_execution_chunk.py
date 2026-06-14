@@ -27,7 +27,6 @@ class FunctionExecutionChunk(BaseModel):
     profile: Optional[RemotePath] = None
     reasoning: Optional[ReasoningSummaryChunk] = Field(None, json_schema_extra={'omitempty': True})
     retry: int = Field(..., ge=0, le=18446744073709551615)
-    retry_token: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     tasks: list[TaskChunk]
     tasks_errors: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     usage: Optional[Usage] = Field(None, json_schema_extra={'omitempty': True})

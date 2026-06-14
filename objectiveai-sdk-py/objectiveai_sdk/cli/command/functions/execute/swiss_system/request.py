@@ -24,7 +24,6 @@ class Request(BaseModel):
     pool: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = None
     profile: ProfileSpec
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
-    retry_token: Optional[str] = None
     rounds: Optional[Annotated[int, Field(ge=0, le=4294967295)]] = None
     split: bool
     timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})

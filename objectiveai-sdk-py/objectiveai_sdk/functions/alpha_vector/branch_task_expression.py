@@ -21,10 +21,10 @@ class BranchTaskExpressionScalarFunctionGithub(BaseModel):
     type_: Literal['alpha.scalar.function'] = Field(..., alias='type')
 
 
-class BranchTaskExpressionScalarFunctionFilesystem(BaseModel):
+class BranchTaskExpressionScalarFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: Expression
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
@@ -42,7 +42,7 @@ class BranchTaskExpressionScalarFunctionMock(BaseModel):
 class BranchTaskExpressionScalarFunction(RootModel):
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.alpha_vector.ScalarFunctionTaskExpression', '_expanded_ref_props': ['type'], '_variant_title': 'ScalarFunction'})
 
-    root: Union[BranchTaskExpressionScalarFunctionGithub, BranchTaskExpressionScalarFunctionFilesystem, BranchTaskExpressionScalarFunctionMock]
+    root: Union[BranchTaskExpressionScalarFunctionGithub, BranchTaskExpressionScalarFunctionClient, BranchTaskExpressionScalarFunctionMock]
 
 
 class BranchTaskExpressionVectorFunctionGithub(BaseModel):
@@ -55,10 +55,10 @@ class BranchTaskExpressionVectorFunctionGithub(BaseModel):
     type_: Literal['alpha.vector.function'] = Field(..., alias='type')
 
 
-class BranchTaskExpressionVectorFunctionFilesystem(BaseModel):
+class BranchTaskExpressionVectorFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: VectorFunctionInputValueExpression
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
@@ -76,7 +76,7 @@ class BranchTaskExpressionVectorFunctionMock(BaseModel):
 class BranchTaskExpressionVectorFunction(RootModel):
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.alpha_vector.VectorFunctionTaskExpression', '_expanded_ref_props': ['type'], '_variant_title': 'VectorFunction'})
 
-    root: Union[BranchTaskExpressionVectorFunctionGithub, BranchTaskExpressionVectorFunctionFilesystem, BranchTaskExpressionVectorFunctionMock]
+    root: Union[BranchTaskExpressionVectorFunctionGithub, BranchTaskExpressionVectorFunctionClient, BranchTaskExpressionVectorFunctionMock]
 
 
 class BranchTaskExpressionPlaceholderScalarFunction(PlaceholderScalarFunctionTaskExpression):

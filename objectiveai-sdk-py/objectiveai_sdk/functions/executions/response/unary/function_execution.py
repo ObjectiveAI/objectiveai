@@ -24,7 +24,6 @@ class FunctionExecution(BaseModel):
     output: Output = Field(..., description='The final output (scalar or vector score).')
     profile: Optional[RemotePath] = Field(None, description='The profile used (if remote).')
     reasoning: Optional[ReasoningSummary] = Field(None, description='Reasoning summary if reasoning was enabled.')
-    retry_token: Optional[str] = Field(None, description='Token for retrying this execution with cached votes.')
     tasks: list[Task] = Field(..., description='Results from each task in the function.')
     tasks_errors: bool = Field(..., description='Whether any tasks encountered errors.')
     usage: Usage = Field(..., description='Aggregated token and cost usage.')

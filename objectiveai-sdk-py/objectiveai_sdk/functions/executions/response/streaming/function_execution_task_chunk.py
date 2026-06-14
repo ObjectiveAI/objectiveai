@@ -23,7 +23,6 @@ class FunctionExecutionTaskChunk(BaseModel):
     output: Optional[Output] = Field(None, json_schema_extra={'omitempty': True})
     profile: Optional[RemotePath] = None
     reasoning: Optional[ReasoningSummaryChunk] = Field(None, json_schema_extra={'omitempty': True})
-    retry_token: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     split_index: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})
     swiss_pool_index: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})
     swiss_round: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})

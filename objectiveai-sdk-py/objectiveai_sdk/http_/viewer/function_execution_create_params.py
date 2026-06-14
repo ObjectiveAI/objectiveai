@@ -16,7 +16,6 @@ class FunctionExecutionCreateParams(BaseModel):
     model_config = ConfigDict(title='http.viewer.FunctionExecutionCreateParams')
 
     continuation: Optional[str] = Field(None, description='Continuation from a previous completion, as a base64-encoded string.', json_schema_extra={'omitempty': True})
-    from_cache: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     function: FullInlineFunctionOrRemoteCommitOptional = Field(..., description='The function to execute (inline definition or remote path).')
     id: str
     input: InputValue
@@ -24,7 +23,6 @@ class FunctionExecutionCreateParams(BaseModel):
     profile: InlineProfileOrRemoteCommitOptional = Field(..., description='The profile to use (inline definition or remote path).')
     provider: Optional[Provider] = Field(None, json_schema_extra={'omitempty': True})
     reasoning: Optional[Reasoning] = Field(None, json_schema_extra={'omitempty': True})
-    retry_token: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, json_schema_extra={'omitempty': True})
     split: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
     strategy: Optional[Strategy] = Field(None, json_schema_extra={'omitempty': True})

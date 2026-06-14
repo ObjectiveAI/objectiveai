@@ -24,7 +24,6 @@ class FunctionExecutionTask(BaseModel):
     output: Output = Field(..., description='The final output (scalar or vector score).')
     profile: Optional[RemotePath] = Field(None, description='The profile used (if remote).')
     reasoning: Optional[ReasoningSummary] = Field(None, description='Reasoning summary if reasoning was enabled.')
-    retry_token: Optional[str] = Field(None, description='Token for retrying this execution with cached votes.')
     split_index: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})
     swiss_pool_index: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})
     swiss_round: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, json_schema_extra={'omitempty': True})

@@ -16,10 +16,10 @@ class ScalarFunctionTaskExpressionGithub(BaseModel):
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
 
 
-class ScalarFunctionTaskExpressionFilesystem(BaseModel):
+class ScalarFunctionTaskExpressionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: Expression
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
@@ -35,5 +35,5 @@ class ScalarFunctionTaskExpressionMock(BaseModel):
 class ScalarFunctionTaskExpression(RootModel):
     model_config = ConfigDict(title='functions.alpha_scalar.ScalarFunctionTaskExpression', json_schema_extra={'_expanded_ref': 'RemotePath', '_expanded_ref_props': ['input', 'skip']})
 
-    root: Union[ScalarFunctionTaskExpressionGithub, ScalarFunctionTaskExpressionFilesystem, ScalarFunctionTaskExpressionMock]
+    root: Union[ScalarFunctionTaskExpressionGithub, ScalarFunctionTaskExpressionClient, ScalarFunctionTaskExpressionMock]
 

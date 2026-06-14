@@ -22,10 +22,10 @@ class TaskScalarFunctionGithub(BaseModel):
     type_: Literal['scalar.function'] = Field(..., alias='type')
 
 
-class TaskScalarFunctionFilesystem(BaseModel):
+class TaskScalarFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: InputValue = Field(..., description='The resolved input to pass to the function.')
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` as the nested function's result (Scalar or Vector).\nMust return a `TaskOutputOwned` valid for the parent function's type (scalar or vector).\nSee [`ScalarFunctionTaskExpression::output`] for full documentation.")
@@ -44,7 +44,7 @@ class TaskScalarFunction(RootModel):
     """Calls a scalar function (produces a single score)."""
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.ScalarFunctionTask', '_expanded_ref_props': ['type'], '_variant_title': 'ScalarFunction'})
 
-    root: Union[TaskScalarFunctionGithub, TaskScalarFunctionFilesystem, TaskScalarFunctionMock]
+    root: Union[TaskScalarFunctionGithub, TaskScalarFunctionClient, TaskScalarFunctionMock]
 
 
 class TaskVectorFunctionGithub(BaseModel):
@@ -57,10 +57,10 @@ class TaskVectorFunctionGithub(BaseModel):
     type_: Literal['vector.function'] = Field(..., alias='type')
 
 
-class TaskVectorFunctionFilesystem(BaseModel):
+class TaskVectorFunctionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: InputValue = Field(..., description='The resolved input to pass to the function.')
     output: Expression = Field(..., description="Expression to transform the task result into a valid function output.\n\nReceives `output` as the nested function's result (Scalar or Vector).\nMust return a `TaskOutputOwned` valid for the parent function's type (scalar or vector).\nSee [`VectorFunctionTaskExpression::output`] for full documentation.")
@@ -79,7 +79,7 @@ class TaskVectorFunction(RootModel):
     """Calls a vector function (produces a vector of scores)."""
     model_config = ConfigDict(json_schema_extra={'_expanded_ref': 'functions.VectorFunctionTask', '_expanded_ref_props': ['type'], '_variant_title': 'VectorFunction'})
 
-    root: Union[TaskVectorFunctionGithub, TaskVectorFunctionFilesystem, TaskVectorFunctionMock]
+    root: Union[TaskVectorFunctionGithub, TaskVectorFunctionClient, TaskVectorFunctionMock]
 
 
 class TaskVectorCompletion(VectorCompletionTask):

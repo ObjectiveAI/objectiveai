@@ -12,7 +12,6 @@ def _push(self, other: FunctionProfileComputationChunk) -> None:
     push_lazy_set_true(self, "executions_errors", other.executions_errors)
     push_replace(self, "profile", other.profile)
     push_replace(self, "fitting_stats", other.fitting_stats)
-    push_replace(self, "retry_token", other.retry_token)
     push_option(self, "usage", other.usage)
 
 

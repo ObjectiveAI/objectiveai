@@ -14,12 +14,12 @@ class RemotePathCommitOptionalGithub(BaseModel):
     repository: str
 
 
-class RemotePathCommitOptionalFilesystem(BaseModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Filesystem'})
+class RemotePathCommitOptionalClient(BaseModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Client'})
 
     commit: Optional[str] = None
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
 
 
@@ -33,5 +33,5 @@ class RemotePathCommitOptionalMock(BaseModel):
 class RemotePathCommitOptional(RootModel):
     model_config = ConfigDict(title='RemotePathCommitOptional')
 
-    root: Union[RemotePathCommitOptionalGithub, RemotePathCommitOptionalFilesystem, RemotePathCommitOptionalMock]
+    root: Union[RemotePathCommitOptionalGithub, RemotePathCommitOptionalClient, RemotePathCommitOptionalMock]
 

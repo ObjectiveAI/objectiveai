@@ -39,10 +39,10 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub(BaseModel):
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
 
-class InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteFilesystem(BaseModel):
+class InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
@@ -58,5 +58,5 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCount(RootModel):
 (pre-validation swarm agent slot)."""
     model_config = ConfigDict(title='agent.InlineAgentBaseWithFallbacksOrRemoteWithCount', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBaseWithFallbacksOrRemote', '_expanded_ref_props': ['count']})
 
-    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteFilesystem, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
+    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
 

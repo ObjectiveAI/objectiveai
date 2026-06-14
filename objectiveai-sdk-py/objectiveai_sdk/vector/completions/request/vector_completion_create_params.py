@@ -18,11 +18,9 @@ combine votes using the provided profile weights to produce final scores."""
     model_config = ConfigDict(title='vector.completions.request.VectorCompletionCreateParams')
 
     continuation: Optional[str] = Field(None, description='Continuation from a previous completion, as a base64-encoded string.', json_schema_extra={'omitempty': True})
-    from_cache: Optional[bool] = Field(None, description='If true, uses cached votes when available.', json_schema_extra={'omitempty': True})
     messages: list[Message] = Field(..., description='The conversation messages (the prompt).')
     provider: Optional[Provider] = Field(None, description='Provider routing preferences.', json_schema_extra={'omitempty': True})
     responses: list[RichContent] = Field(..., description='The possible responses the LLMs can vote for.')
-    retry: Optional[str] = Field(None, description='If present, reuses votes from a previous request with this ID.', json_schema_extra={'omitempty': True})
     seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description='Random seed for deterministic results.', json_schema_extra={'omitempty': True})
     stream: Optional[bool] = Field(None, description='Whether to stream the response.', json_schema_extra={'omitempty': True})
     swarm: InlineSwarmBaseOrRemoteCommitOptional = Field(..., description='The Swarm of agents to use.')

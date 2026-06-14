@@ -22,6 +22,5 @@ class FunctionProfileComputationChunk(BaseModel):
     id: str
     object: Object
     profile: Optional[InlineTasksProfile] = Field(None, json_schema_extra={'omitempty': True})
-    retry_token: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     usage: Optional[Usage] = Field(None, json_schema_extra={'omitempty': True})
 

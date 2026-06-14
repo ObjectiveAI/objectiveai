@@ -17,10 +17,10 @@ class VectorFunctionTaskExpressionGithub(BaseModel):
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
 
 
-class VectorFunctionTaskExpressionFilesystem(BaseModel):
+class VectorFunctionTaskExpressionClient(BaseModel):
     commit: str
     owner: str
-    remote: Literal['filesystem']
+    remote: Literal['client']
     repository: str
     input: VectorFunctionInputValueExpression
     skip: Optional[Expression] = Field(None, json_schema_extra={'omitempty': True})
@@ -36,5 +36,5 @@ class VectorFunctionTaskExpressionMock(BaseModel):
 class VectorFunctionTaskExpression(RootModel):
     model_config = ConfigDict(title='functions.alpha_vector.VectorFunctionTaskExpression', json_schema_extra={'_expanded_ref': 'RemotePath', '_expanded_ref_props': ['input', 'skip']})
 
-    root: Union[VectorFunctionTaskExpressionGithub, VectorFunctionTaskExpressionFilesystem, VectorFunctionTaskExpressionMock]
+    root: Union[VectorFunctionTaskExpressionGithub, VectorFunctionTaskExpressionClient, VectorFunctionTaskExpressionMock]
 
