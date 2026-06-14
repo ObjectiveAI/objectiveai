@@ -21,7 +21,6 @@
 mod cli_test_util;
 
 use std::sync::Arc;
-use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::message::{
@@ -115,17 +114,16 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
     Spawned { aih, response_id }
 }
 
-/// Wait for the cli-stream child to have flushed the per-chunk
-/// `agent_continuations` upsert for `aih`. With `stream=true`,
-/// `collect_stream` returning already implies the runner exited,
-/// but we double-check the continuation row exists so subsequent
-/// turns' continuation lookups don't race against a stragglish
-/// write.
+/// Wait for the agent at `aih` to be fully done, via `agents wait`
+/// (blocks on the AIH lock's release). Replaces the old
+/// `agent_continuations` poll, which returned on the first
+/// continuation row — before detached continuation turns had run
+/// their tools and written their tool-response rows.
 async fn wait_for_completion(
     executor: &HangPreventingBinaryCommandExecutor,
     aih: &str,
 ) {
-    cli_test_util::wait_for_continuation(executor, aih, Duration::from_secs(720)).await;
+    cli_test_util::wait_for_agent(executor, aih).await;
 }
 
 /// Run one continuation turn against a spawned agent. Seed is

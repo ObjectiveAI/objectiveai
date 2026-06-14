@@ -30,7 +30,6 @@ pub mod hang_preventing_executor;
 
 use std::path::{Path, PathBuf};
 use std::sync::Once;
-use std::time::{Duration, Instant};
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
@@ -221,39 +220,44 @@ where
     })
 }
 
-/// Poll `read_continuation` until a non-empty string lands for
-/// `aih`. Panics if `timeout` elapses first.
-pub async fn wait_for_continuation<E>(executor: &E, aih: &str, timeout: Duration) -> String
+/// Block until the agent at `aih` is fully done, via the `agents wait`
+/// command (which subscribes to the AIH lock's release). This replaces
+/// the old `agent_continuations`-polling waits: those returned as soon
+/// as the first continuation row landed — before the agent had actually
+/// finished, and (for detached `agents message` turns) before the turn
+/// had even run its tools or written its rows. `agents wait` only
+/// returns once the lock owner (the spawn/message child) has finalized,
+/// so every row is settled by the time this returns.
+pub async fn wait_for_agent<E>(executor: &E, aih: &str)
 where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
 {
-    let deadline = Instant::now() + timeout;
-    loop {
-        if let Some(s) = read_continuation(executor, aih).await {
-            if !s.is_empty() {
-                return s;
-            }
-        }
-        if Instant::now() >= deadline {
-            panic!(
-                "no agent_continuations row for {aih} after {:?}",
-                timeout,
-            );
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
+    use objectiveai_sdk::cli::command::agents::wait::{Path, Request, Response};
+    let (parent, instance) = aih
+        .rsplit_once('/')
+        .map(|(p, i)| (Some(p.to_string()), i.to_string()))
+        .unwrap_or((None, aih.to_string()));
+    let request = Request {
+        path_type: Path::AgentsWait,
+        agent: AgentSelector::Instance {
+            parent_agent_instance_hierarchy: parent,
+            agent_instance: instance,
+        },
+        base: Default::default(),
+    };
+    let _resp: Response = executor
+        .execute_one(request, None)
+        .await
+        .expect("agents wait failed");
 }
 
-/// Wait until a `objectiveai.agent_completion_requests` row exists for
-/// the given response_id, returning the row's `body->>'continuation'`
-/// JSON field as a `Option<String>` (None if the request blob
-/// didn't carry a continuation — e.g. a fresh spawn).
-pub async fn wait_for_request_continuation<E>(
-    executor: &E,
-    response_id: &str,
-    timeout: Duration,
-) -> Option<String>
+/// Single read of `objectiveai.agent_completion_requests.body->>'continuation'`
+/// for a response_id — `None` if the row is absent or carried no
+/// continuation (e.g. a fresh spawn). Call AFTER [`wait_for_agent`] so
+/// the row is already settled; this does not poll.
+pub async fn read_request_continuation<E>(executor: &E, response_id: &str) -> Option<String>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
@@ -263,20 +267,10 @@ where
          WHERE response_id = '{}'",
         sql_escape(response_id),
     );
-    let deadline = Instant::now() + timeout;
-    loop {
-        let rows = db_query(executor, &sql).await;
-        if let Some(mut row) = rows.into_iter().next() {
-            return row.pop().and_then(|v| v.as_str().map(str::to_string));
-        }
-        if Instant::now() >= deadline {
-            panic!(
-                "no objectiveai.agent_completion_requests row for response_id={response_id} after {:?}",
-                timeout,
-            );
-        }
-        tokio::time::sleep(Duration::from_millis(100)).await;
-    }
+    let rows = db_query(executor, &sql).await;
+    rows.into_iter()
+        .next()
+        .and_then(|mut row| row.pop().and_then(|v| v.as_str().map(str::to_string)))
 }
 
 /// Pull every `function.name` that appears in any

@@ -113,7 +113,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         .rsplit_once('/')
         .map(|(p, _)| Some(p.to_string()))
         .unwrap_or(None);
-    cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
+    cli_test_util::wait_for_agent(&executor, &spawn_aih).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Turn 2: agents message — first continuation
@@ -128,7 +128,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         base: Default::default(),
     };
     let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg1).await;
-    cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
+    cli_test_util::wait_for_agent(&executor, &spawn_aih).await;
     tokio::time::sleep(Duration::from_millis(500)).await;
 
     // Turn 3: agents message — second continuation
@@ -143,7 +143,7 @@ async fn duplicate_tool_names_routed_across_turns() {
         base: Default::default(),
     };
     let _resp: MessageResponse = cli_test_util::execute_one(&executor, msg2).await;
-    cli_test_util::wait_for_continuation(&executor, &spawn_aih, Duration::from_secs(180)).await;
+    cli_test_util::wait_for_agent(&executor, &spawn_aih).await;
 
     // Walk every assistant block from `agents logs read all`,
     // filter to `ToolCall` parts, collect `function_name`.
