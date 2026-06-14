@@ -26,7 +26,6 @@ type CliCommandFunctionsExecuteSwissSystemRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	RetryToken *string `json:"retry_token"`
 	Rounds *uint32 `json:"rounds" validate:"omitempty,min=0,max=4294967295"`
 	Split bool `json:"split"`
 	// Wall-clock execution cap, in whole seconds. Parsed from

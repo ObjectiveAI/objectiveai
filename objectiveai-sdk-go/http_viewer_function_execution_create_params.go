@@ -11,7 +11,6 @@ import (
 type HttpViewerFunctionExecutionCreateParams struct {
 	// Continuation from a previous completion, as a base64-encoded string.
 	Continuation *string `json:"continuation,omitempty"`
-	FromCache *bool `json:"from_cache,omitempty"`
 	// The function to execute (inline definition or remote path).
 	Function FunctionsFullInlineFunctionOrRemoteCommitOptional `json:"function"`
 	ID string `json:"id"`
@@ -29,7 +28,6 @@ type HttpViewerFunctionExecutionCreateParams struct {
 	Profile FunctionsInlineProfileOrRemoteCommitOptional `json:"profile"`
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`
 	Reasoning *FunctionsExecutionsRequestReasoning `json:"reasoning,omitempty"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Split *bool `json:"split,omitempty"`
 	Strategy *FunctionsExecutionsRequestStrategy `json:"strategy,omitempty"`

@@ -19,9 +19,6 @@ func (v *FunctionsProfilesComputationsResponseStreamingFunctionProfileComputatio
 	// fitting_stats: replace
 	v.FittingStats = pushReplace(v.FittingStats, other.FittingStats)
 
-	// retry_token: replace
-	v.RetryToken = pushReplace(v.RetryToken, other.RetryToken)
-
 	// usage: delegate
 	if v.Usage != nil && other.Usage != nil {
 		v.Usage.Push(other.Usage)

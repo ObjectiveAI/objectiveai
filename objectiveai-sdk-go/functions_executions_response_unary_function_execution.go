@@ -25,8 +25,6 @@ type FunctionsExecutionsResponseUnaryFunctionExecution struct {
 	Profile *RemotePath `json:"profile"`
 	// Reasoning summary if reasoning was enabled.
 	Reasoning *FunctionsExecutionsResponseUnaryReasoningSummary `json:"reasoning"`
-	// Token for retrying this execution with cached votes.
-	RetryToken *string `json:"retry_token"`
 	// Results from each task in the function.
 	Tasks []FunctionsExecutionsResponseUnaryTask `json:"tasks"`
 	// Whether any tasks encountered errors.

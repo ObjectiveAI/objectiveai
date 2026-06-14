@@ -20,7 +20,6 @@ type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk struct
 	Profile *RemotePath `json:"profile"`
 	Reasoning *FunctionsExecutionsResponseStreamingReasoningSummaryChunk `json:"reasoning,omitempty"`
 	Retry uint64 `json:"retry" validate:"min=0,max=18446744073709551615"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	Tasks []FunctionsExecutionsResponseStreamingTaskChunk `json:"tasks"`
 	TasksErrors *bool `json:"tasks_errors,omitempty"`
 	Usage *AgentCompletionsResponseUsage `json:"usage,omitempty"`

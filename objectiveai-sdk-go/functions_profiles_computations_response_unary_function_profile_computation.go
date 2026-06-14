@@ -16,7 +16,6 @@ type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation struct
 	ID string `json:"id"`
 	Object FunctionsProfilesComputationsResponseUnaryObject `json:"object"`
 	Profile FunctionsInlineTasksProfile `json:"profile"`
-	RetryToken *string `json:"retry_token"`
 	Usage AgentCompletionsResponseUsage `json:"usage"`
 }
 

@@ -33,15 +33,10 @@ type VectorCompletionsResponseVote struct {
 	AgentID string `json:"agent_id"`
 	// Flattened index accounting for agent counts in the swarm.
 	FlatSwarmIndex uint64 `json:"flat_swarm_index" validate:"min=0,max=18446744073709551615"`
-	// If true, this vote was retrieved from cache rather than generated fresh.
-	FromCache *bool `json:"from_cache,omitempty"`
 	// Content hash of the request messages (for caching/deduplication).
 	PromptID string `json:"prompt_id"`
 	// Content hashes of each response option in the request.
 	ResponsesIds []string `json:"responses_ids"`
-	// If true, this vote was reused from a previous request via the `retry`
-	// parameter. All fields reflect the original request's values.
-	Retry *bool `json:"retry,omitempty"`
 	// Index of the agent configuration within the swarm.
 	SwarmIndex uint64 `json:"swarm_index" validate:"min=0,max=18446744073709551615"`
 	// The vote distribution. Each index corresponds to a response from the

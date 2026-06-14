@@ -29,8 +29,6 @@ type FunctionsProfilesComputationsResponseUnaryFunctionExecution struct {
 	// Reasoning summary if reasoning was enabled.
 	Reasoning *FunctionsExecutionsResponseUnaryReasoningSummary `json:"reasoning"`
 	Retry uint64 `json:"retry" validate:"min=0,max=18446744073709551615"`
-	// Token for retrying this execution with cached votes.
-	RetryToken *string `json:"retry_token"`
 	// Results from each task in the function.
 	Tasks []FunctionsExecutionsResponseUnaryTask `json:"tasks"`
 	// Whether any tasks encountered errors.

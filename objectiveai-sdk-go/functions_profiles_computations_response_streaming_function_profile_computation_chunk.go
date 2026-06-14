@@ -16,7 +16,6 @@ type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChu
 	ID string `json:"id"`
 	Object FunctionsProfilesComputationsResponseStreamingObject `json:"object"`
 	Profile *FunctionsInlineTasksProfile `json:"profile,omitempty"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	Usage *AgentCompletionsResponseUsage `json:"usage,omitempty"`
 }
 

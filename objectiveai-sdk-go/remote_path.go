@@ -34,32 +34,32 @@ func (v *RemotePathGithub) UnmarshalJSON(data []byte) error {
 }
 func (RemotePathGithub) SchemaVariantTitle() string { return "Github" }
 
-type RemotePathFilesystem struct {
+type RemotePathClient struct {
 	Commit string `json:"commit"`
 	Owner string `json:"owner"`
-	Remote string `json:"remote" validate:"oneof=filesystem"`
+	Remote string `json:"remote" validate:"oneof=client"`
 	Repository string `json:"repository"`
 }
 
-func (v *RemotePathFilesystem) UnmarshalJSON(data []byte) error {
+func (v *RemotePathClient) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	for _, key := range []string{"commit", "owner", "remote", "repository"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("RemotePathFilesystem: missing required field %q", key)
+			return fmt.Errorf("RemotePathClient: missing required field %q", key)
 		}
 	}
-	type Alias RemotePathFilesystem
+	type Alias RemotePathClient
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = RemotePathFilesystem(alias)
+	*v = RemotePathClient(alias)
 	return nil
 }
-func (RemotePathFilesystem) SchemaVariantTitle() string { return "Filesystem" }
+func (RemotePathClient) SchemaVariantTitle() string { return "Client" }
 
 type RemotePathMock struct {
 	Name string `json:"name"`
@@ -88,7 +88,7 @@ func (RemotePathMock) SchemaVariantTitle() string { return "Mock" }
 
 type RemotePath struct {
 	Github *RemotePathGithub `outerObject:"true"`
-	Filesystem *RemotePathFilesystem `outerObject:"true"`
+	Client *RemotePathClient `outerObject:"true"`
 	Mock *RemotePathMock `outerObject:"true"`
 }
 
@@ -96,8 +96,8 @@ func (v RemotePath) MarshalJSON() ([]byte, error) {
 	if v.Github != nil {
 		return json.Marshal(v.Github)
 	}
-	if v.Filesystem != nil {
-		return json.Marshal(v.Filesystem)
+	if v.Client != nil {
+		return json.Marshal(v.Client)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -118,10 +118,10 @@ func (v *RemotePath) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try RemotePathFilesystem
+		var try RemotePathClient
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := RemotePath{}
-			candidate.Filesystem = &try
+			candidate.Client = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -145,7 +145,7 @@ func (v *RemotePath) UnmarshalJSON(data []byte) error {
 func (v RemotePath) Validate() error {
 	count := 0
 	if v.Github != nil { count++ }
-	if v.Filesystem != nil { count++ }
+	if v.Client != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("RemotePath: exactly one variant must be set, got %d", count)

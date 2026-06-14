@@ -19,7 +19,6 @@ type CliCommandFunctionsListRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	Source CliCommandFunctionsListRequestSource `json:"source"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
 	// enforced at parse time. `db query` threads it to postgres
@@ -37,7 +36,7 @@ func (v *CliCommandFunctionsListRequest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"path_type", "source"} {
+	for _, key := range []string{"path_type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandFunctionsListRequest: missing required field %q", key)
 		}

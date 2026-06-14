@@ -34,32 +34,32 @@ func (v *RemotePathCommitOptionalGithub) UnmarshalJSON(data []byte) error {
 }
 func (RemotePathCommitOptionalGithub) SchemaVariantTitle() string { return "Github" }
 
-type RemotePathCommitOptionalFilesystem struct {
+type RemotePathCommitOptionalClient struct {
 	Commit *string `json:"commit"`
 	Owner string `json:"owner"`
-	Remote string `json:"remote" validate:"oneof=filesystem"`
+	Remote string `json:"remote" validate:"oneof=client"`
 	Repository string `json:"repository"`
 }
 
-func (v *RemotePathCommitOptionalFilesystem) UnmarshalJSON(data []byte) error {
+func (v *RemotePathCommitOptionalClient) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	for _, key := range []string{"owner", "remote", "repository"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("RemotePathCommitOptionalFilesystem: missing required field %q", key)
+			return fmt.Errorf("RemotePathCommitOptionalClient: missing required field %q", key)
 		}
 	}
-	type Alias RemotePathCommitOptionalFilesystem
+	type Alias RemotePathCommitOptionalClient
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = RemotePathCommitOptionalFilesystem(alias)
+	*v = RemotePathCommitOptionalClient(alias)
 	return nil
 }
-func (RemotePathCommitOptionalFilesystem) SchemaVariantTitle() string { return "Filesystem" }
+func (RemotePathCommitOptionalClient) SchemaVariantTitle() string { return "Client" }
 
 type RemotePathCommitOptionalMock struct {
 	Name string `json:"name"`
@@ -88,7 +88,7 @@ func (RemotePathCommitOptionalMock) SchemaVariantTitle() string { return "Mock" 
 
 type RemotePathCommitOptional struct {
 	Github *RemotePathCommitOptionalGithub `outerObject:"true"`
-	Filesystem *RemotePathCommitOptionalFilesystem `outerObject:"true"`
+	Client *RemotePathCommitOptionalClient `outerObject:"true"`
 	Mock *RemotePathCommitOptionalMock `outerObject:"true"`
 }
 
@@ -96,8 +96,8 @@ func (v RemotePathCommitOptional) MarshalJSON() ([]byte, error) {
 	if v.Github != nil {
 		return json.Marshal(v.Github)
 	}
-	if v.Filesystem != nil {
-		return json.Marshal(v.Filesystem)
+	if v.Client != nil {
+		return json.Marshal(v.Client)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -118,10 +118,10 @@ func (v *RemotePathCommitOptional) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try RemotePathCommitOptionalFilesystem
+		var try RemotePathCommitOptionalClient
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := RemotePathCommitOptional{}
-			candidate.Filesystem = &try
+			candidate.Client = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -145,7 +145,7 @@ func (v *RemotePathCommitOptional) UnmarshalJSON(data []byte) error {
 func (v RemotePathCommitOptional) Validate() error {
 	count := 0
 	if v.Github != nil { count++ }
-	if v.Filesystem != nil { count++ }
+	if v.Client != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("RemotePathCommitOptional: exactly one variant must be set, got %d", count)

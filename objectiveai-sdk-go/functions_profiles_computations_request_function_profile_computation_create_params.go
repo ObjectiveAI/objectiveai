@@ -10,13 +10,11 @@ import (
 // Parameters for creating a function profile computation.
 type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams struct {
 	Dataset []FunctionsProfilesComputationsRequestDatasetItem `json:"dataset"`
-	FromCache *bool `json:"from_cache,omitempty"`
 	// The function to compute a profile for (inline definition or remote path).
 	Function FunctionsFullInlineFunctionOrRemoteCommitOptional `json:"function"`
 	MaxRetries *uint64 `json:"max_retries,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	N uint64 `json:"n" validate:"min=0,max=18446744073709551615"`
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	Stream *bool `json:"stream,omitempty"`
 	Swarm SwarmInlineSwarmBaseOrRemoteCommitOptional `json:"swarm"`

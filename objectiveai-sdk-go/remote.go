@@ -11,9 +11,9 @@ type RemoteGithub string
 
 func (RemoteGithub) SchemaVariantTitle() string { return "Github" }
 
-type RemoteFilesystem string
+type RemoteClient string
 
-func (RemoteFilesystem) SchemaVariantTitle() string { return "Filesystem" }
+func (RemoteClient) SchemaVariantTitle() string { return "Client" }
 
 type RemoteMock string
 
@@ -23,8 +23,8 @@ func (RemoteMock) SchemaVariantTitle() string { return "Mock" }
 type Remote struct {
 	// GitHub repository.
 	Github *RemoteGithub `validate:"omitempty,oneof=github"`
-	// Local filesystem.
-	Filesystem *RemoteFilesystem `validate:"omitempty,oneof=filesystem"`
+	// The connected client (resolved over the websocket reverse-channel).
+	Client *RemoteClient `validate:"omitempty,oneof=client"`
 	// Mock (for testing).
 	Mock *RemoteMock `validate:"omitempty,oneof=mock"`
 }
@@ -33,8 +33,8 @@ func (v Remote) MarshalJSON() ([]byte, error) {
 	if v.Github != nil {
 		return json.Marshal(v.Github)
 	}
-	if v.Filesystem != nil {
-		return json.Marshal(v.Filesystem)
+	if v.Client != nil {
+		return json.Marshal(v.Client)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -55,10 +55,10 @@ func (v *Remote) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try RemoteFilesystem
+		var try RemoteClient
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := Remote{}
-			candidate.Filesystem = &try
+			candidate.Client = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -82,7 +82,7 @@ func (v *Remote) UnmarshalJSON(data []byte) error {
 func (v Remote) Validate() error {
 	count := 0
 	if v.Github != nil { count++ }
-	if v.Filesystem != nil { count++ }
+	if v.Client != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("Remote: exactly one variant must be set, got %d", count)

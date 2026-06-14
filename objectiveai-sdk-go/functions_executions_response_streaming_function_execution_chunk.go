@@ -16,7 +16,6 @@ type FunctionsExecutionsResponseStreamingFunctionExecutionChunk struct {
 	Output *FunctionsExecutionsResponseOutput `json:"output,omitempty"`
 	Profile *RemotePath `json:"profile"`
 	Reasoning *FunctionsExecutionsResponseStreamingReasoningSummaryChunk `json:"reasoning,omitempty"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	Tasks []FunctionsExecutionsResponseStreamingTaskChunk `json:"tasks"`
 	TasksErrors *bool `json:"tasks_errors,omitempty"`
 	Usage *AgentCompletionsResponseUsage `json:"usage,omitempty"`

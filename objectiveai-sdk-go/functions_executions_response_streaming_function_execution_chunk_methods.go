@@ -21,9 +21,6 @@ func (v *FunctionsExecutionsResponseStreamingFunctionExecutionChunk) Push(other 
 	// output: replace
 	v.Output = pushReplace(v.Output, other.Output)
 
-	// retry_token: replace
-	v.RetryToken = pushReplace(v.RetryToken, other.RetryToken)
-
 	// error: replace
 	v.Error = pushReplace(v.Error, other.Error)
 

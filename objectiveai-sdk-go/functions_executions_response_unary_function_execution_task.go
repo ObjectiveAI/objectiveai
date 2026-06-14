@@ -26,8 +26,6 @@ type FunctionsExecutionsResponseUnaryFunctionExecutionTask struct {
 	Profile *RemotePath `json:"profile"`
 	// Reasoning summary if reasoning was enabled.
 	Reasoning *FunctionsExecutionsResponseUnaryReasoningSummary `json:"reasoning"`
-	// Token for retrying this execution with cached votes.
-	RetryToken *string `json:"retry_token"`
 	SplitIndex *uint64 `json:"split_index,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	SwissPoolIndex *uint64 `json:"swiss_pool_index,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	SwissRound *uint64 `json:"swiss_round,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`

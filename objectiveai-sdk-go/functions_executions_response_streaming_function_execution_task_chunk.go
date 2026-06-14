@@ -17,7 +17,6 @@ type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk struct {
 	Output *FunctionsExecutionsResponseOutput `json:"output,omitempty"`
 	Profile *RemotePath `json:"profile"`
 	Reasoning *FunctionsExecutionsResponseStreamingReasoningSummaryChunk `json:"reasoning,omitempty"`
-	RetryToken *string `json:"retry_token,omitempty"`
 	SplitIndex *uint64 `json:"split_index,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	SwissPoolIndex *uint64 `json:"swiss_pool_index,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	SwissRound *uint64 `json:"swiss_round,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`

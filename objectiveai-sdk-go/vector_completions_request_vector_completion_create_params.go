@@ -15,16 +15,12 @@ import (
 type VectorCompletionsRequestVectorCompletionCreateParams struct {
 	// Continuation from a previous completion, as a base64-encoded string.
 	Continuation *string `json:"continuation,omitempty"`
-	// If true, uses cached votes when available.
-	FromCache *bool `json:"from_cache,omitempty"`
 	// The conversation messages (the prompt).
 	Messages []AgentCompletionsMessageMessage `json:"messages"`
 	// Provider routing preferences.
 	Provider *AgentCompletionsRequestProvider `json:"provider,omitempty"`
 	// The possible responses the LLMs can vote for.
 	Responses []AgentCompletionsMessageRichContent `json:"responses"`
-	// If present, reuses votes from a previous request with this ID.
-	Retry *string `json:"retry,omitempty"`
 	// Random seed for deterministic results.
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 	// Whether to stream the response.
