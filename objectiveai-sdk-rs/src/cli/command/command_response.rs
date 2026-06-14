@@ -178,43 +178,7 @@ impl CommandResponse for crate::agent::completions::response::Logprobs {
 }
 
 #[cfg(feature = "mcp")]
-impl CommandResponse for crate::agent::response::GetAgentResponse {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::functions::profiles::response::GetProfileResponse {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::functions::response::GetFunctionResponse {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
 impl CommandResponse for crate::Remote {
-    fn into_mcp(self) -> McpResponseItem {
-        McpResponseItem::JSONL(
-            serde_json::to_value(self).unwrap(),
-        )
-    }
-}
-
-#[cfg(feature = "mcp")]
-impl CommandResponse for crate::swarm::response::GetSwarmResponse {
     fn into_mcp(self) -> McpResponseItem {
         McpResponseItem::JSONL(
             serde_json::to_value(self).unwrap(),

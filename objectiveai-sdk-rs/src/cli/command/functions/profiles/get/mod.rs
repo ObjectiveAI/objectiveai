@@ -40,7 +40,26 @@ impl CommandRequest for Request {
     }
 }
 
-pub type Response = crate::functions::profiles::response::GetProfileResponse;
+/// Response for `functions profiles get` — a resolved Profile with its remote path.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "functions.profiles.GetProfileResponse")]
+pub struct Response {
+    #[serde(flatten)]
+    #[schemars(schema_with = "crate::flatten_schema::<crate::RemotePath>")]
+    pub path: crate::RemotePath,
+    #[serde(flatten)]
+    #[schemars(
+        schema_with = "crate::flatten_schema::<crate::functions::RemoteProfile>"
+    )]
+    pub inner: crate::functions::RemoteProfile,
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
+    }
+}
 
 #[derive(clap::Args)]
 pub struct Args {

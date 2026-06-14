@@ -34,18 +34,6 @@ fn get_agent_json(name: &str) -> Option<&'static str> {
 /// All mock Agent names.
 const AGENT_REPOSITORIES: &[&str] = &["schema-logprobs", "instruction", "tool-call", "instruction-logprobs", "error-probability-50", "json-schema-10x-tools"];
 
-/// Lists all mock Agents.
-pub fn list_agents() -> objectiveai_sdk::agent::response::ListAgentResponse {
-    objectiveai_sdk::agent::response::ListAgentResponse {
-        data: AGENT_REPOSITORIES
-            .iter()
-            .map(|name| objectiveai_sdk::RemotePath::Mock {
-                name: name.to_string(),
-            })
-            .collect(),
-    }
-}
-
 /// Returns a mock Swarm by name.
 pub fn get_swarm(
     name: &str,
@@ -66,18 +54,6 @@ fn get_swarm_json(name: &str) -> Option<&'static str> {
 
 /// All mock Swarm names.
 const SWARM_REPOSITORIES: &[&str] = &["schema-and-tool", "instruction-duo", "twenty-agents-json-schema-10x-tools"];
-
-/// Lists all mock Swarms.
-pub fn list_swarms() -> objectiveai_sdk::swarm::response::ListSwarmResponse {
-    objectiveai_sdk::swarm::response::ListSwarmResponse {
-        data: SWARM_REPOSITORIES
-            .iter()
-            .map(|name| objectiveai_sdk::RemotePath::Mock {
-                name: name.to_string(),
-            })
-            .collect(),
-    }
-}
 
 /// Returns a mock Function by name.
 pub fn get_function(
@@ -171,18 +147,6 @@ const FUNCTION_REPOSITORIES: &[&str] = &[
     "twenty-agents-json-schema-10x-tools-vector",
 ];
 
-/// Lists all mock Functions.
-pub fn list_functions() -> objectiveai_sdk::functions::response::ListFunctionResponse {
-    objectiveai_sdk::functions::response::ListFunctionResponse {
-        data: FUNCTION_REPOSITORIES
-            .iter()
-            .map(|repo| objectiveai_sdk::RemotePath::Mock {
-                name: repo.to_string(),
-            })
-            .collect(),
-    }
-}
-
 /// Returns a mock Profile by name.
 pub fn get_profile(
     name: &str,
@@ -247,15 +211,3 @@ const PROFILE_REPOSITORIES: &[&str] = &[
     "error-all-agents-fail",
     "twenty-agents-json-schema-10x-tools-profile",
 ];
-
-/// Lists all mock Profiles.
-pub fn list_profiles() -> objectiveai_sdk::functions::profiles::response::ListProfileResponse {
-    objectiveai_sdk::functions::profiles::response::ListProfileResponse {
-        data: PROFILE_REPOSITORIES
-            .iter()
-            .map(|repo| objectiveai_sdk::RemotePath::Mock {
-                name: repo.to_string(),
-            })
-            .collect(),
-    }
-}

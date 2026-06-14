@@ -23,25 +23,6 @@ use crate::{
 use std::{convert::Infallible, sync::Arc};
 use tokio_stream::StreamExt;
 
-type ListRouter = retrieval::list::Router<
-    retrieval::list::objectiveai::ObjectiveAiClient,
-    retrieval::list::filesystem::FilesystemClient,
-    retrieval::list::mock::MockClient,
-    ctx::DefaultContextExt,
->;
-
-type RetrieveRouter = retrieval::retrieve::Router<
-    retrieval::retrieve::github::GithubClient,
-    retrieval::retrieve::filesystem::FilesystemClient,
-    retrieval::retrieve::mock::MockClient,
-    ctx::DefaultContextExt,
->;
-
-type UsageRouter = retrieval::usage::Router<
-    retrieval::usage::objectiveai::ObjectiveAiClient,
-    ctx::DefaultContextExt,
->;
-
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     // -- HttpClient fields (identical order across all 3 structs) --
@@ -705,24 +686,6 @@ pub async fn setup(
         Arc::new(vector::completions::usage_handler::LogUsageHandler),
     ));
 
-    // Retrieval: List Router
-    let list_router = Arc::new(retrieval::list::Router::new(
-        Arc::new(retrieval::list::objectiveai::ObjectiveAiClient::new(
-            objectiveai_http_client.clone(),
-        )),
-        Arc::new(retrieval::list::filesystem::FilesystemClient::new(
-            filesystem_client.clone(),
-        )),
-        Arc::new(retrieval::list::mock::MockClient),
-    ));
-
-    // Retrieval: Usage Router
-    let usage_router = Arc::new(retrieval::usage::Router::new(
-        Arc::new(retrieval::usage::objectiveai::ObjectiveAiClient::new(
-            objectiveai_http_client.clone(),
-        )),
-    ));
-
     // Function Executions Client
     let function_executions_client =
         Arc::new(functions::executions::Client::new(
@@ -833,45 +796,6 @@ pub async fn setup(
                 }
             }),
         )
-        // Functions - list
-        .route(
-            "/functions/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::request::ListFunctionsRequest,
-                >| {
-                    list_functions(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Functions - get
-        .route(
-            "/functions",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_function(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Functions - get usage
-        .route(
-            "/functions/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::request::GetFunctionRequest,
-                >| {
-                    get_function_usage(usage_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
         // Function Executions - create (transport selected by X-Transport header)
         .route(
             "/functions/executions",
@@ -906,71 +830,6 @@ pub async fn setup(
                             }
                         }
                     }
-                }
-            }),
-        )
-        // Function Profiles - list
-        .route(
-            "/functions/profiles/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::profiles::request::ListProfilesRequest,
-                >| {
-                    list_profiles(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function Profiles - get
-        .route(
-            "/functions/profiles",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_profile(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function Profiles - get usage
-        .route(
-            "/functions/profiles/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::profiles::request::GetProfileRequest,
-                >| {
-                    get_profile_usage(usage_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function-Profile Pairs - list
-        .route(
-            "/functions/profiles/pairs/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::request::ListFunctionProfilePairsRequest,
-                >| {
-                    list_function_profile_pairs(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Function-Profile Pairs - get usage
-        .route(
-            "/functions/profiles/pairs/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::functions::request::GetFunctionProfilePairUsageRequest,
-                >| {
-                    get_function_profile_pair_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
             }),
         )
@@ -1092,84 +951,6 @@ pub async fn setup(
                 let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
                     get_credits(auth_client, headers, persistent_cache, suppress_output)
-                }
-            }),
-        )
-        // Swarm - list
-        .route(
-            "/swarms/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::swarm::request::ListSwarmsRequest,
-                >| {
-                    list_swarms(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Swarm - get
-        .route(
-            "/swarms",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_swarm(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Swarm - get usage
-        .route(
-            "/swarms/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::swarm::request::GetSwarmRequest,
-                >| {
-                    get_swarm_usage(usage_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Agent - list
-        .route(
-            "/agents/list",
-            axum::routing::post({
-                let list_router = list_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::agent::request::ListAgentsRequest,
-                >| {
-                    list_agents(list_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Agent - get
-        .route(
-            "/agents",
-            axum::routing::post({
-                let retrieve_router = retrieve_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::RemotePathCommitOptional,
-                >| {
-                    get_agent(retrieve_router, headers, persistent_cache, suppress_output, params)
-                }
-            }),
-        )
-        // Agent - get usage
-        .route(
-            "/agents/usage",
-            axum::routing::post({
-                let usage_router = usage_router.clone();
-                let persistent_cache = persistent_cache.clone();
-                move |headers: axum::http::HeaderMap, Json(params): Json<
-                    objectiveai_sdk::agent::request::GetAgentRequest,
-                >| {
-                    get_agent_usage(usage_router, headers, persistent_cache, suppress_output, params)
                 }
             }),
         )
@@ -1490,41 +1271,7 @@ async fn create_vector_completion(
     }
 }
 
-// Functions
-
-async fn list_functions(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::request::ListFunctionsRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    let source = params.source.map(|s| match s {
-        objectiveai_sdk::functions::request::ListFunctionsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai_sdk::functions::request::ListFunctionsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai_sdk::functions::request::ListFunctionsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai_sdk::functions::request::ListFunctionsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
-    });
-    match list_router.list_functions(&ctx, source).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_function_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::request::GetFunctionRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_function_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
+// Function Executions
 
 async fn execute_function(
     client: Arc<
@@ -1613,104 +1360,6 @@ async fn execute_function(
             Ok(r) => Json(r).into_response(),
             Err(e) => ResponseError::from(&e).into_response(),
         }
-    }
-}
-
-// Profiles
-
-async fn list_profiles(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::profiles::request::ListProfilesRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    let source = params.source.map(|s| match s {
-        objectiveai_sdk::functions::profiles::request::ListProfilesSource::All => retrieval::list::SourceFilter::All,
-        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai_sdk::functions::profiles::request::ListProfilesSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
-    });
-    match list_router.list_profiles(&ctx, source).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_profile_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::profiles::request::GetProfileRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_profile_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Function-Profile Pairs
-
-async fn list_function_profile_pairs(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    _params: objectiveai_sdk::functions::request::ListFunctionProfilePairsRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match list_router.list_function_profile_pairs(&ctx).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_function_profile_pair_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::functions::request::GetFunctionProfilePairUsageRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_function_profile_pair_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Functions - get
-
-async fn get_function(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_function(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Profiles - get
-
-async fn get_profile(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_profile(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
     }
 }
 
@@ -1872,105 +1521,6 @@ async fn get_credits(
     }
 }
 
-// Swarm
-
-async fn list_swarms(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::swarm::request::ListSwarmsRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    let source = params.source.map(|s| match s {
-        objectiveai_sdk::swarm::request::ListSwarmsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai_sdk::swarm::request::ListSwarmsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai_sdk::swarm::request::ListSwarmsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai_sdk::swarm::request::ListSwarmsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
-    });
-    match list_router.list_swarms(&ctx, source).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_swarm(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_swarm(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_swarm_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::swarm::request::GetSwarmRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_swarm_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-// Agent
-
-async fn list_agents(
-    list_router: Arc<ListRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::agent::request::ListAgentsRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    let source = params.source.map(|s| match s {
-        objectiveai_sdk::agent::request::ListAgentsSource::All => retrieval::list::SourceFilter::All,
-        objectiveai_sdk::agent::request::ListAgentsSource::Mock => retrieval::list::SourceFilter::Mock,
-        objectiveai_sdk::agent::request::ListAgentsSource::Filesystem => retrieval::list::SourceFilter::Filesystem,
-        objectiveai_sdk::agent::request::ListAgentsSource::Objectiveai => retrieval::list::SourceFilter::Objectiveai,
-    });
-    match list_router.list_agents(&ctx, source).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_agent(
-    retrieve_router: Arc<RetrieveRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::RemotePathCommitOptional,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match retrieve_router.endpoint_get_agent(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
-
-async fn get_agent_usage(
-    usage_router: Arc<UsageRouter>,
-    headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
-    suppress_output: bool,
-    params: objectiveai_sdk::agent::request::GetAgentRequest,
-) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
-    match usage_router.get_agent_usage(&ctx, &params).await {
-        Ok(r) => Json(r).into_response(),
-        Err(e) => e.into_response(),
-    }
-}
 // Error
 
 async fn create_error(

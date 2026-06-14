@@ -47,17 +47,9 @@ mod full_function;
 mod function;
 mod profile;
 pub mod profiles;
-pub mod request;
-pub mod response;
 mod task;
 
 pub use full_function::*;
 pub use function::*;
 pub use profile::*;
 pub use task::*;
-
-#[cfg(feature = "http")]
-mod http;
-
-#[cfg(feature = "http")]
-pub use http::*;

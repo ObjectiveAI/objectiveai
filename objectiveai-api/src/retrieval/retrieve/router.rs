@@ -164,25 +164,6 @@ where
         Ok(base.map(|b| (b, path)))
     }
 
-    /// API endpoint: fetch a remote agent, convert, wrap in response.
-    pub async fn endpoint_get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai_sdk::RemotePathCommitOptional,
-    ) -> Result<objectiveai_sdk::agent::response::GetAgentResponse, ResponseError> {
-        let path = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await?
-            .ok_or_else(|| not_found("agent"))?;
-        let (result, _) = self.get_agent(
-            ctx,
-            objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(params.clone()),
-        ).await?;
-        let inner = match result {
-            objectiveai_sdk::agent::AgentWithFallbacks::Remote(r) => r,
-            objectiveai_sdk::agent::AgentWithFallbacks::Inline(_) => unreachable!(),
-        };
-        Ok(objectiveai_sdk::agent::response::GetAgentResponse { path, inner })
-    }
-
     // ── Swarm ─────────────────────────────────────────────────────
 
     /// Resolve a swarm: inline converts directly, remote fetches and converts.
@@ -270,25 +251,6 @@ where
         }).await
     }
 
-    /// API endpoint: fetch a remote swarm, convert, wrap in response.
-    pub async fn endpoint_get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai_sdk::RemotePathCommitOptional,
-    ) -> Result<objectiveai_sdk::swarm::response::GetSwarmResponse, ResponseError> {
-        let path = self.resolve_path(ctx, crate::retrieval::Kind::Swarms, params).await?
-            .ok_or_else(|| not_found("swarm"))?;
-        let result = self.get_swarm(
-            ctx,
-            objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional::Remote(params.clone()),
-        ).await?;
-        let inner = match result {
-            objectiveai_sdk::swarm::Swarm::Remote(r) => r,
-            objectiveai_sdk::swarm::Swarm::Inline(_) => unreachable!(),
-        };
-        Ok(objectiveai_sdk::swarm::response::GetSwarmResponse { path, inner })
-    }
-
     // ── Function ──────────────────────────────────────────────────
 
     /// Resolve a function: inline returns directly, remote fetches with caching.
@@ -327,25 +289,6 @@ where
         }).await
     }
 
-    /// API endpoint: fetch a remote function, wrap in response.
-    pub async fn endpoint_get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
-        self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
-        params: &objectiveai_sdk::RemotePathCommitOptional,
-    ) -> Result<objectiveai_sdk::functions::response::GetFunctionResponse, ResponseError> {
-        let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
-            .ok_or_else(|| not_found("function"))?;
-        let result = self.get_function(
-            ctx,
-            objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(params.clone()),
-        ).await?;
-        let inner = match result {
-            objectiveai_sdk::functions::FullFunction::Remote(r) => r,
-            objectiveai_sdk::functions::FullFunction::Inline(_) => unreachable!(),
-        };
-        Ok(objectiveai_sdk::functions::response::GetFunctionResponse { path, inner })
-    }
-
     /// Fetches all child functions referenced by a function's tasks.
     /// Returns a HashMap keyed by the path's key string.
     pub async fn get_function_tasks<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
@@ -381,6 +324,25 @@ where
         }
 
         Ok(children)
+    }
+
+    /// Fetch a remote function and its resolved commit path (execution helper).
+    pub async fn get_remote_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+        self: &Arc<Self>,
+        ctx: &ctx::Context<CTXEXT, PC>,
+        params: &objectiveai_sdk::RemotePathCommitOptional,
+    ) -> Result<(objectiveai_sdk::functions::FullRemoteFunction, objectiveai_sdk::RemotePath), ResponseError> {
+        let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
+            .ok_or_else(|| not_found("function"))?;
+        let result = self.get_function(
+            ctx,
+            objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(params.clone()),
+        ).await?;
+        let inner = match result {
+            objectiveai_sdk::functions::FullFunction::Remote(r) => r,
+            objectiveai_sdk::functions::FullFunction::Inline(_) => unreachable!(),
+        };
+        Ok((inner, path))
     }
 
     // ── Profile ───────────────────────────────────────────────────
@@ -436,12 +398,12 @@ where
         }).await
     }
 
-    /// API endpoint: fetch a remote profile, wrap in response.
-    pub async fn endpoint_get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    /// Fetch a remote profile and its resolved commit path (execution helper).
+    pub async fn get_remote_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
         self: &Arc<Self>,
         ctx: &ctx::Context<CTXEXT, PC>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
-    ) -> Result<objectiveai_sdk::functions::profiles::response::GetProfileResponse, ResponseError> {
+    ) -> Result<(objectiveai_sdk::functions::RemoteProfile, objectiveai_sdk::RemotePath), ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Profiles, params).await?
             .ok_or_else(|| not_found("profile"))?;
         let result = self.get_profile(
@@ -452,7 +414,7 @@ where
             objectiveai_sdk::functions::Profile::Remote(r) => r,
             objectiveai_sdk::functions::Profile::Inline(_) => unreachable!(),
         };
-        Ok(objectiveai_sdk::functions::profiles::response::GetProfileResponse { path, inner })
+        Ok((inner, path))
     }
 }
 

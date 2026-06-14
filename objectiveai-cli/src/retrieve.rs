@@ -14,14 +14,14 @@ use std::collections::HashMap;
 use std::pin::Pin;
 
 use futures::Stream;
-use objectiveai_sdk::agent::response::GetAgentResponse;
 use objectiveai_sdk::agent::{
     InlineAgentBaseWithFallbacksOrRemote, RemoteAgentBaseWithFallbacks,
 };
-use objectiveai_sdk::functions::profiles::response::GetProfileResponse;
-use objectiveai_sdk::functions::response::GetFunctionResponse;
+use objectiveai_sdk::cli::command::agents::get::Response as GetAgentResponse;
+use objectiveai_sdk::cli::command::functions::get::Response as GetFunctionResponse;
+use objectiveai_sdk::cli::command::functions::profiles::get::Response as GetProfileResponse;
+use objectiveai_sdk::cli::command::swarms::get::Response as GetSwarmResponse;
 use objectiveai_sdk::functions::{FullRemoteFunction, RemoteProfile};
-use objectiveai_sdk::swarm::response::GetSwarmResponse;
 use objectiveai_sdk::swarm::RemoteSwarmBase;
 use objectiveai_sdk::{HttpClient, RemotePath, RemotePathCommitOptional};
 

@@ -36,8 +36,6 @@ mod mcp;
 pub mod mock;
 pub mod openrouter;
 mod output_mode;
-pub mod request;
-pub mod response;
 mod upstream;
 
 pub use agent::*;
@@ -46,9 +44,3 @@ pub use continuation::*;
 pub use mcp::*;
 pub use output_mode::*;
 pub use upstream::*;
-
-#[cfg(feature = "http")]
-mod http;
-
-#[cfg(feature = "http")]
-pub use http::*;

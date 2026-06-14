@@ -72,17 +72,9 @@
 //! println!("Swarm ID: {}", swarm.id);
 //! ```
 
-pub mod request;
-pub mod response;
 mod swarm;
 
 pub use swarm::*;
 
 #[cfg(test)]
 mod swarm_tests;
-
-#[cfg(feature = "http")]
-mod http;
-
-#[cfg(feature = "http")]
-pub use http::*;

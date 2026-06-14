@@ -245,10 +245,10 @@ where
                     Ok::<_, super::executions::Error>((f, None))
                 }
                 objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional::Remote(remote) => {
-                    let resp = rr.endpoint_get_function(ctx, &remote).await
+                    let (inner, path) = rr.get_remote_function(ctx, &remote).await
                         .map_err(super::executions::Error::FetchFunction)?;
-                    let f = objectiveai_sdk::functions::Function::Remote(resp.inner.transpile());
-                    Ok((f, Some(resp.path)))
+                    let f = objectiveai_sdk::functions::Function::Remote(inner.transpile());
+                    Ok((f, Some(path)))
                 }
             }
         };
@@ -260,10 +260,10 @@ where
                     Ok((p, None))
                 }
                 objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional::Remote(remote) => {
-                    let resp = rr2.endpoint_get_profile(ctx, &remote).await
+                    let (inner, path) = rr2.get_remote_profile(ctx, &remote).await
                         .map_err(super::executions::Error::FetchProfile)?;
-                    let p = objectiveai_sdk::functions::Profile::Remote(resp.inner);
-                    Ok((p, Some(resp.path)))
+                    let p = objectiveai_sdk::functions::Profile::Remote(inner);
+                    Ok((p, Some(path)))
                 }
             }
         };
