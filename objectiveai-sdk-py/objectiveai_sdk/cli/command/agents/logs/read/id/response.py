@@ -42,6 +42,18 @@ class ResponseFunctionExecutionRequest(BaseModel):
     type_: Literal['function_execution_request'] = Field(..., alias='type')
 
 
+class ResponseToolCall(BaseModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolCall'})
+
+    arguments: str
+    function_name: str = Field(..., description='Function name from the openai tool_call payload\n(`tool_calls[i].function.name`).')
+    index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
+    response_id: str
+    tool_call_id: str
+    tool_call_index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
+    type_: Literal['tool_call'] = Field(..., alias='type')
+
+
 class ResponseToolResponse(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolResponse'})
 
@@ -51,21 +63,10 @@ class ResponseToolResponse(BaseModel):
     type_: Literal['tool_response'] = Field(..., alias='type')
 
 
-class ResponseResponseToolCalls(BaseModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ResponseToolCalls'})
-
-    arguments: str
-    function_name: str = Field(..., description='Function name from the openai tool_call payload\n(`tool_calls[i].function.name`).')
-    index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    response_id: str
-    tool_call_id: str
-    tool_call_index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    type_: Literal['response_tool_calls'] = Field(..., alias='type')
-
-
 class ResponseText(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Text'})
 
+    text: str
     type_: Literal['text'] = Field(..., alias='type')
 
 
@@ -106,5 +107,5 @@ tool-response / tool-call metadata.
 [`ContentBlock`]: crate::mcp::tool::ContentBlock"""
     model_config = ConfigDict(title='cli.command.agents.logs.read.id.Response')
 
-    root: Union[ResponseAgentCompletionRequest, ResponseVectorCompletionRequest, ResponseFunctionExecutionRequest, ResponseToolResponse, ResponseResponseToolCalls, ResponseText, ResponseImage, ResponseAudio, ResponseVideo, ResponseFile]
+    root: Union[ResponseAgentCompletionRequest, ResponseVectorCompletionRequest, ResponseFunctionExecutionRequest, ResponseToolCall, ResponseToolResponse, ResponseText, ResponseImage, ResponseAudio, ResponseVideo, ResponseFile]
 

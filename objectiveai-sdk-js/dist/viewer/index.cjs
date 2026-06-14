@@ -1370,19 +1370,20 @@ var CliCommandAgentsLogsReadIdResponseSchema = zod.z.union([zod.z.object({
   sender_agent_instance_hierarchy: zod.z.string(),
   type: zod.z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), zod.z.object({
-  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: zod.z.string(),
-  tool_call_id: zod.z.string(),
-  type: zod.z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), zod.z.object({
   arguments: zod.z.string(),
   function_name: zod.z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
   index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: zod.z.string(),
   tool_call_id: zod.z.string(),
   tool_call_index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: zod.z.literal("response_tool_calls")
-}).meta({ "variantTitle": "ResponseToolCalls" }), zod.z.object({
+  type: zod.z.literal("tool_call")
+}).meta({ "variantTitle": "ToolCall" }), zod.z.object({
+  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: zod.z.string(),
+  tool_call_id: zod.z.string(),
+  type: zod.z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" }), zod.z.object({
+  text: zod.z.string(),
   type: zod.z.literal("text")
 }).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(zod.z.object({
   type: zod.z.literal("image")

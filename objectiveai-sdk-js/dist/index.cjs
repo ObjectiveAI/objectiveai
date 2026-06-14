@@ -3116,19 +3116,20 @@ var CliCommandAgentsLogsReadIdResponseSchema = z1161.z.union([z1161.z.object({
   sender_agent_instance_hierarchy: z1161.z.string(),
   type: z1161.z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), z1161.z.object({
-  index: z1161.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: z1161.z.string(),
-  tool_call_id: z1161.z.string(),
-  type: z1161.z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), z1161.z.object({
   arguments: z1161.z.string(),
   function_name: z1161.z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
   index: z1161.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z1161.z.string(),
   tool_call_id: z1161.z.string(),
   tool_call_index: z1161.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: z1161.z.literal("response_tool_calls")
-}).meta({ "variantTitle": "ResponseToolCalls" }), z1161.z.object({
+  type: z1161.z.literal("tool_call")
+}).meta({ "variantTitle": "ToolCall" }), z1161.z.object({
+  index: z1161.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: z1161.z.string(),
+  tool_call_id: z1161.z.string(),
+  type: z1161.z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" }), z1161.z.object({
+  text: z1161.z.string(),
   type: z1161.z.literal("text")
 }).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(z1161.z.object({
   type: z1161.z.literal("image")

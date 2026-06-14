@@ -1273,19 +1273,20 @@ var CliCommandAgentsLogsReadIdResponseSchema = z.union([z.object({
   sender_agent_instance_hierarchy: z.string(),
   type: z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), z.object({
-  index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: z.string(),
-  tool_call_id: z.string(),
-  type: z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), z.object({
   arguments: z.string(),
   function_name: z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
   index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z.string(),
   tool_call_id: z.string(),
   tool_call_index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: z.literal("response_tool_calls")
-}).meta({ "variantTitle": "ResponseToolCalls" }), z.object({
+  type: z.literal("tool_call")
+}).meta({ "variantTitle": "ToolCall" }), z.object({
+  index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  response_id: z.string(),
+  tool_call_id: z.string(),
+  type: z.literal("tool_response")
+}).meta({ "variantTitle": "ToolResponse" }), z.object({
+  text: z.string(),
   type: z.literal("text")
 }).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(z.object({
   type: z.literal("image")

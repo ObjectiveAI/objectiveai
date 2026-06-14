@@ -81,30 +81,7 @@
       }
     },
     {
-      "title": "ToolResponse",
-      "type": "object",
-      "properties": {
-        "index": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "response_id": {
-          "type": "string"
-        },
-        "tool_call_id": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "tool_response"
-          ]
-        }
-      }
-    },
-    {
-      "title": "ResponseToolCalls",
+      "title": "ToolCall",
       "type": "object",
       "properties": {
         "arguments": {
@@ -133,7 +110,30 @@
         "type": {
           "type": "string",
           "enum": [
-            "response_tool_calls"
+            "tool_call"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolResponse",
+      "type": "object",
+      "properties": {
+        "index": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_response"
           ]
         }
       }
@@ -142,6 +142,9 @@
       "title": "Text",
       "type": "object",
       "properties": {
+        "text": {
+          "type": "string"
+        },
         "type": {
           "type": "string",
           "enum": [

@@ -10,10 +10,10 @@
 //!    request bodies. The JSONB column round-trips through the
 //!    matching SDK `…CreateParams` type so callers see a proper
 //!    typed object, not a raw blob.
-//! 2. **`ToolResponse`** — the per-message tool-response container
-//!    row (`tool_call_id` + index).
-//! 3. **`ResponseToolCalls`** — one assistant tool-call slot
+//! 2. **`ToolCall`** — one assistant tool-call slot
 //!    (`tool_call_id` + `arguments` + indices).
+//! 3. **`ToolResponse`** — the per-message tool-response container
+//!    row (`tool_call_id` + index).
 //! 4. **Content payloads (5)** — `Text` / `Image` / `Audio` /
 //!    `Video` / `File`. The `Text` variant subsumes all text-bearing
 //!    rows (refusal, reasoning, assistant content text, tool
@@ -100,14 +100,8 @@ pub enum Response {
         body: FunctionExecutionCreateParams,
         created_at: i64,
     },
-    #[schemars(title = "ToolResponse")]
-    ToolResponse {
-        response_id: String,
-        index: i64,
-        tool_call_id: String,
-    },
-    #[schemars(title = "ResponseToolCalls")]
-    ResponseToolCalls {
+    #[schemars(title = "ToolCall")]
+    ToolCall {
         response_id: String,
         index: i64,
         tool_call_index: i64,
@@ -117,8 +111,14 @@ pub enum Response {
         function_name: String,
         arguments: String,
     },
+    #[schemars(title = "ToolResponse")]
+    ToolResponse {
+        response_id: String,
+        index: i64,
+        tool_call_id: String,
+    },
     #[schemars(title = "Text")]
-    Text(String),
+    Text { text: String },
     #[schemars(title = "Image")]
     Image(ImageUrl),
     #[schemars(title = "Audio")]
@@ -174,7 +174,7 @@ impl crate::cli::command::CommandResponse for Response {
             // Content payloads delegate to the existing inner-type
             // projections so they ride MCP exactly the way bare
             // `RichContentPart` does today.
-            Response::Text(text) => text.into_mcp(),
+            Response::Text { text } => text.into_mcp(),
             Response::Image(image_url) => image_url.into_mcp(),
             Response::Audio(input_audio) => input_audio.into_mcp(),
             Response::Video(video_url) => video_url.into_mcp(),
