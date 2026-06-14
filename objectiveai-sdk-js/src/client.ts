@@ -62,14 +62,6 @@ export const ObjectiveAIOptionsSchema = z
       .string()
       .nullish()
       .describe("X-VIEWER-ADDRESS header for viewer address."),
-    xCommitAuthorName: z
-      .string()
-      .nullish()
-      .describe("X-COMMIT-AUTHOR-NAME header for commit author name."),
-    xCommitAuthorEmail: z
-      .string()
-      .nullish()
-      .describe("X-COMMIT-AUTHOR-EMAIL header for commit author email."),
     agentId: z
       .string()
       .nullish()
@@ -115,8 +107,6 @@ export class ObjectiveAI {
   readonly xMcpAuthorization: Record<string, string> | undefined;
   readonly xViewerSignature: string | undefined;
   readonly xViewerAddress: string | undefined;
-  readonly xCommitAuthorName: string | undefined;
-  readonly xCommitAuthorEmail: string | undefined;
   readonly agentId: string | undefined;
 
   constructor(options?: ObjectiveAIOptions | null) {
@@ -149,10 +139,6 @@ export class ObjectiveAI {
       options?.xViewerSignature ?? readEnv("VIEWER_SIGNATURE") ?? undefined;
     this.xViewerAddress =
       options?.xViewerAddress ?? readEnv("VIEWER_ADDRESS") ?? undefined;
-    this.xCommitAuthorName =
-      options?.xCommitAuthorName ?? readEnv("COMMIT_AUTHOR_NAME") ?? undefined;
-    this.xCommitAuthorEmail =
-      options?.xCommitAuthorEmail ?? readEnv("COMMIT_AUTHOR_EMAIL") ?? undefined;
     this.agentId =
       options?.agentId ?? readEnv("OBJECTIVEAI_AGENT_ID") ?? undefined;
   }
@@ -192,12 +178,6 @@ export class ObjectiveAI {
     }
     if (this.xViewerAddress) {
       headers.set("X-VIEWER-ADDRESS", this.xViewerAddress);
-    }
-    if (this.xCommitAuthorName) {
-      headers.set("X-COMMIT-AUTHOR-NAME", this.xCommitAuthorName);
-    }
-    if (this.xCommitAuthorEmail) {
-      headers.set("X-COMMIT-AUTHOR-EMAIL", this.xCommitAuthorEmail);
     }
     if (this.agentId) {
       headers.set("X-OBJECTIVEAI-AGENT-ID", this.agentId);

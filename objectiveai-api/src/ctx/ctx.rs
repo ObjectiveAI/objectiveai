@@ -36,10 +36,6 @@ pub struct Context<CTXEXT, PC> {
     github_authorization: Option<Arc<String>>,
     /// Per-request MCP authorization headers.
     mcp_authorization: Option<Arc<HashMap<String, String>>>,
-    /// Per-request commit author name.
-    commit_author_name: Option<Arc<String>>,
-    /// Per-request commit author email.
-    commit_author_email: Option<Arc<String>>,
     /// Per-request caller-supplied agent id (`X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`).
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
@@ -65,10 +61,6 @@ pub struct Context<CTXEXT, PC> {
     github_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved MCP authorization (self + ext merged).
     mcp_authorization_cached: Arc<OnceCell<Option<Arc<HashMap<String, String>>>>>,
-    /// Cached resolved commit author name (self + ext).
-    commit_author_name_cached: Arc<OnceCell<Option<Arc<String>>>>,
-    /// Cached resolved commit author email (self + ext).
-    commit_author_email_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cancellation signal — set to true when the client disconnects.
     cancelled: Arc<std::sync::atomic::AtomicBool>,
     /// Cache for agent fetches, keyed by RemotePath.
@@ -154,16 +146,12 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             openrouter_authorization: self.openrouter_authorization.clone(),
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
-            commit_author_name: self.commit_author_name.clone(),
-            commit_author_email: self.commit_author_email.clone(),
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
             mcp_port: self.mcp_port,
             reverse_attach: self.reverse_attach.clone(),
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
             mcp_authorization_cached: self.mcp_authorization_cached.clone(),
-            commit_author_name_cached: self.commit_author_name_cached.clone(),
-            commit_author_email_cached: self.commit_author_email_cached.clone(),
             cancelled: self.cancelled.clone(),
             swarm_cache: self.swarm_cache.clone(),
             agent_cache: self.agent_cache.clone(),
@@ -226,18 +214,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             .and_then(|s| serde_json::from_str::<HashMap<String, String>>(s).ok())
             .map(Arc::new);
 
-        let commit_author_name = headers
-            .get("X-COMMIT-AUTHOR-NAME")
-            .or_else(|| headers.get("COMMIT-AUTHOR-NAME"))
-            .and_then(|v| v.to_str().ok())
-            .map(|s| Arc::new(s.to_owned()));
-
-        let commit_author_email = headers
-            .get("X-COMMIT-AUTHOR-EMAIL")
-            .or_else(|| headers.get("COMMIT-AUTHOR-EMAIL"))
-            .and_then(|v| v.to_str().ok())
-            .map(|s| Arc::new(s.to_owned()));
-
         let agent_instance_hierarchy = headers
             .get("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY")
             .or_else(|| headers.get("OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY"))
@@ -253,16 +229,12 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             github_authorization,
             mcp_authorization,
             objectiveai_authorization,
-            commit_author_name,
-            commit_author_email,
             agent_instance_hierarchy,
             mcp_port: None,
             reverse_attach: None,
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
-            commit_author_name_cached: Arc::new(OnceCell::new()),
-            commit_author_email_cached: Arc::new(OnceCell::new()),
             cancelled: Arc::new(std::sync::atomic::AtomicBool::new(false)),
             swarm_cache: Arc::new(DashMap::new()),
             agent_cache: Arc::new(DashMap::new()),
@@ -505,35 +477,4 @@ impl<CTXEXT: super::ContextExt, PC> Context<CTXEXT, PC> {
             .clone()
     }
 
-    /// Returns the resolved commit author name.
-    ///
-    /// Checks the per-request name first, falls back to the ext.
-    /// Result is cached for subsequent calls.
-    pub async fn commit_author_name(&self) -> Option<Arc<String>> {
-        self.commit_author_name_cached
-            .get_or_init(|| async {
-                match (&self.commit_author_name, self.ext.commit_author_name().await) {
-                    (Some(self_name), _) => Some(self_name.clone()),
-                    (None, ext) => ext,
-                }
-            })
-            .await
-            .clone()
-    }
-
-    /// Returns the resolved commit author email.
-    ///
-    /// Checks the per-request email first, falls back to the ext.
-    /// Result is cached for subsequent calls.
-    pub async fn commit_author_email(&self) -> Option<Arc<String>> {
-        self.commit_author_email_cached
-            .get_or_init(|| async {
-                match (&self.commit_author_email, self.ext.commit_author_email().await) {
-                    (Some(self_email), _) => Some(self_email.clone()),
-                    (None, ext) => ext,
-                }
-            })
-            .await
-            .clone()
-    }
 }

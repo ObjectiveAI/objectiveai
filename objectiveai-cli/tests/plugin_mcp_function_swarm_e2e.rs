@@ -111,7 +111,6 @@ async fn function_swarm_writes_per_agent_files() {
             serde_json::from_value(json!({})).expect("empty input deserializes"),
         ),
         continuation: None,
-        retry_token: None,
         split: false,
         invert: false,
         // Stream so the cli waits for the function execution to fully

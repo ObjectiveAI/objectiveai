@@ -40,10 +40,6 @@ class ObjectiveAI:
             for viewer authentication.
         x_viewer_address: ``X-VIEWER-ADDRESS`` header
             for viewer address.
-        x_commit_author_name: ``X-COMMIT-AUTHOR-NAME`` header
-            for commit author name.
-        x_commit_author_email: ``X-COMMIT-AUTHOR-EMAIL`` header
-            for commit author email.
         timeout: Request timeout in seconds (default 60).
 
     Usage::
@@ -66,8 +62,6 @@ class ObjectiveAI:
         x_mcp_authorization: dict[str, str] | None = None,
         x_viewer_signature: str | None = None,
         x_viewer_address: str | None = None,
-        x_commit_author_name: str | None = None,
-        x_commit_author_email: str | None = None,
         agent_id: str | None = None,
         timeout: float = 60.0,
     ) -> None:
@@ -100,8 +94,6 @@ class ObjectiveAI:
                 self.x_mcp_authorization = None
         self.x_viewer_signature = x_viewer_signature or os.environ.get("VIEWER_SIGNATURE")
         self.x_viewer_address = x_viewer_address or os.environ.get("VIEWER_ADDRESS")
-        self.x_commit_author_name = x_commit_author_name or os.environ.get("COMMIT_AUTHOR_NAME")
-        self.x_commit_author_email = x_commit_author_email or os.environ.get("COMMIT_AUTHOR_EMAIL")
         self.agent_id = agent_id or os.environ.get("OBJECTIVEAI_AGENT_ID")
         self.timeout = timeout
 
@@ -131,10 +123,6 @@ class ObjectiveAI:
             headers["X-VIEWER-SIGNATURE"] = self.x_viewer_signature
         if self.x_viewer_address:
             headers["X-VIEWER-ADDRESS"] = self.x_viewer_address
-        if self.x_commit_author_name:
-            headers["X-COMMIT-AUTHOR-NAME"] = self.x_commit_author_name
-        if self.x_commit_author_email:
-            headers["X-COMMIT-AUTHOR-EMAIL"] = self.x_commit_author_email
         if self.agent_id:
             headers["X-OBJECTIVEAI-AGENT-ID"] = self.agent_id
 

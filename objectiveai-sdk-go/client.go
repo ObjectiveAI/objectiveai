@@ -26,8 +26,6 @@ type Client struct {
 	XMCPAuthorization        map[string]string
 	XViewerSignature         string
 	XViewerAddress           string
-	XCommitAuthorName        string
-	XCommitAuthorEmail       string
 	AgentID                  string
 	HTTPClient               *http.Client
 }
@@ -45,8 +43,6 @@ func NewClient(opts ...func(*Client)) *Client {
 		XOpenrouterAuthorization: os.Getenv("OPENROUTER_AUTHORIZATION"),
 		XViewerSignature:         os.Getenv("VIEWER_SIGNATURE"),
 		XViewerAddress:           os.Getenv("VIEWER_ADDRESS"),
-		XCommitAuthorName:        os.Getenv("COMMIT_AUTHOR_NAME"),
-		XCommitAuthorEmail:       os.Getenv("COMMIT_AUTHOR_EMAIL"),
 		AgentID:                  os.Getenv("OBJECTIVEAI_AGENT_ID"),
 	}
 
@@ -118,12 +114,6 @@ func (c *Client) buildHeaders() http.Header {
 	}
 	if c.XViewerAddress != "" {
 		h.Set("X-VIEWER-ADDRESS", c.XViewerAddress)
-	}
-	if c.XCommitAuthorName != "" {
-		h.Set("X-COMMIT-AUTHOR-NAME", c.XCommitAuthorName)
-	}
-	if c.XCommitAuthorEmail != "" {
-		h.Set("X-COMMIT-AUTHOR-EMAIL", c.XCommitAuthorEmail)
 	}
 	if c.AgentID != "" {
 		h.Set("X-OBJECTIVEAI-AGENT-ID", c.AgentID)

@@ -94,7 +94,6 @@ async fn test_twenty_agents_json_schema_10x_tools_seed_42() {
             serde_json::from_value(input_json).expect("input must deserialize as InputValue"),
         ),
         continuation: None,
-        retry_token: None,
         split: false,
         invert: false,
         // Stream so the executor emits per-chunk `ResponseItem::Chunk(_)`

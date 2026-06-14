@@ -50,8 +50,6 @@ async fn execute_streaming(
     let params = FunctionExecutionCreateParams {
         function,
         profile,
-        retry_token: request.retry_token,
-        from_cache: None,
         reasoning: None,
         strategy: Some(Strategy::SwissSystem {
             pool: request.pool,

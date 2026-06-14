@@ -17,12 +17,4 @@ impl super::ContextExt for DefaultContextExt {
     ) -> Option<std::sync::Arc<std::collections::HashMap<String, String>>> {
         None
     }
-
-    async fn commit_author_name(&self) -> Option<std::sync::Arc<String>> {
-        None
-    }
-
-    async fn commit_author_email(&self) -> Option<std::sync::Arc<String>> {
-        None
-    }
 }

@@ -96,7 +96,6 @@ macro_rules! snapshot_test {
                         .expect("input must deserialize as InputValue"),
                 ),
                 continuation: None,
-                retry_token: None,
                 split: false,
                 invert: false,
                 // Stream so collect_stream's `ResponseItem::Chunk(_)`
@@ -178,7 +177,6 @@ async fn split_tweet_scorer_10_tweets_seed_42() {
                 .expect("tweets input must deserialize as InputValue"),
         ),
         continuation: None,
-        retry_token: None,
         split: true,
         invert: false,
         // Stream so collect_stream's `ResponseItem::Chunk(_)` loop has

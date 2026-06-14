@@ -278,12 +278,6 @@ fn build_http_client(
                     .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
             });
 
-    let x_commit_author_name = env("COMMIT_AUTHOR_NAME")
-        .or_else(|| config.api().get_commit_author_name().map(String::from));
-
-    let x_commit_author_email = env("COMMIT_AUTHOR_EMAIL")
-        .or_else(|| config.api().get_commit_author_email().map(String::from));
-
     // From cli_config (env-populated at startup, mutable per request
     // at the MCP boundary) — never re-read from env here.
     let agent_instance_hierarchy = Some(cli_config.agent_instance_hierarchy.clone());
@@ -301,8 +295,6 @@ fn build_http_client(
         x_mcp_authorization,
         None::<String>,
         None::<String>,
-        x_commit_author_name,
-        x_commit_author_email,
         agent_instance_hierarchy,
         mcp_session_id,
     )

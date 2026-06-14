@@ -17,10 +17,4 @@ pub trait ContextExt {
     async fn mcp_authorization(
         &self,
     ) -> Option<std::sync::Arc<std::collections::HashMap<String, String>>>;
-
-    /// Returns the commit author name.
-    async fn commit_author_name(&self) -> Option<std::sync::Arc<String>>;
-
-    /// Returns the commit author email.
-    async fn commit_author_email(&self) -> Option<std::sync::Arc<String>>;
 }

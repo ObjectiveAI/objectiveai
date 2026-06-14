@@ -63,10 +63,6 @@ struct EnvConfigBuilder {
     http_referer: Option<String>,
     #[envconfig(from = "X_TITLE")]
     x_title: Option<String>,
-    #[envconfig(from = "COMMIT_AUTHOR_NAME")]
-    commit_author_name: Option<String>,
-    #[envconfig(from = "COMMIT_AUTHOR_EMAIL")]
-    commit_author_email: Option<String>,
     // -- Other fields --
     #[envconfig(from = "CLAUDE_AGENT_SDK_ENABLED")]
     claude_agent_sdk_enabled: Option<String>,
@@ -170,8 +166,6 @@ impl EnvConfigBuilder {
             user_agent: self.user_agent,
             http_referer: self.http_referer,
             x_title: self.x_title,
-            commit_author_name: self.commit_author_name,
-            commit_author_email: self.commit_author_email,
             // -- Other fields --
             claude_agent_sdk_enabled: self.claude_agent_sdk_enabled.map(|s| parse_bool(&s)),
             claude_agent_sdk_rate_limit_max_retries: self.claude_agent_sdk_rate_limit_max_retries,
@@ -230,8 +224,6 @@ pub struct ConfigBuilder {
     pub user_agent: Option<String>,
     pub http_referer: Option<String>,
     pub x_title: Option<String>,
-    pub commit_author_name: Option<String>,
-    pub commit_author_email: Option<String>,
     // -- Other fields --
     pub claude_agent_sdk_enabled: Option<bool>,
     pub claude_agent_sdk_rate_limit_max_retries: Option<u64>,
@@ -304,8 +296,6 @@ impl ConfigBuilder {
             user_agent: self.user_agent.unwrap_or_else(|| "objectiveai-ai<admin@objectiveai-ai.io>".to_string()),
             http_referer: self.http_referer.unwrap_or_else(|| "https://objectiveai-ai.io/".to_string()),
             x_title: self.x_title.unwrap_or_else(|| "ObjectiveAI".to_string()),
-            commit_author_name: self.commit_author_name.unwrap_or_else(|| "ObjectiveAI".to_string()),
-            commit_author_email: self.commit_author_email.unwrap_or_else(|| "admin@objectiveai.dev".to_string()),
             // -- Other fields --
             claude_agent_sdk_enabled: self.claude_agent_sdk_enabled.unwrap_or(true),
             claude_agent_sdk_rate_limit_max_retries: self.claude_agent_sdk_rate_limit_max_retries.unwrap_or(10),
@@ -386,8 +376,6 @@ pub struct Config {
     pub user_agent: String,
     pub http_referer: String,
     pub x_title: String,
-    pub commit_author_name: String,
-    pub commit_author_email: String,
     // -- Other fields --
     pub claude_agent_sdk_enabled: bool,
     pub claude_agent_sdk_rate_limit_max_retries: u64,
@@ -464,8 +452,6 @@ pub async fn setup(
         user_agent,
         http_referer,
         x_title,
-        commit_author_name,
-        commit_author_email,
         // -- Other fields --
         claude_agent_sdk_enabled,
         claude_agent_sdk_rate_limit_max_retries,
@@ -535,15 +521,12 @@ pub async fn setup(
         github_authorization.as_ref().map(|s| Arc::new(s.clone())),
         openrouter_authorization.as_ref().map(|s| Arc::new(s.clone())),
         mcp_authorization.clone(),
-        Some(Arc::new(commit_author_name.clone())),
-        Some(Arc::new(commit_author_email.clone())),
     ));
 
     // GitHub Client
     let github_client = Arc::new(github::Client::new(
         http_client.clone(),
         github_authorization.clone(),
-        true, // allow_publish_without_byok
         user_agent.clone(),
         x_title.clone(),
         http_referer.clone(),
@@ -557,8 +540,6 @@ pub async fn setup(
 
     let filesystem_client = Arc::new(filesystem::Client::new(
         config_base_dir.clone(),
-        commit_author_name,
-        commit_author_email,
     ));
 
 

@@ -27,8 +27,6 @@ use tokio_tungstenite::tungstenite;
 ///     None, // x_mcp_authorization
 ///     None, // x_viewer_signature
 ///     None, // x_viewer_address
-///     None, // x_commit_author_name
-///     None, // x_commit_author_email
 /// );
 /// ```
 #[derive(Debug, Clone)]
@@ -56,10 +54,6 @@ pub struct HttpClient {
     pub x_viewer_signature: Option<Arc<String>>,
     /// Value for the `X-VIEWER-ADDRESS` header.
     pub x_viewer_address: Option<Arc<String>>,
-    /// Value for the `X-COMMIT-AUTHOR-NAME` header.
-    pub x_commit_author_name: Option<Arc<String>>,
-    /// Value for the `X-COMMIT-AUTHOR-EMAIL` header.
-    pub x_commit_author_email: Option<Arc<String>>,
     /// Value for the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header.
     pub agent_instance_hierarchy: Option<Arc<String>>,
     /// Value for the `Mcp-Session-Id` header — propagated through to
@@ -84,8 +78,6 @@ impl HttpClient {
     /// * `x_mcp_authorization` - Optional X-MCP-AUTHORIZATION header value (HashMap)
     /// * `x_viewer_signature` - Optional X-VIEWER-SIGNATURE header value
     /// * `x_viewer_address` - Optional X-VIEWER-ADDRESS header value
-    /// * `x_commit_author_name` - Optional X-COMMIT-AUTHOR-NAME header value
-    /// * `x_commit_author_email` - Optional X-COMMIT-AUTHOR-EMAIL header value
     /// * `agent_instance_hierarchy` - Optional X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header value
     /// * `mcp_session_id` - Optional Mcp-Session-Id header value
     pub fn new(
@@ -100,8 +92,6 @@ impl HttpClient {
         x_mcp_authorization: Option<std::collections::HashMap<String, String>>,
         x_viewer_signature: Option<impl Into<String>>,
         x_viewer_address: Option<impl Into<String>>,
-        x_commit_author_name: Option<impl Into<String>>,
-        x_commit_author_email: Option<impl Into<String>>,
         agent_instance_hierarchy: Option<impl Into<String>>,
         mcp_session_id: Option<impl Into<String>>,
     ) -> Self {
@@ -223,30 +213,6 @@ impl HttpClient {
                         None
                     }
                 }),
-            x_commit_author_name: x_commit_author_name
-                .map(|v| Arc::new(v.into()))
-                .or_else(|| {
-                    #[cfg(feature = "env")]
-                    {
-                        env("COMMIT_AUTHOR_NAME").map(Arc::new)
-                    }
-                    #[cfg(not(feature = "env"))]
-                    {
-                        None
-                    }
-                }),
-            x_commit_author_email: x_commit_author_email
-                .map(|v| Arc::new(v.into()))
-                .or_else(|| {
-                    #[cfg(feature = "env")]
-                    {
-                        env("COMMIT_AUTHOR_EMAIL").map(Arc::new)
-                    }
-                    #[cfg(not(feature = "env"))]
-                    {
-                        None
-                    }
-                }),
             agent_instance_hierarchy: agent_instance_hierarchy.map(|v| Arc::new(v.into())).or_else(|| {
                 #[cfg(feature = "env")]
                 {
@@ -319,12 +285,6 @@ impl HttpClient {
         }
         if let Some(addr) = &self.x_viewer_address {
             request = request.header("X-VIEWER-ADDRESS", addr.as_str());
-        }
-        if let Some(name) = &self.x_commit_author_name {
-            request = request.header("X-COMMIT-AUTHOR-NAME", name.as_str());
-        }
-        if let Some(email) = &self.x_commit_author_email {
-            request = request.header("X-COMMIT-AUTHOR-EMAIL", email.as_str());
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             request = request.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());
@@ -652,12 +612,6 @@ impl HttpClient {
         }
         if let Some(addr) = &self.x_viewer_address {
             req = req.header("X-VIEWER-ADDRESS", addr.as_str());
-        }
-        if let Some(name) = &self.x_commit_author_name {
-            req = req.header("X-COMMIT-AUTHOR-NAME", name.as_str());
-        }
-        if let Some(email) = &self.x_commit_author_email {
-            req = req.header("X-COMMIT-AUTHOR-EMAIL", email.as_str());
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());

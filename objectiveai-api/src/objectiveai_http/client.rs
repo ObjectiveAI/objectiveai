@@ -19,8 +19,6 @@ pub struct Client {
     pub x_github_authorization: Option<Arc<String>>,
     pub x_openrouter_authorization: Option<Arc<String>>,
     pub x_mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
-    pub x_commit_author_name: Option<Arc<String>>,
-    pub x_commit_author_email: Option<Arc<String>>,
 }
 
 impl Client {
@@ -34,8 +32,6 @@ impl Client {
         x_github_authorization: Option<Arc<String>>,
         x_openrouter_authorization: Option<Arc<String>>,
         x_mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
-        x_commit_author_name: Option<Arc<String>>,
-        x_commit_author_email: Option<Arc<String>>,
     ) -> Self {
         Self {
             http_client,
@@ -47,8 +43,6 @@ impl Client {
             x_github_authorization,
             x_openrouter_authorization,
             x_mcp_authorization,
-            x_commit_author_name,
-            x_commit_author_email,
         }
     }
 
@@ -62,14 +56,10 @@ impl Client {
             ctx_github_authorization,
             ctx_openrouter_authorization,
             ctx_mcp_authorization,
-            ctx_commit_author_name,
-            ctx_commit_author_email,
         ) = tokio::join!(
             ctx.github_authorization(),
             ctx.upstream_authorization(objectiveai_sdk::agent::Upstream::Openrouter),
             ctx.mcp_authorization(),
-            ctx.commit_author_name(),
-            ctx.commit_author_email(),
         );
 
         let authorization = match ctx.objectiveai_authorization() {
@@ -94,10 +84,6 @@ impl Client {
             // SDK HttpClient keeps the fields for other consumers.
             x_viewer_signature: None,
             x_viewer_address: None,
-            x_commit_author_name: ctx_commit_author_name
-                .or_else(|| self.x_commit_author_name.clone()),
-            x_commit_author_email: ctx_commit_author_email
-                .or_else(|| self.x_commit_author_email.clone()),
             agent_instance_hierarchy: ctx.agent_instance_hierarchy().map(|s| Arc::new(s.to_string())),
             // No MCP session id surfaces through the per-request
             // `ctx` here. The api server's outgoing-MCP path stamps
