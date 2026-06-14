@@ -18,7 +18,6 @@ export const FunctionsExecutionsResponseUnaryFunctionExecutionSchema = z.object(
   output: FunctionsExecutionsResponseOutputSchema.describe("The final output (scalar or vector score)."),
   profile: RemotePathSchema.nullable().describe("The profile used (if remote).").optional(),
   reasoning: FunctionsExecutionsResponseUnaryReasoningSummarySchema.nullable().describe("Reasoning summary if reasoning was enabled.").optional(),
-  retry_token: z.string().nullable().describe("Token for retrying this execution with cached votes.").optional(),
   tasks: z.array(FunctionsExecutionsResponseUnaryTaskSchema).describe("Results from each task in the function."),
   tasks_errors: z.boolean().describe("Whether any tasks encountered errors."),
   usage: AgentCompletionsResponseUsageSchema.describe("Aggregated token and cost usage."),

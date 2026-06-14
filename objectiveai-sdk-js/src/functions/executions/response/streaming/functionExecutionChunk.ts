@@ -18,7 +18,6 @@ export const FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema = 
   output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   tasks: z.array(FunctionsExecutionsResponseStreamingTaskChunkSchema),
   tasks_errors: z.boolean().nullable().meta({ omitempty: true }).optional(),
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional(),

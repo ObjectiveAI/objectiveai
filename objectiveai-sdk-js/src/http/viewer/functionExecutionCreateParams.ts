@@ -10,7 +10,6 @@ import { FunctionsInlineProfileOrRemoteCommitOptionalSchema } from "../../functi
 
 export const HttpViewerFunctionExecutionCreateParamsSchema = z.object({
   continuation: z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  from_cache: z.boolean().nullable().meta({ omitempty: true }).optional(),
   function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema.describe("The function to execute (inline definition or remote path)."),
   id: z.string(),
   input: FunctionsExpressionInputValueSchema,
@@ -18,7 +17,6 @@ export const HttpViewerFunctionExecutionCreateParamsSchema = z.object({
   profile: FunctionsInlineProfileOrRemoteCommitOptionalSchema.describe("The profile to use (inline definition or remote path)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
   reasoning: FunctionsExecutionsRequestReasoningSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
   split: z.boolean().nullable().meta({ omitempty: true }).optional(),
   strategy: FunctionsExecutionsRequestStrategySchema.nullable().meta({ omitempty: true }).optional(),

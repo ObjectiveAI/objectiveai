@@ -10,14 +10,12 @@ import { FunctionsInlineProfileOrRemoteCommitOptionalSchema } from "../../inline
 
 export const FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema = z.object({
   continuation: z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  from_cache: z.boolean().nullable().meta({ omitempty: true }).optional(),
   function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema.describe("The function to execute (inline definition or remote path)."),
   input: FunctionsExpressionInputValueSchema,
   invert: z.boolean().nullable().describe("If `true`, invert every output in the streamed response *after* the\ninner function has finished computing — scalar outputs become\n`1 - x`, vector outputs are reversed in place. The expression\nevaluator inside the function still sees the original scores; only\nthe chunks delivered to the client (and the aggregated response\npassed to the usage handler) are inverted. Useful when a function\nis naturally written to score \"lower is better\" but the consumer\nwants \"higher is better\", or vice versa.").meta({ omitempty: true }).optional(),
   profile: FunctionsInlineProfileOrRemoteCommitOptionalSchema.describe("The profile to use (inline definition or remote path)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
   reasoning: FunctionsExecutionsRequestReasoningSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
   split: z.boolean().nullable().meta({ omitempty: true }).optional(),
   strategy: FunctionsExecutionsRequestStrategySchema.nullable().meta({ omitempty: true }).optional(),

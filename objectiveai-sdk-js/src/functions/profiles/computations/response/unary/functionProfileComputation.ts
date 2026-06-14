@@ -17,7 +17,6 @@ export const FunctionsProfilesComputationsResponseUnaryFunctionProfileComputatio
   id: z.string(),
   object: FunctionsProfilesComputationsResponseUnaryObjectSchema,
   profile: FunctionsInlineTasksProfileSchema,
-  retry_token: z.string().nullable().optional(),
   usage: AgentCompletionsResponseUsageSchema,
 }).meta({ title: "functions.profiles.computations.response.unary.FunctionProfileComputation" });
 export type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation = z.infer<typeof FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema>;

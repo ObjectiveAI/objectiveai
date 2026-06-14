@@ -313,19 +313,19 @@ var RemotePathSchema = zod.z.union([zod.z.object({
 }).meta({ "variantTitle": "Github" }), zod.z.object({
   commit: zod.z.string(),
   owner: zod.z.string(),
-  remote: zod.z.literal("filesystem"),
+  remote: zod.z.literal("client"),
   repository: zod.z.string()
-}).meta({ "variantTitle": "Filesystem" }), zod.z.object({
+}).meta({ "variantTitle": "Client" }), zod.z.object({
   name: zod.z.string(),
   remote: zod.z.literal("mock")
 }).meta({ "variantTitle": "Mock" })]).meta({ title: "RemotePath" });
 
-// src/agent/getAgentResponse.ts
-var AgentGetAgentResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response containing a single Agent with creation timestamp.").meta({ title: "agent.GetAgentResponse" });
+// src/cli/command/agents/get/response.ts
+var CliCommandAgentsGetResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response for `agents get` \u2014 an Agent base definition with its remote path.").meta({ title: "cli.command.agents.get.Response" });
 
 // src/viewer/command/agents/get.ts
 async function agentsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "agents/get" }), zod.z.union([CliErrorSchema, AgentGetAgentResponseSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "agents/get" }), zod.z.union([CliErrorSchema, CliCommandAgentsGetResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("agents get: cli produced no output before the end marker");
@@ -910,9 +910,9 @@ var RemotePathCommitOptionalSchema = zod.z.union([zod.z.object({
 }).meta({ "variantTitle": "Github" }), zod.z.object({
   commit: zod.z.string().nullable().optional(),
   owner: zod.z.string(),
-  remote: zod.z.literal("filesystem"),
+  remote: zod.z.literal("client"),
   repository: zod.z.string()
-}).meta({ "variantTitle": "Filesystem" }), zod.z.object({
+}).meta({ "variantTitle": "Client" }), zod.z.object({
   name: zod.z.string(),
   remote: zod.z.literal("mock")
 }).meta({ "variantTitle": "Mock" })]).meta({ title: "RemotePathCommitOptional" });
@@ -1322,14 +1322,12 @@ var FunctionsInlineProfileOrRemoteCommitOptionalSchema = zod.z.union([FunctionsI
 // src/functions/executions/request/functionExecutionCreateParams.ts
 var FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema = zod.z.object({
   continuation: zod.z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  from_cache: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
   function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema.describe("The function to execute (inline definition or remote path)."),
   input: FunctionsExpressionInputValueSchema,
   invert: zod.z.boolean().nullable().describe('If `true`, invert every output in the streamed response *after* the\ninner function has finished computing \u2014 scalar outputs become\n`1 - x`, vector outputs are reversed in place. The expression\nevaluator inside the function still sees the original scores; only\nthe chunks delivered to the client (and the aggregated response\npassed to the usage handler) are inverted. Useful when a function\nis naturally written to score "lower is better" but the consumer\nwants "higher is better", or vice versa.').meta({ omitempty: true }).optional(),
   profile: FunctionsInlineProfileOrRemoteCommitOptionalSchema.describe("The profile to use (inline definition or remote path)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
   reasoning: FunctionsExecutionsRequestReasoningSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: zod.z.string().nullable().meta({ omitempty: true }).optional(),
   seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional(),
   split: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
   strategy: FunctionsExecutionsRequestStrategySchema.nullable().meta({ omitempty: true }).optional(),
@@ -1340,11 +1338,9 @@ var SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema = zod.z.union([SwarmInlineS
 // src/vector/completions/request/vectorCompletionCreateParams.ts
 var VectorCompletionsRequestVectorCompletionCreateParamsSchema = zod.z.object({
   continuation: zod.z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  from_cache: zod.z.boolean().nullable().describe("If true, uses cached votes when available.").meta({ omitempty: true }).optional(),
   messages: zod.z.array(AgentCompletionsMessageMessageSchema).describe("The conversation messages (the prompt)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().describe("Provider routing preferences.").meta({ omitempty: true }).optional(),
   responses: zod.z.array(AgentCompletionsMessageRichContentSchema).describe("The possible responses the LLMs can vote for."),
-  retry: zod.z.string().nullable().describe("If present, reuses votes from a previous request with this ID.").meta({ omitempty: true }).optional(),
   seed: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Random seed for deterministic results.").meta({ omitempty: true }).optional(),
   stream: zod.z.boolean().nullable().describe("Whether to stream the response.").meta({ omitempty: true }).optional(),
   swarm: SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema.describe("The Swarm of agents to use.")
@@ -4118,7 +4114,6 @@ var FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema = zod.z
   output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: zod.z.string().nullable().meta({ omitempty: true }).optional(),
   split_index: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
   swiss_pool_index: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
   swiss_round: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional(),
@@ -4149,10 +4144,8 @@ var VectorCompletionsResponseVoteSchema = zod.z.object({
   agent_full_id: zod.z.string().describe("WF-level id of the agent that produced this vote \u2014 concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes."),
   agent_id: zod.z.string().describe("Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's."),
   flat_swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Flattened index accounting for agent counts in the swarm."),
-  from_cache: zod.z.boolean().nullable().describe("If true, this vote was retrieved from cache rather than generated fresh.").meta({ omitempty: true }).optional(),
   prompt_id: zod.z.string().describe("Content hash of the request messages (for caching/deduplication)."),
   responses_ids: zod.z.array(zod.z.string()).describe("Content hashes of each response option in the request."),
-  retry: zod.z.boolean().nullable().describe("If true, this vote was reused from a previous request via the `retry`\nparameter. All fields reflect the original request's values.").meta({ omitempty: true }).optional(),
   swarm_index: zod.z.number().int().min(0).max(18446744073709552e3).describe("Index of the agent configuration within the swarm."),
   vote: zod.z.array(zod.z.number().min(-34028234663852886e22).max(34028234663852886e22)).describe("The vote distribution. Each index corresponds to a response from the\nrequest. Typically one element is 1.0 (selected) and the rest are 0.0."),
   weight: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("The weight applied to this vote when computing final scores.")
@@ -4188,7 +4181,6 @@ var FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema = zod.z.obj
   output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: zod.z.string().nullable().meta({ omitempty: true }).optional(),
   tasks: zod.z.array(FunctionsExecutionsResponseStreamingTaskChunkSchema),
   tasks_errors: zod.z.boolean().nullable().meta({ omitempty: true }).optional(),
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional()
@@ -4309,11 +4301,11 @@ async function functionsExecuteSwissSystemResponseSchemaExecuteTransform(request
   }
   return first;
 }
-var FunctionsGetFunctionResponseSchema = RemotePathSchema.and(zod.z.object({})).meta({ title: "functions.GetFunctionResponse" });
+var CliCommandFunctionsGetResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response for `functions get` \u2014 a resolved Function with its remote path.").meta({ title: "cli.command.functions.get.Response" });
 
 // src/viewer/command/functions/get.ts
 async function functionsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "functions/get" }), zod.z.union([CliErrorSchema, FunctionsGetFunctionResponseSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "functions/get" }), zod.z.union([CliErrorSchema, CliCommandFunctionsGetResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("functions get: cli produced no output before the end marker");
@@ -4398,11 +4390,11 @@ async function functionsListResponseSchemaExecuteTransform(request, transform) {
   }
   return first;
 }
-var FunctionsProfilesGetProfileResponseSchema = RemotePathSchema.and(zod.z.object({})).meta({ title: "functions.profiles.GetProfileResponse" });
+var CliCommandFunctionsProfilesGetResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response for `functions profiles get` \u2014 a resolved Profile with its remote path.").meta({ title: "cli.command.functions.profiles.get.Response" });
 
 // src/viewer/command/functions/profiles/get.ts
 async function functionsProfilesGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "functions/profiles/get" }), zod.z.union([CliErrorSchema, FunctionsProfilesGetProfileResponseSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "functions/profiles/get" }), zod.z.union([CliErrorSchema, CliCommandFunctionsProfilesGetResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("functions profiles get: cli produced no output before the end marker");
@@ -5236,11 +5228,11 @@ async function pluginsRunResponseSchemaExecuteTransform(request, transform) {
   }
   return first;
 }
-var SwarmGetSwarmResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response containing a single Swarm.").meta({ title: "swarm.GetSwarmResponse" });
+var CliCommandSwarmsGetResponseSchema = RemotePathSchema.and(zod.z.object({})).describe("Response for `swarms get` \u2014 a Swarm base definition with its remote path.").meta({ title: "cli.command.swarms.get.Response" });
 
 // src/viewer/command/swarms/get.ts
 async function swarmsGetExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "swarms/get" }), zod.z.union([CliErrorSchema, SwarmGetSwarmResponseSchema]));
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "swarms/get" }), zod.z.union([CliErrorSchema, CliCommandSwarmsGetResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("swarms get: cli produced no output before the end marker");

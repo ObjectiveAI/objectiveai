@@ -10,9 +10,9 @@ export const RemotePathCommitOptionalSchema = z.union([z.object({
 }).meta({"variantTitle":"Github"}), z.object({
   commit: z.string().nullable().optional(),
   owner: z.string(),
-  remote: z.literal("filesystem"),
+  remote: z.literal("client"),
   repository: z.string(),
-}).meta({"variantTitle":"Filesystem"}), z.object({
+}).meta({"variantTitle":"Client"}), z.object({
   name: z.string(),
   remote: z.literal("mock"),
 }).meta({"variantTitle":"Mock"})]).meta({ title: "RemotePathCommitOptional" });

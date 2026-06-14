@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandFunctionsProfilesGetRequest } from "../../../../cli/command/functions/profiles/get/request";
 import { type CliCommandFunctionsProfilesGetRequestSchemaRequest } from "../../../../cli/command/functions/profiles/get/request_schema/request";
+import { CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponse } from "../../../../cli/command/functions/profiles/get/response";
 import { type CliCommandFunctionsProfilesGetResponseSchemaRequest } from "../../../../cli/command/functions/profiles/get/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../../cli/error";
-import { FunctionsProfilesGetProfileResponseSchema, type FunctionsProfilesGetProfileResponse } from "../../../../functions/profiles/getProfileResponse";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
 import { CliStream } from "../../../cliStream";
 import { invokeCliRequest } from "../../../invoke";
 
 /** `functions profiles get execute` — unary; first stream item, rest discarded. */
-export async function functionsProfilesGetExecute(request: Omit<CliCommandFunctionsProfilesGetRequest, "path_type">): Promise<CliError | FunctionsProfilesGetProfileResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/profiles/get" }), z.union([CliErrorSchema, FunctionsProfilesGetProfileResponseSchema]));
+export async function functionsProfilesGetExecute(request: Omit<CliCommandFunctionsProfilesGetRequest, "path_type">): Promise<CliError | CliCommandFunctionsProfilesGetResponse> {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/profiles/get" }), z.union([CliErrorSchema, CliCommandFunctionsProfilesGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("functions profiles get: cli produced no output before the end marker");

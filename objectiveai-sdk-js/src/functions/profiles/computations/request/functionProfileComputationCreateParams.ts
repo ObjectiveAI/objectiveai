@@ -8,12 +8,10 @@ import { SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema } from "../../../../sw
 
 export const FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema = z.object({
   dataset: z.array(FunctionsProfilesComputationsRequestDatasetItemSchema),
-  from_cache: z.boolean().nullable().meta({ omitempty: true }).optional(),
   function: FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema.describe("The function to compute a profile for (inline definition or remote path)."),
   max_retries: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   n: z.number().int().min(0).max(18446744073709552000),
   provider: AgentCompletionsRequestProviderSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().meta({ omitempty: true }).optional(),
   stream: z.boolean().nullable().meta({ omitempty: true }).optional(),
   swarm: SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema,

@@ -22,7 +22,6 @@ export const FunctionsProfilesComputationsResponseStreamingFunctionExecutionChun
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema.nullable().meta({ omitempty: true }).optional(),
   retry: z.number().int().min(0).max(18446744073709552000),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   tasks: z.array(FunctionsExecutionsResponseStreamingTaskChunkSchema),
   tasks_errors: z.boolean().nullable().meta({ omitempty: true }).optional(),
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional(),

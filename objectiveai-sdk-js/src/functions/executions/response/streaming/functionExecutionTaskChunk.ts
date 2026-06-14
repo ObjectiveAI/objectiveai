@@ -19,7 +19,6 @@ export interface FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk 
   output?: (FunctionsExecutionsResponseOutput) | null;
   profile?: (RemotePath) | null;
   reasoning?: (FunctionsExecutionsResponseStreamingReasoningSummaryChunk) | null;
-  retry_token?: (string) | null;
   split_index?: (number) | null;
   swiss_pool_index?: (number) | null;
   swiss_round?: (number) | null;
@@ -39,7 +38,6 @@ export const FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchem
   output: FunctionsExecutionsResponseOutputSchema.nullable().meta({ omitempty: true }).optional(),
   profile: RemotePathSchema.nullable().optional(),
   reasoning: FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   split_index: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   swiss_pool_index: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),
   swiss_round: z.number().int().min(0).max(18446744073709552000).nullable().meta({ omitempty: true }).optional(),

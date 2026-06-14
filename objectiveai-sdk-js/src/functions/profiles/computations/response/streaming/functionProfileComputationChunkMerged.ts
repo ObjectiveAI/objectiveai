@@ -29,12 +29,6 @@ export function functionsProfilesComputationsResponseStreamingFunctionProfileCom
     fitting_stats = b.fitting_stats;
   }
 
-  let retry_token = a.retry_token;
-  if (b.retry_token != null) {
-    if (b.retry_token !== a.retry_token) changed = true;
-    retry_token = b.retry_token;
-  }
-
   let usage = a.usage;
   if (a.usage != null && b.usage != null) {
     const [merged, c] = agentCompletionsResponseUsageMerged(a.usage, b.usage);
@@ -52,7 +46,6 @@ export function functionsProfilesComputationsResponseStreamingFunctionProfileCom
     ...(executions_errors != null ? { executions_errors } : {}),
     ...(profile != null ? { profile } : {}),
     ...(fitting_stats != null ? { fitting_stats } : {}),
-    ...(retry_token != null ? { retry_token } : {}),
     ...(usage != null ? { usage } : {}),
   }, true];
 }

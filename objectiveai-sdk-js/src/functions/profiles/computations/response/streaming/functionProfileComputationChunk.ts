@@ -17,7 +17,6 @@ export const FunctionsProfilesComputationsResponseStreamingFunctionProfileComput
   id: z.string(),
   object: FunctionsProfilesComputationsResponseStreamingObjectSchema,
   profile: FunctionsInlineTasksProfileSchema.nullable().meta({ omitempty: true }).optional(),
-  retry_token: z.string().nullable().meta({ omitempty: true }).optional(),
   usage: AgentCompletionsResponseUsageSchema.nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "functions.profiles.computations.response.streaming.FunctionProfileComputationChunk" });
 export type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk = z.infer<typeof FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema>;

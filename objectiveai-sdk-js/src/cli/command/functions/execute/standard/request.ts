@@ -18,7 +18,6 @@ export const CliCommandFunctionsExecuteStandardRequestSchema = z.object({
   path_type: CliCommandFunctionsExecuteStandardPathSchema,
   profile: CliCommandFunctionsExecuteProfileSpecSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
-  retry_token: z.string().nullable().optional(),
   split: z.boolean(),
   timeout_seconds: z.number().int().min(0).max(18446744073709552000).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.functions.execute.standard.Request" });

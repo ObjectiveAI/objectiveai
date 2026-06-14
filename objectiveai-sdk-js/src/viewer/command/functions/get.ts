@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandFunctionsGetRequest } from "../../../cli/command/functions/get/request";
 import { type CliCommandFunctionsGetRequestSchemaRequest } from "../../../cli/command/functions/get/request_schema/request";
+import { CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponse } from "../../../cli/command/functions/get/response";
 import { type CliCommandFunctionsGetResponseSchemaRequest } from "../../../cli/command/functions/get/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
-import { FunctionsGetFunctionResponseSchema, type FunctionsGetFunctionResponse } from "../../../functions/getFunctionResponse";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
 /** `functions get execute` — unary; first stream item, rest discarded. */
-export async function functionsGetExecute(request: Omit<CliCommandFunctionsGetRequest, "path_type">): Promise<CliError | FunctionsGetFunctionResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/get" }), z.union([CliErrorSchema, FunctionsGetFunctionResponseSchema]));
+export async function functionsGetExecute(request: Omit<CliCommandFunctionsGetRequest, "path_type">): Promise<CliError | CliCommandFunctionsGetResponse> {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "functions/get" }), z.union([CliErrorSchema, CliCommandFunctionsGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("functions get: cli produced no output before the end marker");

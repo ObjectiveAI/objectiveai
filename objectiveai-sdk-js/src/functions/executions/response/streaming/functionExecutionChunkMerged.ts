@@ -34,12 +34,6 @@ export function functionsExecutionsResponseStreamingFunctionExecutionChunkMerged
     output = b.output;
   }
 
-  let retry_token = a.retry_token;
-  if (b.retry_token != null) {
-    if (b.retry_token !== a.retry_token) changed = true;
-    retry_token = b.retry_token;
-  }
-
   let error = a.error;
   if (b.error != null) {
     if (b.error !== a.error) changed = true;
@@ -64,7 +58,6 @@ export function functionsExecutionsResponseStreamingFunctionExecutionChunkMerged
     ...(reasoning != null ? { reasoning } : {}),
     ...(output != null ? { output } : {}),
     ...(error != null ? { error } : {}),
-    ...(retry_token != null ? { retry_token } : {}),
     created: a.created,
     ...(a.function !== undefined ? { function: a.function } : {}),
     ...(a.profile !== undefined ? { profile: a.profile } : {}),

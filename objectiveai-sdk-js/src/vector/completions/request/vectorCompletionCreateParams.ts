@@ -8,11 +8,9 @@ import { SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema } from "../../../swarm
 
 export const VectorCompletionsRequestVectorCompletionCreateParamsSchema = z.object({
   continuation: z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
-  from_cache: z.boolean().nullable().describe("If true, uses cached votes when available.").meta({ omitempty: true }).optional(),
   messages: z.array(AgentCompletionsMessageMessageSchema).describe("The conversation messages (the prompt)."),
   provider: AgentCompletionsRequestProviderSchema.nullable().describe("Provider routing preferences.").meta({ omitempty: true }).optional(),
   responses: z.array(AgentCompletionsMessageRichContentSchema).describe("The possible responses the LLMs can vote for."),
-  retry: z.string().nullable().describe("If present, reuses votes from a previous request with this ID.").meta({ omitempty: true }).optional(),
   seed: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Random seed for deterministic results.").meta({ omitempty: true }).optional(),
   stream: z.boolean().nullable().describe("Whether to stream the response.").meta({ omitempty: true }).optional(),
   swarm: SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema.describe("The Swarm of agents to use."),

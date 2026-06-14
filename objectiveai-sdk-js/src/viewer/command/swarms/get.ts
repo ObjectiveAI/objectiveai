@@ -3,16 +3,16 @@
 import { z } from "zod";
 import { type CliCommandSwarmsGetRequest } from "../../../cli/command/swarms/get/request";
 import { type CliCommandSwarmsGetRequestSchemaRequest } from "../../../cli/command/swarms/get/request_schema/request";
+import { CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponse } from "../../../cli/command/swarms/get/response";
 import { type CliCommandSwarmsGetResponseSchemaRequest } from "../../../cli/command/swarms/get/response_schema/request";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
-import { SwarmGetSwarmResponseSchema, type SwarmGetSwarmResponse } from "../../../swarm/getSwarmResponse";
 import { CliStream } from "../../cliStream";
 import { invokeCliRequest } from "../../invoke";
 
 /** `swarms get execute` — unary; first stream item, rest discarded. */
-export async function swarmsGetExecute(request: Omit<CliCommandSwarmsGetRequest, "path_type">): Promise<CliError | SwarmGetSwarmResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "swarms/get" }), z.union([CliErrorSchema, SwarmGetSwarmResponseSchema]));
+export async function swarmsGetExecute(request: Omit<CliCommandSwarmsGetRequest, "path_type">): Promise<CliError | CliCommandSwarmsGetResponse> {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "swarms/get" }), z.union([CliErrorSchema, CliCommandSwarmsGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("swarms get: cli produced no output before the end marker");
