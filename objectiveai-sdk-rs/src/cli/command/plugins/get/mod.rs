@@ -92,6 +92,22 @@ pub struct ResponseManifest {
     pub source: String,
 }
 
+impl ResponseManifest {
+    /// LLM-visible MCP tool name for this plugin:
+    /// `plugin_{owner}_{name}_{version}`, with every `.` in the
+    /// version substituted to `-` so the result stays within the
+    /// Anthropic tool-name regex (`^[a-zA-Z0-9_-]{1,128}$`).
+    /// `objectiveai-mcp` advertises each plugin under this name.
+    pub fn tool_name(&self) -> String {
+        format!(
+            "plugin_{}_{}_{}",
+            self.owner,
+            self.name,
+            self.version.replace('.', "-")
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.get.ResponseViewerRoute")]
 pub struct ResponseViewerRoute {
