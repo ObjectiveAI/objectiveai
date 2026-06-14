@@ -81,6 +81,12 @@ pub enum Error {
     Instance(String),
     #[error("invalid agent definition: {0}")]
     AgentConvert(String),
+    #[error("invalid swarm definition: {0}")]
+    SwarmConvert(String),
+    #[error("not found: {0}")]
+    NotFound(String),
+    #[error("{0} remote is not supported for this command")]
+    RemoteNotSupported(&'static str),
     #[error("{0}")]
     ClapParse(#[from] clap::Error),
     #[error("argument parse error at `{}`: {}", .0.field, .0.source)]

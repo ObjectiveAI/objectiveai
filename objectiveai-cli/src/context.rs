@@ -109,6 +109,26 @@ impl Context {
             .await
     }
 
+    /// Builds an `HttpClient` for direct GitHub reads (agents / swarms /
+    /// functions / profiles) — **without** spawning or contacting the
+    /// ObjectiveAI API. The `github_*` methods talk to github.com directly
+    /// and never use the base `address`, so we hand it a deliberately
+    /// invalid one: any accidental API call through this client fails loudly
+    /// instead of silently hitting a real server. `x_github_authorization`
+    /// (from config) authenticates the GitHub requests. Built fresh per
+    /// call — these commands are short-lived and don't memoize a client.
+    pub async fn github_http_client(
+        &self,
+    ) -> Result<HttpClient, crate::error::Error> {
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        // Tripwire address — this client must only be used for github_* calls.
+        let address = "https://api.invalid.objectiveai-github-client-only/".to_string();
+        Ok(build_http_client(&self.config, &mut config, address))
+    }
+
     /// The synchronous-response viewer client, built on first use and
     /// memoized.
     ///
@@ -240,43 +260,30 @@ fn build_http_client(
     config: &mut crate::filesystem::config::Config,
     address: String,
 ) -> HttpClient {
-    let authorization = env("OBJECTIVEAI_AUTHORIZATION").or_else(|| {
-        config
-            .api()
-            .get_objectiveai_authorization()
-            .map(String::from)
-    });
+    // Every header value comes from the FINAL merged config view — never
+    // re-read from process env here. The config layer is the single source
+    // of truth (env is already folded in at the appropriate precedence when
+    // the view is built), so reading env again would double-source values.
+    let authorization =
+        config.api().get_objectiveai_authorization().map(String::from);
 
-    let user_agent =
-        env("USER_AGENT").or_else(|| config.api().get_user_agent().map(String::from));
+    let user_agent = config.api().get_user_agent().map(String::from);
 
-    let x_title =
-        env("X_TITLE").or_else(|| config.api().get_x_title().map(String::from));
+    let x_title = config.api().get_x_title().map(String::from);
 
-    let http_referer = env("HTTP_REFERER")
-        .or_else(|| config.api().get_http_referer().map(String::from));
+    let http_referer = config.api().get_http_referer().map(String::from);
 
-    // Deliberately NOT env-sourced: the GitHub credential lives in the
-    // on-disk json config only (`api config github-authorization set`).
     let x_github_authorization =
         config.api().get_github_authorization().map(String::from);
 
-    let x_openrouter_authorization = env("OPENROUTER_AUTHORIZATION").or_else(|| {
-        config
-            .api()
-            .get_openrouter_authorization()
-            .map(String::from)
-    });
+    let x_openrouter_authorization =
+        config.api().get_openrouter_authorization().map(String::from);
 
     let x_mcp_authorization: Option<std::collections::HashMap<String, String>> =
-        env("MCP_AUTHORIZATION")
-            .and_then(|v| serde_json::from_str(&v).ok())
-            .or_else(|| {
-                config
-                    .api()
-                    .get_mcp_authorization()
-                    .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-            });
+        config
+            .api()
+            .get_mcp_authorization()
+            .map(|m| m.iter().map(|(k, v)| (k.clone(), v.clone())).collect());
 
     // From cli_config (env-populated at startup, mutable per request
     // at the MCP boundary) — never re-read from env here.

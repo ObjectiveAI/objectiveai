@@ -6,7 +6,6 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.swarms.list.Request")]
 pub struct Request {
     pub path_type: Path,
-    pub source: RequestSource,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -18,30 +17,9 @@ pub enum Path {
     SwarmsList,
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema, clap::ValueEnum)]
-#[clap(rename_all = "lowercase")]
-#[schemars(rename = "cli.command.swarms.list.RequestSource")]
-pub enum RequestSource {
-    Filesystem,
-    Objectiveai,
-    Mock,
-    All,
-}
-
-impl RequestSource {
-    fn as_str(&self) -> &'static str {
-        match self {
-            RequestSource::Filesystem => "filesystem",
-            RequestSource::Objectiveai => "objectiveai",
-            RequestSource::Mock => "mock",
-            RequestSource::All => "all",
-        }
-    }
-}
-
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["swarms".to_string(), "list".to_string(), "--source".to_string(), self.source.as_str().to_string()];
+        let mut argv = vec!["swarms".to_string(), "list".to_string()];
         self.base.push_flags(&mut argv);
         argv
     }
@@ -69,9 +47,6 @@ pub type ResponseItem = crate::RemotePath;
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Source to list from.
-    #[arg(long, value_enum)]
-    pub source: RequestSource,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -97,7 +72,6 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self { path_type: Path::SwarmsList,
-            source: args.source,
             base: args.base.into(),
         })
     }

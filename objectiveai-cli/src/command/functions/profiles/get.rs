@@ -7,8 +7,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let path = request.path;
-    Ok(objectiveai_sdk::functions::profiles::get_profile(ctx.api_client().await?, path).await?)
+    crate::retrieve::get_profile(ctx, request.path).await
 }
 
 pub mod request_schema {

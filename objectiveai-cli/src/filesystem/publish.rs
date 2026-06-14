@@ -22,7 +22,7 @@ impl Kind {
     }
 
     /// The filename used for this kind's primary JSON file.
-    fn filename(self) -> &'static str {
+    pub fn filename(self) -> &'static str {
         match self {
             Kind::Agents => "agent.json",
             Kind::Swarms => "swarm.json",
