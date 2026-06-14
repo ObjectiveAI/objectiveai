@@ -12,13 +12,18 @@
 //!   chunk to the listener task via `UnboundedSender::send`. The
 //!   caller's chunk-yield hot path stays off the DB write critical
 //!   path.
-//! - The listener task drains every queued chunk per loop iteration
-//!   and `.push()`-aggregates them into one before running the
-//!   per-chunk persistence logic ([`LogWriterState::apply_chunk`]).
-//!   Aggregation is correct because each tier's chunk is a cumulative
-//!   roll-up of state — `push` folds the later chunk's deltas into
-//!   the earlier one's accumulators (`AgentCompletionChunk::push` /
-//!   `VectorCompletionChunk::push` / `FunctionExecutionChunk::push`).
+//! - The listener task `.push()`-folds every chunk into one
+//!   stream-wide accumulator and runs the persistence logic
+//!   ([`LogWriterState::apply_chunk`]) against that cumulative
+//!   aggregate — not a per-batch slice. Draining the queue per loop
+//!   iteration only collapses how often the pass runs. Folding is
+//!   correct because each tier's chunk is a cumulative roll-up of
+//!   state — `push` folds the later chunk's deltas into the earlier
+//!   one's accumulators (`AgentCompletionChunk::push` /
+//!   `VectorCompletionChunk::push` / `FunctionExecutionChunk::push`) —
+//!   so a row whose fields stream across several wire chunks (a tool
+//!   call's id/name/arguments, streamed content text) is always
+//!   persisted from its complete body, never a partial fragment.
 //! - [`LogWriter::finalize`] consumes the writer by value, drops the
 //!   sender, and `.await`s the JoinHandle. By the time it returns,
 //!   both invariants hold: the channel is empty (sender dropped →
@@ -26,22 +31,27 @@
 //!   consumed) and the task's future has fully completed (no
 //!   in-flight row-bucket joins or blob writes).
 //!
-//! Per-chunk persistence (unchanged from the prior in-line `write`):
+//! Persistence pass (run per drain batch against the cumulative
+//! accumulator):
 //!
-//! 1. **First chunk**: capture the chunk's `response_id`, INSERT the
-//!    request blob (no `agent_instance_hierarchy` on the blob — that
-//!    linkage lives in `objectiveai.messages`).
-//! 2. **Every chunk**: walk `chunk_rows(chunk)`, gate each yielded
-//!    [`RowValue`] through the shadow (Skip path is pure-memory),
-//!    bucket the survivors by `agent_instance_hierarchy`. For every
-//!    agent the writer hasn't seen yet in this stream's lifetime,
-//!    prepend a `objectiveai.messages` row that registers the request blob
-//!    in that agent's history.
+//! 1. **First pass**: capture the accumulator's `response_id`, INSERT
+//!    the request blob (no `agent_instance_hierarchy` on the blob —
+//!    that linkage lives in `objectiveai.messages`).
+//! 2. **Every pass**: walk `chunk_rows(acc)` over the cumulative
+//!    aggregate, gate each yielded [`RowValue`] through the shadow
+//!    (Skip path is pure-memory — unchanged rows cost nothing), bucket
+//!    the survivors by `agent_instance_hierarchy`. For every agent the
+//!    writer hasn't seen yet in this stream's lifetime, prepend a
+//!    `objectiveai.messages` row that registers the request blob in
+//!    that agent's history.
 //! 3. **Per-bucket execution**: rows within one agent's bucket fire
 //!    sequentially (so the per-agent ORDER BY `"index"` matches the
 //!    iterator's order). All buckets fire concurrently via
-//!    `try_join_all`. The response blob update runs in parallel with
-//!    the bucket fan-out via `tokio::join!`.
+//!    `try_join_all`.
+//!
+//! The response blob is written separately, exactly once, by
+//! `listener_loop` after the last chunk — from the same cumulative
+//! accumulator, so blob and rows can never disagree.
 
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
@@ -238,12 +248,15 @@ impl<C> LogWriterState<C> {
         }
     }
 
-    /// Persist one chunk's streaming-content rows. The response_id and
-    /// request blob are established by `listener_loop` before the first
-    /// call; the response blob is written by `listener_loop` after the
-    /// last chunk. This method only touches the per-row content tables
-    /// (gated through the shadow) and the per-agent `objectiveai.messages`
-    /// bookkeeping.
+    /// Persist the cumulative aggregate's streaming-content rows
+    /// (`listener_loop` hands in the stream-wide accumulator, not a
+    /// per-batch slice, so every row is seen with its complete body).
+    /// The response_id and request blob are established by
+    /// `listener_loop` before the first call; the response blob is
+    /// written by `listener_loop` after the last chunk. This method
+    /// only touches the per-row content tables (gated through the
+    /// shadow, so re-walking the unchanged majority is free) and the
+    /// per-agent `objectiveai.messages` bookkeeping.
     async fn apply_chunk(&mut self, chunk: &C) -> Result<(), crate::error::Error>
     where
         C: Send + Sync,
@@ -401,33 +414,47 @@ where
     // partial batch arrived last, dropping earlier tool-calls.
     let mut accumulated: Option<C> = None;
     while let Some(first) = rx.recv().await {
-        // Fold `first` into the stream-wide aggregate. The response
-        // blob is built from individual chunks pushed in arrival order
-        // — never from a re-pushed coalesced batch.
+        // Fold `first` into the stream-wide aggregate, then drain any
+        // chunks queued behind it into the same aggregate. `accumulated`
+        // is the cumulative roll-up of every chunk seen so far — NOT a
+        // per-batch slice. Draining the queue only collapses how OFTEN
+        // the persistence pass runs; what it persists from is always
+        // the full accumulator.
         if let Some(acc) = accumulated.as_mut() {
             acc.push(&first);
         } else {
             accumulated = Some(first.clone());
         }
-        // Coalesce queued chunks into one batch for the per-row writes,
-        // folding each individual chunk into the aggregate as we go.
-        let mut agg = first;
         while let Ok(next) = rx.try_recv() {
             if let Some(acc) = accumulated.as_mut() {
                 acc.push(&next);
             }
-            agg.push(&next);
         }
+        let acc = accumulated
+            .as_ref()
+            .expect("accumulated is Some: set or pushed above");
 
         // On the very first chunk: learn the response_id and write the
         // request blob once, before any content row references it.
         if state.primary_id.is_none() {
-            let response_id = agg.primary_id().to_string();
+            let response_id = acc.primary_id().to_string();
             state.write_request_blob(&response_id).await?;
             state.primary_id = Some(response_id);
         }
 
-        state.apply_chunk(&agg).await?;
+        // Persist rows from the cumulative aggregate, never a per-batch
+        // slice. A tool call's id/name/arguments — and streamed content
+        // text — arrive as deltas spread across multiple wire chunks;
+        // under load those deltas land in different drain batches. Row
+        // generation (`rows.rs`) drops any tool call missing id/name/
+        // args, so a per-batch slice that lacked the id/name delta would
+        // omit the row entirely (and would overwrite content text with
+        // the latest fragment rather than the full run). Walking the
+        // full accumulator each pass emits every row from its COMPLETE
+        // body; the shadow makes the repeated walk cheap — unchanged
+        // rows Skip with zero writes, only genuinely-changed bodies hit
+        // the DB.
+        state.apply_chunk(acc).await?;
 
         // First successful apply: flip the watch true exactly once.
         // Subsequent batches don't touch it (the value is already
