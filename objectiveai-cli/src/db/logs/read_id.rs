@@ -161,22 +161,6 @@ async fn load_payload(
                 created_at,
             })
         }
-        MessageTable::ToolResponse => {
-            let index = require_row_index(table_kind, row_index)?;
-            let row = sqlx::query(
-                "SELECT tool_call_id FROM objectiveai.tool_response \
-                 WHERE response_id = $1 AND \"index\" = $2",
-            )
-            .bind(response_id)
-            .bind(index)
-            .fetch_one(&**pool)
-            .await?;
-            Ok(Response::ToolResponse {
-                response_id: response_id.to_string(),
-                index,
-                tool_call_id: row.try_get("tool_call_id")?,
-            })
-        }
         MessageTable::AssistantResponseRefusal => {
             let index = require_row_index(table_kind, row_index)?;
             let text = fetch_indexed_text(
@@ -199,11 +183,17 @@ async fn load_payload(
             .await?;
             Ok(Response::Text { text })
         }
+        // A tool-call row reads back as its `arguments` (text). The
+        // call's metadata (function_name / tool_call_id /
+        // tool_call_index) is surfaced inline by `agents logs read all`
+        // on `AssistantResponsePart::ToolCall`, so it isn't repeated
+        // here. `tool_call_index` stays in the WHERE — it's part of the
+        // row PK.
         MessageTable::AssistantResponseToolCalls => {
             let index = require_row_index(table_kind, row_index)?;
             let tool_call_index = require_row_sub_index(table_kind, row_sub_index)?;
             let row = sqlx::query(
-                "SELECT tool_call_id, function_name, arguments \
+                "SELECT arguments \
                  FROM objectiveai.assistant_response_tool_calls \
                  WHERE response_id = $1 AND \"index\" = $2 AND tool_call_index = $3",
             )
@@ -212,14 +202,7 @@ async fn load_payload(
             .bind(tool_call_index)
             .fetch_one(&**pool)
             .await?;
-            Ok(Response::ToolCall {
-                response_id: response_id.to_string(),
-                index,
-                tool_call_index,
-                tool_call_id: row.try_get("tool_call_id")?,
-                function_name: row.try_get("function_name")?,
-                arguments: row.try_get("arguments")?,
-            })
+            Ok(Response::Text { text: row.try_get("arguments")? })
         }
         MessageTable::AssistantResponseContentText => {
             let (index, part_index) =

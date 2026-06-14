@@ -303,7 +303,6 @@ DO $logs_message_table_bootstrap$ BEGIN
         'message_queue_audio',
         'message_queue_video',
         'message_queue_file',
-        'tool_response',
         'assistant_response_refusal',
         'assistant_response_reasoning',
         'assistant_response_tool_calls',
@@ -361,20 +360,18 @@ CREATE TABLE IF NOT EXISTS objectiveai.messages (
          )
          AND row_index IS NULL AND row_sub_index IS NULL)
         OR
-        -- Single-index kinds: `tool_response`, assistant refusal
-        -- / reasoning, and the five `message_queue_*` kinds
-        -- (row_index = `message_queue_contents.id`; per-kind
-        -- enum value picks the corresponding per-kind table
-        -- `message_queue_texts` / `_images` / `_audios` /
-        -- `_videos` / `_files` directly at read time). row_index
-        -- only — no sub_index.
+        -- Single-index kinds: assistant refusal / reasoning, and the
+        -- five `message_queue_*` kinds (row_index =
+        -- `message_queue_contents.id`; per-kind enum value picks the
+        -- corresponding per-kind table `message_queue_texts` /
+        -- `_images` / `_audios` / `_videos` / `_files` directly at
+        -- read time). row_index only — no sub_index.
         ("table" IN (
             'message_queue_text',
             'message_queue_image',
             'message_queue_audio',
             'message_queue_video',
             'message_queue_file',
-            'tool_response',
             'assistant_response_refusal',
             'assistant_response_reasoning'
          )

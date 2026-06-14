@@ -69,8 +69,8 @@ impl CommandRequest for Request {
 // `logs.messages` rows surfaced as either the full target slice or
 // the watermark-delta slice, same per-target input shape.
 pub use super::all::{
-    AssistantResponsePart, AssistantResponsePartType, ClientNotificationPart,
-    ClientNotificationPartType, ResponseItem, Target, ToolResponsePart, ToolResponsePartType,
+    AssistantResponsePart, ClientNotificationPart, ClientNotificationPartType, ResponseItem,
+    Target, ToolResponsePart, ToolResponsePartType,
 };
 
 #[derive(clap::Args)]

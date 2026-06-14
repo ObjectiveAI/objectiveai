@@ -28,19 +28,6 @@ export const CliCommandAgentsLogsReadIdResponseSchema = z.union([z.object({
   sender_agent_instance_hierarchy: z.string(),
   type: z.literal("function_execution_request"),
 }).meta({"variantTitle":"FunctionExecutionRequest"}), z.object({
-  arguments: z.string(),
-  function_name: z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
-  index: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  response_id: z.string(),
-  tool_call_id: z.string(),
-  tool_call_index: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  type: z.literal("tool_call"),
-}).meta({"variantTitle":"ToolCall"}), z.object({
-  index: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  response_id: z.string(),
-  tool_call_id: z.string(),
-  type: z.literal("tool_response"),
-}).meta({"variantTitle":"ToolResponse"}), z.object({
   text: z.string(),
   type: z.literal("text"),
 }).meta({"variantTitle":"Text"}), AgentCompletionsMessageImageUrlSchema.and(z.object({
@@ -51,5 +38,5 @@ export const CliCommandAgentsLogsReadIdResponseSchema = z.union([z.object({
   type: z.literal("video"),
 })).meta({"variantTitle":"Video"}), AgentCompletionsMessageFileSchema.and(z.object({
   type: z.literal("file"),
-})).meta({"variantTitle":"File"})]).describe("Resolved payload for one `logs.messages.\"index\"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string — matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe five non-content variants render as JSONL with their full\ntyped body so callers can introspect request-blob /\ntool-response / tool-call metadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock").meta({ title: "cli.command.agents.logs.read.id.Response" });
+})).meta({"variantTitle":"File"})]).describe("Resolved payload for one `logs.messages.\"index\"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string — matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe three request-blob variants render as JSONL with their full\ntyped `…CreateParams` body so callers can introspect request\nmetadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock").meta({ title: "cli.command.agents.logs.read.id.Response" });
 export type CliCommandAgentsLogsReadIdResponse = z.infer<typeof CliCommandAgentsLogsReadIdResponseSchema>;

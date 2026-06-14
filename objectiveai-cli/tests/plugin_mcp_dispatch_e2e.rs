@@ -27,7 +27,7 @@ use std::process::Command;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::logs::read::all::{
-    AssistantResponsePartType, Request as ReadAllRequest, ResponseItem as ReadAllItem,
+    AssistantResponsePart, Request as ReadAllRequest, ResponseItem as ReadAllItem,
     Target as ReadAllTarget,
 };
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
@@ -178,12 +178,8 @@ async fn plugin_mcp_dispatch_round_trip() {
     for block in &blocks {
         if let ReadAllItem::AssistantResponse { parts, .. } = block {
             for part in parts {
-                if matches!(part.r#type, AssistantResponsePartType::ToolCall) {
-                    tool_call_names.push(
-                        part.function_name
-                            .clone()
-                            .expect("ToolCall part must carry function_name"),
-                    );
+                if let AssistantResponsePart::ToolCall { function_name, .. } = part {
+                    tool_call_names.push(function_name.clone());
                 }
             }
         }

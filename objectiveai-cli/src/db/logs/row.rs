@@ -69,7 +69,9 @@ pub enum RowTable {
 /// row when written. Maps 1:1 to the postgres `objectiveai.message_table`
 /// ENUM in `schema.sql` — same names, same order. The three
 /// response-blob tables are intentionally absent; they're not events,
-/// just the latest snapshot.
+/// just the latest snapshot. `tool_response` is also absent: its head
+/// row is written purely as the `tool_call_id` lookup for tool-response
+/// content rows (JOINed at read time) and emits no event of its own.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, sqlx::Type)]
 #[sqlx(type_name = "objectiveai.message_table", rename_all = "snake_case")]
 pub enum MessageTable {
@@ -81,7 +83,6 @@ pub enum MessageTable {
     MessageQueueAudio,
     MessageQueueVideo,
     MessageQueueFile,
-    ToolResponse,
     AssistantResponseRefusal,
     AssistantResponseReasoning,
     AssistantResponseToolCalls,
@@ -112,7 +113,6 @@ impl MessageTable {
             MessageTable::MessageQueueAudio => "message_queue_audio",
             MessageTable::MessageQueueVideo => "message_queue_video",
             MessageTable::MessageQueueFile => "message_queue_file",
-            MessageTable::ToolResponse => "tool_response",
             MessageTable::AssistantResponseRefusal => "assistant_response_refusal",
             MessageTable::AssistantResponseReasoning => "assistant_response_reasoning",
             MessageTable::AssistantResponseToolCalls => "assistant_response_tool_calls",
@@ -144,7 +144,15 @@ impl RowTable {
             // per-kind variants without the kind. Callers writing
             // these rows skip this helper.
             RowTable::MessageQueueContent => return None,
-            RowTable::ToolResponse => MessageTable::ToolResponse,
+            // The tool-response head row is written to
+            // `objectiveai.tool_response` purely as the `tool_call_id`
+            // lookup for its content rows (JOINed at read time). It
+            // emits no `messages` event, so it's never addressable by
+            // `agents logs read id` and never appears as its own part
+            // in `read all`. write.rs MUST early-branch this variant
+            // before calling `RowValue::message_table()` (which
+            // `.expect()`s a Some) — see `insert_value`/`update_value`.
+            RowTable::ToolResponse => return None,
             RowTable::AssistantResponseRefusal => MessageTable::AssistantResponseRefusal,
             RowTable::AssistantResponseReasoning => MessageTable::AssistantResponseReasoning,
             RowTable::AssistantResponseToolCalls => MessageTable::AssistantResponseToolCalls,
@@ -349,11 +357,15 @@ impl<'a> RowValue<'a> {
     }
 
     /// [`MessageTable`] for this row's table. Streaming-content rows
-    /// always have one.
+    /// always have one — EXCEPT `RowValue::ToolResponse`, whose head
+    /// row emits no `messages` event (it's a `tool_call_id` lookup
+    /// only). Callers MUST early-branch `ToolResponse` before calling
+    /// this (`write.rs::insert_value`/`update_value` do), or the
+    /// `.expect()` below panics.
     pub fn message_table(&self) -> MessageTable {
         self.table()
             .message_table()
-            .expect("RowValue variants only cover streaming-content tables")
+            .expect("RowValue variants (except ToolResponse) cover messages-emitting tables")
     }
 
     /// `response_id` borrowed from the immediately-enclosing

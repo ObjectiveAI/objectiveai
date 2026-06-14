@@ -167,10 +167,16 @@ func (v *CliCommandAgentsLogsReadAllResponseItemAssistantResponse) UnmarshalJSON
 }
 func (CliCommandAgentsLogsReadAllResponseItemAssistantResponse) SchemaVariantTitle() string { return "AssistantResponse" }
 
+// One tool call's response. Blocks are grouped per
+// `tool_call_id` (in addition to `agent_instance_hierarchy` +
+// `response_id`), so two responses in the same turn yield two
+// blocks.
 type CliCommandAgentsLogsReadAllResponseItemToolResponse struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	Parts []CliCommandAgentsLogsReadAllToolResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
+	// The wire tool-call id this response answers.
+	ToolCallID string `json:"tool_call_id"`
 	Type string `json:"type" validate:"oneof=tool_response"`
 }
 
@@ -179,7 +185,7 @@ func (v *CliCommandAgentsLogsReadAllResponseItemToolResponse) UnmarshalJSON(data
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "tool_call_id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllResponseItemToolResponse: missing required field %q", key)
 		}
@@ -204,9 +210,11 @@ func (CliCommandAgentsLogsReadAllResponseItemToolResponse) SchemaVariantTitle() 
 // producer, so no separate sender field exists.
 //
 // Block-coalescing boundary tuple: `(class,
-// agent_instance_hierarchy, response_id)` for assistant/tool
-// blocks; `(class, agent_instance_hierarchy, response_id,
-// sender, message_queue_id)` for `ClientNotification` blocks.
+// agent_instance_hierarchy, response_id)` for `AssistantResponse`;
+// `(class, agent_instance_hierarchy, response_id, tool_call_id)`
+// for `ToolResponse` (one block per tool call); `(class,
+// agent_instance_hierarchy, response_id, sender, message_queue_id)`
+// for `ClientNotification` blocks.
 // One `ClientNotification` block = one consumed
 // `message_queue` parent row, so `timestamp_queued` and
 // `sender_agent_instance_hierarchy` are well-defined
@@ -220,6 +228,10 @@ type CliCommandAgentsLogsReadAllResponseItem struct {
 	// rows, so there's no separate sender. The
 	// `agent_instance_hierarchy` field IS the sender.
 	AssistantResponse *CliCommandAgentsLogsReadAllResponseItemAssistantResponse `outerObject:"true"`
+	// One tool call's response. Blocks are grouped per
+	// `tool_call_id` (in addition to `agent_instance_hierarchy` +
+	// `response_id`), so two responses in the same turn yield two
+	// blocks.
 	ToolResponse *CliCommandAgentsLogsReadAllResponseItemToolResponse `outerObject:"true"`
 }
 

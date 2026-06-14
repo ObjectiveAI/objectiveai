@@ -4,22 +4,24 @@
 //! returns a typed [`Response`] variant carrying that table's
 //! payload — no `serde_json::Value` anywhere in the public shape.
 //!
-//! The 17 underlying `logs.*` tables collapse into 10 variants:
+//! The underlying `logs.*` tables collapse into 8 variants:
 //!
 //! 1. **Request-blob tiers (3)** — agent / vector / function
 //!    request bodies. The JSONB column round-trips through the
 //!    matching SDK `…CreateParams` type so callers see a proper
 //!    typed object, not a raw blob.
-//! 2. **`ToolCall`** — one assistant tool-call slot
-//!    (`tool_call_id` + `arguments` + indices).
-//! 3. **`ToolResponse`** — the per-message tool-response container
-//!    row (`tool_call_id` + index).
-//! 4. **Content payloads (5)** — `Text` / `Image` / `Audio` /
+//! 2. **Content payloads (5)** — `Text` / `Image` / `Audio` /
 //!    `Video` / `File`. The `Text` variant subsumes all text-bearing
-//!    rows (refusal, reasoning, assistant content text, tool
-//!    content text); media variants carry the SDK media type
-//!    directly so MCP rendering routes through the existing
-//!    `ContentBlock` projections.
+//!    rows (refusal, reasoning, assistant content text, tool content
+//!    text, AND a tool call's `arguments`); media variants carry the
+//!    SDK media type directly so MCP rendering routes through the
+//!    existing `ContentBlock` projections.
+//!
+//! An `assistant_response_tool_calls` row reads back as `Text` (its
+//! `arguments`) — the call's metadata (function_name / tool_call_id /
+//! tool_call_index) is surfaced inline by `agents logs read all`. The
+//! `tool_response` container head is no longer registered in
+//! `logs.messages`, so it is never addressable here.
 
 use crate::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use crate::agent::completions::request::AgentCompletionCreateParams;
@@ -70,9 +72,9 @@ impl CommandRequest for Request {
 /// [`CommandResponse::into_mcp`] hands media variants over as
 /// [`ContentBlock`]s and text as a bare JSON string — matching the
 /// existing `agents queue read id` projection of `RichContentPart`.
-/// The five non-content variants render as JSONL with their full
-/// typed body so callers can introspect request-blob /
-/// tool-response / tool-call metadata.
+/// The three request-blob variants render as JSONL with their full
+/// typed `…CreateParams` body so callers can introspect request
+/// metadata.
 ///
 /// [`ContentBlock`]: crate::mcp::tool::ContentBlock
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -99,23 +101,6 @@ pub enum Response {
         sender_agent_instance_hierarchy: String,
         body: FunctionExecutionCreateParams,
         created_at: i64,
-    },
-    #[schemars(title = "ToolCall")]
-    ToolCall {
-        response_id: String,
-        index: i64,
-        tool_call_index: i64,
-        tool_call_id: String,
-        /// Function name from the openai tool_call payload
-        /// (`tool_calls[i].function.name`).
-        function_name: String,
-        arguments: String,
-    },
-    #[schemars(title = "ToolResponse")]
-    ToolResponse {
-        response_id: String,
-        index: i64,
-        tool_call_id: String,
     },
     #[schemars(title = "Text")]
     Text { text: String },

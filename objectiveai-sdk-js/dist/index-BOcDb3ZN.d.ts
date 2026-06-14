@@ -1858,21 +1858,42 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
     type: z.ZodLiteral<"client_notification">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        function_name: z.ZodString;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
-        type: z.ZodEnum<{
-            file: "file";
-            text: "text";
-            reasoning: "reasoning";
-            refusal: "refusal";
-            audio: "audio";
-            image: "image";
-            tool_call: "tool_call";
-            video: "video";
-        }>;
-    }, z.core.$strip>>;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>;
     response_id: z.ZodString;
     type: z.ZodLiteral<"assistant_response">;
 }, z.core.$strip>, z.ZodObject<{
@@ -1886,10 +1907,10 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
             audio: "audio";
             image: "image";
             video: "video";
-            container: "container";
         }>;
     }, z.core.$strip>>;
     response_id: z.ZodString;
+    tool_call_id: z.ZodString;
     type: z.ZodLiteral<"tool_response">;
 }, z.core.$strip>]>;
 type CliCommandAgentsLogsReadAllResponseItem = z.infer<typeof CliCommandAgentsLogsReadAllResponseItemSchema>;
@@ -8429,19 +8450,6 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
     sender_agent_instance_hierarchy: z.ZodString;
     type: z.ZodLiteral<"function_execution_request">;
 }, z.core.$strip>, z.ZodObject<{
-    arguments: z.ZodString;
-    function_name: z.ZodString;
-    index: z.ZodNumber;
-    response_id: z.ZodString;
-    tool_call_id: z.ZodString;
-    tool_call_index: z.ZodNumber;
-    type: z.ZodLiteral<"tool_call">;
-}, z.core.$strip>, z.ZodObject<{
-    index: z.ZodNumber;
-    response_id: z.ZodString;
-    tool_call_id: z.ZodString;
-    type: z.ZodLiteral<"tool_response">;
-}, z.core.$strip>, z.ZodObject<{
     text: z.ZodString;
     type: z.ZodLiteral<"text">;
 }, z.core.$strip>, z.ZodIntersection<z.ZodObject<{
@@ -8592,21 +8600,42 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
     type: z.ZodLiteral<"client_notification">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        function_name: z.ZodString;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
-        type: z.ZodEnum<{
-            file: "file";
-            text: "text";
-            reasoning: "reasoning";
-            refusal: "refusal";
-            audio: "audio";
-            image: "image";
-            tool_call: "tool_call";
-            video: "video";
-        }>;
-    }, z.core.$strip>>;
+        tool_call_id: z.ZodString;
+        tool_call_index: z.ZodNumber;
+        type: z.ZodLiteral<"tool_call">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"refusal">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"reasoning">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"text">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"image">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"audio">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"video">;
+    }, z.core.$strip>, z.ZodObject<{
+        id: z.ZodNumber;
+        timestamp_delivered: z.ZodNumber;
+        type: z.ZodLiteral<"file">;
+    }, z.core.$strip>]>>;
     response_id: z.ZodString;
     type: z.ZodLiteral<"assistant_response">;
 }, z.core.$strip>, z.ZodObject<{
@@ -8620,10 +8649,10 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
             audio: "audio";
             image: "image";
             video: "video";
-            container: "container";
         }>;
     }, z.core.$strip>>;
     response_id: z.ZodString;
+    tool_call_id: z.ZodString;
     type: z.ZodLiteral<"tool_response">;
 }, z.core.$strip>]>, z.ZodLiteral<"agents_inactive">]>;
 type CliCommandAgentsLogsReadSubscribeResponseItem = z.infer<typeof CliCommandAgentsLogsReadSubscribeResponseItemSchema>;

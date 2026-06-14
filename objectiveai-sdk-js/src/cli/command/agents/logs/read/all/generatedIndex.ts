@@ -3,7 +3,6 @@
 export * from "./request_schema/index";
 export * from "./response_schema/index";
 export * from "./assistantResponsePart";
-export * from "./assistantResponsePartType";
 export * from "./clientNotificationPart";
 export * from "./clientNotificationPartType";
 export * from "./path";

@@ -28,8 +28,8 @@
 //! max_returned)` — never downgraded.
 
 use objectiveai_sdk::cli::command::agents::logs::read::all::{
-    AssistantResponsePart, AssistantResponsePartType, ClientNotificationPart,
-    ClientNotificationPartType, ResponseItem, ToolResponsePart, ToolResponsePartType,
+    AssistantResponsePart, ClientNotificationPart, ClientNotificationPartType, ResponseItem,
+    ToolResponsePart, ToolResponsePartType,
 };
 use sqlx::Row as _;
 
@@ -70,10 +70,23 @@ struct MsgRow {
     message_queue_key: Option<String>,
     /// `objectiveai.assistant_response_tool_calls.function_name` —
     /// `Some` only for tool-call rows; NULL → `None` for every other
-    /// table. Surfaced on [`AssistantResponsePart::function_name`] so
+    /// table. Surfaced on [`AssistantResponsePart::ToolCall`] so
     /// callers can dedupe tool calls by name without a round-trip
     /// through `agents logs read id`.
     function_name: Option<String>,
+    /// `tool_call_id` for the row — `COALESCE` of the
+    /// `assistant_response_tool_calls` join (assistant tool-call
+    /// rows) and the `tool_response` join (tool-response content
+    /// rows); these are mutually exclusive per row. `None` for every
+    /// other table. Used both to inline it on
+    /// `AssistantResponsePart::ToolCall` and to split `ToolResponse`
+    /// blocks per tool call.
+    tool_call_id: Option<String>,
+    /// `objectiveai.messages.row_sub_index` — the tool call's wire
+    /// index for `assistant_response_tool_calls` rows (and the
+    /// part_index for content rows). Surfaced as `tool_call_index` on
+    /// `AssistantResponsePart::ToolCall`.
+    row_sub_index: Option<i64>,
 }
 
 /// Coarse block-class for a `objectiveai.message_table` value. Block
@@ -99,8 +112,7 @@ fn block_class(t: MessageTable) -> BlockClass {
         | MessageTable::MessageQueueAudio
         | MessageTable::MessageQueueVideo
         | MessageTable::MessageQueueFile => BlockClass::ClientNotification,
-        MessageTable::ToolResponse
-        | MessageTable::ToolResponseContentText
+        MessageTable::ToolResponseContentText
         | MessageTable::ToolResponseContentImage
         | MessageTable::ToolResponseContentAudio
         | MessageTable::ToolResponseContentVideo
@@ -127,23 +139,48 @@ fn client_notification_kind(t: MessageTable) -> Option<ClientNotificationPartTyp
     }
 }
 
-fn assistant_response_kind(t: MessageTable) -> Option<AssistantResponsePartType> {
-    match t {
-        MessageTable::AssistantResponseRefusal => Some(AssistantResponsePartType::Refusal),
-        MessageTable::AssistantResponseReasoning => Some(AssistantResponsePartType::Reasoning),
-        MessageTable::AssistantResponseToolCalls => Some(AssistantResponsePartType::ToolCall),
-        MessageTable::AssistantResponseContentText => Some(AssistantResponsePartType::Text),
-        MessageTable::AssistantResponseContentImage => Some(AssistantResponsePartType::Image),
-        MessageTable::AssistantResponseContentAudio => Some(AssistantResponsePartType::Audio),
-        MessageTable::AssistantResponseContentVideo => Some(AssistantResponsePartType::Video),
-        MessageTable::AssistantResponseContentFile => Some(AssistantResponsePartType::File),
-        _ => None,
-    }
+/// Build the [`AssistantResponsePart`] for one `assistant_response_*`
+/// row. The `ToolCall` variant inlines the call's metadata
+/// (`function_name` / `tool_call_id` / `tool_call_index`); every other
+/// variant carries just `id` + `timestamp_delivered`.
+fn assistant_response_part(row: &MsgRow) -> Option<AssistantResponsePart> {
+    let id = row.id;
+    let timestamp_delivered = row.timestamp_delivered;
+    Some(match row.table_kind {
+        MessageTable::AssistantResponseToolCalls => AssistantResponsePart::ToolCall {
+            id,
+            timestamp_delivered,
+            function_name: row.function_name.clone().unwrap_or_default(),
+            tool_call_id: row.tool_call_id.clone().unwrap_or_default(),
+            tool_call_index: row.row_sub_index.unwrap_or_default(),
+        },
+        MessageTable::AssistantResponseRefusal => {
+            AssistantResponsePart::Refusal { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseReasoning => {
+            AssistantResponsePart::Reasoning { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseContentText => {
+            AssistantResponsePart::Text { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseContentImage => {
+            AssistantResponsePart::Image { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseContentAudio => {
+            AssistantResponsePart::Audio { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseContentVideo => {
+            AssistantResponsePart::Video { id, timestamp_delivered }
+        }
+        MessageTable::AssistantResponseContentFile => {
+            AssistantResponsePart::File { id, timestamp_delivered }
+        }
+        _ => return None,
+    })
 }
 
 fn tool_response_kind(t: MessageTable) -> Option<ToolResponsePartType> {
     match t {
-        MessageTable::ToolResponse => Some(ToolResponsePartType::Container),
         MessageTable::ToolResponseContentText => Some(ToolResponsePartType::Text),
         MessageTable::ToolResponseContentImage => Some(ToolResponsePartType::Image),
         MessageTable::ToolResponseContentAudio => Some(ToolResponsePartType::Audio),
@@ -178,7 +215,9 @@ const SELECT_SHAPE: &str = "SELECT \
     mq.id AS message_queue_id, \
     mq.enqueued_at AS timestamp_queued, \
     mq.key AS message_queue_key, \
-    atc.function_name AS function_name";
+    atc.function_name AS function_name, \
+    COALESCE(atc.tool_call_id, tr.tool_call_id) AS tool_call_id, \
+    m.row_sub_index AS row_sub_index";
 
 const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.message_queue_contents mqc \
@@ -201,7 +240,15 @@ const FROM_JOINS: &str = "FROM objectiveai.messages m \
         ON m.response_id = atc.response_id \
         AND m.row_index = atc.\"index\" \
         AND m.row_sub_index = atc.tool_call_index \
-        AND m.\"table\" = 'assistant_response_tool_calls'";
+        AND m.\"table\" = 'assistant_response_tool_calls' \
+    LEFT JOIN objectiveai.tool_response tr \
+        ON m.response_id = tr.response_id \
+        AND m.row_index = tr.\"index\" \
+        AND m.\"table\" IN ( \
+            'tool_response_content_text', 'tool_response_content_image', \
+            'tool_response_content_audio', 'tool_response_content_video', \
+            'tool_response_content_file' \
+        )";
 
 fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
     Ok(MsgRow {
@@ -215,6 +262,8 @@ fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
         timestamp_queued: r.try_get("timestamp_queued")?,
         message_queue_key: r.try_get("message_queue_key")?,
         function_name: r.try_get("function_name")?,
+        tool_call_id: r.try_get("tool_call_id")?,
+        row_sub_index: r.try_get("row_sub_index")?,
     })
 }
 
@@ -240,6 +289,10 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     /// only when the parent queue row had `--key` set —
     /// `message_queue.key`.
     let mut cur_key: Option<String> = None;
+    // `Some` only for an open `ToolResponse` block — the `tool_call_id`
+    // this block answers. Part of the ToolResponse boundary tuple so
+    // each block = exactly one tool call's response.
+    let mut cur_tool_call_id: Option<String> = None;
     let mut cur_notification_parts: Vec<ClientNotificationPart> = Vec::new();
     let mut cur_assistant_parts: Vec<AssistantResponsePart> = Vec::new();
     let mut cur_tool_parts: Vec<ToolResponsePart> = Vec::new();
@@ -251,6 +304,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                  mq_id: &mut Option<i64>,
                  timestamp_queued: &mut Option<i64>,
                  key: &mut Option<String>,
+                 tool_call_id: &mut Option<String>,
                  notification_parts: &mut Vec<ClientNotificationPart>,
                  assistant_parts: &mut Vec<AssistantResponsePart>,
                  tool_parts: &mut Vec<ToolResponsePart>,
@@ -278,6 +332,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 out.push(ResponseItem::ToolResponse {
                     agent_instance_hierarchy: std::mem::take(aih),
                     response_id: std::mem::take(rid),
+                    tool_call_id: tool_call_id.take().unwrap_or_default(),
                     parts: std::mem::take(tool_parts),
                 });
             }
@@ -288,6 +343,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 *mq_id = None;
                 *timestamp_queued = None;
                 *key = None;
+                *tool_call_id = None;
                 notification_parts.clear();
                 assistant_parts.clear();
                 tool_parts.clear();
@@ -304,6 +360,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
                     &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
+                    &mut cur_tool_call_id,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -323,6 +380,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
                     &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
+                    &mut cur_tool_call_id,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -342,6 +400,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 flush(
                     cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
                     &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
+                    &mut cur_tool_call_id,
                     &mut cur_notification_parts, &mut cur_assistant_parts,
                     &mut cur_tool_parts, &mut out,
                 );
@@ -370,11 +429,14 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             || cur_rid != row.response_id
             || (class == BlockClass::ClientNotification
                 && (cur_sender.as_deref() != row.sender_agent_instance_hierarchy.as_deref()
-                    || cur_mq_id != row.message_queue_id));
+                    || cur_mq_id != row.message_queue_id))
+            || (class == BlockClass::ToolResponse
+                && cur_tool_call_id.as_deref() != row.tool_call_id.as_deref());
         if boundary {
             flush(
                 cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
                 &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
+                &mut cur_tool_call_id,
                 &mut cur_notification_parts, &mut cur_assistant_parts,
                 &mut cur_tool_parts, &mut out,
             );
@@ -386,11 +448,19 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 cur_mq_id = row.message_queue_id;
                 cur_timestamp_queued = row.timestamp_queued;
                 cur_key = row.message_queue_key.clone();
+                cur_tool_call_id = None;
+            } else if class == BlockClass::ToolResponse {
+                cur_sender = None;
+                cur_mq_id = None;
+                cur_timestamp_queued = None;
+                cur_key = None;
+                cur_tool_call_id = row.tool_call_id.clone();
             } else {
                 cur_sender = None;
                 cur_mq_id = None;
                 cur_timestamp_queued = None;
                 cur_key = None;
+                cur_tool_call_id = None;
             }
         }
 
@@ -405,14 +475,9 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                 });
             }
             BlockClass::AssistantResponse => {
-                let r#type = assistant_response_kind(row.table_kind)
+                let part = assistant_response_part(&row)
                     .expect("class invariant: AssistantResponse maps to assistant_response_*");
-                cur_assistant_parts.push(AssistantResponsePart {
-                    id: row.id,
-                    timestamp_delivered: row.timestamp_delivered,
-                    r#type,
-                    function_name: row.function_name,
-                });
+                cur_assistant_parts.push(part);
             }
             BlockClass::ToolResponse => {
                 let r#type = tool_response_kind(row.table_kind)
@@ -430,6 +495,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     flush(
         cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
         &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
+        &mut cur_tool_call_id,
         &mut cur_notification_parts, &mut cur_assistant_parts,
         &mut cur_tool_parts, &mut out,
     );
@@ -517,7 +583,8 @@ pub async fn read_pending_for_parent(
                 s.agent_instance_hierarchy, s.timestamp_delivered, \
                 s.sender_agent_instance_hierarchy, \
                 s.message_queue_id, s.timestamp_queued, \
-                s.message_queue_key \
+                s.message_queue_key, s.function_name, \
+                s.tool_call_id, s.row_sub_index \
            FROM selected s \
           ORDER BY s.id ASC",
         select = SELECT_SHAPE,

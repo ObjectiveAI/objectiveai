@@ -7,11 +7,11 @@ import (
 	"fmt"
 )
 
-// Type tag for one `ToolResponse` part. `Container` is the
-// `tool_response` head row (carries `tool_call_id`); the other
-// five are content slots.
+// Type tag for one `ToolResponse` part — the table-kind of the
+// underlying `tool_response_content_*` row. The tool-call linkage
+// (`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`
+// block, not on the parts.
 type CliCommandAgentsLogsReadAllToolResponsePartType struct {
-	Container *string `validate:"omitempty,oneof=container"`
 	Text *string `validate:"omitempty,oneof=text"`
 	Image *string `validate:"omitempty,oneof=image"`
 	Audio *string `validate:"omitempty,oneof=audio"`
@@ -20,9 +20,6 @@ type CliCommandAgentsLogsReadAllToolResponsePartType struct {
 }
 
 func (v CliCommandAgentsLogsReadAllToolResponsePartType) MarshalJSON() ([]byte, error) {
-	if v.Container != nil {
-		return json.Marshal(v.Container)
-	}
 	if v.Text != nil {
 		return json.Marshal(v.Text)
 	}
@@ -42,17 +39,6 @@ func (v CliCommandAgentsLogsReadAllToolResponsePartType) MarshalJSON() ([]byte, 
 }
 
 func (v *CliCommandAgentsLogsReadAllToolResponsePartType) UnmarshalJSON(data []byte) error {
-	{
-		var try string
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsLogsReadAllToolResponsePartType{}
-			candidate.Container = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try string
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -113,7 +99,6 @@ func (v *CliCommandAgentsLogsReadAllToolResponsePartType) UnmarshalJSON(data []b
 
 func (v CliCommandAgentsLogsReadAllToolResponsePartType) Validate() error {
 	count := 0
-	if v.Container != nil { count++ }
 	if v.Text != nil { count++ }
 	if v.Image != nil { count++ }
 	if v.Audio != nil { count++ }

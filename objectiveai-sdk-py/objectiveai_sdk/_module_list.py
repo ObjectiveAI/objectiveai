@@ -171,7 +171,6 @@ MODULES = [
     'objectiveai_sdk.cli.command.agents.list.response_schema.path',
     'objectiveai_sdk.cli.command.agents.list.response_schema.request',
     'objectiveai_sdk.cli.command.agents.logs.read.all.assistant_response_part',
-    'objectiveai_sdk.cli.command.agents.logs.read.all.assistant_response_part_type',
     'objectiveai_sdk.cli.command.agents.logs.read.all.client_notification_part',
     'objectiveai_sdk.cli.command.agents.logs.read.all.client_notification_part_type',
     'objectiveai_sdk.cli.command.agents.logs.read.all.path',

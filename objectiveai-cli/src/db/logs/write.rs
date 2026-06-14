@@ -87,6 +87,24 @@ async fn insert_value<'a>(
         .await;
     }
 
+    // ToolResponse: the head row is written to `objectiveai.tool_response`
+    // purely as the `tool_call_id` lookup for its content rows (JOINed at
+    // read time by `read_all`). It emits NO `objectiveai.messages` event,
+    // so branch early — `value.message_table()` returns `None` for this
+    // variant and would panic the `.expect()` below.
+    if let RowValue::ToolResponse { response_id, index, tool_call_id, .. } = *value {
+        sqlx::query(
+            "INSERT INTO objectiveai.tool_response (response_id, \"index\", tool_call_id) \
+             VALUES ($1, $2, $3)",
+        )
+        .bind(response_id)
+        .bind(index as i64)
+        .bind(tool_call_id)
+        .execute(&**pool)
+        .await?;
+        return Ok(());
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -97,28 +115,9 @@ async fn insert_value<'a>(
         RowValue::MessageQueueContent { .. } => unreachable!(
             "MessageQueueContent handled by early-return branch above"
         ),
-        RowValue::ToolResponse { tool_call_id, .. } => {
-            sqlx::query(
-                "WITH data_ins AS (\
-                    INSERT INTO objectiveai.tool_response (response_id, \"index\", tool_call_id) \
-                    VALUES ($1, $2, $3) RETURNING response_id\
-                 )\
-                 INSERT INTO objectiveai.messages \
-                    (response_id, \"table\", row_index, row_sub_index, \
-                     agent_instance_hierarchy, \"timestamp\") \
-                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
-            )
-            .bind(response_id)
-            .bind(row_index)
-            .bind(tool_call_id)
-            .bind(mt)
-            .bind(row_index)
-            .bind(row_sub_index)
-            .bind(hier)
-            .bind(timestamp)
-            .execute(&**pool)
-            .await?;
-        }
+        RowValue::ToolResponse { .. } => unreachable!(
+            "ToolResponse handled by early-return branch above"
+        ),
         RowValue::AssistantResponseRefusal { text, .. } => {
             sqlx::query(
                 "WITH data_ins AS (\
@@ -233,6 +232,26 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         return Ok(());
     }
 
+    // ToolResponse: its head row has no `messages` event (it's a
+    // `tool_call_id` lookup only), so there is nothing to downgrade.
+    // `tool_call_id` is immutable in practice (the shadow's `body_eq`
+    // returns true, so an Update is never dispatched), making this
+    // branch effectively unreachable; do a bare UPDATE defensively.
+    // Branch early — `value.message_table()` returns `None` for this
+    // variant and would panic the `.expect()` below.
+    if let RowValue::ToolResponse { response_id, index, tool_call_id, .. } = *value {
+        sqlx::query(
+            "UPDATE objectiveai.tool_response SET tool_call_id = $1 \
+             WHERE response_id = $2 AND \"index\" = $3",
+        )
+        .bind(tool_call_id)
+        .bind(response_id)
+        .bind(index as i64)
+        .execute(&**pool)
+        .await?;
+        return Ok(());
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -243,16 +262,9 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::MessageQueueContent { .. } => unreachable!(
             "MessageQueueContent handled by short-circuit above"
         ),
-        RowValue::ToolResponse { tool_call_id, .. } => {
-            run_update_with_downgrade(
-                pool,
-                "UPDATE objectiveai.tool_response SET tool_call_id = $A \
-                 WHERE response_id = $RESP AND \"index\" = $RI",
-                response_id, row_index, row_sub_index, mt, hier,
-                &[("A", BindVal::Str(tool_call_id))],
-                &[BindIdx::Resp, BindIdx::Ri],
-            ).await?;
-        }
+        RowValue::ToolResponse { .. } => unreachable!(
+            "ToolResponse handled by short-circuit above"
+        ),
         RowValue::AssistantResponseRefusal { text, .. } => {
             run_update_with_downgrade(
                 pool,

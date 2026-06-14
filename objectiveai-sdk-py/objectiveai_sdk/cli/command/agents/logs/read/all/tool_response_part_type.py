@@ -6,10 +6,11 @@ from pydantic import ConfigDict, RootModel
 
 
 class ToolResponsePartType(RootModel):
-    """Type tag for one `ToolResponse` part. `Container` is the
-`tool_response` head row (carries `tool_call_id`); the other
-five are content slots."""
+    """Type tag for one `ToolResponse` part — the table-kind of the
+underlying `tool_response_content_*` row. The tool-call linkage
+(`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`
+block, not on the parts."""
     model_config = ConfigDict(title='cli.command.agents.logs.read.all.ToolResponsePartType')
 
-    root: Literal['container', 'text', 'image', 'audio', 'video', 'file']
+    root: Literal['text', 'image', 'audio', 'video', 'file']
 

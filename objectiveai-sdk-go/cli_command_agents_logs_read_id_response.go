@@ -91,65 +91,6 @@ func (v *CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest) UnmarshalJS
 }
 func (CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest) SchemaVariantTitle() string { return "FunctionExecutionRequest" }
 
-type CliCommandAgentsLogsReadIdResponseToolCall struct {
-	Arguments string `json:"arguments"`
-	// Function name from the openai tool_call payload
-	// (`tool_calls[i].function.name`).
-	FunctionName string `json:"function_name"`
-	Index int64 `json:"index" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	ResponseID string `json:"response_id"`
-	ToolCallID string `json:"tool_call_id"`
-	ToolCallIndex int64 `json:"tool_call_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	Type string `json:"type" validate:"oneof=tool_call"`
-}
-
-func (v *CliCommandAgentsLogsReadIdResponseToolCall) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"arguments", "function_name", "index", "response_id", "tool_call_id", "tool_call_index", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsReadIdResponseToolCall: missing required field %q", key)
-		}
-	}
-	type Alias CliCommandAgentsLogsReadIdResponseToolCall
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliCommandAgentsLogsReadIdResponseToolCall(alias)
-	return nil
-}
-func (CliCommandAgentsLogsReadIdResponseToolCall) SchemaVariantTitle() string { return "ToolCall" }
-
-type CliCommandAgentsLogsReadIdResponseToolResponse struct {
-	Index int64 `json:"index" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	ResponseID string `json:"response_id"`
-	ToolCallID string `json:"tool_call_id"`
-	Type string `json:"type" validate:"oneof=tool_response"`
-}
-
-func (v *CliCommandAgentsLogsReadIdResponseToolResponse) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"index", "response_id", "tool_call_id", "type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsReadIdResponseToolResponse: missing required field %q", key)
-		}
-	}
-	type Alias CliCommandAgentsLogsReadIdResponseToolResponse
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
-	}
-	*v = CliCommandAgentsLogsReadIdResponseToolResponse(alias)
-	return nil
-}
-func (CliCommandAgentsLogsReadIdResponseToolResponse) SchemaVariantTitle() string { return "ToolResponse" }
-
 type CliCommandAgentsLogsReadIdResponseText struct {
 	Text string `json:"text"`
 	Type string `json:"type" validate:"oneof=text"`
@@ -312,17 +253,15 @@ func (CliCommandAgentsLogsReadIdResponseFile) SchemaVariantTitle() string { retu
 // [`CommandResponse::into_mcp`] hands media variants over as
 // [`ContentBlock`]s and text as a bare JSON string — matching the
 // existing `agents queue read id` projection of `RichContentPart`.
-// The five non-content variants render as JSONL with their full
-// typed body so callers can introspect request-blob /
-// tool-response / tool-call metadata.
+// The three request-blob variants render as JSONL with their full
+// typed `…CreateParams` body so callers can introspect request
+// metadata.
 //
 // [`ContentBlock`]: crate::mcp::tool::ContentBlock
 type CliCommandAgentsLogsReadIdResponse struct {
 	AgentCompletionRequest *CliCommandAgentsLogsReadIdResponseAgentCompletionRequest `outerObject:"true"`
 	VectorCompletionRequest *CliCommandAgentsLogsReadIdResponseVectorCompletionRequest `outerObject:"true"`
 	FunctionExecutionRequest *CliCommandAgentsLogsReadIdResponseFunctionExecutionRequest `outerObject:"true"`
-	ToolCall *CliCommandAgentsLogsReadIdResponseToolCall `outerObject:"true"`
-	ToolResponse *CliCommandAgentsLogsReadIdResponseToolResponse `outerObject:"true"`
 	Text *CliCommandAgentsLogsReadIdResponseText `outerObject:"true"`
 	Image *CliCommandAgentsLogsReadIdResponseImage `outerObject:"true"`
 	Audio *CliCommandAgentsLogsReadIdResponseAudio `outerObject:"true"`
@@ -339,12 +278,6 @@ func (v CliCommandAgentsLogsReadIdResponse) MarshalJSON() ([]byte, error) {
 	}
 	if v.FunctionExecutionRequest != nil {
 		return json.Marshal(v.FunctionExecutionRequest)
-	}
-	if v.ToolCall != nil {
-		return json.Marshal(v.ToolCall)
-	}
-	if v.ToolResponse != nil {
-		return json.Marshal(v.ToolResponse)
 	}
 	if v.Text != nil {
 		return json.Marshal(v.Text)
@@ -392,28 +325,6 @@ func (v *CliCommandAgentsLogsReadIdResponse) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsReadIdResponse{}
 			candidate.FunctionExecutionRequest = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsLogsReadIdResponseToolCall
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsLogsReadIdResponse{}
-			candidate.ToolCall = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsLogsReadIdResponseToolResponse
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsLogsReadIdResponse{}
-			candidate.ToolResponse = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -483,8 +394,6 @@ func (v CliCommandAgentsLogsReadIdResponse) Validate() error {
 	if v.AgentCompletionRequest != nil { count++ }
 	if v.VectorCompletionRequest != nil { count++ }
 	if v.FunctionExecutionRequest != nil { count++ }
-	if v.ToolCall != nil { count++ }
-	if v.ToolResponse != nil { count++ }
 	if v.Text != nil { count++ }
 	if v.Image != nil { count++ }
 	if v.Audio != nil { count++ }

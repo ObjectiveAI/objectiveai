@@ -6,7 +6,8 @@
 //! `FunctionExecutionRequest`) or a multi-row block
 //! (`ClientNotification` / `AssistantResponse` / `ToolResponse`)
 //! formed by joining consecutive `logs.messages` rows that share
-//! `(block_class, agent_instance_hierarchy, response_id)`.
+//! `(block_class, agent_instance_hierarchy, response_id)` —
+//! `ToolResponse` additionally splits per `tool_call_id`.
 //!
 //! `response_id` is carried on every variant — for the three
 //! request-blob variants it's the chunk's own id, for the three
@@ -198,49 +199,60 @@ pub struct ClientNotificationPart {
     pub r#type: ClientNotificationPartType,
 }
 
-/// Type tag for one `AssistantResponse` part — the table-kind of
-/// the underlying `assistant_response_*` row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.AssistantResponsePartType")]
-pub enum AssistantResponsePartType {
-    Refusal,
-    Reasoning,
-    ToolCall,
-    Text,
-    Image,
-    Audio,
-    Video,
-    File,
-}
-
-/// One row inside an `AssistantResponse` block.
+/// One row inside an `AssistantResponse` block, tagged by the
+/// table-kind of the underlying `assistant_response_*` row.
+///
+/// The `ToolCall` variant inlines the call's metadata
+/// (`function_name` / `tool_call_id` / `tool_call_index`) so callers
+/// can dedupe and correlate without a per-row round-trip; its `id`
+/// addresses the same `assistant_response_tool_calls` row, which
+/// `agents logs read id <id>` returns as the call's `arguments`
+/// (text). Every other variant carries only `id` (the
+/// `logs.messages."index"` to pass to `agents logs read id`) and the
+/// delivery timestamp.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.read.all.AssistantResponsePart")]
-pub struct AssistantResponsePart {
-    /// `logs.messages."index"` for this row. Pass to
-    /// `agents logs read id <n>` for the typed body.
-    pub id: i64,
-    pub timestamp_delivered: i64,
-    pub r#type: AssistantResponsePartType,
-    /// `function.name`, present only for `type = tool_call` rows
-    /// (`objectiveai.assistant_response_tool_calls.function_name`);
-    /// absent for every other part type. Surfaced here so callers
-    /// can dedupe tool calls by name without a per-row
-    /// `agents logs read id` round-trip.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub function_name: Option<String>,
+pub enum AssistantResponsePart {
+    #[schemars(title = "ToolCall")]
+    ToolCall {
+        /// `logs.messages."index"` for the tool-call row. Pass to
+        /// `agents logs read id <n>` to read the call's `arguments`
+        /// as text.
+        id: i64,
+        timestamp_delivered: i64,
+        /// `objectiveai.assistant_response_tool_calls.function_name`.
+        function_name: String,
+        /// The wire tool-call id this row carries.
+        tool_call_id: String,
+        /// The tool call's wire index within the assistant message's
+        /// `tool_calls[]`.
+        tool_call_index: i64,
+    },
+    #[schemars(title = "Refusal")]
+    Refusal { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "Reasoning")]
+    Reasoning { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "Text")]
+    Text { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "Image")]
+    Image { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "Audio")]
+    Audio { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "Video")]
+    Video { id: i64, timestamp_delivered: i64 },
+    #[schemars(title = "File")]
+    File { id: i64, timestamp_delivered: i64 },
 }
 
-/// Type tag for one `ToolResponse` part. `Container` is the
-/// `tool_response` head row (carries `tool_call_id`); the other
-/// five are content slots.
+/// Type tag for one `ToolResponse` part — the table-kind of the
+/// underlying `tool_response_content_*` row. The tool-call linkage
+/// (`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`
+/// block, not on the parts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.read.all.ToolResponsePartType")]
 pub enum ToolResponsePartType {
-    Container,
     Text,
     Image,
     Audio,
@@ -269,9 +281,11 @@ pub struct ToolResponsePart {
 /// producer, so no separate sender field exists.
 ///
 /// Block-coalescing boundary tuple: `(class,
-/// agent_instance_hierarchy, response_id)` for assistant/tool
-/// blocks; `(class, agent_instance_hierarchy, response_id,
-/// sender, message_queue_id)` for `ClientNotification` blocks.
+/// agent_instance_hierarchy, response_id)` for `AssistantResponse`;
+/// `(class, agent_instance_hierarchy, response_id, tool_call_id)`
+/// for `ToolResponse` (one block per tool call); `(class,
+/// agent_instance_hierarchy, response_id, sender, message_queue_id)`
+/// for `ClientNotification` blocks.
 /// One `ClientNotification` block = one consumed
 /// `message_queue` parent row, so `timestamp_queued` and
 /// `sender_agent_instance_hierarchy` are well-defined
@@ -337,10 +351,16 @@ pub enum ResponseItem {
         response_id: String,
         parts: Vec<AssistantResponsePart>,
     },
+    /// One tool call's response. Blocks are grouped per
+    /// `tool_call_id` (in addition to `agent_instance_hierarchy` +
+    /// `response_id`), so two responses in the same turn yield two
+    /// blocks.
     #[schemars(title = "ToolResponse")]
     ToolResponse {
         agent_instance_hierarchy: String,
         response_id: String,
+        /// The wire tool-call id this response answers.
+        tool_call_id: String,
         parts: Vec<ToolResponsePart>,
     },
 }

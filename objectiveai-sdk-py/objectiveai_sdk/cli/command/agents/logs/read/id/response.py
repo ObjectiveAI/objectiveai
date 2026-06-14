@@ -42,27 +42,6 @@ class ResponseFunctionExecutionRequest(BaseModel):
     type_: Literal['function_execution_request'] = Field(..., alias='type')
 
 
-class ResponseToolCall(BaseModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolCall'})
-
-    arguments: str
-    function_name: str = Field(..., description='Function name from the openai tool_call payload\n(`tool_calls[i].function.name`).')
-    index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    response_id: str
-    tool_call_id: str
-    tool_call_index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    type_: Literal['tool_call'] = Field(..., alias='type')
-
-
-class ResponseToolResponse(BaseModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolResponse'})
-
-    index: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    response_id: str
-    tool_call_id: str
-    type_: Literal['tool_response'] = Field(..., alias='type')
-
-
 class ResponseText(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Text'})
 
@@ -100,12 +79,12 @@ class Response(RootModel):
 [`CommandResponse::into_mcp`] hands media variants over as
 [`ContentBlock`]s and text as a bare JSON string — matching the
 existing `agents queue read id` projection of `RichContentPart`.
-The five non-content variants render as JSONL with their full
-typed body so callers can introspect request-blob /
-tool-response / tool-call metadata.
+The three request-blob variants render as JSONL with their full
+typed `…CreateParams` body so callers can introspect request
+metadata.
 
 [`ContentBlock`]: crate::mcp::tool::ContentBlock"""
     model_config = ConfigDict(title='cli.command.agents.logs.read.id.Response')
 
-    root: Union[ResponseAgentCompletionRequest, ResponseVectorCompletionRequest, ResponseFunctionExecutionRequest, ResponseToolCall, ResponseToolResponse, ResponseText, ResponseImage, ResponseAudio, ResponseVideo, ResponseFile]
+    root: Union[ResponseAgentCompletionRequest, ResponseVectorCompletionRequest, ResponseFunctionExecutionRequest, ResponseText, ResponseImage, ResponseAudio, ResponseVideo, ResponseFile]
 

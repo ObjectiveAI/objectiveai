@@ -496,15 +496,42 @@ async function agentsListResponseSchemaExecuteTransform(request, transform) {
   }
   return first;
 }
-var CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema = zod.z.enum(["refusal", "reasoning", "tool_call", "text", "image", "audio", "video", "file"]).describe("Type tag for one `AssistantResponse` part \u2014 the table-kind of\nthe underlying `assistant_response_*` row.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePartType" });
-
-// src/cli/command/agents/logs/read/all/assistantResponsePart.ts
-var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = zod.z.object({
-  function_name: zod.z.string().nullable().describe("`function.name`, present only for `type = tool_call` rows\n(`objectiveai.assistant_response_tool_calls.function_name`);\nabsent for every other part type. Surfaced here so callers\ncan dedupe tool calls by name without a per-row\n`agents logs read id` round-trip.").meta({ omitempty: true }).optional(),
-  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
+var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = zod.z.union([zod.z.object({
+  function_name: zod.z.string().describe("`objectiveai.assistant_response_tool_calls.function_name`."),
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call\'s `arguments`\nas text.'),
   timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema
-}).describe("One row inside an `AssistantResponse` block.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePart" });
+  tool_call_id: zod.z.string().describe("The wire tool-call id this row carries."),
+  tool_call_index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("The tool call's wire index within the assistant message's\n`tool_calls[]`."),
+  type: zod.z.literal("tool_call")
+}).meta({ "variantTitle": "ToolCall" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("refusal")
+}).meta({ "variantTitle": "Refusal" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("reasoning")
+}).meta({ "variantTitle": "Reasoning" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("text")
+}).meta({ "variantTitle": "Text" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("image")
+}).meta({ "variantTitle": "Image" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("audio")
+}).meta({ "variantTitle": "Audio" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("video")
+}).meta({ "variantTitle": "Video" }), zod.z.object({
+  id: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  type: zod.z.literal("file")
+}).meta({ "variantTitle": "File" })]).describe("One row inside an `AssistantResponse` block, tagged by the\ntable-kind of the underlying `assistant_response_*` row.\n\nThe `ToolCall` variant inlines the call's metadata\n(`function_name` / `tool_call_id` / `tool_call_index`) so callers\ncan dedupe and correlate without a per-row round-trip; its `id`\naddresses the same `assistant_response_tool_calls` row, which\n`agents logs read id <id>` returns as the call's `arguments`\n(text). Every other variant carries only `id` (the\n`logs.messages.\"index\"` to pass to `agents logs read id`) and the\ndelivery timestamp.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePart" });
 var CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema = zod.z.enum(["text", "image", "audio", "video", "file"]).describe("Type tag for one `ClientNotification` part \u2014 the table-kind of\nthe underlying `message_queue_*` content row.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPartType" });
 
 // src/cli/command/agents/logs/read/all/clientNotificationPart.ts
@@ -513,7 +540,7 @@ var CliCommandAgentsLogsReadAllClientNotificationPartSchema = zod.z.object({
   timestamp_delivered: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."timestamp"` \u2014 when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.'),
   type: CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema
 }).describe("One row inside a `ClientNotification` block \u2014 a consumed\n`message_queue_contents` entry. `timestamp_queued` is on the\nenclosing block (it lives on `message_queue.enqueued_at`, not\nper-content); only the per-row consumption timestamp is here.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPart" });
-var CliCommandAgentsLogsReadAllToolResponsePartTypeSchema = zod.z.enum(["container", "text", "image", "audio", "video", "file"]).describe("Type tag for one `ToolResponse` part. `Container` is the\n`tool_response` head row (carries `tool_call_id`); the other\nfive are content slots.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePartType" });
+var CliCommandAgentsLogsReadAllToolResponsePartTypeSchema = zod.z.enum(["text", "image", "audio", "video", "file"]).describe("Type tag for one `ToolResponse` part \u2014 the table-kind of the\nunderlying `tool_response_content_*` row. The tool-call linkage\n(`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`\nblock, not on the parts.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePartType" });
 
 // src/cli/command/agents/logs/read/all/toolResponsePart.ts
 var CliCommandAgentsLogsReadAllToolResponsePartSchema = zod.z.object({
@@ -561,8 +588,9 @@ var CliCommandAgentsLogsReadAllResponseItemSchema = zod.z.union([zod.z.object({
   agent_instance_hierarchy: zod.z.string(),
   parts: zod.z.array(CliCommandAgentsLogsReadAllToolResponsePartSchema),
   response_id: zod.z.string(),
+  tool_call_id: zod.z.string().describe("The wire tool-call id this response answers."),
   type: zod.z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for assistant/tool\nblocks; `(class, agent_instance_hierarchy, response_id,\nsender, message_queue_id)` for `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
+}).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
 
 // src/viewer/command/agents/logs/read/all.ts
 function agentsLogsReadAllExecute(request) {
@@ -1366,19 +1394,6 @@ var CliCommandAgentsLogsReadIdResponseSchema = zod.z.union([zod.z.object({
   sender_agent_instance_hierarchy: zod.z.string(),
   type: zod.z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), zod.z.object({
-  arguments: zod.z.string(),
-  function_name: zod.z.string().describe("Function name from the openai tool_call payload\n(`tool_calls[i].function.name`)."),
-  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: zod.z.string(),
-  tool_call_id: zod.z.string(),
-  tool_call_index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  type: zod.z.literal("tool_call")
-}).meta({ "variantTitle": "ToolCall" }), zod.z.object({
-  index: zod.z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  response_id: zod.z.string(),
-  tool_call_id: zod.z.string(),
-  type: zod.z.literal("tool_response")
-}).meta({ "variantTitle": "ToolResponse" }), zod.z.object({
   text: zod.z.string(),
   type: zod.z.literal("text")
 }).meta({ "variantTitle": "Text" }), AgentCompletionsMessageImageUrlSchema.and(zod.z.object({
@@ -1389,7 +1404,7 @@ var CliCommandAgentsLogsReadIdResponseSchema = zod.z.union([zod.z.object({
   type: zod.z.literal("video")
 })).meta({ "variantTitle": "Video" }), AgentCompletionsMessageFileSchema.and(zod.z.object({
   type: zod.z.literal("file")
-})).meta({ "variantTitle": "File" })]).describe('Resolved payload for one `logs.messages."index"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string \u2014 matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe five non-content variants render as JSONL with their full\ntyped body so callers can introspect request-blob /\ntool-response / tool-call metadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock').meta({ title: "cli.command.agents.logs.read.id.Response" });
+})).meta({ "variantTitle": "File" })]).describe('Resolved payload for one `logs.messages."index"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string \u2014 matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe three request-blob variants render as JSONL with their full\ntyped `\u2026CreateParams` body so callers can introspect request\nmetadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock').meta({ title: "cli.command.agents.logs.read.id.Response" });
 
 // src/viewer/command/agents/logs/read/id.ts
 async function agentsLogsReadIdExecute(request) {

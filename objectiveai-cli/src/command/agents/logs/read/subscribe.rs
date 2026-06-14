@@ -208,7 +208,8 @@ async fn resolve_target(
 ///   variants (8 total — request blobs and client notifications
 ///   share this bucket per the spec).
 /// - `assistant` → 8 `assistant_response_*` variants.
-/// - `tool` → 6 `tool_response*` variants.
+/// - `tool` → 5 `tool_response_content_*` variants (the
+///   `tool_response` head row emits no `messages` event).
 fn build_kind_filter(filter: Option<KindFilter>) -> Option<Vec<MessageTable>> {
     let f = filter?;
     let mut kinds: Vec<MessageTable> = Vec::new();
@@ -238,7 +239,6 @@ fn build_kind_filter(filter: Option<KindFilter>) -> Option<Vec<MessageTable>> {
     }
     if f.tool {
         kinds.extend_from_slice(&[
-            MessageTable::ToolResponse,
             MessageTable::ToolResponseContentText,
             MessageTable::ToolResponseContentImage,
             MessageTable::ToolResponseContentAudio,

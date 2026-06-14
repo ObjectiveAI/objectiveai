@@ -66,11 +66,16 @@ rows, so there's no separate sender. The
 
 
 class ResponseItemToolResponse(BaseModel):
+    """One tool call's response. Blocks are grouped per
+`tool_call_id` (in addition to `agent_instance_hierarchy` +
+`response_id`), so two responses in the same turn yield two
+blocks."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolResponse'})
 
     agent_instance_hierarchy: str
     parts: list[ToolResponsePart]
     response_id: str
+    tool_call_id: str = Field(..., description='The wire tool-call id this response answers.')
     type_: Literal['tool_response'] = Field(..., alias='type')
 
 
@@ -85,9 +90,11 @@ the agent itself — their `agent_instance_hierarchy` IS the
 producer, so no separate sender field exists.
 
 Block-coalescing boundary tuple: `(class,
-agent_instance_hierarchy, response_id)` for assistant/tool
-blocks; `(class, agent_instance_hierarchy, response_id,
-sender, message_queue_id)` for `ClientNotification` blocks.
+agent_instance_hierarchy, response_id)` for `AssistantResponse`;
+`(class, agent_instance_hierarchy, response_id, tool_call_id)`
+for `ToolResponse` (one block per tool call); `(class,
+agent_instance_hierarchy, response_id, sender, message_queue_id)`
+for `ClientNotification` blocks.
 One `ClientNotification` block = one consumed
 `message_queue` parent row, so `timestamp_queued` and
 `sender_agent_instance_hierarchy` are well-defined

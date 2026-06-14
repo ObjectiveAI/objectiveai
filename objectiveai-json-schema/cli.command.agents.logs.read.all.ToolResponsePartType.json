@@ -1,9 +1,8 @@
 {
   "title": "cli.command.agents.logs.read.all.ToolResponsePartType",
-  "description": "Type tag for one `ToolResponse` part. `Container` is the\n`tool_response` head row (carries `tool_call_id`); the other\nfive are content slots.",
+  "description": "Type tag for one `ToolResponse` part — the table-kind of the\nunderlying `tool_response_content_*` row. The tool-call linkage\n(`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`\nblock, not on the parts.",
   "type": "string",
   "enum": [
-    "container",
     "text",
     "image",
     "audio",

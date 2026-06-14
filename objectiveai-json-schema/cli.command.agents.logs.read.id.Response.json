@@ -1,6 +1,6 @@
 {
   "title": "cli.command.agents.logs.read.id.Response",
-  "description": "Resolved payload for one `logs.messages.\"index\"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string — matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe five non-content variants render as JSONL with their full\ntyped body so callers can introspect request-blob /\ntool-response / tool-call metadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock",
+  "description": "Resolved payload for one `logs.messages.\"index\"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string — matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe three request-blob variants render as JSONL with their full\ntyped `…CreateParams` body so callers can introspect request\nmetadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock",
   "anyOf": [
     {
       "title": "AgentCompletionRequest",
@@ -76,64 +76,6 @@
           "type": "string",
           "enum": [
             "function_execution_request"
-          ]
-        }
-      }
-    },
-    {
-      "title": "ToolCall",
-      "type": "object",
-      "properties": {
-        "arguments": {
-          "type": "string"
-        },
-        "function_name": {
-          "description": "Function name from the openai tool_call payload\n(`tool_calls[i].function.name`).",
-          "type": "string"
-        },
-        "index": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "response_id": {
-          "type": "string"
-        },
-        "tool_call_id": {
-          "type": "string"
-        },
-        "tool_call_index": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "tool_call"
-          ]
-        }
-      }
-    },
-    {
-      "title": "ToolResponse",
-      "type": "object",
-      "properties": {
-        "index": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "response_id": {
-          "type": "string"
-        },
-        "tool_call_id": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": [
-            "tool_response"
           ]
         }
       }

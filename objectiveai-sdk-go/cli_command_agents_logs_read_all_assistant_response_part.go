@@ -7,41 +7,380 @@ import (
 	"fmt"
 )
 
-// One row inside an `AssistantResponse` block.
-type CliCommandAgentsLogsReadAllAssistantResponsePart struct {
-	// `function.name`, present only for `type = tool_call` rows
-	// (`objectiveai.assistant_response_tool_calls.function_name`);
-	// absent for every other part type. Surfaced here so callers
-	// can dedupe tool calls by name without a per-row
-	// `agents logs read id` round-trip.
-	FunctionName *string `json:"function_name,omitempty"`
-	// `logs.messages."index"` for this row. Pass to
-	// `agents logs read id <n>` for the typed body.
+type CliCommandAgentsLogsReadAllAssistantResponsePartToolCall struct {
+	// `objectiveai.assistant_response_tool_calls.function_name`.
+	FunctionName string `json:"function_name"`
+	// `logs.messages."index"` for the tool-call row. Pass to
+	// `agents logs read id <n>` to read the call's `arguments`
+	// as text.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	Type CliCommandAgentsLogsReadAllAssistantResponsePartType `json:"type"`
+	// The wire tool-call id this row carries.
+	ToolCallID string `json:"tool_call_id"`
+	// The tool call's wire index within the assistant message's
+	// `tool_calls[]`.
+	ToolCallIndex int64 `json:"tool_call_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=tool_call"`
 }
 
-func (CliCommandAgentsLogsReadAllAssistantResponsePart) SchemaTitle() string { return "cli.command.agents.logs.read.all.AssistantResponsePart" }
-func (v CliCommandAgentsLogsReadAllAssistantResponsePart) Validate() error {
-	return variantValidator.Struct(v)
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartToolCall) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"function_name", "id", "timestamp_delivered", "tool_call_id", "tool_call_index", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartToolCall: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartToolCall
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartToolCall(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartToolCall) SchemaVariantTitle() string { return "ToolCall" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartRefusal struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=refusal"`
 }
 
-func (v *CliCommandAgentsLogsReadAllAssistantResponsePart) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartRefusal) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	for _, key := range []string{"id", "timestamp_delivered", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePart: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartRefusal: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsLogsReadAllAssistantResponsePart
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartRefusal
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsLogsReadAllAssistantResponsePart(alias)
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartRefusal(alias)
 	return nil
 }
+func (CliCommandAgentsLogsReadAllAssistantResponsePartRefusal) SchemaVariantTitle() string { return "Refusal" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartReasoning struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=reasoning"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartReasoning) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartReasoning: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartReasoning
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartReasoning(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartReasoning) SchemaVariantTitle() string { return "Reasoning" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartText struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=text"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartText) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartText: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartText
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartText(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartText) SchemaVariantTitle() string { return "Text" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartImage struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=image"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartImage) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartImage: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartImage
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartImage(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartImage) SchemaVariantTitle() string { return "Image" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartAudio struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=audio"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartAudio) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartAudio: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartAudio
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartAudio(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartAudio) SchemaVariantTitle() string { return "Audio" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartVideo struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=video"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartVideo) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartVideo: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartVideo
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartVideo(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartVideo) SchemaVariantTitle() string { return "Video" }
+
+type CliCommandAgentsLogsReadAllAssistantResponsePartFile struct {
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=file"`
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePartFile) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartFile: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsReadAllAssistantResponsePartFile
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsReadAllAssistantResponsePartFile(alias)
+	return nil
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePartFile) SchemaVariantTitle() string { return "File" }
+
+// One row inside an `AssistantResponse` block, tagged by the
+// table-kind of the underlying `assistant_response_*` row.
+//
+// The `ToolCall` variant inlines the call's metadata
+// (`function_name` / `tool_call_id` / `tool_call_index`) so callers
+// can dedupe and correlate without a per-row round-trip; its `id`
+// addresses the same `assistant_response_tool_calls` row, which
+// `agents logs read id <id>` returns as the call's `arguments`
+// (text). Every other variant carries only `id` (the
+// `logs.messages."index"` to pass to `agents logs read id`) and the
+// delivery timestamp.
+type CliCommandAgentsLogsReadAllAssistantResponsePart struct {
+	ToolCall *CliCommandAgentsLogsReadAllAssistantResponsePartToolCall `outerObject:"true"`
+	Refusal *CliCommandAgentsLogsReadAllAssistantResponsePartRefusal `outerObject:"true"`
+	Reasoning *CliCommandAgentsLogsReadAllAssistantResponsePartReasoning `outerObject:"true"`
+	Text *CliCommandAgentsLogsReadAllAssistantResponsePartText `outerObject:"true"`
+	Image *CliCommandAgentsLogsReadAllAssistantResponsePartImage `outerObject:"true"`
+	Audio *CliCommandAgentsLogsReadAllAssistantResponsePartAudio `outerObject:"true"`
+	Video *CliCommandAgentsLogsReadAllAssistantResponsePartVideo `outerObject:"true"`
+	File *CliCommandAgentsLogsReadAllAssistantResponsePartFile `outerObject:"true"`
+}
+
+func (v CliCommandAgentsLogsReadAllAssistantResponsePart) MarshalJSON() ([]byte, error) {
+	if v.ToolCall != nil {
+		return json.Marshal(v.ToolCall)
+	}
+	if v.Refusal != nil {
+		return json.Marshal(v.Refusal)
+	}
+	if v.Reasoning != nil {
+		return json.Marshal(v.Reasoning)
+	}
+	if v.Text != nil {
+		return json.Marshal(v.Text)
+	}
+	if v.Image != nil {
+		return json.Marshal(v.Image)
+	}
+	if v.Audio != nil {
+		return json.Marshal(v.Audio)
+	}
+	if v.Video != nil {
+		return json.Marshal(v.Video)
+	}
+	if v.File != nil {
+		return json.Marshal(v.File)
+	}
+	return []byte("null"), nil
+}
+
+func (v *CliCommandAgentsLogsReadAllAssistantResponsePart) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartToolCall
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.ToolCall = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartRefusal
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Refusal = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartReasoning
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Reasoning = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartText
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Text = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartImage
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Image = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartAudio
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Audio = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartVideo
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.Video = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsReadAllAssistantResponsePartFile
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsReadAllAssistantResponsePart{}
+			candidate.File = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of CliCommandAgentsLogsReadAllAssistantResponsePart")
+}
+
+func (v CliCommandAgentsLogsReadAllAssistantResponsePart) Validate() error {
+	count := 0
+	if v.ToolCall != nil { count++ }
+	if v.Refusal != nil { count++ }
+	if v.Reasoning != nil { count++ }
+	if v.Text != nil { count++ }
+	if v.Image != nil { count++ }
+	if v.Audio != nil { count++ }
+	if v.Video != nil { count++ }
+	if v.File != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePart: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (CliCommandAgentsLogsReadAllAssistantResponsePart) SchemaTitle() string { return "cli.command.agents.logs.read.all.AssistantResponsePart" }
+

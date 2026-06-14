@@ -1,6 +1,6 @@
 {
   "title": "cli.command.agents.logs.read.all.ResponseItem",
-  "description": "One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender ≠ producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself — their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for assistant/tool\nblocks; `(class, agent_instance_hierarchy, response_id,\nsender, message_queue_id)` for `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.",
+  "description": "One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender ≠ producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself — their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.",
   "anyOf": [
     {
       "title": "AgentCompletionRequest",
@@ -169,6 +169,7 @@
     },
     {
       "title": "ToolResponse",
+      "description": "One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.",
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {
@@ -181,6 +182,10 @@
           }
         },
         "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this response answers.",
           "type": "string"
         },
         "type": {
