@@ -98,7 +98,7 @@ export async function startRig(specs: UpstreamSpec[]): Promise<Rig> {
     );
     const client = new Client({
       name: 'objectiveai-mcp-proxy-tests-ts',
-      version: '2.1.2',
+      version: '2.1.3',
     });
     await client.connect(transport);
     return client;

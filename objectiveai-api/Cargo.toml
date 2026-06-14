@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-api"
-version = "2.1.2"
+version = "2.1.3"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
@@ -28,8 +28,8 @@ default = ["sqlite-persistent-cache"]
 sqlite-persistent-cache = ["dep:rusqlite"]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.2", default-features = false, features = ["http", "mcp", "lockfile"] }
-objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.1.2" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.3", default-features = false, features = ["http", "mcp", "lockfile"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.1.3" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
