@@ -69,7 +69,7 @@ use super::rows::{
 use super::shadow::{Shadow, WriteOp};
 use super::write::{
     Tier, insert_request_blob, insert_request_messages_row, insert_response_blob,
-    update_response_blob, write_value,
+    write_value,
 };
 
 pub trait WriterChunk {
@@ -208,11 +208,6 @@ struct LogWriterState<C> {
     primary_id: Option<String>,
     /// Per-streaming-content-row shadow. Skip path is allocation-free.
     shadow: Shadow,
-    /// Last-written response blob bytes — `PartialEq` against the
-    /// next tick's serialized chunk decides Insert / Update / Skip.
-    last_response_blob: Option<Vec<u8>>,
-    /// Once-flag for the request blob INSERT.
-    request_written: bool,
     /// Every `agent_instance_hierarchy` we've observed in this
     /// stream's lifetime. The first time an agent appears in the row
     /// iterator we insert a `objectiveai.messages` row registering the
@@ -238,38 +233,26 @@ impl<C> LogWriterState<C> {
             rows_fn,
             primary_id: None,
             shadow: Shadow::new(),
-            last_response_blob: None,
-            request_written: false,
             seen_agents: HashSet::new(),
             _chunk: PhantomData,
         }
     }
 
+    /// Persist one chunk's streaming-content rows. The response_id and
+    /// request blob are established by `listener_loop` before the first
+    /// call; the response blob is written by `listener_loop` after the
+    /// last chunk. This method only touches the per-row content tables
+    /// (gated through the shadow) and the per-agent `objectiveai.messages`
+    /// bookkeeping.
     async fn apply_chunk(&mut self, chunk: &C) -> Result<(), crate::error::Error>
     where
-        C: WriterChunk + AgentCompletionIds + Serialize + Send + Sync,
+        C: Send + Sync,
     {
-        // First chunk: stamp the primary id, write the request blob
-        // ONCE. The request blob has no agent_instance_hierarchy.
-        if self.primary_id.is_none() {
-            self.primary_id = Some(chunk.primary_id().to_string());
-        }
-        let response_id = self.primary_id.clone().expect("set above");
+        let response_id = self
+            .primary_id
+            .clone()
+            .expect("primary_id set by listener_loop before apply_chunk");
         let created_at_seed = now_secs() as i64;
-
-        if !self.request_written {
-            let request_body = self.request_body.clone();
-            insert_request_blob(
-                &self.pool,
-                self.tier,
-                &response_id,
-                &request_body,
-                &self.sender_agent_instance_hierarchy,
-                created_at_seed,
-            )
-            .await?;
-            self.request_written = true;
-        }
 
         // Walk rows, gate via shadow, bucket survivors by
         // agent_instance_hierarchy. Vec inside the HashMap preserves
@@ -283,15 +266,6 @@ impl<C> LogWriterState<C> {
                 op => buckets.entry(key).or_default().push((op, value)),
             }
         }
-
-        // Serialize the response chunk once, diff against the
-        // last-written blob.
-        let response_bytes = serde_json::to_vec(chunk)?;
-        let blob_op = match &self.last_response_blob {
-            Some(prev) if prev == &response_bytes => WriteOp::Skip,
-            Some(_) => WriteOp::Update,
-            None => WriteOp::Insert,
-        };
 
         // Build the per-agent bucket futures. Each future runs its
         // rows sequentially (order matters within one agent's
@@ -339,33 +313,57 @@ impl<C> LogWriterState<C> {
             })
             .collect();
 
-        let content_fut = futures::future::try_join_all(bucket_futures);
-        let blob_fut = async {
-            match blob_op {
-                WriteOp::Insert => {
-                    insert_response_blob(
-                        pool,
-                        tier,
-                        resp_id,
-                        chunk,
-                        created_at_seed,
-                    )
-                    .await
-                }
-                WriteOp::Update => {
-                    update_response_blob(pool, tier, resp_id, chunk, created_at_seed).await
-                }
-                WriteOp::Skip => Ok(()),
-            }
+        futures::future::try_join_all(bucket_futures).await?;
+
+        Ok(())
+    }
+
+    /// Write the request blob exactly once, when `listener_loop` first
+    /// learns the response_id (before any content row references it).
+    /// The request blob carries no agent_instance_hierarchy — that
+    /// linkage lives in `objectiveai.messages` (written per-agent in
+    /// `apply_chunk`).
+    async fn write_request_blob(
+        &self,
+        response_id: &str,
+    ) -> Result<(), crate::error::Error> {
+        let created_at_seed = now_secs() as i64;
+        insert_request_blob(
+            &self.pool,
+            self.tier,
+            response_id,
+            &self.request_body,
+            &self.sender_agent_instance_hierarchy,
+            created_at_seed,
+        )
+        .await?;
+        Ok(())
+    }
+
+    /// Write the complete response blob exactly once, from the
+    /// cumulative aggregate of every chunk in the stream — built by
+    /// `listener_loop` and handed in after the last chunk (finalize).
+    /// A single INSERT: the blob is never a partial snapshot, so a
+    /// chunk's tool-calls can't be lost to a per-batch overwrite.
+    async fn write_response_blob(
+        &self,
+        chunk: &C,
+    ) -> Result<(), crate::error::Error>
+    where
+        C: Serialize,
+    {
+        let Some(response_id) = self.primary_id.as_deref() else {
+            return Ok(());
         };
-        let (content_res, blob_res) = tokio::join!(content_fut, blob_fut);
-        content_res?;
-        blob_res?;
-
-        if blob_op != WriteOp::Skip {
-            self.last_response_blob = Some(response_bytes);
-        }
-
+        let created_at_seed = now_secs() as i64;
+        insert_response_blob(
+            &self.pool,
+            self.tier,
+            response_id,
+            chunk,
+            created_at_seed,
+        )
+        .await?;
         Ok(())
     }
 }
@@ -391,17 +389,46 @@ async fn listener_loop<C>(
     written_tx: watch::Sender<bool>,
 ) -> Result<(), crate::error::Error>
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Serialize + Send + Sync,
+    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync,
 {
     let mut ready_tx = Some(ready_tx);
     let mut written_fired = false;
+    // Cumulative aggregate of every chunk across the whole stream. Each
+    // iteration's `agg` is only a partial slice (the wire is per-message
+    // deltas); folding every batch in here builds the complete response
+    // that is written as the response blob exactly once, after the last
+    // chunk. Without this the blob would be overwritten with whatever
+    // partial batch arrived last, dropping earlier tool-calls.
+    let mut accumulated: Option<C> = None;
     while let Some(first) = rx.recv().await {
-        // Coalesce: aggregate any queued chunks into the first.
+        // Fold `first` into the stream-wide aggregate. The response
+        // blob is built from individual chunks pushed in arrival order
+        // — never from a re-pushed coalesced batch.
+        if let Some(acc) = accumulated.as_mut() {
+            acc.push(&first);
+        } else {
+            accumulated = Some(first.clone());
+        }
+        // Coalesce queued chunks into one batch for the per-row writes,
+        // folding each individual chunk into the aggregate as we go.
         let mut agg = first;
         while let Ok(next) = rx.try_recv() {
+            if let Some(acc) = accumulated.as_mut() {
+                acc.push(&next);
+            }
             agg.push(&next);
         }
+
+        // On the very first chunk: learn the response_id and write the
+        // request blob once, before any content row references it.
+        if state.primary_id.is_none() {
+            let response_id = agg.primary_id().to_string();
+            state.write_request_blob(&response_id).await?;
+            state.primary_id = Some(response_id);
+        }
+
         state.apply_chunk(&agg).await?;
+
         // First successful apply: flip the watch true exactly once.
         // Subsequent batches don't touch it (the value is already
         // true; no point waking waiters again).
@@ -409,10 +436,8 @@ where
             let _ = written_tx.send(true);
             written_fired = true;
         }
-        // Fire the oneshot the first time primary_id becomes known.
-        // `apply_chunk` sets `primary_id` on the first invocation, so
-        // by the time we get here it's already Some on at least the
-        // first iteration.
+        // Fire the oneshot the first time primary_id becomes known
+        // (set above on the first chunk).
         if let Some(tx) = ready_tx.take() {
             match state.primary_id.as_deref() {
                 Some(id) => {
@@ -424,8 +449,12 @@ where
             }
         }
     }
-    // EOF: nothing to flush — the in-flight write completed before
-    // recv() returned None.
+    // EOF (sender dropped via finalize): write the complete response
+    // blob exactly once from the cumulative aggregate. Skipped when no
+    // chunk ever arrived (primary_id still unset).
+    if let Some(acc) = accumulated {
+        state.write_response_blob(&acc).await?;
+    }
     Ok(())
 }
 
@@ -444,7 +473,7 @@ fn spawn_writer<C>(
     rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Serialize + Send + Sync + 'static,
+    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync + 'static,
 {
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
