@@ -305,8 +305,8 @@ impl ConfigBuilder {
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(40000),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
-            mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
-            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
+            mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(60000),
+            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(60000),
             reverse_channel_timeout: self.reverse_channel_timeout.unwrap_or(30000),
             mcp_encryption_key: self.mcp_encryption_key,
             // Layout root (OBJECTIVEAI_DIR). Kept on Config for the

@@ -118,7 +118,7 @@ impl ConduitMcpHandler {
             "objectiveai-cli-stream-conduit".to_string(),
             String::new(),
             String::new(),
-            Duration::from_secs(30),
+            Duration::from_secs(60),
             Duration::from_secs(1),
             Duration::from_secs(1),
             0.5,

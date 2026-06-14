@@ -161,8 +161,8 @@ impl ConfigBuilder {
             // Defaults match `objectiveai-api/src/run.rs` so the same
             // env vars produce the same effective config when read by
             // either binary independently.
-            mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(30000),
-            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(30000),
+            mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(60000),
+            mcp_call_timeout: self.mcp_call_timeout.unwrap_or(60000),
             mcp_backoff_current_interval: self.mcp_backoff_current_interval.unwrap_or(100),
             mcp_backoff_initial_interval: self.mcp_backoff_initial_interval.unwrap_or(100),
             mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor.unwrap_or(0.5),
