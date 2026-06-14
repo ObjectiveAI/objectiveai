@@ -1865,7 +1865,7 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodString;
+        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
@@ -8602,7 +8602,7 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
-        function_name: z.ZodString;
+        function_name: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         id: z.ZodNumber;
         timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{

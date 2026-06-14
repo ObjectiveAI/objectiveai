@@ -9,12 +9,12 @@ import (
 
 // One row inside an `AssistantResponse` block.
 type CliCommandAgentsLogsReadAllAssistantResponsePart struct {
-	// `function.name` for `type = tool_call` rows
-	// (`logs.assistant_response_tool_calls.function_name`).
-	// Empty string for non-tool-call rows. Surfaced here so
-	// callers can dedupe tool calls by name without a per-row
+	// `function.name`, present only for `type = tool_call` rows
+	// (`objectiveai.assistant_response_tool_calls.function_name`);
+	// absent for every other part type. Surfaced here so callers
+	// can dedupe tool calls by name without a per-row
 	// `agents logs read id` round-trip.
-	FunctionName string `json:"function_name"`
+	FunctionName *string `json:"function_name,omitempty"`
 	// `logs.messages."index"` for this row. Pass to
 	// `agents logs read id <n>` for the typed body.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
@@ -32,7 +32,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePart) UnmarshalJSON(data []
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"function_name", "id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"id", "timestamp_delivered", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePart: missing required field %q", key)
 		}

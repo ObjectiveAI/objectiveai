@@ -403,7 +403,7 @@ var CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema = z.enum(["refusa
 
 // src/cli/command/agents/logs/read/all/assistantResponsePart.ts
 var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = z.object({
-  function_name: z.string().describe("`function.name` for `type = tool_call` rows\n(`logs.assistant_response_tool_calls.function_name`).\nEmpty string for non-tool-call rows. Surfaced here so\ncallers can dedupe tool calls by name without a per-row\n`agents logs read id` round-trip."),
+  function_name: z.string().nullable().describe("`function.name`, present only for `type = tool_call` rows\n(`objectiveai.assistant_response_tool_calls.function_name`);\nabsent for every other part type. Surfaced here so callers\ncan dedupe tool calls by name without a per-row\n`agents logs read id` round-trip.").meta({ omitempty: true }).optional(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
   timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: CliCommandAgentsLogsReadAllAssistantResponsePartTypeSchema
