@@ -38,6 +38,10 @@ pub enum HttpError {
     #[error("http error: {0}")]
     HttpError(reqwest::Error),
 
+    /// Two attempts failed (e.g. the GitHub raw + Contents-API fallback).
+    #[error("multiple errors: {0}, {1}")]
+    MultipleErrors(Box<HttpError>, Box<HttpError>),
+
     /// The API returned a structured error response.
     #[error(transparent)]
     ApiError(#[from] error::ResponseError),
@@ -89,6 +93,10 @@ impl error::StatusError for HttpError {
             HttpError::HttpError(e) => {
                 e.status().map(|s| s.as_u16()).unwrap_or(500)
             }
+            HttpError::MultipleErrors(e1, e2) => {
+                let s2 = e2.status();
+                if s2 != 500 { s2 } else { e1.status() }
+            }
             HttpError::ApiError(e) => e.status(),
             HttpError::WsConnect(_) => 500,
             HttpError::NotifySerialize(_) => 500,
@@ -125,6 +133,11 @@ impl error::StatusError for HttpError {
                 HttpError::HttpError(e) => serde_json::json!({
                     "kind": "http_error",
                     "error": e.to_string(),
+                }),
+                HttpError::MultipleErrors(e1, e2) => serde_json::json!({
+                    "kind": "multiple",
+                    "error_1": e1.message(),
+                    "error_2": e2.message(),
                 }),
                 HttpError::ApiError(e) => serde_json::json!({
                     "kind": "api_error",

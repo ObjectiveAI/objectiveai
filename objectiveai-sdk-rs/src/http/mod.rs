@@ -15,6 +15,7 @@
 
 mod client;
 mod error;
+mod github;
 #[cfg(feature = "mcp")]
 mod mcp_handler;
 mod notifier;
