@@ -50,6 +50,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+# ── Front-end (JS) validation ──────────────────────────────────────
+# The release builds the viewer with `tsc && vite build` (the package
+# `build` script). Nothing in the test suite used to exercise that, so
+# a viewer that no longer typechecks against the workspace SDK only
+# blew up at release time (e.g. 2.1.3: stale `@objectiveai/sdk`
+# imports). Run the same build here so it fails as a test instead.
+# Assumes the workspace SDK is already built — the root build.sh does
+# that before tests; a standalone run needs `bash build.sh` first.
+# NODE_OPTIONS bumps the heap: `tsc` over the large generated SDK type
+# surface OOMs under Node's default.
+echo "Validating viewer front-end (tsc && vite build)..." >>"$LOG_FILE"
+if NODE_OPTIONS="--max-old-space-size=8192" \
+   pnpm --dir "$REPO_ROOT" --filter objectiveai-viewer run build >>"$LOG_FILE" 2>&1; then
+  JS_OK=1
+else
+  JS_OK=0
+fi
+
 # --lib --tests: skip the bin target. Tauri's deps (tauri, windows,
 # encoding_rs, objectiveai_mcp_proxy) can't be linked under cargo test's
 # bin-target compile pass — cargo can't satisfy the bin's cdylib-flavoured
@@ -61,18 +79,27 @@ done
 # cargo-nextest is installed locally by `build-bin.sh` into `bin/` — see
 # the [workspace.metadata.tools] table in the root Cargo.toml.
 if "$NEXTEST" nextest run -p objectiveai-viewer --lib --tests "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
-  PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  TOTAL=$((PASSED + FAILED))
+  RUST_OK=1
+else
+  RUST_OK=0
+fi
+
+PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
+FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
+TOTAL=$((PASSED + FAILED))
+
+# The suite passes only if BOTH the front-end build and the Rust tests
+# pass. Surface which side failed so the one-line summary is actionable.
+if [ "$JS_OK" -eq 1 ] && [ "$RUST_OK" -eq 1 ]; then
   echo "$MODULE: PASS $PASSED/$TOTAL"
 else
-  PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  FAILED=$(sed -n 's/.* \([0-9][0-9]*\) failed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')
-  TOTAL=$((PASSED + FAILED))
+  FAILED_PARTS=""
+  [ "$JS_OK" -ne 1 ] && FAILED_PARTS="js"
+  [ "$RUST_OK" -ne 1 ] && FAILED_PARTS="${FAILED_PARTS:+$FAILED_PARTS+}rust"
   if [ "$TOTAL" -gt 0 ]; then
-    echo "$MODULE: FAIL $PASSED/$TOTAL"
+    echo "$MODULE: FAIL $PASSED/$TOTAL ($FAILED_PARTS)"
   else
-    echo "$MODULE: FAIL"
+    echo "$MODULE: FAIL ($FAILED_PARTS)"
   fi
   exit 1
 fi
