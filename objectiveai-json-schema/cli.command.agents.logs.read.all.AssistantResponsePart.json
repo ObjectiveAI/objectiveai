@@ -6,17 +6,15 @@
       "title": "ToolCall",
       "type": "object",
       "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
         "function_name": {
           "description": "`objectiveai.assistant_response_tool_calls.function_name`.",
           "type": "string"
         },
         "id": {
           "description": "`logs.messages.\"index\"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call's `arguments`\nas text.",
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        "timestamp_delivered": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -43,12 +41,10 @@
       "title": "Refusal",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -65,12 +61,10 @@
       "title": "Reasoning",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -87,12 +81,10 @@
       "title": "Text",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -109,12 +101,10 @@
       "title": "Image",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -131,12 +121,10 @@
       "title": "Audio",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -153,12 +141,10 @@
       "title": "Video",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
@@ -175,12 +161,10 @@
       "title": "File",
       "type": "object",
       "properties": {
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "delivered_at": {
+          "type": "string"
         },
-        "timestamp_delivered": {
+        "id": {
           "type": "integer",
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807

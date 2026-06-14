@@ -7,7 +7,7 @@ export const CliCommandAgentsQueueDeleteResponseSchema = z.object({
   agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
   agent_tag: z.string().nullable().meta({ omitempty: true }).optional(),
   content: AgentCompletionsMessageRichContentSchema,
-  enqueued_at: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  enqueued_at: z.string().describe("RFC3339 timestamp the dropped row was enqueued at."),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   key: z.string().nullable().describe("Idempotency token, if the dropped row had one.").meta({ omitempty: true }).optional(),
 }).describe("What was deleted. Carries every column of the original\n`prompts` row so the caller can confirm the drop:\nexactly one of `agent_instance_hierarchy` / `agent_tag` is set\n(matching the original target), `enqueued_at` is the original\nunix-seconds timestamp, and `content` is the reconstructed\n`RichContent` body.").meta({ title: "cli.command.agents.queue.delete.Response" });

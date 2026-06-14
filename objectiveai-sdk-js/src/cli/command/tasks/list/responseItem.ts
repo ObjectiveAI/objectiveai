@@ -6,11 +6,11 @@ import { CliCommandTasksListPluginSchema } from "./plugin";
 export const CliCommandTasksListResponseItemSchema = z.object({
   agent_instance_hierarchy: z.string(),
   command: z.array(z.string()),
-  created_at: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  created_at: z.string().describe("RFC3339 timestamp this schedule row was created."),
   description: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The `schedules` row id. Monotonic; pass the highest `id` from a\npage as the next request's `after_id` to paginate forward."),
   interval: z.string().nullable().describe("`None` for a oneshot; `Some(\"30s\" / \"1h\" / \"1d12h\" / …)`\nfor a recurring schedule, formatted as humantime so the\nlist output reads naturally without a unit-conversion\nstep at the consumer. The CLI parser accepts the same\nshape on `agents tasks schedule --interval`.").meta({ omitempty: true }).optional(),
-  last_ran_at: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Unix seconds of the most recent invocation — this row's newest\n`tasks_runs` entry. `None` until the runner has fired this\nversion at least once (runs are tracked per-version).").meta({ omitempty: true }).optional(),
+  last_ran_at: z.string().nullable().describe("RFC3339 timestamp of the most recent invocation — this row's\nnewest `tasks_runs` entry. `None` until the runner has fired\nthis version at least once (runs are tracked per-version).").meta({ omitempty: true }).optional(),
   name: z.string().describe("The `--name` passed to `agents tasks schedule`. Unique per\n`agent_instance_hierarchy`."),
   plugin: CliCommandTasksListPluginSchema.nullable().describe("The plugin that registered this schedule (its `(owner,\nrepository, version)` coordinate), or `None` when it was not\nscheduled by a plugin.").meta({ omitempty: true }).optional(),
   version: z.number().int().min(0).max(18446744073709552000).describe("This row's version: `1` for a freshly scheduled task,\n`max + 1` for each `tasks schedule --overwrite` (each version\nis its own row; only the newest lists)."),

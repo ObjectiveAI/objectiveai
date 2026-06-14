@@ -123,8 +123,8 @@ async fn aggregate(
             agent_instance_hierarchy: aih,
             tags,
             queued: queued as u64,
-            timestamp_spawned: spawned,
-            timestamp_active: active,
+            created_at: super::time::unix_to_rfc3339_opt(spawned),
+            last_active_at: super::time::unix_to_rfc3339_opt(active),
             logged: logged as u64,
         });
     }
@@ -159,8 +159,8 @@ pub async fn get_exact(pool: &Pool, aih: &str) -> Result<ResponseItem, Error> {
         agent_instance_hierarchy: aih.to_string(),
         tags,
         queued: 0,
-        timestamp_spawned: None,
-        timestamp_active: None,
+        created_at: None,
+        last_active_at: None,
         logged: 0,
     })
 }

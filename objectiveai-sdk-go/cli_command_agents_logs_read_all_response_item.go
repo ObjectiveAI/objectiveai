@@ -9,12 +9,12 @@ import (
 
 type CliCommandAgentsLogsReadAllResponseItemAgentCompletionRequest struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	ResponseID string `json:"response_id"`
 	// AIH of the caller who issued the request — from
 	// `logs.agent_completion_requests.sender_*`.
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=agent_completion_request"`
 }
 
@@ -23,7 +23,7 @@ func (v *CliCommandAgentsLogsReadAllResponseItemAgentCompletionRequest) Unmarsha
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "id", "response_id", "sender_agent_instance_hierarchy", "timestamp_delivered", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllResponseItemAgentCompletionRequest: missing required field %q", key)
 		}
@@ -40,10 +40,10 @@ func (CliCommandAgentsLogsReadAllResponseItemAgentCompletionRequest) SchemaVaria
 
 type CliCommandAgentsLogsReadAllResponseItemVectorCompletionRequest struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	ResponseID string `json:"response_id"`
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=vector_completion_request"`
 }
 
@@ -52,7 +52,7 @@ func (v *CliCommandAgentsLogsReadAllResponseItemVectorCompletionRequest) Unmarsh
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "id", "response_id", "sender_agent_instance_hierarchy", "timestamp_delivered", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllResponseItemVectorCompletionRequest: missing required field %q", key)
 		}
@@ -69,10 +69,10 @@ func (CliCommandAgentsLogsReadAllResponseItemVectorCompletionRequest) SchemaVari
 
 type CliCommandAgentsLogsReadAllResponseItemFunctionExecutionRequest struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	ResponseID string `json:"response_id"`
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=function_execution_request"`
 }
 
@@ -81,7 +81,7 @@ func (v *CliCommandAgentsLogsReadAllResponseItemFunctionExecutionRequest) Unmars
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "id", "response_id", "sender_agent_instance_hierarchy", "timestamp_delivered", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllResponseItemFunctionExecutionRequest: missing required field %q", key)
 		}
@@ -104,16 +104,16 @@ type CliCommandAgentsLogsReadAllResponseItemClientNotification struct {
 	// to a specific enqueue beyond just the sender AIH.
 	Key *string `json:"key,omitempty"`
 	Parts []CliCommandAgentsLogsReadAllClientNotificationPart `json:"parts"`
+	// `message_queue.enqueued_at` of the consumed parent
+	// queue row. One block = one parent queue row, so this
+	// is well-defined block-level (each part's individual
+	// `delivered_at` still records its own
+	// consumption moment).
+	QueuedAt string `json:"queued_at"`
 	ResponseID string `json:"response_id"`
 	// AIH of the enqueuer — from `message_queue.sender_*`
 	// joined through `message_queue_contents.id`.
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	// `message_queue.enqueued_at` of the consumed parent
-	// queue row. One block = one parent queue row, so this
-	// is well-defined block-level (each part's individual
-	// `timestamp_delivered` still records its own
-	// consumption moment).
-	TimestampQueued int64 `json:"timestamp_queued" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=client_notification"`
 }
 
@@ -122,7 +122,7 @@ func (v *CliCommandAgentsLogsReadAllResponseItemClientNotification) UnmarshalJSO
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "sender_agent_instance_hierarchy", "timestamp_queued", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "queued_at", "response_id", "sender_agent_instance_hierarchy", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllResponseItemClientNotification: missing required field %q", key)
 		}
@@ -216,7 +216,7 @@ func (CliCommandAgentsLogsReadAllResponseItemToolResponse) SchemaVariantTitle() 
 // agent_instance_hierarchy, response_id, sender, message_queue_id)`
 // for `ClientNotification` blocks.
 // One `ClientNotification` block = one consumed
-// `message_queue` parent row, so `timestamp_queued` and
+// `message_queue` parent row, so `queued_at` and
 // `sender_agent_instance_hierarchy` are well-defined
 // block-level.
 type CliCommandAgentsLogsReadAllResponseItem struct {

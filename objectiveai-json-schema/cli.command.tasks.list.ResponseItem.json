@@ -13,9 +13,8 @@
       }
     },
     "created_at": {
-      "type": "integer",
-      "minimum": -9223372036854775808,
-      "maximum": 9223372036854775807
+      "description": "RFC3339 timestamp this schedule row was created.",
+      "type": "string"
     },
     "description": {
       "type": "string"
@@ -39,12 +38,10 @@
       "omitempty": true
     },
     "last_ran_at": {
-      "description": "Unix seconds of the most recent invocation — this row's newest\n`tasks_runs` entry. `None` until the runner has fired this\nversion at least once (runs are tracked per-version).",
+      "description": "RFC3339 timestamp of the most recent invocation — this row's\nnewest `tasks_runs` entry. `None` until the runner has fired\nthis version at least once (runs are tracked per-version).",
       "anyOf": [
         {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+          "type": "string"
         },
         {
           "type": "null"

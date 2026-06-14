@@ -11,7 +11,7 @@ import (
 // `message_queue_contents` entry. The `id` is the
 // `message_queue_contents.id`, which you pass to
 // `agents queue read id <n>` to drill into the body.
-// `timestamp_queued` is on the enclosing block, not here
+// `enqueued_at` is on the enclosing block, not here
 // (one block = one `message_queue` parent row, sharing one
 // `enqueued_at`).
 type CliCommandAgentsQueueReadPendingQueuePart struct {

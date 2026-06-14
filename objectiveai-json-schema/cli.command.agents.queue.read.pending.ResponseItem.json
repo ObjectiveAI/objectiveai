@@ -21,6 +21,10 @@
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
         },
+        "enqueued_at": {
+          "description": "`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.",
+          "type": "string"
+        },
         "key": {
           "description": "Idempotency token, if the row was enqueued with `--key`.",
           "anyOf": [
@@ -42,12 +46,6 @@
         "sender_agent_instance_hierarchy": {
           "description": "AIH of the caller who enqueued — from\n`message_queue.sender_*`.",
           "type": "string"
-        },
-        "timestamp_queued": {
-          "description": "`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.",
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
         }
       }
     },
@@ -70,6 +68,9 @@
           "minimum": -9223372036854775808,
           "maximum": 9223372036854775807
         },
+        "enqueued_at": {
+          "type": "string"
+        },
         "key": {
           "anyOf": [
             {
@@ -89,11 +90,6 @@
         },
         "sender_agent_instance_hierarchy": {
           "type": "string"
-        },
-        "timestamp_queued": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
         }
       }
     }

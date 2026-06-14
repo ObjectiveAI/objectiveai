@@ -17,7 +17,8 @@ type CliCommandAgentsQueueDeleteResponse struct {
 	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
 	AgentTag *string `json:"agent_tag,omitempty"`
 	Content AgentCompletionsMessageRichContent `json:"content"`
-	EnqueuedAt int64 `json:"enqueued_at" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// RFC3339 timestamp the dropped row was enqueued at.
+	EnqueuedAt string `json:"enqueued_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	// Idempotency token, if the dropped row had one.
 	Key *string `json:"key,omitempty"`

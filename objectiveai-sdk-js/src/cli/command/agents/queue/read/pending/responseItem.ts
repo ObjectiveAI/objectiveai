@@ -7,17 +7,17 @@ export const CliCommandAgentsQueueReadPendingResponseItemSchema = z.union([z.obj
   agent_instance_hierarchy: z.string(),
   by: z.literal("agent_instance_hierarchy"),
   delete_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`message_queue.id` — the row-level id this block\nrepresents. Pass to `agents queue delete <id>` to\nsoft-flip the entire row (all parts) in one call.\nDistinct from each `QueuePart.id` (which is a\n`message_queue_contents.id` for drilling into one\ncontent slot via `agents queue read id`)."),
+  enqueued_at: z.string().describe("`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level."),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
   sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who enqueued — from\n`message_queue.sender_*`."),
-  timestamp_queued: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level."),
 }).meta({"variantTitle":"AgentInstanceHierarchy"}), z.object({
   agent_tag: z.string(),
   by: z.literal("tag"),
   delete_id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`message_queue.id`. Pass to `agents queue delete <id>`."),
+  enqueued_at: z.string(),
   key: z.string().nullable().meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
   sender_agent_instance_hierarchy: z.string(),
-  timestamp_queued: z.number().int().min(-9223372036854776000).max(9223372036854776000),
 }).meta({"variantTitle":"Tag"})]).describe("One pending `message_queue` row, with its content rows\ngrouped as `parts`. Two variants — direct AIH target or tag\ntarget — both flat (no nested `LookupState`).").meta({ title: "cli.command.agents.queue.read.pending.ResponseItem" });
 export type CliCommandAgentsQueueReadPendingResponseItem = z.infer<typeof CliCommandAgentsQueueReadPendingResponseItemSchema>;

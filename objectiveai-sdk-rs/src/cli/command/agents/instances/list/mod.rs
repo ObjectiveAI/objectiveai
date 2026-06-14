@@ -61,16 +61,16 @@ pub struct ResponseItem {
     /// Active `message_queue` rows targeting this agent — counting
     /// both direct-AIH rows and rows whose tag is bound to this AIH.
     pub queued: u64,
-    /// Timestamp of the first `logs.messages` row for this agent.
-    /// `None` when the agent has no logs yet (queue-only).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub timestamp_spawned: Option<i64>,
-    /// Timestamp of the most recent `logs.messages` row for this
+    /// RFC3339 timestamp of the first `logs.messages` row for this
     /// agent. `None` when the agent has no logs yet (queue-only).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub timestamp_active: Option<i64>,
+    pub created_at: Option<String>,
+    /// RFC3339 timestamp of the most recent `logs.messages` row for
+    /// this agent. `None` when the agent has no logs yet (queue-only).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub last_active_at: Option<String>,
     /// Total `logs.messages` rows for this agent over all time.
     pub logged: u64,
 }

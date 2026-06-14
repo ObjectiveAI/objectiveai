@@ -3,39 +3,39 @@
 import { z } from "zod";
 
 export const CliCommandAgentsLogsReadAllAssistantResponsePartSchema = z.union([z.object({
+  delivered_at: z.string(),
   function_name: z.string().describe("`objectiveai.assistant_response_tool_calls.function_name`."),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`logs.messages.\"index\"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call's `arguments`\nas text."),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   tool_call_id: z.string().describe("The wire tool-call id this row carries."),
   tool_call_index: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("The tool call's wire index within the assistant message's\n`tool_calls[]`."),
   type: z.literal("tool_call"),
 }).meta({"variantTitle":"ToolCall"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("refusal"),
 }).meta({"variantTitle":"Refusal"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("reasoning"),
 }).meta({"variantTitle":"Reasoning"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("text"),
 }).meta({"variantTitle":"Text"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("image"),
 }).meta({"variantTitle":"Image"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("audio"),
 }).meta({"variantTitle":"Audio"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("video"),
 }).meta({"variantTitle":"Video"}), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("file"),
 }).meta({"variantTitle":"File"})]).describe("One row inside an `AssistantResponse` block, tagged by the\ntable-kind of the underlying `assistant_response_*` row.\n\nThe `ToolCall` variant inlines the call's metadata\n(`function_name` / `tool_call_id` / `tool_call_index`) so callers\ncan dedupe and correlate without a per-row round-trip; its `id`\naddresses the same `assistant_response_tool_calls` row, which\n`agents logs read id <id>` returns as the call's `arguments`\n(text). Every other variant carries only `id` (the\n`logs.messages.\"index\"` to pass to `agents logs read id`) and the\ndelivery timestamp.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePart" });
 export type CliCommandAgentsLogsReadAllAssistantResponsePart = z.infer<typeof CliCommandAgentsLogsReadAllAssistantResponsePartSchema>;

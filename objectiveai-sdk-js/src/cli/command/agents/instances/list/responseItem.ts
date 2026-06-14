@@ -4,10 +4,10 @@ import { z } from "zod";
 
 export const CliCommandAgentsInstancesListResponseItemSchema = z.object({
   agent_instance_hierarchy: z.string().describe("Full hierarchy of this agent instance."),
+  created_at: z.string().nullable().describe("RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
+  last_active_at: z.string().nullable().describe("RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
   logged: z.number().int().min(0).max(18446744073709552000).describe("Total `logs.messages` rows for this agent over all time."),
   queued: z.number().int().min(0).max(18446744073709552000).describe("Active `message_queue` rows targeting this agent — counting\nboth direct-AIH rows and rows whose tag is bound to this AIH."),
   tags: z.array(z.string()).describe("Tag names currently bound to this AIH, newest-bound first."),
-  timestamp_active: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Timestamp of the most recent `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
-  timestamp_spawned: z.number().int().min(-9223372036854776000).max(9223372036854776000).nullable().describe("Timestamp of the first `logs.messages` row for this agent.\n`None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
 }).describe("One discovered agent instance under a target. Aggregated from the\n`logs.messages`, `message_queue`, and `tags` tiers.").meta({ title: "cli.command.agents.instances.list.ResponseItem" });
 export type CliCommandAgentsInstancesListResponseItem = z.infer<typeof CliCommandAgentsInstancesListResponseItemSchema>;

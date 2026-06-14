@@ -12,6 +12,12 @@ import (
 type CliCommandAgentsInstancesListResponseItem struct {
 	// Full hierarchy of this agent instance.
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// RFC3339 timestamp of the first `logs.messages` row for this
+	// agent. `None` when the agent has no logs yet (queue-only).
+	CreatedAt *string `json:"created_at,omitempty"`
+	// RFC3339 timestamp of the most recent `logs.messages` row for
+	// this agent. `None` when the agent has no logs yet (queue-only).
+	LastActiveAt *string `json:"last_active_at,omitempty"`
 	// Total `logs.messages` rows for this agent over all time.
 	Logged uint64 `json:"logged" validate:"min=0,max=18446744073709551615"`
 	// Active `message_queue` rows targeting this agent — counting
@@ -19,12 +25,6 @@ type CliCommandAgentsInstancesListResponseItem struct {
 	Queued uint64 `json:"queued" validate:"min=0,max=18446744073709551615"`
 	// Tag names currently bound to this AIH, newest-bound first.
 	Tags []string `json:"tags"`
-	// Timestamp of the most recent `logs.messages` row for this
-	// agent. `None` when the agent has no logs yet (queue-only).
-	TimestampActive *int64 `json:"timestamp_active,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
-	// Timestamp of the first `logs.messages` row for this agent.
-	// `None` when the agent has no logs yet (queue-only).
-	TimestampSpawned *int64 `json:"timestamp_spawned,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
 }
 
 func (CliCommandAgentsInstancesListResponseItem) SchemaTitle() string { return "cli.command.agents.instances.list.ResponseItem" }

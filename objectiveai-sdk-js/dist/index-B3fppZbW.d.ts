@@ -1743,11 +1743,11 @@ type CliCommandAgentsInstancesListRequest = z.infer<typeof CliCommandAgentsInsta
 
 declare const CliCommandAgentsInstancesListResponseItemSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    created_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    last_active_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     logged: z.ZodNumber;
     queued: z.ZodNumber;
     tags: z.ZodArray<z.ZodString>;
-    timestamp_active: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
-    timestamp_spawned: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>;
 type CliCommandAgentsInstancesListResponseItem = z.infer<typeof CliCommandAgentsInstancesListResponseItemSchema>;
 
@@ -1819,31 +1819,31 @@ type CliCommandAgentsLogsReadAllRequest = z.infer<typeof CliCommandAgentsLogsRea
 
 declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly [z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"agent_completion_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"vector_completion_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"function_execution_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     parts: z.ZodArray<z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
             file: "file";
             text: "text";
@@ -1852,46 +1852,46 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
             video: "video";
         }>;
     }, z.core.$strip>>;
+    queued_at: z.ZodString;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_queued: z.ZodNumber;
     type: z.ZodLiteral<"client_notification">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        delivered_at: z.ZodString;
         function_name: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         tool_call_id: z.ZodString;
         tool_call_index: z.ZodNumber;
         type: z.ZodLiteral<"tool_call">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"refusal">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"reasoning">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"text">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"image">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"audio">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"video">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"file">;
     }, z.core.$strip>]>>;
     response_id: z.ZodString;
@@ -1899,8 +1899,8 @@ declare const CliCommandAgentsLogsReadAllResponseItemSchema: z.ZodUnion<readonly
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
             file: "file";
             text: "text";
@@ -8561,31 +8561,31 @@ type CliCommandAgentsLogsReadSubscribeRequest = z.infer<typeof CliCommandAgentsL
 
 declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"agent_completion_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"vector_completion_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
+    delivered_at: z.ZodString;
     id: z.ZodNumber;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_delivered: z.ZodNumber;
     type: z.ZodLiteral<"function_execution_request">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     parts: z.ZodArray<z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
             file: "file";
             text: "text";
@@ -8594,46 +8594,46 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
             video: "video";
         }>;
     }, z.core.$strip>>;
+    queued_at: z.ZodString;
     response_id: z.ZodString;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_queued: z.ZodNumber;
     type: z.ZodLiteral<"client_notification">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+        delivered_at: z.ZodString;
         function_name: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         tool_call_id: z.ZodString;
         tool_call_index: z.ZodNumber;
         type: z.ZodLiteral<"tool_call">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"refusal">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"reasoning">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"text">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"image">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"audio">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"video">;
     }, z.core.$strip>, z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodLiteral<"file">;
     }, z.core.$strip>]>>;
     response_id: z.ZodString;
@@ -8641,8 +8641,8 @@ declare const CliCommandAgentsLogsReadSubscribeResponseItemSchema: z.ZodUnion<re
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     parts: z.ZodArray<z.ZodObject<{
+        delivered_at: z.ZodString;
         id: z.ZodNumber;
-        timestamp_delivered: z.ZodNumber;
         type: z.ZodEnum<{
             file: "file";
             text: "text";
@@ -11754,7 +11754,7 @@ declare const CliCommandAgentsQueueDeleteResponseSchema: z.ZodObject<{
         }, z.core.$strip>;
         type: z.ZodLiteral<"file">;
     }, z.core.$strip>]>>]>;
-    enqueued_at: z.ZodNumber;
+    enqueued_at: z.ZodString;
     id: z.ZodNumber;
     key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
@@ -11879,6 +11879,7 @@ declare const CliCommandAgentsQueueReadPendingResponseItemSchema: z.ZodUnion<rea
     agent_instance_hierarchy: z.ZodString;
     by: z.ZodLiteral<"agent_instance_hierarchy">;
     delete_id: z.ZodNumber;
+    enqueued_at: z.ZodString;
     key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     parts: z.ZodArray<z.ZodObject<{
         id: z.ZodNumber;
@@ -11891,11 +11892,11 @@ declare const CliCommandAgentsQueueReadPendingResponseItemSchema: z.ZodUnion<rea
         }>;
     }, z.core.$strip>>;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_queued: z.ZodNumber;
 }, z.core.$strip>, z.ZodObject<{
     agent_tag: z.ZodString;
     by: z.ZodLiteral<"tag">;
     delete_id: z.ZodNumber;
+    enqueued_at: z.ZodString;
     key: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     parts: z.ZodArray<z.ZodObject<{
         id: z.ZodNumber;
@@ -11908,7 +11909,6 @@ declare const CliCommandAgentsQueueReadPendingResponseItemSchema: z.ZodUnion<rea
         }>;
     }, z.core.$strip>>;
     sender_agent_instance_hierarchy: z.ZodString;
-    timestamp_queued: z.ZodNumber;
 }, z.core.$strip>]>;
 type CliCommandAgentsQueueReadPendingResponseItem = z.infer<typeof CliCommandAgentsQueueReadPendingResponseItemSchema>;
 
@@ -30356,11 +30356,11 @@ type CliCommandTasksListRequest = z.infer<typeof CliCommandTasksListRequestSchem
 declare const CliCommandTasksListResponseItemSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
     command: z.ZodArray<z.ZodString>;
-    created_at: z.ZodNumber;
+    created_at: z.ZodString;
     description: z.ZodString;
     id: z.ZodNumber;
     interval: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    last_ran_at: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    last_ran_at: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     name: z.ZodString;
     plugin: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         owner: z.ZodString;

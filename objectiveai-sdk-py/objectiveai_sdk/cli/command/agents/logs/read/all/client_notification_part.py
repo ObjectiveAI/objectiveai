@@ -7,12 +7,12 @@ from objectiveai_sdk.cli.command.agents.logs.read.all.client_notification_part_t
 
 class ClientNotificationPart(BaseModel):
     """One row inside a `ClientNotification` block — a consumed
-`message_queue_contents` entry. `timestamp_queued` is on the
+`message_queue_contents` entry. `queued_at` is on the
 enclosing block (it lives on `message_queue.enqueued_at`, not
 per-content); only the per-row consumption timestamp is here."""
     model_config = ConfigDict(title='cli.command.agents.logs.read.all.ClientNotificationPart')
 
+    delivered_at: str = Field(..., description='`logs.messages."timestamp"` — when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.')
     id: int = Field(..., description='`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` to fetch the consumed\n`message_queue_contents` body.', ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., description='`logs.messages."timestamp"` — when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.', ge=-9223372036854775808, le=9223372036854775807)
     type_: ClientNotificationPartType = Field(..., alias='type')
 

@@ -12,10 +12,10 @@ class ResponseItemAgentCompletionRequest(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'AgentCompletionRequest'})
 
     agent_instance_hierarchy: str
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     response_id: str
     sender_agent_instance_hierarchy: str = Field(..., description='AIH of the caller who issued the request — from\n`logs.agent_completion_requests.sender_*`.')
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['agent_completion_request'] = Field(..., alias='type')
 
 
@@ -23,10 +23,10 @@ class ResponseItemVectorCompletionRequest(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'VectorCompletionRequest'})
 
     agent_instance_hierarchy: str
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     response_id: str
     sender_agent_instance_hierarchy: str
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['vector_completion_request'] = Field(..., alias='type')
 
 
@@ -34,10 +34,10 @@ class ResponseItemFunctionExecutionRequest(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'FunctionExecutionRequest'})
 
     agent_instance_hierarchy: str
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     response_id: str
     sender_agent_instance_hierarchy: str
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['function_execution_request'] = Field(..., alias='type')
 
 
@@ -47,9 +47,9 @@ class ResponseItemClientNotification(BaseModel):
     agent_instance_hierarchy: str
     key: Optional[str] = Field(None, description='Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.', json_schema_extra={'omitempty': True})
     parts: list[ClientNotificationPart]
+    queued_at: str = Field(..., description="`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`delivered_at` still records its own\nconsumption moment).")
     response_id: str
     sender_agent_instance_hierarchy: str = Field(..., description='AIH of the enqueuer — from `message_queue.sender_*`\njoined through `message_queue_contents.id`.')
-    timestamp_queued: int = Field(..., description="`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`timestamp_delivered` still records its own\nconsumption moment).", ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['client_notification'] = Field(..., alias='type')
 
 
@@ -96,7 +96,7 @@ for `ToolResponse` (one block per tool call); `(class,
 agent_instance_hierarchy, response_id, sender, message_queue_id)`
 for `ClientNotification` blocks.
 One `ClientNotification` block = one consumed
-`message_queue` parent row, so `timestamp_queued` and
+`message_queue` parent row, so `queued_at` and
 `sender_agent_instance_hierarchy` are well-defined
 block-level."""
     model_config = ConfigDict(title='cli.command.agents.logs.read.all.ResponseItem')

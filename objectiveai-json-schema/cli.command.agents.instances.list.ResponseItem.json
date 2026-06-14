@@ -7,6 +7,30 @@
       "description": "Full hierarchy of this agent instance.",
       "type": "string"
     },
+    "created_at": {
+      "description": "RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "last_active_at": {
+      "description": "RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "logged": {
       "description": "Total `logs.messages` rows for this agent over all time.",
       "type": "integer",
@@ -25,34 +49,6 @@
       "items": {
         "type": "string"
       }
-    },
-    "timestamp_active": {
-      "description": "Timestamp of the most recent `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "timestamp_spawned": {
-      "description": "Timestamp of the first `logs.messages` row for this agent.\n`None` when the agent has no logs yet (queue-only).",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
     }
   }
 }

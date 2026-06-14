@@ -277,11 +277,11 @@ async function agentsGetResponseSchemaExecuteTransform(request, transform) {
 }
 var CliCommandAgentsInstancesListResponseItemSchema = z.object({
   agent_instance_hierarchy: z.string().describe("Full hierarchy of this agent instance."),
+  created_at: z.string().nullable().describe("RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
+  last_active_at: z.string().nullable().describe("RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
   logged: z.number().int().min(0).max(18446744073709552e3).describe("Total `logs.messages` rows for this agent over all time."),
   queued: z.number().int().min(0).max(18446744073709552e3).describe("Active `message_queue` rows targeting this agent \u2014 counting\nboth direct-AIH rows and rows whose tag is bound to this AIH."),
-  tags: z.array(z.string()).describe("Tag names currently bound to this AIH, newest-bound first."),
-  timestamp_active: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Timestamp of the most recent `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
-  timestamp_spawned: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Timestamp of the first `logs.messages` row for this agent.\n`None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional()
+  tags: z.array(z.string()).describe("Tag names currently bound to this AIH, newest-bound first.")
 }).describe("One discovered agent instance under a target. Aggregated from the\n`logs.messages`, `message_queue`, and `tags` tiers.").meta({ title: "cli.command.agents.instances.list.ResponseItem" });
 
 // src/viewer/command/agents/instances/get.ts
@@ -400,87 +400,87 @@ async function agentsListResponseSchemaExecuteTransform(request, transform) {
   return first;
 }
 var CliCommandAgentsLogsReadAllAssistantResponsePartSchema = z.union([z.object({
+  delivered_at: z.string(),
   function_name: z.string().describe("`objectiveai.assistant_response_tool_calls.function_name`."),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call\'s `arguments`\nas text.'),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   tool_call_id: z.string().describe("The wire tool-call id this row carries."),
   tool_call_index: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("The tool call's wire index within the assistant message's\n`tool_calls[]`."),
   type: z.literal("tool_call")
 }).meta({ "variantTitle": "ToolCall" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("refusal")
 }).meta({ "variantTitle": "Refusal" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("reasoning")
 }).meta({ "variantTitle": "Reasoning" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("text")
 }).meta({ "variantTitle": "Text" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("image")
 }).meta({ "variantTitle": "Image" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("audio")
 }).meta({ "variantTitle": "Audio" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("video")
 }).meta({ "variantTitle": "Video" }), z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("file")
 }).meta({ "variantTitle": "File" })]).describe("One row inside an `AssistantResponse` block, tagged by the\ntable-kind of the underlying `assistant_response_*` row.\n\nThe `ToolCall` variant inlines the call's metadata\n(`function_name` / `tool_call_id` / `tool_call_index`) so callers\ncan dedupe and correlate without a per-row round-trip; its `id`\naddresses the same `assistant_response_tool_calls` row, which\n`agents logs read id <id>` returns as the call's `arguments`\n(text). Every other variant carries only `id` (the\n`logs.messages.\"index\"` to pass to `agents logs read id`) and the\ndelivery timestamp.").meta({ title: "cli.command.agents.logs.read.all.AssistantResponsePart" });
 var CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema = z.enum(["text", "image", "audio", "video", "file"]).describe("Type tag for one `ClientNotification` part \u2014 the table-kind of\nthe underlying `message_queue_*` content row.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPartType" });
 
 // src/cli/command/agents/logs/read/all/clientNotificationPart.ts
 var CliCommandAgentsLogsReadAllClientNotificationPartSchema = z.object({
+  delivered_at: z.string().describe('`logs.messages."timestamp"` \u2014 when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.'),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` to fetch the consumed\n`message_queue_contents` body.'),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."timestamp"` \u2014 when the receiver consumed\nthis content row and the LogWriter committed the\nconsumption event.'),
   type: CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema
-}).describe("One row inside a `ClientNotification` block \u2014 a consumed\n`message_queue_contents` entry. `timestamp_queued` is on the\nenclosing block (it lives on `message_queue.enqueued_at`, not\nper-content); only the per-row consumption timestamp is here.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPart" });
+}).describe("One row inside a `ClientNotification` block \u2014 a consumed\n`message_queue_contents` entry. `queued_at` is on the\nenclosing block (it lives on `message_queue.enqueued_at`, not\nper-content); only the per-row consumption timestamp is here.").meta({ title: "cli.command.agents.logs.read.all.ClientNotificationPart" });
 var CliCommandAgentsLogsReadAllToolResponsePartTypeSchema = z.enum(["text", "image", "audio", "video", "file"]).describe("Type tag for one `ToolResponse` part \u2014 the table-kind of the\nunderlying `tool_response_content_*` row. The tool-call linkage\n(`tool_call_id`) lives on the enclosing `ResponseItem::ToolResponse`\nblock, not on the parts.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePartType" });
 
 // src/cli/command/agents/logs/read/all/toolResponsePart.ts
 var CliCommandAgentsLogsReadAllToolResponsePartSchema = z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe('`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.'),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: CliCommandAgentsLogsReadAllToolResponsePartTypeSchema
 }).describe("One row inside a `ToolResponse` block.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePart" });
 
 // src/cli/command/agents/logs/read/all/responseItem.ts
 var CliCommandAgentsLogsReadAllResponseItemSchema = z.union([z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who issued the request \u2014 from\n`logs.agent_completion_requests.sender_*`."),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("agent_completion_request")
 }).meta({ "variantTitle": "AgentCompletionRequest" }), z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string(),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("vector_completion_request")
 }).meta({ "variantTitle": "VectorCompletionRequest" }), z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string(),
-  timestamp_delivered: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: z.literal("function_execution_request")
 }).meta({ "variantTitle": "FunctionExecutionRequest" }), z.object({
   agent_instance_hierarchy: z.string(),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.").meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsLogsReadAllClientNotificationPartSchema),
+  queued_at: z.string().describe("`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`delivered_at` still records its own\nconsumption moment)."),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string().describe("AIH of the enqueuer \u2014 from `message_queue.sender_*`\njoined through `message_queue_contents.id`."),
-  timestamp_queued: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`timestamp_delivered` still records its own\nconsumption moment)."),
   type: z.literal("client_notification")
 }).meta({ "variantTitle": "ClientNotification" }), z.object({
   agent_instance_hierarchy: z.string(),
@@ -493,7 +493,7 @@ var CliCommandAgentsLogsReadAllResponseItemSchema = z.union([z.object({
   response_id: z.string(),
   tool_call_id: z.string().describe("The wire tool-call id this response answers."),
   type: z.literal("tool_response")
-}).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
+}).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `queued_at` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
 
 // src/viewer/command/agents/logs/read/all.ts
 function agentsLogsReadAllExecute(request) {
@@ -1553,7 +1553,7 @@ var CliCommandAgentsQueueDeleteResponseSchema = z.object({
   agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
   agent_tag: z.string().nullable().meta({ omitempty: true }).optional(),
   content: AgentCompletionsMessageRichContentSchema,
-  enqueued_at: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  enqueued_at: z.string().describe("RFC3339 timestamp the dropped row was enqueued at."),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   key: z.string().nullable().describe("Idempotency token, if the dropped row had one.").meta({ omitempty: true }).optional()
 }).describe("What was deleted. Carries every column of the original\n`prompts` row so the caller can confirm the drop:\nexactly one of `agent_instance_hierarchy` / `agent_tag` is set\n(matching the original target), `enqueued_at` is the original\nunix-seconds timestamp, and `content` is the reconstructed\n`RichContent` body.").meta({ title: "cli.command.agents.queue.delete.Response" });
@@ -1734,25 +1734,25 @@ async function agentsQueueReadIdResponseSchemaExecuteTransform(request, transfor
 var CliCommandAgentsQueueReadPendingQueuePartSchema = z.object({
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
   type: CliCommandAgentsLogsReadAllClientNotificationPartTypeSchema
-}).describe("One row inside a `ResponseItem` block \u2014 a\n`message_queue_contents` entry. The `id` is the\n`message_queue_contents.id`, which you pass to\n`agents queue read id <n>` to drill into the body.\n`timestamp_queued` is on the enclosing block, not here\n(one block = one `message_queue` parent row, sharing one\n`enqueued_at`).").meta({ title: "cli.command.agents.queue.read.pending.QueuePart" });
+}).describe("One row inside a `ResponseItem` block \u2014 a\n`message_queue_contents` entry. The `id` is the\n`message_queue_contents.id`, which you pass to\n`agents queue read id <n>` to drill into the body.\n`enqueued_at` is on the enclosing block, not here\n(one block = one `message_queue` parent row, sharing one\n`enqueued_at`).").meta({ title: "cli.command.agents.queue.read.pending.QueuePart" });
 
 // src/cli/command/agents/queue/read/pending/responseItem.ts
 var CliCommandAgentsQueueReadPendingResponseItemSchema = z.union([z.object({
   agent_instance_hierarchy: z.string(),
   by: z.literal("agent_instance_hierarchy"),
   delete_id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.id` \u2014 the row-level id this block\nrepresents. Pass to `agents queue delete <id>` to\nsoft-flip the entire row (all parts) in one call.\nDistinct from each `QueuePart.id` (which is a\n`message_queue_contents.id` for drilling into one\ncontent slot via `agents queue read id`)."),
+  enqueued_at: z.string().describe("`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level."),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with `--key`.").meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
-  sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who enqueued \u2014 from\n`message_queue.sender_*`."),
-  timestamp_queued: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.")
+  sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who enqueued \u2014 from\n`message_queue.sender_*`.")
 }).meta({ "variantTitle": "AgentInstanceHierarchy" }), z.object({
   agent_tag: z.string(),
   by: z.literal("tag"),
   delete_id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("`message_queue.id`. Pass to `agents queue delete <id>`."),
+  enqueued_at: z.string(),
   key: z.string().nullable().meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsQueueReadPendingQueuePartSchema),
-  sender_agent_instance_hierarchy: z.string(),
-  timestamp_queued: z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
+  sender_agent_instance_hierarchy: z.string()
 }).meta({ "variantTitle": "Tag" })]).describe("One pending `message_queue` row, with its content rows\ngrouped as `parts`. Two variants \u2014 direct AIH target or tag\ntarget \u2014 both flat (no nested `LookupState`).").meta({ title: "cli.command.agents.queue.read.pending.ResponseItem" });
 
 // src/viewer/command/agents/queue/read/pending.ts
@@ -5298,11 +5298,11 @@ var CliCommandTasksListPluginSchema = z.object({
 var CliCommandTasksListResponseItemSchema = z.object({
   agent_instance_hierarchy: z.string(),
   command: z.array(z.string()),
-  created_at: z.number().int().min(-9223372036854776e3).max(9223372036854776e3),
+  created_at: z.string().describe("RFC3339 timestamp this schedule row was created."),
   description: z.string(),
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).describe("The `schedules` row id. Monotonic; pass the highest `id` from a\npage as the next request's `after_id` to paginate forward."),
   interval: z.string().nullable().describe('`None` for a oneshot; `Some("30s" / "1h" / "1d12h" / \u2026)`\nfor a recurring schedule, formatted as humantime so the\nlist output reads naturally without a unit-conversion\nstep at the consumer. The CLI parser accepts the same\nshape on `agents tasks schedule --interval`.').meta({ omitempty: true }).optional(),
-  last_ran_at: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Unix seconds of the most recent invocation \u2014 this row's newest\n`tasks_runs` entry. `None` until the runner has fired this\nversion at least once (runs are tracked per-version).").meta({ omitempty: true }).optional(),
+  last_ran_at: z.string().nullable().describe("RFC3339 timestamp of the most recent invocation \u2014 this row's\nnewest `tasks_runs` entry. `None` until the runner has fired\nthis version at least once (runs are tracked per-version).").meta({ omitempty: true }).optional(),
   name: z.string().describe("The `--name` passed to `agents tasks schedule`. Unique per\n`agent_instance_hierarchy`."),
   plugin: CliCommandTasksListPluginSchema.nullable().describe("The plugin that registered this schedule (its `(owner,\nrepository, version)` coordinate), or `None` when it was not\nscheduled by a plugin.").meta({ omitempty: true }).optional(),
   version: z.number().int().min(0).max(18446744073709552e3).describe("This row's version: `1` for a freshly scheduled task,\n`max + 1` for each `tasks schedule --overwrite` (each version\nis its own row; only the newest lists).")

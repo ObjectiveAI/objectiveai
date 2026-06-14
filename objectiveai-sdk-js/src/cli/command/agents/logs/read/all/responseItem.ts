@@ -7,32 +7,32 @@ import { CliCommandAgentsLogsReadAllToolResponsePartSchema } from "./toolRespons
 
 export const CliCommandAgentsLogsReadAllResponseItemSchema = z.union([z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who issued the request — from\n`logs.agent_completion_requests.sender_*`."),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("agent_completion_request"),
 }).meta({"variantTitle":"AgentCompletionRequest"}), z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string(),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("vector_completion_request"),
 }).meta({"variantTitle":"VectorCompletionRequest"}), z.object({
   agent_instance_hierarchy: z.string(),
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string(),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: z.literal("function_execution_request"),
 }).meta({"variantTitle":"FunctionExecutionRequest"}), z.object({
   agent_instance_hierarchy: z.string(),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.").meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsLogsReadAllClientNotificationPartSchema),
+  queued_at: z.string().describe("`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`delivered_at` still records its own\nconsumption moment)."),
   response_id: z.string(),
   sender_agent_instance_hierarchy: z.string().describe("AIH of the enqueuer — from `message_queue.sender_*`\njoined through `message_queue_contents.id`."),
-  timestamp_queued: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`message_queue.enqueued_at` of the consumed parent\nqueue row. One block = one parent queue row, so this\nis well-defined block-level (each part's individual\n`timestamp_delivered` still records its own\nconsumption moment)."),
   type: z.literal("client_notification"),
 }).meta({"variantTitle":"ClientNotification"}), z.object({
   agent_instance_hierarchy: z.string(),
@@ -45,5 +45,5 @@ export const CliCommandAgentsLogsReadAllResponseItemSchema = z.union([z.object({
   response_id: z.string(),
   tool_call_id: z.string().describe("The wire tool-call id this response answers."),
   type: z.literal("tool_response"),
-}).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({"variantTitle":"ToolResponse"})]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender ≠ producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself — their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `timestamp_queued` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
+}).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({"variantTitle":"ToolResponse"})]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender ≠ producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself — their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `queued_at` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.read.all.ResponseItem" });
 export type CliCommandAgentsLogsReadAllResponseItem = z.infer<typeof CliCommandAgentsLogsReadAllResponseItemSchema>;

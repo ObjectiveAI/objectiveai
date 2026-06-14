@@ -3,13 +3,11 @@
   "description": "One row inside a `ToolResponse` block.",
   "type": "object",
   "properties": {
+    "delivered_at": {
+      "type": "string"
+    },
     "id": {
       "description": "`logs.messages.\"index\"` for this row. Pass to\n`agents logs read id <n>` for the typed body.",
-      "type": "integer",
-      "minimum": -9223372036854775808,
-      "maximum": 9223372036854775807
-    },
-    "timestamp_delivered": {
       "type": "integer",
       "minimum": -9223372036854775808,
       "maximum": 9223372036854775807
