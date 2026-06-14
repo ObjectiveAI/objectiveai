@@ -143,8 +143,7 @@ fn assistant_response_chunk_rows<'a>(
         .tool_calls
         .iter()
         .flatten()
-        .enumerate()
-        .filter_map(move |(tc_idx, tc)| {
+        .filter_map(move |tc| {
             let id = tc.id.as_deref()?;
             let name = tc.function.as_ref().and_then(|f| f.name.as_deref())?;
             let args = tc.function.as_ref().and_then(|f| f.arguments.as_deref())?;
@@ -152,7 +151,15 @@ fn assistant_response_chunk_rows<'a>(
                 response_id,
                 agent_instance_hierarchy,
                 index,
-                tool_call_index: tc_idx as u64,
+                // The tool call's own wire `index`, NOT its position in
+                // the merged Vec. `push` correlates streamed tool-call
+                // deltas by `index`, so a call whose wire index is e.g.
+                // 2 can sit at Vec position 0 (or move as earlier-index
+                // deltas arrive). The row PK is
+                // (response_id, index, tool_call_index) — keying it on
+                // Vec position would mislabel calls and let the shadow
+                // key drift across chunks; the wire index is stable.
+                tool_call_index: tc.index,
                 tool_call_id: id,
                 function_name: name,
                 arguments: args,
