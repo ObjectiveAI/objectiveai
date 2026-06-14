@@ -1,2 +1,2 @@
-objectiveai-sdk==2.1.3
+objectiveai-sdk==2.2.0
 cocoindex

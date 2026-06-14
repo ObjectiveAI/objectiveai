@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk-wasm-js"
-version = "2.1.3"
+version = "2.2.0"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "JavaScript WebAssembly bindings for ObjectiveAI"
@@ -16,7 +16,7 @@ publish = true
 crate-type = ["cdylib"]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.1.3", default-features = false }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.0", default-features = false }
 wasm-bindgen = { version = "0.2.114" }
 serde-wasm-bindgen = { version = "0.6.5" }
 rust_decimal = { version = "1.40.0", features = ["serde-float"] }
