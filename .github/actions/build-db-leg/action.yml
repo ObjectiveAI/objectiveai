@@ -1,0 +1,59 @@
+name: Build DB leg and publish to release
+description: Set up the Rust toolchain, build the standalone objectiveai-db binary (the ObjectiveAI database server — the embedded-postgres vehicle, published from the objectiveai-db crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
+
+inputs:
+  asset:
+    description: Filename of the released asset (e.g. objectiveai-linux-x86_64-db).
+    required: true
+  src_name:
+    description: Filename of the built binary inside ~/.objectiveai/bin/ (objectiveai-db or objectiveai-db.exe).
+    required: true
+  version:
+    description: The version string (without leading "v") used in the release tag.
+    required: true
+  repository:
+    description: The owner/repo slug for `gh release upload`.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - uses: dtolnay/rust-toolchain@stable
+    - name: Build DB
+      shell: bash
+      # GITHUB_TOKEN: objectiveai-db bundles a postgres archive (~163M
+      # baked into the binary) via postgresql_embedded, whose build
+      # script queries the GitHub API for it; unauthenticated requests
+      # from shared runners intermittently 403 on rate limits. The crate
+      # authenticates when GITHUB_TOKEN is set.
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
+      run: bash objectiveai-db/install.sh
+    - name: Dump build logs on failure
+      if: failure()
+      shell: bash
+      run: |
+        shopt -s nullglob
+        for log in .logs/build/*.txt; do
+          echo "::group::$log"
+          cat "$log"
+          echo "::endgroup::"
+        done
+    - name: Stage release binary
+      shell: bash
+      run: cp "$HOME/.objectiveai/bin/${{ inputs.src_name }}" "${{ inputs.asset }}"
+    - uses: actions/upload-artifact@v4
+      with:
+        name: ${{ inputs.asset }}
+        path: ${{ inputs.asset }}
+        if-no-files-found: error
+    - name: Upload asset to release
+      # Same upload-as-you-finish pattern as the other legs: each leg
+      # appends its asset the moment it's built, no cross-leg gating.
+      # `--clobber` keeps re-runs idempotent. GH_TOKEN is provided by the
+      # calling job's `env:`.
+      shell: bash
+      run: |
+        gh release upload "v${{ inputs.version }}" "${{ inputs.asset }}" \
+          --clobber \
+          --repo "${{ inputs.repository }}"

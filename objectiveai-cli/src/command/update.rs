@@ -41,7 +41,10 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 const RELEASES_API: &str =
     "https://api.github.com/repos/ObjectiveAI/objectiveai/releases/latest";
 const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
-const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(120);
+// Per-asset download cap. Sized for the largest asset: `objectiveai-db`
+// bundles postgres (~163 MB), so a tight cap would time out the db leg
+// on slower links (the other binaries are far smaller).
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
 
 /// Swap order: cli last because it's the running binary. The
 /// sub-binaries don't gate each other — a swap failure on one is
@@ -103,7 +106,7 @@ async fn run(
     // swap before we begin.
     sweep_stale_old(&current_exe);
 
-    // Build the four expected asset names for this (os, arch). The cli
+    // Build the five expected asset names for this (os, arch). The cli
     // is the bare `objectiveai-<os>-<arch>{ext}`; every other package
     // appends `-<package>` after the arch.
     let expected: Vec<(&'static str, String)> = PACKAGES
@@ -158,7 +161,7 @@ async fn run(
             .map_err(|e| Error::Updater(format!("malformed release metadata: {e}")))?
     };
 
-    // Index assets by name; check all 4 expected names are present.
+    // Index assets by name; check all 5 expected names are present.
     let assets_map: std::collections::HashMap<&str, &Asset> = release
         .assets
         .iter()
@@ -208,7 +211,7 @@ async fn run(
         })
         .collect();
 
-    // Download all 4 to staged paths next to their targets.
+    // Download all 5 to staged paths next to their targets.
     let pid = std::process::id();
     let mut staged: Vec<(&'static str, PathBuf, PathBuf)> = Vec::new();
 
