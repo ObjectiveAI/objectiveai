@@ -1,0 +1,19 @@
+{
+  "owner": "testorg",
+  "name": "viewer-notify",
+  "version": "1.0.0",
+  "description": "viewer integration test fixture",
+  "exec": {
+    "windows": [],
+    "linux": [],
+    "macos": []
+  },
+  "cli_zip": {},
+  "viewer_routes": [
+    {
+      "path": "/notify",
+      "method": "POST",
+      "type": "notify"
+    }
+  ]
+}
