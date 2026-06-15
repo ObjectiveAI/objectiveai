@@ -305,19 +305,6 @@ fn test_upstream_binary() -> PathBuf {
         .expect("workspace root")
         .to_path_buf();
 
-    // Always run `cargo build -p test-upstream` first so the binary on
-    // disk reflects the current source. Cargo's incremental check is
-    // fast when the source is unchanged. Previously this just returned
-    // the first existing path under target/{debug,release}, which
-    // silently ran tests against a stale binary if the source had
-    // changed since the last build.
-    let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
-    let status = std::process::Command::new(&cargo)
-        .args(["build", "-p", "test-upstream"])
-        .status()
-        .expect("failed to spawn cargo build");
-    assert!(status.success(), "cargo build -p test-upstream failed");
-
     let bin_name = if cfg!(windows) {
         "test-upstream.exe"
     } else {
@@ -327,6 +314,27 @@ fn test_upstream_binary() -> PathBuf {
         .map(PathBuf::from)
         .unwrap_or_else(|| workspace.join("target"));
     let candidate = target.join("debug").join(bin_name);
+
+    // Build `test-upstream` so the binary on disk reflects the current
+    // source — UNLESS we're running under the root `test.sh`
+    // (`OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT`), which already built it in
+    // its sequential pre-build phase (`build-tests.sh`) before any suite
+    // started. Skipping the rebuild there is essential on Windows:
+    // running `cargo build` during the PARALLEL test phase can relink
+    // `test-upstream.exe` (when a concurrent suite rebuilt a shared dep,
+    // invalidating its fingerprint) while another test is executing it,
+    // which fails with "Access is denied (os error 5)". Standalone,
+    // Cargo's incremental check is fast when the source is unchanged and
+    // guards against testing a stale binary from a prior build.
+    if std::env::var_os("OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT").is_none() {
+        let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+        let status = std::process::Command::new(&cargo)
+            .args(["build", "-p", "test-upstream"])
+            .status()
+            .expect("failed to spawn cargo build");
+        assert!(status.success(), "cargo build -p test-upstream failed");
+    }
+
     assert!(candidate.exists(), "test-upstream binary missing at {candidate:?}");
     candidate
 }

@@ -1254,7 +1254,7 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
 }
 
 #[tokio::test]
-async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
+async fn install_upgrade_network_failure_leaves_prior_install_intact() {
     let base = temp_base();
     let client = client_for(&base);
 
@@ -1274,8 +1274,8 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         .unwrap();
 
     // Attempt upgrade (same version → same version dir) with a cli
-    // zip endpoint that 500s. The cleanup step deletes A's artifacts
-    // in that version dir before the failing fetch.
+    // zip endpoint that 500s. The fetch fails in the network phase,
+    // before any disk write or the pre-write clean.
     let server_b = MockServer::start().await;
     let manifest_body = json!({
         "owner": "claimed-owner",
@@ -1314,12 +1314,16 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
         ))
     ));
 
-    // Documented trade-off: upgrade deleted A's artifacts (the cli/
-    // dir, viewer/, and the manifest) BEFORE the network fetch failed.
-    // The user must retry install.
+    // The network phase (cli-zip fetch) runs BEFORE any disk write or
+    // the pre-write clean, so a network failure leaves the prior
+    // install (A) completely intact — the user retries with the
+    // working install still in place.
     let dir = client.plugin_dir("owner", "repo", "1.0.0");
-    assert!(!dir.join("cli").exists());
-    assert!(!dir.join("objectiveai.json").exists());
+    assert_eq!(
+        std::fs::read_to_string(dir.join("cli").join("main.txt")).unwrap(),
+        "V1"
+    );
+    assert!(dir.join("objectiveai.json").exists());
 
     cleanup(&base);
 }
