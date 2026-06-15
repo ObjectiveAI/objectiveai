@@ -6,9 +6,10 @@ use serde::{Deserialize, Serialize};
 /// `^(?:pattern)$`). All four fields must match for the row to
 /// allow the install.
 ///
-/// The host loads a list of these and accepts a plugin install only
+/// The host loads a list of these and accepts an install only
 /// if the (owner, repository, commit_sha_or_HEAD, manifest.version)
 /// quadruple matches at least one row. Use `.*` for catch-all fields.
+/// Shared by the tool and plugin GitHub-install paths.
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.WhitelistEntry")]
 pub struct WhitelistEntry {
@@ -26,7 +27,7 @@ pub struct WhitelistEntry {
 
 /// The hard-coded default whitelist. Single entry: any repo under
 /// the ObjectiveAI GitHub org passes; everything else requires
-/// `--insecure`.
+/// `--allow-untrusted`.
 pub fn default_whitelist() -> Vec<WhitelistEntry> {
     vec![WhitelistEntry {
         // (?i) is the regex inline flag for case-insensitive matching;

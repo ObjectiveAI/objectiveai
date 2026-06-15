@@ -21,7 +21,7 @@ objectiveai plugins install --owner <o> --repository <r> [--commit-sha <s>] [--u
 | Error | When |
 |---|---|
 | `ReservedRepositoryName` | `--repository` is `objectiveai` (any casing). |
-| `PluginNotWhitelisted` | The (owner, repository, commit_sha or HEAD, manifest.version) tuple doesn't match any whitelist entry, and `--allow-untrusted` was not passed. |
+| `NotWhitelisted` (kind `"plugin"`) | The (owner, repository, commit_sha or HEAD, manifest.version) tuple doesn't match any whitelist entry, and `--allow-untrusted` was not passed. |
 | `AlreadyInstalled` | A sibling `.json` exists at `<plugins_dir>/<repository>.json` and `--upgrade` was not passed. |
 | `ManifestBadStatus` / `BinaryBadStatus` / `ViewerZipBadStatus` | The corresponding GitHub asset returned a non-2xx status. |
 | `ManifestParse` | The fetched `objectiveai.json` didn't deserialize. |

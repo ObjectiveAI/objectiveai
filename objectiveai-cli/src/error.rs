@@ -61,9 +61,10 @@ pub enum Error {
     #[error("tool exited with non-zero status: {0}")]
     ToolExit(i32),
     #[error(
-        "plugin {owner}/{repository} (commit {commit_sha}, version {version}) is not in the install whitelist; pass --allow-untrusted to install anyway"
+        "{kind} {owner}/{repository} (commit {commit_sha}, version {version}) is not in the install whitelist; pass --allow-untrusted to install anyway"
     )]
-    PluginNotWhitelisted {
+    NotWhitelisted {
+        kind: &'static str,
         owner: String,
         repository: String,
         commit_sha: String,

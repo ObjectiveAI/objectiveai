@@ -1,10 +1,11 @@
 use reqwest::StatusCode;
 use std::path::PathBuf;
 
-/// Failures the plugin install pipeline can encounter. Shape modelled
-/// after `objectiveai-api`'s `github::Error`: split request / response
-/// / status / parse so diagnostics name what failed, plus IO variants
-/// for the local-disk side of the flow.
+/// Failures the GitHub-install pipeline (shared by tools and plugins)
+/// can encounter. Shape modelled after `objectiveai-api`'s
+/// `github::Error`: split request / response / status / parse so
+/// diagnostics name what failed, plus IO variants for the local-disk
+/// side of the flow.
 #[derive(thiserror::Error, Debug)]
 pub enum InstallError {
     #[error("manifest request failed: {0}")]
@@ -25,7 +26,7 @@ pub enum InstallError {
     CliZipBadStatus { code: StatusCode, url: String },
     #[error("cli-zip body could not be read: {0}")]
     CliZipResponse(reqwest::Error),
-    #[error("failed to create plugin directory {0}: {1}")]
+    #[error("failed to create install directory {0}: {1}")]
     PluginDirCreate(PathBuf, std::io::Error),
     #[error("failed to serialize manifest for persistence: {0}")]
     ManifestSerialize(serde_json::Error),
@@ -44,7 +45,7 @@ pub enum InstallError {
     #[error("invalid header value for {name:?}: {reason}")]
     InvalidHeaderValue { name: String, reason: String },
     #[error(
-        "plugin {repository} is already installed; pass `--upgrade` to replace it"
+        "{repository} is already installed; pass `--upgrade` to replace it"
     )]
     AlreadyInstalled { repository: String },
     #[error(

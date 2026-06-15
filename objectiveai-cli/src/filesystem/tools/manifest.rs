@@ -55,6 +55,16 @@ pub struct Manifest {
     pub cli_zip: CliZip,
 }
 
+impl Manifest {
+    /// Validate fields that serde alone can't enforce. Tools have no
+    /// cross-field invariants (unlike plugins' viewer rules), so this is
+    /// currently a no-op — it exists so the shared install/discovery
+    /// paths can call `validate()` uniformly across manifest kinds.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        Ok(())
+    }
+}
+
 // Projection to the SDK's lean `tools get` wire response — drops the
 // on-disk-only `cli_zip`. `exec` is the same SDK `Exec` type, so it
 // moves across unchanged.

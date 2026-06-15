@@ -1,5 +1,6 @@
 use super::super::Client;
-use super::{InstallError, Manifest};
+use super::Manifest;
+use crate::filesystem::install::InstallError;
 use indexmap::IndexMap;
 use serde_json::json;
 use wiremock::matchers::{header, method, path};

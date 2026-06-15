@@ -6,7 +6,7 @@
 //! Channel-name namespacing: `"objectiveai"` is reserved as the
 //! built-in destination; plugin repositories named "objectiveai"
 //! are refused at install time (see
-//! `filesystem::plugins::InstallError::ReservedRepositoryName`), so
+//! `filesystem::install::InstallError::ReservedRepositoryName`), so
 //! a plugin can't shadow built-in events.
 
 use schemars::JsonSchema;
