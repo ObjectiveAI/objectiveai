@@ -131,6 +131,20 @@ impl TestRig {
         &self,
         custom_headers: HashMap<&str, String>,
     ) -> RunningService<rmcp::RoleClient, rmcp::model::ClientInfo> {
+        self.try_connect_client(custom_headers)
+            .await
+            .expect("client serve")
+    }
+
+    /// Like [`Self::connect_client`] but returns the `Result` instead of
+    /// expecting success, so a test can assert the proxy's `initialize`
+    /// FAILED (e.g. because the post-connect tools/resources health probe
+    /// rejected an upstream). The proxy renders the failure as an HTTP-200
+    /// JSON-RPC error, which rmcp's `serve` surfaces as an `Err`.
+    pub async fn try_connect_client(
+        &self,
+        custom_headers: HashMap<&str, String>,
+    ) -> Result<RunningService<rmcp::RoleClient, rmcp::model::ClientInfo>, String> {
         use reqwest::header::{HeaderName, HeaderValue};
 
         let mut headers: HashMap<HeaderName, HeaderValue> = HashMap::new();
@@ -149,7 +163,37 @@ impl TestRig {
         client_info_for_proxy()
             .serve(transport)
             .await
-            .expect("client serve")
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    /// Hit a test upstream's `POST /__test/set-list-failure` endpoint to
+    /// make its `tools/list` and/or `resources/list` return a JSON-RPC
+    /// error while `initialize` still succeeds. Call BEFORE connecting a
+    /// client (the proxy dials the upstream during the client's
+    /// `initialize`).
+    pub async fn set_upstream_list_failure(
+        &self,
+        idx: usize,
+        fail_tools_list: bool,
+        fail_resources_list: bool,
+    ) {
+        #[derive(Serialize)]
+        struct Body {
+            fail_tools_list: bool,
+            fail_resources_list: bool,
+        }
+        let url = format!("{}/set-list-failure", self.upstreams[idx].control_base);
+        let resp = reqwest::Client::new()
+            .post(&url)
+            .json(&Body { fail_tools_list, fail_resources_list })
+            .send()
+            .await
+            .expect("control POST");
+        assert!(
+            resp.status().is_success(),
+            "set-list-failure failed: {}",
+            resp.status()
+        );
     }
 
     /// Hit a test upstream's `POST /__test/set-tools` endpoint to swap
