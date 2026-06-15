@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.tools.install.github.Response",
+  "type": "object",
+  "properties": {
+    "installed": {
+      "type": "boolean"
+    }
+  }
+}

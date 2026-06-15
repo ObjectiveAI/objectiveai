@@ -5605,56 +5605,109 @@ async function toolsGetResponseSchemaExecuteTransform(request, transform) {
   }
   return first;
 }
-var CliCommandToolsInstallResponseSchema = zod.z.object({
+var CliCommandToolsInstallFilesystemResponseSchema = zod.z.object({
   instructions: zod.z.string()
-}).meta({ title: "cli.command.tools.install.Response" });
+}).meta({ title: "cli.command.tools.install.filesystem.Response" });
 
-// src/viewer/command/tools/install.ts
-async function toolsInstallExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install" }), zod.z.union([CliErrorSchema, CliCommandToolsInstallResponseSchema]));
+// src/viewer/command/tools/install/filesystem.ts
+async function toolsInstallFilesystemExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/filesystem" }), zod.z.union([CliErrorSchema, CliCommandToolsInstallFilesystemResponseSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install: cli produced no output before the end marker");
+    throw new Error("tools install filesystem: cli produced no output before the end marker");
   }
   return first;
 }
-async function toolsInstallExecuteTransform(request, transform) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function toolsInstallFilesystemExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/filesystem" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install: cli produced no output before the end marker");
+    throw new Error("tools install filesystem: cli produced no output before the end marker");
   }
   return first;
 }
-async function toolsInstallRequestSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function toolsInstallFilesystemRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/filesystem/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install request_schema: cli produced no output before the end marker");
+    throw new Error("tools install filesystem request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function toolsInstallRequestSchemaExecuteTransform(request, transform) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function toolsInstallFilesystemRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/filesystem/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install request_schema: cli produced no output before the end marker");
+    throw new Error("tools install filesystem request_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function toolsInstallResponseSchemaExecute(request) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function toolsInstallFilesystemResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/filesystem/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install response_schema: cli produced no output before the end marker");
+    throw new Error("tools install filesystem response_schema: cli produced no output before the end marker");
   }
   return first;
 }
-async function toolsInstallResponseSchemaExecuteTransform(request, transform) {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+async function toolsInstallFilesystemResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/filesystem/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === void 0) {
-    throw new Error("tools install response_schema: cli produced no output before the end marker");
+    throw new Error("tools install filesystem response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+var CliCommandToolsInstallGithubResponseSchema = zod.z.object({
+  installed: zod.z.boolean()
+}).meta({ title: "cli.command.tools.install.github.Response" });
+
+// src/viewer/command/tools/install/github.ts
+async function toolsInstallGithubExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/github" }), zod.z.union([CliErrorSchema, CliCommandToolsInstallGithubResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function toolsInstallGithubExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/github" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function toolsInstallGithubRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/github/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function toolsInstallGithubRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/github/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function toolsInstallGithubResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "tools/install/github/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function toolsInstallGithubResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "tools/install/github/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("tools install github response_schema: cli produced no output before the end marker");
   }
   return first;
 }
@@ -6946,12 +6999,18 @@ exports.toolsGetRequestSchemaExecute = toolsGetRequestSchemaExecute;
 exports.toolsGetRequestSchemaExecuteTransform = toolsGetRequestSchemaExecuteTransform;
 exports.toolsGetResponseSchemaExecute = toolsGetResponseSchemaExecute;
 exports.toolsGetResponseSchemaExecuteTransform = toolsGetResponseSchemaExecuteTransform;
-exports.toolsInstallExecute = toolsInstallExecute;
-exports.toolsInstallExecuteTransform = toolsInstallExecuteTransform;
-exports.toolsInstallRequestSchemaExecute = toolsInstallRequestSchemaExecute;
-exports.toolsInstallRequestSchemaExecuteTransform = toolsInstallRequestSchemaExecuteTransform;
-exports.toolsInstallResponseSchemaExecute = toolsInstallResponseSchemaExecute;
-exports.toolsInstallResponseSchemaExecuteTransform = toolsInstallResponseSchemaExecuteTransform;
+exports.toolsInstallFilesystemExecute = toolsInstallFilesystemExecute;
+exports.toolsInstallFilesystemExecuteTransform = toolsInstallFilesystemExecuteTransform;
+exports.toolsInstallFilesystemRequestSchemaExecute = toolsInstallFilesystemRequestSchemaExecute;
+exports.toolsInstallFilesystemRequestSchemaExecuteTransform = toolsInstallFilesystemRequestSchemaExecuteTransform;
+exports.toolsInstallFilesystemResponseSchemaExecute = toolsInstallFilesystemResponseSchemaExecute;
+exports.toolsInstallFilesystemResponseSchemaExecuteTransform = toolsInstallFilesystemResponseSchemaExecuteTransform;
+exports.toolsInstallGithubExecute = toolsInstallGithubExecute;
+exports.toolsInstallGithubExecuteTransform = toolsInstallGithubExecuteTransform;
+exports.toolsInstallGithubRequestSchemaExecute = toolsInstallGithubRequestSchemaExecute;
+exports.toolsInstallGithubRequestSchemaExecuteTransform = toolsInstallGithubRequestSchemaExecuteTransform;
+exports.toolsInstallGithubResponseSchemaExecute = toolsInstallGithubResponseSchemaExecute;
+exports.toolsInstallGithubResponseSchemaExecuteTransform = toolsInstallGithubResponseSchemaExecuteTransform;
 exports.toolsListExecute = toolsListExecute;
 exports.toolsListExecuteTransform = toolsListExecuteTransform;
 exports.toolsListRequestSchemaExecute = toolsListRequestSchemaExecute;

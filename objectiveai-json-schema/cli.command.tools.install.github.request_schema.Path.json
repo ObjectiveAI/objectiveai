@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.tools.install.github.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "tools/install/github/request_schema"
+  ]
+}

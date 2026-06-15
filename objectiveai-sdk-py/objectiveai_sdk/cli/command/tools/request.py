@@ -7,8 +7,6 @@ from objectiveai_sdk.cli.command.tools.get.request import Request as CliCommandT
 from objectiveai_sdk.cli.command.tools.get.request_schema.request import Request as CliCommandToolsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.tools.get.response_schema.request import Request as CliCommandToolsGetResponseSchemaRequest
 from objectiveai_sdk.cli.command.tools.install.request import Request as CliCommandToolsInstallRequest
-from objectiveai_sdk.cli.command.tools.install.request_schema.request import Request as CliCommandToolsInstallRequestSchemaRequest
-from objectiveai_sdk.cli.command.tools.install.response_schema.request import Request as CliCommandToolsInstallResponseSchemaRequest
 from objectiveai_sdk.cli.command.tools.list.request import Request as CliCommandToolsListRequest
 from objectiveai_sdk.cli.command.tools.list.request_schema.request import Request as CliCommandToolsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.tools.list.response_schema.request import Request as CliCommandToolsListResponseSchemaRequest
@@ -39,18 +37,6 @@ class RequestInstall(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Install'})
 
     root: CliCommandToolsInstallRequest
-
-
-class RequestInstallRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'InstallRequestSchema'})
-
-    root: CliCommandToolsInstallRequestSchemaRequest
-
-
-class RequestInstallResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'InstallResponseSchema'})
-
-    root: CliCommandToolsInstallResponseSchemaRequest
 
 
 class RequestList(RootModel):
@@ -92,5 +78,5 @@ class RequestRunResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.tools.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestInstallRequestSchema, RequestInstallResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
 

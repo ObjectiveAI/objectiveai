@@ -8,44 +8,118 @@ import (
 )
 
 type CliCommandToolsInstallRequest struct {
-	// jq filter applied to the JSON output. Ignored when `python`
-	// is also set — python overrides jq.
-	Jq *string `json:"jq"`
-	// Response token budget, `>= 1` (`0` is rejected at parse
-	// time — omit entirely for unlimited). Forward-compatible
-	// envelope data — no leaf enforces it yet.
-	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
-	PathType CliCommandToolsInstallPath `json:"path_type"`
-	// Python transform applied to the JSON output. Overrides `jq`
-	// when both are provided.
-	Python *string `json:"python"`
-	// Wall-clock execution cap, in whole seconds. Parsed from
-	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
-	// enforced at parse time. `db query` threads it to postgres
-	// when set; omit for uncapped.
-	TimeoutSeconds *uint64 `json:"timeout_seconds,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
+	Filesystem *CliCommandToolsInstallFilesystemRequest 
+	FilesystemRequestSchema *CliCommandToolsInstallFilesystemRequestSchemaRequest 
+	FilesystemResponseSchema *CliCommandToolsInstallFilesystemResponseSchemaRequest 
+	Github *CliCommandToolsInstallGithubRequest 
+	GithubRequestSchema *CliCommandToolsInstallGithubRequestSchemaRequest 
+	GithubResponseSchema *CliCommandToolsInstallGithubResponseSchemaRequest 
 }
 
-func (CliCommandToolsInstallRequest) SchemaTitle() string { return "cli.command.tools.install.Request" }
-func (v CliCommandToolsInstallRequest) Validate() error {
-	return variantValidator.Struct(v)
+func (v CliCommandToolsInstallRequest) MarshalJSON() ([]byte, error) {
+	if v.Filesystem != nil {
+		return json.Marshal(v.Filesystem)
+	}
+	if v.FilesystemRequestSchema != nil {
+		return json.Marshal(v.FilesystemRequestSchema)
+	}
+	if v.FilesystemResponseSchema != nil {
+		return json.Marshal(v.FilesystemResponseSchema)
+	}
+	if v.Github != nil {
+		return json.Marshal(v.Github)
+	}
+	if v.GithubRequestSchema != nil {
+		return json.Marshal(v.GithubRequestSchema)
+	}
+	if v.GithubResponseSchema != nil {
+		return json.Marshal(v.GithubResponseSchema)
+	}
+	return []byte("null"), nil
 }
 
 func (v *CliCommandToolsInstallRequest) UnmarshalJSON(data []byte) error {
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
-		return err
-	}
-	for _, key := range []string{"path_type"} {
-		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandToolsInstallRequest: missing required field %q", key)
+	{
+		var try CliCommandToolsInstallFilesystemRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.Filesystem = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
 		}
 	}
-	type Alias CliCommandToolsInstallRequest
-	var alias Alias
-	if err := json.Unmarshal(data, &alias); err != nil {
-		return err
+	{
+		var try CliCommandToolsInstallFilesystemRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.FilesystemRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
 	}
-	*v = CliCommandToolsInstallRequest(alias)
-	return nil
+	{
+		var try CliCommandToolsInstallFilesystemResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.FilesystemResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandToolsInstallGithubRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.Github = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandToolsInstallGithubRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.GithubRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandToolsInstallGithubResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandToolsInstallRequest{}
+			candidate.GithubResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	return fmt.Errorf("data did not match any variant of CliCommandToolsInstallRequest")
 }
+
+func (v CliCommandToolsInstallRequest) Validate() error {
+	count := 0
+	if v.Filesystem != nil { count++ }
+	if v.FilesystemRequestSchema != nil { count++ }
+	if v.FilesystemResponseSchema != nil { count++ }
+	if v.Github != nil { count++ }
+	if v.GithubRequestSchema != nil { count++ }
+	if v.GithubResponseSchema != nil { count++ }
+	if count != 1 {
+		return fmt.Errorf("CliCommandToolsInstallRequest: exactly one variant must be set, got %d", count)
+	}
+	return variantValidator.Struct(v)
+}
+func (CliCommandToolsInstallRequest) SchemaTitle() string { return "cli.command.tools.install.Request" }
+

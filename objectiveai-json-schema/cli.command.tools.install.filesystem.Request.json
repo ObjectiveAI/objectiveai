@@ -1,0 +1,59 @@
+{
+  "title": "cli.command.tools.install.filesystem.Request",
+  "type": "object",
+  "properties": {
+    "jq": {
+      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "max_tokens": {
+      "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "path_type": {
+      "$ref": "cli.command.tools.install.filesystem.Path"
+    },
+    "python": {
+      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "timeout_seconds": {
+      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 18446744073709551615
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}
