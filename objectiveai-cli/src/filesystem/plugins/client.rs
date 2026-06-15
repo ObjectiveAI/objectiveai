@@ -14,26 +14,17 @@
 use std::path::{Path, PathBuf};
 
 use super::super::Client;
-use super::{Manifest, ManifestWithNameAndSource};
+use super::Manifest;
 
-/// Parse an on-disk `objectiveai.json` (a bare [`Manifest`]) into a
-/// [`ManifestWithNameAndSource`], deriving `name` from the `<name>`
-/// path segment (`.../<owner>/<name>/<version>/objectiveai.json`) and
-/// `source` from the file path. `None` on missing / unreadable /
-/// malformed / invalid files.
-async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
+/// Parse an on-disk `objectiveai.json` into a [`Manifest`] (and
+/// [`Manifest::validate`] it). The manifest declares its own `owner` /
+/// `name` / `version`; nothing is derived from the path. `None` on
+/// missing / unreadable / malformed / invalid files.
+async fn parse_manifest_file(path: &Path) -> Option<Manifest> {
     let bytes = tokio::fs::read(path).await.ok()?;
     let manifest: Manifest = serde_json::from_slice(&bytes).ok()?;
     manifest.validate().ok()?;
-    // path = .../<owner>/<name>/<version>/objectiveai.json
-    // parent = <version>, parent.parent = <name>.
-    let name = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
-    let source = path.to_string_lossy().into_owned();
-    Some(ManifestWithNameAndSource {
-        name,
-        manifest,
-        source,
-    })
+    Some(manifest)
 }
 
 /// Walk `<root>/<owner>/<name>/<version>/objectiveai.json` and collect
@@ -103,10 +94,10 @@ impl Client {
         name: &str,
         version: &str,
     ) -> Option<(Vec<String>, PathBuf)> {
-        let bundle = self.get_plugin(owner, name, version).await?;
+        let manifest = self.get_plugin(owner, name, version).await?;
         let cli_dir = self.plugin_cli_dir(owner, name, version);
         Some((
-            crate::filesystem::tools::platform_exec(&bundle.manifest.exec),
+            crate::filesystem::tools::platform_exec(&manifest.exec),
             cli_dir,
         ))
     }
@@ -120,7 +111,7 @@ impl Client {
         owner: &str,
         name: &str,
         version: &str,
-    ) -> Option<ManifestWithNameAndSource> {
+    ) -> Option<Manifest> {
         let path = self
             .plugin_dir(owner, name, version)
             .join("objectiveai.json");
@@ -144,7 +135,7 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Vec<ManifestWithNameAndSource> {
+    ) -> Vec<Manifest> {
         let paths = collect_manifest_paths(self.plugins_dir()).await;
         let futures = paths.into_iter().map(|p| async move {
             let bundle = parse_manifest_file(&p).await?;
@@ -158,7 +149,7 @@ impl Client {
                 .as_secs();
             Some((modified, bundle))
         });
-        let mut entries: Vec<(u64, ManifestWithNameAndSource)> =
+        let mut entries: Vec<(u64, Manifest)> =
             futures::future::join_all(futures)
                 .await
                 .into_iter()
@@ -373,19 +364,6 @@ impl Client {
         headers: Option<&indexmap::IndexMap<String, String>>,
         upgrade: bool,
     ) -> Result<bool, super::super::Error> {
-        // 0. Tool-name budget check. Build the same string
-        //    `Manifest::tool_name` materializes (owner-name-version
-        //    with `.` -> `-`) and reject if longer than the 100-char
-        //    budget we leave under Anthropic's 128-char hard cap.
-        let tool_name = manifest.tool_name(repository);
-        if tool_name.len() > 100 {
-            return Err(super::InstallError::ToolNameTooLong {
-                len: tool_name.len(),
-                tool_name,
-            }
-            .into());
-        }
-
         let version = manifest.version.clone();
         let plugin_dir = self.plugin_dir(owner, repository, &version);
         let cli_dir = self.plugin_cli_dir(owner, repository, &version);
@@ -407,8 +385,18 @@ impl Client {
         //    untouched — an existing install (upgrade path) keeps
         //    working until the write phase actually begins.
         let http = reqwest::Client::new();
+        // Pick the current platform's cli bundle. `cli_zip` is a
+        // required field, but each per-OS entry is optional — absent
+        // means nothing to fetch for this platform.
+        let cli_zip_name: Option<&str> = if cfg!(target_os = "windows") {
+            manifest.cli_zip.windows.as_deref()
+        } else if cfg!(target_os = "macos") {
+            manifest.cli_zip.macos.as_deref()
+        } else {
+            manifest.cli_zip.linux.as_deref()
+        };
         let cli_zip_bytes: Option<Vec<u8>> = if let Some(cli_zip_name) =
-            &manifest.cli_zip
+            cli_zip_name
         {
             let cli_url = format!(
                 "{releases_base}/{owner}/{repository}/releases/download/v{version}/{cli_zip_name}",
@@ -469,17 +457,12 @@ impl Client {
             None
         };
 
-        let manifest_bytes: Vec<u8> = {
-            // Override the author-claimed `owner` with the GitHub
-            // `<owner>` we were actually installed from — forks land
-            // on disk with the fork's owner, not the upstream's. The
-            // on-disk `objectiveai.json` is the bare manifest; `name`
-            // / `version` / `owner` are encoded in the directory path.
-            let mut manifest = manifest.clone();
-            manifest.owner = owner.to_string();
-            serde_json::to_vec_pretty(&manifest)
-                .map_err(super::InstallError::ManifestSerialize)?
-        };
+        // The fetched manifest is written to disk verbatim — exactly
+        // as authored, `owner` included. (The install coordinate is
+        // still encoded in the directory path; we don't rewrite the
+        // manifest body to match it.)
+        let manifest_bytes: Vec<u8> = serde_json::to_vec_pretty(manifest)
+            .map_err(super::InstallError::ManifestSerialize)?;
 
         // 3. Pre-write clean. The manifest is the installed-ness
         //    commit gate, so it is removed FIRST — from here until
@@ -570,8 +553,8 @@ fn check_repository_name(repository: &str) -> Result<(), super::InstallError> {
 /// Identifier shape check shared by `owner`, `repository`, and
 /// `commit`: Anthropic's tool-name regex (`^[a-zA-Z0-9_-]{1,128}$`)
 /// plus `.` (so semver-shaped versions and dotted commit refs flow
-/// through cleanly; the `.` -> `-` substitution happens when the tool
-/// name is materialized via [`super::Manifest::tool_name`]).
+/// through cleanly; the `.` -> `-` substitution happens when the
+/// LLM-visible tool name is materialized downstream).
 fn validate_identifier(
     kind: &'static str,
     value: &str,

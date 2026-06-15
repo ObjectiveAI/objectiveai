@@ -1,7 +1,8 @@
 {
-  "description": "Counter tool 5",
-  "version": "1.0.0",
   "owner": "testorg",
+  "name": "tool5",
+  "version": "1.0.0",
+  "description": "Counter tool 5",
   "exec": {
     "windows": [
       "cargo",
@@ -27,5 +28,6 @@
       "count-tool",
       "--"
     ]
-  }
+  },
+  "cli_zip": {}
 }

@@ -13,25 +13,15 @@
 use std::path::{Path, PathBuf};
 
 use super::super::Client;
-use super::{Exec, Manifest, ManifestWithNameAndSource};
+use super::{Exec, Manifest};
 
-/// Parse an on-disk `objectiveai.json` (a bare [`Manifest`]) into a
-/// [`ManifestWithNameAndSource`], deriving `name` from the `<name>`
-/// path segment (`.../<owner>/<name>/<version>/objectiveai.json`) and
-/// `source` from the file path. `None` on missing / unreadable /
-/// malformed files.
-async fn parse_manifest_file(path: &Path) -> Option<ManifestWithNameAndSource> {
+/// Parse an on-disk `objectiveai.json` into a [`Manifest`]. The
+/// manifest declares its own `owner` / `name` / `version`; nothing is
+/// derived from the path. `None` on missing / unreadable / malformed
+/// files.
+async fn parse_manifest_file(path: &Path) -> Option<Manifest> {
     let bytes = tokio::fs::read(path).await.ok()?;
-    let manifest: Manifest = serde_json::from_slice(&bytes).ok()?;
-    // path = .../<owner>/<name>/<version>/objectiveai.json
-    // parent = <version>, parent.parent = <name>.
-    let name = path.parent()?.parent()?.file_name()?.to_str()?.to_string();
-    let source = path.to_string_lossy().into_owned();
-    Some(ManifestWithNameAndSource {
-        name,
-        manifest,
-        source,
-    })
+    serde_json::from_slice(&bytes).ok()
 }
 
 /// The current platform's exec vector from a per-OS [`Exec`]. Shared
@@ -80,9 +70,9 @@ impl Client {
         name: &str,
         version: &str,
     ) -> Option<(Vec<String>, PathBuf)> {
-        let bundle = self.get_tool(owner, name, version).await?;
+        let manifest = self.get_tool(owner, name, version).await?;
         let cli_dir = self.tool_cli_dir(owner, name, version);
-        Some((platform_exec(&bundle.manifest.exec), cli_dir))
+        Some((platform_exec(&manifest.exec), cli_dir))
     }
 
     /// Look up a single tool manifest by coordinate. Reads
@@ -93,7 +83,7 @@ impl Client {
         owner: &str,
         name: &str,
         version: &str,
-    ) -> Option<ManifestWithNameAndSource> {
+    ) -> Option<Manifest> {
         let path = self.tool_dir(owner, name, version).join("objectiveai.json");
         parse_manifest_file(&path).await
     }
@@ -110,7 +100,7 @@ impl Client {
         &self,
         offset: usize,
         limit: usize,
-    ) -> Vec<ManifestWithNameAndSource> {
+    ) -> Vec<Manifest> {
         let paths = collect_manifest_paths(self.tools_dir()).await;
         let futures = paths.into_iter().map(|p| async move {
             let bundle = parse_manifest_file(&p).await?;
@@ -124,7 +114,7 @@ impl Client {
                 .as_secs();
             Some((modified, bundle))
         });
-        let mut entries: Vec<(u64, ManifestWithNameAndSource)> =
+        let mut entries: Vec<(u64, Manifest)> =
             futures::future::join_all(futures)
                 .await
                 .into_iter()

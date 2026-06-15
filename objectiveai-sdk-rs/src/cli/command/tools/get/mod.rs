@@ -47,8 +47,8 @@ impl CommandRequest for Request {
 
 /// Per-OS exec command for a tool. The current platform's vector is
 /// the program plus its leading arguments; the caller's `--args` are
-/// appended, and the result runs with CWD = the tool's version folder
-/// (where `objectiveai.json` lives).
+/// appended, and the result runs with CWD = the tool's version folder's
+/// `cli/` subdir (`objectiveai.json` lives in the version folder).
 #[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tools.get.Exec")]
 pub struct Exec {
@@ -63,15 +63,19 @@ impl Exec {
     }
 }
 
+/// Wire response for `tools get` — a lean projection of the on-disk
+/// manifest. `exec` is required (a tool always has a command). The
+/// on-disk-only fields (`cli_zip`, `source`) are intentionally absent;
+/// the CLI owns the full on-disk shape in its own `filesystem::tools`
+/// manifest types.
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tools.get.ResponseManifest")]
 pub struct ResponseManifest {
-    pub name: String,
-    pub description: String,
-    pub version: String,
     pub owner: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
     pub exec: Exec,
-    pub source: String,
 }
 
 impl ResponseManifest {

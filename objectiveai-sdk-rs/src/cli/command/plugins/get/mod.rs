@@ -50,46 +50,22 @@ pub type Response = Option<ResponseManifest>;
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.get.ResponseManifest")]
 pub struct ResponseManifest {
-    pub name: String,
-    pub description: String,
-    pub version: String,
     pub owner: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub author: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub homepage: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub license: Option<String>,
+    pub name: String,
+    pub version: String,
+    pub description: String,
     /// Per-OS exec argv for the plugin's cli side, run with CWD =
-    /// `<plugin dir>/cli/` — the same shape tools use. Empty when
-    /// the plugin is viewer-only.
-    #[serde(
-        default,
-        skip_serializing_if = "crate::cli::command::tools::get::Exec::is_empty"
-    )]
+    /// `<plugin dir>/cli/` — the same shape tools use. Required (an
+    /// empty exec is a viewer-only plugin, which still round-trips as
+    /// an empty per-OS object).
     pub exec: crate::cli::command::tools::get::Exec,
-    /// GitHub-release asset filename for the plugin's cli bundle — a
-    /// zip extracted into `<plugin dir>/cli/` at install time, like
-    /// `viewer_zip` → `viewer/`.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub cli_zip: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub viewer_zip: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub viewer_routes: Vec<ResponseViewerRoute>,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub mobile_ready: bool,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<ResponseMcpServer>,
-    pub source: String,
 }
 
 impl ResponseManifest {
@@ -131,7 +107,6 @@ pub enum ResponseHttpMethod {
 #[schemars(rename = "cli.command.plugins.get.ResponseMcpServer")]
 pub struct ResponseMcpServer {
     pub name: String,
-    pub url: String,
     pub authorization: bool,
 }
 

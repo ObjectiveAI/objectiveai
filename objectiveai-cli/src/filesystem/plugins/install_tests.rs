@@ -36,6 +36,14 @@ fn exec_json() -> serde_json::Value {
     })
 }
 
+/// The per-OS `cli_zip` object the mock manifests declare — every
+/// platform points at the same `cli.zip` asset so the install fetches
+/// it regardless of which host OS the test runs on. The `cli_zip`
+/// field is required; each per-OS entry is optional.
+fn cli_zip_json() -> serde_json::Value {
+    json!({ "windows": "cli.zip", "linux": "cli.zip", "macos": "cli.zip" })
+}
+
 /// Build a minimal in-memory zip containing one file.
 fn build_zip(file_name: &str, contents: &str) -> Vec<u8> {
     use std::io::Write;
@@ -58,11 +66,12 @@ async fn install_succeeds_and_extracts_cli_zip() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -102,11 +111,10 @@ async fn install_succeeds_and_extracts_cli_zip() {
     assert!(extracted.exists(), "cli payload missing at {extracted:?}");
     assert_eq!(std::fs::read_to_string(&extracted).unwrap(), "CLI PAYLOAD");
 
-    // Manifest is persisted as a bare `Manifest` at
+    // Manifest is persisted verbatim as a `Manifest` at
     // <plugins_dir>/<owner>/<repository>/<version>/objectiveai.json.
-    // The on-disk file carries no `name`/`source` fields — those are
-    // derived on read from the path. The installer overrides the
-    // author-claimed `owner` with the actual GitHub URL owner.
+    // The install writes the fetched manifest exactly as authored — the
+    // author-claimed `owner` is NOT rewritten to the install owner.
     let manifest_path = dir.join("objectiveai.json");
     assert!(
         manifest_path.exists(),
@@ -115,44 +123,48 @@ async fn install_succeeds_and_extracts_cli_zip() {
     let persisted: Manifest =
         serde_json::from_slice(&std::fs::read(&manifest_path).unwrap())
             .unwrap();
-    assert_eq!(persisted.owner, "owner");
-    assert_eq!(persisted.cli_zip.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.owner, "claimed-owner");
+    assert_eq!(persisted.name, "repo");
+    assert_eq!(persisted.cli_zip.windows.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.linux.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.macos.as_deref(), Some("cli.zip"));
     assert_eq!(persisted.exec.windows, vec!["./plugin.exe"]);
     assert_eq!(persisted.exec.linux, vec!["./plugin"]);
     assert_eq!(persisted.exec.macos, vec!["./plugin"]);
 
-    // Read back through `get_plugin` to verify the derived `name`
-    // (the `<repository>` path segment) and `source` (the file path).
-    let bundle = client
+    // Read back through `get_plugin`: it returns the bare `Manifest`,
+    // whose `owner` / `name` are whatever the manifest authored.
+    let manifest = client
         .get_plugin("owner", "repo", "1.0.0")
         .await
         .expect("expected Some(_)");
-    assert_eq!(bundle.name, "repo");
-    assert_eq!(bundle.source, manifest_path.to_string_lossy());
-    assert_eq!(bundle.manifest.owner, "owner");
+    assert_eq!(manifest.name, "repo");
+    assert_eq!(manifest.owner, "claimed-owner");
 
     cleanup(&base);
 }
 
 #[tokio::test]
 async fn install_manifest_only_persists_just_the_manifest() {
-    // No cli_zip, no viewer source: the exec invokes PATH-resolved
-    // programs, so nothing besides objectiveai.json lands on disk.
-    // No release-asset mocks are registered — if install tried to
-    // fetch one anyway, wiremock would 404 and the install would
+    // No cli_zip asset, no viewer source: the exec invokes
+    // PATH-resolved programs, so nothing besides objectiveai.json lands
+    // on disk. No release-asset mocks are registered — if install tried
+    // to fetch one anyway, wiremock would 404 and the install would
     // error instead of returning Ok(true).
     let base = temp_base();
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "manifest-only plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "manifest-only plugin",
         "exec": {
             "windows": ["python.exe", "-m", "plugin"],
             "linux": ["python3", "-m", "plugin"],
             "macos": ["python3", "-m", "plugin"]
-        }
+        },
+        "cli_zip": {}
     });
 
     Mock::given(method("GET"))
@@ -193,11 +205,12 @@ async fn install_uses_commit_sha_when_provided() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -280,11 +293,12 @@ async fn install_cli_zip_404_returns_cli_zip_bad_status_error() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -331,11 +345,12 @@ async fn install_corrupt_cli_zip_returns_zip_extract_error() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -420,12 +435,12 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.2.3",
         "owner": "claimed-owner",
-        "author": "Wiggidy",
+        "name": "repo",
+        "version": "1.2.3",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -442,13 +457,12 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
 
     assert_eq!(manifest.description, "test plugin");
     assert_eq!(manifest.version, "1.2.3");
-    // fetch_plugin_manifest_at does no override — it returns whatever
-    // the repo's objectiveai.json literally contains. The install path
-    // is where `owner` gets overwritten with the real URL owner.
+    // The manifest is returned exactly as the repo's objectiveai.json
+    // authored it — `owner` is the claimed value, not the install owner.
     assert_eq!(manifest.owner, "claimed-owner");
-    assert_eq!(manifest.author.as_deref(), Some("Wiggidy"));
+    assert_eq!(manifest.name, "repo");
     assert_eq!(manifest.exec.linux, vec!["./plugin"]);
-    assert_eq!(manifest.cli_zip.as_deref(), Some("cli.zip"));
+    assert_eq!(manifest.cli_zip.windows.as_deref(), Some("cli.zip"));
 
     cleanup(&base);
 }
@@ -459,11 +473,12 @@ async fn install_passes_headers_to_both_requests() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "test plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     // Both mocks require the header — if the SDK doesn't forward it,
@@ -513,12 +528,12 @@ async fn install_makes_plugin_appear_in_list() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "installed plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
-        "author": "tester",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "installed plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -559,13 +574,8 @@ async fn install_makes_plugin_appear_in_list() {
     );
     let p = &plugins[0];
     assert_eq!(p.name, "repo");
-    assert_eq!(p.manifest.description, "installed plugin");
-    assert_eq!(p.manifest.version, "1.0.0");
-    assert_eq!(p.manifest.author.as_deref(), Some("tester"));
-    let expected_source = client
-        .plugin_dir("owner", "repo", "1.0.0")
-        .join("objectiveai.json");
-    assert_eq!(p.source, expected_source.to_string_lossy());
+    assert_eq!(p.description, "installed plugin");
+    assert_eq!(p.version, "1.0.0");
 
     cleanup(&base);
 }
@@ -576,11 +586,12 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "installed plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "installed plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -618,14 +629,7 @@ async fn install_then_get_plugin_returns_persisted_manifest() {
         .await
         .expect("expected Some(_)");
     assert_eq!(got.name, "repo");
-    assert_eq!(got.manifest.version, "1.0.0");
-    assert_eq!(
-        got.source,
-        client
-            .plugin_dir("owner", "repo", "1.0.0")
-            .join("objectiveai.json")
-            .to_string_lossy()
-    );
+    assert_eq!(got.version, "1.0.0");
 
     cleanup(&base);
 }
@@ -636,11 +640,12 @@ async fn install_extracts_viewer_zip_when_present() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "viewer plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "viewer plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip",
+        "cli_zip": cli_zip_json(),
         "viewer_zip": "v.zip",
         "viewer_routes": [
             { "path": "/say", "method": "POST", "type": "say_request" }
@@ -719,11 +724,12 @@ async fn install_skips_viewer_zip_when_absent() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "no-viewer plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "no-viewer plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -769,17 +775,19 @@ async fn install_skips_viewer_zip_when_absent() {
 async fn install_skips_viewer_zip_download_when_viewer_url_set() {
     // When the manifest declares `viewer_url` (and no `viewer_zip`),
     // the install path should persist the manifest with the URL and
-    // NOT create `<plugin_dir>/viewer/`. No release-asset mock is
-    // registered at all — if install tries to fetch one, wiremock
-    // 404s and the test fails.
+    // NOT create `<plugin_dir>/viewer/`. The cli_zip is empty, so no
+    // release-asset mock is registered at all — if install tries to
+    // fetch one, wiremock 404s and the test fails.
     let base = temp_base();
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "url-viewer plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "url-viewer plugin",
         "exec": exec_json(),
+        "cli_zip": {},
         "viewer_url": "https://plugin.example.com/index.html",
         "viewer_routes": [
             { "path": "/say", "method": "POST", "type": "say_request" }
@@ -835,10 +843,12 @@ async fn install_rejects_manifest_with_both_viewer_sources() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "broken plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "broken plugin",
         "exec": exec_json(),
+        "cli_zip": {},
         "viewer_zip": "v.zip",
         "viewer_url": "https://plugin.example.com/"
     });
@@ -874,10 +884,12 @@ async fn install_viewer_zip_404_returns_error() {
     let server = MockServer::start().await;
 
     let manifest_body = json!({
-        "description": "broken viewer plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "broken viewer plugin",
         "exec": exec_json(),
+        "cli_zip": {},
         "viewer_zip": "missing.zip"
     });
 
@@ -932,11 +944,12 @@ async fn upgrade_test_server(
 ) -> MockServer {
     let server = MockServer::start().await;
     let manifest_body = json!({
-        "description": "upgrade test plugin",
-        "version": version,
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": version,
+        "description": "upgrade test plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
@@ -1189,11 +1202,12 @@ async fn install_network_failure_leaves_disk_untouched_on_fresh() {
     let base = temp_base();
     let server = MockServer::start().await;
     let manifest_body = json!({
-        "description": "broken plugin",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "broken plugin",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
 
     Mock::given(method("GET"))
@@ -1263,11 +1277,12 @@ async fn install_upgrade_network_failure_leaves_disk_after_cleanup() {
     // in that version dir before the failing fetch.
     let server_b = MockServer::start().await;
     let manifest_body = json!({
-        "description": "broken upgrade",
-        "version": "1.0.0",
         "owner": "claimed-owner",
+        "name": "repo",
+        "version": "1.0.0",
+        "description": "broken upgrade",
         "exec": exec_json(),
-        "cli_zip": "cli.zip"
+        "cli_zip": cli_zip_json()
     });
     Mock::given(method("GET"))
         .and(path("/owner/repo/HEAD/objectiveai.json"))
@@ -1410,57 +1425,5 @@ async fn install_rejects_invalid_identifiers() {
             ),
         }
     }
-    cleanup(&base);
-}
-
-#[tokio::test]
-async fn install_rejects_tool_name_over_budget() {
-    // The tool name materializes from the MANIFEST's claimed owner
-    // (`{owner}-{name}-{version}` with `.` -> `-`); the budget check
-    // runs before any disk write. 95 + 1 + 4 + 1 + 5 = 106 > 100.
-    let base = temp_base();
-    let server = MockServer::start().await;
-    let claimed_owner = "x".repeat(95);
-
-    let manifest_body = json!({
-        "description": "overlong plugin",
-        "version": "1.0.0",
-        "owner": claimed_owner,
-        "exec": exec_json()
-    });
-
-    Mock::given(method("GET"))
-        .and(path("/owner/repo/HEAD/objectiveai.json"))
-        .respond_with(ResponseTemplate::new(200).set_body_json(manifest_body))
-        .mount(&server)
-        .await;
-
-    let client = client_for(&base);
-    let result = client
-        .install_plugin_at(
-            &server.uri(),
-            &server.uri(),
-            "owner",
-            "repo",
-            None,
-            None,
-            false,
-        )
-        .await;
-
-    match result {
-        Err(super::super::Error::Install(InstallError::ToolNameTooLong {
-            tool_name,
-            len,
-        })) => {
-            assert_eq!(len, 106);
-            assert!(tool_name.ends_with("-repo-1-0-0"), "got {tool_name:?}");
-        }
-        other => panic!("expected ToolNameTooLong, got {other:?}"),
-    }
-
-    // Nothing persisted — the budget check precedes all disk writes.
-    assert!(!client.plugins_dir().exists());
-
     cleanup(&base);
 }

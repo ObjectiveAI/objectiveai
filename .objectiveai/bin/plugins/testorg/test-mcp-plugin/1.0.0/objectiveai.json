@@ -1,7 +1,8 @@
 {
-  "description": "test fixture",
-  "version": "1.0.0",
   "owner": "testorg",
+  "name": "test-mcp-plugin",
+  "version": "1.0.0",
+  "description": "test fixture",
   "exec": {
     "windows": [
       "cargo",
@@ -22,10 +23,10 @@
       "--"
     ]
   },
+  "cli_zip": {},
   "mcp_servers": [
     {
       "name": "demo",
-      "url": "http://127.0.0.1:0",
       "authorization": false
     }
   ]

@@ -52,11 +52,6 @@ impl ClientObjectiveaiMcpEntry {
         }
         Ok(())
     }
-
-    /// LLM-visible tool name. See [`materialize_tool_name`].
-    pub fn tool_name(&self) -> String {
-        materialize_tool_name(&self.owner, &self.name, &self.version)
-    }
 }
 
 /// Plugin reference inside [`ClientObjectiveaiMcp::plugins`].
@@ -218,24 +213,6 @@ impl ClientObjectiveaiMcpPluginEntry {
         }
         Ok(())
     }
-
-    /// LLM-visible tool name. See [`materialize_tool_name`].
-    pub fn tool_name(&self) -> String {
-        materialize_tool_name(&self.owner, &self.name, &self.version)
-    }
-}
-
-/// Materialize the LLM-visible tool name for an `owner` / `name` /
-/// `version` triple: `{owner}-{name}-{version}` with every `.`
-/// substituted to `-`. The substitution keeps the result
-/// Anthropic-tool-name-regex safe (`^[a-zA-Z0-9_-]{1,128}$`) even
-/// when the version field carries semver dots (`1.2.3` -> `1-2-3`).
-///
-/// Single source of truth shared by [`ClientObjectiveaiMcpEntry::tool_name`],
-/// [`crate::filesystem::plugins::Manifest::tool_name`], and
-/// [`crate::filesystem::tools::Manifest::tool_name`].
-pub fn materialize_tool_name(owner: &str, name: &str, version: &str) -> String {
-    format!("{owner}-{name}-{version}").replace('.', "-")
 }
 
 /// Client-side MCP surface the agent expects:

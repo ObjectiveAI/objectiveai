@@ -1,6 +1,6 @@
 use super::super::Client;
 use super::Manifest;
-use crate::filesystem::tools::Exec;
+use crate::filesystem::tools::{CliZip, Exec};
 
 fn fresh_base_dir() -> std::path::PathBuf {
     let d = std::env::temp_dir()
@@ -22,52 +22,51 @@ fn client_for(base: &std::path::Path) -> Client {
     )
 }
 
-fn minimal_manifest_json() -> String {
-    serde_json::to_string(&Manifest {
+/// A minimal valid manifest for the given coordinate. The manifest now
+/// declares its own `owner` / `name` / `version`, so they must match
+/// the directory the manifest is written under.
+fn minimal_manifest(owner: &str, name: &str, version: &str) -> Manifest {
+    Manifest {
+        owner: owner.to_string(),
+        name: name.to_string(),
+        version: version.to_string(),
         description: "tiny test plugin".to_string(),
-        version: "0.1.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
         exec: Exec::default(),
-        cli_zip: None,
+        cli_zip: CliZip::default(),
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
-        mobile_ready: false,
         mcp_servers: Vec::new(),
-    })
-    .unwrap()
+    }
 }
 
 /// A manifest that declares a distinct exec vector per OS, so the
 /// resolve tests can assert the current platform's vector is picked.
-fn exec_manifest_json() -> String {
-    serde_json::to_string(&Manifest {
+fn exec_manifest(owner: &str, name: &str, version: &str) -> Manifest {
+    Manifest {
+        owner: owner.to_string(),
+        name: name.to_string(),
+        version: version.to_string(),
         description: "exec test plugin".to_string(),
-        version: "0.1.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
         exec: Exec {
             windows: vec!["./plugin.exe".to_string(), "--windows".to_string()],
             linux: vec!["./plugin".to_string(), "--linux".to_string()],
             macos: vec!["./plugin".to_string(), "--macos".to_string()],
         },
-        cli_zip: Some("cli.zip".to_string()),
+        cli_zip: CliZip {
+            windows: Some("cli-win.zip".to_string()),
+            linux: Some("cli-linux.zip".to_string()),
+            macos: Some("cli-mac.zip".to_string()),
+        },
         viewer_zip: None,
         viewer_url: None,
         viewer_routes: vec![],
-        mobile_ready: false,
         mcp_servers: Vec::new(),
-    })
-    .unwrap()
+    }
 }
 
-/// The exec vector `exec_manifest_json` declares for the platform the
-/// test is running on.
+/// The exec vector `exec_manifest` declares for the platform the test is
+/// running on.
 fn current_platform_exec() -> Vec<String> {
     if cfg!(target_os = "windows") {
         vec!["./plugin.exe".to_string(), "--windows".to_string()]
@@ -103,13 +102,9 @@ fn write_manifest(
     name: &str,
     version: &str,
 ) -> std::path::PathBuf {
-    write_manifest_contents(
-        client,
-        owner,
-        name,
-        version,
-        &minimal_manifest_json(),
-    )
+    let json =
+        serde_json::to_string(&minimal_manifest(owner, name, version)).unwrap();
+    write_manifest_contents(client, owner, name, version, &json)
 }
 
 #[tokio::test]
@@ -135,16 +130,16 @@ async fn list_plugins_returns_empty_when_dir_empty() {
 async fn list_plugins_parses_valid_manifest() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let manifest_path = write_manifest(&client, "wiggidy", "psyops", "0.1.0");
+    write_manifest(&client, "wiggidy", "psyops", "0.1.0");
 
     let plugins = client.list_plugins(0, 100).await;
 
     assert_eq!(plugins.len(), 1);
     let p = &plugins[0];
+    assert_eq!(p.owner, "wiggidy");
     assert_eq!(p.name, "psyops");
-    assert_eq!(p.manifest.description, "tiny test plugin");
-    assert_eq!(p.manifest.version, "0.1.0");
-    assert_eq!(p.source, manifest_path.to_string_lossy());
+    assert_eq!(p.description, "tiny test plugin");
+    assert_eq!(p.version, "0.1.0");
 
     cleanup(&base);
 }
@@ -172,9 +167,12 @@ async fn list_plugins_skips_invalid_files() {
         "d",
         "1.0.0",
         &serde_json::json!({
-            "description": "x",
-            "version": "1.0.0",
             "owner": "wiggidy",
+            "name": "d",
+            "version": "1.0.0",
+            "description": "x",
+            "exec": { "windows": [], "linux": [], "macos": [] },
+            "cli_zip": {},
             "viewer_zip": "v.zip",
             "viewer_url": "https://x.example.com"
         })
@@ -210,15 +208,14 @@ async fn list_plugins_handles_multiple_valid_manifests() {
 async fn get_plugin_returns_some_when_manifest_exists() {
     let base = fresh_base_dir();
     let client = client_for(&base);
-    let manifest_path = write_manifest(&client, "wiggidy", "psyops", "0.1.0");
+    write_manifest(&client, "wiggidy", "psyops", "0.1.0");
 
     let plugin = client.get_plugin("wiggidy", "psyops", "0.1.0").await;
 
     let p = plugin.expect("expected Some(_)");
     assert_eq!(p.name, "psyops");
-    assert_eq!(p.manifest.description, "tiny test plugin");
-    assert_eq!(p.manifest.version, "0.1.0");
-    assert_eq!(p.source, manifest_path.to_string_lossy());
+    assert_eq!(p.description, "tiny test plugin");
+    assert_eq!(p.version, "0.1.0");
 
     cleanup(&base);
 }
@@ -307,7 +304,7 @@ async fn resolve_plugin_returns_platform_exec_and_cli_dir() {
         "acme",
         "hello",
         "1.0.0",
-        &exec_manifest_json(),
+        &serde_json::to_string(&exec_manifest("acme", "hello", "1.0.0")).unwrap(),
     );
 
     let (exec, cli_dir) = client
@@ -346,9 +343,12 @@ async fn resolve_plugin_returns_none_when_manifest_invalid() {
         "hello",
         "1.0.0",
         &serde_json::json!({
-            "description": "x",
-            "version": "1.0.0",
             "owner": "acme",
+            "name": "hello",
+            "version": "1.0.0",
+            "description": "x",
+            "exec": { "windows": [], "linux": [], "macos": [] },
+            "cli_zip": {},
             "viewer_zip": "v.zip",
             "viewer_url": "https://x.example.com"
         })
