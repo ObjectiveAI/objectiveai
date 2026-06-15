@@ -8,8 +8,10 @@ pub use objectiveai_sdk::cli::command::tools::get::Exec;
 
 /// Declarative metadata a local tool ships with. The wire shape is
 /// JSON: `<base_dir>/tools/<owner>/<name>/<version>/objectiveai.json`.
-/// The executable command is invoked with that version folder as the
-/// working directory.
+/// The executable command is invoked with that version folder's `cli/`
+/// subdir as the working directory (the tool's payload lives there;
+/// the manifest stays in the version folder) — the same model plugins
+/// use.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.Manifest")]
 pub struct Manifest {
@@ -30,7 +32,8 @@ pub struct Manifest {
     /// Per-OS exec command. The current platform's vector is the
     /// program plus its leading arguments; the caller's `--args` are
     /// appended and the whole thing runs with CWD = this manifest's
-    /// version folder.
+    /// version folder's `cli/` subdir. Relative program paths resolve
+    /// against that `cli/` folder; bare names keep PATH-lookup semantics.
     pub exec: Exec,
 }
 

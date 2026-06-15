@@ -1,11 +1,14 @@
 //! Tool discovery on the local filesystem.
 //!
 //! Tools live at `<bin_dir>/tools/<owner>/<name>/<version>/` (machine-
-//! wide, shared by every state) with the
-//! manifest as `objectiveai.json` inside the version folder. The
-//! manifest's `exec` is a per-OS command vector; at run time the
+//! wide, shared by every state) with the manifest as `objectiveai.json`
+//! inside the version folder and the tool's executable payload in the
+//! nested `cli/` subfolder — the same `<dir>/cli/` model plugins use.
+//! The manifest's `exec` is a per-OS command vector; at run time the
 //! current platform's vector is appended with the caller's args and
-//! invoked with CWD = the version folder.
+//! invoked with CWD = `<version folder>/cli/`. Relative program paths
+//! resolve against that `cli/` folder; bare names keep PATH-lookup
+//! semantics.
 
 use std::path::{Path, PathBuf};
 
@@ -50,16 +53,27 @@ impl Client {
     }
 
     /// A tool's version directory:
-    /// `<base_dir>/tools/<owner>/<name>/<version>`.
+    /// `<base_dir>/tools/<owner>/<name>/<version>`. Holds the
+    /// `objectiveai.json` manifest; the executable payload lives in the
+    /// [`Self::tool_cli_dir`] subfolder.
     pub fn tool_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
         self.tools_dir().join(owner).join(name).join(version)
     }
 
+    /// A tool's cli working directory: `<tool_dir>/cli/`. The exec runs
+    /// here and relative program paths resolve against it; the manifest
+    /// `objectiveai.json` stays in the parent version folder. Mirrors
+    /// [`Client::plugin_cli_dir`].
+    pub fn tool_cli_dir(&self, owner: &str, name: &str, version: &str) -> PathBuf {
+        self.tool_dir(owner, name, version).join("cli")
+    }
+
     /// Resolve a tool coordinate to its `(exec_vector, cwd)` for the
-    /// current platform. `cwd` is the version folder; `exec_vector` is
-    /// the manifest's per-OS command (possibly empty when the tool
-    /// declares no command for this platform — the caller treats that
-    /// as an error). `None` when the manifest is missing/malformed.
+    /// current platform. `cwd` is the version folder's `cli/` subdir
+    /// (the exec working directory); `exec_vector` is the manifest's
+    /// per-OS command (possibly empty when the tool declares no command
+    /// for this platform — the caller treats that as an error). `None`
+    /// when the manifest is missing/malformed.
     pub async fn resolve_tool(
         &self,
         owner: &str,
@@ -67,8 +81,8 @@ impl Client {
         version: &str,
     ) -> Option<(Vec<String>, PathBuf)> {
         let bundle = self.get_tool(owner, name, version).await?;
-        let dir = self.tool_dir(owner, name, version);
-        Some((platform_exec(&bundle.manifest.exec), dir))
+        let cli_dir = self.tool_cli_dir(owner, name, version);
+        Some((platform_exec(&bundle.manifest.exec), cli_dir))
     }
 
     /// Look up a single tool manifest by coordinate. Reads
