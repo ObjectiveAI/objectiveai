@@ -10,12 +10,16 @@
 //! captured identity (and the plugin that registered it, if any)
 //! re-installed on the run ctx.
 //!
-//! Two output modes, selected by `stream_all`:
-//! * `--stream-all`: every item every task emits streams back, each
-//!   wrapped as a [`ValueResponseItem`].
+//! Two output modes, selected by `dangerous_advanced.stream_all`:
+//! * `--dangerous-advanced '{"stream_all":true}'`: every item every
+//!   task emits streams back, each wrapped as a [`ValueResponseItem`].
 //! * default: exactly ONE [`SuccessResponseItem`] per task, emitted
 //!   when that task's stream completes — `success` is `false` iff the
 //!   task's final item was an error.
+//!
+//! `stream_all` is gated behind `dangerous_advanced` (rather than a
+//! bare top-level flag) because streaming every item of every fired
+//! task can bloat the caller's context astronomically.
 //!
 //! The mode affects only the caller-visible stream: in BOTH modes the
 //! full per-item output is durably written to `tasks_logs`.
@@ -30,12 +34,7 @@ pub use crate::cli::command::tasks::list::Plugin;
 #[schemars(rename = "cli.command.tasks.run.Request")]
 pub struct Request {
     pub path_type: Path,
-    /// Stream every item every fired task emits (each a
-    /// [`ValueResponseItem`]). When false — the default — each task
-    /// yields exactly one [`SuccessResponseItem`] summary instead; the
-    /// full output still lands in `tasks_logs` either way.
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub stream_all: bool,
+    pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -53,8 +52,12 @@ impl CommandRequest for Request {
             "tasks".to_string(),
             "run".to_string(),
         ];
-        if self.stream_all {
-            argv.push("--stream-all".to_string());
+        if let Some(advanced) = &self.dangerous_advanced {
+            argv.push("--dangerous-advanced".to_string());
+            argv.push(
+                serde_json::to_string(advanced)
+                    .expect("RequestDangerousAdvanced serializes"),
+            );
         }
         self.base.push_flags(&mut argv);
         argv
@@ -67,6 +70,23 @@ impl CommandRequest for Request {
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
         Some(&mut self.base)
     }
+}
+
+/// Advanced knobs gated behind `--dangerous-advanced` because they are
+/// easy to misuse. Modelled on `agents spawn`'s
+/// `RequestDangerousAdvanced`.
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tasks.run.RequestDangerousAdvanced")]
+pub struct RequestDangerousAdvanced {
+    /// Stream every item every fired task emits (each a
+    /// [`ValueResponseItem`]). When unset/false — the default — each
+    /// task yields exactly one [`SuccessResponseItem`] summary instead;
+    /// the full output still lands in `tasks_logs` either way. DANGER:
+    /// streaming every item of every fired task can bloat the caller's
+    /// context astronomically — hence the gate.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub stream_all: Option<bool>,
 }
 
 /// One stream item from `tasks run`. Untagged — the variants'
@@ -172,11 +192,12 @@ pub struct SuccessResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
-    /// Stream every item every fired task emits. Without this flag
-    /// each task yields exactly one `{.., success}` summary when it
-    /// completes; the full output lands in `tasks_logs` either way.
+    /// Raw JSON for `RequestDangerousAdvanced` (e.g.
+    /// `{"stream_all":true}`). `stream_all` is gated here — rather than
+    /// as a bare flag — because streaming every item of every fired
+    /// task can bloat the caller's context astronomically.
     #[arg(long)]
-    pub stream_all: bool,
+    pub dangerous_advanced: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -201,9 +222,22 @@ pub enum Schema {
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
+        let dangerous_advanced: Option<RequestDangerousAdvanced> =
+            if let Some(s) = args.dangerous_advanced {
+                let mut de = serde_json::Deserializer::from_str(&s);
+                let v = serde_path_to_error::deserialize(&mut de).map_err(|source| {
+                    crate::cli::command::FromArgsError {
+                        field: "dangerous_advanced",
+                        source: source.into(),
+                    }
+                })?;
+                Some(v)
+            } else {
+                None
+            };
         Ok(Self {
             path_type: Path::AgentsTasksRun,
-            stream_all: args.stream_all,
+            dangerous_advanced,
             base: args.base.into(),
         })
     }
