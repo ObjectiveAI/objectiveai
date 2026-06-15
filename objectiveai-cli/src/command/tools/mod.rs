@@ -1,6 +1,6 @@
 //! `tools` tier dispatch. Mirrors
-//! `objectiveai-sdk-rs/src/cli/command/tools/mod.rs`. `list` and `run`
-//! are streaming leaves; `get` and `install` are unary.
+//! `objectiveai-sdk-rs/src/cli/command/tools/mod.rs`. `list`, `run`, and
+//! `install` (a `filesystem`/`github` sub-tier) stream; `get` is unary.
 
 use std::pin::Pin;
 
@@ -38,16 +38,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             once(Ok(ResponseItem::GetResponseSchema(value)))
         }
         Request::Install(req) => {
-            let value = install::execute(ctx, req).await?;
-            once(Ok(ResponseItem::Install(value)))
-        }
-        Request::InstallRequestSchema(req) => {
-            let value = install::request_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::InstallRequestSchema(value)))
-        }
-        Request::InstallResponseSchema(req) => {
-            let value = install::response_schema::execute(ctx, req).await?;
-            once(Ok(ResponseItem::InstallResponseSchema(value)))
+            let inner = install::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Install)))
         }
         Request::List(req) => {
             let inner = list::execute(ctx, req).await?;

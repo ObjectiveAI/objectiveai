@@ -6,7 +6,10 @@ pub mod run;
 #[derive(clap::Subcommand)]
 pub enum Command {
     Get(get::Command),
-    Install(install::Command),
+    Install {
+        #[command(subcommand)]
+        command: install::Command,
+    },
     List(list::Command),
     Run(run::Command),
 }
@@ -23,10 +26,6 @@ pub enum Request {
     GetResponseSchema(get::response_schema::Request),
     #[schemars(title = "Install")]
     Install(install::Request),
-    #[schemars(title = "InstallRequestSchema")]
-    InstallRequestSchema(install::request_schema::Request),
-    #[schemars(title = "InstallResponseSchema")]
-    InstallResponseSchema(install::response_schema::Request),
     #[schemars(title = "List")]
     List(list::Request),
     #[schemars(title = "ListRequestSchema")]
@@ -56,10 +55,6 @@ pub enum ResponseItem {
     GetResponseSchema(get::response_schema::Response),
     #[schemars(title = "Install")]
     Install(install::Response),
-    #[schemars(title = "InstallRequestSchema")]
-    InstallRequestSchema(install::request_schema::Response),
-    #[schemars(title = "InstallResponseSchema")]
-    InstallResponseSchema(install::response_schema::Response),
     #[schemars(title = "List")]
     List(list::ResponseItem),
     #[schemars(title = "ListRequestSchema")]
@@ -82,8 +77,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
             ResponseItem::Install(v) => v.into_mcp(),
-            ResponseItem::InstallRequestSchema(v) => v.into_mcp(),
-            ResponseItem::InstallResponseSchema(v) => v.into_mcp(),
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
@@ -105,13 +98,9 @@ impl TryFrom<Command> for Request {
                 Some(get::Schema::ResponseSchema(args)) =>
                     Ok(Request::GetResponseSchema(get::response_schema::Request::try_from(args)?)),
             },
-            Command::Install(cmd) => match cmd.schema {
-                None => Ok(Request::Install(install::Request::try_from(cmd.args)?)),
-                Some(install::Schema::RequestSchema(args)) =>
-                    Ok(Request::InstallRequestSchema(install::request_schema::Request::try_from(args)?)),
-                Some(install::Schema::ResponseSchema(args)) =>
-                    Ok(Request::InstallResponseSchema(install::response_schema::Request::try_from(args)?)),
-            },
+            Command::Install { command } => {
+                Ok(Request::Install(install::Request::try_from(command)?))
+            }
             Command::List(cmd) => match cmd.schema {
                 None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
                 Some(list::Schema::RequestSchema(args)) =>
@@ -137,8 +126,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.into_command(),
             Request::GetResponseSchema(inner) => inner.into_command(),
             Request::Install(inner) => inner.into_command(),
-            Request::InstallRequestSchema(inner) => inner.into_command(),
-            Request::InstallResponseSchema(inner) => inner.into_command(),
             Request::List(inner) => inner.into_command(),
             Request::ListRequestSchema(inner) => inner.into_command(),
             Request::ListResponseSchema(inner) => inner.into_command(),
@@ -154,8 +141,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.request_base(),
             Request::GetResponseSchema(inner) => inner.request_base(),
             Request::Install(inner) => inner.request_base(),
-            Request::InstallRequestSchema(inner) => inner.request_base(),
-            Request::InstallResponseSchema(inner) => inner.request_base(),
             Request::List(inner) => inner.request_base(),
             Request::ListRequestSchema(inner) => inner.request_base(),
             Request::ListResponseSchema(inner) => inner.request_base(),
@@ -171,8 +156,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GetRequestSchema(inner) => inner.request_base_mut(),
             Request::GetResponseSchema(inner) => inner.request_base_mut(),
             Request::Install(inner) => inner.request_base_mut(),
-            Request::InstallRequestSchema(inner) => inner.request_base_mut(),
-            Request::InstallResponseSchema(inner) => inner.request_base_mut(),
             Request::List(inner) => inner.request_base_mut(),
             Request::ListRequestSchema(inner) => inner.request_base_mut(),
             Request::ListResponseSchema(inner) => inner.request_base_mut(),
@@ -215,22 +198,8 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 )))
             }
             Request::Install(req) => {
-                let value = install::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::Install(value),
-                )))
-            }
-            Request::InstallRequestSchema(req) => {
-                let value = install::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::InstallRequestSchema(value),
-                )))
-            }
-            Request::InstallResponseSchema(req) => {
-                let value = install::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    ResponseItem::InstallResponseSchema(value),
-                )))
+                let inner = install::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Install)))
             }
             Request::List(req) => {
                 let inner = list::execute(executor, req, agent_arguments).await?;
@@ -294,16 +263,8 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Install(req) => {
-                let value = install::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::InstallRequestSchema(req) => {
-                let value = install::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::InstallResponseSchema(req) => {
-                let value = install::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+                let inner = install::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
             }
             Request::List(req) => {
                 let inner = list::execute_transform(executor, req, transform, agent_arguments).await?;
