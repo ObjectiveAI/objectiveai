@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-mcp-filesystem"
-version = "2.2.0"
+version = "2.2.1"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "MCP (Model Context Protocol) filesystem helpers for ObjectiveAI"
