@@ -11,15 +11,13 @@
 //! --agent-tag <tag>` errors `TagNotFound` until the tag exists and
 //! succeeds once the iframe has applied it.
 //!
-//! Gated `#[ignore]`: it opens a real viewer GUI window (the viewer has
-//! no headless mode), so it needs a display and stays out of the
-//! headless root `test.sh` / CI. Run it explicitly, after building the
-//! viewer frontend so the always-mounted-iframes change is in `dist/`
-//! (the spawned viewer loads `frontendDist`, not Vite):
+//! The test never touches the viewer lifecycle — the first `viewer
+//! send` brings it up. Build the viewer frontend first so the
+//! always-mounted-iframes change is in `dist/` (the spawned viewer
+//! loads `frontendDist`, not Vite):
 //!
 //!   pnpm --filter objectiveai-viewer run build
-//!   cargo build -p objectiveai-viewer   # warms the bin so spawn is fast
-//!   cargo test -p objectiveai-cli --test viewer_plugin_notify_e2e -- --ignored
+//!   cargo test -p objectiveai-cli --test viewer_plugin_notify_e2e
 
 mod cli_test_util;
 
@@ -27,7 +25,6 @@ use std::process::{Command, Output};
 use std::time::{Duration, Instant};
 
 #[tokio::test]
-#[ignore = "spawns the real viewer GUI; needs a display. Run with --ignored after `pnpm --filter objectiveai-viewer run build`."]
 async fn viewer_plugin_route_applies_tag_verified_by_enqueue() {
     let _state_dir = cli_test_util::test_base_dir();
     let cli = cli_test_util::cli_binary();
@@ -49,23 +46,13 @@ async fn viewer_plugin_route_applies_tag_verified_by_enqueue() {
             .expect("failed to run cli")
     };
 
-    // Bring the viewer up first. `viewer spawn` blocks until the
-    // viewer's embedded server publishes its lock, so a (possibly cold)
-    // build + launch is paid here rather than eating the readiness
-    // budget below. Every later `viewer send` reuses this instance.
-    let spawn = run(&["viewer", "spawn"]);
-    assert!(
-        spawn.status.success(),
-        "viewer spawn failed: {}",
-        String::from_utf8_lossy(&spawn.stderr),
-    );
-
-    // Retry loop. Once the viewer process is up its frontend still has
-    // to load, mount the plugin iframe, and have the bridge subscribe —
-    // all async, and an `inbound` event emitted before the subscription
-    // exists is dropped (Tauri emits aren't per-listener buffered). So
-    // re-send each iteration (tag application is idempotent) and poll by
-    // attempting the enqueue, which succeeds only once the tag exists.
+    // Retry loop. The first `viewer send` auto-spawns the viewer; its
+    // frontend then has to load, mount the plugin iframe, and have the
+    // bridge subscribe — all async, and an `inbound` event emitted
+    // before the subscription exists is dropped (Tauri emits aren't
+    // per-listener buffered). So re-send each iteration (tag application
+    // is idempotent) and poll by attempting the enqueue, which succeeds
+    // only once the tag exists.
     let deadline = Instant::now() + Duration::from_secs(60);
     let mut last_enqueue: Option<Output> = None;
     let applied = loop {
@@ -82,10 +69,6 @@ async fn viewer_plugin_route_applies_tag_verified_by_enqueue() {
         }
         tokio::time::sleep(Duration::from_secs(2)).await;
     };
-
-    // Best-effort: stop the viewer GUI so the window doesn't linger
-    // across runs (test-cleanup.sh also reaps lockfile owners).
-    let _ = run(&["viewer", "kill"]);
 
     assert!(
         applied,
