@@ -6,20 +6,13 @@ import { CliCommandPluginsGetResponseViewerRouteSchema } from "./responseViewerR
 import { CliCommandToolsGetExecSchema } from "../../tools/get/exec";
 
 export const CliCommandPluginsGetResponseManifestSchema = z.object({
-  author: z.string().nullable().meta({ omitempty: true }).optional(),
-  cli_zip: z.string().nullable().describe("GitHub-release asset filename for the plugin's cli bundle — a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` → `viewer/`.").meta({ omitempty: true }).optional(),
   description: z.string(),
-  exec: CliCommandToolsGetExecSchema.describe("Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Empty when\nthe plugin is viewer-only."),
-  homepage: z.string().nullable().meta({ omitempty: true }).optional(),
-  license: z.string().nullable().meta({ omitempty: true }).optional(),
+  exec: CliCommandToolsGetExecSchema.describe("Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Required (an\nempty exec is a viewer-only plugin, which still round-trips as\nan empty per-OS object)."),
   mcp_servers: z.array(CliCommandPluginsGetResponseMcpServerSchema),
-  mobile_ready: z.boolean(),
   name: z.string(),
   owner: z.string(),
-  source: z.string(),
   version: z.string(),
   viewer_routes: z.array(CliCommandPluginsGetResponseViewerRouteSchema),
   viewer_url: z.string().nullable().meta({ omitempty: true }).optional(),
-  viewer_zip: z.string().nullable().meta({ omitempty: true }).optional(),
 }).meta({ title: "cli.command.plugins.get.ResponseManifest" });
 export type CliCommandPluginsGetResponseManifest = z.infer<typeof CliCommandPluginsGetResponseManifestSchema>;

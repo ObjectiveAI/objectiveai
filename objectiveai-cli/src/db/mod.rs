@@ -22,6 +22,7 @@ pub mod instances;
 pub mod logs;
 pub mod query;
 pub mod tags;
+pub mod time;
 pub mod tag_groups;
 pub mod message_queue;
 pub mod tasks;

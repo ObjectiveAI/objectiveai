@@ -227,11 +227,12 @@ pub fn serve(
     let ready = Arc::new(Notify::new());
     let ready_for_task = ready.clone();
 
-    let plugins_dir_for_protocol = plugins_dir;
+    let plugins_dir_for_protocol = plugins_dir.clone();
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
         .manage(events_tx)
+        .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
         });

@@ -4,6 +4,7 @@ export * from "./request_schema/index";
 export * from "./response_schema/index";
 export * from "./path";
 export * from "./request";
+export * from "./requestDangerousAdvanced";
 export * from "./responseItem";
 export * from "./successResponseItem";
 export * from "./valueResponseItem";

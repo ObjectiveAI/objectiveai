@@ -131,13 +131,14 @@ pub struct ResponseItem {
     pub agent_instance_hierarchy: String,
     pub command: Vec<String>,
     pub description: String,
-    pub created_at: i64,
-    /// Unix seconds of the most recent invocation — this row's newest
-    /// `tasks_runs` entry. `None` until the runner has fired this
-    /// version at least once (runs are tracked per-version).
+    /// RFC3339 timestamp this schedule row was created.
+    pub created_at: String,
+    /// RFC3339 timestamp of the most recent invocation — this row's
+    /// newest `tasks_runs` entry. `None` until the runner has fired
+    /// this version at least once (runs are tracked per-version).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub last_ran_at: Option<i64>,
+    pub last_ran_at: Option<String>,
     /// `None` for a oneshot; `Some("30s" / "1h" / "1d12h" / …)`
     /// for a recurring schedule, formatted as humantime so the
     /// list output reads naturally without a unit-conversion

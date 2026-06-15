@@ -8,18 +8,18 @@ import (
 )
 
 // One row inside a `ClientNotification` block — a consumed
-// `message_queue_contents` entry. `timestamp_queued` is on the
+// `message_queue_contents` entry. `queued_at` is on the
 // enclosing block (it lives on `message_queue.enqueued_at`, not
 // per-content); only the per-row consumption timestamp is here.
 type CliCommandAgentsLogsReadAllClientNotificationPart struct {
+	// `logs.messages."timestamp"` — when the receiver consumed
+	// this content row and the LogWriter committed the
+	// consumption event.
+	DeliveredAt string `json:"delivered_at"`
 	// `logs.messages."index"` for this row. Pass to
 	// `agents logs read id <n>` to fetch the consumed
 	// `message_queue_contents` body.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	// `logs.messages."timestamp"` — when the receiver consumed
-	// this content row and the LogWriter committed the
-	// consumption event.
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type CliCommandAgentsLogsReadAllClientNotificationPartType `json:"type"`
 }
 
@@ -33,7 +33,7 @@ func (v *CliCommandAgentsLogsReadAllClientNotificationPart) UnmarshalJSON(data [
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllClientNotificationPart: missing required field %q", key)
 		}

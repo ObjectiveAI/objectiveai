@@ -1,143 +1,22 @@
 use super::*;
-use crate::filesystem::tools::Exec;
+use crate::filesystem::tools::{CliZip, Exec};
 
-#[test]
-fn manifest_minimal_roundtrip() {
-    let m = Manifest {
-        description: "tiny test plugin".to_string(),
-        version: "0.1.0".to_string(),
+/// A minimal valid manifest: every required field set, no viewer/mcp
+/// extras. Tests below clone this and override the fields they care
+/// about.
+fn base_manifest() -> Manifest {
+    Manifest {
         owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: Exec::default(),
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    };
-    let json = serde_json::to_value(&m).unwrap();
-    // `skip_serializing_if` on every optional field keeps the wire
-    // shape lean: only the three required strings remain.
-    let obj = json.as_object().unwrap();
-    assert_eq!(obj.len(), 3);
-    assert_eq!(obj["description"], "tiny test plugin");
-    assert_eq!(obj["version"], "0.1.0");
-    assert_eq!(obj["owner"], "wiggidy");
-    // Roundtrip back.
-    let back: Manifest = serde_json::from_value(json).unwrap();
-    assert_eq!(back.description, "tiny test plugin");
-    assert_eq!(back.version, "0.1.0");
-    assert!(back.author.is_none());
-    assert!(back.homepage.is_none());
-    assert!(back.license.is_none());
-    assert!(back.exec.is_empty());
-    assert!(back.cli_zip.is_none());
-}
-
-#[test]
-fn manifest_full_roundtrip() {
-    let m = Manifest {
-        description: "Generate viral psyops content from a topic spec"
-            .to_string(),
-        version: "0.3.1".to_string(),
-        owner: "wiggidy".to_string(),
-        author: Some("Wiggidy".to_string()),
-        homepage: Some(
-            "https://github.com/Wiggidy/psychological-operations".to_string(),
-        ),
-        license: Some("MIT".to_string()),
-        exec: Exec::default(),
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    };
-    let json = serde_json::to_value(&m).unwrap();
-    let back: Manifest = serde_json::from_value(json).unwrap();
-    assert_eq!(back.description, m.description);
-    assert_eq!(back.version, m.version);
-    assert_eq!(back.author, m.author);
-    assert_eq!(back.homepage, m.homepage);
-    assert_eq!(back.license, m.license);
-}
-
-#[test]
-fn manifest_with_name_and_source_field_order() {
-    let m = ManifestWithNameAndSource {
         name: "psyops".to_string(),
-        manifest: Manifest {
-            description: "do things".to_string(),
-            version: "1.2.3".to_string(),
-            owner: "wiggidy".to_string(),
-            author: Some("Wiggidy".to_string()),
-            homepage: None,
-            license: Some("MIT".to_string()),
-            exec: Exec::default(),
-            cli_zip: None,
-            viewer_zip: None,
-            viewer_url: None,
-            viewer_routes: vec![],
-            mobile_ready: false,
-            mcp_servers: Vec::new(),
-        },
-        source:
-            "/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json"
-                .to_string(),
-    };
-    let s = serde_json::to_string(&m).unwrap();
-    // With preserve_order, name comes first, the flattened manifest
-    // fields in declaration order, then source last. Optional `None`s
-    // are skipped (homepage, cli_zip); the empty `exec` is also
-    // skipped.
-    let expected = concat!(
-        r#"{"#,
-        r#""name":"psyops","#,
-        r#""description":"do things","#,
-        r#""version":"1.2.3","#,
-        r#""owner":"wiggidy","#,
-        r#""author":"Wiggidy","#,
-        r#""license":"MIT","#,
-        r#""source":"/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json""#,
-        r#"}"#,
-    );
-    assert_eq!(s, expected);
-
-    // Roundtrip back.
-    let back: ManifestWithNameAndSource = serde_json::from_str(&s).unwrap();
-    assert_eq!(back.name, "psyops");
-    assert_eq!(back.manifest.description, "do things");
-    assert_eq!(back.manifest.version, "1.2.3");
-    assert_eq!(back.manifest.author.as_deref(), Some("Wiggidy"));
-    assert!(back.manifest.homepage.is_none());
-    assert_eq!(back.manifest.license.as_deref(), Some("MIT"));
-    assert!(back.manifest.exec.is_empty());
-    assert!(back.manifest.cli_zip.is_none());
-    assert_eq!(
-        back.source,
-        "/home/user/.objectiveai/plugins/wiggidy/psyops/1.2.3/objectiveai.json"
-    );
-}
-
-#[test]
-fn manifest_deserializes_minimal_json() {
-    let json = serde_json::json!({
-        "description": "x",
-        "version": "0.1.0",
-        "owner": "wiggidy"
-    });
-    let m: Manifest = serde_json::from_value(json).unwrap();
-    assert_eq!(m.description, "x");
-    assert_eq!(m.version, "0.1.0");
-    assert!(m.author.is_none());
-    assert!(m.homepage.is_none());
-    assert!(m.license.is_none());
-    assert!(m.exec.is_empty());
-    assert!(m.cli_zip.is_none());
+        version: "0.0.1".to_string(),
+        description: "tiny test plugin".to_string(),
+        exec: Exec::default(),
+        cli_zip: CliZip::default(),
+        viewer_zip: None,
+        viewer_url: None,
+        viewer_routes: vec![],
+        mcp_servers: Vec::new(),
+    }
 }
 
 fn full_exec() -> Exec {
@@ -149,21 +28,92 @@ fn full_exec() -> Exec {
 }
 
 #[test]
+fn manifest_minimal_roundtrip() {
+    let m = base_manifest();
+    let json = serde_json::to_value(&m).unwrap();
+    let obj = json.as_object().unwrap();
+    // The required fields always serialize: owner, name, version,
+    // description, exec, cli_zip. The optional viewer/mcp fields are
+    // skipped when empty.
+    assert_eq!(obj.len(), 6, "got {obj:?}");
+    assert_eq!(obj["owner"], "wiggidy");
+    assert_eq!(obj["name"], "psyops");
+    assert_eq!(obj["version"], "0.0.1");
+    assert_eq!(obj["description"], "tiny test plugin");
+    assert!(obj.contains_key("exec"));
+    assert!(obj.contains_key("cli_zip"));
+    assert!(!obj.contains_key("viewer_zip"));
+    assert!(!obj.contains_key("mcp_servers"));
+    // Roundtrip back.
+    let back: Manifest = serde_json::from_value(json).unwrap();
+    assert_eq!(back, m);
+}
+
+#[test]
+fn manifest_field_order() {
+    let m = Manifest {
+        exec: full_exec(),
+        cli_zip: CliZip {
+            windows: Some("w.zip".to_string()),
+            linux: Some("l.zip".to_string()),
+            macos: Some("m.zip".to_string()),
+        },
+        ..base_manifest()
+    };
+    let s = serde_json::to_string(&m).unwrap();
+    // Declaration order: owner, name, version, description, exec,
+    // cli_zip. The Exec fields serialize windows, linux, macos.
+    let i_owner = s.find("\"owner\"").unwrap();
+    let i_name = s.find("\"name\"").unwrap();
+    let i_version = s.find("\"version\"").unwrap();
+    let i_desc = s.find("\"description\"").unwrap();
+    let i_exec = s.find("\"exec\"").unwrap();
+    let i_cli = s.find("\"cli_zip\"").unwrap();
+    let i_w = s.find("\"windows\"").unwrap();
+    let i_l = s.find("\"linux\"").unwrap();
+    let i_m = s.find("\"macos\"").unwrap();
+    assert!(i_owner < i_name, "owner before name: {s}");
+    assert!(i_name < i_version, "name before version: {s}");
+    assert!(i_version < i_desc, "version before description: {s}");
+    assert!(i_desc < i_exec, "description before exec: {s}");
+    assert!(i_exec < i_cli, "exec before cli_zip: {s}");
+    assert!(i_w < i_l, "windows before linux: {s}");
+    assert!(i_l < i_m, "linux before macos: {s}");
+
+    let back: Manifest = serde_json::from_str(&s).unwrap();
+    assert_eq!(back, m);
+}
+
+#[test]
+fn manifest_deserializes_minimal_json() {
+    // All required fields must be present (none carry a serde default).
+    let json = serde_json::json!({
+        "owner": "wiggidy",
+        "name": "psyops",
+        "version": "0.1.0",
+        "description": "x",
+        "exec": { "windows": [], "linux": [], "macos": [] },
+        "cli_zip": {}
+    });
+    let m: Manifest = serde_json::from_value(json).unwrap();
+    assert_eq!(m.owner, "wiggidy");
+    assert_eq!(m.name, "psyops");
+    assert_eq!(m.version, "0.1.0");
+    assert_eq!(m.description, "x");
+    assert!(m.exec.is_empty());
+    assert_eq!(m.cli_zip, CliZip::default());
+}
+
+#[test]
 fn manifest_with_exec_and_cli_zip_roundtrip() {
     let m = Manifest {
-        description: "x".to_string(),
-        version: "1.0.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
         exec: full_exec(),
-        cli_zip: Some("psyops-cli.zip".to_string()),
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
+        cli_zip: CliZip {
+            windows: Some("psyops-cli-win.zip".to_string()),
+            linux: Some("psyops-cli-linux.zip".to_string()),
+            macos: Some("psyops-cli-mac.zip".to_string()),
+        },
+        ..base_manifest()
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json).unwrap();
@@ -171,70 +121,80 @@ fn manifest_with_exec_and_cli_zip_roundtrip() {
     assert_eq!(back.exec.windows, vec!["./psyops.exe", "--serve"]);
     assert_eq!(back.exec.linux, vec!["./psyops", "--serve"]);
     assert_eq!(back.exec.macos, vec!["./psyops", "--serve"]);
-    assert_eq!(back.cli_zip.as_deref(), Some("psyops-cli.zip"));
+    assert_eq!(back.cli_zip.windows.as_deref(), Some("psyops-cli-win.zip"));
+    assert_eq!(back.cli_zip.linux.as_deref(), Some("psyops-cli-linux.zip"));
+    assert_eq!(back.cli_zip.macos.as_deref(), Some("psyops-cli-mac.zip"));
 }
 
 #[test]
-fn manifest_omits_empty_exec_and_absent_cli_zip() {
-    let m = Manifest {
-        description: "x".to_string(),
-        version: "1.0.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: Exec::default(),
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    };
+fn manifest_always_serializes_exec_and_cli_zip() {
+    let m = base_manifest();
     let json = serde_json::to_value(&m).unwrap();
     let obj = json.as_object().unwrap();
-    assert!(
-        !obj.contains_key("exec"),
-        "empty exec should be skipped, got {obj:?}"
-    );
-    assert!(
-        !obj.contains_key("cli_zip"),
-        "absent cli_zip should be skipped, got {obj:?}"
-    );
+    assert!(obj.contains_key("exec"), "exec is required, got {obj:?}");
+    assert!(obj.contains_key("cli_zip"), "cli_zip is required, got {obj:?}");
+    // An empty cli_zip serializes as an empty object (per-OS entries
+    // skipped when absent).
+    assert_eq!(obj["cli_zip"], serde_json::json!({}));
 }
 
 #[test]
-fn manifest_deserializes_without_exec_or_cli_zip_fields() {
-    let json = serde_json::json!({
-        "description": "x",
-        "version": "1.0.0",
-        "owner": "wiggidy"
+fn manifest_requires_exec_and_cli_zip_fields() {
+    // Both are required (no serde default): a manifest missing either
+    // fails to parse.
+    let missing_exec = serde_json::json!({
+        "owner": "w", "name": "p", "version": "1.0.0", "description": "x",
+        "cli_zip": {}
     });
-    let m: Manifest = serde_json::from_value(json).unwrap();
-    assert!(m.exec.is_empty());
-    assert!(m.cli_zip.is_none());
+    assert!(serde_json::from_value::<Manifest>(missing_exec).is_err());
+    let missing_cli = serde_json::json!({
+        "owner": "w", "name": "p", "version": "1.0.0", "description": "x",
+        "exec": { "windows": [], "linux": [], "macos": [] }
+    });
+    assert!(serde_json::from_value::<Manifest>(missing_cli).is_err());
 }
 
 #[test]
-fn manifest_deserializes_exec_object_json() {
-    // The canonical wire fixture: a per-OS exec object plus a cli
-    // bundle asset name.
+fn manifest_deserializes_exec_and_cli_zip_objects() {
+    // The canonical wire fixture: per-OS exec and cli_zip objects.
     let json = serde_json::json!({
-        "description": "x",
-        "version": "1.0.0",
         "owner": "wiggidy",
+        "name": "p",
+        "version": "1.0.0",
+        "description": "x",
         "exec": {
             "windows": ["./plugin.exe"],
             "linux": ["./plugin"],
             "macos": ["./plugin"]
         },
-        "cli_zip": "cli.zip"
+        "cli_zip": {
+            "windows": "cli-win.zip",
+            "linux": "cli-linux.zip",
+            "macos": "cli-mac.zip"
+        }
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert_eq!(m.exec.windows, vec!["./plugin.exe"]);
     assert_eq!(m.exec.linux, vec!["./plugin"]);
     assert_eq!(m.exec.macos, vec!["./plugin"]);
-    assert_eq!(m.cli_zip.as_deref(), Some("cli.zip"));
+    assert_eq!(m.cli_zip.windows.as_deref(), Some("cli-win.zip"));
+    assert_eq!(m.cli_zip.linux.as_deref(), Some("cli-linux.zip"));
+    assert_eq!(m.cli_zip.macos.as_deref(), Some("cli-mac.zip"));
+}
+
+#[test]
+fn manifest_cli_zip_per_os_optional() {
+    // The cli_zip field is required, but each per-OS entry is optional:
+    // a partial cli_zip parses, with the missing platforms as `None`.
+    let json = serde_json::json!({
+        "owner": "w", "name": "p", "version": "1.0.0", "description": "x",
+        "exec": { "windows": [], "linux": [], "macos": [] },
+        "cli_zip": { "linux": "cli-linux.zip" }
+    });
+    let m: Manifest = serde_json::from_value(json).unwrap();
+    assert!(m.cli_zip.windows.is_none());
+    assert_eq!(m.cli_zip.linux.as_deref(), Some("cli-linux.zip"));
+    assert!(m.cli_zip.macos.is_none());
 }
 
 #[test]
@@ -242,72 +202,24 @@ fn manifest_exec_object_requires_all_platform_keys() {
     // `Exec` has no per-field serde defaults: an exec object missing
     // one of the three OS keys is a parse error, not an empty vector.
     let json = serde_json::json!({
-        "description": "x",
-        "version": "1.0.0",
-        "owner": "wiggidy",
-        "exec": { "windows": ["./plugin.exe"], "linux": ["./plugin"] }
+        "owner": "w", "name": "p", "version": "1.0.0", "description": "x",
+        "exec": { "windows": ["./plugin.exe"], "linux": ["./plugin"] },
+        "cli_zip": {}
     });
     let result: Result<Manifest, _> = serde_json::from_value(json);
     assert!(result.is_err(), "got {result:?}");
 }
 
 #[test]
-fn manifest_exec_field_order() {
-    let m = Manifest {
-        description: "x".to_string(),
-        version: "1.0.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: full_exec(),
-        cli_zip: Some("psyops-cli.zip".to_string()),
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    };
-    let s = serde_json::to_string(&m).unwrap();
-    // `exec` precedes `cli_zip` (Manifest declaration order), and the
-    // Exec fields serialize in their declaration order: windows,
-    // linux, macos.
-    let i_exec = s.find("\"exec\"").unwrap();
-    let i_cli = s.find("\"cli_zip\"").unwrap();
-    let i_w = s.find("\"windows\"").unwrap();
-    let i_l = s.find("\"linux\"").unwrap();
-    let i_m = s.find("\"macos\"").unwrap();
-    assert!(i_exec < i_cli, "exec should come before cli_zip: {s}");
-    assert!(i_w < i_l, "windows should come before linux: {s}");
-    assert!(i_l < i_m, "linux should come before macos: {s}");
-
-    let back: Manifest = serde_json::from_str(&s).unwrap();
-    assert_eq!(back.exec, full_exec());
-    assert_eq!(back.cli_zip.as_deref(), Some("psyops-cli.zip"));
-}
-
-#[test]
 fn manifest_with_partial_exec_is_valid() {
-    // Plugin that only declares a Linux command. The exec field still
-    // serializes (it's not empty), carrying empty vectors for the
-    // other platforms.
+    // Plugin that only declares a Linux command. The exec field carries
+    // empty vectors for the other platforms.
     let m = Manifest {
-        description: "linux-only plugin".to_string(),
-        version: "0.1.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
         exec: Exec {
             linux: vec!["./psyops".to_string()],
             ..Default::default()
         },
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
+        ..base_manifest()
     };
     let json = serde_json::to_value(&m).unwrap();
     assert_eq!(json["exec"]["windows"], serde_json::json!([]));
@@ -324,15 +236,7 @@ fn manifest_with_partial_exec_is_valid() {
 fn manifest_with_viewer_fields_roundtrip() {
     let m = Manifest {
         description: "viewer plugin".to_string(),
-        version: "1.0.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: Exec::default(),
-        cli_zip: None,
         viewer_zip: Some("psyops-viewer.zip".to_string()),
-        viewer_url: None,
         viewer_routes: vec![
             ViewerRoute {
                 path: "/say".to_string(),
@@ -345,8 +249,7 @@ fn manifest_with_viewer_fields_roundtrip() {
                 r#type: "status_request".to_string(),
             },
         ],
-        mobile_ready: true,
-        mcp_servers: Vec::new(),
+        ..base_manifest()
     };
     let json = serde_json::to_value(&m).unwrap();
     let back: Manifest = serde_json::from_value(json.clone()).unwrap();
@@ -356,7 +259,6 @@ fn manifest_with_viewer_fields_roundtrip() {
     assert_eq!(back.viewer_routes[0].method, HttpMethod::Post);
     assert_eq!(back.viewer_routes[0].r#type, "say_request");
     assert_eq!(back.viewer_routes[1].method, HttpMethod::Get);
-    assert!(back.mobile_ready);
 
     // The two viewer routes should serialize methods as uppercase strings.
     let routes_json = json.get("viewer_routes").unwrap();
@@ -366,39 +268,53 @@ fn manifest_with_viewer_fields_roundtrip() {
 
 #[test]
 fn manifest_omits_viewer_fields_when_absent() {
-    let m = Manifest {
-        description: "x".to_string(),
-        version: "1.0.0".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: Exec::default(),
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    };
+    let m = base_manifest();
     let json = serde_json::to_value(&m).unwrap();
     let obj = json.as_object().unwrap();
     assert!(!obj.contains_key("viewer_zip"));
+    assert!(!obj.contains_key("viewer_url"));
     assert!(!obj.contains_key("viewer_routes"));
-    assert!(!obj.contains_key("mobile_ready"));
 }
 
 #[test]
 fn manifest_deserializes_without_viewer_fields() {
     let json = serde_json::json!({
-        "description": "x",
-        "version": "1.0.0",
-        "owner": "wiggidy"
+        "owner": "wiggidy", "name": "p", "version": "1.0.0", "description": "x",
+        "exec": { "windows": [], "linux": [], "macos": [] },
+        "cli_zip": {}
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert!(m.viewer_zip.is_none());
+    assert!(m.viewer_url.is_none());
     assert!(m.viewer_routes.is_empty());
-    assert!(!m.mobile_ready);
+}
+
+#[test]
+fn manifest_with_mcp_servers_roundtrip() {
+    let m = Manifest {
+        mcp_servers: vec![
+            McpServer {
+                name: "search".to_string(),
+                authorization: true,
+            },
+            McpServer {
+                name: "weather".to_string(),
+                authorization: false,
+            },
+        ],
+        ..base_manifest()
+    };
+    let json = serde_json::to_value(&m).unwrap();
+    // No `url` field on the wire — the entry is just name + authorization.
+    assert_eq!(json["mcp_servers"][0]["name"], "search");
+    assert_eq!(json["mcp_servers"][0]["authorization"], true);
+    assert!(json["mcp_servers"][0].get("url").is_none());
+    let back: Manifest = serde_json::from_value(json).unwrap();
+    assert_eq!(back.mcp_servers.len(), 2);
+    assert_eq!(back.mcp_servers[0].name, "search");
+    assert!(back.mcp_servers[0].authorization);
+    assert_eq!(back.mcp_servers[1].name, "weather");
+    assert!(!back.mcp_servers[1].authorization);
 }
 
 #[test]
@@ -418,29 +334,9 @@ fn http_method_serializes_uppercase() {
     }
 }
 
-// Helper: a minimal Manifest with no viewer source set. Tests below
-// override one or both viewer fields before calling `validate`.
-fn manifest_without_viewer() -> Manifest {
-    Manifest {
-        description: "t".to_string(),
-        version: "0.0.1".to_string(),
-        owner: "wiggidy".to_string(),
-        author: None,
-        homepage: None,
-        license: None,
-        exec: Exec::default(),
-        cli_zip: None,
-        viewer_zip: None,
-        viewer_url: None,
-        viewer_routes: vec![],
-        mobile_ready: false,
-        mcp_servers: Vec::new(),
-    }
-}
-
 #[test]
 fn has_viewer_returns_true_for_either_source() {
-    let mut m = manifest_without_viewer();
+    let mut m = base_manifest();
     assert!(!m.has_viewer());
 
     m.viewer_zip = Some("v.zip".to_string());
@@ -453,7 +349,7 @@ fn has_viewer_returns_true_for_either_source() {
 
 #[test]
 fn manifest_validate_rejects_both_viewer_sources() {
-    let mut m = manifest_without_viewer();
+    let mut m = base_manifest();
     m.viewer_zip = Some("v.zip".to_string());
     m.viewer_url = Some("https://x.example.com".to_string());
     let err = m.validate().unwrap_err();
@@ -462,22 +358,41 @@ fn manifest_validate_rejects_both_viewer_sources() {
 
 #[test]
 fn manifest_validate_accepts_viewer_url_only() {
-    let mut m = manifest_without_viewer();
+    let mut m = base_manifest();
     m.viewer_url = Some("https://x.example.com".to_string());
     assert!(m.validate().is_ok());
 }
 
 #[test]
 fn manifest_validate_accepts_viewer_zip_only() {
-    let mut m = manifest_without_viewer();
+    let mut m = base_manifest();
     m.viewer_zip = Some("v.zip".to_string());
     assert!(m.validate().is_ok());
 }
 
 #[test]
 fn manifest_validate_accepts_no_viewer_source() {
-    let m = manifest_without_viewer();
+    let m = base_manifest();
     assert!(m.validate().is_ok());
+}
+
+#[test]
+fn manifest_validate_rejects_duplicate_mcp_server_name() {
+    let mut m = base_manifest();
+    m.mcp_servers = vec![
+        McpServer { name: "demo".to_string(), authorization: false },
+        McpServer { name: "demo".to_string(), authorization: true },
+    ];
+    let err = m.validate().unwrap_err();
+    assert!(err.contains("duplicate name"), "got {err:?}");
+}
+
+#[test]
+fn manifest_validate_rejects_empty_mcp_server_name() {
+    let mut m = base_manifest();
+    m.mcp_servers = vec![McpServer { name: String::new(), authorization: false }];
+    let err = m.validate().unwrap_err();
+    assert!(err.contains("name cannot be empty"), "got {err:?}");
 }
 
 #[test]
@@ -489,7 +404,7 @@ fn manifest_validate_accepts_localhost_http() {
         "http://127.0.0.1",
         "http://127.0.0.1:8080/index.html",
     ] {
-        let mut m = manifest_without_viewer();
+        let mut m = base_manifest();
         m.viewer_url = Some(url.to_string());
         assert!(m.validate().is_ok(), "expected ok for {url:?}");
     }
@@ -502,7 +417,7 @@ fn manifest_validate_rejects_non_localhost_http() {
         "http://evil.example.com:8080",
         "http://1.2.3.4",
     ] {
-        let mut m = manifest_without_viewer();
+        let mut m = base_manifest();
         m.viewer_url = Some(url.to_string());
         let err = m.validate().unwrap_err();
         assert!(err.contains("localhost"), "got {err:?} for {url:?}");
@@ -517,7 +432,7 @@ fn manifest_validate_rejects_other_schemes() {
         "javascript:alert(1)",
         "",
     ] {
-        let mut m = manifest_without_viewer();
+        let mut m = base_manifest();
         m.viewer_url = Some(url.to_string());
         assert!(m.validate().is_err(), "expected err for {url:?}");
     }
@@ -525,7 +440,7 @@ fn manifest_validate_rejects_other_schemes() {
 
 #[test]
 fn manifest_with_viewer_url_serde_roundtrip() {
-    let mut m = manifest_without_viewer();
+    let mut m = base_manifest();
     m.viewer_url = Some("https://plugin.example.com/index.html".to_string());
     let json = serde_json::to_value(&m).unwrap();
     assert_eq!(
@@ -540,72 +455,48 @@ fn manifest_with_viewer_url_serde_roundtrip() {
 }
 
 #[test]
-fn tool_name_materializes_owner_name_version() {
-    // `{owner}-{name}-{version}` with `.` -> `-` substitution.
-    let m = manifest_without_viewer(); // owner "wiggidy", version "0.0.1"
-    assert_eq!(m.tool_name("psyops"), "wiggidy-psyops-0-0-1");
-
-    let with_name = ManifestWithNameAndSource {
-        name: "psyops".to_string(),
-        manifest: m,
-        source: "/x/objectiveai.json".to_string(),
-    };
-    assert_eq!(with_name.tool_name(), "wiggidy-psyops-0-0-1");
-}
-
-#[test]
-fn manifest_with_name_and_source_converts_to_sdk_response_manifest() {
+fn manifest_converts_to_sdk_response_manifest() {
     use objectiveai_sdk::cli::command::plugins::get::{
         ResponseHttpMethod, ResponseManifest,
     };
-    let m = ManifestWithNameAndSource {
+    let m = Manifest {
+        owner: "wiggidy".to_string(),
         name: "psyops".to_string(),
-        manifest: Manifest {
-            description: "do things".to_string(),
-            version: "1.2.3".to_string(),
-            owner: "wiggidy".to_string(),
-            author: Some("Wiggidy".to_string()),
-            homepage: Some("https://example.com".to_string()),
-            license: Some("MIT".to_string()),
-            exec: full_exec(),
-            cli_zip: Some("psyops-cli.zip".to_string()),
-            viewer_zip: Some("v.zip".to_string()),
-            viewer_url: None,
-            viewer_routes: vec![ViewerRoute {
-                path: "/say".to_string(),
-                method: HttpMethod::Post,
-                r#type: "say_request".to_string(),
-            }],
-            mobile_ready: true,
-            mcp_servers: vec![McpServer {
-                name: "search".to_string(),
-                url: "https://mcp.example.com".to_string(),
-                authorization: true,
-            }],
+        version: "1.2.3".to_string(),
+        description: "do things".to_string(),
+        exec: full_exec(),
+        // On-disk-only fields — the projection drops these.
+        cli_zip: CliZip {
+            windows: Some("psyops-cli.zip".to_string()),
+            ..Default::default()
         },
-        source: "/x/objectiveai.json".to_string(),
+        viewer_zip: Some("v.zip".to_string()),
+        viewer_url: None,
+        viewer_routes: vec![ViewerRoute {
+            path: "/say".to_string(),
+            method: HttpMethod::Post,
+            r#type: "say_request".to_string(),
+        }],
+        mcp_servers: vec![McpServer {
+            name: "search".to_string(),
+            authorization: true,
+        }],
     };
-    let r: ResponseManifest = m.clone().into();
-    assert_eq!(r.name, "psyops");
-    assert_eq!(r.description, "do things");
-    assert_eq!(r.version, "1.2.3");
+    let exec = m.exec.clone();
+    let r: ResponseManifest = m.into();
     assert_eq!(r.owner, "wiggidy");
-    assert_eq!(r.author.as_deref(), Some("Wiggidy"));
-    assert_eq!(r.homepage.as_deref(), Some("https://example.com"));
-    assert_eq!(r.license.as_deref(), Some("MIT"));
+    assert_eq!(r.name, "psyops");
+    assert_eq!(r.version, "1.2.3");
+    assert_eq!(r.description, "do things");
     // `exec` is the SDK's own type already — carried over verbatim.
-    assert_eq!(r.exec, m.manifest.exec);
-    assert_eq!(r.cli_zip.as_deref(), Some("psyops-cli.zip"));
-    assert_eq!(r.viewer_zip.as_deref(), Some("v.zip"));
+    assert_eq!(r.exec, exec);
+    // viewer_zip is dropped; viewer_url carries over (here it's None).
     assert!(r.viewer_url.is_none());
     assert_eq!(r.viewer_routes.len(), 1);
     assert_eq!(r.viewer_routes[0].path, "/say");
     assert_eq!(r.viewer_routes[0].method, ResponseHttpMethod::Post);
     assert_eq!(r.viewer_routes[0].r#type, "say_request");
-    assert!(r.mobile_ready);
     assert_eq!(r.mcp_servers.len(), 1);
     assert_eq!(r.mcp_servers[0].name, "search");
-    assert_eq!(r.mcp_servers[0].url, "https://mcp.example.com");
     assert!(r.mcp_servers[0].authorization);
-    assert_eq!(r.source, "/x/objectiveai.json");
 }

@@ -1,9 +1,9 @@
 //! `tools run` — resolve a tool by `(owner, name, version)`, build its
 //! command from the current platform's exec vector + the caller's
-//! args, run it with the tool's version folder as the working
-//! directory, and yield each stdout/stderr line as a [`ResponseItem`]
-//! as it arrives. A non-zero exit code surfaces as a final
-//! `Err(Error::ToolExit(code))`.
+//! args, run it with the tool's version folder's `cli/` subdir as the
+//! working directory (per `resolve_tool`), and yield each
+//! stdout/stderr line as a [`ResponseItem`] as it arrives. A non-zero
+//! exit code surfaces as a final `Err(Error::ToolExit(code))`.
 
 use std::pin::Pin;
 use std::process::Stdio;
@@ -30,8 +30,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // The command is the tool's exec vector merged with the caller's
     // args, verbatim — neither array's strings are inspected or
     // mutated. The first element is the program; the rest are its
-    // arguments. CWD is the tool's version folder (where
-    // `objectiveai.json` lives) — always.
+    // arguments. CWD is the tool's `cli/` subdir (from `resolve_tool`);
+    // `objectiveai.json` lives in the parent version folder.
     let mut argv = exec;
     argv.extend(request.args);
     let mut argv = argv.into_iter();
@@ -73,6 +73,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     cmd.args(argv)
         .current_dir(&cwd)
         .env("OBJECTIVEAI_STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_BIN_DIR", &cwd)
         .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())

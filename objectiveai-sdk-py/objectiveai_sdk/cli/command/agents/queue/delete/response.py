@@ -18,7 +18,7 @@ unix-seconds timestamp, and `content` is the reconstructed
     agent_instance_hierarchy: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     agent_tag: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     content: RichContent
-    enqueued_at: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
+    enqueued_at: str = Field(..., description='RFC3339 timestamp the dropped row was enqueued at.')
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     key: Optional[str] = Field(None, description='Idempotency token, if the dropped row had one.', json_schema_extra={'omitempty': True})
 

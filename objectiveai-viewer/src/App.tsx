@@ -280,7 +280,6 @@ const OBJECTIVEAI_TAB_ID = "objectiveai";
 export interface ViewerPluginInfo {
   name: string;
   iframe_src: string;
-  mobile_ready: boolean;
 }
 
 function App() {

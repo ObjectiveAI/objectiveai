@@ -1,6 +1,6 @@
 [package]
 name = "test-upstream"
-version = "2.2.0"
+version = "2.2.1"
 edition = "2024"
 
 [lib]
@@ -18,7 +18,7 @@ dotenv = "0.15.0"
 envconfig = "0.11.1"
 futures = "0.3.32"
 indexmap = { version = "2.13.0", features = ["serde"] }
-objectiveai-sdk = { path = "../../objectiveai-sdk-rs", version = "2.2.0", default-features = false, features = ["mcp"] }
+objectiveai-sdk = { path = "../../objectiveai-sdk-rs", version = "2.2.1", default-features = false, features = ["mcp"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 tokio = { version = "1.50.0", features = ["full"] }

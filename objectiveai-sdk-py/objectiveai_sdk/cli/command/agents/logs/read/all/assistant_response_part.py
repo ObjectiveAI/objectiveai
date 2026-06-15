@@ -8,9 +8,9 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 class AssistantResponsePartToolCall(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'ToolCall'})
 
+    delivered_at: str
     function_name: str = Field(..., description='`objectiveai.assistant_response_tool_calls.function_name`.')
     id: int = Field(..., description='`logs.messages."index"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call\'s `arguments`\nas text.', ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     tool_call_id: str = Field(..., description='The wire tool-call id this row carries.')
     tool_call_index: int = Field(..., description="The tool call's wire index within the assistant message's\n`tool_calls[]`.", ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['tool_call'] = Field(..., alias='type')
@@ -19,56 +19,56 @@ class AssistantResponsePartToolCall(BaseModel):
 class AssistantResponsePartRefusal(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Refusal'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['refusal'] = Field(..., alias='type')
 
 
 class AssistantResponsePartReasoning(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Reasoning'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['reasoning'] = Field(..., alias='type')
 
 
 class AssistantResponsePartText(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Text'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['text'] = Field(..., alias='type')
 
 
 class AssistantResponsePartImage(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Image'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['image'] = Field(..., alias='type')
 
 
 class AssistantResponsePartAudio(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Audio'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['audio'] = Field(..., alias='type')
 
 
 class AssistantResponsePartVideo(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Video'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['video'] = Field(..., alias='type')
 
 
 class AssistantResponsePartFile(BaseModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'File'})
 
+    delivered_at: str
     id: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: Literal['file'] = Field(..., alias='type')
 
 

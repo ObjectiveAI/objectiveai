@@ -1,7 +1,8 @@
 {
-  "description": "same-echo fixture",
-  "version": "1.0.0",
   "owner": "testorg",
+  "name": "same-echo",
+  "version": "1.0.0",
+  "description": "same-echo fixture",
   "exec": {
     "windows": [
       "cargo",
@@ -28,10 +29,10 @@
       "--"
     ]
   },
+  "cli_zip": {},
   "mcp_servers": [
     {
       "name": "demo",
-      "url": "http://127.0.0.1:0",
       "authorization": false
     }
   ]

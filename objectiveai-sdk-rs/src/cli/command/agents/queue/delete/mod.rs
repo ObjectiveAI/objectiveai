@@ -66,7 +66,8 @@ pub struct Response {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub key: Option<String>,
-    pub enqueued_at: i64,
+    /// RFC3339 timestamp the dropped row was enqueued at.
+    pub enqueued_at: String,
     pub content: crate::agent::completions::message::RichContent,
 }
 

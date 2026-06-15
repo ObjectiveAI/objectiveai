@@ -5,6 +5,5 @@ import { z } from "zod";
 export const CliCommandPluginsGetResponseMcpServerSchema = z.object({
   authorization: z.boolean(),
   name: z.string(),
-  url: z.string(),
 }).meta({ title: "cli.command.plugins.get.ResponseMcpServer" });
 export type CliCommandPluginsGetResponseMcpServer = z.infer<typeof CliCommandPluginsGetResponseMcpServerSchema>;

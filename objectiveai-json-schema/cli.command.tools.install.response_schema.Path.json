@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tools.install.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "tools/install/response_schema"
-  ]
-}

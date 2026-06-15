@@ -6,5 +6,5 @@ export const CliCommandToolsGetExecSchema = z.object({
   linux: z.array(z.string()),
   macos: z.array(z.string()),
   windows: z.array(z.string()),
-}).describe("Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder\n(where `objectiveai.json` lives).").meta({ title: "cli.command.tools.get.Exec" });
+}).describe("Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder's\n`cli/` subdir (`objectiveai.json` lives in the version folder).").meta({ title: "cli.command.tools.get.Exec" });
 export type CliCommandToolsGetExec = z.infer<typeof CliCommandToolsGetExecSchema>;

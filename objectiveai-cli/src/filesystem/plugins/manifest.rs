@@ -1,63 +1,52 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-use crate::filesystem::tools::Exec;
+use crate::filesystem::tools::{CliZip, Exec};
 
-/// Declarative metadata a plugin ships with itself. The wire shape is
-/// JSON; the on-disk convention (sibling file, embedded resource,
-/// `--manifest` flag, …) is deliberately out of scope of this struct
-/// and will be settled in a follow-up.
+/// Declarative metadata a plugin ships with — the on-disk
+/// `objectiveai.json` at
+/// `<base_dir>/plugins/<owner>/<name>/<version>/objectiveai.json`. The
+/// CLI reads and writes this shape verbatim (install writes the fetched
+/// manifest exactly as authored); the `plugins get` wire response is a
+/// lean projection of it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.Manifest")]
 pub struct Manifest {
-    /// One-line description of what the plugin does. Surfaced in
-    /// listings and the plugin's `--help`-equivalent UI.
-    pub description: String,
+    /// GitHub `<owner>` segment of the source repo, written verbatim
+    /// from the fetched manifest (forks land on disk with whatever
+    /// owner they authored, not rewritten to the install coordinate).
+    pub owner: String,
+
+    /// The plugin's identifier (matches the `<name>` directory
+    /// segment).
+    pub name: String,
 
     /// Version string. Semver convention is recommended but not
     /// enforced — the host just displays whatever's here.
     pub version: String,
 
-    /// GitHub `<owner>` segment of the source repo. Authors write
-    /// their canonical owner here; the installer overwrites this
-    /// field with whatever owner it was actually installed from (so
-    /// forks land on disk with the fork's owner, not the upstream's).
-    pub owner: String,
-
-    /// Author or authors of the plugin. Free-form string.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub author: Option<String>,
-
-    /// Homepage or repository URL.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub homepage: Option<String>,
-
-    /// SPDX license identifier (or any string).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub license: Option<String>,
+    /// One-line description of what the plugin does. Surfaced in
+    /// listings and the plugin's `--help`-equivalent UI.
+    pub description: String,
 
     /// Per-OS exec command for the plugin's cli side — the same shape
     /// tools use. The current platform's vector is the program plus
     /// its leading arguments; the run's args are appended, and the
     /// whole thing runs with CWD = `<plugin dir>/cli/`. Relative
     /// program paths resolve against that folder; bare names keep
-    /// PATH-lookup semantics. Empty when the plugin is viewer-only.
-    #[serde(default, skip_serializing_if = "Exec::is_empty")]
-    #[schemars(extend("omitempty" = true))]
+    /// PATH-lookup semantics. An empty per-OS vector means viewer-only
+    /// for that platform.
     pub exec: Exec,
 
-    /// GitHub-release asset filename for the plugin's cli bundle — a
-    /// `.zip` whose contents are extracted into `<plugin dir>/cli/`
-    /// at install time (the [`Self::exec`] working directory), the
-    /// same way [`Self::viewer_zip`] extracts to `viewer/`. Absent
-    /// when the exec needs nothing on disk (e.g. it invokes a
-    /// PATH-resolved program).
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub cli_zip: Option<String>,
+    /// Per-OS cli bundle zip filenames. At install the current
+    /// platform's entry (when present) is downloaded and extracted
+    /// into `<plugin dir>/cli/` (the [`Self::exec`] working
+    /// directory), the same way [`Self::viewer_zip`] extracts to
+    /// `viewer/`. Required field; each per-OS entry is optional —
+    /// absent means the exec needs nothing on disk for that platform
+    /// (e.g. it invokes a PATH-resolved program, or the plugin is
+    /// viewer-only).
+    pub cli_zip: CliZip,
 
     /// GitHub-release asset filename for the plugin's viewer UI
     /// bundle (a `.zip` whose root contains `index.html` plus
@@ -75,11 +64,10 @@ pub struct Manifest {
     /// targeting `localhost` / `127.0.0.1` (development only).
     ///
     /// Mutually exclusive with [`Self::viewer_zip`]. [`Self::viewer_routes`]
-    /// and [`Self::mobile_ready`] apply to remote-URL viewers the same
-    /// way they apply to zip-bundled viewers — the embedded axum
-    /// server still hosts the declared routes; the iframe still
-    /// receives the same postMessage protocol regardless of where
-    /// its HTML/JS loaded from.
+    /// apply to remote-URL viewers the same way they apply to
+    /// zip-bundled viewers — the embedded axum server still hosts the
+    /// declared routes; the iframe still receives the same postMessage
+    /// protocol regardless of where its HTML/JS loaded from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
@@ -93,20 +81,10 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub viewer_routes: Vec<ViewerRoute>,
 
-    /// Plugin author opts in to mobile viewer support by setting
-    /// this. Mobile viewer builds only surface plugins with this
-    /// flag true — mobile has no local backend binary, so plugin
-    /// UIs that require a backend will misbehave unless their
-    /// authors specifically design for "no-backend" mode. Defaults
-    /// to false (desktop-only).
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
-    pub mobile_ready: bool,
-
     /// MCP servers the plugin wants the host to expose. Each entry
     /// has a `name` (the identifier agents reference via
     /// [`objectiveai_sdk::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`])
-    /// plus the same `url` + `authorization` shape
-    /// [`objectiveai_sdk::agent::McpServer`] uses. Auth-requiring entries flag
+    /// plus an `authorization` flag. Auth-requiring entries flag
     /// `authorization = true`; credentials are resolved by the host
     /// (env vars / config), not the manifest.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -122,12 +100,6 @@ impl Manifest {
         self.viewer_zip.is_some() || self.viewer_url.is_some()
     }
 
-    /// LLM-visible tool name. See
-    /// [`objectiveai_sdk::agent::materialize_tool_name`].
-    pub fn tool_name(&self, name: &str) -> String {
-        objectiveai_sdk::agent::materialize_tool_name(&self.owner, name, &self.version)
-    }
-
     /// Validate fields that can't be enforced by serde alone:
     /// `viewer_zip` and `viewer_url` are mutually exclusive, and
     /// `viewer_url` (when present) must be `https://` or `http://`
@@ -141,25 +113,18 @@ impl Manifest {
         if let Some(url) = self.viewer_url.as_deref() {
             validate_viewer_url(url)?;
         }
-        // Each MCP-server entry: non-empty name + url; the list as a
+        // Each MCP-server entry needs a non-empty name; the list as a
         // whole must have no `name` duplicates (since agents reference
-        // by name) AND no `url` duplicates (no point declaring two
-        // entries pointing at the same upstream).
+        // by name).
         for entry in &self.mcp_servers {
             if entry.name.is_empty() {
                 return Err("mcp_servers[i].name cannot be empty");
-            }
-            if entry.url.is_empty() {
-                return Err("mcp_servers[i].url cannot be empty");
             }
         }
         for (i, a) in self.mcp_servers.iter().enumerate() {
             for b in &self.mcp_servers[i + 1..] {
                 if a.name == b.name {
                     return Err("mcp_servers contains duplicate name");
-                }
-                if a.url == b.url {
-                    return Err("mcp_servers contains duplicate url");
                 }
             }
         }
@@ -201,10 +166,11 @@ fn validate_viewer_url(url: &str) -> Result<(), &'static str> {
     Err("viewer_url must use https:// or http://localhost / http://127.0.0.1")
 }
 
-/// MCP server entry inside [`Manifest::mcp_servers`]. Same `url` +
-/// `authorization` semantics as [`objectiveai_sdk::agent::McpServer`] plus a
-/// `name` field that agent declarations reference (via
-/// [`objectiveai_sdk::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`]).
+/// MCP server entry inside [`Manifest::mcp_servers`]. A host-exposed
+/// upstream identified by a `name` that agent declarations reference
+/// (via
+/// [`objectiveai_sdk::agent::ClientObjectiveaiMcpPluginEntry::mcp_servers`]),
+/// plus an `authorization` flag.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 #[schemars(rename = "filesystem.plugins.McpServer")]
 pub struct McpServer {
@@ -212,8 +178,6 @@ pub struct McpServer {
     /// declare which subset of the plugin's MCP servers they want
     /// exposed by listing names here.
     pub name: String,
-    /// Upstream MCP server URL.
-    pub url: String,
     /// Whether the host should attach an `Authorization` header
     /// when dialing this upstream. Credentials are resolved by the
     /// host (env vars / config), not the manifest.
@@ -259,67 +223,28 @@ pub enum HttpMethod {
     Delete,
 }
 
-/// A [`Manifest`] enriched with the plugin's identifying `name` and
-/// the `source` it was loaded from. Used when listing or describing
-/// installed plugins, where the bare manifest fields are not enough
-/// to identify which plugin they belong to or where they came from.
-///
-/// `name` sits before the manifest body; `source` sits after. The
-/// `manifest` field is `#[serde(flatten)]`-ed so the wire shape is
-/// one flat JSON object — `serde_json`'s `preserve_order` feature
-/// keeps the declared field order, so consumers see `name` first
-/// and `source` last.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "filesystem.plugins.ManifestWithNameAndSource")]
-pub struct ManifestWithNameAndSource {
-    /// The plugin's identifier — the filename it lives under in the
-    /// plugins directory (e.g. `psyops` for `~/.objectiveai/plugins/psyops`).
-    pub name: String,
-    #[serde(flatten)]
-    pub manifest: Manifest,
-    /// Where this manifest came from — e.g. an absolute filesystem path,
-    /// a URL, or a registry reference. Free-form string; the host
-    /// just displays it.
-    pub source: String,
-}
-
-impl ManifestWithNameAndSource {
-    /// LLM-visible tool name. See [`Manifest::tool_name`] — this
-    /// helper supplies the `name` field automatically.
-    pub fn tool_name(&self) -> String {
-        self.manifest.tool_name(&self.name)
-    }
-}
-
-// Typed conversion to the SDK's bare-naked wire shape. Lets the
+// Typed conversion to the SDK's lean `plugins get` wire shape — drops
+// the on-disk-only fields (`cli_zip`, `viewer_zip`). Lets the
 // `command::plugins::{get, list}` leaves yield SDK `ResponseManifest`
-// items without round-tripping through `serde_json::Value`. The
-// inner type parallels (`ViewerRoute`/`ResponseViewerRoute`,
+// items without round-tripping through `serde_json::Value`. The inner
+// type parallels (`ViewerRoute`/`ResponseViewerRoute`,
 // `McpServer`/`ResponseMcpServer`, `HttpMethod`/`ResponseHttpMethod`)
 // are field-identical — collapsing them into shared types is a
 // separate cleanup pass. `exec` is the SDK type already.
-impl From<ManifestWithNameAndSource>
-    for objectiveai_sdk::cli::command::plugins::get::ResponseManifest
-{
-    fn from(m: ManifestWithNameAndSource) -> Self {
+impl From<Manifest> for objectiveai_sdk::cli::command::plugins::get::ResponseManifest {
+    fn from(m: Manifest) -> Self {
         use objectiveai_sdk::cli::command::plugins::get::{
             ResponseHttpMethod, ResponseManifest, ResponseMcpServer,
             ResponseViewerRoute,
         };
-        let manifest = m.manifest;
         ResponseManifest {
+            owner: m.owner,
             name: m.name,
-            description: manifest.description,
-            version: manifest.version,
-            owner: manifest.owner,
-            author: manifest.author,
-            homepage: manifest.homepage,
-            license: manifest.license,
-            exec: manifest.exec,
-            cli_zip: manifest.cli_zip,
-            viewer_zip: manifest.viewer_zip,
-            viewer_url: manifest.viewer_url,
-            viewer_routes: manifest
+            version: m.version,
+            description: m.description,
+            exec: m.exec,
+            viewer_url: m.viewer_url,
+            viewer_routes: m
                 .viewer_routes
                 .into_iter()
                 .map(|r| ResponseViewerRoute {
@@ -334,17 +259,14 @@ impl From<ManifestWithNameAndSource>
                     r#type: r.r#type,
                 })
                 .collect(),
-            mobile_ready: manifest.mobile_ready,
-            mcp_servers: manifest
+            mcp_servers: m
                 .mcp_servers
                 .into_iter()
                 .map(|s| ResponseMcpServer {
                     name: s.name,
-                    url: s.url,
                     authorization: s.authorization,
                 })
                 .collect(),
-            source: m.source,
         }
     }
 }

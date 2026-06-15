@@ -77,8 +77,8 @@ fn to_response_item(r: ListedSchedule) -> ResponseItem {
         agent_instance_hierarchy: r.agent_instance_hierarchy,
         command: r.command,
         description: r.description,
-        created_at: r.created_at,
-        last_ran_at: r.last_ran_at,
+        created_at: crate::db::time::unix_to_rfc3339(r.created_at),
+        last_ran_at: crate::db::time::unix_to_rfc3339_opt(r.last_ran_at),
         interval: r.interval_seconds.map(|secs| {
             humantime::format_duration(std::time::Duration::from_secs(secs)).to_string()
         }),

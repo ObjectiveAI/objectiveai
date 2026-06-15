@@ -1,7 +1,8 @@
 {
-  "description": "dup-charlie fixture",
-  "version": "1.0.0",
   "owner": "testorg",
+  "name": "dup-charlie",
+  "version": "1.0.0",
+  "description": "dup-charlie fixture",
   "exec": {
     "windows": [
       "cargo",
@@ -28,10 +29,10 @@
       "--"
     ]
   },
+  "cli_zip": {},
   "mcp_servers": [
     {
       "name": "demo",
-      "url": "http://127.0.0.1:0",
       "authorization": false
     }
   ]

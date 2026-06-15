@@ -12,10 +12,10 @@ class ResponseItemAgentInstanceHierarchy(BaseModel):
     agent_instance_hierarchy: str
     by: Literal['agent_instance_hierarchy']
     delete_id: int = Field(..., description='`message_queue.id` — the row-level id this block\nrepresents. Pass to `agents queue delete <id>` to\nsoft-flip the entire row (all parts) in one call.\nDistinct from each `QueuePart.id` (which is a\n`message_queue_contents.id` for drilling into one\ncontent slot via `agents queue read id`).', ge=-9223372036854775808, le=9223372036854775807)
+    enqueued_at: str = Field(..., description='`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.')
     key: Optional[str] = Field(None, description='Idempotency token, if the row was enqueued with `--key`.', json_schema_extra={'omitempty': True})
     parts: list[QueuePart]
     sender_agent_instance_hierarchy: str = Field(..., description='AIH of the caller who enqueued — from\n`message_queue.sender_*`.')
-    timestamp_queued: int = Field(..., description='`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.', ge=-9223372036854775808, le=9223372036854775807)
 
 
 class ResponseItemTag(BaseModel):
@@ -24,10 +24,10 @@ class ResponseItemTag(BaseModel):
     agent_tag: str
     by: Literal['tag']
     delete_id: int = Field(..., description='`message_queue.id`. Pass to `agents queue delete <id>`.', ge=-9223372036854775808, le=9223372036854775807)
+    enqueued_at: str
     key: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
     parts: list[QueuePart]
     sender_agent_instance_hierarchy: str
-    timestamp_queued: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
 
 
 class ResponseItem(RootModel):

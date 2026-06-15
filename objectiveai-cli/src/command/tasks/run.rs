@@ -21,10 +21,11 @@
 //! and awaits the listener so every log line is durably written before
 //! the stream ends.
 //!
-//! Output has two modes (layer 2), selected by `request.stream_all`:
-//! `--stream-all` passes every envelope through verbatim
-//! (`ResponseItem::Value`); the default engages the success layer
-//! instead — items are swallowed and each task yields exactly one
+//! Output has two modes (layer 2), selected by
+//! `request.dangerous_advanced.stream_all`: when set, every envelope
+//! passes through verbatim (`ResponseItem::Value`); the default engages
+//! the success layer instead — items are swallowed and each task yields
+//! exactly one
 //! `ResponseItem::Success { .., success }` when its stream completes,
 //! `success` being `false` iff the task's final item was an error.
 //! The mode never affects what is logged.
@@ -209,12 +210,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         }
     });
 
-    // Layer 2 — the mode adapter. `--stream-all` skips the success
-    // layer entirely: items pass through verbatim and the Done markers
-    // vanish. The default engages the success layer: items are
-    // swallowed (each run's final-item error-ness tracked) and every
-    // task yields exactly one `{.., success}` summary on its Done.
-    let stream: ItemStream = if request.stream_all {
+    // Layer 2 — the mode adapter. `stream_all` skips the success layer
+    // entirely: items pass through verbatim and the Done markers vanish.
+    // The default engages the success layer: items are swallowed (each
+    // run's final-item error-ness tracked) and every task yields exactly
+    // one `{.., success}` summary on its Done. `stream_all` is gated
+    // behind `dangerous_advanced` — it can bloat context astronomically.
+    let stream_all = request
+        .dangerous_advanced
+        .as_ref()
+        .and_then(|a| a.stream_all)
+        .unwrap_or(false);
+    let stream: ItemStream = if stream_all {
         Box::pin(logged.filter_map(|event| async move {
             match event {
                 TaskEvent::Item(_, item) => Some(item),

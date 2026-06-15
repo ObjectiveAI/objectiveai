@@ -78,7 +78,7 @@ pub use super::super::super::logs::read::all::{
 /// `message_queue_contents` entry. The `id` is the
 /// `message_queue_contents.id`, which you pass to
 /// `agents queue read id <n>` to drill into the body.
-/// `timestamp_queued` is on the enclosing block, not here
+/// `enqueued_at` is on the enclosing block, not here
 /// (one block = one `message_queue` parent row, sharing one
 /// `enqueued_at`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -111,7 +111,7 @@ pub enum ResponseItem {
         /// `message_queue.enqueued_at`. One block = one parent
         /// `message_queue` row, so this is well-defined
         /// block-level.
-        timestamp_queued: i64,
+        enqueued_at: String,
         /// Idempotency token, if the row was enqueued with `--key`.
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
@@ -124,7 +124,7 @@ pub enum ResponseItem {
         delete_id: i64,
         agent_tag: String,
         sender_agent_instance_hierarchy: String,
-        timestamp_queued: i64,
+        enqueued_at: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         #[schemars(extend("omitempty" = true))]
         key: Option<String>,

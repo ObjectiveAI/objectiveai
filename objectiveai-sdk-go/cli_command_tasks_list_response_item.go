@@ -11,7 +11,8 @@ import (
 type CliCommandTasksListResponseItem struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	Command []string `json:"command"`
-	CreatedAt int64 `json:"created_at" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// RFC3339 timestamp this schedule row was created.
+	CreatedAt string `json:"created_at"`
 	Description string `json:"description"`
 	// The `schedules` row id. Monotonic; pass the highest `id` from a
 	// page as the next request's `after_id` to paginate forward.
@@ -22,10 +23,10 @@ type CliCommandTasksListResponseItem struct {
 	// step at the consumer. The CLI parser accepts the same
 	// shape on `agents tasks schedule --interval`.
 	Interval *string `json:"interval,omitempty"`
-	// Unix seconds of the most recent invocation — this row's newest
-	// `tasks_runs` entry. `None` until the runner has fired this
-	// version at least once (runs are tracked per-version).
-	LastRanAt *int64 `json:"last_ran_at,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// RFC3339 timestamp of the most recent invocation — this row's
+	// newest `tasks_runs` entry. `None` until the runner has fired
+	// this version at least once (runs are tracked per-version).
+	LastRanAt *string `json:"last_ran_at,omitempty"`
 	// The `--name` passed to `agents tasks schedule`. Unique per
 	// `agent_instance_hierarchy`.
 	Name string `json:"name"`

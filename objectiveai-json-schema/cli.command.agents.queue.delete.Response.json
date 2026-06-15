@@ -29,9 +29,8 @@
       "$ref": "agent.completions.message.RichContent"
     },
     "enqueued_at": {
-      "type": "integer",
-      "minimum": -9223372036854775808,
-      "maximum": 9223372036854775807
+      "description": "RFC3339 timestamp the dropped row was enqueued at.",
+      "type": "string"
     },
     "id": {
       "type": "integer",

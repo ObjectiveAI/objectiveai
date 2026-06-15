@@ -498,14 +498,14 @@ pub async fn list_pending_for_targets(
         let parts = std::mem::take(parts);
         let sender = std::mem::take(sender);
         let key = key.take();
-        let timestamp_queued = *timestamp;
+        let enqueued_at = super::time::unix_to_rfc3339(*timestamp);
         let delete_id = parent.take().unwrap_or_default();
         if let Some(h) = aih.take() {
             out.push(ResponseItem::AgentInstanceHierarchy {
                 delete_id,
                 agent_instance_hierarchy: h,
                 sender_agent_instance_hierarchy: sender,
-                timestamp_queued,
+                enqueued_at,
                 key,
                 parts,
             });
@@ -514,7 +514,7 @@ pub async fn list_pending_for_targets(
                 delete_id,
                 agent_tag: t,
                 sender_agent_instance_hierarchy: sender,
-                timestamp_queued,
+                enqueued_at,
                 key,
                 parts,
             });

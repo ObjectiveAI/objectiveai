@@ -163,25 +163,37 @@ impl McpHandler for ConduitMcpHandler {
             server_request::Payload::ToolsList { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_tools_list(&state, &request.headers, params).await,
-                    Err(payload) => payload,
+                    Err((code, message)) => server_response::Payload::ToolsList {
+                        mcp_kind,
+                        result: rpc_err(code, message),
+                    },
                 }
             }
             server_request::Payload::ToolsCall { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_tools_call(&state, &request.headers, params).await,
-                    Err(payload) => payload,
+                    Err((code, message)) => server_response::Payload::ToolsCall {
+                        mcp_kind,
+                        result: rpc_err(code, message),
+                    },
                 }
             }
             server_request::Payload::ResourcesList { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_resources_list(&state, &request.headers, params).await,
-                    Err(payload) => payload,
+                    Err((code, message)) => server_response::Payload::ResourcesList {
+                        mcp_kind,
+                        result: rpc_err(code, message),
+                    },
                 }
             }
             server_request::Payload::ResourcesRead { mcp_kind, params } => {
                 match resolve_connection(self, &mcp_kind, &request.headers).await {
                     Ok(state) => dispatch_resources_read(&state, &request.headers, params).await,
-                    Err(payload) => payload,
+                    Err((code, message)) => server_response::Payload::ResourcesRead {
+                        mcp_kind,
+                        result: rpc_err(code, message),
+                    },
                 }
             }
             server_request::Payload::ReadMessageQueue(req) => {
@@ -203,41 +215,35 @@ impl McpHandler for ConduitMcpHandler {
 /// [`McpKind::Other`], return `-32001`: the plugin subprocess died
 /// with the CLI restart so a fresh `initialize` is the only path
 /// forward. The proxy's standard retry logic handles it.
+/// Resolve the cached upstream for this request. On failure returns a
+/// bare `(code, message)` — the caller builds the `JsonRpcResult::Err`
+/// in the response variant matching its request (see [`rpc_err`]).
 async fn resolve_connection(
     handler: &ConduitMcpHandler,
     mcp_kind: &McpKind,
     headers: &IndexMap<String, String>,
-) -> Result<Arc<ConduitState>, server_response::Payload> {
+) -> Result<Arc<ConduitState>, (i64, String)> {
     let Some(session_id) = mcp_session_id_from_headers(headers) else {
-        return Err(error_for(
-            mcp_kind,
-            -32600,
-            "missing Mcp-Session-Id header".to_string(),
-        ));
+        return Err((-32600, "missing Mcp-Session-Id header".to_string()));
     };
     if let Some(existing) = handler.inner.connections.get(&session_id) {
         return Ok(existing.clone());
     }
     // Cache miss. Only the primary can resume across CLI restart.
     if !matches!(mcp_kind, McpKind::ObjectiveAi) {
-        return Err(error_for(
-            mcp_kind,
+        return Err((
             -32001,
             format!("no cached connection for Mcp-Session-Id {session_id:?}"),
         ));
     }
     let mcp_url = match objectiveai_mcp_url(&handler.inner).await {
         Ok(u) => u,
-        Err(message) => return Err(error_for(mcp_kind, -32603, message)),
+        Err(message) => return Err((-32603, message)),
     };
     let transient = match require_transient(headers) {
         Ok(t) => t,
         Err(message) => {
-            return Err(error_for(
-                mcp_kind,
-                -32600,
-                format!("conduit: {message}"),
-            ));
+            return Err((-32600, format!("conduit: {message}")));
         }
     };
     let connect_headers = sanitize_connect_headers(headers);
@@ -249,11 +255,7 @@ async fn resolve_connection(
     {
         Ok(c) => c,
         Err(e) => {
-            return Err(error_for(
-                mcp_kind,
-                -32603,
-                format!("conduit: connect (resume): {e}"),
-            ));
+            return Err((-32603, format!("conduit: connect (resume): {e}")));
         }
     };
     install_list_changed_pump(&connection, handler.inner.clone(), mcp_kind.clone());
@@ -280,23 +282,25 @@ async fn objectiveai_mcp_url(inner: &Arc<Inner>) -> Result<String, String> {
     Ok(format!("http://127.0.0.1:{port}"))
 }
 
-/// Build a `JsonRpcResult::Err` typed into the corresponding
-/// response variant for the inbound request payload. The caller
-/// already knows which method failed so we discriminate by the
-/// payload that would've been produced on success.
-fn error_for(mcp_kind: &McpKind, code: i64, message: String) -> server_response::Payload {
-    // Used only from `resolve_connection`'s non-Initialize / non-
-    // SessionTerminate paths. The API's `variant_mismatch` check
-    // logs a mismatch but still surfaces code/message/data, so any
-    // `JsonRpcResult::Err` variant works — picking `ToolsList`
-    // arbitrarily.
-    server_response::Payload::ToolsList {
-        mcp_kind: mcp_kind.clone(),
-        result: JsonRpcResult::Err {
-            code,
-            message,
-            data: None,
-        },
+/// A `JsonRpcResult::Err` whose `T` is inferred from the
+/// `Payload::<Method> { result }` field it's assigned to. Each `handle`
+/// arm builds its error result with this **in its own response
+/// variant**, co-located with the request match arm, so the response
+/// variant ALWAYS matches the request variant.
+///
+/// This matters: the API's reverse channel asserts that a response's
+/// payload variant matches the request it answered
+/// (`server_response`'s `variant_mismatch`). A fixed error variant
+/// (e.g. always `ToolsList`) would surface to the agent as a spurious
+/// "wrong payload variant: expected tools_call, got tools_list" and
+/// MASK the real error (the `code`/`message` here). Discriminating by
+/// the request — which the match already does — keeps them in lockstep
+/// by construction.
+fn rpc_err<T>(code: i64, message: String) -> JsonRpcResult<T> {
+    JsonRpcResult::Err {
+        code,
+        message,
+        data: None,
     }
 }
 

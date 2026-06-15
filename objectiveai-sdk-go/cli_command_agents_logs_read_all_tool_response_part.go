@@ -9,10 +9,10 @@ import (
 
 // One row inside a `ToolResponse` block.
 type CliCommandAgentsLogsReadAllToolResponsePart struct {
+	DeliveredAt string `json:"delivered_at"`
 	// `logs.messages."index"` for this row. Pass to
 	// `agents logs read id <n>` for the typed body.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type CliCommandAgentsLogsReadAllToolResponsePartType `json:"type"`
 }
 
@@ -26,7 +26,7 @@ func (v *CliCommandAgentsLogsReadAllToolResponsePart) UnmarshalJSON(data []byte)
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllToolResponsePart: missing required field %q", key)
 		}

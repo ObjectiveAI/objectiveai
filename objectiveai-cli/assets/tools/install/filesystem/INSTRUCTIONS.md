@@ -8,7 +8,8 @@ A tool is an executable command (compiled binary or script, plus any
 leading arguments) that a host agent can invoke. Unlike a plugin, a
 tool has no viewer UI, no per-platform binary download, no GitHub
 install pipeline. It's a manifest (`objectiveai.json`) sitting in a
-versioned directory, alongside whatever files its exec command needs.
+versioned directory, with whatever files its exec command needs in a
+nested `cli/` subfolder — the same layout plugins use.
 
 ## 1. Fetch the manifest schema
 
@@ -54,27 +55,30 @@ the tool — write it for that audience.
 
 `exec` is a **per-OS command vector**. At run time the CLI picks the
 vector for the current platform, appends the caller's `--args`, and
-invokes the result **with this version directory as the working
-directory**. So the first element is the program (looked up on `PATH`,
-or `./relative` to this folder), and the rest are its leading
-arguments. Leave a platform's list empty (`[]`) if the tool doesn't
-support it.
+invokes the result **with this version directory's `cli/` subfolder as
+the working directory**. So the first element is the program (looked up
+on `PATH`, or `./relative` to that `cli/` folder), and the rest are its
+leading arguments. Leave a platform's list empty (`[]`) if the tool
+doesn't support it.
 
 Examples:
 
-- A Python script shipped alongside the manifest:
-  `["python", "tool.py"]` (drop `tool.py` in the same directory).
+- A Python script shipped with the tool:
+  `["python", "tool.py"]` (drop `tool.py` in the `cli/` folder).
 - A committed binary: `["./mytool"]` on linux/macos,
-  `["mytool.exe"]` on windows.
+  `["mytool.exe"]` on windows (the binary lives in `cli/`).
 
 ## 4. Place any exec files
 
 Drop whatever your exec command references (scripts, binaries) into the
-same version directory, since that's the working directory at run
-time. For a shell script with a shebang, set the executable bit on
-Unix:
+version directory's `cli/` subfolder, since that's the working
+directory at run time:
 
-    chmod +x ~/.objectiveai/tools/<owner>/<name>/<version>/<file>
+    ~/.objectiveai/tools/<owner>/<name>/<version>/cli/
+
+For a shell script with a shebang, set the executable bit on Unix:
+
+    chmod +x ~/.objectiveai/tools/<owner>/<name>/<version>/cli/<file>
 
 ## 5. Verify
 

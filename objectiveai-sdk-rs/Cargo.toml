@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.2.0"
+version = "2.2.1"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -29,7 +29,7 @@ viewer = ["dep:tokio"]
 lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.2.0", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.2.1", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }

@@ -182,7 +182,7 @@ pub enum ClientNotificationPartType {
 }
 
 /// One row inside a `ClientNotification` block — a consumed
-/// `message_queue_contents` entry. `timestamp_queued` is on the
+/// `message_queue_contents` entry. `queued_at` is on the
 /// enclosing block (it lives on `message_queue.enqueued_at`, not
 /// per-content); only the per-row consumption timestamp is here.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -195,7 +195,7 @@ pub struct ClientNotificationPart {
     /// `logs.messages."timestamp"` — when the receiver consumed
     /// this content row and the LogWriter committed the
     /// consumption event.
-    pub timestamp_delivered: i64,
+    pub delivered_at: String,
     pub r#type: ClientNotificationPartType,
 }
 
@@ -220,7 +220,7 @@ pub enum AssistantResponsePart {
         /// `agents logs read id <n>` to read the call's `arguments`
         /// as text.
         id: i64,
-        timestamp_delivered: i64,
+        delivered_at: String,
         /// `objectiveai.assistant_response_tool_calls.function_name`.
         function_name: String,
         /// The wire tool-call id this row carries.
@@ -230,19 +230,19 @@ pub enum AssistantResponsePart {
         tool_call_index: i64,
     },
     #[schemars(title = "Refusal")]
-    Refusal { id: i64, timestamp_delivered: i64 },
+    Refusal { id: i64, delivered_at: String },
     #[schemars(title = "Reasoning")]
-    Reasoning { id: i64, timestamp_delivered: i64 },
+    Reasoning { id: i64, delivered_at: String },
     #[schemars(title = "Text")]
-    Text { id: i64, timestamp_delivered: i64 },
+    Text { id: i64, delivered_at: String },
     #[schemars(title = "Image")]
-    Image { id: i64, timestamp_delivered: i64 },
+    Image { id: i64, delivered_at: String },
     #[schemars(title = "Audio")]
-    Audio { id: i64, timestamp_delivered: i64 },
+    Audio { id: i64, delivered_at: String },
     #[schemars(title = "Video")]
-    Video { id: i64, timestamp_delivered: i64 },
+    Video { id: i64, delivered_at: String },
     #[schemars(title = "File")]
-    File { id: i64, timestamp_delivered: i64 },
+    File { id: i64, delivered_at: String },
 }
 
 /// Type tag for one `ToolResponse` part — the table-kind of the
@@ -267,7 +267,7 @@ pub struct ToolResponsePart {
     /// `logs.messages."index"` for this row. Pass to
     /// `agents logs read id <n>` for the typed body.
     pub id: i64,
-    pub timestamp_delivered: i64,
+    pub delivered_at: String,
     pub r#type: ToolResponsePartType,
 }
 
@@ -287,7 +287,7 @@ pub struct ToolResponsePart {
 /// agent_instance_hierarchy, response_id, sender, message_queue_id)`
 /// for `ClientNotification` blocks.
 /// One `ClientNotification` block = one consumed
-/// `message_queue` parent row, so `timestamp_queued` and
+/// `message_queue` parent row, so `queued_at` and
 /// `sender_agent_instance_hierarchy` are well-defined
 /// block-level.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -301,7 +301,7 @@ pub enum ResponseItem {
         /// AIH of the caller who issued the request — from
         /// `logs.agent_completion_requests.sender_*`.
         sender_agent_instance_hierarchy: String,
-        timestamp_delivered: i64,
+        delivered_at: String,
         response_id: String,
     },
     #[schemars(title = "VectorCompletionRequest")]
@@ -309,7 +309,7 @@ pub enum ResponseItem {
         id: i64,
         agent_instance_hierarchy: String,
         sender_agent_instance_hierarchy: String,
-        timestamp_delivered: i64,
+        delivered_at: String,
         response_id: String,
     },
     #[schemars(title = "FunctionExecutionRequest")]
@@ -317,7 +317,7 @@ pub enum ResponseItem {
         id: i64,
         agent_instance_hierarchy: String,
         sender_agent_instance_hierarchy: String,
-        timestamp_delivered: i64,
+        delivered_at: String,
         response_id: String,
     },
     #[schemars(title = "ClientNotification")]
@@ -330,9 +330,9 @@ pub enum ResponseItem {
         /// `message_queue.enqueued_at` of the consumed parent
         /// queue row. One block = one parent queue row, so this
         /// is well-defined block-level (each part's individual
-        /// `timestamp_delivered` still records its own
+        /// `delivered_at` still records its own
         /// consumption moment).
-        timestamp_queued: i64,
+        queued_at: String,
         /// Idempotency token, if the row was enqueued with
         /// `--key` via `agents message --enqueue-with-key`.
         /// Surfacing it lets readers attribute a notification

@@ -1,59 +1,29 @@
 {
   "title": "cli.command.tools.install.Request",
-  "type": "object",
-  "properties": {
-    "jq": {
-      "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
+  "anyOf": [
+    {
+      "title": "Filesystem",
+      "$ref": "cli.command.tools.install.filesystem.Request"
     },
-    "max_tokens": {
-      "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+    {
+      "title": "FilesystemRequestSchema",
+      "$ref": "cli.command.tools.install.filesystem.request_schema.Request"
     },
-    "path_type": {
-      "$ref": "cli.command.tools.install.Path"
+    {
+      "title": "FilesystemResponseSchema",
+      "$ref": "cli.command.tools.install.filesystem.response_schema.Request"
     },
-    "python": {
-      "description": "Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ]
+    {
+      "title": "Github",
+      "$ref": "cli.command.tools.install.github.Request"
     },
-    "timeout_seconds": {
-      "description": "Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.",
-      "anyOf": [
-        {
-          "type": "integer",
-          "minimum": 0,
-          "maximum": 18446744073709551615
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
+    {
+      "title": "GithubRequestSchema",
+      "$ref": "cli.command.tools.install.github.request_schema.Request"
+    },
+    {
+      "title": "GithubResponseSchema",
+      "$ref": "cli.command.tools.install.github.response_schema.Request"
     }
-  }
+  ]
 }

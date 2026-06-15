@@ -116,60 +116,80 @@ fn percent_encode_plugin_name(name: &str) -> String {
     out
 }
 
+/// Managed-state wrapper for the plugins root, so Tauri commands (not
+/// just the `plugin://` protocol handler) can resolve on-disk plugin
+/// bundles at `<plugins_dir>/<owner>/<name>/<version>/viewer/`.
+pub(crate) struct PluginsDir(pub(crate) std::path::PathBuf);
+
 /// One installed plugin's viewer info, surfaced to the React shell.
 /// Pre-resolves `iframe_src` on the Rust side so the frontend doesn't
-/// have to know about `viewer_zip` vs `viewer_url` — it just renders
-/// the URL.
+/// have to know about a remote `viewer_url` vs an on-disk bundle — it
+/// just renders the URL.
 #[derive(serde::Serialize, Clone, Debug)]
 pub(crate) struct ViewerPluginInfo {
     /// Plugin name (== repository name == tab label).
     pub name: String,
-    /// Iframe `src=` to load. For `viewer_zip` plugins this is the
-    /// `plugin://localhost/<name>/index.html` URL served by
-    /// [`serve_plugin_asset`]; for `viewer_url` plugins this is the
-    /// manifest's URL verbatim.
+    /// Iframe `src=` to load. For on-disk-bundle plugins this is the
+    /// `plugin://localhost/<owner>/<name>/<version>/index.html` URL
+    /// served by [`serve_plugin_asset`]; for `viewer_url` plugins this
+    /// is the manifest's URL verbatim.
     pub iframe_src: String,
-    /// Manifest's `mobile_ready` flag, forwarded for future responsive
-    /// layout decisions on the frontend.
-    pub mobile_ready: bool,
 }
 
 /// Installed plugins that should appear as tabs in the viewer shell.
-/// Pre-filtered to plugins that ship a viewer (either `viewer_zip` or
-/// `viewer_url`) — without a viewer source there's nothing for the
-/// iframe to render. Plugins with only `viewer_routes` and no
-/// viewer source still have their axum routes registered at startup
-/// but don't get a tab.
+/// Pre-filtered to plugins that ship a viewer: either a remote
+/// `viewer_url`, or an extracted on-disk bundle (an `index.html` under
+/// `<plugins_dir>/<owner>/<name>/<version>/viewer/`). The get response
+/// no longer carries `viewer_zip`, so bundle presence is read from
+/// disk. Plugins with only `viewer_routes` and no viewer source still
+/// have their axum routes registered at startup but don't get a tab.
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
-    state: tauri::State<'_, BinaryExecutor>,
+    executor: tauri::State<'_, BinaryExecutor>,
+    plugins_dir: tauri::State<'_, PluginsDir>,
 ) -> Result<Vec<ViewerPluginInfo>, String> {
-    let plugins = list_all_plugins(state.inner()).await;
+    let plugins = list_all_plugins(executor.inner()).await;
+    let root = &plugins_dir.inner().0;
     Ok(plugins
         .into_iter()
-        .filter(|p| p.viewer_zip.is_some() || p.viewer_url.is_some())
-        .map(|p| {
-            let iframe_src = match p.viewer_url.as_deref() {
-                Some(url) => url.to_string(),
-                None => format!(
-                    "plugin://localhost/{}/index.html",
-                    percent_encode_plugin_name(&p.name)
-                ),
-            };
-            ViewerPluginInfo {
+        .filter_map(|p| {
+            // Remote viewer URL wins; otherwise look for an extracted
+            // bundle on disk at the plugin's version folder.
+            if let Some(url) = p.viewer_url.as_deref() {
+                return Some(ViewerPluginInfo {
+                    name: p.name,
+                    iframe_src: url.to_string(),
+                });
+            }
+            let bundle_index = root
+                .join(&p.owner)
+                .join(&p.name)
+                .join(&p.version)
+                .join("viewer")
+                .join("index.html");
+            if !bundle_index.exists() {
+                return None;
+            }
+            let iframe_src = format!(
+                "plugin://localhost/{}/{}/{}/index.html",
+                percent_encode_plugin_name(&p.owner),
+                percent_encode_plugin_name(&p.name),
+                percent_encode_plugin_name(&p.version),
+            );
+            Some(ViewerPluginInfo {
                 name: p.name,
                 iframe_src,
-                mobile_ready: p.mobile_ready,
-            }
+            })
         })
         .collect())
 }
 
 /// Handler for the custom `plugin://` URI scheme. Resolves
-/// `plugin://localhost/<plugin>/<path>` to a file under
-/// `<plugins_dir>/<plugin>/viewer/<path>`. Rejects path components
-/// containing `..` so a plugin can't read outside its own viewer
-/// subtree. Falls back to `<path>` = `index.html` when the request
+/// `plugin://localhost/<owner>/<name>/<version>/<path>` to a file under
+/// `<plugins_dir>/<owner>/<name>/<version>/viewer/<path>` (the nested
+/// install layout). Rejects path components containing `..` so a plugin
+/// can't read outside its own viewer subtree. Falls back to
+/// `<path>` = `index.html` when no file part is given or the request
 /// path ends with `/`.
 pub(crate) fn serve_plugin_asset(
     plugins_dir: &std::path::Path,
@@ -182,16 +202,25 @@ pub(crate) fn serve_plugin_asset(
         .split('/')
         .filter(|s| !s.is_empty())
         .collect();
-    if segments.is_empty() || segments.iter().any(|s| *s == "..") {
+    // Require the <owner>/<name>/<version> coordinate prefix and reject
+    // traversal.
+    if segments.len() < 3 || segments.iter().any(|s| *s == "..") {
         return not_found();
     }
-    if uri.path().ends_with('/') || segments.len() == 1 {
+    let owner = segments.remove(0);
+    let name = segments.remove(0);
+    let version = segments.remove(0);
+    if segments.is_empty() || uri.path().ends_with('/') {
         segments.push("index.html");
     }
-    let plugin = segments.remove(0);
     let rest: std::path::PathBuf = segments.iter().collect();
-    let abs = plugins_dir.join(plugin).join("viewer").join(&rest);
-    let canon_root = plugins_dir.join(plugin).join("viewer");
+    let viewer_root = plugins_dir
+        .join(owner)
+        .join(name)
+        .join(version)
+        .join("viewer");
+    let abs = viewer_root.join(&rest);
+    let canon_root = viewer_root;
 
     // Path-traversal defense: the resolved path must remain inside
     // <plugins_dir>/<plugin>/viewer/.

@@ -12,8 +12,6 @@ type CliCommandToolsRequest struct {
 	GetRequestSchema *CliCommandToolsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandToolsGetResponseSchemaRequest 
 	Install *CliCommandToolsInstallRequest 
-	InstallRequestSchema *CliCommandToolsInstallRequestSchemaRequest 
-	InstallResponseSchema *CliCommandToolsInstallResponseSchemaRequest 
 	List *CliCommandToolsListRequest 
 	ListRequestSchema *CliCommandToolsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandToolsListResponseSchemaRequest 
@@ -34,12 +32,6 @@ func (v CliCommandToolsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Install != nil {
 		return json.Marshal(v.Install)
-	}
-	if v.InstallRequestSchema != nil {
-		return json.Marshal(v.InstallRequestSchema)
-	}
-	if v.InstallResponseSchema != nil {
-		return json.Marshal(v.InstallResponseSchema)
 	}
 	if v.List != nil {
 		return json.Marshal(v.List)
@@ -101,28 +93,6 @@ func (v *CliCommandToolsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandToolsRequest{}
 			candidate.Install = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandToolsInstallRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandToolsRequest{}
-			candidate.InstallRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandToolsInstallResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandToolsRequest{}
-			candidate.InstallResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -204,8 +174,6 @@ func (v CliCommandToolsRequest) Validate() error {
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
 	if v.Install != nil { count++ }
-	if v.InstallRequestSchema != nil { count++ }
-	if v.InstallResponseSchema != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }

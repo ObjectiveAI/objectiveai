@@ -1,103 +1,212 @@
-//! `tools install` — async handler stub.
+pub mod filesystem;
+pub mod github;
 
-use crate::cli::command::CommandRequest;
+#[derive(clap::Subcommand)]
+pub enum Command {
+    Filesystem(filesystem::Command),
+    Github(github::Command),
+}
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
 #[schemars(rename = "cli.command.tools.install.Request")]
-pub struct Request {
-    pub path_type: Path,
-    #[serde(flatten)]
-    pub base: crate::cli::command::RequestBase,
+pub enum Request {
+    #[schemars(title = "Filesystem")]
+    Filesystem(filesystem::Request),
+    #[schemars(title = "FilesystemRequestSchema")]
+    FilesystemRequestSchema(filesystem::request_schema::Request),
+    #[schemars(title = "FilesystemResponseSchema")]
+    FilesystemResponseSchema(filesystem::response_schema::Request),
+    #[schemars(title = "Github")]
+    Github(github::Request),
+    #[schemars(title = "GithubRequestSchema")]
+    GithubRequestSchema(github::request_schema::Request),
+    #[schemars(title = "GithubResponseSchema")]
+    GithubResponseSchema(github::response_schema::Request),
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.tools.install.Path")]
-pub enum Path {
-    #[serde(rename = "tools/install")]
-    ToolsInstall,
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.install.Response")]
+#[serde(untagged)]
+pub enum Response {
+    #[schemars(title = "Filesystem")]
+    Filesystem(filesystem::Response),
+    #[schemars(title = "FilesystemRequestSchema")]
+    FilesystemRequestSchema(filesystem::request_schema::Response),
+    #[schemars(title = "FilesystemResponseSchema")]
+    FilesystemResponseSchema(filesystem::response_schema::Response),
+    #[schemars(title = "Github")]
+    Github(github::Response),
+    #[schemars(title = "GithubRequestSchema")]
+    GithubRequestSchema(github::request_schema::Response),
+    #[schemars(title = "GithubResponseSchema")]
+    GithubResponseSchema(github::response_schema::Response),
 }
-impl CommandRequest for Request {
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for Response {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            Response::Filesystem(v) => v.into_mcp(),
+            Response::FilesystemRequestSchema(v) => v.into_mcp(),
+            Response::FilesystemResponseSchema(v) => v.into_mcp(),
+            Response::Github(v) => v.into_mcp(),
+            Response::GithubRequestSchema(v) => v.into_mcp(),
+            Response::GithubResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
+impl TryFrom<Command> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match command {
+            Command::Filesystem(cmd) => match cmd.schema {
+                None => Ok(Request::Filesystem(filesystem::Request::try_from(cmd.args)?)),
+                Some(filesystem::Schema::RequestSchema(args)) =>
+                    Ok(Request::FilesystemRequestSchema(filesystem::request_schema::Request::try_from(args)?)),
+                Some(filesystem::Schema::ResponseSchema(args)) =>
+                    Ok(Request::FilesystemResponseSchema(filesystem::response_schema::Request::try_from(args)?)),
+            },
+            Command::Github(cmd) => match cmd.schema {
+                None => Ok(Request::Github(github::Request::try_from(cmd.args)?)),
+                Some(github::Schema::RequestSchema(args)) =>
+                    Ok(Request::GithubRequestSchema(github::request_schema::Request::try_from(args)?)),
+                Some(github::Schema::ResponseSchema(args)) =>
+                    Ok(Request::GithubResponseSchema(github::response_schema::Request::try_from(args)?)),
+            },
+        }
+    }
+}
+
+impl crate::cli::command::CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["tools".to_string(), "install".to_string()];
-        self.base.push_flags(&mut argv);
-        argv
+        match self {
+            Request::Filesystem(inner) => inner.into_command(),
+            Request::FilesystemRequestSchema(inner) => inner.into_command(),
+            Request::FilesystemResponseSchema(inner) => inner.into_command(),
+            Request::Github(inner) => inner.into_command(),
+            Request::GithubRequestSchema(inner) => inner.into_command(),
+            Request::GithubResponseSchema(inner) => inner.into_command(),
+        }
     }
 
     fn request_base(&self) -> &crate::cli::command::RequestBase {
-        &self.base
+        match self {
+            Request::Filesystem(inner) => inner.request_base(),
+            Request::FilesystemRequestSchema(inner) => inner.request_base(),
+            Request::FilesystemResponseSchema(inner) => inner.request_base(),
+            Request::Github(inner) => inner.request_base(),
+            Request::GithubRequestSchema(inner) => inner.request_base(),
+            Request::GithubResponseSchema(inner) => inner.request_base(),
+        }
     }
 
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
-        Some(&mut self.base)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.tools.install.Response")]
-pub struct Response {
-    pub instructions: String,
-}
-
-#[derive(clap::Args)]
-pub struct Args {
-    #[command(flatten)]
-    pub base: crate::cli::command::RequestBaseArgs,
-}
-
-#[derive(clap::Args)]
-#[command(args_conflicts_with_subcommands = true)]
-pub struct Command {
-    #[command(flatten)]
-    pub args: Args,
-    #[command(subcommand)]
-    pub schema: Option<Schema>,
-}
-
-#[derive(clap::Subcommand)]
-pub enum Schema {
-    /// Emit the JSON Schema for this leaf's `Request` type and exit.
-    RequestSchema(request_schema::Args),
-    /// Emit the JSON Schema for this leaf's `Response` type and exit.
-    ResponseSchema(response_schema::Args),
-}
-
-impl TryFrom<Args> for Request {
-    type Error = crate::cli::command::FromArgsError;
-    fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ToolsInstall, base: args.base.into() })
+        match self {
+            Request::Filesystem(inner) => inner.request_base_mut(),
+            Request::FilesystemRequestSchema(inner) => inner.request_base_mut(),
+            Request::FilesystemResponseSchema(inner) => inner.request_base_mut(),
+            Request::Github(inner) => inner.request_base_mut(),
+            Request::GithubRequestSchema(inner) => inner.request_base_mut(),
+            Request::GithubResponseSchema(inner) => inner.request_base_mut(),
+        }
     }
 }
 
 #[cfg(feature = "cli-executor")]
 pub async fn execute<E: crate::cli::command::CommandExecutor>(
     executor: &E,
-    mut request: Request,
+    request: Request,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
-    ) -> Result<Response, E::Error> {
-    request.base.clear_transform();
-    executor.execute_one(request, agent_arguments).await
+    ) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>>,
+    E::Error,
+> {
+    use futures::StreamExt;
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
+        match request {
+            Request::Filesystem(req) => {
+                let value = filesystem::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::Filesystem(value),
+                )))
+            }
+            Request::FilesystemRequestSchema(req) => {
+                let value = filesystem::request_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::FilesystemRequestSchema(value),
+                )))
+            }
+            Request::FilesystemResponseSchema(req) => {
+                let value = filesystem::response_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::FilesystemResponseSchema(value),
+                )))
+            }
+            Request::Github(req) => {
+                let value = github::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::Github(value),
+                )))
+            }
+            Request::GithubRequestSchema(req) => {
+                let value = github::request_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::GithubRequestSchema(value),
+                )))
+            }
+            Request::GithubResponseSchema(req) => {
+                let value = github::response_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                    Response::GithubResponseSchema(value),
+                )))
+            }
+        };
+    Ok(stream)
 }
 
 #[cfg(feature = "cli-executor")]
 pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     executor: &E,
-    mut request: Request,
+    request: Request,
     transform: crate::cli::command::Transform,
 
         agent_arguments: Option<&crate::cli::command::AgentArguments>,
-    ) -> Result<serde_json::Value, E::Error> {
-    request.base.set_transform(transform);
-    executor.execute_one(request, agent_arguments).await
+    ) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
+        match request {
+            Request::Filesystem(req) => {
+                let value = filesystem::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::FilesystemRequestSchema(req) => {
+                let value = filesystem::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::FilesystemResponseSchema(req) => {
+                let value = filesystem::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Github(req) => {
+                let value = github::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GithubRequestSchema(req) => {
+                let value = github::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::GithubResponseSchema(req) => {
+                let value = github::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+        };
+    Ok(stream)
 }
-
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for Response {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
-    }
-}
-
-pub mod request_schema;
-
-pub mod response_schema;

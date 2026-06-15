@@ -1,0 +1,9 @@
+{
+  "title": "cli.command.tools.install.filesystem.Response",
+  "type": "object",
+  "properties": {
+    "instructions": {
+      "type": "string"
+    }
+  }
+}

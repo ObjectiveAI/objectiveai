@@ -1,9 +1,8 @@
 //! `plugins install github` — fetch the manifest, check the
-//! whitelist, and install the matching platform binary under
-//! `~/.objectiveai/plugins/<repository>/`. Port of the legacy
-//! `plugins::install` function minus the notification plumbing —
-//! the bare-naked contract surfaces the untrusted decision as the
-//! typed `Error::PluginNotWhitelisted` variant.
+//! whitelist, and install the plugin under
+//! `~/.objectiveai/plugins/<owner>/<repository>/<version>/`. The
+//! bare-naked contract surfaces the untrusted decision as the typed
+//! `Error::NotWhitelisted { kind: "plugin", .. }` variant.
 //!
 //! The SDK `Request` does not expose `upgrade`; this leaf always
 //! installs fresh and surfaces `Error::AlreadyInstalled` if a
@@ -26,8 +25,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .await?;
 
     let effective_sha = request.commit_sha.as_deref().unwrap_or("HEAD");
-    let whitelist = crate::filesystem::plugins::default_whitelist();
-    let allowed = crate::filesystem::plugins::check_plugin_whitelist(
+    let whitelist = crate::filesystem::install::default_whitelist();
+    let allowed = crate::filesystem::install::check_plugin_whitelist(
         &request.owner,
         &request.repository,
         effective_sha,
@@ -37,7 +36,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     .map_err(Error::WhitelistRegex)?;
 
     if !allowed && !request.allow_untrusted {
-        return Err(Error::PluginNotWhitelisted {
+        return Err(Error::NotWhitelisted {
+            kind: "plugin",
             owner: request.owner.clone(),
             repository: request.repository.clone(),
             commit_sha: effective_sha.to_string(),
@@ -45,7 +45,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         });
     }
 
-    let source = crate::filesystem::plugins::raw_manifest_url(
+    let source = crate::filesystem::install::raw_manifest_url(
         &request.owner,
         &request.repository,
         request.commit_sha.as_deref(),

@@ -33,6 +33,7 @@ use objectiveai_sdk::cli::command::agents::logs::read::all::{
 };
 use sqlx::Row as _;
 
+use super::super::time::unix_to_rfc3339;
 use super::super::{Error, Pool};
 use super::row::MessageTable;
 
@@ -142,38 +143,38 @@ fn client_notification_kind(t: MessageTable) -> Option<ClientNotificationPartTyp
 /// Build the [`AssistantResponsePart`] for one `assistant_response_*`
 /// row. The `ToolCall` variant inlines the call's metadata
 /// (`function_name` / `tool_call_id` / `tool_call_index`); every other
-/// variant carries just `id` + `timestamp_delivered`.
+/// variant carries just `id` + `delivered_at`.
 fn assistant_response_part(row: &MsgRow) -> Option<AssistantResponsePart> {
     let id = row.id;
-    let timestamp_delivered = row.timestamp_delivered;
+    let delivered_at = unix_to_rfc3339(row.timestamp_delivered);
     Some(match row.table_kind {
         MessageTable::AssistantResponseToolCalls => AssistantResponsePart::ToolCall {
             id,
-            timestamp_delivered,
+            delivered_at,
             function_name: row.function_name.clone().unwrap_or_default(),
             tool_call_id: row.tool_call_id.clone().unwrap_or_default(),
             tool_call_index: row.row_sub_index.unwrap_or_default(),
         },
         MessageTable::AssistantResponseRefusal => {
-            AssistantResponsePart::Refusal { id, timestamp_delivered }
+            AssistantResponsePart::Refusal { id, delivered_at }
         }
         MessageTable::AssistantResponseReasoning => {
-            AssistantResponsePart::Reasoning { id, timestamp_delivered }
+            AssistantResponsePart::Reasoning { id, delivered_at }
         }
         MessageTable::AssistantResponseContentText => {
-            AssistantResponsePart::Text { id, timestamp_delivered }
+            AssistantResponsePart::Text { id, delivered_at }
         }
         MessageTable::AssistantResponseContentImage => {
-            AssistantResponsePart::Image { id, timestamp_delivered }
+            AssistantResponsePart::Image { id, delivered_at }
         }
         MessageTable::AssistantResponseContentAudio => {
-            AssistantResponsePart::Audio { id, timestamp_delivered }
+            AssistantResponsePart::Audio { id, delivered_at }
         }
         MessageTable::AssistantResponseContentVideo => {
-            AssistantResponsePart::Video { id, timestamp_delivered }
+            AssistantResponsePart::Video { id, delivered_at }
         }
         MessageTable::AssistantResponseContentFile => {
-            AssistantResponsePart::File { id, timestamp_delivered }
+            AssistantResponsePart::File { id, delivered_at }
         }
         _ => return None,
     })
@@ -315,7 +316,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     agent_instance_hierarchy: std::mem::take(aih),
                     sender_agent_instance_hierarchy: sender.take().unwrap_or_default(),
                     response_id: std::mem::take(rid),
-                    timestamp_queued: timestamp_queued.take().unwrap_or_default(),
+                    queued_at: unix_to_rfc3339(timestamp_queued.take().unwrap_or_default()),
                     key: key.take(),
                     parts: std::mem::take(notification_parts),
                 });
@@ -370,7 +371,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     sender_agent_instance_hierarchy: row
                         .sender_agent_instance_hierarchy
                         .unwrap_or_default(),
-                    timestamp_delivered: row.timestamp_delivered,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -390,7 +391,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     sender_agent_instance_hierarchy: row
                         .sender_agent_instance_hierarchy
                         .unwrap_or_default(),
-                    timestamp_delivered: row.timestamp_delivered,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -410,7 +411,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     sender_agent_instance_hierarchy: row
                         .sender_agent_instance_hierarchy
                         .unwrap_or_default(),
-                    timestamp_delivered: row.timestamp_delivered,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     response_id: row.response_id,
                 });
                 cur_class = None;
@@ -470,7 +471,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .expect("class invariant: ClientNotification maps to message_queue_*");
                 cur_notification_parts.push(ClientNotificationPart {
                     id: row.id,
-                    timestamp_delivered: row.timestamp_delivered,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     r#type,
                 });
             }
@@ -484,7 +485,7 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
                     .expect("class invariant: ToolResponse maps to tool_response*");
                 cur_tool_parts.push(ToolResponsePart {
                     id: row.id,
-                    timestamp_delivered: row.timestamp_delivered,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     r#type,
                 });
             }

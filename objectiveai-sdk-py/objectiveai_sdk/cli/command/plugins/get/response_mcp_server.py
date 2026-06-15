@@ -9,5 +9,4 @@ class ResponseMcpServer(BaseModel):
 
     authorization: bool
     name: str
-    url: str
 

@@ -52,11 +52,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .next()
         .ok_or_else(|| Error::PluginNotFound(format!("{coord} (empty exec)")))?;
     let program = crate::spawn::resolve_program(program, &cli_dir);
-    // The cli dir may be empty/absent for exec-only plugins (nothing
-    // was zipped into it) — the CWD still has to exist to spawn.
-    tokio::fs::create_dir_all(&cli_dir)
-        .await
-        .map_err(Error::PluginSpawn)?;
 
     // Per-plugin scratch space inside the (transient) state tree —
     // plugins that persist files write here, never into their own
@@ -108,6 +103,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     cmd.args(argv)
         .current_dir(&cli_dir)
         .env("OBJECTIVEAI_STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_BIN_DIR", &cli_dir)
         .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())

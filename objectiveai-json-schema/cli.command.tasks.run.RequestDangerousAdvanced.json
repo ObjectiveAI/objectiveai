@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.tasks.run.RequestDangerousAdvanced",
+  "description": "Advanced knobs gated behind `--dangerous-advanced` because they are\neasy to misuse. Modelled on `agents spawn`'s\n`RequestDangerousAdvanced`.",
+  "type": "object",
+  "properties": {
+    "stream_all": {
+      "description": "Stream every item every fired task emits (each a\n[`ValueResponseItem`]). When unset/false — the default — each\ntask yields exactly one [`SuccessResponseItem`] summary instead;\nthe full output still lands in `tasks_logs` either way. DANGER:\nstreaming every item of every fired task can bloat the caller's\ncontext astronomically — hence the gate.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

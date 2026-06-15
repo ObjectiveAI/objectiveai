@@ -1,85 +1,81 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// Per-OS exec command. Reused from the SDK so the on-disk
-/// `objectiveai.json` shape and the `tools get` wire shape stay
-/// identical.
+/// Per-OS exec command. Reused from the SDK so the exec shape stays
+/// identical across the on-disk manifest and the `tools get` wire
+/// response.
 pub use objectiveai_sdk::cli::command::tools::get::Exec;
 
-/// Declarative metadata a local tool ships with. The wire shape is
-/// JSON: `<base_dir>/tools/<owner>/<name>/<version>/objectiveai.json`.
-/// The executable command is invoked with that version folder as the
-/// working directory.
+/// Per-OS cli bundle: the GitHub-release `.zip` asset filename for each
+/// platform. At install time the current platform's entry (when
+/// present) is downloaded and extracted into the `cli/` working
+/// directory. Local to the CLI's filesystem layer (the on-disk shape);
+/// shared by both the tool and plugin manifests. The `cli_zip` field
+/// itself is required; each per-OS entry is optional — absent means
+/// nothing to fetch for that platform (e.g. a hand-placed source-run
+/// tool, or a viewer-only plugin).
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "filesystem.tools.CliZip")]
+pub struct CliZip {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub windows: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub linux: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub macos: Option<String>,
+}
+
+/// Declarative metadata a local tool ships with — the on-disk
+/// `objectiveai.json` at
+/// `<base_dir>/tools/<owner>/<name>/<version>/objectiveai.json`. The
+/// CLI reads and writes this shape verbatim; the `tools get` wire
+/// response is a lean projection of it (it drops `cli_zip`).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
 #[schemars(rename = "filesystem.tools.Manifest")]
 pub struct Manifest {
-    /// One-line description of what the tool does. Surfaced to
-    /// agents that consume the tool.
-    pub description: String,
-
-    /// Version string. Free-form; the host displays whatever's here
-    /// (semver convention recommended but not enforced).
-    pub version: String,
-
     /// GitHub-style owner (user or org) of the tool's source repo.
-    /// Free-form; tools have no installer, so this is purely
-    /// author-supplied metadata — nothing overrides it the way the
-    /// plugin installer overrides the plugin manifest's owner.
     pub owner: String,
-
+    /// The tool's identifier (matches the `<name>` directory segment).
+    pub name: String,
+    /// Version string. Free-form; semver recommended, not enforced.
+    pub version: String,
+    /// One-line description of what the tool does. Surfaced to agents
+    /// that consume the tool.
+    pub description: String,
     /// Per-OS exec command. The current platform's vector is the
     /// program plus its leading arguments; the caller's `--args` are
-    /// appended and the whole thing runs with CWD = this manifest's
-    /// version folder.
+    /// appended and the whole thing runs with CWD = this version
+    /// folder's `cli/` subdir.
     pub exec: Exec,
+    /// Per-OS cli bundle zip filenames (required field; each per-OS
+    /// entry optional). Hand-placed tools leave every entry absent.
+    pub cli_zip: CliZip,
 }
 
 impl Manifest {
-    /// LLM-visible tool name. See
-    /// [`objectiveai_sdk::agent::materialize_tool_name`].
-    pub fn tool_name(&self, name: &str) -> String {
-        objectiveai_sdk::agent::materialize_tool_name(&self.owner, name, &self.version)
+    /// Validate fields that serde alone can't enforce. Tools have no
+    /// cross-field invariants (unlike plugins' viewer rules), so this is
+    /// currently a no-op — it exists so the shared install/discovery
+    /// paths can call `validate()` uniformly across manifest kinds.
+    pub fn validate(&self) -> Result<(), &'static str> {
+        Ok(())
     }
 }
 
-/// A [`Manifest`] enriched with the tool's identifying `name` and the
-/// `source` it was loaded from. Same shape and ordering convention
-/// as `filesystem::plugins::ManifestWithNameAndSource`.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "filesystem.tools.ManifestWithNameAndSource")]
-pub struct ManifestWithNameAndSource {
-    /// The tool's identifier — the `<name>` segment of its
-    /// `tools/<owner>/<name>/<version>/` directory.
-    pub name: String,
-    #[serde(flatten)]
-    pub manifest: Manifest,
-    /// Where this manifest came from — typically an absolute
-    /// filesystem path. Free-form string; the host just displays it.
-    pub source: String,
-}
-
-impl ManifestWithNameAndSource {
-    /// LLM-visible tool name. See [`Manifest::tool_name`] — this
-    /// helper supplies the `name` field automatically.
-    pub fn tool_name(&self) -> String {
-        self.manifest.tool_name(&self.name)
-    }
-}
-
-// Typed conversion to the SDK's bare-naked wire shape. Lets
-// `command::tools::{get, list}` leaves yield SDK `ResponseManifest`
-// items without round-tripping through `serde_json::Value`.
-impl From<ManifestWithNameAndSource>
-    for objectiveai_sdk::cli::command::tools::get::ResponseManifest
-{
-    fn from(m: ManifestWithNameAndSource) -> Self {
+// Projection to the SDK's lean `tools get` wire response — drops the
+// on-disk-only `cli_zip`. `exec` is the same SDK `Exec` type, so it
+// moves across unchanged.
+impl From<Manifest> for objectiveai_sdk::cli::command::tools::get::ResponseManifest {
+    fn from(m: Manifest) -> Self {
         Self {
+            owner: m.owner,
             name: m.name,
-            description: m.manifest.description,
-            version: m.manifest.version,
-            owner: m.manifest.owner,
-            exec: m.manifest.exec,
-            source: m.source,
+            version: m.version,
+            description: m.description,
+            exec: m.exec,
         }
     }
 }

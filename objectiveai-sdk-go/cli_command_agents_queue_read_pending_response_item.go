@@ -17,16 +17,16 @@ type CliCommandAgentsQueueReadPendingResponseItemAgentInstanceHierarchy struct {
 	// `message_queue_contents.id` for drilling into one
 	// content slot via `agents queue read id`).
 	DeleteID int64 `json:"delete_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// `message_queue.enqueued_at`. One block = one parent
+	// `message_queue` row, so this is well-defined
+	// block-level.
+	EnqueuedAt string `json:"enqueued_at"`
 	// Idempotency token, if the row was enqueued with `--key`.
 	Key *string `json:"key,omitempty"`
 	Parts []CliCommandAgentsQueueReadPendingQueuePart `json:"parts"`
 	// AIH of the caller who enqueued — from
 	// `message_queue.sender_*`.
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	// `message_queue.enqueued_at`. One block = one parent
-	// `message_queue` row, so this is well-defined
-	// block-level.
-	TimestampQueued int64 `json:"timestamp_queued" validate:"min=-9223372036854775808,max=9223372036854775807"`
 }
 
 func (v *CliCommandAgentsQueueReadPendingResponseItemAgentInstanceHierarchy) UnmarshalJSON(data []byte) error {
@@ -34,7 +34,7 @@ func (v *CliCommandAgentsQueueReadPendingResponseItemAgentInstanceHierarchy) Unm
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "by", "delete_id", "parts", "sender_agent_instance_hierarchy", "timestamp_queued"} {
+	for _, key := range []string{"agent_instance_hierarchy", "by", "delete_id", "enqueued_at", "parts", "sender_agent_instance_hierarchy"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsQueueReadPendingResponseItemAgentInstanceHierarchy: missing required field %q", key)
 		}
@@ -54,10 +54,10 @@ type CliCommandAgentsQueueReadPendingResponseItemTag struct {
 	By string `json:"by" validate:"oneof=tag"`
 	// `message_queue.id`. Pass to `agents queue delete <id>`.
 	DeleteID int64 `json:"delete_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	EnqueuedAt string `json:"enqueued_at"`
 	Key *string `json:"key,omitempty"`
 	Parts []CliCommandAgentsQueueReadPendingQueuePart `json:"parts"`
 	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	TimestampQueued int64 `json:"timestamp_queued" validate:"min=-9223372036854775808,max=9223372036854775807"`
 }
 
 func (v *CliCommandAgentsQueueReadPendingResponseItemTag) UnmarshalJSON(data []byte) error {
@@ -65,7 +65,7 @@ func (v *CliCommandAgentsQueueReadPendingResponseItemTag) UnmarshalJSON(data []b
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_tag", "by", "delete_id", "parts", "sender_agent_instance_hierarchy", "timestamp_queued"} {
+	for _, key := range []string{"agent_tag", "by", "delete_id", "enqueued_at", "parts", "sender_agent_instance_hierarchy"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsQueueReadPendingResponseItemTag: missing required field %q", key)
 		}

@@ -7,12 +7,16 @@ import (
 	"fmt"
 )
 
+// Wire response for `tools get` — a lean projection of the on-disk
+// manifest. `exec` is required (a tool always has a command). The
+// on-disk-only fields (`cli_zip`, `source`) are intentionally absent;
+// the CLI owns the full on-disk shape in its own `filesystem::tools`
+// manifest types.
 type CliCommandToolsGetResponseManifest struct {
 	Description string `json:"description"`
 	Exec CliCommandToolsGetExec `json:"exec"`
 	Name string `json:"name"`
 	Owner string `json:"owner"`
-	Source string `json:"source"`
 	Version string `json:"version"`
 }
 
@@ -26,7 +30,7 @@ func (v *CliCommandToolsGetResponseManifest) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"description", "exec", "name", "owner", "source", "version"} {
+	for _, key := range []string{"description", "exec", "name", "owner", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandToolsGetResponseManifest: missing required field %q", key)
 		}

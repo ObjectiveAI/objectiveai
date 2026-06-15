@@ -41,6 +41,6 @@ pub enum Error {
     Io(#[from] std::io::Error),
     #[error("git error: {0}")]
     Git(#[from] git2::Error),
-    #[error("plugin install error: {0}")]
-    Install(#[from] crate::filesystem::plugins::InstallError),
+    #[error("install error: {0}")]
+    Install(#[from] crate::filesystem::install::InstallError),
 }

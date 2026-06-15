@@ -16,7 +16,8 @@ permissions:
 # ├─→ cli-<leg>                            (× 5 cli legs)
 # ├─→ mcp-fs-api-<leg> ──→ api-<leg>       (× 5 api legs)
 # ├─→ mcp-fs-viewer-<leg> ──→ viewer-<leg> (× 5 viewer legs)
-# └─→ mcp-<leg>                            (× 5 mcp legs)
+# ├─→ mcp-<leg>                            (× 5 mcp legs)
+# └─→ db-<leg>                             (× 5 db legs)
 #
 # The cli no longer embeds the viewer binary or the api server. Since
 # objectiveai-mcp depends on the cli (not on api), the mcp legs
@@ -25,8 +26,10 @@ permissions:
 # keep their dedicated `mcp-fs-<leg>` upstreams. 10 mcp-fs jobs total
 # (5 api + 5 viewer).
 #
-# All 20 leg jobs (5 cli + 5 api + 5 viewer + 5 mcp) append their
-# assets to the same `v<version>` GitHub Release as they finish.
+# All 25 leg jobs (5 cli + 5 api + 5 viewer + 5 mcp + 5 db) append
+# their assets to the same `v<version>` GitHub Release as they finish.
+# `objectiveai-db`, like cli/mcp, has no paired mcp-filesystem upstream;
+# it bundles its own postgres at build time.
 
 jobs:
   check-version:
@@ -542,5 +545,87 @@ jobs:
         with:
           asset: objectiveai-windows-x86_64-mcp.exe
           src_name: objectiveai-mcp.exe
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  # ── DB builders (5 dedicated jobs) ────────────────────────────────────────
+  # objectiveai-db is the embedded-postgres database binary. Like the cli
+  # and mcp legs it has no paired mcp-filesystem upstream; build-db-leg
+  # bundles postgres at build time (needs GITHUB_TOKEN for the archive
+  # download). Each leg uploads `objectiveai-<plat>-db{ext}` — the exact
+  # asset name the cli updater's `db` package expects.
+
+  db-linux-x86_64:
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-22.04
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-db-leg
+        with:
+          asset: objectiveai-linux-x86_64-db
+          src_name: objectiveai-db
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  db-linux-aarch64:
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-24.04-arm
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-db-leg
+        with:
+          asset: objectiveai-linux-aarch64-db
+          src_name: objectiveai-db
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  db-macos-x86_64:
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-15-intel
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-db-leg
+        with:
+          asset: objectiveai-macos-x86_64-db
+          src_name: objectiveai-db
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  db-macos-aarch64:
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: macos-14
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-db-leg
+        with:
+          asset: objectiveai-macos-aarch64-db
+          src_name: objectiveai-db
+          version: ${{ needs.check-version.outputs.version }}
+          repository: ${{ github.repository }}
+
+  db-windows-x86_64:
+    needs: [check-version, create-release]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-db-leg
+        with:
+          asset: objectiveai-windows-x86_64-db.exe
+          src_name: objectiveai-db.exe
           version: ${{ needs.check-version.outputs.version }}
           repository: ${{ github.repository }}

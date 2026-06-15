@@ -9,7 +9,7 @@ class ToolResponsePart(BaseModel):
     """One row inside a `ToolResponse` block."""
     model_config = ConfigDict(title='cli.command.agents.logs.read.all.ToolResponsePart')
 
+    delivered_at: str
     id: int = Field(..., description='`logs.messages."index"` for this row. Pass to\n`agents logs read id <n>` for the typed body.', ge=-9223372036854775808, le=9223372036854775807)
-    timestamp_delivered: int = Field(..., ge=-9223372036854775808, le=9223372036854775807)
     type_: ToolResponsePartType = Field(..., alias='type')
 

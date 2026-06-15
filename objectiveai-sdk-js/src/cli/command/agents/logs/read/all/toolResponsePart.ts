@@ -4,8 +4,8 @@ import { z } from "zod";
 import { CliCommandAgentsLogsReadAllToolResponsePartTypeSchema } from "./toolResponsePartType";
 
 export const CliCommandAgentsLogsReadAllToolResponsePartSchema = z.object({
+  delivered_at: z.string(),
   id: z.number().int().min(-9223372036854776000).max(9223372036854776000).describe("`logs.messages.\"index\"` for this row. Pass to\n`agents logs read id <n>` for the typed body."),
-  timestamp_delivered: z.number().int().min(-9223372036854776000).max(9223372036854776000),
   type: CliCommandAgentsLogsReadAllToolResponsePartTypeSchema,
 }).describe("One row inside a `ToolResponse` block.").meta({ title: "cli.command.agents.logs.read.all.ToolResponsePart" });
 export type CliCommandAgentsLogsReadAllToolResponsePart = z.infer<typeof CliCommandAgentsLogsReadAllToolResponsePartSchema>;

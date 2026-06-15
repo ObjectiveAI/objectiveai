@@ -7,8 +7,8 @@ from pydantic import BaseModel, ConfigDict
 class Exec(BaseModel):
     """Per-OS exec command for a tool. The current platform's vector is
 the program plus its leading arguments; the caller's `--args` are
-appended, and the result runs with CWD = the tool's version folder
-(where `objectiveai.json` lives)."""
+appended, and the result runs with CWD = the tool's version folder's
+`cli/` subdir (`objectiveai.json` lives in the version folder)."""
     model_config = ConfigDict(title='cli.command.tools.get.Exec')
 
     linux: list[str]

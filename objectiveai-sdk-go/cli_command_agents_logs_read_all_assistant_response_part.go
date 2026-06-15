@@ -8,13 +8,13 @@ import (
 )
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartToolCall struct {
+	DeliveredAt string `json:"delivered_at"`
 	// `objectiveai.assistant_response_tool_calls.function_name`.
 	FunctionName string `json:"function_name"`
 	// `logs.messages."index"` for the tool-call row. Pass to
 	// `agents logs read id <n>` to read the call's `arguments`
 	// as text.
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	// The wire tool-call id this row carries.
 	ToolCallID string `json:"tool_call_id"`
 	// The tool call's wire index within the assistant message's
@@ -28,7 +28,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartToolCall) UnmarshalJSON
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"function_name", "id", "timestamp_delivered", "tool_call_id", "tool_call_index", "type"} {
+	for _, key := range []string{"delivered_at", "function_name", "id", "tool_call_id", "tool_call_index", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartToolCall: missing required field %q", key)
 		}
@@ -44,8 +44,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartToolCall) UnmarshalJSON
 func (CliCommandAgentsLogsReadAllAssistantResponsePartToolCall) SchemaVariantTitle() string { return "ToolCall" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartRefusal struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=refusal"`
 }
 
@@ -54,7 +54,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartRefusal) UnmarshalJSON(
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartRefusal: missing required field %q", key)
 		}
@@ -70,8 +70,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartRefusal) UnmarshalJSON(
 func (CliCommandAgentsLogsReadAllAssistantResponsePartRefusal) SchemaVariantTitle() string { return "Refusal" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartReasoning struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=reasoning"`
 }
 
@@ -80,7 +80,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartReasoning) UnmarshalJSO
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartReasoning: missing required field %q", key)
 		}
@@ -96,8 +96,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartReasoning) UnmarshalJSO
 func (CliCommandAgentsLogsReadAllAssistantResponsePartReasoning) SchemaVariantTitle() string { return "Reasoning" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartText struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=text"`
 }
 
@@ -106,7 +106,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartText) UnmarshalJSON(dat
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartText: missing required field %q", key)
 		}
@@ -122,8 +122,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartText) UnmarshalJSON(dat
 func (CliCommandAgentsLogsReadAllAssistantResponsePartText) SchemaVariantTitle() string { return "Text" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartImage struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=image"`
 }
 
@@ -132,7 +132,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartImage) UnmarshalJSON(da
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartImage: missing required field %q", key)
 		}
@@ -148,8 +148,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartImage) UnmarshalJSON(da
 func (CliCommandAgentsLogsReadAllAssistantResponsePartImage) SchemaVariantTitle() string { return "Image" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartAudio struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=audio"`
 }
 
@@ -158,7 +158,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartAudio) UnmarshalJSON(da
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartAudio: missing required field %q", key)
 		}
@@ -174,8 +174,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartAudio) UnmarshalJSON(da
 func (CliCommandAgentsLogsReadAllAssistantResponsePartAudio) SchemaVariantTitle() string { return "Audio" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartVideo struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=video"`
 }
 
@@ -184,7 +184,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartVideo) UnmarshalJSON(da
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartVideo: missing required field %q", key)
 		}
@@ -200,8 +200,8 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartVideo) UnmarshalJSON(da
 func (CliCommandAgentsLogsReadAllAssistantResponsePartVideo) SchemaVariantTitle() string { return "Video" }
 
 type CliCommandAgentsLogsReadAllAssistantResponsePartFile struct {
+	DeliveredAt string `json:"delivered_at"`
 	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
-	TimestampDelivered int64 `json:"timestamp_delivered" validate:"min=-9223372036854775808,max=9223372036854775807"`
 	Type string `json:"type" validate:"oneof=file"`
 }
 
@@ -210,7 +210,7 @@ func (v *CliCommandAgentsLogsReadAllAssistantResponsePartFile) UnmarshalJSON(dat
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"id", "timestamp_delivered", "type"} {
+	for _, key := range []string{"delivered_at", "id", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandAgentsLogsReadAllAssistantResponsePartFile: missing required field %q", key)
 		}
