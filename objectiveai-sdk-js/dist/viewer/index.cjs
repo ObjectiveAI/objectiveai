@@ -4964,8 +4964,7 @@ async function mcpSpawnResponseSchemaExecuteTransform(request, transform) {
 }
 var CliCommandPluginsGetResponseMcpServerSchema = zod.z.object({
   authorization: zod.z.boolean(),
-  name: zod.z.string(),
-  url: zod.z.string()
+  name: zod.z.string()
 }).meta({ title: "cli.command.plugins.get.ResponseMcpServer" });
 var CliCommandPluginsGetResponseHttpMethodSchema = zod.z.enum(["GET", "POST", "PUT", "PATCH", "DELETE"]).meta({ title: "cli.command.plugins.get.ResponseHttpMethod" });
 
@@ -4979,25 +4978,18 @@ var CliCommandToolsGetExecSchema = zod.z.object({
   linux: zod.z.array(zod.z.string()),
   macos: zod.z.array(zod.z.string()),
   windows: zod.z.array(zod.z.string())
-}).describe("Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder\n(where `objectiveai.json` lives).").meta({ title: "cli.command.tools.get.Exec" });
+}).describe("Per-OS exec command for a tool. The current platform's vector is\nthe program plus its leading arguments; the caller's `--args` are\nappended, and the result runs with CWD = the tool's version folder's\n`cli/` subdir (`objectiveai.json` lives in the version folder).").meta({ title: "cli.command.tools.get.Exec" });
 
 // src/cli/command/plugins/get/responseManifest.ts
 var CliCommandPluginsGetResponseManifestSchema = zod.z.object({
-  author: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  cli_zip: zod.z.string().nullable().describe("GitHub-release asset filename for the plugin's cli bundle \u2014 a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` \u2192 `viewer/`.").meta({ omitempty: true }).optional(),
   description: zod.z.string(),
-  exec: CliCommandToolsGetExecSchema.describe("Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` \u2014 the same shape tools use. Empty when\nthe plugin is viewer-only."),
-  homepage: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  license: zod.z.string().nullable().meta({ omitempty: true }).optional(),
+  exec: CliCommandToolsGetExecSchema.describe("Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` \u2014 the same shape tools use. Required (an\nempty exec is a viewer-only plugin, which still round-trips as\nan empty per-OS object)."),
   mcp_servers: zod.z.array(CliCommandPluginsGetResponseMcpServerSchema),
-  mobile_ready: zod.z.boolean(),
   name: zod.z.string(),
   owner: zod.z.string(),
-  source: zod.z.string(),
   version: zod.z.string(),
   viewer_routes: zod.z.array(CliCommandPluginsGetResponseViewerRouteSchema),
-  viewer_url: zod.z.string().nullable().meta({ omitempty: true }).optional(),
-  viewer_zip: zod.z.string().nullable().meta({ omitempty: true }).optional()
+  viewer_url: zod.z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.plugins.get.ResponseManifest" });
 
 // src/viewer/command/plugins/get.ts
@@ -5561,9 +5553,8 @@ var CliCommandToolsGetResponseManifestSchema = zod.z.object({
   exec: CliCommandToolsGetExecSchema,
   name: zod.z.string(),
   owner: zod.z.string(),
-  source: zod.z.string(),
   version: zod.z.string()
-}).meta({ title: "cli.command.tools.get.ResponseManifest" });
+}).describe("Wire response for `tools get` \u2014 a lean projection of the on-disk\nmanifest. `exec` is required (a tool always has a command). The\non-disk-only fields (`cli_zip`, `source`) are intentionally absent;\nthe CLI owns the full on-disk shape in its own `filesystem::tools`\nmanifest types.").meta({ title: "cli.command.tools.get.ResponseManifest" });
 
 // src/viewer/command/tools/get.ts
 async function toolsGetExecute(request) {

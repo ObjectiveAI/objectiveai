@@ -10,7 +10,6 @@ import (
 type CliCommandPluginsGetResponseMcpServer struct {
 	Authorization bool `json:"authorization"`
 	Name string `json:"name"`
-	URL string `json:"url"`
 }
 
 func (CliCommandPluginsGetResponseMcpServer) SchemaTitle() string { return "cli.command.plugins.get.ResponseMcpServer" }
@@ -23,7 +22,7 @@ func (v *CliCommandPluginsGetResponseMcpServer) UnmarshalJSON(data []byte) error
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"authorization", "name", "url"} {
+	for _, key := range []string{"authorization", "name"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandPluginsGetResponseMcpServer: missing required field %q", key)
 		}

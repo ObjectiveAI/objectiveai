@@ -1,5 +1,6 @@
 {
   "title": "cli.command.tools.get.ResponseManifest",
+  "description": "Wire response for `tools get` — a lean projection of the on-disk\nmanifest. `exec` is required (a tool always has a command). The\non-disk-only fields (`cli_zip`, `source`) are intentionally absent;\nthe CLI owns the full on-disk shape in its own `filesystem::tools`\nmanifest types.",
   "type": "object",
   "properties": {
     "description": {
@@ -12,9 +13,6 @@
       "type": "string"
     },
     "owner": {
-      "type": "string"
-    },
-    "source": {
       "type": "string"
     },
     "version": {

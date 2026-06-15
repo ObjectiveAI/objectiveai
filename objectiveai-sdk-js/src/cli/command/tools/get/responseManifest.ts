@@ -8,7 +8,6 @@ export const CliCommandToolsGetResponseManifestSchema = z.object({
   exec: CliCommandToolsGetExecSchema,
   name: z.string(),
   owner: z.string(),
-  source: z.string(),
   version: z.string(),
-}).meta({ title: "cli.command.tools.get.ResponseManifest" });
+}).describe("Wire response for `tools get` — a lean projection of the on-disk\nmanifest. `exec` is required (a tool always has a command). The\non-disk-only fields (`cli_zip`, `source`) are intentionally absent;\nthe CLI owns the full on-disk shape in its own `filesystem::tools`\nmanifest types.").meta({ title: "cli.command.tools.get.ResponseManifest" });
 export type CliCommandToolsGetResponseManifest = z.infer<typeof CliCommandToolsGetResponseManifestSchema>;

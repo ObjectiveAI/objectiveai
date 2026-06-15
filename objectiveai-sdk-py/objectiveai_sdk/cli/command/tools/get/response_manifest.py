@@ -6,12 +6,16 @@ from objectiveai_sdk.cli.command.tools.get.exec import Exec
 
 
 class ResponseManifest(BaseModel):
+    """Wire response for `tools get` — a lean projection of the on-disk
+manifest. `exec` is required (a tool always has a command). The
+on-disk-only fields (`cli_zip`, `source`) are intentionally absent;
+the CLI owns the full on-disk shape in its own `filesystem::tools`
+manifest types."""
     model_config = ConfigDict(title='cli.command.tools.get.ResponseManifest')
 
     description: str
     exec: Exec
     name: str
     owner: str
-    source: str
     version: str
 

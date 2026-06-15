@@ -2,57 +2,12 @@
   "title": "cli.command.plugins.get.ResponseManifest",
   "type": "object",
   "properties": {
-    "author": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "cli_zip": {
-      "description": "GitHub-release asset filename for the plugin's cli bundle — a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` → `viewer/`.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "description": {
       "type": "string"
     },
     "exec": {
-      "description": "Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Empty when\nthe plugin is viewer-only.",
+      "description": "Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Required (an\nempty exec is a viewer-only plugin, which still round-trips as\nan empty per-OS object).",
       "$ref": "cli.command.tools.get.Exec"
-    },
-    "homepage": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "license": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
     },
     "mcp_servers": {
       "type": "array",
@@ -60,16 +15,10 @@
         "$ref": "cli.command.plugins.get.ResponseMcpServer"
       }
     },
-    "mobile_ready": {
-      "type": "boolean"
-    },
     "name": {
       "type": "string"
     },
     "owner": {
-      "type": "string"
-    },
-    "source": {
       "type": "string"
     },
     "version": {
@@ -82,17 +31,6 @@
       }
     },
     "viewer_url": {
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
-    "viewer_zip": {
       "anyOf": [
         {
           "type": "string"

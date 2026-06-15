@@ -28540,25 +28540,18 @@ declare const CliCommandPluginsGetRequestSchema: z.ZodObject<{
 type CliCommandPluginsGetRequest = z.infer<typeof CliCommandPluginsGetRequestSchema>;
 
 declare const CliCommandPluginsGetResponseManifestSchema: z.ZodObject<{
-    author: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    cli_zip: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     description: z.ZodString;
     exec: z.ZodObject<{
         linux: z.ZodArray<z.ZodString>;
         macos: z.ZodArray<z.ZodString>;
         windows: z.ZodArray<z.ZodString>;
     }, z.core.$strip>;
-    homepage: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    license: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     mcp_servers: z.ZodArray<z.ZodObject<{
         authorization: z.ZodBoolean;
         name: z.ZodString;
-        url: z.ZodString;
     }, z.core.$strip>>;
-    mobile_ready: z.ZodBoolean;
     name: z.ZodString;
     owner: z.ZodString;
-    source: z.ZodString;
     version: z.ZodString;
     viewer_routes: z.ZodArray<z.ZodObject<{
         method: z.ZodEnum<{
@@ -28572,7 +28565,6 @@ declare const CliCommandPluginsGetResponseManifestSchema: z.ZodObject<{
         type: z.ZodString;
     }, z.core.$strip>>;
     viewer_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
-    viewer_zip: z.ZodOptional<z.ZodNullable<z.ZodString>>;
 }, z.core.$strip>;
 type CliCommandPluginsGetResponseManifest = z.infer<typeof CliCommandPluginsGetResponseManifestSchema>;
 
@@ -30500,7 +30492,6 @@ declare const CliCommandToolsGetResponseManifestSchema: z.ZodObject<{
     }, z.core.$strip>;
     name: z.ZodString;
     owner: z.ZodString;
-    source: z.ZodString;
     version: z.ZodString;
 }, z.core.$strip>;
 type CliCommandToolsGetResponseManifest = z.infer<typeof CliCommandToolsGetResponseManifestSchema>;

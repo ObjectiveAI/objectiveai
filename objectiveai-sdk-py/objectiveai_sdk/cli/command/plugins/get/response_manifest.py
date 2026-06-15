@@ -11,19 +11,12 @@ from objectiveai_sdk.cli.command.tools.get.exec import Exec
 class ResponseManifest(BaseModel):
     model_config = ConfigDict(title='cli.command.plugins.get.ResponseManifest')
 
-    author: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    cli_zip: Optional[str] = Field(None, description="GitHub-release asset filename for the plugin's cli bundle — a\nzip extracted into `<plugin dir>/cli/` at install time, like\n`viewer_zip` → `viewer/`.", json_schema_extra={'omitempty': True})
     description: str
-    exec: Exec = Field(..., description="Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Empty when\nthe plugin is viewer-only.")
-    homepage: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    license: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
+    exec: Exec = Field(..., description="Per-OS exec argv for the plugin's cli side, run with CWD =\n`<plugin dir>/cli/` — the same shape tools use. Required (an\nempty exec is a viewer-only plugin, which still round-trips as\nan empty per-OS object).")
     mcp_servers: list[ResponseMcpServer]
-    mobile_ready: bool
     name: str
     owner: str
-    source: str
     version: str
     viewer_routes: list[ResponseViewerRoute]
     viewer_url: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
-    viewer_zip: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
 
