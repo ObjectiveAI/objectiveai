@@ -73,6 +73,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     cmd.args(argv)
         .current_dir(&cwd)
         .env("OBJECTIVEAI_STATE_DIR", &state_dir)
+        .env("OBJECTIVEAI_BIN_DIR", &cwd)
         .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::null())
         .stdout(Stdio::piped())
