@@ -7,6 +7,7 @@
 mod logging;
 mod mcp;
 mod queue_delegate;
+mod reverse_channel;
 mod run;
 mod session;
 mod session_manager;
