@@ -19,13 +19,14 @@
 //!     filters it before dispatch, so the loop breaks with no tool
 //!     response. The logs show one tool call and zero tool responses.
 //!
-//! Fast-fail enabler: tests 1 & 2 hinge on a deterministic MCP failure
-//! erroring *quickly* — the conduit's MCP client otherwise retries every
-//! failure for its whole backoff window. Each test first writes a
-//! very-low `api.mcp_backoff` into its own state config, which the
-//! conduit reads (and, when this test happens to spawn the shared api,
-//! is also projected onto the api's `MCP_BACKOFF_*` env). The shared
-//! api/proxy side is independently kept fast by the test `.env`'s
+//! Timeout bound: tests 1 & 2 hinge on a deterministic MCP failure
+//! erroring within the harness's hang watchdog — the conduit's MCP client
+//! otherwise retries every failure for the full default window. Each test
+//! first writes a bounded `api.mcp_timeout_ms` (5000ms) into its own
+//! state config, which the conduit reads (and, when this test happens to
+//! spawn the shared api, is also projected onto the api's `MCP_*` timeout
+//! env). Per-state config overrides the global `bin/config.json`. The
+//! shared api/proxy side is otherwise kept fast by the test `.env`'s
 //! `MCP_BACKOFF_*=0`.
 //!
 //! Plugin lifecycle: the plugin writes its PID to `OAI_TEST_MCP_PID_FILE`
@@ -81,14 +82,18 @@ impl Drop for PluginGuard {
     }
 }
 
-/// Write a very-low `api.mcp_backoff` into this test's state config so a
-/// deterministic MCP failure errors in ~1ms instead of retrying for the
-/// default ~40s window — which would stall a fallback-less agent with no
-/// output and trip the harness's hang watchdog. `max_elapsed_time_ms: 1`
-/// means the conduit's MCP client gives up effectively after the first
-/// attempt. Written via the filesystem `Client` directly (not the cli
-/// command), mirroring `viewer_send_e2e`.
-async fn set_fast_mcp_backoff() {
+/// Bound this test's MCP timeout via its per-state `api.mcp_timeout_ms`.
+/// The single value fans out to connect timeout, call timeout, AND the
+/// backoff max-elapsed-time, so 5000ms is the deliberate compromise: big
+/// enough that the successful connect/list/call in the call-fail tests
+/// completes (locally a few ms, but generous for loaded CI), and small
+/// enough that the connect/list-fail tests give up in ~5s instead of the
+/// default 60s — well under the harness's hang watchdog, and without the
+/// no-output stall a fallback-less agent would otherwise hit. Per-state
+/// config overrides the global `bin/config.json`. Written via the
+/// filesystem `Client` directly (not the cli command), mirroring
+/// `viewer_send_e2e`.
+async fn set_test_mcp_timeout() {
     let fs = objectiveai_cli::filesystem::Client::new(
         Some(cli_test_util::objectiveai_dir()),
         Some(cli_test_util::test_state_name()),
@@ -96,16 +101,7 @@ async fn set_fast_mcp_backoff() {
         None::<String>,
     );
     let mut config = fs.read_config().await.expect("read_config failed");
-    config.api().set_mcp_backoff(objectiveai_sdk::mcp::Backoff {
-        connect_timeout_ms: 5_000,
-        current_interval_ms: 1,
-        initial_interval_ms: 1,
-        randomization_factor: 0.0,
-        multiplier: 1.0,
-        max_interval_ms: 1,
-        max_elapsed_time_ms: 1,
-        call_timeout_ms: 5_000,
-    });
+    config.api().set_mcp_timeout_ms(5_000);
     fs.write_config(&config).await.expect("write_config failed");
 }
 
@@ -288,7 +284,7 @@ async fn plugin_mcp_connect_failure_errors_out() {
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
     };
-    set_fast_mcp_backoff().await;
+    set_test_mcp_timeout().await;
 
     let executor = cli_test_util::executor()
         .await
@@ -309,7 +305,7 @@ async fn plugin_mcp_list_failure_errors_out() {
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
     };
-    set_fast_mcp_backoff().await;
+    set_test_mcp_timeout().await;
 
     let executor = cli_test_util::executor()
         .await
@@ -333,7 +329,7 @@ async fn plugin_mcp_call_failure_records_tool_response() {
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
     };
-    set_fast_mcp_backoff().await;
+    set_test_mcp_timeout().await;
 
     let executor = cli_test_util::executor()
         .await
@@ -375,7 +371,7 @@ async fn plugin_mcp_unlisted_tool_call_has_no_response() {
     let _guard = PluginGuard {
         pid_file: pid_file.clone(),
     };
-    set_fast_mcp_backoff().await;
+    set_test_mcp_timeout().await;
 
     let executor = cli_test_util::executor()
         .await

@@ -9,7 +9,7 @@ pub enum Command {
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.Request")]
 pub enum Request {
     #[schemars(title = "Get")]
     Get(get::Request),
@@ -29,7 +29,7 @@ pub enum Request {
 // `ResponseItem` in command.rs - TS7056).
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.Response")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.Response")]
 #[serde(untagged)]
 pub enum Response {
     #[schemars(title = "Get")]

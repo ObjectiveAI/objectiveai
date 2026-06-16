@@ -1,29 +1,29 @@
-//! `config api mcp-backoff set` — async handler stub.
+//! `config api mcp-timeout-ms set` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.set.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
     pub scope: crate::cli::command::SetScope,
-    /// The new backoff, as a single JSON blob (an `mcp.Backoff` object).
-    /// Carried verbatim as a string here; the cli handler parses it.
+    /// The new MCP timeout in milliseconds, as a decimal integer string.
+    /// Carried verbatim here; the cli handler parses it to a `u64`.
     pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.set.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_backoff/set")]
-    ApiConfigMcpBackoffSet,
+    #[serde(rename = "api/config/mcp_timeout_ms/set")]
+    ApiConfigMcpTimeoutMsSet,
 }
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["api".to_string(), "config".to_string(), "mcp-backoff".to_string(), "set".to_string(), self.value.clone()];
+        let mut argv = vec!["api".to_string(), "config".to_string(), "mcp-timeout-ms".to_string(), "set".to_string(), self.value.clone()];
         argv.push(match self.scope {
             crate::cli::command::SetScope::Global => "--global".to_string(),
             crate::cli::command::SetScope::State => "--state".to_string(),
@@ -53,7 +53,7 @@ pub struct Args {
     pub state: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
-    /// New value — a single JSON blob (an `mcp.Backoff` object).
+    /// New MCP timeout in milliseconds (a decimal integer).
     pub value: String,
 }
 
@@ -90,7 +90,7 @@ impl TryFrom<Args> for Request {
             }
         };
         Ok(Self {
-            base: args.base.into(), path_type: Path::ApiConfigMcpBackoffSet,
+            base: args.base.into(), path_type: Path::ApiConfigMcpTimeoutMsSet,
             scope,
             value: args.value,
         })

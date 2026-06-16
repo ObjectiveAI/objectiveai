@@ -38,15 +38,17 @@ pub struct ApiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub commit_author_email: Option<String>,
-    /// MCP retry-backoff override (a single JSON blob). Drives BOTH the
-    /// CLI's own MCP client (the streaming conduit, through which every
-    /// CLI MCP connection flows) AND the `MCP_BACKOFF_*` env the CLI
-    /// projects onto the spawned API (which in turn drives the proxy it
-    /// spawns). `None` ⇒ the canonical default
-    /// ([`objectiveai_sdk::mcp::Backoff::default`]).
+    /// MCP timeout override, in milliseconds. One value, fanned out to
+    /// the connect timeout, the per-call timeout, AND the backoff
+    /// max-elapsed-time of every MCP client this CLI drives (its
+    /// streaming conduit) and projected onto the spawned API's `MCP_*`
+    /// env (which in turn drives the proxy it spawns). `None` ⇒ the
+    /// canonical default (60000ms). The other exponential-backoff knobs
+    /// (intervals / randomization / multiplier) keep their built-in
+    /// defaults.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_backoff: Option<objectiveai_sdk::mcp::Backoff>,
+    pub mcp_timeout_ms: Option<u64>,
 }
 
 impl ApiConfig {
@@ -61,7 +63,7 @@ impl ApiConfig {
             && self.x_title.is_none()
             && self.commit_author_name.is_none()
             && self.commit_author_email.is_none()
-            && self.mcp_backoff.is_none()
+            && self.mcp_timeout_ms.is_none()
     }
 
     pub fn is_none(this: &Option<Self>) -> bool {
@@ -154,11 +156,11 @@ impl ApiConfig {
         self.commit_author_email = Some(value.into());
     }
 
-    pub fn get_mcp_backoff(&self) -> Option<objectiveai_sdk::mcp::Backoff> {
-        self.mcp_backoff
+    pub fn get_mcp_timeout_ms(&self) -> Option<u64> {
+        self.mcp_timeout_ms
     }
-    pub fn set_mcp_backoff(&mut self, value: objectiveai_sdk::mcp::Backoff) {
-        self.mcp_backoff = Some(value);
+    pub fn set_mcp_timeout_ms(&mut self, value: u64) {
+        self.mcp_timeout_ms = Some(value);
     }
 
     pub fn jq(

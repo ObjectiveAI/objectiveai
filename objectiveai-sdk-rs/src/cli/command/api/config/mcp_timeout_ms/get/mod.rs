@@ -1,9 +1,9 @@
-//! `config api mcp-backoff get` — async handler stub.
+//! `config api mcp-timeout-ms get` — async handler stub.
 
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.get.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Request")]
 pub struct Request {
     pub path_type: Path,
     pub scope: crate::cli::command::GetScope,
@@ -12,15 +12,15 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.get.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_backoff/get")]
-    ApiConfigMcpBackoffGet,
+    #[serde(rename = "api/config/mcp_timeout_ms/get")]
+    ApiConfigMcpTimeoutMsGet,
 }
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["api".to_string(), "config".to_string(), "mcp-backoff".to_string(), "get".to_string()];
+        let mut argv = vec!["api".to_string(), "config".to_string(), "mcp-timeout-ms".to_string(), "get".to_string()];
         argv.push(match self.scope {
             crate::cli::command::GetScope::Global => "--global".to_string(),
             crate::cli::command::GetScope::State => "--state".to_string(),
@@ -39,13 +39,12 @@ impl CommandRequest for Request {
     }
 }
 
-// NB: `PartialEq` only (no `Eq`) — `mcp::Backoff` carries `f64` fields.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.get.Response")]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.get.Response")]
 pub struct Response {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_backoff: Option<crate::mcp::Backoff>,
+    pub mcp_timeout_ms: Option<u64>,
 }
 
 #[derive(clap::Args)]
@@ -96,7 +95,7 @@ impl TryFrom<Args> for Request {
                 });
             }
         };
-        Ok(Self { path_type: Path::ApiConfigMcpBackoffGet,
+        Ok(Self { path_type: Path::ApiConfigMcpTimeoutMsGet,
             scope,
             base: args.base.into(),
         })

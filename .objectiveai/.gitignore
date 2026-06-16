@@ -9,6 +9,8 @@ bin/pg-bin/
 # objectiveai-db moves a partial pg-bin aside (rename-then-delete)
 # before re-extracting; a leftover trash dir is inert.
 bin/pg-bin.trash-*/
-bin/config.json
-# Committed api test settings — re-include against the root `.env*`.
+# Committed api test settings (fixed fixtures, not runtime artifacts):
+# the global config layer `bin/config.json` (e.g. `mcp_timeout_ms`) and
+# `.env`. Tests write their own PER-STATE config under `state/` (ignored
+# above), never these. `.env` needs the `!` to override the root `.env*`.
 !.env

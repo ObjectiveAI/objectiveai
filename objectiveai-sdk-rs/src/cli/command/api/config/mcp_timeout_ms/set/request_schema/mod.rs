@@ -1,7 +1,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.get.response_schema.Request")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.request_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,10 +9,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.api.config.mcp_backoff.get.response_schema.Path")]
+#[schemars(rename = "cli.command.api.config.mcp_timeout_ms.set.request_schema.Path")]
 pub enum Path {
-    #[serde(rename = "api/config/mcp_backoff/get/response_schema")]
-    ApiConfigMcpBackoffGetResponseSchema,
+    #[serde(rename = "api/config/mcp_timeout_ms/set/request_schema")]
+    ApiConfigMcpTimeoutMsSetRequestSchema,
 }
 #[derive(clap::Args)]
 pub struct Args {
@@ -23,7 +23,7 @@ pub struct Args {
 
 impl CommandRequest for Request {
     fn into_command(&self) -> Vec<String> {
-        let mut argv: Vec<String> = vec!["api", "config", "mcp-backoff", "get", "response-schema"].into_iter().map(String::from).collect();
+        let mut argv: Vec<String> = vec!["api", "config", "mcp-timeout-ms", "set", "request-schema"].into_iter().map(String::from).collect();
         self.base.push_flags(&mut argv);
         argv
     }
@@ -42,7 +42,7 @@ pub type Response = crate::cli::command::ResponseSchema;
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::ApiConfigMcpBackoffGetResponseSchema, base: args.base.into() })
+        Ok(Self { path_type: Path::ApiConfigMcpTimeoutMsSetRequestSchema, base: args.base.into() })
     }
 }
 
