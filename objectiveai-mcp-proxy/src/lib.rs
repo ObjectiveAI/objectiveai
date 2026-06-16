@@ -29,8 +29,14 @@ pub struct AppState {
     /// `None` for the CLI's standalone proxy — tool calls then
     /// never invoke the delegate seam.
     pub queue_delegate: Option<Arc<dyn QueueDelegate>>,
+    /// Optional reverse channel for `ws://` upstreams. `Some` when an
+    /// embedder (the API) hands the proxy its request's reverse-attach
+    /// WS at [`setup`] time; `None` for the standalone proxy, which then
+    /// serves HTTP upstreams only (a `ws://` upstream errors at connect).
+    pub reverse_channel: Option<ReverseChannel>,
 }
 
 pub use queue_delegate::{QueueDelegate, QueueRead};
+pub use reverse_channel::ReverseChannel;
 pub use run::*;
 pub use session_manager::parse_key_env;

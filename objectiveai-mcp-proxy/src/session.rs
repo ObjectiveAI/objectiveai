@@ -11,10 +11,12 @@ use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
 use objectiveai_sdk::mcp::{
-    Connection, JsonRpcNotification,
+    JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
-    tool::{CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult, Tool},
+    tool::{CallToolRequestParams, CallToolResult, ListToolsResult, Tool},
 };
+
+use crate::reverse_channel::Upstream;
 use axum::http::HeaderMap;
 use tokio::sync::{Mutex, RwLock, broadcast};
 use tokio_util::sync::CancellationToken;
@@ -54,7 +56,7 @@ pub struct Session {
     /// `Connection` is itself a cheaply-clonable Arc wrapper; dropping a
     /// `Connection` fires the upstream listener's wakeup signal so it can
     /// self-cancel within scheduler latency once no external handle remains.
-    pub connections: IndexMap<String, Connection>,
+    pub connections: IndexMap<String, Upstream>,
     /// Fan-out channel for server-initiated notifications. Whenever an
     /// upstream emits `notifications/tools/list_changed` or
     /// `notifications/resources/list_changed`, a JsonRpcNotification with
@@ -98,7 +100,7 @@ pub struct Session {
 
 impl Session {
     pub(crate) fn new(
-        connections: IndexMap<String, Connection>,
+        connections: IndexMap<String, Upstream>,
         payload: crate::session_manager::SessionPayload,
     ) -> Self {
         let (outbound, _) = broadcast::channel(OUTBOUND_CAPACITY);
@@ -233,11 +235,11 @@ impl Session {
         &self,
         filter_url: Option<&str>,
     ) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Connection)> = match filter_url {
+        let pairs: Vec<(&String, &Upstream)> = match filter_url {
             Some(url) => self
                 .connections
                 .iter()
-                .filter(|(_, c)| c.url == url)
+                .filter(|(_, c)| c.url() == url)
                 .collect(),
             None => self.connections.iter().collect(),
         };
@@ -289,11 +291,11 @@ impl Session {
         &self,
         filter_url: Option<&str>,
     ) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Connection)> = match filter_url {
+        let pairs: Vec<(&String, &Upstream)> = match filter_url {
             Some(url) => self
                 .connections
                 .iter()
-                .filter(|(_, c)| c.url == url)
+                .filter(|(_, c)| c.url() == url)
                 .collect(),
             None => self.connections.iter().collect(),
         };
@@ -371,7 +373,7 @@ impl Session {
     /// NOT checked against the upstream's tool/resource list, so resource
     /// templates and otherwise-unlisted names still pass through. A missing
     /// `_`, or a prefix not in the map, yields `None`.
-    fn route<'a>(&'a self, prefixed: &str) -> Option<(&'a Connection, String)> {
+    fn route<'a>(&'a self, prefixed: &str) -> Option<(&'a Upstream, String)> {
         let (prefix, rest) = prefixed.split_once('_')?;
         let connection = self.connections.get(prefix)?;
         Some((connection, rest.to_string()))

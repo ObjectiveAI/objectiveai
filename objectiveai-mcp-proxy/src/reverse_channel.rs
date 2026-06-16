@@ -165,8 +165,12 @@ pub struct WsUpstream {
     pub url: String,
     /// Upstream `Mcp-Session-Id` returned by the CLI on `initialize`.
     pub session_id: String,
-    /// Session-global transient headers, re-applied per request (mirrors
-    /// `Connection::extra_headers`).
+    /// Upstream `server_info.name` / `.version` from the `initialize`
+    /// reply — feeds the session's routing-prefix derivation.
+    server_name: String,
+    server_version: String,
+    /// Per-request stamped headers (transient identity + auth), re-applied
+    /// per request (mirrors `Connection::extra_headers`).
     extra_headers: RwLock<IndexMap<String, String>>,
 }
 
@@ -335,6 +339,23 @@ impl Upstream {
         }
     }
 
+    /// Upstream `server_info.name` — used to derive the session's routing
+    /// prefix. (`Connection` exposes it via `initialize_result`.)
+    pub fn server_name(&self) -> &str {
+        match self {
+            Upstream::Http(c) => &c.initialize_result.server_info.name,
+            Upstream::Ws(w) => &w.server_name,
+        }
+    }
+
+    /// Upstream `server_info.version` — the prefix collision tie-breaker.
+    pub fn server_version(&self) -> &str {
+        match self {
+            Upstream::Http(c) => &c.initialize_result.server_info.version,
+            Upstream::Ws(w) => &w.server_version,
+        }
+    }
+
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
         match self {
             Upstream::Http(c) => c.list_tools().await,
@@ -405,6 +426,8 @@ impl Upstream {
 /// its [`McpKind`]. Returns `None` for any other shape.
 pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     let rest = url.strip_prefix("ws://")?;
+    // Drop any `?query` (plugin args ride there, parsed separately).
+    let rest = rest.split('?').next().unwrap_or(rest);
     // `ws://objectiveai` → host "objectiveai", no path.
     if rest == "objectiveai" {
         return Some(McpKind::ObjectiveAi);
@@ -425,47 +448,45 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     None
 }
 
-/// Build a [`WsUpstream`] over `channel` for `url` after a successful
-/// `initialize` returned `session_id`.
-pub fn ws_upstream(
+/// `initialize` a `ws://` upstream over `channel` and build its
+/// [`WsUpstream`]. `headers` is the full set sent on the `initialize`
+/// request — the session-global transient identity headers, plus (on
+/// resume) the upstream `Mcp-Session-Id` and any auth. `args` carries
+/// plugin init arguments (empty for `objectiveai`).
+pub async fn connect_ws(
     channel: ReverseChannel,
     url: String,
     mcp_kind: McpKind,
-    session_id: String,
-) -> WsUpstream {
-    WsUpstream {
-        channel,
-        mcp_kind,
-        url,
-        session_id,
-        extra_headers: RwLock::new(IndexMap::new()),
-    }
-}
-
-/// Send an `initialize` over the channel and return the upstream
-/// `Mcp-Session-Id` it minted. `args` carries plugin init arguments.
-pub async fn ws_initialize(
-    channel: &ReverseChannel,
-    url: &str,
-    mcp_kind: &McpKind,
     args: IndexMap<String, Option<String>>,
-    transient_headers: IndexMap<String, String>,
-) -> Result<String, McpError> {
+    mut headers: IndexMap<String, String>,
+) -> Result<WsUpstream, McpError> {
     let response = channel
         .request(
             server_request::Payload::Initialize {
                 mcp_kind: mcp_kind.clone(),
                 params: InitializeRequest { args },
             },
-            transient_headers,
+            headers.clone(),
         )
         .await?;
-    match response.payload {
-        server_response::Payload::Initialize { result, .. } => {
-            Ok(unwrap_rpc(url, result)?.mcp_session_id)
-        }
-        other => Err(variant_mismatch(url, "initialize", &other)),
-    }
+    let reply = match response.payload {
+        server_response::Payload::Initialize { result, .. } => unwrap_rpc(&url, result)?,
+        other => return Err(variant_mismatch(&url, "initialize", &other)),
+    };
+    // The per-request stamped set drops the resume `Mcp-Session-Id`
+    // ([`WsUpstream::headers`] re-adds whatever the upstream just minted)
+    // but keeps the transient identity + auth so the post-init health
+    // probe + every later call still pass the conduit's transient check.
+    headers.shift_remove(crate::upstream::MCP_SESSION_ID_KEY);
+    Ok(WsUpstream {
+        channel,
+        mcp_kind,
+        url,
+        session_id: reply.mcp_session_id,
+        server_name: reply.result.server_info.name,
+        server_version: reply.result.server_info.version,
+        extra_headers: RwLock::new(headers),
+    })
 }
 
 fn unwrap_rpc<R>(url: &str, result: JsonRpcResult<R>) -> Result<R, McpError> {

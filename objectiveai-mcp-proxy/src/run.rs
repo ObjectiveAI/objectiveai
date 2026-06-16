@@ -201,6 +201,7 @@ pub struct Config {
 pub async fn setup(
     config: Config,
     queue_delegate: Option<std::sync::Arc<dyn crate::QueueDelegate>>,
+    reverse_channel: Option<crate::ReverseChannel>,
 ) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
     let Config {
         address,
@@ -244,6 +245,7 @@ pub async fn setup(
         sessions: Arc::new(sessions),
         client: Arc::new(client),
         queue_delegate,
+        reverse_channel,
     };
 
     let router = axum::Router::new()
@@ -278,7 +280,7 @@ pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std:
 pub async fn run(config: Config) -> std::io::Result<()> {
     let suppress_output = config.suppress_output;
     // Bin entry — standalone proxy with no queue delegate.
-    let (listener, app) = setup(config, None).await?;
+    let (listener, app) = setup(config, None, None).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");

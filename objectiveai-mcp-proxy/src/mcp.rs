@@ -432,7 +432,13 @@ async fn handle_initialize(
         // Branch 2 — decrypt and reconnect strictly from the payload.
         let connections_with_headers = match state.sessions.decode_session_id(sid) {
             Some(payload) => {
-                match crate::upstream::reconnect_from_payload(&state.client, &payload).await {
+                match crate::upstream::reconnect_from_payload(
+                    &state.client,
+                    state.reverse_channel.as_ref(),
+                    &payload,
+                )
+                .await
+                {
                     Ok(pairs) => pairs,
                     Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                         return internal_error_response(request.id, e.to_string());
@@ -478,6 +484,7 @@ async fn handle_initialize(
         // AEAD payload.
         let connections_with_headers = match crate::upstream::connect_all_fresh(
             &state.client,
+            state.reverse_channel.as_ref(),
             headers,
         ).await {
             Ok(pairs) => pairs,
