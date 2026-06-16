@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.api.config.mcp_backoff.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.api.config.mcp_backoff.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.api.config.mcp_backoff.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.api.config.mcp_backoff.get.response_schema.Request"
+    },
+    {
+      "title": "Set",
+      "$ref": "cli.command.api.config.mcp_backoff.set.Request"
+    },
+    {
+      "title": "SetRequestSchema",
+      "$ref": "cli.command.api.config.mcp_backoff.set.request_schema.Request"
+    },
+    {
+      "title": "SetResponseSchema",
+      "$ref": "cli.command.api.config.mcp_backoff.set.response_schema.Request"
+    }
+  ]
+}

@@ -34,6 +34,10 @@
       "$ref": "cli.command.api.config.mcp_authorization.Request"
     },
     {
+      "title": "McpBackoff",
+      "$ref": "cli.command.api.config.mcp_backoff.Request"
+    },
+    {
       "title": "UserAgent",
       "$ref": "cli.command.api.config.user_agent.Request"
     },

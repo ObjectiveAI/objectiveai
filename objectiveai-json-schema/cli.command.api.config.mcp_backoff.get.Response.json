@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.api.config.mcp_backoff.get.Response",
+  "type": "object",
+  "properties": {
+    "mcp_backoff": {
+      "anyOf": [
+        {
+          "$ref": "mcp.Backoff"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}
