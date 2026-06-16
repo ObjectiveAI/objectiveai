@@ -64,10 +64,12 @@ pub fn run(
         // `agents spawn --agent-tag` path. Pass `None` so
         // the conduit's read-message-queue handler skips the fused
         // tag-group upgrade.
+        let mcp_backoff = ctx.resolve_mcp_backoff().await?;
         let conduit = crate::websockets::conduit::ConduitMcpHandler::new(
             mcp_server,
             ctx.clone(),
             None,
+            mcp_backoff,
         );
         // The LogWriter owns a listener task internally; it
         // coalesces queued chunks and persists off this critical

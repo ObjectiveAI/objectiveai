@@ -109,23 +109,28 @@ impl ConduitMcpHandler {
         mcp_server: crate::websockets::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
         agent_tag: Option<String>,
+        backoff: objectiveai_sdk::mcp::Backoff,
     ) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
+        // Timeouts + backoff come from the resolved `api.mcp_backoff` config
+        // (or its default) so the CLI's single MCP client matches the
+        // api/proxy and tests can dial it down to fail deterministic errors
+        // fast.
         let client = objectiveai_sdk::mcp::Client::new(
             http,
             "objectiveai-cli-stream-conduit".to_string(),
             String::new(),
             String::new(),
-            Duration::from_secs(60),
-            Duration::from_secs(1),
-            Duration::from_secs(1),
-            0.5,
-            2.0,
-            Duration::from_secs(30),
-            Duration::from_secs(30),
-            Duration::from_secs(60),
+            Duration::from_millis(backoff.connect_timeout_ms),
+            Duration::from_millis(backoff.current_interval_ms),
+            Duration::from_millis(backoff.initial_interval_ms),
+            backoff.randomization_factor,
+            backoff.multiplier,
+            Duration::from_millis(backoff.max_interval_ms),
+            Duration::from_millis(backoff.max_elapsed_time_ms),
+            Duration::from_millis(backoff.call_timeout_ms),
         );
         Self {
             inner: Arc::new(Inner {

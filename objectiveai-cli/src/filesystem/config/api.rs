@@ -38,6 +38,15 @@ pub struct ApiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub commit_author_email: Option<String>,
+    /// MCP retry-backoff override (a single JSON blob). Drives BOTH the
+    /// CLI's own MCP client (the streaming conduit, through which every
+    /// CLI MCP connection flows) AND the `MCP_BACKOFF_*` env the CLI
+    /// projects onto the spawned API (which in turn drives the proxy it
+    /// spawns). `None` ⇒ the canonical default
+    /// ([`objectiveai_sdk::mcp::Backoff::default`]).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_backoff: Option<objectiveai_sdk::mcp::Backoff>,
 }
 
 impl ApiConfig {
@@ -52,6 +61,7 @@ impl ApiConfig {
             && self.x_title.is_none()
             && self.commit_author_name.is_none()
             && self.commit_author_email.is_none()
+            && self.mcp_backoff.is_none()
     }
 
     pub fn is_none(this: &Option<Self>) -> bool {
@@ -142,6 +152,13 @@ impl ApiConfig {
     }
     pub fn set_commit_author_email(&mut self, value: impl Into<String>) {
         self.commit_author_email = Some(value.into());
+    }
+
+    pub fn get_mcp_backoff(&self) -> Option<objectiveai_sdk::mcp::Backoff> {
+        self.mcp_backoff
+    }
+    pub fn set_mcp_backoff(&mut self, value: objectiveai_sdk::mcp::Backoff) {
+        self.mcp_backoff = Some(value);
     }
 
     pub fn jq(

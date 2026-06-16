@@ -129,6 +129,22 @@ impl Context {
         Ok(build_http_client(&self.config, &mut config, address))
     }
 
+    /// The MCP retry-backoff this CLI process uses for ALL of its own
+    /// MCP clients (the streaming conduit, through which every CLI MCP
+    /// connection flows) AND projects onto the api it spawns. Reads the
+    /// merged (`--final`) `api.mcp_backoff` config blob; falls back to
+    /// the canonical default ([`objectiveai_sdk::mcp::Backoff::default`])
+    /// when unset.
+    pub async fn resolve_mcp_backoff(
+        &self,
+    ) -> Result<objectiveai_sdk::mcp::Backoff, crate::error::Error> {
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        Ok(config.api().get_mcp_backoff().unwrap_or_default())
+    }
+
     /// The synchronous-response viewer client, built on first use and
     /// memoized.
     ///
