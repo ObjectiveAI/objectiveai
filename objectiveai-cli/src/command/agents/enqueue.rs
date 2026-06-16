@@ -6,9 +6,11 @@
 //! replaces any prior active row scoped to the same (target, key)
 //! pair before insert, so re-issuing with the same key reliably
 //! replaces the prior payload. Refs have no queue identity — error.
-//! Tags must exist (BOUND or GROUPED); the row is parked against
-//! the tag NAME either way, and the queue's two-rule read predicate
-//! resolves it.
+//! Tags need NOT exist yet: the row is parked against the tag NAME
+//! whether or not the tag is registered, and the queue's two-rule read
+//! predicate resolves it once the tag binds to an agent that reads
+//! (park-now, deliver-on-bind). A tag that never binds simply leaves
+//! the row unconsumed.
 
 use objectiveai_sdk::cli::command::agents::enqueue::{Request, Response};
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
@@ -28,14 +30,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             (Some(format!("{parent}/{agent_instance}")), None)
         }
-        AgentSelector::Tag { agent_tag } => {
-            match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
-                crate::db::tags::LookupState::Absent => {
-                    return Err(Error::TagNotFound(agent_tag));
-                }
-                _ => (None, Some(agent_tag)),
-            }
-        }
+        // No existence check: park the row against the tag NAME whether
+        // or not the tag is registered yet. The queue's read predicate
+        // resolves it once the tag binds to a reading agent (park-now,
+        // deliver-on-bind).
+        AgentSelector::Tag { agent_tag } => (None, Some(agent_tag)),
         AgentSelector::Ref { .. } => return Err(Error::EnqueueRefTarget),
     };
     let id = crate::db::message_queue::enqueue_with_content(
