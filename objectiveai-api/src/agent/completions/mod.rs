@@ -2,6 +2,7 @@ mod client;
 pub mod claude_agent_sdk;
 pub mod codex_sdk;
 mod error;
+pub mod gemini;
 mod extra_mcp_server;
 pub mod mock;
 pub mod openrouter;

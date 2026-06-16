@@ -374,6 +374,7 @@ pub struct Client<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     ACUSG,
     VUSG,
@@ -383,7 +384,7 @@ pub struct Client<
     FUSG,
 > {
     /// Agent completions client for reasoning summaries.
-    pub agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+    pub agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
     /// Vector completions client for executing Vector Completion tasks.
     pub vector_client: Arc<
         vector::completions::Client<
@@ -391,6 +392,7 @@ pub struct Client<
             OPENROUTER,
             CLAUDEAGENTSDK,
             CODEXSDK,
+            GEMINI,
             MOCK,
             RETRG,
             RETRF,
@@ -411,6 +413,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     ACUSG,
     VUSG,
@@ -424,6 +427,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         ACUSG,
         VUSG,
@@ -435,13 +439,14 @@ impl<
 {
     /// Creates a new Function execution client.
     pub fn new(
-        agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
+        agent_client: Arc<crate::agent::completions::Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, ACUSG>>,
         vector_client: Arc<
             vector::completions::Client<
                 CTXEXT,
                 OPENROUTER,
                 CLAUDEAGENTSDK,
                 CODEXSDK,
+                GEMINI,
                 MOCK,
                 RETRG,
                 RETRF,
@@ -469,6 +474,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     ACUSG,
     VUSG,
@@ -482,6 +488,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         ACUSG,
         VUSG,
@@ -495,6 +502,7 @@ where
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    GEMINI: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
         + Send
@@ -612,6 +620,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     ACUSG,
     VUSG,
@@ -625,6 +634,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         ACUSG,
         VUSG,
@@ -638,6 +648,7 @@ where
     OPENROUTER: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    GEMINI: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation> + Send + Sync + 'static,
     MOCK: crate::agent::completions::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     ACUSG: crate::agent::completions::usage_handler::UsageHandler<CTXEXT>
         + Send

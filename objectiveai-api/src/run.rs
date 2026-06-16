@@ -60,6 +60,14 @@ struct EnvConfigBuilder {
     codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     #[envconfig(from = "CODEX_SDK_QUERY_LIMIT")]
     codex_sdk_query_limit: Option<u64>,
+    #[envconfig(from = "GEMINI_ENABLED")]
+    gemini_enabled: Option<String>,
+    #[envconfig(from = "GEMINI_RATE_LIMIT_MAX_RETRIES")]
+    gemini_rate_limit_max_retries: Option<u64>,
+    #[envconfig(from = "GEMINI_RATE_LIMIT_MAX_WAIT_SECS")]
+    gemini_rate_limit_max_wait_secs: Option<u64>,
+    #[envconfig(from = "GEMINI_QUERY_LIMIT")]
+    gemini_query_limit: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL")]
     agent_completions_backoff_current_interval: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL")]
@@ -155,6 +163,10 @@ impl EnvConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries,
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs,
             codex_sdk_query_limit: self.codex_sdk_query_limit,
+            gemini_enabled: self.gemini_enabled.map(|s| parse_bool(&s)),
+            gemini_rate_limit_max_retries: self.gemini_rate_limit_max_retries,
+            gemini_rate_limit_max_wait_secs: self.gemini_rate_limit_max_wait_secs,
+            gemini_query_limit: self.gemini_query_limit,
             agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval,
             agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval,
             agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor,
@@ -213,6 +225,10 @@ pub struct ConfigBuilder {
     pub codex_sdk_rate_limit_max_retries: Option<u64>,
     pub codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     pub codex_sdk_query_limit: Option<u64>,
+    pub gemini_enabled: Option<bool>,
+    pub gemini_rate_limit_max_retries: Option<u64>,
+    pub gemini_rate_limit_max_wait_secs: Option<u64>,
+    pub gemini_query_limit: Option<u64>,
     pub agent_completions_backoff_current_interval: Option<u64>,
     pub agent_completions_backoff_initial_interval: Option<u64>,
     pub agent_completions_backoff_randomization_factor: Option<f64>,
@@ -285,6 +301,10 @@ impl ConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries.unwrap_or(10),
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs.unwrap_or(180),
             codex_sdk_query_limit: self.codex_sdk_query_limit.unwrap_or(10),
+            gemini_enabled: self.gemini_enabled.unwrap_or(true),
+            gemini_rate_limit_max_retries: self.gemini_rate_limit_max_retries.unwrap_or(10),
+            gemini_rate_limit_max_wait_secs: self.gemini_rate_limit_max_wait_secs.unwrap_or(180),
+            gemini_query_limit: self.gemini_query_limit.unwrap_or(10),
             agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval.unwrap_or(100),
             agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval.unwrap_or(100),
             agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor.unwrap_or(0.5),
@@ -365,6 +385,10 @@ pub struct Config {
     pub codex_sdk_rate_limit_max_retries: u64,
     pub codex_sdk_rate_limit_max_wait_secs: u64,
     pub codex_sdk_query_limit: u64,
+    pub gemini_enabled: bool,
+    pub gemini_rate_limit_max_retries: u64,
+    pub gemini_rate_limit_max_wait_secs: u64,
+    pub gemini_query_limit: u64,
     pub agent_completions_backoff_current_interval: u64,
     pub agent_completions_backoff_initial_interval: u64,
     pub agent_completions_backoff_randomization_factor: f64,
@@ -441,6 +465,10 @@ pub async fn setup(
         codex_sdk_rate_limit_max_retries,
         codex_sdk_rate_limit_max_wait_secs,
         codex_sdk_query_limit,
+        gemini_enabled,
+        gemini_rate_limit_max_retries,
+        gemini_rate_limit_max_wait_secs,
+        gemini_query_limit,
         agent_completions_backoff_current_interval,
         agent_completions_backoff_initial_interval,
         agent_completions_backoff_randomization_factor,
@@ -615,7 +643,8 @@ pub async fn setup(
             http_referer.clone(),
         )),
         Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit)),
-        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client)),
+        Arc::new(agent::completions::codex_sdk::Client::new(user_agent.clone(), codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client.clone())),
+        Arc::new(agent::completions::gemini::Client::new(user_agent, gemini_enabled, gemini_rate_limit_max_retries, gemini_rate_limit_max_wait_secs, gemini_query_limit, http_client)),
         Arc::new(agent::completions::mock::Client {
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
@@ -1100,6 +1129,11 @@ async fn create_agent_completion(
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
@@ -1203,6 +1237,11 @@ async fn create_vector_completion(
             + Sync
             + 'static,
             impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send
             + Sync
@@ -1283,6 +1322,11 @@ async fn execute_function(
             + 'static,
             impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+            > + Send
+            + Sync
+            + 'static,
+            impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
             > + Send
             + Sync
             + 'static,

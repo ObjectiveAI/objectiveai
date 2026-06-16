@@ -53,7 +53,7 @@ fn filter_agents(
 
 // ---------------------------------------------------------------------------
 
-pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG> {
     /// MCP Client
     pub mcp_client: Arc<objectiveai_sdk::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
@@ -70,6 +70,8 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     pub claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
     /// Upstream client for Codex SDK agents.
     pub codex_sdk: Arc<CODEXSDK>,
+    /// Upstream client for Gemini agents.
+    pub gemini: Arc<GEMINI>,
     /// Upstream client for Mock agents.
     pub mock: Arc<MOCK>,
 
@@ -92,7 +94,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     _marker: std::marker::PhantomData<CTXEXT>,
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
         mcp_client: Arc<objectiveai_sdk::mcp::Client>,
         proxy_spawner: Arc<super::ProxySpawner>,
@@ -102,6 +104,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
         openrouter: Arc<OPENROUTER>,
         claude_agent_sdk: Arc<CLAUDEAGENTSDK>,
         codex_sdk: Arc<CODEXSDK>,
+        gemini: Arc<GEMINI>,
         mock: Arc<MOCK>,
         backoff_current_interval: Duration,
         backoff_initial_interval: Duration,
@@ -121,6 +124,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             openrouter,
             claude_agent_sdk,
             codex_sdk,
+            gemini,
             mock,
             backoff_current_interval,
             backoff_initial_interval,
@@ -135,8 +139,8 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
-    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG> Clone
+    for Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG>
 {
     fn clone(&self) -> Self {
         Self {
@@ -148,6 +152,7 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
             openrouter: self.openrouter.clone(),
             claude_agent_sdk: self.claude_agent_sdk.clone(),
             codex_sdk: self.codex_sdk.clone(),
+            gemini: self.gemini.clone(),
             mock: self.mock.clone(),
             backoff_current_interval: self.backoff_current_interval,
             backoff_initial_interval: self.backoff_initial_interval,
@@ -162,12 +167,13 @@ impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CU
     }
 }
 
-impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG>
+impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK, RETRG, RETRF, RETRM, CUSG>
 where
     CTXEXT: ctx::ContextExt + Send + Sync + 'static,
     OPENROUTER: super::UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::agent::openrouter::Continuation> + Send + Sync + 'static,
     CLAUDEAGENTSDK: super::UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai_sdk::agent::claude_agent_sdk::Continuation> + Send + Sync + 'static,
     CODEXSDK: super::UpstreamClient<objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation> + Send + Sync + 'static,
+    GEMINI: super::UpstreamClient<objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation> + Send + Sync + 'static,
     MOCK: super::UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation> + Send + Sync + 'static,
     RETRG: crate::retrieval::retrieve::Client<CTXEXT>,
     RETRF: crate::retrieval::retrieve::Client<CTXEXT>,
@@ -186,6 +192,7 @@ where
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
+                GEMINI::State,
                 MOCK::State,
             >,
         >,
@@ -225,6 +232,7 @@ where
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
+                GEMINI::State,
                 MOCK::State,
             >,
         >,
@@ -239,6 +247,7 @@ where
                     OPENROUTER::State,
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
+                    GEMINI::State,
                     MOCK::State,
                 >,
             >,
@@ -308,6 +317,7 @@ where
                 OPENROUTER::State,
                 CLAUDEAGENTSDK::State,
                 CODEXSDK::State,
+                GEMINI::State,
                 MOCK::State,
             >,
         >,
@@ -327,6 +337,7 @@ where
                     OPENROUTER::State,
                     CLAUDEAGENTSDK::State,
                     CODEXSDK::State,
+                    GEMINI::State,
                     MOCK::State,
                 >,
             >,
@@ -378,22 +389,26 @@ where
             mut cont_items_or,
             mut cont_items_cas,
             mut cont_items_cdx,
+            mut cont_items_gem,
             mut cont_items_mock,
             internal_conn,
         ) = match continuation {
             Some(super::Continuation::Openrouter { items, mcp_connection, .. }) => {
-                (items, vec![], vec![], vec![], mcp_connection)
+                (items, vec![], vec![], vec![], vec![], mcp_connection)
             }
             Some(super::Continuation::ClaudeAgentSdk { items, mcp_connection, .. }) => {
-                (vec![], items, vec![], vec![], mcp_connection)
+                (vec![], items, vec![], vec![], vec![], mcp_connection)
             }
             Some(super::Continuation::CodexSdk { items, mcp_connection, .. }) => {
-                (vec![], vec![], items, vec![], mcp_connection)
+                (vec![], vec![], items, vec![], vec![], mcp_connection)
+            }
+            Some(super::Continuation::Gemini { items, mcp_connection, .. }) => {
+                (vec![], vec![], vec![], items, vec![], mcp_connection)
             }
             Some(super::Continuation::Mock { items, mcp_connection, .. }) => {
-                (vec![], vec![], vec![], items, mcp_connection)
+                (vec![], vec![], vec![], vec![], items, mcp_connection)
             }
-            None => (vec![], vec![], vec![], vec![], None),
+            None => (vec![], vec![], vec![], vec![], vec![], None),
         };
 
         // 3. Always resolve agents from params.agent.
@@ -1025,6 +1040,37 @@ where
                                 },
                                 |e| super::Error::UpstreamCodexSdk(Box::new(e)),
                                 objectiveai_sdk::agent::InlineAgentRef::CodexSdk(&cdx_agent.base),
+                                disable_tools.clone(),
+                                agent_transform,
+                                make_is_cancelled(),
+                                attempt.agent_instance_hierarchy.as_str(),
+                                attempt.agent.id(),
+                                agent_full_id.as_str(),
+                                agent_remote.as_ref(),
+                            ).await {
+                                Ok(stream) => return Ok(stream),
+                                Err(e) => e,
+                            }
+                        }
+                        objectiveai_sdk::agent::InlineAgent::Gemini(gem_agent) => {
+                            let c = mcp_connection.clone();
+                            let rc = match &request_continuation {
+                                Some(objectiveai_sdk::agent::Continuation::Gemini(c)) => Some(c),
+                                _ => None,
+                            };
+                            match self.run_agent_loop(
+                                self.gemini.clone(), gem_agent, rc, &params, mcp_connection.clone(),
+                                ctx.reverse_attach().cloned(),
+                                &mut cont_items_gem, &attempt.id, created,
+                                *byok_attempt, ctx.cost_multiplier,
+                                {
+                                    let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
+                                    move |items| super::Continuation::Gemini {
+                                        items, mcp_connection: c, agent_instance_hierarchy,
+                                    }
+                                },
+                                |e| super::Error::UpstreamGemini(Box::new(e)),
+                                objectiveai_sdk::agent::InlineAgentRef::Gemini(&gem_agent.base),
                                 disable_tools.clone(),
                                 agent_transform,
                                 make_is_cancelled(),

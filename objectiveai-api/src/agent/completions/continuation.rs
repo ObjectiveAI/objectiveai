@@ -1,7 +1,7 @@
 use objectiveai_sdk::mcp;
 
 #[derive(Debug, Clone)]
-pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
+pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
         mcp_connection: Option<mcp::Connection>,
@@ -24,6 +24,11 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
         mcp_connection: Option<mcp::Connection>,
         agent_instance_hierarchy: String,
     },
+    Gemini {
+        items: Vec<ContinuationItem<GEMINI>>,
+        mcp_connection: Option<mcp::Connection>,
+        agent_instance_hierarchy: String,
+    },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
         mcp_connection: Option<mcp::Connection>,
@@ -31,14 +36,15 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     },
 }
 
-impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
-    Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
+impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK>
+    Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, GEMINI, MOCK>
 {
     pub fn push_user_message(&mut self, message: objectiveai_sdk::agent::completions::message::UserMessage) {
         match self {
             Self::Openrouter { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::CodexSdk { items, .. } => items.push(ContinuationItem::UserMessage(message)),
+            Self::Gemini { items, .. } => items.push(ContinuationItem::UserMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::UserMessage(message)),
         }
     }
@@ -48,6 +54,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::Openrouter { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::ClaudeAgentSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::CodexSdk { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
+            Self::Gemini { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
             Self::Mock { items, .. } => items.push(ContinuationItem::ToolMessage(message)),
         }
     }
@@ -57,6 +64,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::Openrouter { .. } => objectiveai_sdk::agent::Upstream::Openrouter,
             Self::ClaudeAgentSdk { .. } => objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             Self::CodexSdk { .. } => objectiveai_sdk::agent::Upstream::CodexSdk,
+            Self::Gemini { .. } => objectiveai_sdk::agent::Upstream::Gemini,
             Self::Mock { .. } => objectiveai_sdk::agent::Upstream::Mock,
         }
     }
@@ -68,6 +76,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::Openrouter { mcp_connection, .. }
             | Self::ClaudeAgentSdk { mcp_connection, .. }
             | Self::CodexSdk { mcp_connection, .. }
+            | Self::Gemini { mcp_connection, .. }
             | Self::Mock { mcp_connection, .. } => mcp_connection.as_ref(),
         }
     }
@@ -80,6 +89,7 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::Openrouter { agent_instance_hierarchy, .. }
             | Self::ClaudeAgentSdk { agent_instance_hierarchy, .. }
             | Self::CodexSdk { agent_instance_hierarchy, .. }
+            | Self::Gemini { agent_instance_hierarchy, .. }
             | Self::Mock { agent_instance_hierarchy, .. } => agent_instance_hierarchy.as_str(),
         }
     }

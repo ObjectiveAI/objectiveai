@@ -50,6 +50,9 @@ pub(crate) async fn create_agent_completion_ws(
                 objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
             > + Send + Sync + 'static,
             impl agent::completions::UpstreamClient<
+                objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
+            > + Send + Sync + 'static,
+            impl agent::completions::UpstreamClient<
                 objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
             > + Send + Sync + 'static,
             impl retrieval::retrieve::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
@@ -151,17 +154,17 @@ pub(crate) async fn create_agent_completion_ws(
 }
 
 pub(crate) async fn create_vector_completion_ws<
-    OR, CAG, CX, MK, RG, RF, RM, AU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, GM, MK, RG, RF, RM, AU, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         vector::completions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, RG, RF, RM, AU,
+            OR, CAG, CX, GM, MK, RG, RF, RM, AU,
             impl vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt> + Send + Sync + 'static,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
@@ -179,6 +182,9 @@ where
     CX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
         > + Send + Sync + 'static,
+    GM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
+        > + Send + Sync + 'static,
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
         > + Send + Sync + 'static,
@@ -194,6 +200,9 @@ where
         > + Send + Sync + 'static,
     NCX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send + Sync + 'static,
+    NGM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
@@ -274,16 +283,16 @@ where
 }
 
 pub(crate) async fn execute_function_ws<
-    OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU,
+    OR, CAG, CX, GM, MK, AU, VAU, RG, RF, RM, FAU, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU,
 >(
     client: Arc<
         functions::executions::Client<
             ctx::DefaultContextExt,
-            OR, CAG, CX, MK, AU, VAU, RG, RF, RM, FAU,
+            OR, CAG, CX, GM, MK, AU, VAU, RG, RF, RM, FAU,
         >,
     >,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
@@ -300,6 +309,9 @@ where
         > + Send + Sync + 'static,
     CX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send + Sync + 'static,
+    GM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
         > + Send + Sync + 'static,
     MK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
@@ -318,6 +330,9 @@ where
         > + Send + Sync + 'static,
     NCX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send + Sync + 'static,
+    NGM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
@@ -393,10 +408,10 @@ where
     })
 }
 
-pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>(
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
@@ -413,6 +428,9 @@ where
         > + Send + Sync + 'static,
     NCX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send + Sync + 'static,
+    NGM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,
@@ -502,10 +520,10 @@ where
     })
 }
 
-pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
+pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>(
     client: Arc<crate::error::Client>,
     _agent_completions_client: Arc<
-        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>,
+        agent::completions::Client<ctx::DefaultContextExt, NOR, NCAG, NCX, NGM, NMK, NRG, NRF, NRM, NAU>,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
@@ -522,6 +540,9 @@ where
         > + Send + Sync + 'static,
     NCX: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent, objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send + Sync + 'static,
+    NGM: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent, objectiveai_sdk::agent::gemini::Continuation,
         > + Send + Sync + 'static,
     NMK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent::mock::Continuation,

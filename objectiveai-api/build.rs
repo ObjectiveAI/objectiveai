@@ -2,6 +2,7 @@ fn main() {
     set_stack_size();
     claude_agent_sdk_runner();
     codex_sdk_runner();
+    gemini_sdk_runner();
 }
 
 /// Set the main thread stack size to 16 MB for all supported platforms.
@@ -79,6 +80,45 @@ fn codex_sdk_runner() {
         binary_path.display()
     );
     println!("cargo:rerun-if-changed=../objectiveai-codex-sdk-runner/embed/");
+}
+
+fn gemini_sdk_runner() {
+    let target = std::env::var("TARGET").unwrap();
+    let profile = std::env::var("PROFILE").unwrap();
+    let manifest_dir = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_dir = std::path::Path::new(&manifest_dir).parent().unwrap();
+
+    let validate_script = workspace_dir
+        .join("objectiveai-gemini-sdk-runner")
+        .join("validate.sh");
+    let mut args: Vec<&str> = vec!["--target", &target];
+    if profile == "release" {
+        args.push("--release");
+    }
+    let output = run_bash(&validate_script, &args);
+    assert!(
+        output.status.success(),
+        "objectiveai-gemini-sdk-runner/validate.sh failed:\n{}\n{}Run: bash objectiveai-gemini-sdk-runner/build.sh --target {target}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr),
+        if profile == "release" { " --release" } else { "" }
+    );
+    let binary_name = if target.contains("windows") {
+        "objectiveai-gemini-sdk-runner.exe"
+    } else {
+        "objectiveai-gemini-sdk-runner"
+    };
+    let binary_path = workspace_dir
+        .join("objectiveai-gemini-sdk-runner")
+        .join("embed")
+        .join(&target)
+        .join(&profile)
+        .join(binary_name);
+    println!(
+        "cargo:rustc-env=OBJECTIVEAI_GEMINI_SDK_RUNNER_PATH={}",
+        binary_path.display()
+    );
+    println!("cargo:rerun-if-changed=../objectiveai-gemini-sdk-runner/embed/");
 }
 
 fn claude_agent_sdk_runner() {

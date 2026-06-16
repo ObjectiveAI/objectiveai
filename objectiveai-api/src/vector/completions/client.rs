@@ -63,6 +63,7 @@ pub struct Client<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     RETRG,
     RETRF,
@@ -77,6 +78,7 @@ pub struct Client<
             OPENROUTER,
             CLAUDEAGENTSDK,
             CODEXSDK,
+            GEMINI,
             MOCK,
             RETRG,
             RETRF,
@@ -96,6 +98,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     RETRG,
     RETRF,
@@ -108,6 +111,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         RETRG,
         RETRF,
@@ -124,6 +128,7 @@ impl<
                 OPENROUTER,
                 CLAUDEAGENTSDK,
                 CODEXSDK,
+                GEMINI,
                 MOCK,
                 RETRG,
                 RETRF,
@@ -149,6 +154,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     RETRG,
     RETRF,
@@ -161,6 +167,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         RETRG,
         RETRF,
@@ -185,6 +192,12 @@ where
     CODEXSDK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent,
             objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    GEMINI: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent,
+            objectiveai_sdk::agent::gemini::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -300,6 +313,7 @@ impl<
     OPENROUTER,
     CLAUDEAGENTSDK,
     CODEXSDK,
+    GEMINI,
     MOCK,
     RETRG,
     RETRF,
@@ -312,6 +326,7 @@ impl<
         OPENROUTER,
         CLAUDEAGENTSDK,
         CODEXSDK,
+        GEMINI,
         MOCK,
         RETRG,
         RETRF,
@@ -336,6 +351,12 @@ where
     CODEXSDK: agent::completions::UpstreamClient<
             objectiveai_sdk::agent::codex_sdk::Agent,
             objectiveai_sdk::agent::codex_sdk::Continuation,
+        > + Send
+        + Sync
+        + 'static,
+    GEMINI: agent::completions::UpstreamClient<
+            objectiveai_sdk::agent::gemini::Agent,
+            objectiveai_sdk::agent::gemini::Continuation,
         > + Send
         + Sync
         + 'static,
@@ -668,6 +689,7 @@ where
             }
             objectiveai_sdk::agent::InlineAgent::ClaudeAgentSdk(_) => false,
             objectiveai_sdk::agent::InlineAgent::CodexSdk(_) => false,
+            objectiveai_sdk::agent::InlineAgent::Gemini(_) => false,
             objectiveai_sdk::agent::InlineAgent::Mock(_) => false,
         };
 
