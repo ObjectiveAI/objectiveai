@@ -57,6 +57,8 @@ bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" &
 CLAUDE_RUNNER_PID=$!
 bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" &
 CODEX_RUNNER_PID=$!
+bash "$REPO_ROOT/objectiveai-gemini-sdk-runner/build.sh" &
+GEMINI_RUNNER_PID=$!
 
 # Phase 2: wasm + cffi (need build tools from phase 1)
 run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
@@ -72,7 +74,7 @@ run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sd
 
 # Wait for the background embedded-binary builds.
 FAILED=false
-for pid in $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
+for pid in $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $GEMINI_RUNNER_PID; do
   if ! wait "$pid"; then
     FAILED=true
   fi

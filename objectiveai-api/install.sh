@@ -47,6 +47,9 @@ bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
 # codex-sdk-runner (native target, Python)
 bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
 
+# gemini-sdk-runner (native target, Python)
+bash "$REPO_ROOT/objectiveai-gemini-sdk-runner/build.sh" --release
+
 # mcp-filesystem (linux-musl, Docker container injection) — embedded by
 # objectiveai-api with orchestrator-bollard. Match the host architecture
 # (ARM hosts embed aarch64, x86_64 hosts embed x86_64) and always target

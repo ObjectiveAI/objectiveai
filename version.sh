@@ -258,6 +258,7 @@ CSPROJS=(
 PY_RUNNER_MAINS=(
   objectiveai-claude-agent-sdk-runner/main.py
   objectiveai-codex-sdk-runner/main.py
+  objectiveai-gemini-sdk-runner/main.py
 )
 
 # pip requirements.txt files that pin `objectiveai==X.Y.Z`.
