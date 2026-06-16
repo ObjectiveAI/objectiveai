@@ -50,16 +50,25 @@ pub(crate) trait InstallManifest:
     fn extra_assets(&self) -> Vec<ExtraAsset>;
 }
 
-/// The current platform's entry from a per-OS [`CliZip`]. Shared by
-/// both manifest impls so the `cfg!(target_os)` ladder lives in one
-/// place.
+/// The current platform's entry from a [`CliZip`] — matched on OS *and*
+/// CPU architecture. Shared by both manifest impls so the
+/// `cfg!(target_os)` / `cfg!(target_arch)` ladders live in one place. An
+/// arch other than `x86_64` / `aarch64` (or an absent entry) yields
+/// `None` — nothing to fetch.
 pub(crate) fn platform_cli_zip(cli_zip: &CliZip) -> Option<&str> {
-    if cfg!(target_os = "windows") {
-        cli_zip.windows.as_deref()
+    let per_os = if cfg!(target_os = "windows") {
+        &cli_zip.windows
     } else if cfg!(target_os = "macos") {
-        cli_zip.macos.as_deref()
+        &cli_zip.macos
     } else {
-        cli_zip.linux.as_deref()
+        &cli_zip.linux
+    };
+    if cfg!(target_arch = "x86_64") {
+        per_os.x86_64.as_deref()
+    } else if cfg!(target_arch = "aarch64") {
+        per_os.aarch64.as_deref()
+    } else {
+        None
     }
 }
 
