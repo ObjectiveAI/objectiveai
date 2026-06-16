@@ -25,13 +25,28 @@
 //!   both the parent and the child via kqueue `EVFILT_PROC`/`NOTE_EXIT`
 //!   and SIGKILLs the child if the parent exits first. The guardian is
 //!   detached (reparents to launchd) so it survives the parent's death.
-//!   Residual gap: the child runs unguarded for the ~milliseconds it
-//!   takes to launch + arm the guardian; a force-kill of the parent in
-//!   that window can orphan that one child. (A truly atomic macOS leash
-//!   would need `posix_spawn(POSIX_SPAWN_START_SUSPENDED)`, which `std`/
-//!   `tokio` Command do not expose.)
 //! - **Other Unix** — `kill_on_drop` only (best effort), matching the
 //!   project's stance elsewhere.
+//!
+//! # KNOWN, ACCEPTED LIMITATION — the macOS arming window
+//!
+//! On Linux the leash is race-free (pdeathsig is armed in the child
+//! before `exec`); on Windows the spawn→assign gap matches the validated
+//! `objectiveai-db` path. **macOS is the only platform where a leashed
+//! child can outlive its parent:** the child is spawned and runs
+//! immediately, then the guardian is launched and arms its kqueue
+//! (~milliseconds). If the parent is force-killed in *that* window, that
+//! one child can orphan. This is deemed acceptable.
+//!
+//! **Do NOT try to close it with a suspended start — it deadlocks.**
+//! Spawning the child stopped (e.g. `raise(SIGSTOP)` in `pre_exec`) hangs
+//! `spawn()`: `std`/`tokio` block reading the exec-sync pipe until the
+//! child `exec`s, but a child stopped before `exec` never reaches it —
+//! and the parent, stuck in `spawn()`, never launches the guardian that
+//! would `SIGCONT` it. A truly atomic leash would require raw
+//! `posix_spawn(POSIX_SPAWN_START_SUSPENDED)`, which `std`/`tokio`
+//! `Command` do not expose (and which would forfeit the returned
+//! `tokio::process::Child`).
 //!
 //! **Ctrl+C friendly:** the child is never detached from the console nor
 //! moved to a new process group / session, so it still receives console
@@ -93,6 +108,11 @@ pub fn spawn(
 }
 
 /// See the Linux variant. macOS launches a kqueue guardian after spawn.
+/// NOTE the accepted "arming window" documented at the module level: the
+/// child runs for the ~milliseconds it takes to launch + arm the
+/// guardian, so a force-kill of the parent in that window can orphan it.
+/// Do not attempt to suspend the child to close it — that deadlocks
+/// `spawn()` (see module docs).
 #[cfg(target_os = "macos")]
 pub fn spawn(
     cmd: &mut tokio::process::Command,
