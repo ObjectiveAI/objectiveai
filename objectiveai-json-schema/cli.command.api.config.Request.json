@@ -34,8 +34,8 @@
       "$ref": "cli.command.api.config.mcp_authorization.Request"
     },
     {
-      "title": "McpBackoff",
-      "$ref": "cli.command.api.config.mcp_backoff.Request"
+      "title": "McpTimeoutMs",
+      "$ref": "cli.command.api.config.mcp_timeout_ms.Request"
     },
     {
       "title": "UserAgent",

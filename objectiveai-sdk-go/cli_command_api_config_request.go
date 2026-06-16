@@ -16,7 +16,7 @@ type CliCommandApiConfigRequest struct {
 	OpenrouterAuthorization *CliCommandApiConfigOpenrouterAuthorizationRequest 
 	GithubAuthorization *CliCommandApiConfigGithubAuthorizationRequest 
 	McpAuthorization *CliCommandApiConfigMcpAuthorizationRequest 
-	McpBackoff *CliCommandApiConfigMcpBackoffRequest 
+	McpTimeoutMs *CliCommandApiConfigMcpTimeoutMsRequest 
 	UserAgent *CliCommandApiConfigUserAgentRequest 
 	HttpReferer *CliCommandApiConfigHttpRefererRequest 
 	XTitle *CliCommandApiConfigXTitleRequest 
@@ -49,8 +49,8 @@ func (v CliCommandApiConfigRequest) MarshalJSON() ([]byte, error) {
 	if v.McpAuthorization != nil {
 		return json.Marshal(v.McpAuthorization)
 	}
-	if v.McpBackoff != nil {
-		return json.Marshal(v.McpBackoff)
+	if v.McpTimeoutMs != nil {
+		return json.Marshal(v.McpTimeoutMs)
 	}
 	if v.UserAgent != nil {
 		return json.Marshal(v.UserAgent)
@@ -160,10 +160,10 @@ func (v *CliCommandApiConfigRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandApiConfigMcpBackoffRequest
+		var try CliCommandApiConfigMcpTimeoutMsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandApiConfigRequest{}
-			candidate.McpBackoff = &try
+			candidate.McpTimeoutMs = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -238,7 +238,7 @@ func (v CliCommandApiConfigRequest) Validate() error {
 	if v.OpenrouterAuthorization != nil { count++ }
 	if v.GithubAuthorization != nil { count++ }
 	if v.McpAuthorization != nil { count++ }
-	if v.McpBackoff != nil { count++ }
+	if v.McpTimeoutMs != nil { count++ }
 	if v.UserAgent != nil { count++ }
 	if v.HttpReferer != nil { count++ }
 	if v.XTitle != nil { count++ }

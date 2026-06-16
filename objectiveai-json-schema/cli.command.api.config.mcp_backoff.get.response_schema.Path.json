@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.api.config.mcp_backoff.get.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "api/config/mcp_backoff/get/response_schema"
-  ]
-}
