@@ -487,6 +487,12 @@ async fn handle_initialize(
             Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
                 return internal_error_response(request.id, e.to_string());
             }
+            Err(e @ BadInit::UpstreamListFailed { .. }) => {
+                // A post-connect tools/resources probe failed: the
+                // upstream accepted initialize but can't serve. Same
+                // outcome as a connect failure — the session is not viable.
+                return internal_error_response(request.id, e.to_string());
+            }
         };
         let session_id = state.sessions.add(connections_with_headers);
         // Stamp the session-global transient headers extracted from

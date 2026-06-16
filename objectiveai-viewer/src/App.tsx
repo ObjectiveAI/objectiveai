@@ -305,8 +305,6 @@ function App() {
     ...plugins.map((p) => ({ id: p.name, label: p.name })),
   ];
 
-  const activePlugin = plugins.find((p) => p.name === activeTab);
-
   if (plugins.length === 0) {
     return <ObjectiveAIView />;
   }
@@ -355,11 +353,35 @@ function App() {
           "min-h-0",
         )}
       >
-        {activeTab === OBJECTIVEAI_TAB_ID ? (
+        {/* Every pane stays mounted at all times; only the active one is
+            shown (the rest are display:none). Keeping plugin iframes
+            mounted means their JS keeps running and the bridge keeps
+            their per-plugin Tauri subscription alive, so a plugin
+            receives its `viewer_routes` notifications regardless of
+            which tab is focused. */}
+        <div
+          className={cn(
+            "flex-col",
+            "flex-1",
+            "min-h-0",
+            activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
+          )}
+        >
           <ObjectiveAIView />
-        ) : activePlugin ? (
-          <PluginPane info={activePlugin} />
-        ) : null}
+        </div>
+        {plugins.map((p) => (
+          <div
+            key={p.name}
+            className={cn(
+              "flex-col",
+              "flex-1",
+              "min-h-0",
+              activeTab === p.name ? "flex" : "hidden",
+            )}
+          >
+            <PluginPane info={p} />
+          </div>
+        ))}
         {isPanelOpen && (
           <RightOverlayPanel
             panelTabs={panelTabs}

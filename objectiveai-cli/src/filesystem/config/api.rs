@@ -38,6 +38,17 @@ pub struct ApiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub commit_author_email: Option<String>,
+    /// MCP timeout override, in milliseconds. One value, fanned out to
+    /// the connect timeout, the per-call timeout, AND the backoff
+    /// max-elapsed-time of every MCP client this CLI drives (its
+    /// streaming conduit) and projected onto the spawned API's `MCP_*`
+    /// env (which in turn drives the proxy it spawns). `None` ⇒ the
+    /// canonical default (60000ms). The other exponential-backoff knobs
+    /// (intervals / randomization / multiplier) keep their built-in
+    /// defaults.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_timeout_ms: Option<u64>,
 }
 
 impl ApiConfig {
@@ -52,6 +63,7 @@ impl ApiConfig {
             && self.x_title.is_none()
             && self.commit_author_name.is_none()
             && self.commit_author_email.is_none()
+            && self.mcp_timeout_ms.is_none()
     }
 
     pub fn is_none(this: &Option<Self>) -> bool {
@@ -142,6 +154,13 @@ impl ApiConfig {
     }
     pub fn set_commit_author_email(&mut self, value: impl Into<String>) {
         self.commit_author_email = Some(value.into());
+    }
+
+    pub fn get_mcp_timeout_ms(&self) -> Option<u64> {
+        self.mcp_timeout_ms
+    }
+    pub fn set_mcp_timeout_ms(&mut self, value: u64) {
+        self.mcp_timeout_ms = Some(value);
     }
 
     pub fn jq(

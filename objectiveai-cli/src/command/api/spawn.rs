@@ -88,12 +88,31 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.bin_dir().join("locks");
 
+    // Project the configured `api.mcp_timeout_ms` onto the spawned api's
+    // env — but ONLY when the user explicitly set it. The single value
+    // fans out to the connect timeout, the per-call timeout, and the
+    // backoff max-elapsed-time (the api forwards these to the proxy it
+    // spawns, so it drives every server-side MCP connection too). The
+    // keys are scrubbed above, so when `mcp_timeout_ms` is unset we leave
+    // them unset and the api resolves them itself (`<OBJECTIVEAI_DIR>/
+    // .env`, then its built-in default) — identical to passing the
+    // canonical default in production, and it preserves the test `.env`'s
+    // `MCP_BACKOFF_*=0` fast-fail on the shared (machine-wide,
+    // first-spawn-wins) api. See `Context::resolve_mcp_timeout_ms_opt`.
+    let timeout_ms = ctx.resolve_mcp_timeout_ms_opt().await?;
+
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
         for key in API_CONFIG_ENV {
             cmd.env_remove(key);
         }
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("SUPPRESS_OUTPUT", "true");
+        if let Some(timeout_ms) = timeout_ms {
+            let v = timeout_ms.to_string();
+            cmd.env("MCP_CONNECT_TIMEOUT", &v)
+                .env("MCP_CALL_TIMEOUT", &v)
+                .env("MCP_BACKOFF_MAX_ELAPSED_TIME", &v);
+        }
     })
     .await
 }

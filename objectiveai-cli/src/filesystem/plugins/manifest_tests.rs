@@ -1,5 +1,5 @@
 use super::*;
-use crate::filesystem::tools::{CliZip, Exec};
+use crate::filesystem::tools::{CliZip, CliZipArch, Exec};
 
 /// A minimal valid manifest: every required field set, no viewer/mcp
 /// extras. Tests below clone this and override the fields they care
@@ -54,9 +54,18 @@ fn manifest_field_order() {
     let m = Manifest {
         exec: full_exec(),
         cli_zip: CliZip {
-            windows: Some("w.zip".to_string()),
-            linux: Some("l.zip".to_string()),
-            macos: Some("m.zip".to_string()),
+            windows: CliZipArch {
+                x86_64: Some("w.zip".to_string()),
+                ..Default::default()
+            },
+            linux: CliZipArch {
+                x86_64: Some("l.zip".to_string()),
+                ..Default::default()
+            },
+            macos: CliZipArch {
+                x86_64: Some("m.zip".to_string()),
+                ..Default::default()
+            },
         },
         ..base_manifest()
     };
@@ -109,9 +118,18 @@ fn manifest_with_exec_and_cli_zip_roundtrip() {
     let m = Manifest {
         exec: full_exec(),
         cli_zip: CliZip {
-            windows: Some("psyops-cli-win.zip".to_string()),
-            linux: Some("psyops-cli-linux.zip".to_string()),
-            macos: Some("psyops-cli-mac.zip".to_string()),
+            windows: CliZipArch {
+                x86_64: Some("psyops-cli-win.zip".to_string()),
+                ..Default::default()
+            },
+            linux: CliZipArch {
+                x86_64: Some("psyops-cli-linux.zip".to_string()),
+                ..Default::default()
+            },
+            macos: CliZipArch {
+                x86_64: Some("psyops-cli-mac.zip".to_string()),
+                ..Default::default()
+            },
         },
         ..base_manifest()
     };
@@ -121,9 +139,9 @@ fn manifest_with_exec_and_cli_zip_roundtrip() {
     assert_eq!(back.exec.windows, vec!["./psyops.exe", "--serve"]);
     assert_eq!(back.exec.linux, vec!["./psyops", "--serve"]);
     assert_eq!(back.exec.macos, vec!["./psyops", "--serve"]);
-    assert_eq!(back.cli_zip.windows.as_deref(), Some("psyops-cli-win.zip"));
-    assert_eq!(back.cli_zip.linux.as_deref(), Some("psyops-cli-linux.zip"));
-    assert_eq!(back.cli_zip.macos.as_deref(), Some("psyops-cli-mac.zip"));
+    assert_eq!(back.cli_zip.windows.x86_64.as_deref(), Some("psyops-cli-win.zip"));
+    assert_eq!(back.cli_zip.linux.x86_64.as_deref(), Some("psyops-cli-linux.zip"));
+    assert_eq!(back.cli_zip.macos.x86_64.as_deref(), Some("psyops-cli-mac.zip"));
 }
 
 #[test]
@@ -168,33 +186,35 @@ fn manifest_deserializes_exec_and_cli_zip_objects() {
             "macos": ["./plugin"]
         },
         "cli_zip": {
-            "windows": "cli-win.zip",
-            "linux": "cli-linux.zip",
-            "macos": "cli-mac.zip"
+            "windows": { "x86_64": "cli-win.zip" },
+            "linux": { "x86_64": "cli-linux.zip" },
+            "macos": { "x86_64": "cli-mac.zip" }
         }
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert_eq!(m.exec.windows, vec!["./plugin.exe"]);
     assert_eq!(m.exec.linux, vec!["./plugin"]);
     assert_eq!(m.exec.macos, vec!["./plugin"]);
-    assert_eq!(m.cli_zip.windows.as_deref(), Some("cli-win.zip"));
-    assert_eq!(m.cli_zip.linux.as_deref(), Some("cli-linux.zip"));
-    assert_eq!(m.cli_zip.macos.as_deref(), Some("cli-mac.zip"));
+    assert_eq!(m.cli_zip.windows.x86_64.as_deref(), Some("cli-win.zip"));
+    assert_eq!(m.cli_zip.linux.x86_64.as_deref(), Some("cli-linux.zip"));
+    assert_eq!(m.cli_zip.macos.x86_64.as_deref(), Some("cli-mac.zip"));
 }
 
 #[test]
 fn manifest_cli_zip_per_os_optional() {
-    // The cli_zip field is required, but each per-OS entry is optional:
-    // a partial cli_zip parses, with the missing platforms as `None`.
+    // The cli_zip field is required, but each per-OS and per-arch entry
+    // is optional: a partial cli_zip parses, with the missing
+    // platforms/arches as `None`.
     let json = serde_json::json!({
         "owner": "w", "name": "p", "version": "1.0.0", "description": "x",
         "exec": { "windows": [], "linux": [], "macos": [] },
-        "cli_zip": { "linux": "cli-linux.zip" }
+        "cli_zip": { "linux": { "x86_64": "cli-linux.zip" } }
     });
     let m: Manifest = serde_json::from_value(json).unwrap();
-    assert!(m.cli_zip.windows.is_none());
-    assert_eq!(m.cli_zip.linux.as_deref(), Some("cli-linux.zip"));
-    assert!(m.cli_zip.macos.is_none());
+    assert!(m.cli_zip.windows.is_empty());
+    assert_eq!(m.cli_zip.linux.x86_64.as_deref(), Some("cli-linux.zip"));
+    assert!(m.cli_zip.linux.aarch64.is_none());
+    assert!(m.cli_zip.macos.is_empty());
 }
 
 #[test]
@@ -467,7 +487,10 @@ fn manifest_converts_to_sdk_response_manifest() {
         exec: full_exec(),
         // On-disk-only fields — the projection drops these.
         cli_zip: CliZip {
-            windows: Some("psyops-cli.zip".to_string()),
+            windows: CliZipArch {
+                x86_64: Some("psyops-cli.zip".to_string()),
+                ..Default::default()
+            },
             ..Default::default()
         },
         viewer_zip: Some("v.zip".to_string()),

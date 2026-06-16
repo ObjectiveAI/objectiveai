@@ -37,15 +37,19 @@ fn request_id_key(id: &serde_json::Value) -> String {
 /// [`crate::session_manager`]).
 #[derive(Debug)]
 pub struct Session {
-    /// Live upstream MCP connections keyed by their
-    /// `initialize_result.server_info.name`. The key is the same string the
-    /// proxy uses as the `<server-name>_` prefix on every tool name and
-    /// resource URI it ships, so routing inbound `tools/call` /
-    /// `resources/read` is just a longest-prefix-match lookup against this
-    /// map's keys — no side-channel cache to keep coherent.
+    /// Live upstream MCP connections keyed by their **routing prefix** — a
+    /// `_`- and `.`-free token derived from the upstream's
+    /// `server_info.name` (with `-{version}` / `-{index}` escalation on
+    /// collision; see [`crate::session_manager::build_prefix_map`]). The key
+    /// is the same string the proxy uses as the `<prefix>_` prefix on every
+    /// tool name and resource URI it ships, so routing inbound `tools/call`
+    /// / `resources/read` is a split-on-first-`_` plus direct map lookup —
+    /// no longest-prefix scan, no side-channel cache to keep coherent.
     ///
-    /// Insertion order matches the order URLs appeared in `X-MCP-Servers`,
-    /// so listings are deterministic.
+    /// Built once at construction and never mutated. Insertion order is
+    /// url-sorted (so fresh and resumed sessions agree on prefixes);
+    /// `list_tools` / `list_resources` sort their output by name/URI
+    /// independently, so insertion order doesn't affect listings.
     ///
     /// `Connection` is itself a cheaply-clonable Arc wrapper; dropping a
     /// `Connection` fires the upstream listener's wakeup signal so it can
@@ -357,32 +361,20 @@ impl Session {
         Ok(r?)
     }
 
-    /// Resolve a `<server-name>_<original>` prefixed identifier to the
-    /// owning connection and the original (un-prefixed) name the upstream
-    /// actually knows.
+    /// Resolve a `<prefix>_<original>` identifier to the owning connection
+    /// and the original (un-prefixed) name the upstream actually knows.
     ///
-    /// Server names that contain `_` are supported via longest-prefix
-    /// match: if both `fs` and `fs_extra` are connected and the inbound
-    /// name is `fs_extra_Read`, the `fs_extra` upstream wins.
+    /// Routing prefixes are built `_`-free (see
+    /// [`crate::session_manager::build_prefix_map`]), so the **first** `_`
+    /// is always the prefix/original boundary — split once, look the prefix
+    /// up in the fixed map. The original part is forwarded verbatim; it is
+    /// NOT checked against the upstream's tool/resource list, so resource
+    /// templates and otherwise-unlisted names still pass through. A missing
+    /// `_`, or a prefix not in the map, yields `None`.
     fn route<'a>(&'a self, prefixed: &str) -> Option<(&'a Connection, String)> {
-        let mut best: Option<(&'a str, &'a Connection)> = None;
-        for (name, conn) in &self.connections {
-            // Need at least one char after the `_` to count as a real prefix
-            // hit (otherwise an exact match `name == prefixed` would route
-            // to an empty original name).
-            if prefixed.len() > name.len() + 1
-                && prefixed.as_bytes()[name.len()] == b'_'
-                && prefixed.starts_with(name.as_str())
-            {
-                if best.map(|(b, _)| name.len() > b.len()).unwrap_or(true) {
-                    best = Some((name.as_str(), conn));
-                }
-            }
-        }
-        best.map(|(name, conn)| {
-            let original = prefixed[name.len() + 1..].to_string();
-            (conn, original)
-        })
+        let (prefix, rest) = prefixed.split_once('_')?;
+        let connection = self.connections.get(prefix)?;
+        Some((connection, rest.to_string()))
     }
 }
 

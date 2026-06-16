@@ -2,6 +2,7 @@
 //! connect over the resulting upstream specs.
 
 use axum::http::HeaderMap;
+use futures::TryFutureExt;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
 use objectiveai_sdk::mcp::{Client, Connection};
@@ -43,6 +44,19 @@ pub enum BadInit {
         url: String,
         #[source]
         source: objectiveai_sdk::mcp::Error,
+    },
+    /// An upstream's `initialize` handshake succeeded but a post-connect
+    /// health probe (`tools/list` or `resources/list`) failed — the
+    /// upstream accepted the connection but can't actually serve. Treated
+    /// identically to a connect failure: the whole `initialize` fails.
+    /// `kind` is `"tools"` or `"resources"`. No `#[source]` attribute:
+    /// `Arc<Error>` doesn't impl `std::error::Error`, so the cause is
+    /// folded into the Display message via the `Arc`'s deref.
+    #[error("upstream {kind} list failed for {url}: {source}")]
+    UpstreamListFailed {
+        url: String,
+        kind: &'static str,
+        source: std::sync::Arc<objectiveai_sdk::mcp::Error>,
     },
 }
 
@@ -134,6 +148,24 @@ pub async fn connect_all_fresh(
                 url: url.clone(),
                 source,
             })?;
+            // Health probe: the upstream must list both its tools and its
+            // resources before we count it as connected. Run concurrently;
+            // `try_join!` short-circuits on the first failure. `list_tools` /
+            // `list_resources` return `Ok(empty)` when the matching
+            // capability is absent, so a capability-less server passes and
+            // only a genuine RPC/transport error fails the init.
+            tokio::try_join!(
+                conn.list_tools().map_err(|source| BadInit::UpstreamListFailed {
+                    url: url.clone(),
+                    kind: "tools",
+                    source,
+                }),
+                conn.list_resources().map_err(|source| BadInit::UpstreamListFailed {
+                    url: url.clone(),
+                    kind: "resources",
+                    source,
+                }),
+            )?;
             let payload_headers =
                 build_canonical_headers(&headers_for_payload, &conn.session_id);
             Ok::<_, BadInit>((conn, payload_headers))
@@ -178,6 +210,20 @@ pub async fn reconnect_from_payload(
                 url: url.clone(),
                 source,
             })?;
+            // Same post-connect health probe as the fresh path: a resumed
+            // upstream must still list its tools and resources.
+            tokio::try_join!(
+                conn.list_tools().map_err(|source| BadInit::UpstreamListFailed {
+                    url: url.clone(),
+                    kind: "tools",
+                    source,
+                }),
+                conn.list_resources().map_err(|source| BadInit::UpstreamListFailed {
+                    url: url.clone(),
+                    kind: "resources",
+                    source,
+                }),
+            )?;
             let canonical = build_canonical_headers(&payload_headers, &conn.session_id);
             Ok::<_, BadInit>((conn, canonical))
         }

@@ -37,12 +37,17 @@ fn exec_json() -> serde_json::Value {
     })
 }
 
-/// The per-OS `cli_zip` object the mock manifests declare — every
-/// platform points at the same `cli.zip` asset so the install fetches
-/// it regardless of which host OS the test runs on. The `cli_zip`
-/// field is required; each per-OS entry is optional.
+/// The per-OS/arch `cli_zip` object the mock manifests declare — every
+/// platform+arch points at the same `cli.zip` asset so the install
+/// fetches it regardless of which host OS *and* CPU arch the test runs
+/// on. The `cli_zip` field is required; each per-OS and per-arch entry
+/// is optional.
 fn cli_zip_json() -> serde_json::Value {
-    json!({ "windows": "cli.zip", "linux": "cli.zip", "macos": "cli.zip" })
+    json!({
+        "windows": { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+        "linux":   { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+        "macos":   { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+    })
 }
 
 /// Build a minimal in-memory zip containing one file.
@@ -126,9 +131,9 @@ async fn install_succeeds_and_extracts_cli_zip() {
             .unwrap();
     assert_eq!(persisted.owner, "claimed-owner");
     assert_eq!(persisted.name, "repo");
-    assert_eq!(persisted.cli_zip.windows.as_deref(), Some("cli.zip"));
-    assert_eq!(persisted.cli_zip.linux.as_deref(), Some("cli.zip"));
-    assert_eq!(persisted.cli_zip.macos.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.windows.x86_64.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.linux.x86_64.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.macos.x86_64.as_deref(), Some("cli.zip"));
     assert_eq!(persisted.exec.windows, vec!["./plugin.exe"]);
     assert_eq!(persisted.exec.linux, vec!["./plugin"]);
     assert_eq!(persisted.exec.macos, vec!["./plugin"]);
@@ -463,7 +468,7 @@ async fn fetch_plugin_manifest_returns_parsed_manifest() {
     assert_eq!(manifest.owner, "claimed-owner");
     assert_eq!(manifest.name, "repo");
     assert_eq!(manifest.exec.linux, vec!["./plugin"]);
-    assert_eq!(manifest.cli_zip.windows.as_deref(), Some("cli.zip"));
+    assert_eq!(manifest.cli_zip.windows.x86_64.as_deref(), Some("cli.zip"));
 
     cleanup(&base);
 }

@@ -1,6 +1,6 @@
 use super::super::Client;
 use super::Manifest;
-use crate::filesystem::tools::{CliZip, Exec};
+use crate::filesystem::tools::{CliZip, CliZipArch, Exec};
 
 fn fresh_base_dir() -> std::path::PathBuf {
     let d = std::env::temp_dir()
@@ -54,9 +54,18 @@ fn exec_manifest(owner: &str, name: &str, version: &str) -> Manifest {
             macos: vec!["./plugin".to_string(), "--macos".to_string()],
         },
         cli_zip: CliZip {
-            windows: Some("cli-win.zip".to_string()),
-            linux: Some("cli-linux.zip".to_string()),
-            macos: Some("cli-mac.zip".to_string()),
+            windows: CliZipArch {
+                x86_64: Some("cli-win.zip".to_string()),
+                ..Default::default()
+            },
+            linux: CliZipArch {
+                x86_64: Some("cli-linux.zip".to_string()),
+                ..Default::default()
+            },
+            macos: CliZipArch {
+                x86_64: Some("cli-mac.zip".to_string()),
+                ..Default::default()
+            },
         },
         viewer_zip: None,
         viewer_url: None,

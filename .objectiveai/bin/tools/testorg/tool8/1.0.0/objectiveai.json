@@ -5,28 +5,13 @@
   "description": "Counter tool 8",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "count-tool",
-      "--"
+      "../../../../../../../target/debug/count-tool.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "count-tool",
-      "--"
+      "../../../../../../../target/debug/count-tool"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "count-tool",
-      "--"
+      "../../../../../../../target/debug/count-tool"
     ]
   },
   "cli_zip": {}

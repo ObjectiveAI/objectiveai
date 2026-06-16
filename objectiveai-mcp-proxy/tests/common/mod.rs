@@ -34,6 +34,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 #[derive(Debug, Clone)]
 pub struct UpstreamSpec {
     pub server_name: String,
+    pub server_version: String,
     pub initial_tools: Vec<TestTool>,
     pub initial_resources: Vec<TestResource>,
     pub require_auth: Option<String>,
@@ -44,11 +45,20 @@ impl UpstreamSpec {
     pub fn new(server_name: impl Into<String>) -> Self {
         Self {
             server_name: server_name.into(),
+            // Stable, version-independent default so non-collision tests
+            // don't depend on the crate version. Collision tests set this
+            // explicitly via `with_server_version`.
+            server_version: "0".to_string(),
             initial_tools: Vec::new(),
             initial_resources: Vec::new(),
             require_auth: None,
             header_gate: None,
         }
+    }
+
+    pub fn with_server_version(mut self, value: impl Into<String>) -> Self {
+        self.server_version = value.into();
+        self
     }
 
     pub fn with_tools(mut self, tools: Vec<TestTool>) -> Self {
@@ -131,6 +141,20 @@ impl TestRig {
         &self,
         custom_headers: HashMap<&str, String>,
     ) -> RunningService<rmcp::RoleClient, rmcp::model::ClientInfo> {
+        self.try_connect_client(custom_headers)
+            .await
+            .expect("client serve")
+    }
+
+    /// Like [`Self::connect_client`] but returns the `Result` instead of
+    /// expecting success, so a test can assert the proxy's `initialize`
+    /// FAILED (e.g. because the post-connect tools/resources health probe
+    /// rejected an upstream). The proxy renders the failure as an HTTP-200
+    /// JSON-RPC error, which rmcp's `serve` surfaces as an `Err`.
+    pub async fn try_connect_client(
+        &self,
+        custom_headers: HashMap<&str, String>,
+    ) -> Result<RunningService<rmcp::RoleClient, rmcp::model::ClientInfo>, String> {
         use reqwest::header::{HeaderName, HeaderValue};
 
         let mut headers: HashMap<HeaderName, HeaderValue> = HashMap::new();
@@ -149,7 +173,37 @@ impl TestRig {
         client_info_for_proxy()
             .serve(transport)
             .await
-            .expect("client serve")
+            .map_err(|e| format!("{e:?}"))
+    }
+
+    /// Hit a test upstream's `POST /__test/set-list-failure` endpoint to
+    /// make its `tools/list` and/or `resources/list` return a JSON-RPC
+    /// error while `initialize` still succeeds. Call BEFORE connecting a
+    /// client (the proxy dials the upstream during the client's
+    /// `initialize`).
+    pub async fn set_upstream_list_failure(
+        &self,
+        idx: usize,
+        fail_tools_list: bool,
+        fail_resources_list: bool,
+    ) {
+        #[derive(Serialize)]
+        struct Body {
+            fail_tools_list: bool,
+            fail_resources_list: bool,
+        }
+        let url = format!("{}/set-list-failure", self.upstreams[idx].control_base);
+        let resp = reqwest::Client::new()
+            .post(&url)
+            .json(&Body { fail_tools_list, fail_resources_list })
+            .send()
+            .await
+            .expect("control POST");
+        assert!(
+            resp.status().is_success(),
+            "set-list-failure failed: {}",
+            resp.status()
+        );
     }
 
     /// Hit a test upstream's `POST /__test/set-tools` endpoint to swap
@@ -209,6 +263,7 @@ pub async fn spawn_upstream(spec: UpstreamSpec) -> Upstream {
     cmd.env("ADDRESS", "127.0.0.1")
         .env("PORT", port.to_string())
         .env("SERVER_NAME", &spec.server_name)
+        .env("SERVER_VERSION", &spec.server_version)
         .env(
             "INITIAL_TOOLS_JSON",
             serde_json::to_string(&spec.initial_tools).unwrap(),

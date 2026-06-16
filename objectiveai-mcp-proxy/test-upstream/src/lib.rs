@@ -55,6 +55,10 @@ pub struct Config {
     pub address: SocketAddr,
     /// Value placed in `initialize_result.server_info.name`.
     pub server_name: String,
+    /// Value placed in `initialize_result.server_info.version`. Lets tests
+    /// exercise the proxy's version-based prefix disambiguation
+    /// deterministically (two same-name upstreams with different versions).
+    pub server_version: String,
     /// Initial set of tools to advertise. Replaceable at runtime via
     /// the `/__test/set-tools` endpoint.
     pub initial_tools: Vec<TestTool>,
@@ -124,6 +128,12 @@ struct UpstreamState {
     /// Headers received on the most recent MCP POST. Tests assert against
     /// this via `GET /__test/seen-headers`.
     last_seen_headers: HashMap<String, String>,
+    /// Test knobs: when set, `tools/list` / `resources/list` return a
+    /// JSON-RPC error even though `initialize` succeeded — the
+    /// "connected but can't serve" case the proxy's post-connect health
+    /// probe guards against. Toggled via `POST /__test/set-list-failure`.
+    fail_tools_list: bool,
+    fail_resources_list: bool,
 }
 
 #[derive(Clone)]
@@ -150,6 +160,8 @@ pub async fn spawn_test_upstream(config: Config) -> anyhow::Result<Handle> {
             resources: config.initial_resources.clone(),
             sessions: HashMap::new(),
             last_seen_headers: HashMap::new(),
+            fail_tools_list: false,
+            fail_resources_list: false,
         })),
         in_flight: Arc::new(DashMap::new()),
     };
@@ -161,6 +173,7 @@ pub async fn spawn_test_upstream(config: Config) -> anyhow::Result<Handle> {
         )
         .route("/__test/set-tools", post(set_tools_endpoint))
         .route("/__test/set-resources", post(set_resources_endpoint))
+        .route("/__test/set-list-failure", post(set_list_failure_endpoint))
         .route("/__test/seen-headers", get(seen_headers_endpoint))
         .with_state(app_state);
 
@@ -252,7 +265,7 @@ async fn initialize(app: &AppState, request: JsonRpcRequest) -> Response {
         server_info: Implementation {
             name: app.config.server_name.clone(),
             title: None,
-            version: env!("CARGO_PKG_VERSION").into(),
+            version: app.config.server_version.clone(),
             website_url: None,
             description: None,
             icons: None,
@@ -284,6 +297,13 @@ fn ping(request: JsonRpcRequest) -> Response {
 }
 
 async fn tools_list(app: &AppState, request: JsonRpcRequest) -> Response {
+    if app.state.read().await.fail_tools_list {
+        return jsonrpc_error_response(
+            request.id,
+            -32603,
+            "tools/list failure injected".into(),
+        );
+    }
     let tools: Vec<Tool> = app
         .state
         .read()
@@ -381,6 +401,13 @@ async fn run_tool_behavior(
 }
 
 async fn resources_list(app: &AppState, request: JsonRpcRequest) -> Response {
+    if app.state.read().await.fail_resources_list {
+        return jsonrpc_error_response(
+            request.id,
+            -32603,
+            "resources/list failure injected".into(),
+        );
+    }
     let resources: Vec<Resource> = app
         .state
         .read()
@@ -546,6 +573,27 @@ async fn set_resources_endpoint(
             let _ = tx.send(notification.clone());
         }
     }
+    StatusCode::OK.into_response()
+}
+
+#[derive(Debug, Deserialize)]
+struct SetListFailureBody {
+    #[serde(default)]
+    fail_tools_list: bool,
+    #[serde(default)]
+    fail_resources_list: bool,
+}
+
+/// Toggle injected `tools/list` / `resources/list` failures. `initialize`
+/// still succeeds; only the list calls error. Lets a test exercise the
+/// proxy's post-connect health probe.
+async fn set_list_failure_endpoint(
+    State(app): State<AppState>,
+    Json(body): Json<SetListFailureBody>,
+) -> Response {
+    let mut state = app.state.write().await;
+    state.fail_tools_list = body.fail_tools_list;
+    state.fail_resources_list = body.fail_resources_list;
     StatusCode::OK.into_response()
 }
 

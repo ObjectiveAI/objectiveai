@@ -109,23 +109,28 @@ impl ConduitMcpHandler {
         mcp_server: crate::websockets::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
         agent_tag: Option<String>,
+        backoff: objectiveai_sdk::mcp::Backoff,
     ) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
+        // Timeouts + backoff come from the resolved `api.mcp_backoff` config
+        // (or its default) so the CLI's single MCP client matches the
+        // api/proxy and tests can dial it down to fail deterministic errors
+        // fast.
         let client = objectiveai_sdk::mcp::Client::new(
             http,
             "objectiveai-cli-stream-conduit".to_string(),
             String::new(),
             String::new(),
-            Duration::from_secs(60),
-            Duration::from_secs(1),
-            Duration::from_secs(1),
-            0.5,
-            2.0,
-            Duration::from_secs(30),
-            Duration::from_secs(30),
-            Duration::from_secs(60),
+            Duration::from_millis(backoff.connect_timeout_ms),
+            Duration::from_millis(backoff.current_interval_ms),
+            Duration::from_millis(backoff.initial_interval_ms),
+            backoff.randomization_factor,
+            backoff.multiplier,
+            Duration::from_millis(backoff.max_interval_ms),
+            Duration::from_millis(backoff.max_elapsed_time_ms),
+            Duration::from_millis(backoff.call_timeout_ms),
         );
         Self {
             inner: Arc::new(Inner {
@@ -350,6 +355,7 @@ async fn dispatch_initialize(
                 .map_err(|e| format!("connect: {e}"))
         }
         McpKind::Other { owner, name, version, mcp } => {
+            let connect_headers = sanitize_connect_headers(headers);
             dial_plugin_upstream(
                 inner,
                 owner.clone(),
@@ -358,6 +364,7 @@ async fn dispatch_initialize(
                 mcp.clone(),
                 init.args,
                 &transient,
+                connect_headers,
                 stored_session_id,
             )
             .await
@@ -796,6 +803,15 @@ where
 /// ever emitting an Mcp, the oneshot sender drops and we surface
 /// that as a `PluginDialFailed`.
 ///
+/// `connect_headers` is the sanitized inbound header set (see
+/// [`sanitize_connect_headers`]) forwarded verbatim onto the upstream
+/// handshake, so the plugin's MCP server receives the six
+/// `X-OBJECTIVEAI-*` transient headers (notably
+/// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`) on `initialize` and every
+/// later RPC — parity with the `McpKind::ObjectiveAi` dial path. The
+/// `transient` struct (the parsed subset) is still stamped into the
+/// spawned subprocess's env so it can re-stamp them downstream.
+///
 /// Owner / version are carried through for diagnostic readability +
 /// future versioning; today's filesystem layer looks up plugins by
 /// `name` alone. The `mcp` field discriminates which of the plugin
@@ -809,6 +825,7 @@ async fn dial_plugin_upstream(
     mcp_name: String,
     args: IndexMap<String, Option<String>>,
     transient: &TransientHeaders,
+    connect_headers: IndexMap<String, String>,
     stored_session_id: Option<String>,
 ) -> Result<objectiveai_sdk::mcp::Connection, ConduitError> {
     let fail = |reason: String| ConduitError::PluginDialFailed {
@@ -893,9 +910,13 @@ async fn dial_plugin_upstream(
         .await
         .map_err(|_| fail("plugin exited without emitting mcp{url}".into()))?;
 
+    // Forward the sanitized inbound headers on the handshake so the
+    // plugin's MCP server gets the six X-OBJECTIVEAI-* transient
+    // headers (incl. AGENT-INSTANCE-HIERARCHY) on initialize + every
+    // later RPC — parity with the McpKind::ObjectiveAi dial.
     let connection = inner
         .client
-        .connect(mcp.url, stored_session_id, None)
+        .connect(mcp.url, stored_session_id, Some(connect_headers))
         .await
         .map_err(|e| fail(format!("connect: {e}")))?;
 

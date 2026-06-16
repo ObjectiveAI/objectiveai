@@ -5,22 +5,13 @@
   "description": "test fixture",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-foo-headers.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-foo-headers"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-foo-headers"
     ]
   },
   "cli_zip": {},

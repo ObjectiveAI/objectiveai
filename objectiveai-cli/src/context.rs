@@ -129,6 +129,49 @@ impl Context {
         Ok(build_http_client(&self.config, &mut config, address))
     }
 
+    /// The MCP [`Backoff`](objectiveai_sdk::mcp::Backoff) bundle this CLI
+    /// process uses for ALL of its own MCP clients (the streaming
+    /// conduit, through which every CLI MCP connection flows). Built from
+    /// the single merged (`--final`) `api.mcp_timeout_ms` config value
+    /// (default 60000ms): that value sets the connect timeout, the
+    /// per-call timeout, AND the backoff max-elapsed-time; the remaining
+    /// exponential-backoff knobs keep [`Backoff::default`]'s values.
+    /// Callers that need to distinguish "configured" from "unset" (the
+    /// api spawn) use [`Self::resolve_mcp_timeout_ms_opt`] instead.
+    pub async fn resolve_mcp_backoff(
+        &self,
+    ) -> Result<objectiveai_sdk::mcp::Backoff, crate::error::Error> {
+        let timeout_ms = self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000);
+        Ok(objectiveai_sdk::mcp::Backoff {
+            connect_timeout_ms: timeout_ms,
+            call_timeout_ms: timeout_ms,
+            max_elapsed_time_ms: timeout_ms,
+            ..Default::default()
+        })
+    }
+
+    /// The configured `api.mcp_timeout_ms`, or `None` when unset —
+    /// preserving the distinction [`Self::resolve_mcp_backoff`] erases.
+    ///
+    /// The api spawn uses this to project the `MCP_*` timeout env onto
+    /// the spawned (machine-wide, shared) server ONLY when the user
+    /// explicitly set a timeout. Leaving it unset lets the api resolve it
+    /// itself — `<OBJECTIVEAI_DIR>/.env`, then its built-in default. That
+    /// fallback is behaviorally identical to passing the canonical
+    /// default in production, and it's what the test `.env` (which sets
+    /// `MCP_BACKOFF_*=0` to fast-fail real MCP errors instead of masking
+    /// them with retry storms) relies on: unconditionally setting the
+    /// default here would clobber that `0` on the shared api.
+    pub async fn resolve_mcp_timeout_ms_opt(
+        &self,
+    ) -> Result<Option<u64>, crate::error::Error> {
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        Ok(config.api().get_mcp_timeout_ms())
+    }
+
     /// The synchronous-response viewer client, built on first use and
     /// memoized.
     ///

@@ -40,10 +40,15 @@ fn exec_json() -> serde_json::Value {
     })
 }
 
-/// Per-OS `cli_zip` pointing every platform at the same `cli.zip`, so
-/// the install fetches it regardless of the host OS the test runs on.
+/// Per-OS/arch `cli_zip` pointing every platform at the same `cli.zip`,
+/// so the install fetches it regardless of the host OS *and* CPU arch the
+/// test runs on.
 fn cli_zip_json() -> serde_json::Value {
-    json!({ "windows": "cli.zip", "linux": "cli.zip", "macos": "cli.zip" })
+    json!({
+        "windows": { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+        "linux":   { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+        "macos":   { "x86_64": "cli.zip", "aarch64": "cli.zip" },
+    })
 }
 
 fn build_zip(file_name: &str, contents: &str) -> Vec<u8> {
@@ -126,7 +131,7 @@ async fn install_tool_succeeds_and_extracts_cli_zip() {
     .unwrap();
     assert_eq!(persisted.owner, "claimed-owner");
     assert_eq!(persisted.name, "repo");
-    assert_eq!(persisted.cli_zip.linux.as_deref(), Some("cli.zip"));
+    assert_eq!(persisted.cli_zip.linux.x86_64.as_deref(), Some("cli.zip"));
 
     // Reads back through get_tool.
     let got = client.get_tool("owner", "repo", "1.0.0").await;
@@ -315,7 +320,7 @@ async fn fetch_tool_manifest_returns_parsed() {
     assert_eq!(manifest.owner, "claimed-owner");
     assert_eq!(manifest.name, "repo");
     assert_eq!(manifest.version, "2.3.4");
-    assert_eq!(manifest.cli_zip.windows.as_deref(), Some("cli.zip"));
+    assert_eq!(manifest.cli_zip.windows.x86_64.as_deref(), Some("cli.zip"));
 
     cleanup(&base);
 }
