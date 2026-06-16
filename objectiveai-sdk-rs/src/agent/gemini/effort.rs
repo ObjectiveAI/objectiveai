@@ -5,7 +5,8 @@ use serde::{Deserialize, Serialize};
 
 /// The effort level for model output.
 ///
-/// This setting hints to the model how detailed its responses should be.
+/// This setting hints to the model how much reasoning effort to spend
+/// before responding.
 ///
 /// `Medium` is the default and is normalized to `None` during preparation
 /// for content-addressing stability.

@@ -1,44 +1,57 @@
-//! Translates the upstream's [`Message`] / [`ContinuationItem`] inputs
-//! into the runner's `messages` list (the full conversation), plus
-//! materializes any image attachments as data URLs the runner can
-//! consume.
+//! Translates the canonical agent-completions [`Message`] /
+//! [`ContinuationItem`] inputs into the runner's `messages` list (the
+//! full conversation in the runner's own wire shape), plus materializes
+//! any image attachments as data URLs the runner can consume.
 //!
 //! The gemini runner is STATELESS: it receives the FULL conversation on
-//! every `run` request and holds no session. So the prompt builder
-//! produces the complete `messages` list = prior continuation history
-//! (`request_continuation.messages`) followed by this turn's messages
-//! (the merged `messages` argument + continuation `UserMessage` /
-//! `ToolMessage` items). The list is also returned as the new history
-//! for the response continuation.
+//! every `run` request and holds no session. The public continuation
+//! persists the conversation as canonical
+//! [`completions::message::Message`]s; this builder replays that prior
+//! history (`request_continuation.messages`) followed by this turn's
+//! messages (the merged `messages` argument + continuation `UserMessage`
+//! / `ToolMessage` items), translating each canonical message into the
+//! runner's wire [`super::Message`] shape.
 //!
-//! Mapping of SDK message roles → runner message roles:
+//! [`Prompt::new`] returns both:
+//! - `messages`: the runner-wire conversation sent on the request, and
+//! - `canonical_history`: the same conversation in the canonical shape
+//!   (prior history + this turn's inputs), which the client extends with
+//!   the model turn it produces and stores as the new continuation
+//!   history.
+//!
+//! Mapping of canonical message roles → runner message roles:
 //! - `System` / `Developer` → folded into a single leading
 //!   `system_prompt` string (the runner has a dedicated
 //!   `system_instruction`); not emitted as `messages` items.
 //! - `User` → runner `user` message with text / image parts.
 //! - `Assistant` → runner `model` message (text parts + tool_calls).
 //! - `Tool` → runner `tool` message.
-
-use serde::{Deserialize, Serialize};
+//!
+//! [`completions::message::Message`]:
+//!     objectiveai_sdk::agent::completions::message::Message
 
 use objectiveai_sdk::agent::completions::message::{
     AssistantToolCall, Message, RichContent, RichContentPart, SimpleContent,
     SimpleContentPart,
 };
-use objectiveai_sdk::agent::gemini::{ContentPart, ToolCall};
 
 use super::super::ContinuationItem;
+use super::{ContentPart, ToolCall};
 
 /// Output of [`Prompt::new`] — what `super::Client::create` hands to the
 /// runner.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Prompt {
     /// The full conversation in runner-message shape (prior history +
-    /// this turn). Sent as `params.messages` and also stored as the new
-    /// continuation history.
-    pub messages: Vec<objectiveai_sdk::agent::gemini::Message>,
+    /// this turn). Sent as `params.messages`.
+    pub messages: Vec<super::Message>,
     /// Folded system / developer text. Empty string means none.
     pub system_prompt: String,
+    /// The same conversation in the canonical message shape (prior
+    /// history + this turn's inputs). The client extends this with the
+    /// model turn the runner produced and stores it as the new
+    /// continuation history.
+    pub canonical_history: Vec<Message>,
 }
 
 fn simple_content_to_text(content: &SimpleContent) -> String {
@@ -166,7 +179,7 @@ async fn resolve_image_url(
 
 /// Convert SDK [`AssistantToolCall`]s into runner [`ToolCall`]s. The
 /// function `arguments` JSON string is parsed into a `Value`; on parse
-/// failure it's wrapped as a string so the call still round-trips.
+/// failure it's left as `Null` so the call still round-trips.
 fn assistant_tool_calls(
     tool_calls: &Option<Vec<AssistantToolCall>>,
 ) -> Vec<ToolCall> {
@@ -213,7 +226,8 @@ impl Prompt {
     /// - `continuation`: the in-process continuation items
     ///   (State / UserMessage / ToolMessage) appended this round.
     /// - `request_continuation`: the wire continuation, whose
-    ///   `messages` field carries the FULL prior conversation history.
+    ///   `messages` field carries the FULL prior conversation history in
+    ///   the canonical shape.
     ///
     /// `http_client` resolves any `http(s):` image URLs into data URLs.
     pub async fn new(
@@ -224,16 +238,63 @@ impl Prompt {
             &objectiveai_sdk::agent::gemini::Continuation,
         >,
     ) -> Result<Self, super::Error> {
-        // Prior history replayed verbatim from the wire continuation.
-        let mut out: Vec<objectiveai_sdk::agent::gemini::Message> =
-            request_continuation
-                .map(|rc| rc.messages.clone())
-                .unwrap_or_default();
+        // The canonical conversation we replay: prior history (verbatim
+        // from the wire continuation) followed by this turn's inputs.
+        let mut canonical_history: Vec<Message> = request_continuation
+            .map(|rc| rc.messages.clone())
+            .unwrap_or_default();
 
+        // This turn's merged messages go onto the canonical history.
+        canonical_history.extend(messages.iter().cloned());
+
+        // Continuation items appended this round.
+        //
+        // Items at or before the most recent State were already folded
+        // into the prior turn's history (and replayed via
+        // `request_continuation.messages`); only items AFTER the last
+        // State belong to this turn. On a fresh in-process resume with
+        // no State yet, every item is new. Mirror codex's continuation
+        // ordering validation (tool messages must precede a state item).
+        if let Some(items) = continuation {
+            let last_state_pos = items
+                .iter()
+                .rposition(|item| matches!(item, ContinuationItem::State(_)));
+            let start = match last_state_pos {
+                Some(pos) => pos + 1,
+                None => 0,
+            };
+            for (i, item) in items.iter().enumerate() {
+                match item {
+                    ContinuationItem::State(_) => {}
+                    ContinuationItem::ToolMessage(t) => {
+                        if i >= start {
+                            canonical_history.push(Message::Tool(t.clone()));
+                        } else if last_state_pos.is_none() {
+                            return Err(super::Error::InvalidContinuation(
+                                "tool messages must precede a state item"
+                                    .to_string(),
+                            ));
+                        }
+                        // Tool message at-or-before the most recent state
+                        // — already folded into the replayed history.
+                    }
+                    ContinuationItem::UserMessage(u) => {
+                        if i >= start {
+                            canonical_history
+                                .push(Message::User(u.clone()));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Translate the canonical conversation into the runner's wire
+        // shape, folding every system / developer message into a single
+        // leading `system_prompt` string.
+        let mut out: Vec<super::Message> = Vec::new();
         let mut system_parts: Vec<String> = Vec::new();
 
-        // --- This turn's merged messages. ---
-        for msg in messages {
+        for msg in &canonical_history {
             match msg {
                 Message::System(sys) => {
                     let text = simple_content_to_text(&sys.content);
@@ -251,11 +312,7 @@ impl Prompt {
                     let content =
                         rich_content_to_parts(http_client, &u.content).await?;
                     if !content.is_empty() {
-                        out.push(
-                            objectiveai_sdk::agent::gemini::Message::User {
-                                content,
-                            },
-                        );
+                        out.push(super::Message::User { content });
                     }
                 }
                 Message::Assistant(a) => {
@@ -266,66 +323,18 @@ impl Prompt {
                         None => Vec::new(),
                     };
                     let tool_calls = assistant_tool_calls(&a.tool_calls);
-                    out.push(
-                        objectiveai_sdk::agent::gemini::Message::Model {
-                            content,
-                            tool_calls,
-                        },
-                    );
+                    out.push(super::Message::Model {
+                        content,
+                        tool_calls,
+                    });
                 }
                 Message::Tool(t) => {
-                    out.push(
-                        objectiveai_sdk::agent::gemini::Message::Tool {
-                            tool_call_id: t.tool_call_id.clone(),
-                            name: String::new(),
-                            content: rich_content_to_text(&t.content),
-                            is_error: false,
-                        },
-                    );
-                }
-            }
-        }
-
-        // --- Continuation items appended this round. ---
-        //
-        // Items at or before the most recent State were already folded
-        // into the prior turn's history (and replayed via
-        // `request_continuation.messages`); only items AFTER the last
-        // State belong to this turn. On a fresh in-process resume with
-        // no State yet, every item is new.
-        if let Some(items) = continuation {
-            let last_state_pos = items
-                .iter()
-                .rposition(|item| matches!(item, ContinuationItem::State(_)));
-            let start = match last_state_pos {
-                Some(pos) => pos + 1,
-                None => 0,
-            };
-            for item in &items[start..] {
-                match item {
-                    ContinuationItem::State(_) => {}
-                    ContinuationItem::UserMessage(u) => {
-                        let content =
-                            rich_content_to_parts(http_client, &u.content)
-                                .await?;
-                        if !content.is_empty() {
-                            out.push(
-                                objectiveai_sdk::agent::gemini::Message::User {
-                                    content,
-                                },
-                            );
-                        }
-                    }
-                    ContinuationItem::ToolMessage(t) => {
-                        out.push(
-                            objectiveai_sdk::agent::gemini::Message::Tool {
-                                tool_call_id: t.tool_call_id.clone(),
-                                name: String::new(),
-                                content: rich_content_to_text(&t.content),
-                                is_error: false,
-                            },
-                        );
-                    }
+                    out.push(super::Message::Tool {
+                        tool_call_id: t.tool_call_id.clone(),
+                        name: String::new(),
+                        content: rich_content_to_text(&t.content),
+                        is_error: false,
+                    });
                 }
             }
         }
@@ -340,6 +349,7 @@ impl Prompt {
         Ok(Prompt {
             messages: out,
             system_prompt: system_parts.join("\n\n"),
+            canonical_history,
         })
     }
 }

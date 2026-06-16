@@ -18,11 +18,14 @@ pub struct State {
     pub session_id: String,
     /// Number of assistant messages produced in this turn.
     pub message_count: u64,
-    /// The FULL conversation the runner saw this turn (prior history +
-    /// this turn's input messages) PLUS the model turn it produced
+    /// The FULL conversation this turn (prior history + this turn's
+    /// input messages) PLUS the model turn the runner produced
     /// (assistant text + tool calls) and any tool results it resolved
-    /// internally. Becomes the new continuation history so the next
-    /// stateless replay carries everything — including the model's own
-    /// prior answer, which the runner won't remember on its own.
-    pub messages: Vec<objectiveai_sdk::agent::gemini::Message>,
+    /// internally, all in the canonical agent-completions message shape.
+    /// Becomes the new public continuation history so the next stateless
+    /// replay carries everything — including the model's own prior
+    /// answer, which the runner won't remember on its own. The API
+    /// translates these canonical messages back into the runner's wire
+    /// shape at request time.
+    pub messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
 }

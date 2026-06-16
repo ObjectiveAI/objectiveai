@@ -331,11 +331,11 @@ impl
 
             let id_for_chunks = id.clone();
             let model = agent.base.model.clone();
-            // The full conversation we sent — stored verbatim as the
-            // base of the new continuation history. The trailing
+            // The full canonical conversation we sent — stored verbatim
+            // as the base of the new continuation history. The trailing
             // assistant turn (text + tool calls) the runner produced is
             // appended below as events arrive.
-            let sent_messages = prompt.messages.clone();
+            let sent_messages = prompt.canonical_history.clone();
             let session_id_for_state = session_id.clone();
             // Clones for the outer error-mapping closure.
             let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
@@ -353,12 +353,13 @@ impl
                 // Accumulate the model turn's text + tool calls so the
                 // response continuation history mirrors what the model
                 // produced (the runner is stateless and won't remember).
+                // Built in the canonical agent-completions message shape.
                 let mut turn_text = String::new();
                 let mut turn_tool_calls: Vec<
-                    objectiveai_sdk::agent::gemini::ToolCall,
+                    objectiveai_sdk::agent::completions::message::AssistantToolCall,
                 > = Vec::new();
                 let mut turn_tool_results: Vec<
-                    objectiveai_sdk::agent::gemini::Message,
+                    objectiveai_sdk::agent::completions::message::Message,
                 > = Vec::new();
                 let mut saw_any_assistant = false;
 
@@ -382,27 +383,39 @@ impl
                                     turn_text.push_str(text);
                                 }
                                 super::GeminiEvent::ToolUse { id, name, input } => {
+                                    use objectiveai_sdk::agent::completions::message::{
+                                        AssistantToolCall, AssistantToolCallFunction,
+                                    };
                                     turn_tool_calls.push(
-                                        objectiveai_sdk::agent::gemini::ToolCall {
+                                        AssistantToolCall::Function {
                                             id: id.clone(),
-                                            name: name.clone(),
-                                            args: input.clone(),
+                                            function: AssistantToolCallFunction {
+                                                name: name.clone(),
+                                                arguments: serde_json::to_string(
+                                                    input,
+                                                )
+                                                .unwrap_or_default(),
+                                            },
                                         },
                                     );
                                 }
                                 super::GeminiEvent::ToolResult {
                                     tool_use_id,
                                     content,
-                                    is_error,
+                                    is_error: _,
                                 } => {
-                                    turn_tool_results.push(
-                                        objectiveai_sdk::agent::gemini::Message::Tool {
+                                    use objectiveai_sdk::agent::completions::message::{
+                                        Message, RichContent, ToolMessage,
+                                    };
+                                    turn_tool_results.push(Message::Tool(
+                                        ToolMessage {
+                                            content: RichContent::Text(
+                                                content.clone(),
+                                            ),
                                             tool_call_id: tool_use_id.clone(),
-                                            name: String::new(),
-                                            content: content.clone(),
-                                            is_error: *is_error,
+                                            metadata: None,
                                         },
-                                    );
+                                    ));
                                 }
                                 _ => {}
                             }
@@ -472,25 +485,34 @@ impl
                 }
 
                 if !had_error {
+                    use objectiveai_sdk::agent::completions::message::{
+                        AssistantMessage, Message, RichContent,
+                    };
                     // Build the new full history: everything we sent,
                     // plus this turn's model output (text + tool calls)
-                    // and any tool results the runner resolved.
+                    // and any tool results the runner resolved, in the
+                    // canonical agent-completions message shape.
                     let mut new_messages = sent_messages;
-                    let model_content =
-                        if turn_text.is_empty() {
-                            Vec::new()
-                        } else {
-                            vec![objectiveai_sdk::agent::gemini::ContentPart::Text {
-                                text: turn_text,
-                            }]
-                        };
-                    if !model_content.is_empty() || !turn_tool_calls.is_empty() {
-                        new_messages.push(
-                            objectiveai_sdk::agent::gemini::Message::Model {
+                    let model_content = if turn_text.is_empty() {
+                        None
+                    } else {
+                        Some(RichContent::Text(turn_text))
+                    };
+                    let model_tool_calls = if turn_tool_calls.is_empty() {
+                        None
+                    } else {
+                        Some(turn_tool_calls)
+                    };
+                    if model_content.is_some() || model_tool_calls.is_some() {
+                        new_messages.push(Message::Assistant(
+                            AssistantMessage {
                                 content: model_content,
-                                tool_calls: turn_tool_calls,
+                                name: None,
+                                refusal: None,
+                                tool_calls: model_tool_calls,
+                                reasoning: None,
                             },
-                        );
+                        ));
                     }
                     new_messages.extend(turn_tool_results);
 

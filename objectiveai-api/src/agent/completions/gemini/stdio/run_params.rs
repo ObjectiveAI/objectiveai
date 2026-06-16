@@ -15,7 +15,7 @@ pub struct RunParams<'a> {
     pub model: &'a str,
 
     /// The full conversation in the runner's message shape.
-    pub messages: &'a [objectiveai_sdk::agent::gemini::Message],
+    pub messages: &'a [super::super::Message],
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<&'a str>,
