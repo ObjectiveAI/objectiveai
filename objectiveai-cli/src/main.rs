@@ -3,6 +3,12 @@ use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() {
+    // Before anything else: if this process was launched as a
+    // subprocess-reaper guardian (macOS only), run its kqueue watch loop
+    // and `process::exit`. A no-op on every other platform and on every
+    // normal invocation.
+    objectiveai_sdk::subprocess_reaper::run_guardian_if_invoked();
+
     let _ = dotenv::dotenv();
 
     // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's

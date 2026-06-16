@@ -80,7 +80,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .stderr(Stdio::piped());
     crate::spawn::apply_config_env(&mut cmd, &ctx.config);
 
-    let mut child = cmd.spawn().map_err(Error::ToolSpawn)?;
+    // Leash the tool to the cli process: it must die when the cli dies
+    // by any means (force-kill included), enforced at the OS level — not
+    // via `Drop`, which a `process::exit`/force-kill never runs.
+    let mut child = objectiveai_sdk::subprocess_reaper::spawn(&mut cmd).map_err(Error::ToolSpawn)?;
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
 

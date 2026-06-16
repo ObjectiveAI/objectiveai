@@ -107,11 +107,17 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         .env("OBJECTIVEAI_POSTGRES_URL", postgres_url)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .kill_on_drop(true);
+        .stderr(Stdio::piped());
     crate::spawn::apply_config_env(&mut cmd, &nested_ctx.config);
 
-    let mut child = cmd.spawn().map_err(Error::PluginSpawn)?;
+    // Leash the plugin to the cli process: a plugin `mcp begin` is a
+    // long-lived MCP server, and the conduit holds its Child inside a
+    // detached drain task — so without an OS-level leash it outlives the
+    // cli. `subprocess_reaper::spawn` sets `kill_on_drop` AND the OS leash
+    // (job object / PR_SET_PDEATHSIG / kqueue guardian) so it dies with
+    // the cli even on a force-kill.
+    let mut child =
+        objectiveai_sdk::subprocess_reaper::spawn(&mut cmd).map_err(Error::PluginSpawn)?;
     let stdout = child.stdout.take().expect("stdout was piped");
     let stderr = child.stderr.take().expect("stderr was piped");
     let stdin = child.stdin.take().expect("stdin was piped");

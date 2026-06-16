@@ -13,7 +13,7 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.2", features = ["lockfile"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.2", features = ["lockfile", "subprocess-reaper"] }
 objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.2" }
 axum = "0.8.8"
 clap = { version = "4.6.0", features = ["derive"] }

@@ -4310,11 +4310,9 @@ name = "objectiveai-db"
 version = "2.2.2"
 dependencies = [
  "clap",
- "nix 0.29.0",
  "objectiveai-sdk",
  "postgresql_embedded",
  "tokio",
- "windows-sys 0.59.0",
 ]
 
 [[package]]
