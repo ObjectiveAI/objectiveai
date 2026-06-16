@@ -55,6 +55,10 @@ pub struct Config {
     pub address: SocketAddr,
     /// Value placed in `initialize_result.server_info.name`.
     pub server_name: String,
+    /// Value placed in `initialize_result.server_info.version`. Lets tests
+    /// exercise the proxy's version-based prefix disambiguation
+    /// deterministically (two same-name upstreams with different versions).
+    pub server_version: String,
     /// Initial set of tools to advertise. Replaceable at runtime via
     /// the `/__test/set-tools` endpoint.
     pub initial_tools: Vec<TestTool>,
@@ -261,7 +265,7 @@ async fn initialize(app: &AppState, request: JsonRpcRequest) -> Response {
         server_info: Implementation {
             name: app.config.server_name.clone(),
             title: None,
-            version: env!("CARGO_PKG_VERSION").into(),
+            version: app.config.server_version.clone(),
             website_url: None,
             description: None,
             icons: None,

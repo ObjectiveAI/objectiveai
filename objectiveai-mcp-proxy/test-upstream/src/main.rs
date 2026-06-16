@@ -15,6 +15,8 @@ struct EnvConfigBuilder {
     port: Option<u16>,
     #[envconfig(from = "SERVER_NAME")]
     server_name: Option<String>,
+    #[envconfig(from = "SERVER_VERSION")]
+    server_version: Option<String>,
     #[envconfig(from = "INITIAL_TOOLS_JSON")]
     initial_tools_json: Option<String>,
     #[envconfig(from = "INITIAL_RESOURCES_JSON")]
@@ -43,6 +45,7 @@ async fn main() -> anyhow::Result<()> {
         address: None,
         port: None,
         server_name: None,
+        server_version: None,
         initial_tools_json: None,
         initial_resources_json: None,
         require_auth: None,
@@ -74,6 +77,9 @@ async fn main() -> anyhow::Result<()> {
     let config = Config {
         address,
         server_name: env.server_name.unwrap_or_else(|| "test-upstream".into()),
+        server_version: env
+            .server_version
+            .unwrap_or_else(|| env!("CARGO_PKG_VERSION").into()),
         initial_tools,
         initial_resources,
         require_auth: env.require_auth,

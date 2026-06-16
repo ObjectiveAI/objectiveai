@@ -44,6 +44,13 @@ export interface TestResource {
 
 export interface UpstreamSpec {
   serverName: string;
+  /**
+   * Value the upstream reports as `server_info.version`. Lets a test
+   * exercise the proxy's version-based prefix disambiguation
+   * deterministically. When omitted, the upstream binary falls back to its
+   * own crate version.
+   */
+  serverVersion?: string;
   initialTools?: TestTool[];
   initialResources?: TestResource[];
   requireAuth?: string;
@@ -164,6 +171,7 @@ async function spawnUpstream(spec: UpstreamSpec): Promise<UpstreamHandle> {
     INITIAL_TOOLS_JSON: JSON.stringify(spec.initialTools ?? []),
     INITIAL_RESOURCES_JSON: JSON.stringify(spec.initialResources ?? []),
   };
+  if (spec.serverVersion !== undefined) env.SERVER_VERSION = spec.serverVersion;
   if (spec.requireAuth) env.REQUIRE_AUTH = spec.requireAuth;
   if (spec.headerGate) {
     env.HEADER_GATE_NAME = spec.headerGate.name;

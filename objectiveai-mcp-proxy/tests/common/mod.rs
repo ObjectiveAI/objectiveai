@@ -34,6 +34,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(50);
 #[derive(Debug, Clone)]
 pub struct UpstreamSpec {
     pub server_name: String,
+    pub server_version: String,
     pub initial_tools: Vec<TestTool>,
     pub initial_resources: Vec<TestResource>,
     pub require_auth: Option<String>,
@@ -44,11 +45,20 @@ impl UpstreamSpec {
     pub fn new(server_name: impl Into<String>) -> Self {
         Self {
             server_name: server_name.into(),
+            // Stable, version-independent default so non-collision tests
+            // don't depend on the crate version. Collision tests set this
+            // explicitly via `with_server_version`.
+            server_version: "0".to_string(),
             initial_tools: Vec::new(),
             initial_resources: Vec::new(),
             require_auth: None,
             header_gate: None,
         }
+    }
+
+    pub fn with_server_version(mut self, value: impl Into<String>) -> Self {
+        self.server_version = value.into();
+        self
     }
 
     pub fn with_tools(mut self, tools: Vec<TestTool>) -> Self {
@@ -253,6 +263,7 @@ pub async fn spawn_upstream(spec: UpstreamSpec) -> Upstream {
     cmd.env("ADDRESS", "127.0.0.1")
         .env("PORT", port.to_string())
         .env("SERVER_NAME", &spec.server_name)
+        .env("SERVER_VERSION", &spec.server_version)
         .env(
             "INITIAL_TOOLS_JSON",
             serde_json::to_string(&spec.initial_tools).unwrap(),

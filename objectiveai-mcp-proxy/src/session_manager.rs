@@ -125,9 +125,9 @@ impl SessionManager {
         let id = encrypt_and_encode(&payload, &self.key);
         let connections: Vec<Connection> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
-        let by_name = build_by_name_map(connections);
+        let by_prefix = build_prefix_map(connections);
         self.sessions
-            .insert(id.clone(), Arc::new(Session::new(by_name, payload)));
+            .insert(id.clone(), Arc::new(Session::new(by_prefix, payload)));
         id
     }
 
@@ -358,36 +358,87 @@ fn base62_decode_bytes(s: &str) -> Option<Vec<u8>> {
     Some(out)
 }
 
-fn build_by_name_map(
-    connections: Vec<Connection>,
+/// Normalize a server name or version into a routing-prefix-safe token:
+/// every `_` and `.` becomes `-`. The resulting prefix is free of both the
+/// split separator (`_`) and `.`, so the first `_` in a prefixed identifier
+/// is always the prefix/original-name boundary.
+fn normalize_prefix_token(s: &str) -> String {
+    s.replace(['_', '.'], "-")
+}
+
+/// Build the `prefix -> Connection` routing map.
+///
+/// Connections are sorted by `url` first so the fresh
+/// (`connect_all_fresh`, X-MCP-Servers order) and resume
+/// (`reconnect_from_payload`, url-sorted payload order) paths produce
+/// byte-identical prefixes and indices — a resumed session must reproduce
+/// the exact tool names the client already holds. (Sorting is idempotent
+/// on the already-url-sorted resume path.)
+///
+/// Each connection's prefix escalates only as far as needed for global
+/// uniqueness:
+///   1. `normalize(server_info.name)`
+///   2. on collision -> `{name}-{normalize(version)}` (all colliding members)
+///   3. still colliding -> `{name}-{version}-{index}` (index = url-sorted
+///      position, globally unique, so this tier always resolves)
+/// Uniqueness is re-checked over the full set after each tier so a rare
+/// cross-tier collision escalates too.
+fn build_prefix_map(
+    mut connections: Vec<Connection>,
 ) -> IndexMap<String, Connection> {
-    // First pass: which names are duplicated? Anything that shows up
-    // more than once in the input gets the `_<index>` suffix.
-    let mut name_counts: std::collections::HashMap<String, usize> =
-        std::collections::HashMap::new();
-    for c in &connections {
-        *name_counts
-            .entry(c.initialize_result.server_info.name.clone())
-            .or_insert(0) += 1;
-    }
-    let mut by_name: IndexMap<String, Connection> =
-        IndexMap::with_capacity(connections.len());
-    for (idx, connection) in connections.into_iter().enumerate() {
-        let raw = connection.initialize_result.server_info.name.clone();
-        let key = if name_counts.get(&raw).copied().unwrap_or(0) > 1 {
-            format!("{raw}_{idx}")
-        } else {
-            raw
-        };
-        if by_name.contains_key(&key) {
-            tracing::warn!(
-                key = %key,
-                "two upstreams produce the same prefix after disambiguation; later upstream wins",
-            );
+    connections.sort_by(|a, b| a.url.cmp(&b.url));
+    let n = connections.len();
+
+    let names: Vec<String> = connections
+        .iter()
+        .map(|c| normalize_prefix_token(&c.initialize_result.server_info.name))
+        .collect();
+    let versions: Vec<String> = connections
+        .iter()
+        .map(|c| normalize_prefix_token(&c.initialize_result.server_info.version))
+        .collect();
+
+    // tier: 1 = name, 2 = name-version, 3 = name-version-index.
+    let prefix_at = |i: usize, tier: u8| -> String {
+        match tier {
+            1 => names[i].clone(),
+            2 => format!("{}-{}", names[i], versions[i]),
+            _ => format!("{}-{}-{}", names[i], versions[i], i),
         }
-        by_name.insert(key, connection);
+    };
+
+    let mut tier: Vec<u8> = vec![1; n];
+    loop {
+        let current: Vec<String> = (0..n).map(|i| prefix_at(i, tier[i])).collect();
+        let mut counts: std::collections::HashMap<&str, usize> =
+            std::collections::HashMap::new();
+        for p in &current {
+            *counts.entry(p.as_str()).or_insert(0) += 1;
+        }
+        let mut changed = false;
+        for i in 0..n {
+            if counts[current[i].as_str()] > 1 && tier[i] < 3 {
+                tier[i] += 1;
+                changed = true;
+            }
+        }
+        if !changed {
+            break;
+        }
     }
-    by_name
+
+    let mut by_prefix: IndexMap<String, Connection> = IndexMap::with_capacity(n);
+    for (i, connection) in connections.into_iter().enumerate() {
+        let key = prefix_at(i, tier[i]);
+        // The index tier guarantees uniqueness; a residual duplicate would
+        // be a logic bug rather than a real-world collision.
+        debug_assert!(
+            !by_prefix.contains_key(&key),
+            "duplicate routing prefix after escalation: {key}",
+        );
+        by_prefix.insert(key, connection);
+    }
+    by_prefix
 }
 
 #[cfg(test)]
