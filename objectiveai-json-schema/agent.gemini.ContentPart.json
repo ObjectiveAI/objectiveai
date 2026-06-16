@@ -1,0 +1,49 @@
+{
+  "title": "agent.gemini.ContentPart",
+  "description": "One element of a message's `content`. The runner accepts `text`\nparts and `image` parts (the latter referenced by URL).",
+  "anyOf": [
+    {
+      "title": "Text",
+      "description": "A text part: `{\"type\":\"text\",\"text\":..}`.",
+      "type": "object",
+      "properties": {
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Image",
+      "description": "An image part: `{\"type\":\"image\",\"url\":..}` (data: or http(s):).",
+      "type": "object",
+      "properties": {
+        "mime_type": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "image"
+          ]
+        },
+        "url": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

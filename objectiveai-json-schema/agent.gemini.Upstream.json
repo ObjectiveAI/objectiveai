@@ -1,0 +1,8 @@
+{
+  "title": "agent.gemini.Upstream",
+  "description": "Gemini upstream marker.",
+  "type": "string",
+  "enum": [
+    "gemini"
+  ]
+}

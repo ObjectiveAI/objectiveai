@@ -24,11 +24,14 @@ use serde::{Deserialize, Serialize};
 pub enum Message {
     /// A system instruction. Folded into the runner's
     /// `system_instruction` together with any agent `system_prompt`.
+    #[schemars(title = "System")]
     System { content: Vec<ContentPart> },
     /// A user message (multimodal text/image parts).
+    #[schemars(title = "User")]
     User { content: Vec<ContentPart> },
     /// A model (assistant) turn: text parts plus any tool calls the
     /// model emitted in that turn.
+    #[schemars(title = "Model")]
     Model {
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         #[schemars(extend("omitempty" = true))]
@@ -38,6 +41,7 @@ pub enum Message {
         tool_calls: Vec<ToolCall>,
     },
     /// The result of a model tool call.
+    #[schemars(title = "Tool")]
     Tool {
         tool_call_id: String,
         #[serde(default, skip_serializing_if = "String::is_empty")]
@@ -61,8 +65,10 @@ fn is_false(b: &bool) -> bool {
 #[schemars(rename = "agent.gemini.ContentPart")]
 pub enum ContentPart {
     /// A text part: `{"type":"text","text":..}`.
+    #[schemars(title = "Text")]
     Text { text: String },
     /// An image part: `{"type":"image","url":..}` (data: or http(s):).
+    #[schemars(title = "Image")]
     Image {
         url: String,
         #[serde(default, skip_serializing_if = "Option::is_none")]

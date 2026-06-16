@@ -5,6 +5,7 @@ from typing import Literal, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, RootModel
 from objectiveai_sdk.agent.claude_agent_sdk.agent_base import AgentBase as AgentClaudeAgentSdkAgentBase
 from objectiveai_sdk.agent.codex_sdk.agent_base import AgentBase as AgentCodexSdkAgentBase
+from objectiveai_sdk.agent.gemini.agent_base import AgentBase as AgentGeminiAgentBase
 from objectiveai_sdk.agent.inline_agent_base import InlineAgentBase
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote import InlineAgentBaseWithFallbacksOrRemote
 from objectiveai_sdk.agent.mock.agent_base import AgentBase as AgentMockAgentBase
@@ -22,6 +23,11 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk(Agent
 
 
 class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk(AgentCodexSdkAgentBase):
+    fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
+    count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
+
+
+class InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseGemini(AgentGeminiAgentBase):
     fallbacks: Optional[list[InlineAgentBase]] = Field(None, description='Fallback agents to try if the primary fails.', json_schema_extra={'omitempty': True})
     count: int = Field(1, description='Number of instances of this agent in the swarm. Defaults to 1.', ge=0, le=18446744073709551615)
 
@@ -58,5 +64,5 @@ class InlineAgentBaseWithFallbacksOrRemoteWithCount(RootModel):
 (pre-validation swarm agent slot)."""
     model_config = ConfigDict(title='agent.InlineAgentBaseWithFallbacksOrRemoteWithCount', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBaseWithFallbacksOrRemote', '_expanded_ref_props': ['count']})
 
-    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
+    root: Union[InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseOpenrouter, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseClaudeAgentSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseCodexSdk, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseGemini, InlineAgentBaseWithFallbacksOrRemoteWithCountAgentBaseMock, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteGithub, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteClient, InlineAgentBaseWithFallbacksOrRemoteWithCountRemoteMock]
 

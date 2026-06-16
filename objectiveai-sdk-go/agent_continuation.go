@@ -16,6 +16,7 @@ type AgentContinuation struct {
 	Openrouter *AgentOpenrouterContinuation 
 	ClaudeAgentSdk *AgentClaudeAgentSdkContinuation 
 	CodexSdk *AgentCodexSdkContinuation 
+	Gemini *AgentGeminiContinuation 
 	Mock *AgentMockContinuation 
 }
 
@@ -28,6 +29,9 @@ func (v AgentContinuation) MarshalJSON() ([]byte, error) {
 	}
 	if v.CodexSdk != nil {
 		return json.Marshal(v.CodexSdk)
+	}
+	if v.Gemini != nil {
+		return json.Marshal(v.Gemini)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -70,6 +74,17 @@ func (v *AgentContinuation) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentGeminiContinuation
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentContinuation{}
+			candidate.Gemini = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentMockContinuation
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentContinuation{}
@@ -88,6 +103,7 @@ func (v AgentContinuation) Validate() error {
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
+	if v.Gemini != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentContinuation: exactly one variant must be set, got %d", count)

@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.agent.claude_agent_sdk.continuation import Continuation as AgentClaudeAgentSdkContinuation
 from objectiveai_sdk.agent.codex_sdk.continuation import Continuation as AgentCodexSdkContinuation
+from objectiveai_sdk.agent.gemini.continuation import Continuation as AgentGeminiContinuation
 from objectiveai_sdk.agent.mock.continuation import Continuation as AgentMockContinuation
 from objectiveai_sdk.agent.openrouter.continuation import Continuation as AgentOpenrouterContinuation
 
@@ -27,6 +28,12 @@ class ContinuationCodexSdk(RootModel):
     root: AgentCodexSdkContinuation
 
 
+class ContinuationGemini(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Gemini'})
+
+    root: AgentGeminiContinuation
+
+
 class ContinuationMock(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mock'})
 
@@ -41,5 +48,5 @@ Pass it back in the next request to continue the conversation.
 Serialized as base64-encoded JSON."""
     model_config = ConfigDict(title='agent.Continuation')
 
-    root: Union[ContinuationOpenrouter, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationMock]
+    root: Union[ContinuationOpenrouter, ContinuationClaudeAgentSdk, ContinuationCodexSdk, ContinuationGemini, ContinuationMock]
 

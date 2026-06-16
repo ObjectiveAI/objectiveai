@@ -1,0 +1,30 @@
+{
+  "title": "agent.gemini.Effort",
+  "description": "The effort level for model output.\n\nThis setting hints to the model how detailed its responses should be.\n\n`Medium` is the default and is normalized to `None` during preparation\nfor content-addressing stability.",
+  "anyOf": [
+    {
+      "title": "Low",
+      "description": "Low reasoning effort.",
+      "type": "string",
+      "enum": [
+        "low"
+      ]
+    },
+    {
+      "title": "Medium",
+      "description": "Balanced reasoning (default, normalized away during preparation).",
+      "type": "string",
+      "enum": [
+        "medium"
+      ]
+    },
+    {
+      "title": "High",
+      "description": "High reasoning effort.",
+      "type": "string",
+      "enum": [
+        "high"
+      ]
+    }
+  ]
+}

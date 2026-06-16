@@ -15,6 +15,10 @@
       "$ref": "agent.codex_sdk.AgentBase"
     },
     {
+      "title": "Gemini",
+      "$ref": "agent.gemini.AgentBase"
+    },
+    {
       "title": "Mock",
       "$ref": "agent.mock.AgentBase"
     }

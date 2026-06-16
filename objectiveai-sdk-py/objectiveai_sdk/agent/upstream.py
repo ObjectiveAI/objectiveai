@@ -33,6 +33,13 @@ class UpstreamCodexSdk(RootModel):
     root: Literal['codex_sdk']
 
 
+class UpstreamGemini(RootModel):
+    """Gemini Upstream."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Gemini'})
+
+    root: Literal['gemini']
+
+
 class UpstreamMock(RootModel):
     """Mock Upstream."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mock'})
@@ -44,5 +51,5 @@ class Upstream(RootModel):
     """Supported agent upstreams."""
     model_config = ConfigDict(title='agent.Upstream')
 
-    root: Union[UpstreamUnknown, UpstreamOpenrouter, UpstreamClaudeAgentSdk, UpstreamCodexSdk, UpstreamMock]
+    root: Union[UpstreamUnknown, UpstreamOpenrouter, UpstreamClaudeAgentSdk, UpstreamCodexSdk, UpstreamGemini, UpstreamMock]
 

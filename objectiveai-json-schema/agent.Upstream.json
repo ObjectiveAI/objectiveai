@@ -35,6 +35,14 @@
       ]
     },
     {
+      "title": "Gemini",
+      "description": "Gemini Upstream.",
+      "type": "string",
+      "enum": [
+        "gemini"
+      ]
+    },
+    {
       "title": "Mock",
       "description": "Mock Upstream.",
       "type": "string",

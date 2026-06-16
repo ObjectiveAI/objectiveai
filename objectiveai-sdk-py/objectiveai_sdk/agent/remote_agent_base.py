@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.agent.claude_agent_sdk.agent_base import AgentBase as AgentClaudeAgentSdkAgentBase
 from objectiveai_sdk.agent.codex_sdk.agent_base import AgentBase as AgentCodexSdkAgentBase
+from objectiveai_sdk.agent.gemini.agent_base import AgentBase as AgentGeminiAgentBase
 from objectiveai_sdk.agent.inline_agent_base import InlineAgentBase
 from objectiveai_sdk.agent.mock.agent_base import AgentBase as AgentMockAgentBase
 from objectiveai_sdk.agent.openrouter.agent_base import AgentBase as AgentOpenrouterAgentBase
@@ -22,6 +23,10 @@ class RemoteAgentBaseCodexSdk(AgentCodexSdkAgentBase):
     description: str
 
 
+class RemoteAgentBaseGemini(AgentGeminiAgentBase):
+    description: str
+
+
 class RemoteAgentBaseMock(AgentMockAgentBase):
     description: str
 
@@ -32,5 +37,5 @@ class RemoteAgentBase(RootModel):
 Like [`InlineAgentBase`] but includes a description field for remote storage."""
     model_config = ConfigDict(title='agent.RemoteAgentBase', json_schema_extra={'_expanded_ref': 'agent.InlineAgentBase', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseCodexSdk, RemoteAgentBaseMock]
+    root: Union[RemoteAgentBaseOpenrouter, RemoteAgentBaseClaudeAgentSdk, RemoteAgentBaseCodexSdk, RemoteAgentBaseGemini, RemoteAgentBaseMock]
 

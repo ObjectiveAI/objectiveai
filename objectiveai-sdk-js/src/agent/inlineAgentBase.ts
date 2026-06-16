@@ -3,8 +3,9 @@
 import { z } from "zod";
 import { AgentClaudeAgentSdkAgentBaseSchema } from "./claude_agent_sdk/agentBase";
 import { AgentCodexSdkAgentBaseSchema } from "./codex_sdk/agentBase";
+import { AgentGeminiAgentBaseSchema } from "./gemini/agentBase";
 import { AgentMockAgentBaseSchema } from "./mock/agentBase";
 import { AgentOpenrouterAgentBaseSchema } from "./openrouter/agentBase";
 
-export const AgentInlineAgentBaseSchema = z.union([AgentOpenrouterAgentBaseSchema.meta({"title":"agent.openrouter.AgentBase","variantTitle":"Openrouter"}), AgentClaudeAgentSdkAgentBaseSchema.meta({"title":"agent.claude_agent_sdk.AgentBase","variantTitle":"ClaudeAgentSdk"}), AgentCodexSdkAgentBaseSchema.meta({"title":"agent.codex_sdk.AgentBase","variantTitle":"CodexSdk"}), AgentMockAgentBaseSchema.meta({"title":"agent.mock.AgentBase","variantTitle":"Mock"})]).describe("The base inline configuration for an Agent (without computed ID or metadata).\n\nThis is an untagged enum that dispatches to the per-upstream AgentBase.\nDeserialization tries each variant in order until one matches.").meta({ title: "agent.InlineAgentBase" });
+export const AgentInlineAgentBaseSchema = z.union([AgentOpenrouterAgentBaseSchema.meta({"title":"agent.openrouter.AgentBase","variantTitle":"Openrouter"}), AgentClaudeAgentSdkAgentBaseSchema.meta({"title":"agent.claude_agent_sdk.AgentBase","variantTitle":"ClaudeAgentSdk"}), AgentCodexSdkAgentBaseSchema.meta({"title":"agent.codex_sdk.AgentBase","variantTitle":"CodexSdk"}), AgentGeminiAgentBaseSchema.meta({"title":"agent.gemini.AgentBase","variantTitle":"Gemini"}), AgentMockAgentBaseSchema.meta({"title":"agent.mock.AgentBase","variantTitle":"Mock"})]).describe("The base inline configuration for an Agent (without computed ID or metadata).\n\nThis is an untagged enum that dispatches to the per-upstream AgentBase.\nDeserialization tries each variant in order until one matches.").meta({ title: "agent.InlineAgentBase" });
 export type AgentInlineAgentBase = z.infer<typeof AgentInlineAgentBaseSchema>;

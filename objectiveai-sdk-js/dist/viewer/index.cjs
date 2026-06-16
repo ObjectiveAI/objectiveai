@@ -842,6 +842,24 @@ var AgentCodexSdkAgentBaseSchema = zod.z.object({
   upstream: AgentCodexSdkUpstreamSchema.describe("The upstream provider marker."),
   web_search_enabled: zod.z.boolean().nullable().describe("Whether this agent may use the codex binary's web-search tool.").meta({ omitempty: true }).optional()
 }).describe("The base configuration for a Codex SDK Agent (without computed ID).").meta({ title: "agent.codex_sdk.AgentBase" });
+var AgentGeminiEffortSchema = zod.z.union([zod.z.literal("low").describe("Low reasoning effort.").meta({ "variantTitle": "Low" }), zod.z.literal("medium").describe("Balanced reasoning (default, normalized away during preparation).").meta({ "variantTitle": "Medium" }), zod.z.literal("high").describe("High reasoning effort.").meta({ "variantTitle": "High" })]).describe("The effort level for model output.\n\nThis setting hints to the model how detailed its responses should be.\n\n`Medium` is the default and is normalized to `None` during preparation\nfor content-addressing stability.").meta({ title: "agent.gemini.Effort" });
+var AgentGeminiOutputModeSchema = zod.z.literal("instruction").describe("The model is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.").meta({ title: "agent.gemini.OutputMode" });
+var AgentGeminiUpstreamSchema = zod.z.literal("gemini").describe("Gemini upstream marker.").meta({ title: "agent.gemini.Upstream" });
+
+// src/agent/gemini/agentBase.ts
+var AgentGeminiAgentBaseSchema = zod.z.object({
+  client_objectiveai_mcp: AgentClientObjectiveaiMcpSchema.nullable().describe("Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).").meta({ omitempty: true }).optional(),
+  effort: AgentGeminiEffortSchema.nullable().describe("The effort level for model output.").meta({ omitempty: true }).optional(),
+  mcp_servers: zod.z.array(AgentMcpServerSchema).nullable().describe("MCP servers the agent can connect to.").meta({ omitempty: true }).optional(),
+  model: zod.z.string().describe("The upstream language model identifier."),
+  output_mode: AgentGeminiOutputModeSchema.describe("The output mode for vector completions. Ignored for agent completions."),
+  prefix_content: AgentCompletionsMessageRichContentSchema.nullable().describe("Rich content prepended to the user's prompt.").meta({ omitempty: true }).optional(),
+  suffix_content: AgentCompletionsMessageRichContentSchema.nullable().describe("Rich content appended after the user's prompt.").meta({ omitempty: true }).optional(),
+  system_prompt: zod.z.string().nullable().describe("System prompt for the agent.").meta({ omitempty: true }).optional(),
+  thinking: zod.z.boolean().nullable().describe("Whether thinking/extended thinking is enabled.\n\nDefaults to `true`. Set to `false` to disable.").meta({ omitempty: true }).optional(),
+  upstream: AgentGeminiUpstreamSchema.describe("The upstream provider marker."),
+  web_search_enabled: zod.z.boolean().nullable().describe("Whether this agent may use the web-search tool.").meta({ omitempty: true }).optional()
+}).describe("The base configuration for a Gemini Agent (without computed ID).").meta({ title: "agent.gemini.AgentBase" });
 var AgentMockCallToolCallSchema = zod.z.object({
   arguments: zod.z.string().describe("JSON-string arguments \u2014 same wire shape as\n`AssistantToolCallFunction::arguments`. Passed through to the\nemitted tool call verbatim; validation is the downstream\n`tools/call` handler's job."),
   name: zod.z.string().describe("Tool name. Matched against the upstream tool surface at call\ntime the same way a model-emitted tool call would be.")
@@ -924,7 +942,7 @@ var AgentOpenrouterAgentBaseSchema = zod.z.object({
 }).describe("The base configuration for an OpenRouter Agent (without computed ID).").meta({ title: "agent.openrouter.AgentBase" });
 
 // src/agent/inlineAgentBase.ts
-var AgentInlineAgentBaseSchema = zod.z.union([AgentOpenrouterAgentBaseSchema.meta({ "title": "agent.openrouter.AgentBase", "variantTitle": "Openrouter" }), AgentClaudeAgentSdkAgentBaseSchema.meta({ "title": "agent.claude_agent_sdk.AgentBase", "variantTitle": "ClaudeAgentSdk" }), AgentCodexSdkAgentBaseSchema.meta({ "title": "agent.codex_sdk.AgentBase", "variantTitle": "CodexSdk" }), AgentMockAgentBaseSchema.meta({ "title": "agent.mock.AgentBase", "variantTitle": "Mock" })]).describe("The base inline configuration for an Agent (without computed ID or metadata).\n\nThis is an untagged enum that dispatches to the per-upstream AgentBase.\nDeserialization tries each variant in order until one matches.").meta({ title: "agent.InlineAgentBase" });
+var AgentInlineAgentBaseSchema = zod.z.union([AgentOpenrouterAgentBaseSchema.meta({ "title": "agent.openrouter.AgentBase", "variantTitle": "Openrouter" }), AgentClaudeAgentSdkAgentBaseSchema.meta({ "title": "agent.claude_agent_sdk.AgentBase", "variantTitle": "ClaudeAgentSdk" }), AgentCodexSdkAgentBaseSchema.meta({ "title": "agent.codex_sdk.AgentBase", "variantTitle": "CodexSdk" }), AgentGeminiAgentBaseSchema.meta({ "title": "agent.gemini.AgentBase", "variantTitle": "Gemini" }), AgentMockAgentBaseSchema.meta({ "title": "agent.mock.AgentBase", "variantTitle": "Mock" })]).describe("The base inline configuration for an Agent (without computed ID or metadata).\n\nThis is an untagged enum that dispatches to the per-upstream AgentBase.\nDeserialization tries each variant in order until one matches.").meta({ title: "agent.InlineAgentBase" });
 
 // src/agent/inlineAgentBaseWithFallbacks.ts
 var AgentInlineAgentBaseWithFallbacksSchema = AgentInlineAgentBaseSchema.and(zod.z.object({
@@ -2000,7 +2018,7 @@ var AgentCompletionsResponseUsageSchema = zod.z.object({
   total_cost: zod.z.number().min(-34028234663852886e22).max(34028234663852886e22).describe("Total cost including upstream provider charges. Only differs from `cost`\nwhen using BYOK (Bring Your Own Key)."),
   total_tokens: zod.z.number().int().min(0).max(18446744073709552e3).describe("Sum of completion and prompt tokens.")
 }).describe('Aggregated token and cost usage for an agent completion.\n\nThis is the "primary" usage type that aggregates across all upstream\nassistant responses within a single agent completion.').meta({ title: "agent.completions.response.Usage" });
-var AgentUpstreamSchema = zod.z.union([zod.z.literal("unknown").describe("Unknown Upstream.").meta({ "variantTitle": "Unknown" }), zod.z.literal("openrouter").describe("OpenRouter Upstream.").meta({ "variantTitle": "Openrouter" }), zod.z.literal("claude_agent_sdk").describe("Claude Agent SDK Upstream.").meta({ "variantTitle": "ClaudeAgentSdk" }), zod.z.literal("codex_sdk").describe("Codex SDK Upstream.").meta({ "variantTitle": "CodexSdk" }), zod.z.literal("mock").describe("Mock Upstream.").meta({ "variantTitle": "Mock" })]).describe("Supported agent upstreams.").meta({ title: "agent.Upstream" });
+var AgentUpstreamSchema = zod.z.union([zod.z.literal("unknown").describe("Unknown Upstream.").meta({ "variantTitle": "Unknown" }), zod.z.literal("openrouter").describe("OpenRouter Upstream.").meta({ "variantTitle": "Openrouter" }), zod.z.literal("claude_agent_sdk").describe("Claude Agent SDK Upstream.").meta({ "variantTitle": "ClaudeAgentSdk" }), zod.z.literal("codex_sdk").describe("Codex SDK Upstream.").meta({ "variantTitle": "CodexSdk" }), zod.z.literal("gemini").describe("Gemini Upstream.").meta({ "variantTitle": "Gemini" }), zod.z.literal("mock").describe("Mock Upstream.").meta({ "variantTitle": "Mock" })]).describe("Supported agent upstreams.").meta({ title: "agent.Upstream" });
 var ErrorResponseErrorSchema = zod.z.object({
   code: zod.z.number().int().min(0).max(65535).describe("The HTTP status code of the error response."),
   message: JsonValueSchema.describe("The error message or details as a JSON value.")

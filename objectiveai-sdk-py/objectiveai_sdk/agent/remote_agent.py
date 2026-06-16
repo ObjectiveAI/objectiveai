@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.agent.claude_agent_sdk.agent import Agent as AgentClaudeAgentSdkAgent
 from objectiveai_sdk.agent.codex_sdk.agent import Agent as AgentCodexSdkAgent
+from objectiveai_sdk.agent.gemini.agent import Agent as AgentGeminiAgent
 from objectiveai_sdk.agent.inline_agent import InlineAgent
 from objectiveai_sdk.agent.mock.agent import Agent as AgentMockAgent
 from objectiveai_sdk.agent.openrouter.agent import Agent as AgentOpenrouterAgent
@@ -22,6 +23,10 @@ class RemoteAgentCodexSdk(AgentCodexSdkAgent):
     description: str
 
 
+class RemoteAgentGemini(AgentGeminiAgent):
+    description: str
+
+
 class RemoteAgentMock(AgentMockAgent):
     description: str
 
@@ -30,5 +35,5 @@ class RemoteAgent(RootModel):
     """A validated remote Agent with metadata and computed content-addressed ID."""
     model_config = ConfigDict(title='agent.RemoteAgent', json_schema_extra={'_expanded_ref': 'agent.InlineAgent', '_expanded_ref_props': ['description']})
 
-    root: Union[RemoteAgentOpenrouter, RemoteAgentClaudeAgentSdk, RemoteAgentCodexSdk, RemoteAgentMock]
+    root: Union[RemoteAgentOpenrouter, RemoteAgentClaudeAgentSdk, RemoteAgentCodexSdk, RemoteAgentGemini, RemoteAgentMock]
 

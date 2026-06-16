@@ -1,0 +1,122 @@
+{
+  "title": "agent.gemini.Agent",
+  "description": "A validated Gemini Agent with its computed content-addressed ID.",
+  "type": "object",
+  "properties": {
+    "client_objectiveai_mcp": {
+      "description": "Client-side ObjectiveAI MCP surface the calling client is\nexpected to expose locally back to the API (objectiveai\nbuilt-in, plus specific plugins / tools by owner+name+version).",
+      "anyOf": [
+        {
+          "$ref": "agent.ClientObjectiveaiMcp"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "effort": {
+      "description": "The effort level for model output.",
+      "anyOf": [
+        {
+          "$ref": "agent.gemini.Effort"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "id": {
+      "description": "The deterministic content-addressed ID (22-character base62 string).",
+      "type": "string"
+    },
+    "mcp_servers": {
+      "description": "MCP servers the agent can connect to.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.McpServer"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "model": {
+      "description": "The upstream language model identifier.",
+      "type": "string"
+    },
+    "output_mode": {
+      "description": "The output mode for vector completions. Ignored for agent completions.",
+      "$ref": "agent.gemini.OutputMode"
+    },
+    "prefix_content": {
+      "description": "Rich content prepended to the user's prompt.",
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.RichContent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "suffix_content": {
+      "description": "Rich content appended after the user's prompt.",
+      "anyOf": [
+        {
+          "$ref": "agent.completions.message.RichContent"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "system_prompt": {
+      "description": "System prompt for the agent.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "thinking": {
+      "description": "Whether thinking/extended thinking is enabled.\n\nDefaults to `true`. Set to `false` to disable.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "upstream": {
+      "description": "The upstream provider marker.",
+      "$ref": "agent.gemini.Upstream"
+    },
+    "web_search_enabled": {
+      "description": "Whether this agent may use the web-search tool.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "title": "agent.gemini.ToolCall",
+  "description": "A tool call the model emitted in a `model` turn:\n`{\"id\":..,\"name\":..,\"args\":{..}}`.",
+  "type": "object",
+  "properties": {
+    "args": {
+      "default": null
+    },
+    "id": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    }
+  }
+}

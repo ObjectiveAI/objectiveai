@@ -14,6 +14,7 @@ type AgentInlineAgent struct {
 	Openrouter *AgentOpenrouterAgent 
 	ClaudeAgentSdk *AgentClaudeAgentSdkAgent 
 	CodexSdk *AgentCodexSdkAgent 
+	Gemini *AgentGeminiAgent 
 	Mock *AgentMockAgent 
 }
 
@@ -26,6 +27,9 @@ func (v AgentInlineAgent) MarshalJSON() ([]byte, error) {
 	}
 	if v.CodexSdk != nil {
 		return json.Marshal(v.CodexSdk)
+	}
+	if v.Gemini != nil {
+		return json.Marshal(v.Gemini)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -68,6 +72,17 @@ func (v *AgentInlineAgent) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentGeminiAgent
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentInlineAgent{}
+			candidate.Gemini = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentMockAgent
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentInlineAgent{}
@@ -86,6 +101,7 @@ func (v AgentInlineAgent) Validate() error {
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
+	if v.Gemini != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentInlineAgent: exactly one variant must be set, got %d", count)

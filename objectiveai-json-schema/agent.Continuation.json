@@ -15,6 +15,10 @@
       "$ref": "agent.codex_sdk.Continuation"
     },
     {
+      "title": "Gemini",
+      "$ref": "agent.gemini.Continuation"
+    },
+    {
       "title": "Mock",
       "$ref": "agent.mock.Continuation"
     }

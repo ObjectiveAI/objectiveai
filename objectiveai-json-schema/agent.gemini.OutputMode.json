@@ -1,0 +1,8 @@
+{
+  "title": "agent.gemini.OutputMode",
+  "description": "The model is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.",
+  "type": "string",
+  "enum": [
+    "instruction"
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "title": "agent.gemini.Message",
+  "description": "One conversation message in the runner's wire shape, discriminated\nby `role`.",
+  "anyOf": [
+    {
+      "title": "System",
+      "description": "A system instruction. Folded into the runner's\n`system_instruction` together with any agent `system_prompt`.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "agent.gemini.ContentPart"
+          }
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "system"
+          ]
+        }
+      }
+    },
+    {
+      "title": "User",
+      "description": "A user message (multimodal text/image parts).",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "agent.gemini.ContentPart"
+          }
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "user"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Model",
+      "description": "A model (assistant) turn: text parts plus any tool calls the\nmodel emitted in that turn.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "array",
+          "items": {
+            "$ref": "agent.gemini.ContentPart"
+          },
+          "omitempty": true
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "model"
+          ]
+        },
+        "tool_calls": {
+          "type": "array",
+          "items": {
+            "$ref": "agent.gemini.ToolCall"
+          },
+          "omitempty": true
+        }
+      }
+    },
+    {
+      "title": "Tool",
+      "description": "The result of a model tool call.",
+      "type": "object",
+      "properties": {
+        "content": {
+          "type": "string"
+        },
+        "is_error": {
+          "type": "boolean",
+          "omitempty": true
+        },
+        "name": {
+          "type": "string",
+          "omitempty": true
+        },
+        "role": {
+          "type": "string",
+          "enum": [
+            "tool"
+          ]
+        },
+        "tool_call_id": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

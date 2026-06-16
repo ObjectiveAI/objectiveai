@@ -23,6 +23,10 @@ type AgentUpstreamCodexSdk string
 
 func (AgentUpstreamCodexSdk) SchemaVariantTitle() string { return "CodexSdk" }
 
+type AgentUpstreamGemini string
+
+func (AgentUpstreamGemini) SchemaVariantTitle() string { return "Gemini" }
+
 type AgentUpstreamMock string
 
 func (AgentUpstreamMock) SchemaVariantTitle() string { return "Mock" }
@@ -37,6 +41,8 @@ type AgentUpstream struct {
 	ClaudeAgentSdk *AgentUpstreamClaudeAgentSdk `validate:"omitempty,oneof=claude_agent_sdk"`
 	// Codex SDK Upstream.
 	CodexSdk *AgentUpstreamCodexSdk `validate:"omitempty,oneof=codex_sdk"`
+	// Gemini Upstream.
+	Gemini *AgentUpstreamGemini `validate:"omitempty,oneof=gemini"`
 	// Mock Upstream.
 	Mock *AgentUpstreamMock `validate:"omitempty,oneof=mock"`
 }
@@ -53,6 +59,9 @@ func (v AgentUpstream) MarshalJSON() ([]byte, error) {
 	}
 	if v.CodexSdk != nil {
 		return json.Marshal(v.CodexSdk)
+	}
+	if v.Gemini != nil {
+		return json.Marshal(v.Gemini)
 	}
 	if v.Mock != nil {
 		return json.Marshal(v.Mock)
@@ -106,6 +115,17 @@ func (v *AgentUpstream) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try AgentUpstreamGemini
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := AgentUpstream{}
+			candidate.Gemini = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try AgentUpstreamMock
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := AgentUpstream{}
@@ -125,6 +145,7 @@ func (v AgentUpstream) Validate() error {
 	if v.Openrouter != nil { count++ }
 	if v.ClaudeAgentSdk != nil { count++ }
 	if v.CodexSdk != nil { count++ }
+	if v.Gemini != nil { count++ }
 	if v.Mock != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("AgentUpstream: exactly one variant must be set, got %d", count)

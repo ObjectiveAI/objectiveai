@@ -768,6 +768,104 @@ declare const CliCommandAgentsEnqueueRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -1483,6 +1581,104 @@ declare const CliCommandAgentsEnqueueRequestSchema: z.ZodObject<{
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -2627,6 +2823,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 content: z.ZodString;
                 tool_calls: z.ZodArray<z.ZodObject<{
@@ -3342,6 +3636,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
                     type: z.ZodLiteral<"file">;
                 }, z.core.$strip>]>>]>>>;
                 upstream: z.ZodLiteral<"codex_sdk">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -4480,6 +4872,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -5195,6 +5685,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -7667,6 +8255,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -8382,6 +9068,104 @@ declare const CliCommandAgentsLogsReadIdResponseSchema: z.ZodUnion<readonly [z.Z
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -9360,6 +10144,104 @@ declare const CliCommandAgentsMessageRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -10075,6 +10957,104 @@ declare const CliCommandAgentsMessageRequestSchema: z.ZodObject<{
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -10907,6 +11887,104 @@ declare const CliCommandAgentsPublishRequestSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 content: z.ZodString;
                 tool_calls: z.ZodArray<z.ZodObject<{
@@ -11622,6 +12700,104 @@ declare const CliCommandAgentsPublishRequestSchema: z.ZodObject<{
                     type: z.ZodLiteral<"file">;
                 }, z.core.$strip>]>>]>>>;
                 upstream: z.ZodLiteral<"codex_sdk">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -12615,6 +13791,104 @@ declare const CliCommandAgentsSpawnRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -13332,6 +14606,104 @@ declare const CliCommandAgentsSpawnRequestSchema: z.ZodObject<{
                     upstream: z.ZodLiteral<"codex_sdk">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                         content: z.ZodString;
                         tool_calls: z.ZodArray<z.ZodObject<{
@@ -13627,7 +14999,7 @@ declare const CliCommandAgentsSpawnResponseItemSchema: z.ZodUnion<readonly [z.Zo
     }, z.core.$strip>]>>;
     messages_queued: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     object: z.ZodLiteral<"agent.completion.chunk">;
-    upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"mock">]>;
+    upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"gemini">, z.ZodLiteral<"mock">]>;
     usage: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         completion_tokens: z.ZodNumber;
         completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -14365,6 +15737,104 @@ declare const CliCommandAgentsTagsApplyRequestSchema: z.ZodObject<{
             upstream: z.ZodLiteral<"codex_sdk">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                 content: z.ZodString;
                 tool_calls: z.ZodArray<z.ZodObject<{
@@ -15080,6 +16550,104 @@ declare const CliCommandAgentsTagsApplyRequestSchema: z.ZodObject<{
                     type: z.ZodLiteral<"file">;
                 }, z.core.$strip>]>>]>>>;
                 upstream: z.ZodLiteral<"codex_sdk">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -15830,6 +17398,104 @@ declare const CliCommandAgentsTagsApplyResponseSchema: z.ZodUnion<readonly [z.Zo
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                executable: z.ZodDefault<z.ZodBoolean>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                    name: z.ZodString;
+                }, z.core.$strip>>>>;
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
+        effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            authorization: z.ZodDefault<z.ZodBoolean>;
+            url: z.ZodString;
+        }, z.core.$strip>>>>;
+        model: z.ZodString;
+        output_mode: z.ZodLiteral<"instruction">;
+        prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        upstream: z.ZodLiteral<"gemini">;
+        web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    }, z.core.$strip>, z.ZodObject<{
         calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             content: z.ZodString;
             tool_calls: z.ZodArray<z.ZodObject<{
@@ -16545,6 +18211,104 @@ declare const CliCommandAgentsTagsApplyResponseSchema: z.ZodUnion<readonly [z.Zo
                 type: z.ZodLiteral<"file">;
             }, z.core.$strip>]>>]>>>;
             upstream: z.ZodLiteral<"codex_sdk">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -17289,6 +19053,104 @@ declare const CliCommandAgentsTagsApplyResponseSchema: z.ZodUnion<readonly [z.Zo
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                executable: z.ZodDefault<z.ZodBoolean>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                    name: z.ZodString;
+                }, z.core.$strip>>>>;
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
+        effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            authorization: z.ZodDefault<z.ZodBoolean>;
+            url: z.ZodString;
+        }, z.core.$strip>>>>;
+        model: z.ZodString;
+        output_mode: z.ZodLiteral<"instruction">;
+        prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        upstream: z.ZodLiteral<"gemini">;
+        web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    }, z.core.$strip>, z.ZodObject<{
         calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             content: z.ZodString;
             tool_calls: z.ZodArray<z.ZodObject<{
@@ -18004,6 +19866,104 @@ declare const CliCommandAgentsTagsApplyResponseSchema: z.ZodUnion<readonly [z.Zo
                 type: z.ZodLiteral<"file">;
             }, z.core.$strip>]>>]>>>;
             upstream: z.ZodLiteral<"codex_sdk">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -18785,6 +20745,104 @@ declare const CliCommandAgentsWaitRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -19500,6 +21558,104 @@ declare const CliCommandAgentsWaitRequestSchema: z.ZodObject<{
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -22862,7 +25018,7 @@ declare const CliCommandFunctionsExecuteStandardResponseItemSchema: z.ZodUnion<r
         }, z.core.$strip>]>>;
         messages_queued: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         object: z.ZodLiteral<"agent.completion.chunk">;
-        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"mock">]>;
+        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"gemini">, z.ZodLiteral<"mock">]>;
         usage: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             completion_tokens: z.ZodNumber;
             completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -24869,7 +27025,7 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseItemSchema: z.ZodUnio
         }, z.core.$strip>]>>;
         messages_queued: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         object: z.ZodLiteral<"agent.completion.chunk">;
-        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"mock">]>;
+        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"gemini">, z.ZodLiteral<"mock">]>;
         usage: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             completion_tokens: z.ZodNumber;
             completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -25795,6 +27951,104 @@ declare const CliCommandFunctionsProfilesPublishRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -26510,6 +28764,104 @@ declare const CliCommandFunctionsProfilesPublishRequestSchema: z.ZodObject<{
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -29569,6 +31921,104 @@ declare const CliCommandSwarmsPublishRequestSchema: z.ZodObject<{
                 upstream: z.ZodLiteral<"codex_sdk">;
                 web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
             }, z.core.$strip>, z.ZodObject<{
+                client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                    objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    plugins: z.ZodArray<z.ZodObject<{
+                        executable: z.ZodDefault<z.ZodBoolean>;
+                        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                            arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                            name: z.ZodString;
+                        }, z.core.$strip>>>>;
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                    tools: z.ZodArray<z.ZodObject<{
+                        name: z.ZodString;
+                        owner: z.ZodString;
+                        version: z.ZodString;
+                    }, z.core.$strip>>;
+                }, z.core.$strip>>>;
+                effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    authorization: z.ZodDefault<z.ZodBoolean>;
+                    url: z.ZodString;
+                }, z.core.$strip>>>>;
+                model: z.ZodString;
+                output_mode: z.ZodLiteral<"instruction">;
+                prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                    text: z.ZodString;
+                    type: z.ZodLiteral<"text">;
+                }, z.core.$strip>, z.ZodObject<{
+                    image_url: z.ZodObject<{
+                        detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"image_url">;
+                }, z.core.$strip>, z.ZodObject<{
+                    input_audio: z.ZodObject<{
+                        data: z.ZodString;
+                        format: z.ZodString;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"input_audio">;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"input_video">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    type: z.ZodLiteral<"video_url">;
+                    video_url: z.ZodObject<{
+                        url: z.ZodString;
+                    }, z.core.$strip>;
+                }, z.core.$strip>, z.ZodObject<{
+                    file: z.ZodObject<{
+                        file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    }, z.core.$strip>;
+                    type: z.ZodLiteral<"file">;
+                }, z.core.$strip>]>>]>>>;
+                system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                upstream: z.ZodLiteral<"gemini">;
+                web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            }, z.core.$strip>, z.ZodObject<{
                 calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
                     content: z.ZodString;
                     tool_calls: z.ZodArray<z.ZodObject<{
@@ -30284,6 +32734,104 @@ declare const CliCommandSwarmsPublishRequestSchema: z.ZodObject<{
                         type: z.ZodLiteral<"file">;
                     }, z.core.$strip>]>>]>>>;
                     upstream: z.ZodLiteral<"codex_sdk">;
+                    web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                }, z.core.$strip>, z.ZodObject<{
+                    client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                        objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                        plugins: z.ZodArray<z.ZodObject<{
+                            executable: z.ZodDefault<z.ZodBoolean>;
+                            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                                arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                                name: z.ZodString;
+                            }, z.core.$strip>>>>;
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                        tools: z.ZodArray<z.ZodObject<{
+                            name: z.ZodString;
+                            owner: z.ZodString;
+                            version: z.ZodString;
+                        }, z.core.$strip>>;
+                    }, z.core.$strip>>>;
+                    effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        authorization: z.ZodDefault<z.ZodBoolean>;
+                        url: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    model: z.ZodString;
+                    output_mode: z.ZodLiteral<"instruction">;
+                    prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                        text: z.ZodString;
+                        type: z.ZodLiteral<"text">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        image_url: z.ZodObject<{
+                            detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"image_url">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        input_audio: z.ZodObject<{
+                            data: z.ZodString;
+                            format: z.ZodString;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"input_audio">;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"input_video">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        type: z.ZodLiteral<"video_url">;
+                        video_url: z.ZodObject<{
+                            url: z.ZodString;
+                        }, z.core.$strip>;
+                    }, z.core.$strip>, z.ZodObject<{
+                        file: z.ZodObject<{
+                            file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                            filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                        }, z.core.$strip>;
+                        type: z.ZodLiteral<"file">;
+                    }, z.core.$strip>]>>]>>>;
+                    system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                    upstream: z.ZodLiteral<"gemini">;
                     web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
                 }, z.core.$strip>, z.ZodObject<{
                     calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
@@ -31439,7 +33987,7 @@ declare const FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema: z
     }, z.core.$strip>]>>;
     messages_queued: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     object: z.ZodLiteral<"agent.completion.chunk">;
-    upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"mock">]>;
+    upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"gemini">, z.ZodLiteral<"mock">]>;
     usage: z.ZodOptional<z.ZodNullable<z.ZodObject<{
         completion_tokens: z.ZodNumber;
         completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -31678,7 +34226,7 @@ declare const FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchem
         }, z.core.$strip>]>>;
         messages_queued: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         object: z.ZodLiteral<"agent.completion.chunk">;
-        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"mock">]>;
+        upstream: z.ZodUnion<readonly [z.ZodLiteral<"unknown">, z.ZodLiteral<"openrouter">, z.ZodLiteral<"claude_agent_sdk">, z.ZodLiteral<"codex_sdk">, z.ZodLiteral<"gemini">, z.ZodLiteral<"mock">]>;
         usage: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             completion_tokens: z.ZodNumber;
             completion_tokens_details: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -32453,6 +35001,104 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
         upstream: z.ZodLiteral<"codex_sdk">;
         web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>, z.ZodObject<{
+        client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+            objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            plugins: z.ZodArray<z.ZodObject<{
+                executable: z.ZodDefault<z.ZodBoolean>;
+                mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                    arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                    name: z.ZodString;
+                }, z.core.$strip>>>>;
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+            tools: z.ZodArray<z.ZodObject<{
+                name: z.ZodString;
+                owner: z.ZodString;
+                version: z.ZodString;
+            }, z.core.$strip>>;
+        }, z.core.$strip>>>;
+        effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+        mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+            authorization: z.ZodDefault<z.ZodBoolean>;
+            url: z.ZodString;
+        }, z.core.$strip>>>>;
+        model: z.ZodString;
+        output_mode: z.ZodLiteral<"instruction">;
+        prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+            text: z.ZodString;
+            type: z.ZodLiteral<"text">;
+        }, z.core.$strip>, z.ZodObject<{
+            image_url: z.ZodObject<{
+                detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                url: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"image_url">;
+        }, z.core.$strip>, z.ZodObject<{
+            input_audio: z.ZodObject<{
+                data: z.ZodString;
+                format: z.ZodString;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"input_audio">;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"input_video">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            type: z.ZodLiteral<"video_url">;
+            video_url: z.ZodObject<{
+                url: z.ZodString;
+            }, z.core.$strip>;
+        }, z.core.$strip>, z.ZodObject<{
+            file: z.ZodObject<{
+                file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            }, z.core.$strip>;
+            type: z.ZodLiteral<"file">;
+        }, z.core.$strip>]>>]>>>;
+        system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+        thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        upstream: z.ZodLiteral<"gemini">;
+        web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+    }, z.core.$strip>, z.ZodObject<{
         calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
             content: z.ZodString;
             tool_calls: z.ZodArray<z.ZodObject<{
@@ -33168,6 +35814,104 @@ declare const SwarmInlineSwarmBaseSchema: z.ZodObject<{
                 type: z.ZodLiteral<"file">;
             }, z.core.$strip>]>>]>>>;
             upstream: z.ZodLiteral<"codex_sdk">;
+            web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+        }, z.core.$strip>, z.ZodObject<{
+            client_objectiveai_mcp: z.ZodOptional<z.ZodNullable<z.ZodObject<{
+                objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+                plugins: z.ZodArray<z.ZodObject<{
+                    executable: z.ZodDefault<z.ZodBoolean>;
+                    mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                        arguments: z.ZodOptional<z.ZodNullable<z.ZodRecord<z.ZodString, z.ZodNullable<z.ZodString>>>>;
+                        name: z.ZodString;
+                    }, z.core.$strip>>>>;
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+                tools: z.ZodArray<z.ZodObject<{
+                    name: z.ZodString;
+                    owner: z.ZodString;
+                    version: z.ZodString;
+                }, z.core.$strip>>;
+            }, z.core.$strip>>>;
+            effort: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"low">, z.ZodLiteral<"medium">, z.ZodLiteral<"high">]>>>;
+            mcp_servers: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
+                authorization: z.ZodDefault<z.ZodBoolean>;
+                url: z.ZodString;
+            }, z.core.$strip>>>>;
+            model: z.ZodString;
+            output_mode: z.ZodLiteral<"instruction">;
+            prefix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            suffix_content: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
+                text: z.ZodString;
+                type: z.ZodLiteral<"text">;
+            }, z.core.$strip>, z.ZodObject<{
+                image_url: z.ZodObject<{
+                    detail: z.ZodOptional<z.ZodNullable<z.ZodUnion<readonly [z.ZodLiteral<"auto">, z.ZodLiteral<"low">, z.ZodLiteral<"high">]>>>;
+                    url: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"image_url">;
+            }, z.core.$strip>, z.ZodObject<{
+                input_audio: z.ZodObject<{
+                    data: z.ZodString;
+                    format: z.ZodString;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"input_audio">;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"input_video">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                type: z.ZodLiteral<"video_url">;
+                video_url: z.ZodObject<{
+                    url: z.ZodString;
+                }, z.core.$strip>;
+            }, z.core.$strip>, z.ZodObject<{
+                file: z.ZodObject<{
+                    file_data: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    file_url: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                    filename: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+                }, z.core.$strip>;
+                type: z.ZodLiteral<"file">;
+            }, z.core.$strip>]>>]>>>;
+            system_prompt: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+            thinking: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
+            upstream: z.ZodLiteral<"gemini">;
             web_search_enabled: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
         }, z.core.$strip>, z.ZodObject<{
             calls: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodObject<{
