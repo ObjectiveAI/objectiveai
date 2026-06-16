@@ -88,34 +88,48 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.bin_dir().join("locks");
 
-    // Project the resolved `api.mcp_backoff` blob (timeouts + backoff)
-    // onto the spawned api's env. Scrubbed above, so we set explicit
-    // values: the configured ones, or the canonical default when unset
-    // (same values the api would have defaulted to). The api forwards
+    // Project the configured `api.mcp_backoff` blob (timeouts + backoff)
+    // onto the spawned api's env — but ONLY when the user explicitly set
+    // it. The keys are scrubbed above, so when `mcp_backoff` is unset we
+    // leave them unset and the api resolves them itself
+    // (`<OBJECTIVEAI_DIR>/.env`, then its built-in default). That's
+    // identical to passing the canonical default in production, and it
+    // preserves the test `.env`'s `MCP_BACKOFF_*=0` fast-fail on the
+    // shared (machine-wide, first-spawn-wins) api — unconditionally
+    // setting the default would clobber that `0`. See
+    // `Context::resolve_mcp_backoff_opt`. When set, the api forwards
     // these to the proxy it spawns, so this drives every server-side MCP
     // connection too.
-    let backoff = ctx.resolve_mcp_backoff().await?;
+    let backoff = ctx.resolve_mcp_backoff_opt().await?;
 
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
         for key in API_CONFIG_ENV {
             cmd.env_remove(key);
         }
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
-            .env("SUPPRESS_OUTPUT", "true")
-            .env("MCP_CONNECT_TIMEOUT", backoff.connect_timeout_ms.to_string())
-            .env("MCP_BACKOFF_CURRENT_INTERVAL", backoff.current_interval_ms.to_string())
-            .env("MCP_BACKOFF_INITIAL_INTERVAL", backoff.initial_interval_ms.to_string())
-            .env(
-                "MCP_BACKOFF_RANDOMIZATION_FACTOR",
-                backoff.randomization_factor.to_string(),
-            )
-            .env("MCP_BACKOFF_MULTIPLIER", backoff.multiplier.to_string())
-            .env("MCP_BACKOFF_MAX_INTERVAL", backoff.max_interval_ms.to_string())
-            .env(
-                "MCP_BACKOFF_MAX_ELAPSED_TIME",
-                backoff.max_elapsed_time_ms.to_string(),
-            )
-            .env("MCP_CALL_TIMEOUT", backoff.call_timeout_ms.to_string());
+            .env("SUPPRESS_OUTPUT", "true");
+        if let Some(backoff) = backoff {
+            cmd.env("MCP_CONNECT_TIMEOUT", backoff.connect_timeout_ms.to_string())
+                .env(
+                    "MCP_BACKOFF_CURRENT_INTERVAL",
+                    backoff.current_interval_ms.to_string(),
+                )
+                .env(
+                    "MCP_BACKOFF_INITIAL_INTERVAL",
+                    backoff.initial_interval_ms.to_string(),
+                )
+                .env(
+                    "MCP_BACKOFF_RANDOMIZATION_FACTOR",
+                    backoff.randomization_factor.to_string(),
+                )
+                .env("MCP_BACKOFF_MULTIPLIER", backoff.multiplier.to_string())
+                .env("MCP_BACKOFF_MAX_INTERVAL", backoff.max_interval_ms.to_string())
+                .env(
+                    "MCP_BACKOFF_MAX_ELAPSED_TIME",
+                    backoff.max_elapsed_time_ms.to_string(),
+                )
+                .env("MCP_CALL_TIMEOUT", backoff.call_timeout_ms.to_string());
+        }
     })
     .await
 }

@@ -131,18 +131,38 @@ impl Context {
 
     /// The MCP retry-backoff this CLI process uses for ALL of its own
     /// MCP clients (the streaming conduit, through which every CLI MCP
-    /// connection flows) AND projects onto the api it spawns. Reads the
-    /// merged (`--final`) `api.mcp_backoff` config blob; falls back to
-    /// the canonical default ([`objectiveai_sdk::mcp::Backoff::default`])
-    /// when unset.
+    /// connection flows). Reads the merged (`--final`) `api.mcp_backoff`
+    /// config blob; falls back to the canonical default
+    /// ([`objectiveai_sdk::mcp::Backoff::default`]) when unset. Callers
+    /// that need to distinguish "configured" from "unset" (the api
+    /// spawn) use [`Self::resolve_mcp_backoff_opt`] instead.
     pub async fn resolve_mcp_backoff(
         &self,
     ) -> Result<objectiveai_sdk::mcp::Backoff, crate::error::Error> {
+        Ok(self.resolve_mcp_backoff_opt().await?.unwrap_or_default())
+    }
+
+    /// The configured `api.mcp_backoff` blob, or `None` when unset —
+    /// preserving the distinction [`Self::resolve_mcp_backoff`] erases.
+    ///
+    /// The api spawn uses this to project `MCP_*`/`MCP_BACKOFF_*` env
+    /// onto the spawned (machine-wide, shared) server ONLY when the user
+    /// explicitly configured a backoff. Leaving them unset lets the api
+    /// fall back to its own resolution — `<OBJECTIVEAI_DIR>/.env`, then
+    /// its built-in default. That fallback is behaviorally identical to
+    /// passing the canonical default in production, and it's what the
+    /// test `.env` (which sets `MCP_BACKOFF_*=0` to fast-fail real MCP
+    /// errors instead of masking them with retry storms) relies on:
+    /// unconditionally setting the default here would clobber that `0`
+    /// on the shared api and re-introduce the storms.
+    pub async fn resolve_mcp_backoff_opt(
+        &self,
+    ) -> Result<Option<objectiveai_sdk::mcp::Backoff>, crate::error::Error> {
         let mut config = self
             .filesystem
             .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
             .await?;
-        Ok(config.api().get_mcp_backoff().unwrap_or_default())
+        Ok(config.api().get_mcp_backoff())
     }
 
     /// The synchronous-response viewer client, built on first use and
