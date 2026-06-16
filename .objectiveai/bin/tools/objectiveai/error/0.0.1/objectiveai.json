@@ -5,22 +5,13 @@
   "description": "E2E test fixture",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/error-tool.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/error-tool"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/error-tool"
     ]
   },
   "cli_zip": {}

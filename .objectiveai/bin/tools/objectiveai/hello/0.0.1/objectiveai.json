@@ -5,22 +5,13 @@
   "description": "E2E test fixture",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/hello-tool.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/hello-tool"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/hello-tool"
     ]
   },
   "cli_zip": {}

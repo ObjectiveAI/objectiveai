@@ -1,0 +1,18 @@
+[package]
+name = "test-mcp-plugin-failing"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "test-mcp-plugin-failing"
+path = "src/main.rs"
+
+[dependencies]
+axum = "0.8.8"
+rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+schemars = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "signal"] }
+tokio-util = "0.7"

@@ -7368,6 +7368,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-mcp-plugin-failing"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "rmcp",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "test-mcp-plugin-foo-headers"
 version = "0.1.0"
 dependencies = [

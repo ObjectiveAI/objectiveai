@@ -5,22 +5,13 @@
   "description": "test fixture",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin"
     ]
   },
   "cli_zip": {},

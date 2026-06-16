@@ -5,28 +5,13 @@
   "description": "same-charlie fixture",
   "exec": {
     "windows": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "test-mcp-plugin-named",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-named.exe"
     ],
     "linux": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "test-mcp-plugin-named",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-named"
     ],
     "macos": [
-      "cargo",
-      "run",
-      "-q",
-      "-p",
-      "test-mcp-plugin-named",
-      "--"
+      "../../../../../../../target/debug/test-mcp-plugin-named"
     ]
   },
   "cli_zip": {},

@@ -21,6 +21,7 @@ members = [
     ".objectiveai/crates/test-mcp-plugin-named",
     ".objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli",
     ".objectiveai/bin/plugins/testorg/test-mcp-plugin/1.0.0/cli",
+    ".objectiveai/bin/plugins/testorg/test-mcp-plugin-failing/1.0.0/cli",
     ".objectiveai/bin/plugins/testorg/test-mcp-plugin-foo-headers/1.0.0/cli",
     ".objectiveai/bin/tools/objectiveai/hello/0.0.1/cli",
     ".objectiveai/bin/tools/objectiveai/error/0.0.1/cli",
