@@ -33,6 +33,9 @@ pub enum Upstream {
     /// Codex SDK Upstream.
     #[schemars(title = "CodexSdk")]
     CodexSdk,
+    /// Gemini Upstream.
+    #[schemars(title = "Gemini")]
+    Gemini,
     /// Mock Upstream.
     #[schemars(title = "Mock")]
     Mock,

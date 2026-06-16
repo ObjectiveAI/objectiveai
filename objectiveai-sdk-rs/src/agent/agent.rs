@@ -27,6 +27,8 @@ pub enum InlineAgentBase {
     ClaudeAgentSdk(super::claude_agent_sdk::AgentBase),
     #[schemars(title = "CodexSdk")]
     CodexSdk(super::codex_sdk::AgentBase),
+    #[schemars(title = "Gemini")]
+    Gemini(super::gemini::AgentBase),
     #[schemars(title = "Mock")]
     Mock(super::mock::AgentBase),
 }
@@ -39,6 +41,7 @@ impl InlineAgentBase {
                 InlineAgentRef::ClaudeAgentSdk(b)
             }
             InlineAgentBase::CodexSdk(b) => InlineAgentRef::CodexSdk(b),
+            InlineAgentBase::Gemini(b) => InlineAgentRef::Gemini(b),
             InlineAgentBase::Mock(b) => InlineAgentRef::Mock(b),
         }
     }
@@ -70,6 +73,7 @@ impl InlineAgentBase {
             InlineAgentBase::Openrouter(b) => b.prepare(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.prepare(),
             InlineAgentBase::CodexSdk(b) => b.prepare(),
+            InlineAgentBase::Gemini(b) => b.prepare(),
             InlineAgentBase::Mock(b) => b.prepare(),
         }
     }
@@ -79,6 +83,7 @@ impl InlineAgentBase {
             InlineAgentBase::Openrouter(b) => b.validate(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.validate(),
             InlineAgentBase::CodexSdk(b) => b.validate(),
+            InlineAgentBase::Gemini(b) => b.validate(),
             InlineAgentBase::Mock(b) => b.validate(),
         }
     }
@@ -88,6 +93,7 @@ impl InlineAgentBase {
             InlineAgentBase::Openrouter(b) => b.id(),
             InlineAgentBase::ClaudeAgentSdk(b) => b.id(),
             InlineAgentBase::CodexSdk(b) => b.id(),
+            InlineAgentBase::Gemini(b) => b.id(),
             InlineAgentBase::Mock(b) => b.id(),
         }
     }
@@ -103,6 +109,9 @@ impl InlineAgentBase {
             }
             InlineAgentBase::CodexSdk(b) => {
                 Ok(InlineAgent::CodexSdk(b.try_into()?))
+            }
+            InlineAgentBase::Gemini(b) => {
+                Ok(InlineAgent::Gemini(b.try_into()?))
             }
             InlineAgentBase::Mock(b) => Ok(InlineAgent::Mock(b.try_into()?)),
         }
@@ -263,6 +272,7 @@ pub enum InlineAgentRef<'a> {
     Openrouter(&'a super::openrouter::AgentBase),
     ClaudeAgentSdk(&'a super::claude_agent_sdk::AgentBase),
     CodexSdk(&'a super::codex_sdk::AgentBase),
+    Gemini(&'a super::gemini::AgentBase),
     Mock(&'a super::mock::AgentBase),
 }
 
@@ -276,6 +286,7 @@ impl<'a> InlineAgentRef<'a> {
                 InlineAgentBase::ClaudeAgentSdk(b.clone())
             }
             InlineAgentRef::CodexSdk(b) => InlineAgentBase::CodexSdk(b.clone()),
+            InlineAgentRef::Gemini(b) => InlineAgentBase::Gemini(b.clone()),
             InlineAgentRef::Mock(b) => InlineAgentBase::Mock(b.clone()),
         }
     }
@@ -285,6 +296,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::Openrouter(b) => &b.model,
             InlineAgentRef::ClaudeAgentSdk(b) => &b.model,
             InlineAgentRef::CodexSdk(b) => &b.model,
+            InlineAgentRef::Gemini(b) => &b.model,
             InlineAgentRef::Mock(_) => super::mock::AgentBase::model(),
         }
     }
@@ -296,6 +308,7 @@ impl<'a> InlineAgentRef<'a> {
                 super::Upstream::ClaudeAgentSdk
             }
             InlineAgentRef::CodexSdk(_) => super::Upstream::CodexSdk,
+            InlineAgentRef::Gemini(_) => super::Upstream::Gemini,
             InlineAgentRef::Mock(_) => super::Upstream::Mock,
         }
     }
@@ -305,6 +318,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::Openrouter(b) => b.output_mode.into(),
             InlineAgentRef::ClaudeAgentSdk(b) => b.output_mode.into(),
             InlineAgentRef::CodexSdk(b) => b.output_mode.into(),
+            InlineAgentRef::Gemini(b) => b.output_mode.into(),
             InlineAgentRef::Mock(b) => b.output_mode.into(),
         }
     }
@@ -314,6 +328,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::Openrouter(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::ClaudeAgentSdk(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::CodexSdk(b) => b.mcp_servers.as_ref(),
+            InlineAgentRef::Gemini(b) => b.mcp_servers.as_ref(),
             InlineAgentRef::Mock(b) => b.mcp_servers.as_ref(),
         }
     }
@@ -327,6 +342,7 @@ impl<'a> InlineAgentRef<'a> {
                 b.client_objectiveai_mcp.as_ref()
             }
             InlineAgentRef::CodexSdk(b) => b.client_objectiveai_mcp.as_ref(),
+            InlineAgentRef::Gemini(b) => b.client_objectiveai_mcp.as_ref(),
             InlineAgentRef::Mock(b) => b.client_objectiveai_mcp.as_ref(),
         }
     }
@@ -336,6 +352,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::Openrouter(b) => b.top_logprobs,
             InlineAgentRef::ClaudeAgentSdk(_) => None,
             InlineAgentRef::CodexSdk(_) => None,
+            InlineAgentRef::Gemini(_) => None,
             InlineAgentRef::Mock(b) => b.top_logprobs,
         }
     }
@@ -348,6 +365,7 @@ impl<'a> InlineAgentRef<'a> {
             InlineAgentRef::Openrouter(b) => b.merged_messages(messages),
             InlineAgentRef::ClaudeAgentSdk(b) => b.merged_messages(messages),
             InlineAgentRef::CodexSdk(b) => b.merged_messages(messages),
+            InlineAgentRef::Gemini(b) => b.merged_messages(messages),
             InlineAgentRef::Mock(b) => b.merged_messages(messages),
         }
     }
@@ -368,6 +386,8 @@ pub enum InlineAgent {
     ClaudeAgentSdk(super::claude_agent_sdk::Agent),
     #[schemars(title = "CodexSdk")]
     CodexSdk(super::codex_sdk::Agent),
+    #[schemars(title = "Gemini")]
+    Gemini(super::gemini::Agent),
     #[schemars(title = "Mock")]
     Mock(super::mock::Agent),
 }
@@ -378,6 +398,7 @@ impl InlineAgent {
             InlineAgent::Openrouter(a) => &a.id,
             InlineAgent::ClaudeAgentSdk(a) => &a.id,
             InlineAgent::CodexSdk(a) => &a.id,
+            InlineAgent::Gemini(a) => &a.id,
             InlineAgent::Mock(a) => &a.id,
         }
     }
@@ -389,6 +410,7 @@ impl InlineAgent {
                 InlineAgentRef::ClaudeAgentSdk(&a.base)
             }
             InlineAgent::CodexSdk(a) => InlineAgentRef::CodexSdk(&a.base),
+            InlineAgent::Gemini(a) => InlineAgentRef::Gemini(&a.base),
             InlineAgent::Mock(a) => InlineAgentRef::Mock(&a.base),
         }
     }
@@ -400,6 +422,7 @@ impl InlineAgent {
                 InlineAgentBase::ClaudeAgentSdk(a.base)
             }
             InlineAgent::CodexSdk(a) => InlineAgentBase::CodexSdk(a.base),
+            InlineAgent::Gemini(a) => InlineAgentBase::Gemini(a.base),
             InlineAgent::Mock(a) => InlineAgentBase::Mock(a.base),
         }
     }

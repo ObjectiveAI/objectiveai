@@ -17,6 +17,8 @@ pub enum Continuation {
     ClaudeAgentSdk(super::claude_agent_sdk::Continuation),
     #[schemars(title = "CodexSdk")]
     CodexSdk(super::codex_sdk::Continuation),
+    #[schemars(title = "Gemini")]
+    Gemini(super::gemini::Continuation),
     #[schemars(title = "Mock")]
     Mock(super::mock::Continuation),
 }
@@ -39,6 +41,12 @@ impl From<super::codex_sdk::Continuation> for Continuation {
     }
 }
 
+impl From<super::gemini::Continuation> for Continuation {
+    fn from(inner: super::gemini::Continuation) -> Self {
+        Self::Gemini(inner)
+    }
+}
+
 impl From<super::mock::Continuation> for Continuation {
     fn from(inner: super::mock::Continuation) -> Self {
         Self::Mock(inner)
@@ -52,6 +60,7 @@ impl Continuation {
             Self::Openrouter(c) => &c.mcp_sessions,
             Self::ClaudeAgentSdk(c) => &c.mcp_sessions,
             Self::CodexSdk(c) => &c.mcp_sessions,
+            Self::Gemini(c) => &c.mcp_sessions,
             Self::Mock(c) => &c.mcp_sessions,
         }
     }
@@ -65,6 +74,7 @@ impl Continuation {
             Self::Openrouter(c) => c.agent_instance_hierarchy.as_str(),
             Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy.as_str(),
             Self::CodexSdk(c) => c.agent_instance_hierarchy.as_str(),
+            Self::Gemini(c) => c.agent_instance_hierarchy.as_str(),
             Self::Mock(c) => c.agent_instance_hierarchy.as_str(),
         }
     }
@@ -77,6 +87,7 @@ impl Continuation {
             Self::Openrouter(c) => c.agent_instance_hierarchy = id,
             Self::ClaudeAgentSdk(c) => c.agent_instance_hierarchy = id,
             Self::CodexSdk(c) => c.agent_instance_hierarchy = id,
+            Self::Gemini(c) => c.agent_instance_hierarchy = id,
             Self::Mock(c) => c.agent_instance_hierarchy = id,
         }
     }
@@ -87,6 +98,7 @@ impl Continuation {
             Self::Openrouter(_) => super::Upstream::Openrouter,
             Self::ClaudeAgentSdk(_) => super::Upstream::ClaudeAgentSdk,
             Self::CodexSdk(_) => super::Upstream::CodexSdk,
+            Self::Gemini(_) => super::Upstream::Gemini,
             Self::Mock(_) => super::Upstream::Mock,
         }
     }

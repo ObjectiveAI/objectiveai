@@ -75,6 +75,14 @@ impl From<super::codex_sdk::OutputMode> for OutputMode {
     }
 }
 
+impl From<super::gemini::OutputMode> for OutputMode {
+    fn from(mode: super::gemini::OutputMode) -> Self {
+        match mode {
+            super::gemini::OutputMode::Instruction => OutputMode::Instruction,
+        }
+    }
+}
+
 impl From<super::mock::OutputMode> for OutputMode {
     fn from(mode: super::mock::OutputMode) -> Self {
         match mode {

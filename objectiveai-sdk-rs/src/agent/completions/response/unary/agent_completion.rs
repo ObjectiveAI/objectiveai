@@ -80,6 +80,10 @@ impl AgentCompletion {
                         x.mcp_sessions.clear();
                         x.agent_instance_hierarchy.clear();
                     }
+                    crate::agent::Continuation::Gemini(x) => {
+                        x.mcp_sessions.clear();
+                        x.agent_instance_hierarchy.clear();
+                    }
                     crate::agent::Continuation::Mock(x) => {
                         x.mcp_sessions.clear();
                         x.agent_instance_hierarchy.clear();
