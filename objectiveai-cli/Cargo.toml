@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-cli"
-version = "2.2.1"
+version = "2.2.2"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI command-line interface and embeddable library"
@@ -13,8 +13,8 @@ keywords = ["llm", "ai", "swarm", "cli"]
 publish = true
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.1", features = ["lockfile"] }
-objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.1" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.2", features = ["lockfile"] }
+objectiveai-mcp = { path = "../objectiveai-mcp", version = "2.2.2" }
 axum = "0.8.8"
 clap = { version = "4.6.0", features = ["derive"] }
 schemars = { version = "1.2.1" }
@@ -70,7 +70,7 @@ windows-sys = { version = "0.59", features = ["Win32_Foundation", "Win32_System_
 nix = { version = "0.29", features = ["fs"] }
 
 [build-dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.1", default-features = false, features = ["lockfile"] }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.2", default-features = false, features = ["lockfile"] }
 tokio = { version = "1.50.0", features = ["rt"] }
 twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_128"] }
 zstd = "0.13"

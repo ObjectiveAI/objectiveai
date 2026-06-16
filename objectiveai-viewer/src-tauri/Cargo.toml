@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-viewer"
-version = "2.2.1"
+version = "2.2.2"
 edition = "2024"
 
 [features]
@@ -18,7 +18,7 @@ envconfig = "0.11.1"
 futures = "0.3.32"
 hex = "0.4.3"
 mime_guess = "2.0.5"
-objectiveai-sdk = { version = "2.2.1", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "mcp", "viewer", "lockfile"] }
+objectiveai-sdk = { version = "2.2.2", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "mcp", "viewer", "lockfile"] }
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
