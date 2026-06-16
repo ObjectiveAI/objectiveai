@@ -1,15 +1,15 @@
 //! MCP connection for communicating with an MCP server.
 //!
 //! [`Connection`] is a cheaply-clonable handle around an internal
-//! [`ConnectionInner`]. The last drop of the inner `Arc` runs
-//! [`ConnectionInner`]'s `Drop`, which cancels the listener task's
-//! [`tokio_util::sync::CancellationToken`] (held in `_listener_cancel_guard`
-//! as a [`tokio_util::sync::DropGuard`]) — the SSE listener exits the
+//! [`ConnectionInner`]. The last drop of the inner `Arc` drops
+//! [`ConnectionInner`]'s `_listener_cancel_guard` field (a
+//! [`tokio_util::sync::DropGuard`]), which cancels the listener task's
+//! [`tokio_util::sync::CancellationToken`] — the SSE listener exits the
 //! instant any in-flight reconnect, sleep, or read is cancelled, with no
 //! zombie 401 retries against a now-dead proxy session.
 
 use std::ops::Deref;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock as StdRwLock, Weak};
 use std::time::Duration;
 
@@ -61,8 +61,8 @@ impl std::fmt::Debug for CallbackSlot {
 /// An active connection to an MCP server using the Streamable HTTP transport.
 ///
 /// Cheaply clonable (one `Arc` bump). When the last clone is dropped, the
-/// inner `Arc` ref count hits zero, [`ConnectionInner::Drop`] runs, the
-/// listener-cancel `DropGuard` is dropped, and the SSE listener task is
+/// inner `Arc` ref count hits zero, the `_listener_cancel_guard` field is
+/// dropped, and the SSE listener task is
 /// cancelled — exiting any in-flight `lines.next_line()`, reconnect
 /// `send()`, or backoff `sleep` *immediately* without retrying against
 /// the now-dead proxy session.
@@ -87,8 +87,8 @@ impl Clone for Connection {
 }
 
 // No `Drop` for `Connection`: cancellation happens deterministically
-// when the last `Arc<ConnectionInner>` clone is dropped, which runs
-// `ConnectionInner::drop` and releases the cancel-token DropGuard.
+// when the last `Arc<ConnectionInner>` clone is dropped, which drops
+// the `_listener_cancel_guard` field and cancels the listener token.
 
 impl Deref for Connection {
     type Target = ConnectionInner;
@@ -129,15 +129,7 @@ impl Connection {
     /// That's the spec-correct order (client said terminate) — drain
     /// on the caller side first if you need different semantics.
     pub async fn delete(&self) -> Result<(), super::Error> {
-        // 1. Mark the connection as "used" so the drop-time
-        //    orphan-DELETE check (see `ConnectionInner::Drop`) skips
-        //    its own fan-out. Without this, a fresh-mint connection
-        //    that's explicitly torn down via `delete()` would race
-        //    its own drop-time orphan into a duplicate upstream
-        //    DELETE.
-        self.inner.any_calls.store(true, Ordering::Relaxed);
-
-        // 2. Drop the listener-cancel guard. Releasing the `DropGuard`
+        // 1. Drop the listener-cancel guard. Releasing the `DropGuard`
         //    cancels the sibling `CancellationToken` the listener task
         //    holds; the listener `tokio::select!`s against it on every
         //    blocking await and exits inside one scheduler tick.
@@ -145,7 +137,7 @@ impl Connection {
             let _ = guard.take();
         }
 
-        // 3. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
+        // 2. Build + send HTTP DELETE. Mirrors `Client::connect_once`'s
         //    request-stamp shape: header loop first, explicit
         //    `Mcp-Session-Id` always wins.
         let request = self
@@ -161,7 +153,7 @@ impl Connection {
             }
         })?;
 
-        // 4. 404 / 401 / 403 → success; other non-2xx → real error.
+        // 3. 404 / 401 / 403 → success; other non-2xx → real error.
         let status = response.status();
         if matches!(
             status,
@@ -196,7 +188,6 @@ impl Connection {
         call_timeout: Duration,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
-        is_reconnect: bool,
     ) -> Self {
         let inner = ConnectionInner::new(
             http_client,
@@ -212,7 +203,6 @@ impl Connection {
             call_timeout,
             initialize_result,
             initial_sse_lines,
-            is_reconnect,
         )
         .await;
         Self { inner }
@@ -472,35 +462,6 @@ pub struct ConnectionInner {
     /// The server's capabilities and info from the initialize response.
     pub initialize_result: super::initialize_result::InitializeResult,
 
-    /// `true` iff this connection was opened by resuming an existing
-    /// upstream session — i.e. [`Client::connect`](super::Client::connect)
-    /// was called with `session_id: Some(...)`. Set once at
-    /// construction; never mutated.
-    ///
-    /// Used by the drop-time orphan-DELETE gate in
-    /// [`ConnectionInner::Drop`]: reconnects are **excluded** from
-    /// orphan DELETE because their `any_calls == false` only means
-    /// "this `Connection` instance didn't use it" — an earlier
-    /// instance that opened the upstream session may have. Only
-    /// freshly-minted connections (`is_reconnect == false`) that no
-    /// one used get the drop-time orphan DELETE.
-    is_reconnect: bool,
-
-    /// `true` once any [`Self::call_tool`] or [`Self::read_resource`]
-    /// has been issued through this connection. Listings
-    /// ([`Self::list_tools`], [`Self::list_resources`]) and the
-    /// proxy-side notification helpers do NOT flip this — only
-    /// deliberate use of the upstream session counts.
-    ///
-    /// Stored atomically because the setters live behind `&self`-only
-    /// call paths; `Ordering::Relaxed` is sufficient (we never
-    /// synchronize anything else against this load/store).
-    ///
-    /// Also flipped to `true` at the top of [`super::Connection::delete`]
-    /// so an explicit teardown of a fresh-mint connection can't race
-    /// the drop-time orphan-DELETE into a double-fire.
-    any_calls: AtomicBool,
-
     /// Auto-incrementing request ID (starts at 2; 1 was used for initialize).
     next_id: AtomicU64,
 
@@ -538,7 +499,7 @@ pub struct ConnectionInner {
     /// the cancel token *before* the surrounding `Arc<ConnectionInner>`
     /// goes away. Regular drop still works: `Mutex<Option<DropGuard>>`
     /// drops its inner `DropGuard` automatically when the mutex itself
-    /// drops, so existing `Connection::Drop` semantics are unchanged.
+    /// drops, so the listener is still cancelled on the last `Arc` drop.
     _listener_cancel_guard: std::sync::Mutex<Option<DropGuard>>,
 
     /// Optional callback fired *after* the listener has refreshed the
@@ -630,8 +591,6 @@ impl ConnectionInner {
                 instructions: None,
                 _meta: None,
             },
-            is_reconnect: false,
-            any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
             // Test connection has no listener and never refreshes; seed
             // with an empty Ok so `list_tools` doesn't try to paginate.
@@ -670,7 +629,6 @@ impl ConnectionInner {
         call_timeout: Duration,
         initialize_result: super::initialize_result::InitializeResult,
         initial_sse_lines: Option<super::LinesStream>,
-        is_reconnect: bool,
     ) -> Arc<Self> {
         // Cancel-the-listener machinery: store the DropGuard inside the
         // inner so the cancellation fires deterministically when the
@@ -693,8 +651,6 @@ impl ConnectionInner {
             backoff_max_elapsed_time,
             call_timeout,
             initialize_result,
-            is_reconnect,
-            any_calls: AtomicBool::new(false),
             next_id: AtomicU64::new(2),
             // Start empty; `refresh_tools_signaling` below installs
             // `Some(_)` before `new` returns (the lock-handoff oneshot
@@ -1245,11 +1201,6 @@ impl ConnectionInner {
                 capability: "tools",
             });
         }
-        // Mark the connection as deliberately used. Flipped at the top
-        // of the method (not after success) because even a failed
-        // `tools/call` may have mutated upstream state — we don't want
-        // the drop-time orphan-DELETE second-guessing that.
-        self.any_calls.store(true, Ordering::Relaxed);
         let mut result: super::tool::CallToolResult =
             self.rpc("tools/call", params, false).await?;
 
@@ -1472,9 +1423,6 @@ impl ConnectionInner {
                 capability: "resources",
             });
         }
-        // Mark the connection as deliberately used (same reasoning as
-        // `call_tool` — see the drop-time orphan-DELETE gate).
-        self.any_calls.store(true, Ordering::Relaxed);
         self.rpc(
             "resources/read",
             &super::resource::ReadResourceRequestParams {
@@ -1873,103 +1821,6 @@ impl ConnectionInner {
             }
         }
     }
-}
-
-impl Drop for ConnectionInner {
-    /// Orphan-DELETE hook: when a **freshly-minted** connection (not a
-    /// resume) is dropped without any deliberate use — no `call_tool`,
-    /// no `read_resource`, no explicit `Connection::delete` — spawn a
-    /// fire-and-forget HTTP DELETE so the upstream session we just
-    /// opened doesn't sit there accruing per-session state for nothing.
-    ///
-    /// Reconnect-resumes are deliberately excluded: a reconnect's
-    /// `any_calls == false` only means *this* `Connection` instance
-    /// never called anything — the underlying upstream session may
-    /// well have been used by an earlier `Connection` that opened it,
-    /// did real work, and let us re-attach. Tearing it down here would
-    /// kill a still-live session out from under whoever owns it.
-    /// Reconnects rely on the proxy's explicit `Connection::delete`
-    /// (or `Client::delete`) for upstream cleanup instead.
-    ///
-    /// Skip conditions (any one triggers a no-op):
-    ///
-    /// - `mock` is `true` — there was never an HTTP session to begin with.
-    /// - `is_reconnect` is `true` — see above; the upstream session
-    ///   pre-existed this connection and isn't ours to tear down on drop.
-    /// - `any_calls` is `true` — the connection was deliberately used,
-    ///   or an explicit `Connection::delete` already ran.
-    /// - No tokio runtime is in scope — `tokio::spawn` would panic.
-    ///   Silently leak the upstream session in this case (sync
-    ///   teardown paths e.g. `cfg(test)` blocks not driven by tokio).
-    ///
-    /// The listener-cancel `DropGuard` inside `_listener_cancel_guard`
-    /// fires automatically as part of this same `drop` call, so by the
-    /// time the orphan DELETE goes out the listener task has already
-    /// been told to cancel — no SSE/GET race with the upstream DELETE.
-    fn drop(&mut self) {
-        if self.is_reconnect {
-            return;
-        }
-        if self.any_calls.load(Ordering::Relaxed) {
-            return;
-        }
-
-        // Clone out the bits the orphan task needs. None of these are
-        // big: `reqwest::Client` is itself an `Arc` bump,
-        // `IndexMap<String, String>` is the per-connection header bag
-        // (small), and the `String`s are the per-session id + URL.
-        let http_client = self.http_client.clone();
-        let url = self.url.clone();
-        let session_id = self.session_id.clone();
-        let headers = self.headers.clone();
-        let timeout = self.call_timeout;
-
-        // Spawn only if a tokio runtime is in scope. `tokio::spawn`
-        // panics outside one — sync teardown paths (e.g. a test that
-        // builds a `Connection` and lets it drop on a non-async stack)
-        // would crash without this guard.
-        if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.spawn(orphan_delete(
-                http_client,
-                url,
-                session_id,
-                headers,
-                timeout,
-            ));
-        }
-    }
-}
-
-/// Fire-and-forget HTTP `DELETE` used by [`ConnectionInner::drop`] to
-/// release a resumed upstream session that was never used. Mirrors
-/// [`super::Connection::delete`]'s wire shape (same `Mcp-Session-Id`
-/// header behavior, same header-loop with the explicit session id
-/// winning over any `Mcp-Session-Id` entry in `headers`) but never
-/// surfaces errors — there's no caller left to surface them to. The
-/// `timeout` (sourced from the originating connection's `call_timeout`)
-/// caps the request so a hanging upstream can't keep the spawned task
-/// alive forever.
-async fn orphan_delete(
-    http_client: reqwest::Client,
-    url: String,
-    session_id: String,
-    headers: IndexMap<String, String>,
-    timeout: Duration,
-) {
-    let mut request = http_client
-        .delete(&url)
-        .timeout(timeout)
-        .header("Mcp-Session-Id", &session_id);
-    for (name, value) in &headers {
-        if name.eq_ignore_ascii_case("Mcp-Session-Id") {
-            continue;
-        }
-        request = request.header(name, value);
-    }
-    // Errors silently swallowed: no caller, and the listener-cancel
-    // guard has already fired (it runs as part of the regular
-    // `_listener_cancel_guard` drop inside the same `drop` call).
-    let _ = request.send().await;
 }
 
 #[cfg(test)]
