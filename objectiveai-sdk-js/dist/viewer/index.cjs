@@ -2957,6 +2957,107 @@ async function apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform(reques
   }
   return first;
 }
+var CliCommandApiConfigMcpTimeoutMsGetResponseSchema = zod.z.object({
+  mcp_timeout_ms: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.api.config.mcp_timeout_ms.get.Response" });
+
+// src/viewer/command/api/config/mcp_timeout_ms/get.ts
+async function apiConfigMcpTimeoutMsGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/mcp_timeout_ms/get" }), zod.z.union([CliErrorSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsGetExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/mcp_timeout_ms/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_timeout_ms/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_timeout_ms/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/mcp_timeout_ms/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/mcp_timeout_ms/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/mcp_timeout_ms/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/mcp_timeout_ms/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config mcp_timeout_ms set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
 var CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema = zod.z.object({
   objectiveai_authorization: zod.z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.objectiveai_authorization.get.Response" });
@@ -6699,6 +6800,18 @@ exports.apiConfigMcpAuthorizationGetRequestSchemaExecute = apiConfigMcpAuthoriza
 exports.apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform = apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform;
 exports.apiConfigMcpAuthorizationGetResponseSchemaExecute = apiConfigMcpAuthorizationGetResponseSchemaExecute;
 exports.apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform = apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform;
+exports.apiConfigMcpTimeoutMsGetExecute = apiConfigMcpTimeoutMsGetExecute;
+exports.apiConfigMcpTimeoutMsGetExecuteTransform = apiConfigMcpTimeoutMsGetExecuteTransform;
+exports.apiConfigMcpTimeoutMsGetRequestSchemaExecute = apiConfigMcpTimeoutMsGetRequestSchemaExecute;
+exports.apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform = apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform;
+exports.apiConfigMcpTimeoutMsGetResponseSchemaExecute = apiConfigMcpTimeoutMsGetResponseSchemaExecute;
+exports.apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform = apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform;
+exports.apiConfigMcpTimeoutMsSetExecute = apiConfigMcpTimeoutMsSetExecute;
+exports.apiConfigMcpTimeoutMsSetExecuteTransform = apiConfigMcpTimeoutMsSetExecuteTransform;
+exports.apiConfigMcpTimeoutMsSetRequestSchemaExecute = apiConfigMcpTimeoutMsSetRequestSchemaExecute;
+exports.apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform = apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform;
+exports.apiConfigMcpTimeoutMsSetResponseSchemaExecute = apiConfigMcpTimeoutMsSetResponseSchemaExecute;
+exports.apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform = apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform;
 exports.apiConfigObjectiveaiAuthorizationGetExecute = apiConfigObjectiveaiAuthorizationGetExecute;
 exports.apiConfigObjectiveaiAuthorizationGetExecuteTransform = apiConfigObjectiveaiAuthorizationGetExecuteTransform;
 exports.apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute = apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute;
