@@ -14,7 +14,7 @@ use std::sync::{Arc, RwLock as StdRwLock, Weak};
 use std::time::Duration;
 
 use indexmap::IndexMap;
-use tokio::sync::{Notify, RwLock};
+use tokio::sync::RwLock;
 use tokio_util::sync::{CancellationToken, DropGuard};
 
 /// Callback fired by [`Connection`] when the upstream MCP server emits
@@ -230,16 +230,6 @@ impl Connection {
         }
     }
 
-    /// Send a JSON-RPC notification to the upstream. Used by `Client`
-    /// right after `initialize` to send `notifications/initialized`.
-    pub(super) async fn notify<P: serde::Serialize>(
-        &self,
-        method: &str,
-        params: &P,
-    ) -> Result<(), super::Error> {
-        self.inner.notify(method, params).await
-    }
-
     /// Returns a key identifying this connection for tool namespacing.
     pub fn tool_key(&self) -> String {
         self.inner.tool_key()
@@ -280,88 +270,6 @@ impl Connection {
         &self,
     ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
         self.inner.list_resources().await
-    }
-
-    /// Returns the cached tool list as soon as it differs from `current`,
-    /// or waits up to `timeout` for the next `notifications/tools/list_changed`
-    /// from the upstream server before re-reading.
-    ///
-    /// Wakes the moment a refresh writer takes the cache write lock, so
-    /// the post-wake `read` is guaranteed to observe the new list rather
-    /// than racing against the install. Safe to call from any number of
-    /// tasks concurrently.
-    pub async fn subscribe_tools(
-        &self,
-        current: &[super::tool::Tool],
-        timeout: Duration,
-    ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
-        self.inner.subscribe_tools(current, timeout).await
-    }
-
-    /// Resource counterpart of [`Connection::subscribe_tools`].
-    pub async fn subscribe_resources(
-        &self,
-        current: &[super::resource::Resource],
-        timeout: Duration,
-    ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
-        self.inner.subscribe_resources(current, timeout).await
-    }
-
-    /// Atomically drain the proxy's `pending_notifications` queue for
-    /// this session via `GET /notify` and return the queued content
-    /// blocks. A second call returns `[]` until the next out-of-band
-    /// `POST /notify`.
-    ///
-    /// Intended for use at the start of an agent turn so notifications
-    /// queued between turns — when the prior turn ended without a tool
-    /// call, or the user is starting a fresh continuation — surface as
-    /// a user message instead of being lost. The proxy's existing
-    /// `tools/call` response path still drains in-flight notifications
-    /// arriving *during* a turn; this method covers the gap between
-    /// turns.
-    ///
-    /// A 404 from the proxy (session unknown — possible after a proxy
-    /// restart) is mapped to an empty `Vec` so callers do not need to
-    /// distinguish "no notifications" from "lost session" at the use
-    /// site; the next upstream call will surface the lost-session
-    /// condition through its own error path.
-    pub async fn drain_notifications(
-        &self,
-    ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
-        self.inner.drain_notifications().await
-    }
-
-    /// Non-draining peek at the proxy's `pending_notifications` queue
-    /// via `GET /notify/queued`. Returns `true` iff the queue holds at
-    /// least one block. Companion to [`Connection::drain_notifications`]
-    /// for callers that want to know whether queued blocks exist
-    /// without consuming them.
-    ///
-    /// A 404 from the proxy (session unknown — possible after a proxy
-    /// restart) is mapped to `Ok(false)` for the same reason as the
-    /// drain path: callers do not need to distinguish "no
-    /// notifications" from "lost session" at the use site.
-    pub async fn has_pending_notifications(
-        &self,
-    ) -> Result<bool, super::Error> {
-        self.inner.has_pending_notifications().await
-    }
-
-    /// `POST <self.url>/notify` against the ObjectiveAI MCP proxy.
-    /// Appends `blocks` to the proxy's pending-notifications queue for
-    /// this session; they surface as a user message on the next
-    /// `tools/call` response (wrapped in a `<system-reminder>` block)
-    /// or as the head of the next agent turn when drained between turns.
-    ///
-    /// Mirror of [`Connection::drain_notifications`] / [`Connection::has_pending_notifications`]
-    /// for the inbound side. A 404 from the proxy means the session is
-    /// gone — surfaced as `SessionExpired` so callers can distinguish
-    /// "session lost" from "delivery failed" at the use site.
-    pub async fn enqueue_notifications(
-        &self,
-        blocks: &[super::tool::ContentBlock],
-    ) -> Result<(), super::Error> {
-        self.inner.enqueue_notifications(blocks).await
     }
 
     /// Reads a resource from the upstream server.
@@ -512,16 +420,6 @@ pub struct ConnectionInner {
     /// `notifications/resources/list_changed`.
     /// Set via [`Connection::set_on_resources_list_changed`].
     on_resources_list_changed: CallbackSlot,
-
-    /// Wakes any task awaiting in [`Connection::subscribe_tools`]. Fired
-    /// from inside `refresh_tools_signaling` the moment the writer
-    /// acquires the cache write lock — *before* the new list is
-    /// installed. A woken subscriber's next `read().await` blocks behind
-    /// the writer's guard, so it always observes the post-swap state.
-    tools_changed: Notify,
-
-    /// Resource counterpart of [`Self::tools_changed`].
-    resources_changed: Notify,
 }
 
 impl ConnectionInner {
@@ -599,8 +497,6 @@ impl ConnectionInner {
             _listener_cancel_guard: std::sync::Mutex::new(None),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
-            tools_changed: Notify::new(),
-            resources_changed: Notify::new(),
         })
     }
 
@@ -662,8 +558,6 @@ impl ConnectionInner {
             )),
             on_tools_list_changed: CallbackSlot::new(),
             on_resources_list_changed: CallbackSlot::new(),
-            tools_changed: Notify::new(),
-            resources_changed: Notify::new(),
         });
 
         // Spawn background tool lister if the server supports tools.
@@ -745,33 +639,6 @@ impl ConnectionInner {
     /// shape as `has_tools_cap` when absent.
     fn has_resources_cap(&self) -> bool {
         self.initialize_result.capabilities.resources.is_some()
-    }
-
-    /// Server declared `tools.list_changed: true`. Gates
-    /// `subscribe_tools`'s wait-for-notify branch: when `false` the
-    /// upstream will never push `notifications/tools/list_changed`, so
-    /// awaiting the notify is unreachable and `subscribe_tools` returns
-    /// the current cache immediately.
-    fn has_tools_list_changed(&self) -> bool {
-        matches!(
-            self.initialize_result.capabilities.tools,
-            Some(super::initialize_result::ToolsCapability {
-                list_changed: Some(true),
-            })
-        )
-    }
-
-    /// Server declared `resources.list_changed: true`. Symmetric to
-    /// `has_tools_list_changed`; gates `subscribe_resources`'s
-    /// wait-for-notify branch.
-    fn has_resources_list_changed(&self) -> bool {
-        matches!(
-            self.initialize_result.capabilities.resources,
-            Some(super::initialize_result::ResourcesCapability {
-                list_changed: Some(true),
-                ..
-            })
-        )
     }
 
     /// Creates an exponential backoff configuration from the connection's fields.
@@ -940,186 +807,6 @@ impl ConnectionInner {
                 | backoff::Error::Transient { err, .. } => err,
             })
         }
-    }
-
-    /// Sends a JSON-RPC notification (no response expected) with the
-    /// same exponential-backoff retry policy as [`Self::rpc`]. Every
-    /// error is transient; the loop gives up only when the backoff's
-    /// `max_elapsed_time` is exceeded.
-    async fn notify<P: serde::Serialize>(
-        &self,
-        method: &str,
-        params: &P,
-    ) -> Result<(), super::Error> {
-        let body = serde_json::json!({
-            "jsonrpc": "2.0",
-            "method": method,
-            "params": params,
-        });
-
-        backoff::future::retry(self.backoff(), || async {
-            let url = self.url.clone();
-            let response =
-                self.post().await.json(&body).send().await.map_err(|source| {
-                    backoff::Error::transient(super::Error::Request {
-                        url: url.clone(),
-                        source,
-                    })
-                })?;
-
-            if response.status() == reqwest::StatusCode::NOT_FOUND {
-                return Err(backoff::Error::transient(
-                    super::Error::SessionExpired { url: url.clone() },
-                ));
-            }
-            if !response.status().is_success() {
-                let code = response.status();
-                let body = response.text().await.unwrap_or_default();
-                return Err(backoff::Error::transient(
-                    super::Error::BadStatus {
-                        url: url.clone(),
-                        code,
-                        body,
-                    },
-                ));
-            }
-
-            Ok(())
-        })
-        .await
-    }
-
-    /// `GET <self.url>/notify` against the ObjectiveAI MCP proxy.
-    /// Atomically drains the proxy's pending-notifications queue for
-    /// this session and returns the queued content blocks.
-    ///
-    /// Single-attempt — the proxy drain is destructive, so a retry
-    /// after a transient failure would risk silently dropping
-    /// notifications that the first attempt's response carried but
-    /// failed to deliver. Networks errors propagate to the caller; the
-    /// next turn's drain will pick up anything queued in the meantime.
-    /// A 404 (session unknown) is mapped to `Ok(vec![])` — see the
-    /// public method's doc on `Connection`.
-    async fn drain_notifications(
-        &self,
-    ) -> Result<Vec<super::tool::ContentBlock>, super::Error> {
-        let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let request = self
-            .http_client
-            .get(&url)
-            .timeout(self.call_timeout)
-            .headers(
-                self.build_request_headers(None, Some("application/json"))
-                    .await,
-            );
-
-        let response =
-            request
-                .send()
-                .await
-                .map_err(|source| super::Error::Request {
-                    url: url.clone(),
-                    source,
-                })?;
-
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(Vec::new());
-        }
-        if !response.status().is_success() {
-            let code = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(super::Error::BadStatus { url, code, body });
-        }
-
-        response
-            .json::<Vec<super::tool::ContentBlock>>()
-            .await
-            .map_err(|source| super::Error::Request { url, source })
-    }
-
-    /// `POST <self.url>/notify` against the ObjectiveAI MCP proxy.
-    /// Appends `blocks` to the proxy's pending-notifications queue for
-    /// this session. Single-attempt — the caller decides whether to
-    /// retry. A 404 (session unknown) surfaces as `SessionExpired`
-    /// rather than `Ok(())` because the caller is asking for delivery
-    /// and a lost session means delivery did not happen.
-    async fn enqueue_notifications(
-        &self,
-        blocks: &[super::tool::ContentBlock],
-    ) -> Result<(), super::Error> {
-        let url = format!("{}/notify", self.url.trim_end_matches('/'));
-        let request = self
-            .http_client
-            .post(&url)
-            .timeout(self.call_timeout)
-            .headers(
-                self.build_request_headers(
-                    Some("application/json"),
-                    Some("application/json"),
-                )
-                .await,
-            )
-            .json(blocks);
-
-        let response =
-            request
-                .send()
-                .await
-                .map_err(|source| super::Error::Request {
-                    url: url.clone(),
-                    source,
-                })?;
-
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Err(super::Error::SessionExpired { url });
-        }
-        if !response.status().is_success() {
-            let code = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(super::Error::BadStatus { url, code, body });
-        }
-
-        Ok(())
-    }
-
-    /// `GET <self.url>/notify/queued` against the ObjectiveAI MCP proxy.
-    /// Non-draining peek — returns `true` iff the proxy's
-    /// pending-notifications queue for this session is non-empty.
-    /// A 404 (session unknown) is mapped to `Ok(false)` to match the
-    /// drain path's soft-fallback contract.
-    async fn has_pending_notifications(&self) -> Result<bool, super::Error> {
-        let url = format!("{}/notify/queued", self.url.trim_end_matches('/'));
-        let request = self
-            .http_client
-            .get(&url)
-            .timeout(self.call_timeout)
-            .headers(
-                self.build_request_headers(None, Some("application/json"))
-                    .await,
-            );
-
-        let response =
-            request
-                .send()
-                .await
-                .map_err(|source| super::Error::Request {
-                    url: url.clone(),
-                    source,
-                })?;
-
-        if response.status() == reqwest::StatusCode::NOT_FOUND {
-            return Ok(false);
-        }
-        if !response.status().is_success() {
-            let code = response.status();
-            let body = response.text().await.unwrap_or_default();
-            return Err(super::Error::BadStatus { url, code, body });
-        }
-
-        response
-            .json::<bool>()
-            .await
-            .map_err(|source| super::Error::Request { url, source })
     }
 
     /// Returns a key identifying this connection for tool namespacing.
@@ -1342,77 +1029,6 @@ impl ConnectionInner {
             .clone()
     }
 
-    /// Returns the cached tool list as soon as it differs from `current`,
-    /// or — if it equals `current` right now — waits up to `timeout` for
-    /// the cache to change and then returns whatever it sees.
-    ///
-    /// An `Err` cache is treated as "different from any caller snapshot"
-    /// and returned immediately.
-    ///
-    /// Concurrency-safe: any number of concurrent subscribers wait on
-    /// independent `Notified` futures and read the cache through the
-    /// shared `RwLock`. A timeout that fires alone is not an error — we
-    /// re-read the cache and return whatever's there.
-    async fn subscribe_tools(
-        &self,
-        current: &[super::tool::Tool],
-        timeout: Duration,
-    ) -> Result<Arc<Vec<super::tool::Tool>>, Arc<super::Error>> {
-        if !self.has_tools_list_changed() {
-            // Server can't push `notifications/tools/list_changed` —
-            // awaiting the notify is unreachable. Return whatever's
-            // there right now (`Ok(empty)` on a tools-cap-absent
-            // server via `list_tools`'s own gate; the real cache
-            // otherwise).
-            return self.list_tools().await;
-        }
-        // Arm BEFORE reading. `enable()` registers the future in the
-        // wait queue without polling, so a `notify_waiters` racing
-        // between our read and our await still wakes us.
-        let notified = self.tools_changed.notified();
-        tokio::pin!(notified);
-        notified.as_mut().enable();
-
-        // `list_tools` handles a cleared cache (post-drop) by
-        // paginating inline. A `None` initial state can't be
-        // compared to the caller's snapshot meaningfully — promote
-        // to whatever the refresh installs.
-        let initial = self.list_tools().await;
-        match &initial {
-            Ok(arc) if arc.as_slice() == current => {}
-            _ => return initial,
-        }
-
-        let _ = tokio::time::timeout(timeout, notified).await;
-
-        self.list_tools().await
-    }
-
-    /// Resource counterpart of [`Self::subscribe_tools`].
-    async fn subscribe_resources(
-        &self,
-        current: &[super::resource::Resource],
-        timeout: Duration,
-    ) -> Result<Arc<Vec<super::resource::Resource>>, Arc<super::Error>> {
-        if !self.has_resources_list_changed() {
-            // Symmetric to `subscribe_tools` — see that gate.
-            return self.list_resources().await;
-        }
-        let notified = self.resources_changed.notified();
-        tokio::pin!(notified);
-        notified.as_mut().enable();
-
-        let initial = self.list_resources().await;
-        match &initial {
-            Ok(arc) if arc.as_slice() == current => {}
-            _ => return initial,
-        }
-
-        let _ = tokio::time::timeout(timeout, notified).await;
-
-        self.list_resources().await
-    }
-
     /// Reads a resource from the MCP server.
     async fn read_resource(
         &self,
@@ -1467,14 +1083,12 @@ impl ConnectionInner {
         // paginate runs alongside. Total wall-clock is
         // `max(drain_time, paginate_time)` instead of the sum.
         //
-        // `notify_waiters` and `on_change` fire under the write
-        // guard, *after* `*guard = result`, so anyone awoken by them
-        // queues on the read lock, waits for the guard to drop, and
-        // observes the post-swap state.
+        // `on_change` fires under the write guard, *after* `*guard =
+        // result`, so anyone the callback wakes queues on the read lock,
+        // waits for the guard to drop, and observes the post-swap state.
         let (mut guard, result) =
             tokio::join!(self.tools.write(), self.paginate_tools(),);
         *guard = Some(result);
-        self.tools_changed.notify_waiters();
         if let Some(cb) = on_change {
             cb();
         }
@@ -1520,12 +1134,10 @@ impl ConnectionInner {
         on_change: Option<ListChangedCallback>,
     ) {
         let mut guard = self.tools.write().await;
-        // Fire `tools_changed` while we hold the write lock and *before*
-        // installing the new list. Any subscriber woken now must take a
-        // read lock to observe the result, and that read lock is queued
-        // behind this write guard — so they always see the post-swap
-        // state, never mid-swap.
-        self.tools_changed.notify_waiters();
+        // Signal `lock_held` while we hold the write lock and *before*
+        // installing the new list, so the `on_change` callback observes
+        // the "list change in flight" edge — its readers queue behind
+        // this write guard and always see the post-swap state.
         let _ = lock_held.send(());
         if let Some(cb) = on_change {
             cb();
@@ -1563,7 +1175,6 @@ impl ConnectionInner {
         let (mut guard, result) =
             tokio::join!(self.resources.write(), self.paginate_resources(),);
         *guard = Some(result);
-        self.resources_changed.notify_waiters();
         if let Some(cb) = on_change {
             cb();
         }
@@ -1597,10 +1208,9 @@ impl ConnectionInner {
         on_change: Option<ListChangedCallback>,
     ) {
         let mut guard = self.resources.write().await;
-        // See `refresh_tools_signaling` — fire under the write lock,
-        // before install, so subscribers' next read sees the post-swap
-        // state.
-        self.resources_changed.notify_waiters();
+        // See `refresh_tools_signaling` — signal `lock_held` under the
+        // write lock, before install, so the `on_change` callback's
+        // readers see the post-swap state.
         let _ = lock_held.send(());
         if let Some(cb) = on_change {
             cb();
@@ -1994,408 +1604,6 @@ mod capability_gate_tests {
             .as_ref()
             .expect("refresh installed Ok");
         assert!(v.is_empty());
-    }
-
-    /// 3.7 — `subscribe_tools` returns immediately (no wait-for-notify)
-    /// when the server declared `tools` but not
-    /// `tools.list_changed: Some(true)`. We populate the cache with a
-    /// non-empty list, pass a long timeout, and expect a fast return
-    /// with the cache contents.
-    #[tokio::test]
-    async fn subscribe_tools_short_circuits_when_list_changed_absent() {
-        let conn = Connection::new_for_test_with_caps(
-            "t".into(),
-            "http://x".into(),
-            caps(
-                Some(ToolsCapability { list_changed: None }),
-                None,
-            ),
-        );
-        *conn.inner.tools.write().await =
-            Some(Ok(Arc::new(vec![tool("a")])));
-
-        let start = std::time::Instant::now();
-        let got = conn
-            .subscribe_tools(&[tool("a")], Duration::from_secs(5))
-            .await
-            .unwrap();
-        assert!(
-            start.elapsed() < Duration::from_millis(100),
-            "elapsed: {:?}",
-            start.elapsed()
-        );
-        assert_eq!(got.as_slice(), &[tool("a")]);
-    }
-
-    /// 3.8 — symmetric to 3.7 for `subscribe_resources`.
-    #[tokio::test]
-    async fn subscribe_resources_short_circuits_when_list_changed_absent() {
-        use crate::mcp::resource::Resource;
-        let conn = Connection::new_for_test_with_caps(
-            "t".into(),
-            "http://x".into(),
-            caps(
-                None,
-                Some(ResourcesCapability {
-                    subscribe: None,
-                    list_changed: None,
-                }),
-            ),
-        );
-        let res = Resource {
-            uri: "file://a".into(),
-            name: "a".into(),
-            title: None,
-            description: None,
-            mime_type: None,
-            annotations: None,
-            icons: None,
-            _meta: None,
-        };
-        *conn.inner.resources.write().await =
-            Some(Ok(Arc::new(vec![res.clone()])));
-
-        let start = std::time::Instant::now();
-        let got = conn
-            .subscribe_resources(&[res.clone()], Duration::from_secs(5))
-            .await
-            .unwrap();
-        assert!(
-            start.elapsed() < Duration::from_millis(100),
-            "elapsed: {:?}",
-            start.elapsed()
-        );
-        assert_eq!(got.as_slice(), &[res]);
-    }
-}
-
-#[cfg(test)]
-mod subscribe_tests {
-    use super::*;
-    use crate::mcp::tool::{Tool, ToolSchemaObject, ToolSchemaType};
-
-    fn tool(name: &str) -> Tool {
-        Tool {
-            name: name.to_string(),
-            title: None,
-            description: None,
-            icons: None,
-            input_schema: ToolSchemaObject {
-                r#type: ToolSchemaType::Object,
-                properties: None,
-                required: None,
-                extra: IndexMap::new(),
-            },
-            output_schema: None,
-            annotations: None,
-            execution: None,
-            _meta: None,
-        }
-    }
-
-    /// First read shows a different list — return immediately, never wait.
-    #[tokio::test]
-    async fn subscribe_tools_returns_immediately_when_cache_differs() {
-        let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
-
-        let start = std::time::Instant::now();
-        let got = conn
-            .subscribe_tools(&[tool("b")], Duration::from_secs(5))
-            .await
-            .unwrap();
-        assert!(start.elapsed() < Duration::from_millis(100));
-        assert_eq!(got.as_slice(), &[tool("a")]);
-    }
-
-    /// Cached `Err` is treated as "different from any caller snapshot."
-    #[tokio::test]
-    async fn subscribe_tools_returns_err_immediately() {
-        let conn = Connection::new_for_test("t".into(), "http://x".into());
-        let err = super::super::Error::NoSessionId {
-            url: "http://x".into(),
-            body: String::new(),
-        };
-        *conn.inner.tools.write().await = Some(Err(Arc::new(err)));
-
-        let start = std::time::Instant::now();
-        let got = conn.subscribe_tools(&[], Duration::from_secs(5)).await;
-        assert!(start.elapsed() < Duration::from_millis(100));
-        assert!(got.is_err());
-    }
-
-    /// Cache equals snapshot, then a writer fires the notify under the
-    /// write lock and installs a new list. The subscriber wakes, then its
-    /// re-read blocks behind the writer's guard, observes the new list.
-    #[tokio::test]
-    async fn subscribe_tools_wakes_on_change_and_reads_post_swap() {
-        let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
-
-        let conn_for_subscriber = conn.clone();
-        let subscriber = tokio::spawn(async move {
-            conn_for_subscriber
-                .subscribe_tools(&[tool("a")], Duration::from_secs(5))
-                .await
-                .unwrap()
-        });
-
-        // Give the subscriber a moment to arm `notified()` and finish
-        // its first read so it's parked on the timeout.
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        // Simulate `refresh_tools_signaling`: take the write lock, fire
-        // `tools_changed` *while holding* the write lock, then install
-        // the new value before releasing. This is exactly the ordering
-        // that the real refresh path uses.
-        {
-            let mut guard = conn.inner.tools.write().await;
-            conn.inner.tools_changed.notify_waiters();
-            // Hold briefly to make absolutely sure the subscriber is
-            // racing the read lock against our drop.
-            tokio::time::sleep(Duration::from_millis(20)).await;
-            *guard = Some(Ok(Arc::new(vec![tool("b")])));
-        }
-
-        let got = tokio::time::timeout(Duration::from_secs(2), subscriber)
-            .await
-            .expect("subscriber returned in time")
-            .expect("subscriber didn't panic");
-        assert_eq!(got.as_slice(), &[tool("b")]);
-    }
-
-    /// Cache equals snapshot, no notification arrives — timeout, return
-    /// the still-equal list (not an error).
-    #[tokio::test]
-    async fn subscribe_tools_times_out_and_returns_unchanged_list() {
-        let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
-
-        let start = std::time::Instant::now();
-        let got = conn
-            .subscribe_tools(&[tool("a")], Duration::from_millis(50))
-            .await
-            .unwrap();
-        let elapsed = start.elapsed();
-        assert!(elapsed >= Duration::from_millis(40), "elapsed: {elapsed:?}");
-        assert!(elapsed < Duration::from_millis(500), "elapsed: {elapsed:?}");
-        assert_eq!(got.as_slice(), &[tool("a")]);
-    }
-
-    /// Two concurrent subscribers both wake on a single notify_waiters
-    /// and both observe the post-swap list.
-    #[tokio::test]
-    async fn subscribe_tools_supports_concurrent_subscribers() {
-        let conn = Connection::new_for_test("t".into(), "http://x".into());
-        *conn.inner.tools.write().await = Some(Ok(Arc::new(vec![tool("a")])));
-
-        let c1 = conn.clone();
-        let c2 = conn.clone();
-        let s1 = tokio::spawn(async move {
-            c1.subscribe_tools(&[tool("a")], Duration::from_secs(5))
-                .await
-                .unwrap()
-        });
-        let s2 = tokio::spawn(async move {
-            c2.subscribe_tools(&[tool("a")], Duration::from_secs(5))
-                .await
-                .unwrap()
-        });
-
-        tokio::time::sleep(Duration::from_millis(50)).await;
-
-        {
-            let mut guard = conn.inner.tools.write().await;
-            conn.inner.tools_changed.notify_waiters();
-            *guard = Some(Ok(Arc::new(vec![tool("c")])));
-        }
-
-        let (r1, r2) = tokio::join!(s1, s2);
-        let r1 = r1.unwrap();
-        let r2 = r2.unwrap();
-        assert_eq!(r1.as_slice(), &[tool("c")]);
-        assert_eq!(r2.as_slice(), &[tool("c")]);
-    }
-}
-
-#[cfg(test)]
-mod drain_notifications_tests {
-    use super::*;
-    use crate::mcp::tool::{ContentBlock, TextContent};
-    use serde_json::json;
-    use wiremock::matchers::{header, method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-
-    /// Happy path: proxy returns `[text, text]`, we parse it as two
-    /// `ContentBlock::Text` and return them in order.
-    #[tokio::test]
-    async fn drain_notifications_parses_text_blocks_in_order() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify"))
-            .and(header("Mcp-Session-Id", ""))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([
-                {"type": "text", "text": "first"},
-                {"type": "text", "text": "second"},
-            ])))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let blocks = conn.drain_notifications().await.expect("drain ok");
-        assert_eq!(blocks.len(), 2);
-        match &blocks[0] {
-            ContentBlock::Text(TextContent { text, .. }) => {
-                assert_eq!(text, "first")
-            }
-            other => panic!("expected text, got {other:?}"),
-        }
-        match &blocks[1] {
-            ContentBlock::Text(TextContent { text, .. }) => {
-                assert_eq!(text, "second")
-            }
-            other => panic!("expected text, got {other:?}"),
-        }
-    }
-
-    /// 404 (proxy lost the session, e.g. after a restart) → empty vec
-    /// rather than an error. The next upstream call will surface the
-    /// session-lost condition through its own error path; init-time
-    /// drain shouldn't be the one to abort the request.
-    #[tokio::test]
-    async fn drain_notifications_404_returns_empty() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify"))
-            .respond_with(ResponseTemplate::new(404))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let blocks = conn.drain_notifications().await.expect("404 → ok(empty)");
-        assert!(blocks.is_empty(), "expected empty vec, got {blocks:?}");
-    }
-
-    /// Empty queue → empty array → empty vec. The most common case.
-    #[tokio::test]
-    async fn drain_notifications_empty_queue_returns_empty() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify"))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!([])))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let blocks = conn.drain_notifications().await.expect("drain ok");
-        assert!(blocks.is_empty(), "expected empty vec, got {blocks:?}");
-    }
-
-    /// Non-success / non-404 status propagates as `BadStatus`.
-    #[tokio::test]
-    async fn drain_notifications_5xx_returns_bad_status() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify"))
-            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let err = conn.drain_notifications().await.expect_err("5xx → err");
-        match err {
-            super::super::Error::BadStatus { code, body, .. } => {
-                assert_eq!(code.as_u16(), 500);
-                assert_eq!(body, "boom");
-            }
-            other => panic!("expected BadStatus, got {other:?}"),
-        }
-    }
-
-}
-
-#[cfg(test)]
-mod has_pending_notifications_tests {
-    use super::*;
-    use serde_json::json;
-    use wiremock::matchers::{header, method, path};
-    use wiremock::{Mock, MockServer, ResponseTemplate};
-
-    /// Happy path: proxy returns `true` → Ok(true).
-    #[tokio::test]
-    async fn has_pending_notifications_true() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify/queued"))
-            .and(header("Mcp-Session-Id", ""))
-            .respond_with(ResponseTemplate::new(200).set_body_json(json!(true)))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let got = conn.has_pending_notifications().await.expect("peek ok");
-        assert!(got);
-    }
-
-    /// Proxy returns `false` → Ok(false).
-    #[tokio::test]
-    async fn has_pending_notifications_false() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify/queued"))
-            .respond_with(
-                ResponseTemplate::new(200).set_body_json(json!(false)),
-            )
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let got = conn.has_pending_notifications().await.expect("peek ok");
-        assert!(!got);
-    }
-
-    /// 404 (proxy lost the session) → Ok(false). Same soft-fallback
-    /// contract as drain_notifications — peek must never abort a
-    /// request over a missing-session race.
-    #[tokio::test]
-    async fn has_pending_notifications_404_returns_false() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify/queued"))
-            .respond_with(ResponseTemplate::new(404))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let got = conn
-            .has_pending_notifications()
-            .await
-            .expect("404 → ok(false)");
-        assert!(!got);
-    }
-
-    /// Non-success / non-404 status propagates as `BadStatus`.
-    #[tokio::test]
-    async fn has_pending_notifications_5xx_returns_bad_status() {
-        let server = MockServer::start().await;
-        Mock::given(method("GET"))
-            .and(path("/notify/queued"))
-            .respond_with(ResponseTemplate::new(500).set_body_string("boom"))
-            .mount(&server)
-            .await;
-
-        let conn = Connection::new_for_test("t".into(), server.uri());
-        let err = conn
-            .has_pending_notifications()
-            .await
-            .expect_err("5xx → err");
-        match err {
-            super::super::Error::BadStatus { code, body, .. } => {
-                assert_eq!(code.as_u16(), 500);
-                assert_eq!(body, "boom");
-            }
-            other => panic!("expected BadStatus, got {other:?}"),
-        }
     }
 
 }

@@ -916,7 +916,7 @@ where
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
                     if attempt.agent.base().client_objectiveai_mcp().is_some()
-                        && (ctx.mcp_port().is_none() || ctx.reverse_attach().is_none())
+                        && ctx.reverse_attach().is_none()
                     {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
                     }
@@ -1691,41 +1691,6 @@ where
                 ));
             }
 
-            // Peek the proxy's pending-notifications queue so the
-            // caller can tell whether a follow-up continuation would
-            // surface queued blocks. Only meaningful when a
-            // continuation is also being returned — this site always
-            // sets `continuation: Some(_)`, so the peek is
-            // unconditionally relevant here. A peek failure is
-            // surfaced via the chunk's `error` field only if no prior
-            // error already occupies it (the earlier failure is the
-            // more important signal).
-            //
-            // With the CLI→API notify path removed there's nothing to
-            // serialize against here — the read of the proxy queue is
-            // straight, no lock needed. `messages_queued` simply
-            // initializes to `None` and is populated from the peek
-            // below.
-            let mut messages_queued: Option<bool> = None;
-            if let Some(conn) = &mcp_connection {
-                match conn.has_pending_notifications().await {
-                    Ok(true) => messages_queued = Some(true),
-                    Ok(false) => {}
-                    Err(error) => {
-                        if final_error.is_none() {
-                            final_error = Some(
-                                objectiveai_sdk::error::ResponseError::from(
-                                    &super::Error::McpQueuedNotifications {
-                                        url: conn.url.clone(),
-                                        error,
-                                    },
-                                ),
-                            );
-                        }
-                    }
-                }
-            }
-
             // Single site for usage, continuation, and error (if a continuation call failed).
             yield super::StreamItem::Chunk(
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -1739,7 +1704,6 @@ where
                     usage: Some(usage),
                     error: final_error,
                     continuation: Some(continuation_token),
-                    messages_queued,
                     ..Default::default()
                 },
             );
@@ -1748,18 +1712,6 @@ where
         }))
     }
 
-}
-
-/// Resolves the response format for a given agent from the request params.
-fn resolve_response_format(
-    agent_instance_hierarchy: &str,
-    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
-) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
-    use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
-    match params.response_format.as_ref()? {
-        ResponseFormatParam::Single(rf) => Some(rf.clone()),
-        ResponseFormatParam::PerAgent(map) => map.get(agent_instance_hierarchy).cloned(),
-    }
 }
 
 /// Extracts callable tool calls from the last assistant message.
@@ -1807,30 +1759,6 @@ fn extract_callable_tool_calls(
         }
     }
     callable
-}
-
-/// Wrap MCP `ContentBlock`s drained from the proxy at agent init time
-/// into a `UserMessage`.
-///
-/// The blocks are presented to the model as a plain user turn — no
-/// `<system-reminder>` wrapper. (The wrapper is reserved for the
-/// proxy's tool-response drain path, where notifications surface
-/// mid-turn and need the "while you were working" framing.) Init-time
-/// notifications are semantically a user message that arrived between
-/// turns, so they take the user-message shape directly.
-///
-/// Delegates to the SDK's [`From<Vec<ContentBlock>> for RichContent`]
-/// impl — same mapping (text / image-data-URL / audio direct;
-/// `ResourceLink` / `EmbeddedResource` → JSON text), same collapse
-/// of all-text inputs into a single `RichContent::Text`. Empty input
-/// is the caller's responsibility.
-fn build_drain_user_message(
-    blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock>,
-) -> objectiveai_sdk::agent::completions::message::UserMessage {
-    objectiveai_sdk::agent::completions::message::UserMessage {
-        content: blocks.into(),
-        name: None,
-    }
 }
 
 // The time budget for one `read_message_queue` round-trip over the
@@ -2010,112 +1938,4 @@ fn percent_encode_segment(s: &str) -> String {
             .remove(b':')
             .remove(b'@');
     percent_encoding::utf8_percent_encode(s, SEGMENT).to_string()
-}
-
-#[cfg(test)]
-mod build_drain_user_message_tests {
-    use super::build_drain_user_message;
-    use objectiveai_sdk::agent::completions::message::{
-        RichContent, RichContentPart,
-    };
-    use objectiveai_sdk::mcp::tool::{
-        AudioContent, ContentBlock, ImageContent, TextContent,
-    };
-
-    /// All-text input collapses to a single `RichContent::Text` joined
-    /// with `\n\n` between blocks. No `<system-reminder>` wrapper —
-    /// that's reserved for the proxy's tool-response drain path.
-    #[test]
-    fn text_only_blocks_collapse_to_joined_text() {
-        let msg = build_drain_user_message(vec![
-            ContentBlock::Text(TextContent {
-                text: "hello".into(),
-                annotations: None,
-                _meta: None,
-            }),
-            ContentBlock::Text(TextContent {
-                text: "world".into(),
-                annotations: None,
-                _meta: None,
-            }),
-        ]);
-        assert_eq!(msg.name, None);
-        match msg.content {
-            RichContent::Text(s) => assert_eq!(s, "hello\n\nworld"),
-            other => panic!("expected RichContent::Text, got {other:?}"),
-        }
-    }
-
-    /// A single text block becomes a plain `Text` (no `Parts` wrapper).
-    #[test]
-    fn single_text_block_is_plain_text() {
-        let msg = build_drain_user_message(vec![ContentBlock::Text(TextContent {
-            text: "just one".into(),
-            annotations: None,
-            _meta: None,
-        })]);
-        match msg.content {
-            RichContent::Text(s) => assert_eq!(s, "just one"),
-            other => panic!("expected RichContent::Text, got {other:?}"),
-        }
-    }
-
-    /// Mixed content (text + image) stays as `Parts` since the image
-    /// has to ride alongside the text in a multimodal-aware shape.
-    #[test]
-    fn mixed_content_becomes_parts() {
-        let msg = build_drain_user_message(vec![
-            ContentBlock::Text(TextContent {
-                text: "look at this".into(),
-                annotations: None,
-                _meta: None,
-            }),
-            ContentBlock::Image(ImageContent {
-                data: "BASE64DATA".into(),
-                mime_type: "image/png".into(),
-                annotations: None,
-                _meta: None,
-            }),
-        ]);
-        match msg.content {
-            RichContent::Parts(parts) => {
-                assert_eq!(parts.len(), 2);
-                match &parts[0] {
-                    RichContentPart::Text { text } => assert_eq!(text, "look at this"),
-                    other => panic!("expected text part, got {other:?}"),
-                }
-                match &parts[1] {
-                    RichContentPart::ImageUrl { image_url } => {
-                        assert_eq!(image_url.url, "data:image/png;base64,BASE64DATA");
-                    }
-                    other => panic!("expected image part, got {other:?}"),
-                }
-            }
-            other => panic!("expected RichContent::Parts, got {other:?}"),
-        }
-    }
-
-    /// Audio block round-trips through `InputAudio` part.
-    #[test]
-    fn audio_block_becomes_input_audio_part() {
-        let msg = build_drain_user_message(vec![ContentBlock::Audio(AudioContent {
-            data: "AUDIO".into(),
-            mime_type: "audio/wav".into(),
-            annotations: None,
-            _meta: None,
-        })]);
-        match msg.content {
-            RichContent::Parts(parts) => {
-                assert_eq!(parts.len(), 1);
-                match &parts[0] {
-                    RichContentPart::InputAudio { input_audio } => {
-                        assert_eq!(input_audio.data, "AUDIO");
-                        assert_eq!(input_audio.format, "audio/wav");
-                    }
-                    other => panic!("expected input_audio part, got {other:?}"),
-                }
-            }
-            other => panic!("expected RichContent::Parts, got {other:?}"),
-        }
-    }
 }

@@ -1,26 +1,17 @@
-//! ObjectiveAI MCP server — Streamable HTTP MCP, mounted under
-//! `/objectiveai-mcp` with three routes (POST / GET / DELETE) and
-//! routed by the `X-OBJECTIVEAI-RESPONSE-ID` header. Route surface
-//! mirrors the MCP-spec subset of `objectiveai-mcp-proxy/src/mcp.rs`;
-//! the proxy's ObjectiveAI-specific `/notify` extensions are not
-//! mirrored.
+//! Reverse-attach plumbing for the API's MCP forward path.
 //!
-//! The reverse-attach plumbing the routes layer rides on top of —
-//! [`registry`] (per-WS sink + pending-request slot, keyed by
-//! per-agent `response_id`), [`listeners`] (per-MCP-session SSE broadcast
-//! feeding the GET handler), [`send::send_server_request`] (the
-//! API-side write primitive forwarding requests over the WS), and
-//! [`sse::handle_get_sse`] — lives here too. Used to be in the SDK's
-//! `mcp::conduit::server`; canonical home is now this module.
+//! Each CLI WS upgrade owns a [`registry::ReverseChannel`] (its sink +
+//! pending-request slot); [`send::send_server_request`] is the API-side
+//! write primitive that forwards a `server_request` over that WS and
+//! parks an await for the matching `server_response`. The per-request
+//! proxy speaks the reverse-channel protocol directly over the same WS;
+//! there is no longer a loopback HTTP MCP server in front of it.
 
-mod listeners;
 mod registry;
 mod send;
 
-pub use listeners::McpListenerRegistry;
 pub use registry::{
-    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle,
-    ReverseChannel, ReverseChannelRegistry, SessionTracker, SharedSink,
-    new_pending_requests, new_reverse_channel_registry,
+    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
+    SharedSink, new_pending_requests,
 };
 pub use send::send_server_request;

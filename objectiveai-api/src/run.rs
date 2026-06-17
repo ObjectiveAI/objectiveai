@@ -631,31 +631,14 @@ pub async fn setup(
         std::time::Duration::from_millis(agent_completions_other_chunk_timeout),
     ));
 
-    // Reverse-channel registry for the objectiveai-MCP endpoint. WS
-    // handlers populate this on upgrade; the MCP endpoint route reads
-    // it when a proxy upstream dials in for a session.
-    let reverse_channels = streaming_ws::new_reverse_channel_registry();
-    // SSE listener registry: per-(response_id, McpKind) broadcast
-    // feeding the MCP GET notifications stream. The conduit WS recv
-    // loop publishes here when the CLI pushes `McpListChanged`; the
-    // GET handler subscribes from here.
-    let mcp_listeners = crate::objectiveai_mcp::McpListenerRegistry::new();
-    // Public + loopback-MCP listeners bound in parallel. Both
-    // listeners need to be up before the process can serve a
-    // request that touches `client_objectiveai_mcp`, and neither
-    // bind blocks the other — `try_join` shaves the second bind's
-    // syscall latency off cold start (matters on Cloud Run where
-    // boot time bills + counts toward request latency).
-    //
-    // No more loopback MCP listener: each request's in-process proxy
-    // speaks the reverse-channel protocol directly over its WS, so there
-    // is nothing for the proxy to dial over loopback.
+    // Single public listener. There is no loopback MCP listener: each
+    // request's in-process proxy speaks the reverse-channel protocol
+    // directly over its WS, so there is nothing for a proxy to dial
+    // over loopback.
     let listener =
         tokio::net::TcpListener::bind(format!("{}:{}", address, port)).await?;
 
     let reverse_attach = streaming_ws::ReverseAttachConfig {
-        registry: reverse_channels.clone(),
-        mcp_listeners: mcp_listeners.clone(),
         reverse_channel_timeout,
     };
 

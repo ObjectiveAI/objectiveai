@@ -41,17 +41,14 @@ use futures::stream::SplitStream;
 use objectiveai_sdk::error::ResponseError;
 use serde::Serialize;
 
-// The reverse-attach / session-tracker / pending-request types are
-// now canonical in `crate::objectiveai_mcp`. The `pub use` shims
-// keep `crate::streaming_ws::SharedSink`,
-// `crate::streaming_ws::SessionTracker`, etc. resolving for every
-// existing call site in the api — the underlying type IS the
-// objectiveai_mcp one.
+// The reverse-attach / pending-request types are now canonical in
+// `crate::objectiveai_mcp`. The `pub use` shims keep
+// `crate::streaming_ws::SharedSink` etc. resolving for every existing
+// call site in the api — the underlying type IS the objectiveai_mcp
+// one.
 pub use crate::objectiveai_mcp::{
-    PendingRequests, ReverseAttachConfig, ReverseAttachGuard,
-    ReverseAttachHandle, ReverseChannel, ReverseChannelRegistry,
-    SessionTracker, SharedSink, new_pending_requests,
-    new_reverse_channel_registry,
+    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
+    SharedSink, new_pending_requests,
 };
 
 /// Transport the client wants. Inferred from the request itself: an
@@ -224,11 +221,11 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
         .await;
 }
 
-// PendingRequests, ReverseChannel, ReverseChannelRegistry,
-// ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle and
-// the `new_*` constructors are re-exported at the top of this file
-// from `crate::objectiveai_mcp`. `send_server_request` (used by the
-// MCP route layer) also lives there as `objectiveai_mcp::send`.
+// PendingRequests, ReverseChannel, ReverseAttachConfig,
+// ReverseAttachGuard, ReverseAttachHandle and `new_pending_requests`
+// are re-exported at the top of this file from `crate::objectiveai_mcp`.
+// `send_server_request` (used by the message-queue forward path) also
+// lives there as `objectiveai_mcp::send`.
 
 /// Recv loop: drain the split stream, parse each text frame, and
 /// dispatch based on shape.
@@ -250,8 +247,6 @@ pub async fn recv_loop(
     mut rx: SplitStream<WebSocket>,
     sink: SharedSink,
     pending: PendingRequests,
-    _mcp_listeners: crate::objectiveai_mcp::McpListenerRegistry,
-    _attach_handle: Arc<ReverseAttachHandle>,
     channel: objectiveai_mcp_proxy::ReverseChannel,
 ) {
     use objectiveai_sdk::client_objectiveai_mcp::{

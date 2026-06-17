@@ -40,14 +40,6 @@ pub struct Context<CTXEXT, PC> {
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
     agent_instance_hierarchy: Option<Arc<String>>,
-    /// Loopback-only MCP listener port the API process bound. Used
-    /// to synthesize `http://127.0.0.1:{mcp_port}/objectiveai` and
-    /// `http://127.0.0.1:{mcp_port}/{owner}/{name}/{ver}/{mcp}`
-    /// reverse-attach URLs when an agent declares
-    /// `client_objectiveai_mcp`. `None` on HTTP/SSE requests (no
-    /// reverse-attach possible) and when running outside a bound
-    /// server.
-    mcp_port: Option<u16>,
     /// Handle for registering per-agent `response_id`s against the
     /// current WS reverse channel. Set on WS-attached requests by the
     /// streaming handlers; `None` on HTTP/SSE. Many ids may register
@@ -164,7 +156,6 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-            mcp_port: self.mcp_port,
             reverse_attach: self.reverse_attach.clone(),
             reverse_channel: self.reverse_channel.clone(),
             proxy: self.proxy.clone(),
@@ -250,7 +241,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             mcp_authorization,
             objectiveai_authorization,
             agent_instance_hierarchy,
-            mcp_port: None,
             reverse_attach: None,
             reverse_channel: None,
             proxy: Arc::new(OnceCell::new()),
@@ -283,12 +273,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         self.agent_instance_hierarchy.as_deref().map(|s| s.as_str())
     }
 
-    /// Returns the loopback-only MCP listener port the API process
-    /// bound, if a streaming WS handler stamped one on this context.
-    pub fn mcp_port(&self) -> Option<u16> {
-        self.mcp_port
-    }
-
     /// Returns the shared reverse-attach handle for registering
     /// per-agent `response_id`s against the current WS, if a
     /// streaming WS handler stamped one.
@@ -296,14 +280,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         &self,
     ) -> Option<&Arc<crate::streaming_ws::ReverseAttachHandle>> {
         self.reverse_attach.as_ref()
-    }
-
-    /// Stamps the loopback MCP listener port (from
-    /// `ReverseAttachConfig.mcp_port`) on the context. Returns the
-    /// modified context for chaining.
-    pub fn with_mcp_port(mut self, port: u16) -> Self {
-        self.mcp_port = Some(port);
-        self
     }
 
     /// Stamps the shared reverse-attach handle on the context.
