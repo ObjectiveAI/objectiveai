@@ -6,7 +6,7 @@
 #   [workspace.metadata.tools] in Cargo.toml). Runs first and alone —
 #   the wasm/cffi (phase 2) and SDK (phase 3) builds invoke these tools.
 # Phase 1: objectiveai-json-schema (its output feeds the phase-3 SDK codegen)
-# Background: objectiveai-cli + mcp + claude-agent-sdk runners (after phase 1, concurrent with phases 2+3)
+# Background: claude-agent-sdk + codex-sdk runners (after phase 1, concurrent with phases 2+3)
 # Phase 2 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
 # Phase 3 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
@@ -97,14 +97,11 @@ fi
 # Phase 1: json schema (its output feeds the phase-3 SDK codegen).
 run_phase objectiveai-json-schema/build.sh
 
-# Embedded binaries (depend on phase 1, run concurrently with phases 2+3).
-# mcp-filesystem is a cargo build pinned to linux-musl (Docker container
-# injection); claude-agent-sdk-runner and codex-sdk-runner are PyInstaller.
-# mcp-proxy is NOT embedded — objectiveai-api consumes it in-process as a
-# regular cargo path dep, so its build is folded into the api's own cargo
-# build.
-bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$(uname -m)-unknown-linux-musl" &
-MCP_FILESYSTEM_PID=$!
+# SDK runners (depend on phase 1, run concurrently with phases 2+3).
+# claude-agent-sdk-runner and codex-sdk-runner are PyInstaller binaries
+# the api spawns at runtime from <OBJECTIVEAI_DIR>/bin/. mcp-proxy is NOT
+# built here — objectiveai-api consumes it in-process as a regular cargo
+# path dep, folded into the api's own cargo build.
 bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" &
 CLAUDE_RUNNER_PID=$!
 bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" &
@@ -122,9 +119,9 @@ run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
 run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh objectiveai-function-tree/build.sh
 
-# Wait for the background embedded-binary builds.
+# Wait for the background SDK runner builds.
 FAILED=false
-for pid in $MCP_FILESYSTEM_PID $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
+for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
   if ! wait "$pid"; then
     FAILED=true
   fi
