@@ -2,6 +2,13 @@ use envconfig::Envconfig;
 
 #[tokio::main]
 async fn main() {
+    // Before anything else: if this process was launched as a
+    // subprocess-reaper guardian (macOS only), run its kqueue watch loop
+    // and `process::exit`. A no-op on every other platform and on every
+    // normal invocation. Must come first — the guardian re-execs THIS
+    // binary, so it must not fall through into the api server.
+    objectiveai_sdk::subprocess_reaper::run_guardian_if_invoked();
+
     // Two-tier dotenv: the regular CWD `.env` overrides
     // `<OBJECTIVEAI_DIR>/.env` (the repo's committed `.objectiveai/.env`
     // carries the test-grade settings). dotenv never overrides an
