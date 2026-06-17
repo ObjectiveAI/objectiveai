@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk-cffi"
-version = "2.2.2"
+version = "2.2.3"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "C FFI bindings for ObjectiveAI"
@@ -17,7 +17,7 @@ crate-type = ["staticlib", "cdylib"]
 
 [dependencies]
 arbitrary = "1.4.2"
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.2", default-features = false }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.3", default-features = false }
 rand = "0.10.0"
 rust_decimal = { version = "1.40.0", features = ["serde-float"] }
 serde = "1.0.228"
