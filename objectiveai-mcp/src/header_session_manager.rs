@@ -44,8 +44,8 @@ use rmcp::transport::TransportAdapterIdentity;
 use rmcp::transport::WorkerTransport;
 use rmcp::transport::streamable_http_server::session::SessionManager;
 use rmcp::transport::streamable_http_server::session::local::{
-    LocalSessionManager, LocalSessionManagerError, SessionConfig, SessionError,
-    create_local_session,
+    LocalSessionHandle, LocalSessionManager, LocalSessionManagerError, SessionConfig,
+    SessionError, create_local_session,
 };
 use rmcp::transport::streamable_http_server::session::{ServerSseMessage, SessionId};
 
@@ -104,21 +104,20 @@ where
         }
     }
 
-    /// Make sure the inner `LocalSessionManager` has a handle for
-    /// `id`. If it already does, no-op. Otherwise extract the six
-    /// `X-OBJECTIVEAI-*` headers from the current message, record
-    /// the resulting [`AgentArguments`], mint a worker, attach a
-    /// service, and feed a synthetic initialize so the worker is
-    /// ready to receive the real client message in its main loop.
-    async fn ensure_session(
+    /// Mint a fresh worker for `id`: extract the agent-identity +
+    /// MCP-filter headers off `message`, register the resulting
+    /// [`SessionState`], spawn the worker plus its service end, and
+    /// return the handle. The worker is NOT yet driven past its initial
+    /// `InitializeRequest` wait and is NOT yet inserted into the inner
+    /// manager — the caller does both, driving the worker with either the
+    /// REAL initialize (resume path in [`Self::create_stream`], whose
+    /// response must reach the client) or a synthetic one (the
+    /// non-initialize lazy-reconnect path in [`Self::ensure_session`]).
+    async fn mint_worker(
         &self,
         id: &SessionId,
         message: &ClientJsonRpcMessage,
-    ) -> Result<(), LocalSessionManagerError> {
-        if self.inner.has_session(id).await? {
-            return Ok(());
-        }
-
+    ) -> Result<LocalSessionHandle, LocalSessionManagerError> {
         let mut args = extract_agent_args(message);
         // Stamp the rmcp session id onto the bag so downstream tool /
         // plugin subprocesses see this connection's `Mcp-Session-Id`
@@ -168,18 +167,31 @@ where
                 .remove(&id_for_close);
         });
 
-        // Drive the worker past its initial
-        // `SessionEvent::InitializeRequest` wait state. The
-        // response is discarded; the real client's subsequent
-        // request (if any) drives the actual work through the
-        // worker's main loop.
+        Ok(handle)
+    }
+
+    /// Ensure the inner manager holds a worker for `id`, lazily minting
+    /// one for a NON-initialize first message (the lazy-reconnect case:
+    /// a request lands on a session this fresh instance never saw). The
+    /// worker is driven past its initial `InitializeRequest` wait with a
+    /// SYNTHETIC initialize so the real (non-initialize) message rides
+    /// through its main loop. Initialize messages never reach here —
+    /// [`Self::create_stream`] intercepts them and drives the REAL
+    /// initialize so its `InitializeResult` reaches the client. A no-op
+    /// when the session already exists.
+    async fn ensure_session(
+        &self,
+        id: &SessionId,
+        message: &ClientJsonRpcMessage,
+    ) -> Result<(), LocalSessionManagerError> {
+        if self.inner.has_session(id).await? {
+            return Ok(());
+        }
+        let handle = self.mint_worker(id, message).await?;
         handle
             .initialize(synthetic_initialize_message())
             .await
-            .map_err(|e| {
-                error_invalid_input(format!("synthetic initialize: {e}"))
-            })?;
-
+            .map_err(|e| error_invalid_input(format!("synthetic initialize: {e}")))?;
         self.inner.sessions.write().await.insert(id.clone(), handle);
         Ok(())
     }
@@ -248,8 +260,40 @@ where
         id: &SessionId,
         message: ClientJsonRpcMessage,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + Sync + 'static, Self::Error> {
+        // Resume-initialize to a session this (possibly fresh) instance
+        // doesn't hold. rmcp routes an initialize-carrying-a-session-id
+        // through `create_stream`, NOT `initialize_session`. But
+        // `inner.create_stream` delivers the message via `push_message`
+        // (a `SessionEvent::ClientMessage`), and a freshly-minted worker's
+        // initial state only advances on a `SessionEvent::InitializeRequest`
+        // (sent by `handle.initialize`). A pushed `ClientMessage` at that
+        // state is never processed, so the SSE closes with no event and
+        // the client sees "stream ended before a complete event". So mint
+        // the worker, drive the REAL initialize through the handle, and
+        // return its `InitializeResult` as a one-item stream.
+        if is_initialize(&message) && !self.inner.has_session(id).await? {
+            let handle = self.mint_worker(id, &message).await?;
+            let response = handle
+                .initialize(message)
+                .await
+                .map_err(|e| error_invalid_input(format!("resume initialize: {e}")))?;
+            self.inner.sessions.write().await.insert(id.clone(), handle);
+            let item = ServerSseMessage {
+                event_id: None,
+                message: Some(std::sync::Arc::new(response)),
+                retry: None,
+            };
+            let stream: std::pin::Pin<
+                Box<dyn Stream<Item = ServerSseMessage> + Send + Sync + 'static>,
+            > = Box::pin(futures::stream::iter(vec![item]));
+            return Ok(stream);
+        }
         self.ensure_session(id, &message).await?;
-        self.inner.create_stream(id, message).await
+        let inner = self.inner.create_stream(id, message).await?;
+        let stream: std::pin::Pin<
+            Box<dyn Stream<Item = ServerSseMessage> + Send + Sync + 'static>,
+        > = Box::pin(inner);
+        Ok(stream)
     }
 
     async fn accept_message(
@@ -281,6 +325,19 @@ where
         // Same GET-path constraint as `create_standalone_stream`.
         self.inner.resume(id, last_event_id).await
     }
+}
+
+/// True when the message is itself an `initialize` request. Used by
+/// [`HeaderSessionManager::create_stream`] to drive the REAL initialize
+/// through the worker handle (rather than letting the inner manager push
+/// it as a `ClientMessage`, which a freshly-minted worker never
+/// processes).
+fn is_initialize(m: &ClientJsonRpcMessage) -> bool {
+    matches!(
+        m,
+        ClientJsonRpcMessage::Request(r)
+            if matches!(r.request, ClientRequest::InitializeRequest(_))
+    )
 }
 
 /// Pull the six `X-OBJECTIVEAI-*` header values off the message's
