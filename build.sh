@@ -34,8 +34,12 @@
 # this propagates (via OBJECTIVEAI_BUILD_RELEASE) to the cffi, wasm-js,
 # and pyo3 builds, which compile debug otherwise.
 #
+# Pass --no-zip to skip phase 1 (the product-binary + runner compilation)
+# AND the final packaging — useful when you only want the schemas/tools/SDKs
+# and don't need the per-platform zip.
+#
 # Usage:
-#   bash build.sh [--release]
+#   bash build.sh [--release] [--no-zip]
 
 set -euo pipefail
 
@@ -46,11 +50,13 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 # sub-builds (cffi, wasm-js, pyo3) pick it up — run_phase launches them
 # with no args, so the env var is how the profile reaches them.
 RELEASE=0
+NO_ZIP=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --release) RELEASE=1; shift ;;
-    -h|--help) echo "Usage: bash build.sh [--release]"; exit 0 ;;
-    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release]" >&2; exit 1 ;;
+    --no-zip)  NO_ZIP=1; shift ;;
+    -h|--help) echo "Usage: bash build.sh [--release] [--no-zip]"; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release] [--no-zip]" >&2; exit 1 ;;
   esac
 done
 if [ "$RELEASE" = "1" ]; then
@@ -58,6 +64,9 @@ if [ "$RELEASE" = "1" ]; then
   echo "Build profile: release"
 else
   echo "Build profile: debug (pass --release for optimized builds)"
+fi
+if [ "$NO_ZIP" = "1" ]; then
+  echo "Skipping phase 1 (product binaries + runners) and packaging (--no-zip)."
 fi
 
 LOG_DIR="$REPO_ROOT/.logs/build"
@@ -130,28 +139,31 @@ build_bin() {
 # The five product crates in one cargo build (shared cache) + the two
 # PyInstaller SDK runners. mcp-proxy is NOT built here — objectiveai-api
 # consumes it in-process as a regular cargo path dep, folded into the api's
-# own cargo build.
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" $PROFILE_FLAG &
-CLAUDE_RUNNER_PID=$!
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
-CODEX_RUNNER_PID=$!
+# own cargo build. Skipped entirely under --no-zip (these binaries exist
+# only to be packaged; nothing in phases 2-4 depends on them).
+if [ "$NO_ZIP" != "1" ]; then
+  bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" $PROFILE_FLAG &
+  CLAUDE_RUNNER_PID=$!
+  bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
+  CODEX_RUNNER_PID=$!
 
-(
-  cd "$REPO_ROOT"
-  if cargo build $PROFILE_FLAG \
-       -p objectiveai-viewer \
-       -p objectiveai-cli \
-       -p objectiveai-api \
-       -p objectiveai-db \
-       -p objectiveai-mcp \
-       > "$LOG_DIR/cargo-workspace.txt" 2>&1; then
-    echo "cargo-workspace: SUCCESS"
-  else
-    echo "cargo-workspace: ERROR (see .logs/build/cargo-workspace.txt)"
-    exit 1
-  fi
-) &
-CARGO_WORKSPACE_PID=$!
+  (
+    cd "$REPO_ROOT"
+    if cargo build $PROFILE_FLAG \
+         -p objectiveai-viewer \
+         -p objectiveai-cli \
+         -p objectiveai-api \
+         -p objectiveai-db \
+         -p objectiveai-mcp \
+         > "$LOG_DIR/cargo-workspace.txt" 2>&1; then
+      echo "cargo-workspace: SUCCESS"
+    else
+      echo "cargo-workspace: ERROR (see .logs/build/cargo-workspace.txt)"
+      exit 1
+    fi
+  ) &
+  CARGO_WORKSPACE_PID=$!
+fi
 
 # ── Phase 2 (parallel): build/dev tools + json schema ───────────────────
 (
@@ -188,15 +200,18 @@ run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 
 # Wait for the background phase-1 jobs (the 5-crate cargo build + runners).
-FAILED=false
-for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID; do
-  if ! wait "$pid"; then
-    FAILED=true
-  fi
-done
+# Skipped under --no-zip (phase 1 never launched).
+if [ "$NO_ZIP" != "1" ]; then
+  FAILED=false
+  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID; do
+    if ! wait "$pid"; then
+      FAILED=true
+    fi
+  done
 
-if $FAILED; then
-  exit 1
+  if $FAILED; then
+    exit 1
+  fi
 fi
 
 # ── Package the host's 7 binaries into <dir>/bin/<release-asset>.zip ─────
@@ -271,6 +286,8 @@ package_host_zip() {
   echo "Packaged $out ($profile)"
 }
 
-if ! package_host_zip; then
-  exit 1
+if [ "$NO_ZIP" != "1" ]; then
+  if ! package_host_zip; then
+    exit 1
+  fi
 fi
