@@ -32,7 +32,7 @@ if [ -z "${OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT:-}" ]; then
   # process first thing, so nothing is left running the binaries the
   # build may relink.
   bash "$REPO_ROOT/test-cleanup.sh" >>"$LOG_FILE" 2>&1 & _CLEANUP_PID=$!
-  bash "$REPO_ROOT/test-build.sh" >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
+  cargo build --manifest-path "$REPO_ROOT/Cargo.toml" --workspace --bins >>"$LOG_FILE" 2>&1 & _BUILD_PID=$!
   wait "$_CLEANUP_PID"
   wait "$_BUILD_PID"
   # Post-test cleanup is kill-only: processes die but `state/` survives

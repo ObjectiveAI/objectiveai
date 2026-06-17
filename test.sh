@@ -30,7 +30,7 @@ export OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT=1
 # Cleanup kills every lockfile-owning process first thing, so nothing
 # is left running the binaries the build is about to relink.
 bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 & CLEANUP_PID=$!
-bash "$REPO_ROOT/test-build.sh" >>"$BUILD_LOG" 2>&1 & BUILD_PID=$!
+cargo build --manifest-path "$REPO_ROOT/Cargo.toml" --workspace --bins >>"$BUILD_LOG" 2>&1 & BUILD_PID=$!
 wait "$CLEANUP_PID"
 wait "$BUILD_PID"
 
