@@ -1,30 +1,46 @@
 //! `update` — bare-naked streaming handler.
 //!
-//! Refreshes all five shipped binaries (cli, api, viewer, mcp, db)
-//! from the latest GitHub release, emitting one [`ResponseItem`] per
-//! (asset, stage) pair as the run progresses.
-//!
-//! Ported from `src/updater.rs`. The legacy emitted
-//! `Notification::Updater` envelopes through a `cli::output::Handle`;
-//! this version sends `ResponseItem` events through an
-//! `mpsc::channel` whose receiver is surfaced as the leaf's
-//! streaming return value.
+//! Refreshes every shipped binary from the latest GitHub release by
+//! downloading a single per-platform zip
+//! (`objectiveai-<os>-<arch>.zip`) and replacing the contents of the
+//! machine-wide `bin/` directory wholesale. Emits one [`ResponseItem`]
+//! per stage as the run progresses.
 //!
 //! Layout on disk (resolved via `ctx.filesystem.bin_dir()` — every
 //! binary is machine-wide, shared across states):
 //!
 //! ```text
-//! <bin_dir>/objectiveai{.exe}        ← cli
+//! <bin_dir>/objectiveai{.exe}                       ← cli
 //! <bin_dir>/objectiveai-api{.exe}
 //! <bin_dir>/objectiveai-viewer{.exe}
 //! <bin_dir>/objectiveai-mcp{.exe}
 //! <bin_dir>/objectiveai-db{.exe}
+//! <bin_dir>/objectiveai-claude-agent-sdk-runner{.exe}
+//! <bin_dir>/objectiveai-codex-sdk-runner{.exe}
 //! ```
 //!
-//! Release-completeness rule: if the latest release is missing any of
-//! the five expected `(os, arch)` assets, the run emits
-//! [`ResponseSkipReason::IncompleteRelease`] and exits without
-//! touching disk. Either all five advance together or none do.
+//! Flow:
+//! 1. Resolve the single zip asset for this `(os, arch)`. A missing zip
+//!    emits [`ResponseSkipReason::IncompleteRelease`].
+//! 2. Download the zip to a temp path (outside `bin/`, so the wipe
+//!    below can't clobber it).
+//! 3. Kill the running servers in-process: the machine-wide `api` (its
+//!    lock lives at `<bin_dir>/locks`) and the per-state `db` / `viewer`
+//!    across every state.
+//! 4. Rename the running updater aside (Windows can't overwrite a
+//!    running `.exe`; renaming frees the name — the process keeps
+//!    running from the renamed file).
+//! 5. Wipe `bin/` keeping only `plugins/`, `tools/`, and `config.json`
+//!    (best-effort — a still-running server/`.old` that won't delete is
+//!    skipped). `pg-bin/` is wiped; postgres re-extracts on next `db`
+//!    spawn.
+//! 6. Unzip the download into `bin/`. Each binary is written via the
+//!    same rename-aside swap so a still-locked straggler doesn't fail
+//!    the extraction.
+//!
+//! Caveat: `db`/`viewer` are killed across every state, but a server
+//! that comes back (or a binary still locked at unzip time) is left as
+//! a `.old`; the cli's own `.old` is swept on the next invocation.
 
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
@@ -41,19 +57,20 @@ type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>
 const RELEASES_API: &str =
     "https://api.github.com/repos/ObjectiveAI/objectiveai/releases/latest";
 const METADATA_TIMEOUT: Duration = Duration::from_secs(10);
-// Per-asset download cap. Sized for the largest asset: `objectiveai-db`
-// bundles postgres (~163 MB), so a tight cap would time out the db leg
-// on slower links (the other binaries are far smaller).
-const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(300);
+// The per-platform zip bundles every binary (objectiveai-db alone
+// carries postgres at ~163 MB), so the cap is generous to tolerate the
+// full archive on slower links.
+const DOWNLOAD_TIMEOUT: Duration = Duration::from_secs(600);
 
-/// Swap order: cli last because it's the running binary. The
-/// sub-binaries don't gate each other — a swap failure on one is
-/// non-fatal (we emit a per-binary error event and keep going).
-const PACKAGES: &[&str] = &["api", "viewer", "mcp", "db", "cli"];
+/// Entries under `bin/` the wipe preserves: user-installed plugins and
+/// tools, plus the machine-wide config.
+const WIPE_KEEP: &[&str] = &["plugins", "tools", "config.json"];
 
 pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
     let (tx, rx) = tokio::sync::mpsc::channel::<Result<ResponseItem, Error>>(8);
     let bin_dir = ctx.filesystem.bin_dir();
+    // db/viewer locks are per-state under <dir>/state/<name>/locks.
+    let states_root = ctx.filesystem.dir().join("state");
     // The GitHub credential lives in the on-disk json config only
     // (`api config github-authorization set`), not the env Config.
     let github_authorization = ctx
@@ -65,7 +82,14 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
         .map(String::from);
 
     tokio::spawn(async move {
-        if let Err(e) = run(&bin_dir, github_authorization.as_deref(), &tx).await {
+        if let Err(e) = run(
+            &bin_dir,
+            &states_root,
+            github_authorization.as_deref(),
+            &tx,
+        )
+        .await
+        {
             let _ = tx.send(Err(e)).await;
         }
     });
@@ -77,6 +101,7 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<ItemStream, Err
 
 async fn run(
     bin_dir: &Path,
+    states_root: &Path,
     github_authorization: Option<&str>,
     tx: &tokio::sync::mpsc::Sender<Result<ResponseItem, Error>>,
 ) -> Result<(), Error> {
@@ -106,20 +131,8 @@ async fn run(
     // swap before we begin.
     sweep_stale_old(&current_exe);
 
-    // Build the five expected asset names for this (os, arch). The cli
-    // is the bare `objectiveai-<os>-<arch>{ext}`; every other package
-    // appends `-<package>` after the arch.
-    let expected: Vec<(&'static str, String)> = PACKAGES
-        .iter()
-        .map(|&pkg| {
-            let name = if pkg == "cli" {
-                format!("objectiveai-{os}-{arch}{ext}")
-            } else {
-                format!("objectiveai-{os}-{arch}-{pkg}{ext}")
-            };
-            (pkg, name)
-        })
-        .collect();
+    // One asset per platform: objectiveai-<os>-<arch>.zip.
+    let asset_name = format!("objectiveai-{os}-{arch}.zip");
 
     let local = env!("CARGO_PKG_VERSION");
     let local_ver = semver::Version::parse(local)
@@ -127,7 +140,7 @@ async fn run(
 
     let _ = tx
         .send(Ok(ResponseItem::Checking {
-            asset_name: format!("objectiveai-{os}-{arch}{ext}"),
+            asset_name: asset_name.clone(),
             current_version: local.to_string(),
         }))
         .await;
@@ -161,23 +174,15 @@ async fn run(
             .map_err(|e| Error::Updater(format!("malformed release metadata: {e}")))?
     };
 
-    // Index assets by name; check all 5 expected names are present.
-    let assets_map: std::collections::HashMap<&str, &Asset> = release
-        .assets
-        .iter()
-        .map(|a| (a.name.as_str(), a))
-        .collect();
-
-    for (_, name) in &expected {
-        if !assets_map.contains_key(name.as_str()) {
-            let _ = tx
-                .send(Ok(ResponseItem::Skipped {
-                    reason: ResponseSkipReason::IncompleteRelease,
-                }))
-                .await;
-            return Ok(());
-        }
-    }
+    // The platform's zip must be present, or there's nothing to install.
+    let Some(asset) = release.assets.iter().find(|a| a.name == asset_name) else {
+        let _ = tx
+            .send(Ok(ResponseItem::Skipped {
+                reason: ResponseSkipReason::IncompleteRelease,
+            }))
+            .await;
+        return Ok(());
+    };
 
     // Compare versions. Tag is `v<X.Y.Z>` by repo convention.
     let remote_str = release
@@ -196,90 +201,54 @@ async fn run(
         return Ok(());
     }
 
+    let _ = tx
+        .send(Ok(ResponseItem::Found {
+            current_version: local_ver.to_string(),
+            remote_version: remote.to_string(),
+            asset_name: asset_name.clone(),
+            url: asset.browser_download_url.clone(),
+        }))
+        .await;
+
+    // Download the zip to a temp path OUTSIDE bin/ — the wipe below
+    // clears bin/, so a staged copy in there would be deleted.
+    let zip_path =
+        std::env::temp_dir().join(format!("objectiveai-update-{}.zip", std::process::id()));
+    if let Err(e) =
+        download_to(&http, &asset.browser_download_url, auth.as_deref(), &zip_path, local).await
+    {
+        let _ = std::fs::remove_file(&zip_path);
+        return Err(e);
+    }
+
+    // Kill the running servers in-process before touching bin/. The api
+    // lock is machine-wide at <bin>/locks; db + viewer are per-state.
+    // Best-effort: a kill failure shouldn't abort the install.
+    let _ = kill_lock_owners(bin_dir.join("locks"), "api").await;
+    kill_state_servers(states_root).await;
+
+    // Free the running updater's own slot so the unzip can replace it
+    // (Windows can't overwrite a running .exe; renaming aside frees the
+    // name). On Unix the wipe can unlink the running binary directly.
+    rename_running_cli_aside(&current_exe);
+
+    // Wipe bin/ except the preserved entries, then lay down the new set.
+    wipe_bin_except(bin_dir, WIPE_KEEP);
     std::fs::create_dir_all(bin_dir)
         .map_err(|e| Error::Updater(format!("create bin dir: {e}")))?;
 
-    let targets: Vec<(&'static str, String, PathBuf)> = expected
-        .iter()
-        .map(|(pkg, name)| {
-            let path = if *pkg == "cli" {
-                bin_dir.join(format!("objectiveai{ext}"))
-            } else {
-                bin_dir.join(format!("objectiveai-{pkg}{ext}"))
-            };
-            (*pkg, name.clone(), path)
-        })
-        .collect();
+    let unzip_result = unzip_into(&zip_path, bin_dir);
+    let _ = std::fs::remove_file(&zip_path);
+    unzip_result?;
 
-    // Download all 5 to staged paths next to their targets.
-    let pid = std::process::id();
-    let mut staged: Vec<(&'static str, PathBuf, PathBuf)> = Vec::new();
+    sweep_stale_old(&current_exe);
 
-    for (pkg, name, target) in &targets {
-        let asset = assets_map
-            .get(name.as_str())
-            .expect("incomplete-release check above guarantees presence");
-        let stage = staged_path(target, pid);
-
-        let _ = tx
-            .send(Ok(ResponseItem::Found {
-                current_version: local_ver.to_string(),
-                remote_version: remote.to_string(),
-                asset_name: name.clone(),
-                url: asset.browser_download_url.clone(),
-            }))
-            .await;
-
-        if let Err(e) = download_to(
-            &http,
-            &asset.browser_download_url,
-            auth.as_deref(),
-            &stage,
-            local,
-        )
-        .await
-        {
-            // Clean up any prior staged files on failure.
-            for (_, sp, _) in &staged {
-                let _ = std::fs::remove_file(sp);
-            }
-            let _ = std::fs::remove_file(&stage);
-            return Err(e);
-        }
-
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(&stage, std::fs::Permissions::from_mode(0o755))
-                .map_err(|e| Error::Updater(format!("swap: {e}")))?;
-        }
-
-        staged.push((pkg, stage, target.clone()));
-    }
-
-    // Swap each staged binary into place. Order = PACKAGES order =
-    // api/viewer/mcp first, cli last. Per-binary failures on
-    // api/viewer/mcp emit a non-fatal Err event and continue; a cli
-    // failure is fatal (returns Err).
-    for (pkg, stage, target) in &staged {
-        match self_replace(target, stage) {
-            Ok(()) => {
-                sweep_stale_old(target);
-                let _ = tx
-                    .send(Ok(ResponseItem::Installed {
-                        current_version: local_ver.to_string(),
-                        remote_version: remote.to_string(),
-                    }))
-                    .await;
-            }
-            Err(e) if *pkg == "cli" => return Err(e),
-            Err(e) => {
-                let _ = tx
-                    .send(Err(Error::Updater(format!("{pkg}: swap failed: {e}"))))
-                    .await;
-            }
-        }
-    }
+    let _ = tx
+        .send(Ok(ResponseItem::Installed {
+            current_version: local_ver.to_string(),
+            remote_version: remote.to_string(),
+        }))
+        .await;
 
     Ok(())
 }
@@ -317,12 +286,17 @@ fn platform_triple() -> Option<(&'static str, &'static str, &'static str)> {
     {
         Some(("windows", "x86_64", ".exe"))
     }
+    #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
+    {
+        Some(("windows", "aarch64", ".exe"))
+    }
     #[cfg(not(any(
         all(target_os = "linux", target_arch = "x86_64"),
         all(target_os = "linux", target_arch = "aarch64"),
         all(target_os = "macos", target_arch = "x86_64"),
         all(target_os = "macos", target_arch = "aarch64"),
         all(target_os = "windows", target_arch = "x86_64"),
+        all(target_os = "windows", target_arch = "aarch64"),
     )))]
     {
         None
@@ -337,6 +311,115 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
             || s == "target-objectiveai-mcp-proxy"
             || s == "target-objectiveai-viewer"
     })
+}
+
+// Reused for the api lock; see crate::command::kill_helpers.
+use crate::command::kill_helpers::kill_lock_owners;
+
+/// Kill the per-state `db` and `viewer` lock owners across every state
+/// under `<dir>/state/<name>/locks`. Best-effort — failures are
+/// swallowed so a stuck state doesn't abort the install.
+async fn kill_state_servers(states_root: &Path) {
+    let mut rd = match tokio::fs::read_dir(states_root).await {
+        Ok(rd) => rd,
+        // No state dir at all → nothing running per-state.
+        Err(_) => return,
+    };
+    while let Ok(Some(entry)) = rd.next_entry().await {
+        if entry.file_type().await.map(|t| t.is_dir()).unwrap_or(false) {
+            let locks = entry.path().join("locks");
+            let _ = kill_lock_owners(locks.clone(), "db").await;
+            let _ = kill_lock_owners(locks, "viewer").await;
+        }
+    }
+}
+
+#[cfg(windows)]
+fn rename_running_cli_aside(current_exe: &Path) {
+    // Only matters when the running binary lives in the directory the
+    // unzip will overwrite; renaming it frees its name.
+    let old = current_exe.with_extension("exe.old");
+    let _ = std::fs::remove_file(&old);
+    let _ = std::fs::rename(current_exe, &old);
+}
+
+#[cfg(not(windows))]
+fn rename_running_cli_aside(_current_exe: &Path) {
+    // Unix can unlink a running binary directly (the inode survives), so
+    // the wipe + unzip handle it with no rename needed.
+}
+
+/// Delete every entry under `bin_dir` except `keep`. Best-effort: a
+/// still-running server binary (or the renamed-aside updater) that
+/// won't delete is silently skipped — the unzip's swap handles it.
+fn wipe_bin_except(bin_dir: &Path, keep: &[&str]) {
+    let rd = match std::fs::read_dir(bin_dir) {
+        Ok(rd) => rd,
+        Err(_) => return,
+    };
+    for entry in rd.flatten() {
+        let name = entry.file_name();
+        if keep.iter().any(|k| std::ffi::OsStr::new(k) == name) {
+            continue;
+        }
+        let path = entry.path();
+        if path.is_dir() {
+            let _ = std::fs::remove_dir_all(&path);
+        } else {
+            let _ = std::fs::remove_file(&path);
+        }
+    }
+}
+
+/// Extract every file in `zip_path` into `bin_dir` (flattened to the
+/// archive's bare filenames). Each file is written to a staged
+/// `.new.<pid>` sibling, made executable on Unix, then swapped into
+/// place — so a target still locked by a running process is moved aside
+/// rather than failing the write.
+fn unzip_into(zip_path: &Path, bin_dir: &Path) -> Result<(), Error> {
+    let file = std::fs::File::open(zip_path)
+        .map_err(|e| Error::Updater(format!("open zip: {e}")))?;
+    let mut archive =
+        zip::ZipArchive::new(file).map_err(|e| Error::Updater(format!("read zip: {e}")))?;
+    let pid = std::process::id();
+
+    for i in 0..archive.len() {
+        let mut entry = archive
+            .by_index(i)
+            .map_err(|e| Error::Updater(format!("read zip entry: {e}")))?;
+        if !entry.is_file() {
+            continue;
+        }
+        let Some(rel) = entry.enclosed_name() else {
+            continue;
+        };
+        let Some(file_name) = rel.file_name() else {
+            continue;
+        };
+        let dst = bin_dir.join(file_name);
+        let staged = staged_path(&dst, pid);
+
+        {
+            let mut out = std::fs::File::create(&staged)
+                .map_err(|e| Error::Updater(format!("unzip: {e}")))?;
+            std::io::copy(&mut entry, &mut out)
+                .map_err(|e| Error::Updater(format!("unzip: {e}")))?;
+        }
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::set_permissions(&staged, std::fs::Permissions::from_mode(0o755))
+                .map_err(|e| Error::Updater(format!("unzip chmod: {e}")))?;
+        }
+
+        if let Err(e) = self_replace(&dst, &staged) {
+            let _ = std::fs::remove_file(&staged);
+            return Err(e);
+        }
+    }
+
+    Ok(())
 }
 
 fn staged_path(target: &Path, pid: u32) -> PathBuf {
@@ -400,13 +483,13 @@ async fn download_to(
 
 /// Swap the staged binary into place.
 ///
-/// **Unix**: `rename(new, current)` works because the running process
-/// holds the binary by inode.
+/// **Unix**: `rename(new, current)` works because a running process
+/// holds its binary by inode.
 ///
 /// **Windows**: the running exe's path is locked for writes, but
-/// renaming the file to a different name is allowed. Move current
-/// aside, drop the new file into place. For fresh-install targets
-/// (the binary didn't exist locally), skip the rename-aside step.
+/// renaming the file to a different name is allowed. Move current aside,
+/// drop the new file into place. For fresh targets (the binary didn't
+/// exist — e.g. just wiped), skip the rename-aside step.
 #[cfg(unix)]
 fn self_replace(current: &Path, new: &Path) -> Result<(), Error> {
     std::fs::rename(new, current).map_err(|e| Error::Updater(format!("swap: {e}")))
