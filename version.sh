@@ -217,6 +217,16 @@ set_version_txt() {
   printf '%s\n' "$NEW_VERSION" > "$file"
 }
 
+# `VERSION="X.Y.Z"` constant in the root install.sh — the bootstrap
+# installer pins the release zip it downloads. Targets the first
+# column-0 VERSION= line.
+set_install_sh_version() {
+  local file="$1"
+  first_line_replace "$file" \
+    '^VERSION="[^"]+"' \
+    "VERSION=\"$NEW_VERSION\""
+}
+
 # ---------------------------------------------------------------------------
 # File lists
 # ---------------------------------------------------------------------------
@@ -285,6 +295,12 @@ VERSION_TXTS=(
   objectiveai-sdk-go/version.txt
 )
 
+# The root bootstrap installer pins the release version it downloads in a
+# VERSION="X.Y.Z" constant.
+INSTALL_SHS=(
+  install.sh
+)
+
 # ---------------------------------------------------------------------------
 # Apply
 # ---------------------------------------------------------------------------
@@ -331,6 +347,9 @@ update() {
     vertxt)
       set_version_txt "$file"
       ;;
+    installsh)
+      set_install_sh_version "$file"
+      ;;
   esac
 }
 
@@ -345,6 +364,7 @@ for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
 for rel in "${MARKDOWN_FILES[@]}";          do update md     "$rel"; done
 for rel in "${TS_VERSION_STRING_FILES[@]}"; do update ts     "$rel"; done
 for rel in "${VERSION_TXTS[@]}";            do update vertxt "$rel"; done
+for rel in "${INSTALL_SHS[@]}";             do update installsh "$rel"; done
 
 # Sync Cargo.lock to the new workspace versions. If we leave Cargo.lock
 # with the old versions, every cargo invocation in CI rewrites the
