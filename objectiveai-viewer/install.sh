@@ -47,14 +47,6 @@ esac
 echo "Installing JS workspace dependencies..."
 (cd "$REPO_ROOT" && pnpm install --frozen-lockfile)
 
-# ── Build workspace dependency: @objectiveai/function-tree ────────────
-# The viewer's frontend imports it as `workspace:*`; its dist/ (type
-# declarations included) must exist or the beforeBuildCommand's tsc
-# fails with TS2307 on a fresh checkout.
-
-echo "Building @objectiveai/function-tree (workspace dependency)..."
-(cd "$REPO_ROOT" && pnpm --filter @objectiveai/function-tree run build)
-
 # ── Build viewer binary ────────────────────────────────────────────────
 # `tauri build --no-bundle` produces just the raw exe — no .dmg /
 # .msi / .AppImage installer wrappers. Matches the CLI embed path

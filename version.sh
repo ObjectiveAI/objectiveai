@@ -246,7 +246,6 @@ PYPROJECT_TOMLS=(
 
 PACKAGE_JSONS=(
   objectiveai-sdk-js/package.json
-  objectiveai-function-tree/package.json
   objectiveai-viewer/package.json
   objectiveai-mcp-proxy/tests-ts/package.json
 )

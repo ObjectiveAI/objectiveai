@@ -49,16 +49,6 @@ run() {
     return 1
   fi
 
-  # Build the viewer's workspace dependency before the frontend
-  # compiles. @objectiveai/function-tree is `workspace:*` — its
-  # dist/ (type declarations included) must exist or tsc fails with
-  # TS2307 on a fresh checkout (CI release legs build the viewer
-  # directly, without the root build.sh's function-tree phase).
-  echo "Building @objectiveai/function-tree (workspace dependency)..."
-  if ! (cd "$REPO_ROOT" && pnpm --filter @objectiveai/function-tree run build); then
-    return 1
-  fi
-
   echo "Building $MODULE ($PROFILE, $TARGET) via tauri build..."
   if ! (cd "$SCRIPT_DIR" && pnpm exec tauri build "${tauri_args[@]}"); then
     return 1

@@ -110,14 +110,12 @@ CODEX_RUNNER_PID=$!
 # Phase 2: wasm + cffi (need build tools from phase 0)
 run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 
-# Phase 3: js + py + go + function-tree (js/py/go need wasm/cffi from
-# phase 2; function-tree is a dependency-free React lib that just has to
-# exist in dist/ before the viewer compiles in phase 4). objectiveai-dotnet
+# Phase 3: js + py + go (all need wasm/cffi from phase 2). objectiveai-dotnet
 # is intentionally NOT part of this phase — its codegen has a duplicate-
 # variant-property bug that breaks on newly-added internally-tagged enums;
 # run `bash objectiveai-dotnet/build.sh` directly if you need it.
 # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
-run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh objectiveai-function-tree/build.sh
+run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 
 # Wait for the background SDK runner builds.
 FAILED=false

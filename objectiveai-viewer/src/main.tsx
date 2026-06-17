@@ -2,8 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { Provider as TooltipProvider } from "@radix-ui/react-tooltip";
 import App from "./App";
-// @ts-expect-error CSS import has no type declaration
-import "@objectiveai/function-tree/styles";
+import "./function-tree/styles/function-tree.css";
 import "./app.css";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

@@ -11,7 +11,6 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@objectiveai/function-tree": "workspace:*",
     "@objectiveai/sdk": "workspace:*",
     "next": "16.2.2",
     "openai": "^6.33.0",

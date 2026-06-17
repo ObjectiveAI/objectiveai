@@ -8,8 +8,8 @@ import type {
   FunctionsExecutionsResponseStreamingReasoningSummaryChunk,
   VectorCompletionsResponseStreamingAgentCompletionChunk,
 } from "@objectiveai/sdk";
-import { FunctionTree } from "@objectiveai/function-tree";
-import type { TreeNode } from "@objectiveai/function-tree";
+import { FunctionTree } from "./function-tree";
+import type { TreeNode } from "./function-tree";
 import { AgentCompletionChat } from "./components/shared/AgentCompletionChat";
 import { InnerErrorsList } from "./components/shared/InnerErrorsList";
 import { OutputBar } from "./components/shared/OutputBar";
