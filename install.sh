@@ -1,24 +1,11 @@
 #!/usr/bin/env bash
 # ObjectiveAI installer — downloads the pre-built release binaries.
 #
-# Default: installs `objectiveai` (CLI), `objectiveai-api` (server),
+# Installs `objectiveai` (CLI), `objectiveai-api` (server),
 # `objectiveai-viewer` (Tauri desktop app), and `objectiveai-mcp`
-# (MCP server) from the latest GitHub Release.
+# (MCP server) from the latest GitHub Release. Takes no arguments.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-#
-# Flags (compose freely):
-#   --no-viewer        skip the standalone viewer binary.
-#   --no-api           skip the standalone API server binary.
-#   --no-mcp           skip the standalone MCP server binary.
-#   --cli-only         skip viewer, api, and mcp (only install the CLI).
-#   --dev,             delegate to
-#   --development      objectiveai-development-launcher/install.sh, which
-#                      installs launchers that shell out to
-#                      `cargo run -p <pkg>` against the local clone.
-#                      Requires running this script from a clone (not
-#                      via `curl | bash`). --no-*/--cli-only flags are
-#                      ignored when --dev is set.
 #
 # Layout on disk (bin/ is machine-wide; per-state data lives under
 # ~/.objectiveai/state/<OBJECTIVEAI_STATE>, default "default"):
@@ -38,66 +25,6 @@ set -euo pipefail
 
 REPO="ObjectiveAI/objectiveai"
 INSTALL_DIR="$HOME/.objectiveai"
-
-INSTALL_API=1
-INSTALL_VIEWER=1
-INSTALL_MCP=1
-DEV=0
-
-for arg in "$@"; do
-  case "$arg" in
-    --no-viewer)
-      INSTALL_VIEWER=0
-      ;;
-    --no-api)
-      INSTALL_API=0
-      ;;
-    --no-mcp)
-      INSTALL_MCP=0
-      ;;
-    --cli-only)
-      INSTALL_API=0
-      INSTALL_VIEWER=0
-      INSTALL_MCP=0
-      ;;
-    --dev|--development)
-      DEV=1
-      ;;
-    -h|--help)
-      sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
-      exit 0
-      ;;
-    *)
-      echo "unknown option: $arg" >&2
-      exit 2
-      ;;
-  esac
-done
-
-# ── --dev: delegate to the development launcher installer ────────────
-# Requires being run from a clone of the repo (BASH_SOURCE must be a
-# regular file). curl|bash invocations have no clone to point at and
-# error out.
-if [ "$DEV" = "1" ]; then
-  SCRIPT_PATH="${BASH_SOURCE[0]:-}"
-  if [ -z "$SCRIPT_PATH" ] || [ ! -f "$SCRIPT_PATH" ]; then
-    cat >&2 <<'MSG'
---dev requires running install.sh from a checkout of the repo.
-This invocation looks piped via curl. Clone the repo first:
-  git clone https://github.com/ObjectiveAI/objectiveai
-  bash objectiveai/install.sh --dev
-MSG
-    exit 1
-  fi
-  REPO_ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-  LAUNCHER_INSTALL="$REPO_ROOT_DIR/objectiveai-development-launcher/install.sh"
-  if [ ! -f "$LAUNCHER_INSTALL" ]; then
-    echo "ERROR: $LAUNCHER_INSTALL missing — is this an objectiveai clone?" >&2
-    exit 1
-  fi
-  echo "--dev: delegating to objectiveai-development-launcher/install.sh"
-  exec bash "$LAUNCHER_INSTALL"
-fi
 
 # ── Detect platform ───────────────────────────────────────────────────
 
@@ -191,28 +118,22 @@ install_binary \
   "objectiveai${EXE_SUFFIX}"
 
 # API server — standalone objectiveai-api binary.
-if [ "$INSTALL_API" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-api${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-api${EXE_SUFFIX}"
-fi
+install_binary \
+  "objectiveai-${PLATFORM}-${ARCH}-api${EXE_SUFFIX}" \
+  "$BIN_DIR" \
+  "objectiveai-api${EXE_SUFFIX}"
 
 # Viewer — standalone Tauri desktop app.
-if [ "$INSTALL_VIEWER" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-viewer${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-viewer${EXE_SUFFIX}"
-fi
+install_binary \
+  "objectiveai-${PLATFORM}-${ARCH}-viewer${EXE_SUFFIX}" \
+  "$BIN_DIR" \
+  "objectiveai-viewer${EXE_SUFFIX}"
 
 # MCP — standalone MCP (Model Context Protocol) server.
-if [ "$INSTALL_MCP" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-mcp${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-mcp${EXE_SUFFIX}"
-fi
+install_binary \
+  "objectiveai-${PLATFORM}-${ARCH}-mcp${EXE_SUFFIX}" \
+  "$BIN_DIR" \
+  "objectiveai-mcp${EXE_SUFFIX}"
 
 # ── PATH ──────────────────────────────────────────────────────────────
 #
