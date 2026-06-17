@@ -32,6 +32,9 @@ pub struct Client {
     pub query_limit: u64,
     /// Used by the prompt builder to download `http(s):` image URLs.
     pub http_client: reqwest::Client,
+    /// Layout root (`OBJECTIVEAI_DIR`); the runner binary is loaded from
+    /// `<objectiveai_dir>/bin/objectiveai-codex-sdk-runner[.exe]`.
+    objectiveai_dir: std::path::PathBuf,
     binary_path: Arc<OnceCell<String>>,
     /// Lazily-spawned shared runner. Initialized on first request via
     /// `tokio::sync::OnceCell::get_or_try_init`. All concurrent
@@ -61,6 +64,7 @@ impl Client {
         rate_limit_max_wait_secs: u64,
         query_limit: u64,
         http_client: reqwest::Client,
+        objectiveai_dir: std::path::PathBuf,
     ) -> Self {
         Self {
             user_agent,
@@ -69,68 +73,35 @@ impl Client {
             rate_limit_max_wait_secs,
             query_limit,
             http_client,
+            objectiveai_dir,
             binary_path: Arc::new(OnceCell::new()),
             runner: Arc::new(OnceCell::new()),
         }
     }
 
-    /// Extracts the embedded runner binary to a temp directory and
-    /// returns its path. Cached after first extraction so the expensive
-    /// write happens only once even under concurrent first-callers.
-    /// Uses a content-based hash in the directory name so different API
-    /// versions get separate binaries and the same version reuses the
-    /// cached binary across restarts.
+    /// Path to the SDK runner binary in `<OBJECTIVEAI_DIR>/bin/`.
     ///
-    /// Returns `None` only if the on-disk extraction of the embedded
-    /// runner binary failed (e.g. temp dir not writable). In normal
-    /// operation this returns `Some(path)`.
+    /// The runner is shipped alongside the other objectiveai binaries
+    /// (no longer embedded into the api). Computed once and cached in a
+    /// `tokio::sync::OnceCell`. If the binary is missing, `Runner::spawn`
+    /// surfaces a clear spawn error downstream.
     async fn binary_path(&self) -> Option<&str> {
         let path = self
             .binary_path
             .get_or_init(|| async {
-                let binary = super::codex_sdk_binary::CODEX_SDK_RUNNER;
-
-                use std::hash::{Hash, Hasher};
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                binary.len().hash(&mut hasher);
-                binary[..binary.len().min(4096)].hash(&mut hasher);
-                binary[binary.len().saturating_sub(4096)..].hash(&mut hasher);
-                let hash = hasher.finish();
-
                 let binary_name = if cfg!(windows) {
                     "objectiveai-codex-sdk-runner.exe"
                 } else {
                     "objectiveai-codex-sdk-runner"
                 };
-
-                let dir = std::env::temp_dir()
-                    .join(format!("objectiveai-codex-sdk-runner-{hash:016x}"));
-                let path = dir.join(binary_name);
-
-                if !tokio::fs::try_exists(&path).await.unwrap_or(false) {
-                    let _ = tokio::fs::create_dir_all(&dir).await;
-                    if tokio::fs::write(&path, binary).await.is_err() {
-                        return String::new();
-                    }
-                    #[cfg(unix)]
-                    {
-                        use std::os::unix::fs::PermissionsExt;
-                        let _ = tokio::fs::set_permissions(
-                            &path,
-                            std::fs::Permissions::from_mode(0o755),
-                        )
-                        .await;
-                    }
-                }
-
-                path.to_string_lossy().to_string()
+                self.objectiveai_dir
+                    .join("bin")
+                    .join(binary_name)
+                    .to_string_lossy()
+                    .to_string()
             })
             .await;
-        if path.is_empty() {
-            None
-        } else {
-            Some(path.as_str())
-        }
+        Some(path.as_str())
     }
 
     /// Get-or-init the shared runner subprocess. The first caller to

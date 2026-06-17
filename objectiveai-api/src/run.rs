@@ -602,8 +602,8 @@ pub async fn setup(
             x_title.clone(),
             http_referer.clone(),
         )),
-        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit)),
-        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client)),
+        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit, objectiveai_dir.clone())),
+        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client, objectiveai_dir.clone())),
         Arc::new(agent::completions::mock::Client {
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
