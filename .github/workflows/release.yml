@@ -12,11 +12,6 @@ permissions:
 #
 # check-version ─→ create-release
 #
-# mcp-filesystem (matrix: 2 musl arches) ─→ artifacts
-#   The api & viewer embed the linux-musl mcp-filesystem (injected into the
-#   orchestrator's Docker containers). Built once per arch on ubuntu, shared
-#   by every platform whose host arch matches.
-#
 # cli / api / viewer / mcp / db / runner  (each a matrix over the 6 platforms)
 #   Each leg builds ONE binary for ONE platform on its own runner and uploads
 #   it as a workflow artifact named objectiveai-<os>-<arch>[-<pkg>][.exe].
@@ -103,24 +98,6 @@ jobs:
             --title "v$VERSION" \
             --notes-file release-notes.md
 
-  # ── mcp-filesystem (one artifact per musl arch) ───────────────────────────
-
-  mcp-filesystem:
-    name: mcp-filesystem (${{ matrix.arch }})
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch: [x86_64, aarch64]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: ${{ matrix.arch }}-unknown-linux-musl
-          artifact-name: mcp-filesystem-${{ matrix.arch }}
-
   # ── CLI ───────────────────────────────────────────────────────────────────
 
   cli:
@@ -145,11 +122,11 @@ jobs:
           asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
           src_name: objectiveai${{ matrix.ext }}
 
-  # ── API (embeds the linux-musl mcp-filesystem matching its host arch) ──────
+  # ── API ────────────────────────────────────────────────────────────────────
 
   api:
     name: api (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release, mcp-filesystem]
+    needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
     strategy:
@@ -166,16 +143,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-api-leg
         with:
-          mcp_target: ${{ matrix.arch }}-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-${{ matrix.arch }}
           asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-api${{ matrix.ext }}
           src_name: objectiveai-api${{ matrix.ext }}
 
-  # ── Viewer (embeds the linux-musl mcp-filesystem matching its host arch) ───
+  # ── Viewer ─────────────────────────────────────────────────────────────────
 
   viewer:
     name: viewer (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release, mcp-filesystem]
+    needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
     strategy:
@@ -192,8 +167,6 @@ jobs:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-viewer-leg
         with:
-          mcp_target: ${{ matrix.arch }}-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-${{ matrix.arch }}
           asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-viewer${{ matrix.ext }}
           src_name: objectiveai-viewer${{ matrix.ext }}
 

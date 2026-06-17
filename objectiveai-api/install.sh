@@ -1,20 +1,14 @@
 #!/usr/bin/env bash
-# Builds and installs a standalone objectiveai-api server binary.
+# Builds and installs a standalone objectiveai-api server binary:
+# cargo-build objectiveai-api in release mode, then copy the binary to
+# ~/.objectiveai/bin/.
 #
-# Build the per-host embedded dependency first (the linux-musl
-# mcp-filesystem, injected into the orchestrator's Docker containers),
-# then cargo-build objectiveai-api in release mode with all features
-# turned on, then copy the binary to ~/.objectiveai/.
-#
-# The api no longer embeds the claude-agent-sdk / codex-sdk runners — it
-# spawns them at runtime from <OBJECTIVEAI_DIR>/bin/. They are built and
-# shipped as their own release artifacts, not baked in here.
+# The api embeds nothing of its own — it spawns the claude-agent-sdk /
+# codex-sdk runners at runtime from <OBJECTIVEAI_DIR>/bin/, which are
+# built and shipped as their own release artifacts.
 #
 # Usage:
 #   bash objectiveai-api/install.sh
-#
-# Default feature set: orchestrator-bollard (default) — the "fully
-# featured" Docker-orchestrator-enabled api server.
 
 set -euo pipefail
 
@@ -36,22 +30,6 @@ else
   SRC_NAME="objectiveai-api"
   DST_NAME="objectiveai-api"
 fi
-
-# ── Build embedded binaries ────────────────────────────────────────────
-# objectiveai-api embeds the linux-musl mcp-filesystem under the
-# orchestrator-bollard feature (injected into Docker containers).
-
-echo "Building embedded dependencies..."
-
-# mcp-filesystem (linux-musl, Docker container injection) — embedded by
-# objectiveai-api with orchestrator-bollard. Match the host architecture
-# (ARM hosts embed aarch64, x86_64 hosts embed x86_64) and always target
-# linux-musl. Normalize macOS's `arm64` to Rust's `aarch64` triple.
-MCP_ARCH=$(uname -m)
-case "$MCP_ARCH" in
-  arm64) MCP_ARCH=aarch64 ;;
-esac
-bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknown-linux-musl" --release
 
 # ── Build api ──────────────────────────────────────────────────────────
 

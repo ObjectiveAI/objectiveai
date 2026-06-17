@@ -1,13 +1,7 @@
 name: Build API leg and upload artifact
-description: Set up the Rust toolchain, download the paired mcp-filesystem artifact, build the objectiveai-api server binary for this leg's platform, and upload it as a workflow artifact for the per-platform packaging job to bundle into a zip.
+description: Set up the Rust toolchain, build the objectiveai-api server binary for this leg's platform, and upload it as a workflow artifact for the per-platform packaging job to bundle into a zip.
 
 inputs:
-  mcp_target:
-    description: Rust target triple of the mcp-filesystem this leg embeds (used to construct the embed/ path).
-    required: true
-  mcp_artifact_name:
-    description: Name of the mcp-filesystem artifact uploaded by this leg's paired mcp-fs job.
-    required: true
   asset:
     description: Name of the workflow artifact (and staged filename) for this leg's binary (e.g. objectiveai-linux-x86_64-api).
     required: true
@@ -19,22 +13,6 @@ runs:
   using: composite
   steps:
     - uses: dtolnay/rust-toolchain@stable
-    - name: Download pre-built objectiveai-mcp-filesystem
-      uses: actions/download-artifact@v4
-      with:
-        name: ${{ inputs.mcp_artifact_name }}
-        path: objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release/
-    - name: Re-stamp mcp-filesystem fingerprint with this runner's view
-      # The mcp-filesystem fingerprint computed on the builder runner
-      # doesn't always match what fingerprint.sh computes on this
-      # runner. Re-stamp it here so install.sh skips the rebuild
-      # (which would fail for lack of the musl rustup target on
-      # non-Linux-musl runners).
-      shell: bash
-      run: |
-        EMBED_DIR="objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release"
-        source objectiveai-mcp-filesystem/fingerprint.sh --target ${{ inputs.mcp_target }} --release || true
-        echo "$CURRENT_FP" > "$EMBED_DIR/.fingerprint"
     - name: Build API
       shell: bash
       run: bash objectiveai-api/install.sh

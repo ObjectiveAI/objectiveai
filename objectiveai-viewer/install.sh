@@ -40,17 +40,6 @@ case "$(uname -s)" in
     ;;
 esac
 
-# ── Build embedded binaries ────────────────────────────────────────────
-# The viewer embeds the linux-musl mcp-filesystem (injected into the
-# orchestrator's Docker containers). It no longer produces the
-# sdk-runner binaries — the api spawns those from <OBJECTIVEAI_DIR>/bin/
-# at runtime, and they ship as their own release artifacts.
-
-echo "Building embedded dependencies..."
-
-# mcp-filesystem (linux-musl, Docker container injection)
-bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$HOST_ARCH-unknown-linux-musl" --release
-
 # ── Install JS workspace deps ──────────────────────────────────────────
 # tauri-build runs `pnpm run build` (the viewer's beforeBuildCommand)
 # which needs node_modules.
