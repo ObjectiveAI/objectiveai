@@ -20,7 +20,7 @@
 #                        objectiveai-sdk-js/dist)
 #   - **/pkg-nodejs/     (wasm-pack nodejs target output, dist-like)
 #   - bin/               (workspace-local cargo-installed tools managed by
-#                        build-bin.sh — wasm-pack, maturin)
+#                        build.sh — wasm-pack, maturin)
 #   - .crates.toml,
 #     .crates2.json      (paired with bin/; cargo-install registry — drop
 #                        these and cargo thinks the tools are missing)

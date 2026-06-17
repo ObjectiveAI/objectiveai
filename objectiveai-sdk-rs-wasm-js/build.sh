@@ -24,7 +24,7 @@ run() {
 
   # Require wasm-pack from repo root bin/
   WASM_PACK="$REPO_ROOT/bin/wasm-pack"
-  [ -x "$WASM_PACK" ] || { echo "ERROR: wasm-pack not found at $WASM_PACK. Run 'bash build-bin.sh' from the repo root first." >&2; return 1; }
+  [ -x "$WASM_PACK" ] || { echo "ERROR: wasm-pack not found at $WASM_PACK. Run 'bash build.sh' from the repo root first." >&2; return 1; }
 
   # Build
   echo "Building wasm-pack (nodejs, release)..."

@@ -33,7 +33,7 @@ run_all() {
     --manifest-path "$REPO_ROOT/Cargo.toml" \
     -p objectiveai-mcp-proxy \
     -p test-upstream || rc=$?
-  # cargo-nextest is installed locally by `build-bin.sh` into `bin/` —
+  # cargo-nextest is installed locally by `build.sh` into `bin/` —
   # see the [workspace.metadata.tools] table in the root Cargo.toml.
   echo "==> Rust integration tests (rmcp client → proxy)"
   "$NEXTEST" nextest run \

@@ -6,8 +6,8 @@ name: Publish objectiveai-sdk-js
 # The build pipeline (`pnpm --filter @objectiveai/sdk run build`) regenerates Zod
 # schemas from objectiveai-json-schema/, embeds the WASM loader, and bundles
 # via tsup. We need to run a full repo build first because the JS package's
-# build depends on objectiveai-sdk-rs-wasm-js/dist/ (built by build-bin + the
-# wasm-js build script).
+# build depends on objectiveai-sdk-rs-wasm-js/dist/ (built by the
+# wasm-js build script, which needs wasm-pack in ./bin/).
 #
 # Setup required (one-time):
 #   - Trusted Publisher registered on npmjs.com for this workflow:
@@ -63,7 +63,11 @@ jobs:
 
       - name: Build wasm + js
         run: |
-          bash build-bin.sh
+          # Install the pinned wasm-pack into ./bin/ (the wasm-js build
+          # expects it there). The root build.sh inlines this for the full
+          # build; here we only need wasm-pack for the wasm leg.
+          WASM_PACK_VERSION=$(sed -n 's/^wasm-pack *= *"\(.*\)"/\1/p' Cargo.toml)
+          cargo install wasm-pack --version "$WASM_PACK_VERSION" --locked --root .
           bash objectiveai-sdk-rs-wasm-js/build.sh
           bash objectiveai-sdk-js/build.sh
 

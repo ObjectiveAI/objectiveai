@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # Builds all packages in dependency order with parallelism.
 #
-# Phase 1 (parallel): build-bin + objectiveai-json-schema
+# Phase 0 (sequential, first): install build/dev tools into ./bin/
+#   (inlined below; wasm-pack, maturin, cargo-nextest, pinned from
+#   [workspace.metadata.tools] in Cargo.toml). Runs first and alone —
+#   the wasm/cffi (phase 2) and SDK (phase 3) builds invoke these tools.
+# Phase 1: objectiveai-json-schema (its output feeds the phase-3 SDK codegen)
 # Background: objectiveai-cli + mcp + claude-agent-sdk runners (after phase 1, concurrent with phases 2+3)
 # Phase 2 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
 # Phase 3 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
@@ -42,8 +46,56 @@ run_phase() {
   fi
 }
 
-# Phase 1: build tools + json schema
-run_phase build-bin.sh objectiveai-json-schema/build.sh
+# ── Phase 0: build/dev tools ────────────────────────────────────────────
+# Installs wasm-pack, maturin, and cargo-nextest into ./bin/ using the
+# versions pinned in [workspace.metadata.tools] in Cargo.toml. Must come
+# first — phases 2 and 3 invoke these tools. Output is captured to
+# .logs/build/build-bin.txt to match the other build legs.
+build_bin() {
+  local WASM_PACK_VERSION MATURIN_VERSION CARGO_NEXTEST_VERSION BIN_DIR
+  WASM_PACK_VERSION=$(sed -n 's/^wasm-pack *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
+  MATURIN_VERSION=$(sed -n 's/^maturin *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
+  CARGO_NEXTEST_VERSION=$(sed -n 's/^cargo-nextest *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
+
+  [ -n "$WASM_PACK_VERSION" ] || { echo "ERROR: Could not read wasm-pack version from Cargo.toml" >&2; return 1; }
+  [ -n "$MATURIN_VERSION" ] || { echo "ERROR: Could not read maturin version from Cargo.toml" >&2; return 1; }
+  [ -n "$CARGO_NEXTEST_VERSION" ] || { echo "ERROR: Could not read cargo-nextest version from Cargo.toml" >&2; return 1; }
+
+  BIN_DIR="$REPO_ROOT/bin"
+
+  install_if_needed() {
+    local name="$1" version="$2"
+    local bin="$BIN_DIR/$name"
+    if [ -x "$bin" ]; then
+      local installed
+      installed=$("$bin" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+      if [ "$installed" = "$version" ]; then
+        echo "$name $version already installed, skipping."
+        return
+      fi
+    fi
+    echo "Installing $name $version..."
+    cargo install "$name" --version "$version" --locked --root "$REPO_ROOT"
+  }
+
+  install_if_needed wasm-pack "$WASM_PACK_VERSION"
+  install_if_needed maturin "$MATURIN_VERSION"
+  install_if_needed cargo-nextest "$CARGO_NEXTEST_VERSION"
+
+  echo "Done. Tools at $BIN_DIR/"
+}
+
+LOG_DIR="$REPO_ROOT/.logs/build"
+mkdir -p "$LOG_DIR"
+if build_bin > "$LOG_DIR/build-bin.txt" 2>&1; then
+  echo "build-bin: SUCCESS"
+else
+  echo "build-bin: ERROR (see $LOG_DIR/build-bin.txt)"
+  exit 1
+fi
+
+# Phase 1: json schema (its output feeds the phase-3 SDK codegen).
+run_phase objectiveai-json-schema/build.sh
 
 # Embedded binaries (depend on phase 1, run concurrently with phases 2+3).
 # mcp-filesystem is a cargo build pinned to linux-musl (Docker container
@@ -58,7 +110,7 @@ CLAUDE_RUNNER_PID=$!
 bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" &
 CODEX_RUNNER_PID=$!
 
-# Phase 2: wasm + cffi (need build tools from phase 1)
+# Phase 2: wasm + cffi (need build tools from phase 0)
 run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 
 # Phase 3: js + py + go + function-tree (js/py/go need wasm/cffi from

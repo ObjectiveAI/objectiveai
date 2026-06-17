@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Run tests, capture all output. cargo-nextest is installed locally by
-# `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
+# `build.sh` into `bin/` — see the [workspace.metadata.tools] table
 # in the root Cargo.toml.
 if "$NEXTEST" nextest run --manifest-path "$SCRIPT_DIR/builder/Cargo.toml" "${CARGO_ARGS[@]}" > "$LOG_FILE" 2>&1; then
   PASSED=$(sed -n 's/.* \([0-9][0-9]*\) passed.*/\1/p' "$LOG_FILE" | awk '{s+=$1} END {print s+0}')

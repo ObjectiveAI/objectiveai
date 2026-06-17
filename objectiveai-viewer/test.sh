@@ -76,7 +76,7 @@ fi
 # `#[cfg(test)]` coverage worth keeping. Release builds use cargo build /
 # tauri build and are unaffected.
 #
-# cargo-nextest is installed locally by `build-bin.sh` into `bin/` — see
+# cargo-nextest is installed locally by `build.sh` into `bin/` — see
 # the [workspace.metadata.tools] table in the root Cargo.toml.
 if "$NEXTEST" nextest run -p objectiveai-viewer --lib --tests "${CARGO_ARGS[@]}" >>"$LOG_FILE" 2>&1; then
   RUST_OK=1

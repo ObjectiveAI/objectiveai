@@ -60,7 +60,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 # Run tests, capture all output. cargo-nextest is installed locally by
-# `build-bin.sh` into `bin/` — see the [workspace.metadata.tools] table
+# `build.sh` into `bin/` — see the [workspace.metadata.tools] table
 # in the root Cargo.toml.
 #
 # --lib --tests: skip the `objectiveai-api` bin target. The server is
