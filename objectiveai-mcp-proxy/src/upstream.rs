@@ -185,7 +185,25 @@ pub async fn reconnect_from_payload(
     client: &Client,
     reverse_channel: Option<&ReverseChannel>,
     payload: &crate::session_manager::SessionPayload,
+    http_headers: &HeaderMap,
 ) -> Result<Vec<(Upstream, IndexMap<String, String>)>, BadInit> {
+    // Same transient extraction as `connect_all_fresh`. The agent
+    // identity headers are NOT in the payload (stripped at parse time +
+    // stored on `Session::transient_headers`, never encoded into the
+    // id) — they come from THIS reconnect request's HeaderMap and MUST
+    // be stamped on the resume `initialize`: the CLI conduit's
+    // `require_transient` rejects an `initialize` missing
+    // `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` (& the other four) with
+    // -32600, failing the whole reconnect. The fresh path already does
+    // this; the resume path must match or every MCP continuation 400s.
+    let transient: IndexMap<String, String> = crate::session::Session::TRANSIENT_HEADER_KEYS
+        .iter()
+        .filter_map(|key| {
+            let v = http_headers.get(*key)?.to_str().ok()?;
+            Some((key.to_string(), v.to_string()))
+        })
+        .collect();
+
     let attempts = payload.connections.iter().map(|(url, headers)| {
         let url = url.clone();
         let mut headers = headers.clone();
@@ -193,9 +211,17 @@ pub async fn reconnect_from_payload(
         // Agent identity headers live on `Session::transient_headers`
         // (extracted from the reconnect request's HeaderMap in
         // `handle_initialize`), not on the payload. The per-URL bag
-        // here carries only `Authorization` + custom headers.
+        // here carries only `Authorization` + custom headers — so the
+        // canonical payload we re-encode stays transient-free and the
+        // re-minted id is byte-stable across resumes.
         let payload_headers = headers.clone();
+        let transient = transient.clone();
         async move {
+            // Stamp the session-global transient identity headers on the
+            // reconnect `initialize`, exactly as `connect_all_fresh` does.
+            for (k, v) in transient {
+                headers.entry(k).or_insert(v);
+            }
             let upstream =
                 connect_upstream(client, reverse_channel, &url, session_id, headers).await?;
             // Same post-connect health probe as the fresh path: a resumed

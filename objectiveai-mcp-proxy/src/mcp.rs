@@ -436,6 +436,7 @@ async fn handle_initialize(
                     &state.client,
                     state.reverse_channel.as_ref(),
                     &payload,
+                    headers,
                 )
                 .await
                 {

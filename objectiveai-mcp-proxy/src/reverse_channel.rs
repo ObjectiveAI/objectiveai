@@ -185,8 +185,19 @@ pub struct WsUpstream {
     /// `mcp::Connection::has_{tools,resources}_cap`.
     has_tools_cap: bool,
     has_resources_cap: bool,
-    /// Per-request stamped headers (transient identity + auth), re-applied
-    /// per request (mirrors `Connection::extra_headers`).
+    /// Persistent per-upstream headers captured at connect: the per-URL
+    /// set (`Authorization`, custom `X-*`, `X-OBJECTIVEAI-ARGUMENTS`)
+    /// plus whatever identity headers were present at dial. Never
+    /// mutated after connect — mirrors the SDK `Connection`'s base
+    /// `headers`. The transient subset is overridden per request by
+    /// `extra_headers`; the per-URL subset has no overlay key, so it
+    /// always survives on every request.
+    base_headers: IndexMap<String, String>,
+    /// Mutable transient-identity overlay, full-replaced every turn by
+    /// `apply_transient_headers` → `set_extra_headers`. Overrides
+    /// `base_headers` per key (mirrors `Connection::extra_headers`).
+    /// Starts empty: until the first refresh, `base_headers` alone
+    /// carries the dial-time identity headers.
     extra_headers: RwLock<IndexMap<String, String>>,
 }
 
@@ -200,10 +211,18 @@ impl std::fmt::Debug for WsUpstream {
 }
 
 impl WsUpstream {
-    /// Headers to stamp on every outbound `server_request`: the current
-    /// transient bag plus this upstream's `Mcp-Session-Id`.
+    /// Headers to stamp on every outbound `server_request`, mirroring
+    /// `Connection::build_request_headers` exactly: the persistent
+    /// `base_headers` first, then the `extra_headers` transient overlay
+    /// (overrides per key), then this upstream's `Mcp-Session-Id` last
+    /// (so it can never be shadowed). Per-URL headers live only in
+    /// `base_headers` (no overlay key collides), so they're present on
+    /// EVERY request — identical to the HTTP path.
     async fn headers(&self) -> IndexMap<String, String> {
-        let mut h = self.extra_headers.read().await.clone();
+        let mut h = self.base_headers.clone();
+        for (k, v) in self.extra_headers.read().await.iter() {
+            h.insert(k.clone(), v.clone());
+        }
         h.insert(
             crate::upstream::MCP_SESSION_ID_KEY.to_string(),
             self.session_id.clone(),
@@ -516,7 +535,13 @@ pub async fn connect_ws(
         server_version: reply.result.server_info.version,
         has_tools_cap,
         has_resources_cap,
-        extra_headers: RwLock::new(headers),
+        // The connect-time set (per-URL ∪ dial-time identity) is the
+        // persistent base; the transient overlay starts empty and is
+        // filled by the first `set_extra_headers`. Mirrors the SDK
+        // `Connection`, where connect headers are the base and
+        // `extra_headers` begins empty.
+        base_headers: headers,
+        extra_headers: RwLock::new(IndexMap::new()),
     })
 }
 
