@@ -131,10 +131,15 @@ impl Context {
 
     /// The MCP [`Backoff`](objectiveai_sdk::mcp::Backoff) bundle this CLI
     /// process uses for ALL of its own MCP clients (the streaming
-    /// conduit, through which every CLI MCP connection flows). Built from
-    /// the single merged (`--final`) `api.mcp_timeout_ms` config value
-    /// (default 60000ms): that value sets the connect timeout, the
-    /// per-call timeout, AND the backoff max-elapsed-time; the remaining
+    /// conduit, through which every CLI MCP connection flows). The
+    /// connect + per-call timeouts come from the merged (`--final`)
+    /// `api.mcp_timeout_ms` config value (default 60000ms). The backoff
+    /// **retry budget** is INDEPENDENT of that timeout: it's read from
+    /// the `MCP_BACKOFF_MAX_ELAPSED_TIME` environment variable (the CLI
+    /// loads `<OBJECTIVEAI_DIR>/.env` in `main`, the same file the api
+    /// reads), defaulting to the SDK default (40s) when unset. The
+    /// shared test `.env` sets it to `0` so a genuine MCP failure fails
+    /// fast instead of retrying for the full window. The remaining
     /// exponential-backoff knobs keep [`Backoff::default`]'s values.
     /// Callers that need to distinguish "configured" from "unset" (the
     /// api spawn) use [`Self::resolve_mcp_timeout_ms_opt`] instead.
@@ -142,11 +147,16 @@ impl Context {
         &self,
     ) -> Result<objectiveai_sdk::mcp::Backoff, crate::error::Error> {
         let timeout_ms = self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000);
+        let default = objectiveai_sdk::mcp::Backoff::default();
+        let max_elapsed_time_ms = std::env::var("MCP_BACKOFF_MAX_ELAPSED_TIME")
+            .ok()
+            .and_then(|s| s.trim().parse::<u64>().ok())
+            .unwrap_or(default.max_elapsed_time_ms);
         Ok(objectiveai_sdk::mcp::Backoff {
             connect_timeout_ms: timeout_ms,
             call_timeout_ms: timeout_ms,
-            max_elapsed_time_ms: timeout_ms,
-            ..Default::default()
+            max_elapsed_time_ms,
+            ..default
         })
     }
 
