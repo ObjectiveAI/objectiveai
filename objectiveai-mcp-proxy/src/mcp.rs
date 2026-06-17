@@ -415,19 +415,19 @@ async fn handle_initialize(
 
     if let Some(sid) = &provided_session_id {
         if let Some(session) = state.sessions.get(sid) {
-            // Branch 1 — alive in-memory. Re-mint to keep the
-            // in-memory session-key consistent (deterministic AEAD
-            // nonce per `41c90d61` makes it byte-identical to what
-            // the client holds), but DON'T echo the id back: per
-            // rmcp's resume behavior we omit the `Mcp-Session-Id`
-            // response header.
+            // Branch 1 — alive in-memory. Re-mint the id from the
+            // session's (unchanged) payload; the deterministic AEAD
+            // nonce makes it byte-identical to the key the session is
+            // stored under (i.e. the id the client already holds). Echo
+            // it back so the "always tell the client our current session
+            // id" contract is uniform across the fresh / reconnect /
+            // alive branches.
             let new_id = state.sessions.mint_id(&session.payload);
             // Re-apply the session-global transient headers from
             // THIS reconnect's inbound HeaderMap. Full replace —
             // missing keys drop from the bag.
             session.apply_transient_headers(headers).await;
-            let _ = new_id;
-            return ok_response_resume_sse(request.id);
+            return ok_response_resume_sse(request.id, new_id);
         }
         // Branch 2 — decrypt and reconnect strictly from the payload.
         let connections_with_headers = match state.sessions.decode_session_id(sid) {
@@ -459,10 +459,17 @@ async fn handle_initialize(
                     .into_response();
             }
         };
-        // Register the just-reconnected session in memory. The minted
-        // id is deterministic and matches what the client already
-        // holds; we discard the return value because the resume path
-        // doesn't echo the id back.
+        // Register the just-reconnected session in memory under its
+        // freshly-minted id. This id may DIFFER from the one the client
+        // presented (`sid`): when the upstream reassigns its own
+        // `Mcp-Session-Id` on the reconnect `initialize`, the SDK adopts
+        // it and it gets encoded into the new proxy id. That's fine — we
+        // echo `new_id` back in the response header (see
+        // `ok_response_resume_sse`), so the client adopts it for every
+        // subsequent request. The SDK refreshes its connection's session
+        // id from the response, and the response continuation re-derives
+        // `mcp_sessions` from that, so the next turn presents `new_id`.
+        // The session lives under `new_id`; the client is told `new_id`.
         let new_id = state.sessions.add(connections_with_headers);
         // Apply the session-global transient headers from THIS
         // reconnect's inbound HeaderMap. Full replace — missing keys
@@ -473,7 +480,7 @@ async fn handle_initialize(
         if let Some(session) = state.sessions.get(&new_id) {
             session.apply_transient_headers(headers).await;
         }
-        ok_response_resume_sse(request.id)
+        ok_response_resume_sse(request.id, new_id)
     } else {
         // Branch 3 — fresh init. `X-MCP-Servers` / `X-MCP-Headers`
         // build the spec list, every URL connects from scratch, the
@@ -596,12 +603,22 @@ fn ok_response_fresh_sse(
 ///   2. The `InitializeResult` JSON as a `data:` event, so the
 ///      client gets the result it asked for, just like a fresh init.
 ///
-/// No `Mcp-Session-Id` response header (the client already holds
-/// the id). Echoing back another `InitializeResult` via plain JSON
-/// (which is what this function did before) is what made
-/// `claude_agent_sdk`'s bundled CLI treat the resume as
-/// protocol-noncompliant and drop every tool from this server.
-fn ok_response_resume_sse(request_id: serde_json::Value) -> Response {
+/// Echoes the `Mcp-Session-Id` response header set to `session_id` —
+/// the id the session is currently stored under. On a Branch 2
+/// reconnect this may DIFFER from the id the client presented: the
+/// upstream can reassign its own session id on the reconnect
+/// `initialize`, the SDK adopts it, and it's encoded into the re-minted
+/// proxy id. Echoing the current id lets the client adopt it for every
+/// subsequent request, so it never references a session stored under a
+/// key it no longer sends (the omission that used to 404 every
+/// post-`initialize` request on resume). Sending the header in an SSE
+/// initialize response is the same shape as a fresh init, which
+/// `claude_agent_sdk`'s bundled CLI already accepts — what previously
+/// broke that CLI was echoing the body as plain JSON, not the header.
+fn ok_response_resume_sse(
+    request_id: serde_json::Value,
+    session_id: String,
+) -> Response {
     let priming = sse_stream::Sse::default()
         .data("")
         .id("0")
@@ -630,6 +647,16 @@ fn ok_response_resume_sse(request_id: serde_json::Value) -> Response {
     };
     let result_event = sse_stream::Sse::default().data(payload);
 
+    let header_value = match HeaderValue::from_str(&session_id) {
+        Ok(v) => v,
+        Err(_) => {
+            return internal_error_response(
+                serde_json::Value::Null,
+                format!("session id is not a valid header value: {session_id}"),
+            );
+        }
+    };
+
     let stream = stream::iter(vec![
         Ok::<sse_stream::Sse, Infallible>(priming),
         Ok(result_event),
@@ -640,6 +667,7 @@ fn ok_response_resume_sse(request_id: serde_json::Value) -> Response {
     let mut response = Response::new(axum::body::Body::new(body_stream));
     *response.status_mut() = StatusCode::OK;
     let h = response.headers_mut();
+    h.insert(SESSION_ID_HEADER, header_value);
     h.insert(
         axum::http::header::CONTENT_TYPE,
         HeaderValue::from_static("text/event-stream"),

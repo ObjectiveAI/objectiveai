@@ -575,12 +575,15 @@ pub async fn setup(
                 None
             }
         })
-        .unwrap_or_else(|| {
-            use rand::RngCore;
-            let mut key = [0u8; 32];
-            rand::rng().fill_bytes(&mut key);
-            key
-        });
+        // Stable default: a fixed 32-byte key (not random-per-startup) so
+        // proxy session ids stay decodable across process restarts and so
+        // any process minting under the default agrees on the same key.
+        // Operators who need real opacity set `MCP_ENCRYPTION_KEY`.
+        .unwrap_or([
+            0x6f, 0x62, 0x6a, 0x65, 0x63, 0x74, 0x69, 0x76, 0x65, 0x61, 0x69, 0x2d, 0x6d, 0x63,
+            0x70, 0x2d, 0x70, 0x72, 0x6f, 0x78, 0x79, 0x2d, 0x64, 0x65, 0x66, 0x61, 0x75, 0x6c,
+            0x74, 0x2d, 0x6b, 0x79,
+        ]);
     // When logging is on, route the in-process proxy's request/response
     // trace to <OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl.
     let proxy_logs_dir: Option<String> = if logs {
