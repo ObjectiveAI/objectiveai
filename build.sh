@@ -19,12 +19,35 @@
 # objectiveai-viewer/install.sh. Run `bash objectiveai-viewer/build.sh`
 # directly if you want a local embed build.
 #
+# Build profile defaults to debug. Pass --release for optimized builds;
+# this propagates (via OBJECTIVEAI_BUILD_RELEASE) to the cffi, wasm-js,
+# and pyo3 builds, which compile debug otherwise.
+#
 # Usage:
-#   bash build.sh
+#   bash build.sh [--release]
 
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
+
+# ── Build profile ───────────────────────────────────────────────────────
+# --release → optimized. Exported as OBJECTIVEAI_BUILD_RELEASE so the
+# sub-builds (cffi, wasm-js, pyo3) pick it up — run_phase launches them
+# with no args, so the env var is how the profile reaches them.
+RELEASE=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --release) RELEASE=1; shift ;;
+    -h|--help) echo "Usage: bash build.sh [--release]"; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release]" >&2; exit 1 ;;
+  esac
+done
+if [ "$RELEASE" = "1" ]; then
+  export OBJECTIVEAI_BUILD_RELEASE=1
+  echo "Build profile: release"
+else
+  echo "Build profile: debug (pass --release for optimized builds)"
+fi
 
 # Run a phase: launch all given scripts in parallel, wait for all, fail if any failed.
 run_phase() {

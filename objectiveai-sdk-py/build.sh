@@ -2,8 +2,14 @@
 # Sets up venv, installs requirements, and builds pyo3.
 # Output is captured to .logs/build/objectiveai-sdk-py.txt.
 #
+# Build profile defaults to debug. Pass --release (or set
+# OBJECTIVEAI_BUILD_RELEASE=1, which the root build.sh exports) to compile
+# the _pyo3 extension optimized (maturin develop --release). This only
+# affects the local editable install; published wheels are built release
+# by the publish-objectiveai-sdk-py.yml workflow.
+#
 # Usage:
-#   bash objectiveai-sdk-py/build.sh
+#   bash objectiveai-sdk-py/build.sh [--release]
 
 set -euo pipefail
 
@@ -15,6 +21,22 @@ LOG_DIR="$REPO_ROOT/.logs/build"
 LOG_FILE="$LOG_DIR/$MODULE.txt"
 
 mkdir -p "$LOG_DIR"
+
+# ── Resolve build profile ──────────────────────────────────────────────
+# --release flag or OBJECTIVEAI_BUILD_RELEASE=1 → release; default debug.
+PROFILE="debug"
+[ "${OBJECTIVEAI_BUILD_RELEASE:-}" = "1" ] && PROFILE="release"
+for arg in "$@"; do
+  case "$arg" in
+    --release) PROFILE="release" ;;
+    *) echo "$MODULE: unknown argument: $arg" >&2; exit 1 ;;
+  esac
+done
+if [ "$PROFILE" = "release" ]; then
+  MATURIN_PROFILE_FLAG="--release"
+else
+  MATURIN_PROFILE_FLAG=""
+fi
 
 run() {
   # ── venv setup ──────────────────────────────────────────────────────────────────
@@ -84,11 +106,12 @@ run() {
   # the `objectiveai-sdk` package name + manifest-path); passing --manifest-path
   # to the sibling crate would make maturin think it's building that crate
   # standalone (no pyproject.toml → wrong package name).
-  ( cd "$SCRIPT_DIR" && VIRTUAL_ENV="$VENV_DIR" "$PYTHON" -m maturin develop --release )
+  echo "Building _pyo3 ($PROFILE) via maturin develop..."
+  ( cd "$SCRIPT_DIR" && VIRTUAL_ENV="$VENV_DIR" "$PYTHON" -m maturin develop $MATURIN_PROFILE_FLAG )
 }
 
 if run > "$LOG_FILE" 2>&1; then
-  echo "$MODULE: SUCCESS"
+  echo "$MODULE: SUCCESS ($PROFILE)"
 else
   echo "$MODULE: ERROR"
   exit 1

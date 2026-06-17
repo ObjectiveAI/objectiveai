@@ -68,7 +68,9 @@ jobs:
           # build; here we only need wasm-pack for the wasm leg.
           WASM_PACK_VERSION=$(sed -n 's/^wasm-pack *= *"\(.*\)"/\1/p' Cargo.toml)
           cargo install wasm-pack --version "$WASM_PACK_VERSION" --locked --root .
-          bash objectiveai-sdk-rs-wasm-js/build.sh
+          # --release: the published package ships optimized wasm (the
+          # wasm-js build now defaults to debug).
+          bash objectiveai-sdk-rs-wasm-js/build.sh --release
           bash objectiveai-sdk-js/build.sh
 
       - name: pnpm publish
