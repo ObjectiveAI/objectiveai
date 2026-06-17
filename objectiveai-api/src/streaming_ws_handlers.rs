@@ -8,17 +8,17 @@
 //! 3. Splits the socket into a `SharedSink` (mutex-wrapped sender) and
 //!    a `SplitStream` (receiver).
 //! 4. Runs two concurrent futures under `tokio::select!`:
-//!    - **send**: drains the chunk stream, observes each chunk's
-//!      `agent_completion_ids` into a per-connection `SessionTracker`,
-//!      and forwards the chunk as a JSON text frame. Closes 1000 at
-//!      end of stream.
+//!    - **send**: drains the chunk stream and forwards each chunk as a
+//!      JSON text frame. Closes 1000 at end of stream.
 //!    - **recv**: parses incoming text frames as
-//!      [`client_request::Request`](objectiveai_sdk::client_objectiveai_mcp::client_request::Request),
-//!      validates each notify's `response_id` against the tracker, and
-//!      dispatches accepted ones to `agent_completions_client.notify()`.
-//!      Sends back the matching
+//!      [`client_request::Request`](objectiveai_sdk::client_objectiveai_mcp::client_request::Request)
+//!      or [`server_response::Response`](objectiveai_sdk::client_objectiveai_mcp::server_response::Response)
+//!      and demultiplexes them (`streaming_ws::recv_loop`): MCP traffic
+//!      to the per-request proxy's reverse channel, message-queue
+//!      responses to the API's pending-request registry. Sends back the
+//!      matching
 //!      [`client_response::Response`](objectiveai_sdk::client_objectiveai_mcp::client_response::Response)
-//!      for every parsed request.
+//!      for every parsed client request.
 //!
 //! Errors during setup land as `Close(1011)` after a `ResponseError`
 //! text frame; body-deserialize failures land as `Close(1003)`.
@@ -81,27 +81,26 @@ pub(crate) async fn create_agent_completion_ws(
         // URLs both look up by `X-OBJECTIVEAI-RESPONSE-ID`). The guard
         // is held for the entire `on_upgrade` async block — when it
         // drops, all registered ids are removed.
-        let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
-            reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so the `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`'s
         // first-chunk await. See `create_vector_completion_ws` for the
         // full rationale — same deadlock pattern, same fix.
-        let send_sink = sink.clone();
-        let send_tracker = tracker.clone();
-        let send = async move {
+        let send_sink = sink.clone();        let send = async move {
             let stream = match client
                 .create_streaming_handle_usage(
                     ctx,
@@ -126,9 +125,7 @@ pub(crate) async fn create_agent_completion_ws(
             };
             let mut stream = Box::pin(stream);
             while let Some(item) = stream.next().await {
-                let agent::completions::StreamItem::Chunk(chunk) = item else { continue };
-                send_tracker.observe(&chunk);
-                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
+                let agent::completions::StreamItem::Chunk(chunk) = item else { continue };                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
                     return;
                 }
             }
@@ -139,8 +136,7 @@ pub(crate) async fn create_agent_completion_ws(
             rx,
             sink,
             pending,
-            reverse_attach.mcp_listeners.clone(),
-            _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -213,19 +209,20 @@ where
                     return;
                 }
             };
-        let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
-            reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // `create_streaming_handle_usage` lives INSIDE the `send`
         // branch so the `recv_loop` (which dispatches incoming
@@ -234,9 +231,7 @@ where
         // awaited stream creation OUTSIDE the select, agents would
         // deadlock waiting on responses the recv_loop wasn't draining
         // yet — see the 60s WS-cascade bug fix.
-        let send_sink = sink.clone();
-        let send_tracker = tracker.clone();
-        let send = async move {
+        let send_sink = sink.clone();        let send = async move {
             let stream = match client.create_streaming_handle_usage(ctx, Arc::new(body)).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -249,9 +244,7 @@ where
                 }
             };
             let mut stream = Box::pin(stream);
-            while let Some(chunk) = stream.next().await {
-                send_tracker.observe(&chunk);
-                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
+            while let Some(chunk) = stream.next().await {                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
                     return;
                 }
             }
@@ -262,8 +255,7 @@ where
             rx,
             sink,
             pending,
-            reverse_attach.mcp_listeners.clone(),
-            _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -337,26 +329,25 @@ where
                     return;
                 }
             };
-        let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
-            reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`.
         // See `create_vector_completion_ws` for rationale.
-        let send_sink = sink.clone();
-        let send_tracker = tracker.clone();
-        let send = async move {
+        let send_sink = sink.clone();        let send = async move {
             let stream = match client.create_streaming_handle_usage(ctx, Arc::new(body)).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -369,9 +360,7 @@ where
                 }
             };
             let mut stream = Box::pin(stream);
-            while let Some(chunk) = stream.next().await {
-                send_tracker.observe(&chunk);
-                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
+            while let Some(chunk) = stream.next().await {                if streaming_ws::send_chunk_split(&send_sink, &chunk).await.is_err() {
                     return;
                 }
             }
@@ -382,8 +371,7 @@ where
             rx,
             sink,
             pending,
-            reverse_attach.mcp_listeners.clone(),
-            _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -432,26 +420,25 @@ where
                     return;
                 }
             };
-        let tracker = streaming_ws::SessionTracker::new();
         let pending = streaming_ws::new_pending_requests();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
-            reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming`. See
         // `create_vector_completion_ws` for rationale.
-        let send_sink = sink.clone();
-        let send_tracker = tracker.clone();
-        let send = async move {
+        let send_sink = sink.clone();        let send = async move {
             let stream = match client.create_streaming(ctx, Arc::new(body)).await {
                 Ok(s) => s,
                 Err(e) => {
@@ -462,9 +449,7 @@ where
             let mut stream = Box::pin(stream);
             while let Some(item) = stream.next().await {
                 let frame = match &item {
-                    Ok(chunk) => {
-                        send_tracker.observe(chunk);
-                        match serde_json::to_string(chunk) {
+                    Ok(chunk) => {                        match serde_json::to_string(chunk) {
                             Ok(s) => s,
                             Err(_) => continue,
                         }
@@ -491,8 +476,7 @@ where
             rx,
             sink,
             pending,
-            reverse_attach.mcp_listeners.clone(),
-            _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -545,14 +529,16 @@ where
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
-            reverse_attach.registry.clone(),
             sink.clone(),
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
         let stream = match client.create_streaming(&ctx, &body) {
             Ok(s) => s,
             Err(e) => {
@@ -592,8 +578,7 @@ where
             rx,
             sink,
             pending,
-            reverse_attach.mcp_listeners.clone(),
-            _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {

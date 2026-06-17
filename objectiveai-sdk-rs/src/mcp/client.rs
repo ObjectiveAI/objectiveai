@@ -512,14 +512,6 @@ impl Client {
         // `refresh_tools` / `refresh_resources` background tasks get
         // spawned — by now the upstream is fully past its init
         // handshake, so any of those POSTs land safely.
-        //
-        // `was_resumed` is true when the caller passed an existing
-        // `session_id` into `connect` — i.e. this is a re-attach to a
-        // pre-existing upstream session, not a fresh mint. The bit
-        // rides into `ConnectionInner` as `is_reconnect` and gates
-        // the drop-time orphan-DELETE that releases resumed sessions
-        // nobody ended up using.
-        let was_resumed = session_id.is_some();
         let connection = super::Connection::new(
             self.http_client.clone(),
             url.to_string(),
@@ -534,7 +526,6 @@ impl Client {
             self.call_timeout,
             initialize_result,
             initial_sse_lines,
-            was_resumed,
         )
         .await;
 

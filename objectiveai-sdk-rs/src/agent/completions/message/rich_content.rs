@@ -482,8 +482,7 @@ impl From<crate::mcp::tool::ContentBlock> for RichContentPart {
 /// Build a `RichContent` from an MCP `Vec<ContentBlock>` via the
 /// element-wise [`From<ContentBlock>`] impl, then collapse to plain
 /// text when every part is text. Matches the shape produced by
-/// `call_tool_as_message` and `build_drain_user_message` on the
-/// agent side.
+/// `call_tool_as_message` on the agent side.
 #[cfg(feature = "mcp")]
 impl From<Vec<crate::mcp::tool::ContentBlock>> for RichContent {
     fn from(blocks: Vec<crate::mcp::tool::ContentBlock>) -> Self {

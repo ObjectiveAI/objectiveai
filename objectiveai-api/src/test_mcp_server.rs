@@ -224,15 +224,22 @@ impl Drop for TestMcpServer {
     }
 }
 
-/// Bootstrap an isolated proxy via the production `ProxySpawner` and
+/// Bootstrap an isolated proxy via the production `ProxyFactory` and
 /// return a `Connection` that points at it with the given upstream
 /// servers wired up via `X-MCP-Servers`. Mirrors `client.rs:449-531`
 /// exactly so tests run through the same code path agents use at runtime.
+///
+/// HTTP-only: tests reach external `TestMcpServer`s over `X-MCP-Servers`,
+/// so the proxy needs no reverse channel — `boot(None, ...)` with a
+/// throwaway queue delegate (nothing reads its queue on this path).
 pub async fn connect_through_proxy(
     servers: &[&TestMcpServer],
 ) -> objectiveai_sdk::mcp::Connection {
     let proxy = crate::test_clients::proxy_spawner()
-        .get()
+        .boot(
+            None,
+            std::sync::Arc::new(crate::agent::completions::ApiQueueDelegate::new()),
+        )
         .await
         .expect("proxy bootstrap");
 

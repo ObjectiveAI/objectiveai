@@ -1,12 +1,12 @@
-//! Reverse-attach registry + handle types.
+//! Reverse-attach handle types.
 //!
-//! Lets the API's `/objectiveai-mcp` route forward a proxy's request
-//! as a `server_request::Request` over the matching in-flight
-//! WebSocket. Used by the JSON-RPC handlers in [`super::handlers`]
-//! and registered against by every `_ws` upgrade handler in
-//! `streaming_ws_handlers`.
+//! Each CLI WS upgrade owns one [`ReverseChannel`] — the sink to write
+//! `server_request` frames out, plus the [`PendingRequests`] slot the
+//! recv loop fulfills matching `server_response` frames into. The
+//! agent client + retrieval reach it through the [`ReverseAttachHandle`]
+//! stamped on the per-request `Context`, and forward requests with
+//! [`super::send::send_server_request`].
 
-use super::listeners::McpListenerRegistry;
 use axum::extract::ws::{Message, WebSocket};
 use dashmap::DashMap;
 use futures::stream::SplitSink;
@@ -19,38 +19,6 @@ use tokio::sync::{Mutex, oneshot};
 /// responder + server_request emitter) can both write frames safely.
 /// Locks are short-lived — only held across a single `send`.
 pub type SharedSink = Arc<Mutex<SplitSink<WebSocket, Message>>>;
-
-/// Per-WS-connection tracker of agent-completion `response_id`s
-/// observed on the send side. The recv loop consults it to reject
-/// `AgentCompletionNotify` requests targeting an id not produced by
-/// this stream.
-pub struct SessionTracker {
-    ids: dashmap::DashSet<String>,
-}
-
-impl SessionTracker {
-    pub fn new() -> Arc<Self> {
-        Arc::new(Self {
-            ids: dashmap::DashSet::new(),
-        })
-    }
-
-    /// Extend the tracker with every agent-completion id this chunk
-    /// carries. Borrows into the chunk; no allocation beyond the
-    /// `insert` itself.
-    pub fn observe<C>(&self, chunk: &C)
-    where
-        C: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionIds,
-    {
-        for id in chunk.agent_completion_ids() {
-            self.ids.insert(id.to_string());
-        }
-    }
-
-    pub fn contains(&self, id: &str) -> bool {
-        self.ids.contains(id)
-    }
-}
 
 /// Per-WS-connection registry of outstanding
 /// [`server_request::Request`](objectiveai_sdk::client_objectiveai_mcp::server_request::Request)s
@@ -65,104 +33,45 @@ pub fn new_pending_requests() -> PendingRequests {
     Arc::new(DashMap::new())
 }
 
-/// Reverse-attach handle for the API's MCP endpoint to forward proxy
-/// traffic over an in-flight WS. Holds both halves of the per-
-/// connection state: the sink to write `server_request` frames out,
-/// and the registry to park awaits for matching `server_response`
-/// frames coming back.
+/// Reverse-attach channel for one CLI WS upgrade: the sink to write
+/// `server_request` frames out, and the registry to park awaits for
+/// matching `server_response` frames coming back.
 #[derive(Clone)]
 pub struct ReverseChannel {
     pub sink: SharedSink,
     pub pending: PendingRequests,
 }
 
-/// Process-wide registry of live [`ReverseChannel`]s keyed by the
-/// per-agent `response_id` registered on WS upgrade. Populated by
-/// the per-endpoint `_ws` handlers; consulted by the per-MCP routes
-/// (`/objectiveai` and `/{owner}/{name}/{version}/{mcp}`) — both
-/// look up by the `X-OBJECTIVEAI-RESPONSE-ID` header — and by the
-/// agent-completion verification probe.
-pub type ReverseChannelRegistry = Arc<DashMap<String, ReverseChannel>>;
-
-pub fn new_reverse_channel_registry() -> ReverseChannelRegistry {
-    Arc::new(DashMap::new())
-}
-
-/// Bundle of the things each `_ws` handler needs to wire up the
-/// reverse-attach:
-///
-/// - [`ReverseChannelRegistry`] so the handler can insert/remove its
-///   session.
-/// - `mcp_port` — the API's loopback-only MCP listener port. The
-///   agent client uses it to build synthetic
-///   `http://127.0.0.1:<mcp_port>/objectiveai` and
-///   `http://127.0.0.1:<mcp_port>/{owner}/{name}/{ver}/{mcp}` URLs
-///   that the proxy will dial. Kernel-enforced: the listener binds
-///   `127.0.0.1` so non-loopback callers cannot reach it.
-/// - [`McpListenerRegistry`] so the recv loop's `McpListChanged`
-///   dispatch can publish to the per-(response_id, McpKind)
-///   broadcast feeding the API's GET-SSE notifications stream.
+/// Server-level config the `_ws` handlers consult when wiring up a
+/// reverse-attach. Just the round-trip budget (from
+/// `Config.reverse_channel_timeout`); stamped onto every
+/// [`ReverseAttachHandle`] so the agent client's message-queue reads
+/// share the configured value with the MCP forward path.
 #[derive(Clone)]
 pub struct ReverseAttachConfig {
-    pub registry: ReverseChannelRegistry,
-    pub mcp_port: u16,
-    pub mcp_listeners: McpListenerRegistry,
-    /// Budget for one WS reverse-channel round-trip (from
-    /// `Config.reverse_channel_timeout`); stamped onto every
-    /// [`ReverseAttachHandle`] so the agent client's message-queue
-    /// reads share the configured value with the MCP forward path.
     pub reverse_channel_timeout: std::time::Duration,
 }
 
-/// Arc-shareable handle the agent client uses to register per-agent
-/// `response_id`s against the current WS [`ReverseChannel`]. Many
-/// ids may map to one channel — one CLI WS upgrade can serve a swarm
-/// of N agents, each declaring `client_objectiveai_mcp` with its own
-/// per-turn `response_id`. The owning [`ReverseAttachGuard`] removes
-/// every registered id on drop.
+/// Arc-shareable handle the agent client + retrieval use to reach the
+/// current WS [`ReverseChannel`] from inside the swarm-iteration site.
+/// `Arc` clones may outlive the owning [`ReverseAttachGuard`] (e.g. a
+/// background task holding a copy of the ctx) — sends over a closed WS
+/// just fail harmlessly.
 pub struct ReverseAttachHandle {
-    registry: ReverseChannelRegistry,
     channel: ReverseChannel,
-    registered: std::sync::Mutex<Vec<String>>,
     reverse_channel_timeout: std::time::Duration,
 }
 
 impl std::fmt::Debug for ReverseAttachHandle {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let count = self
-            .registered
-            .try_lock()
-            .map(|g| g.len())
-            .unwrap_or(usize::MAX);
-        f.debug_struct("ReverseAttachHandle")
-            .field("registered_count", &count)
-            .finish_non_exhaustive()
+        f.debug_struct("ReverseAttachHandle").finish_non_exhaustive()
     }
 }
 
 impl ReverseAttachHandle {
-    /// Inserts `id -> channel` into the registry and tracks the id
-    /// for cleanup when the owning guard drops. Calling with the same
-    /// id twice is harmless (the registry just overwrites).
-    pub fn register(&self, id: String) {
-        self.registry.insert(id.clone(), self.channel.clone());
-        self.registered.lock().unwrap().push(id);
-    }
-
-    /// Snapshot of every id this handle has registered so far. Used
-    /// by the conduit's list-changed dispatcher to fan one
-    /// `McpListChanged` out to every matching SSE subscriber on this
-    /// WS.
-    pub fn registered_ids(&self) -> Vec<String> {
-        self.registered.lock().unwrap().clone()
-    }
-
-    /// The WS reverse channel this upgrade registered against. Every
-    /// per-agent `response_id` registered through this handle
-    /// resolves to the same underlying channel — callers that need
-    /// to send `server_request` frames (e.g. plugin-MCP-begin) reach
-    /// the sink + pending registry through here without going through
-    /// the full `ReverseChannelRegistry` lookup.
+    /// The WS reverse channel this upgrade registered against. Callers
+    /// that need to send `server_request` frames (e.g. message-queue
+    /// reads) reach the sink + pending registry through here.
     pub fn channel(&self) -> &ReverseChannel {
         &self.channel
     }
@@ -173,46 +82,28 @@ impl ReverseAttachHandle {
     }
 }
 
-/// RAII guard for one CLI WS upgrade. Owns the registration handle;
-/// when it drops, every id registered via the handle is removed from
-/// the [`ReverseChannelRegistry`]. `Arc` clones of the handle may
-/// outlive the guard (e.g. background tasks holding onto a copy of
-/// the ctx) — they observe a drained registration list and any
-/// further `register()` calls leak harmlessly until the last `Arc`
-/// drops.
+/// RAII guard for one CLI WS upgrade. Owns the shared handle; the
+/// agent client stamps a clone on the per-request `Context`.
 pub struct ReverseAttachGuard {
     handle: Arc<ReverseAttachHandle>,
 }
 
 impl ReverseAttachGuard {
     pub fn new(
-        registry: ReverseChannelRegistry,
         sink: SharedSink,
         pending: PendingRequests,
         reverse_channel_timeout: std::time::Duration,
     ) -> Self {
         let handle = Arc::new(ReverseAttachHandle {
-            registry,
             channel: ReverseChannel { sink, pending },
-            registered: std::sync::Mutex::new(Vec::new()),
             reverse_channel_timeout,
         });
         Self { handle }
     }
 
-    /// Returns the shared handle the agent client should stamp on
-    /// the per-request `Context` so it can register ids from inside
-    /// the swarm-iteration site.
+    /// Returns the shared handle the agent client should stamp on the
+    /// per-request `Context`.
     pub fn handle(&self) -> Arc<ReverseAttachHandle> {
         self.handle.clone()
-    }
-}
-
-impl Drop for ReverseAttachGuard {
-    fn drop(&mut self) {
-        let ids = std::mem::take(&mut *self.handle.registered.lock().unwrap());
-        for id in ids {
-            self.handle.registry.remove(&id);
-        }
     }
 }

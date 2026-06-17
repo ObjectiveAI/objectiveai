@@ -69,6 +69,9 @@ pub mod mcp;
 #[cfg(feature = "lockfile")]
 pub mod lockfile;
 
+#[cfg(feature = "subprocess-reaper")]
+pub mod subprocess_reaper;
+
 // `client_objectiveai_mcp` is the reverse-attach protocol's wire
 // envelope. The typed `server_request::Payload` and
 // `server_response::Payload` variants reference `mcp::tool::*` /

@@ -57,6 +57,12 @@ pub struct ApiQueueDelegate {
     states: Mutex<HashMap<String, Arc<PerLoopState>>>,
 }
 
+impl std::fmt::Debug for ApiQueueDelegate {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ApiQueueDelegate").finish_non_exhaustive()
+    }
+}
+
 struct PerLoopState {
     /// Reverse-attach back to the CLI for this loop. Captured at
     /// `register()` time; same handle the run-loop uses for its

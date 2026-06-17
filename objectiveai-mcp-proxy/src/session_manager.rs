@@ -43,9 +43,9 @@ use chacha20poly1305::aead::{Aead, KeyInit};
 use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 use dashmap::DashMap;
 use indexmap::IndexMap;
-use objectiveai_sdk::mcp::Connection;
 use rand::RngCore;
 
+use crate::reverse_channel::Upstream;
 use crate::session::Session;
 
 /// Per-session encoded payload.
@@ -119,11 +119,11 @@ impl SessionManager {
     /// payload-recognition attacks).
     pub fn add(
         &self,
-        connections_with_headers: Vec<(Connection, IndexMap<String, String>)>,
+        connections_with_headers: Vec<(Upstream, IndexMap<String, String>)>,
     ) -> String {
         let payload = build_payload(&connections_with_headers);
         let id = encrypt_and_encode(&payload, &self.key);
-        let connections: Vec<Connection> =
+        let connections: Vec<Upstream> =
             connections_with_headers.into_iter().map(|(c, _)| c).collect();
         let by_prefix = build_prefix_map(connections);
         self.sessions
@@ -178,7 +178,7 @@ impl SessionManager {
 ///     done case-sensitively on the bytes; deterministic regardless.
 ///   - sorted alphabetically.
 fn build_payload(
-    pairs: &[(Connection, IndexMap<String, String>)],
+    pairs: &[(Upstream, IndexMap<String, String>)],
 ) -> SessionPayload {
     // Collect (url, sorted headers) pairs, then sort by URL.
     let mut url_entries: Vec<(String, IndexMap<String, String>)> = pairs
@@ -193,7 +193,7 @@ fn build_payload(
                 .into_iter()
                 .map(|(k, v)| (k.to_string(), v.to_string()))
                 .collect();
-            (c.url.clone(), inner)
+            (c.url().to_string(), inner)
         })
         .collect();
     url_entries.sort_by(|a, b| a.0.cmp(&b.0));
@@ -384,18 +384,18 @@ fn normalize_prefix_token(s: &str) -> String {
 /// Uniqueness is re-checked over the full set after each tier so a rare
 /// cross-tier collision escalates too.
 fn build_prefix_map(
-    mut connections: Vec<Connection>,
-) -> IndexMap<String, Connection> {
-    connections.sort_by(|a, b| a.url.cmp(&b.url));
+    mut connections: Vec<Upstream>,
+) -> IndexMap<String, Upstream> {
+    connections.sort_by(|a, b| a.url().cmp(b.url()));
     let n = connections.len();
 
     let names: Vec<String> = connections
         .iter()
-        .map(|c| normalize_prefix_token(&c.initialize_result.server_info.name))
+        .map(|c| normalize_prefix_token(c.server_name()))
         .collect();
     let versions: Vec<String> = connections
         .iter()
-        .map(|c| normalize_prefix_token(&c.initialize_result.server_info.version))
+        .map(|c| normalize_prefix_token(c.server_version()))
         .collect();
 
     // tier: 1 = name, 2 = name-version, 3 = name-version-index.
@@ -427,7 +427,7 @@ fn build_prefix_map(
         }
     }
 
-    let mut by_prefix: IndexMap<String, Connection> = IndexMap::with_capacity(n);
+    let mut by_prefix: IndexMap<String, Upstream> = IndexMap::with_capacity(n);
     for (i, connection) in connections.into_iter().enumerate() {
         let key = prefix_at(i, tier[i]);
         // The index tier guarantees uniqueness; a residual duplicate would

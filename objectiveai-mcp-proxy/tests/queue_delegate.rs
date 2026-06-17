@@ -93,7 +93,7 @@ async fn start_proxy(delegate: Option<Arc<dyn QueueDelegate>>) -> String {
         suppress_output: true,
         logs_dir: None,
     };
-    let (listener, app) = objectiveai_mcp_proxy::setup(config, delegate)
+    let (listener, app) = objectiveai_mcp_proxy::setup(config, delegate, None)
         .await
         .expect("proxy setup");
     let addr = listener.local_addr().expect("local_addr");

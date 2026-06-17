@@ -41,17 +41,14 @@ use futures::stream::SplitStream;
 use objectiveai_sdk::error::ResponseError;
 use serde::Serialize;
 
-// The reverse-attach / session-tracker / pending-request types are
-// now canonical in `crate::objectiveai_mcp`. The `pub use` shims
-// keep `crate::streaming_ws::SharedSink`,
-// `crate::streaming_ws::SessionTracker`, etc. resolving for every
-// existing call site in the api — the underlying type IS the
-// objectiveai_mcp one.
+// The reverse-attach / pending-request types are now canonical in
+// `crate::objectiveai_mcp`. The `pub use` shims keep
+// `crate::streaming_ws::SharedSink` etc. resolving for every existing
+// call site in the api — the underlying type IS the objectiveai_mcp
+// one.
 pub use crate::objectiveai_mcp::{
-    PendingRequests, ReverseAttachConfig, ReverseAttachGuard,
-    ReverseAttachHandle, ReverseChannel, ReverseChannelRegistry,
-    SessionTracker, SharedSink, new_pending_requests,
-    new_reverse_channel_registry,
+    PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle, ReverseChannel,
+    SharedSink, new_pending_requests,
 };
 
 /// Transport the client wants. Inferred from the request itself: an
@@ -191,6 +188,28 @@ pub async fn send_chunk_split<C: Serialize>(sink: &SharedSink, chunk: &C) -> Res
     result
 }
 
+/// Drain this request's reverse channel: write each `server_request` the
+/// per-request proxy emits onto the shared WS sink (the proxy → CLI
+/// direction). Ends when the channel — and its proxy — drops (all sender
+/// halves gone), i.e. at request/WS end.
+pub async fn drain_reverse_channel(
+    sink: SharedSink,
+    mut req_rx: tokio::sync::mpsc::UnboundedReceiver<
+        objectiveai_sdk::client_objectiveai_mcp::server_request::Request,
+    >,
+) {
+    while let Some(req) = req_rx.recv().await {
+        let frame = match serde_json::to_string(&req) {
+            Ok(s) => s,
+            Err(_) => continue,
+        };
+        let mut guard = sink.lock().await;
+        if guard.send(Message::Text(frame.into())).await.is_err() {
+            return;
+        }
+    }
+}
+
 /// Send a `Close(code)` frame, ignoring any I/O error.
 pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
     let mut guard = sink.lock().await;
@@ -202,11 +221,11 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
         .await;
 }
 
-// PendingRequests, ReverseChannel, ReverseChannelRegistry,
-// ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle and
-// the `new_*` constructors are re-exported at the top of this file
-// from `crate::objectiveai_mcp`. `send_server_request` (used by the
-// MCP route layer) also lives there as `objectiveai_mcp::send`.
+// PendingRequests, ReverseChannel, ReverseAttachConfig,
+// ReverseAttachGuard, ReverseAttachHandle and `new_pending_requests`
+// are re-exported at the top of this file from `crate::objectiveai_mcp`.
+// `send_server_request` (used by the message-queue forward path) also
+// lives there as `objectiveai_mcp::send`.
 
 /// Recv loop: drain the split stream, parse each text frame, and
 /// dispatch based on shape.
@@ -228,12 +247,10 @@ pub async fn recv_loop(
     mut rx: SplitStream<WebSocket>,
     sink: SharedSink,
     pending: PendingRequests,
-    mcp_listeners: crate::objectiveai_mcp::McpListenerRegistry,
-    attach_handle: Arc<ReverseAttachHandle>,
+    channel: objectiveai_mcp_proxy::ReverseChannel,
 ) {
     use objectiveai_sdk::client_objectiveai_mcp::{
-        client_request::{Payload as ClientPayload, Request as ClientRequest},
-        client_response::Response as ClientResponse,
+        client_request::Request as ClientRequest,
         server_response::Response as ServerResponse,
     };
 
@@ -267,50 +284,41 @@ pub async fn recv_loop(
         // share the `id` field but differ everywhere else), then
         // server_response, then drop.
         if let Ok(request) = serde_json::from_str::<ClientRequest>(text.as_str()) {
-            let ClientRequest { id, payload } = request;
-            match payload {
-                // McpListChanged dispatch: fan out to every
-                // (response_id, mcp_kind) keyed under this WS. The
-                // GET-SSE subscriber for whichever agent's
-                // response_id is currently active will receive the
-                // event; idle keys publish to a no-op broadcast. The
-                // fan handles reconnect-across-continuations — the
-                // same upstream MCP can publish to multiple
-                // response_ids that share the WS, only the live
-                // subscriber gets the event.
-                ClientPayload::McpListChanged(change) => {
-                    for response_id in attach_handle.registered_ids() {
-                        mcp_listeners.publish(
-                            &response_id,
-                            &change.mcp_kind,
-                            change.kind,
-                        );
-                    }
-                    let response = ClientResponse::Ok { id };
-                    let frame = match serde_json::to_string(&response) {
-                        Ok(s) => s,
-                        Err(_) => continue,
-                    };
-                    let sink = sink.clone();
-                    tokio::spawn(async move {
-                        let mut guard = sink.lock().await;
-                        let _ = guard.send(Message::Text(frame.into())).await;
-                    });
-                    continue;
-                }
-            }
+            // Proxy-bound client_request (today only McpListChanged): hand it
+            // to this request's proxy, which fires the matching upstream's
+            // list-changed callback (→ the proxy's session `outbound` SSE),
+            // and write the ack back over the WS.
+            let response = channel.deliver_client_request(request);
+            let frame = match serde_json::to_string(&response) {
+                Ok(s) => s,
+                Err(_) => continue,
+            };
+            let sink = sink.clone();
+            tokio::spawn(async move {
+                let mut guard = sink.lock().await;
+                let _ = guard.send(Message::Text(frame.into())).await;
+            });
+            continue;
         }
 
         if let Ok(response) = serde_json::from_str::<ServerResponse>(text.as_str()) {
-            match pending.remove(&response.id) {
-                Some((_, tx)) => {
-                    let _ = tx.send(response);
-                }
-                None => {
-                    eprintln!(
-                        "dropping server_response for unknown id {:?}",
-                        response.id
-                    );
+            // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
+            // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
+            // (no mcp_kind) are the API's own (queue delegate + retrieval),
+            // awaited on `pending`.
+            if response.payload.mcp_kind().is_some() {
+                channel.deliver_response(response);
+            } else {
+                match pending.remove(&response.id) {
+                    Some((_, tx)) => {
+                        let _ = tx.send(response);
+                    }
+                    None => {
+                        eprintln!(
+                            "dropping server_response for unknown id {:?}",
+                            response.id
+                        );
+                    }
                 }
             }
             continue;

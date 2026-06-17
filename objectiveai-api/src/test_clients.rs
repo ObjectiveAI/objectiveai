@@ -314,8 +314,8 @@ static MCP_CLIENT: LazyLock<Arc<objectiveai_sdk::mcp::Client>> = LazyLock::new(|
     ))
 });
 
-static PROXY_SPAWNER: LazyLock<Arc<crate::agent::completions::ProxySpawner>> = LazyLock::new(|| {
-    Arc::new(crate::agent::completions::ProxySpawner::new_with_handle(
+static PROXY_SPAWNER: LazyLock<Arc<crate::agent::completions::ProxyFactory>> = LazyLock::new(|| {
+    Arc::new(crate::agent::completions::ProxyFactory::new_with_handle(
         BACKGROUND_RUNTIME.handle().clone(),
         || objectiveai_mcp_proxy::ConfigBuilder {
             mcp_connect_timeout: Some(MCP_CONNECT_TIMEOUT_MS),
@@ -400,7 +400,7 @@ pub(crate) fn mock_upstream() -> Arc<crate::agent::completions::mock::Client> {
     MOCK_UPSTREAM.clone()
 }
 
-pub(crate) fn proxy_spawner() -> Arc<crate::agent::completions::ProxySpawner> {
+pub(crate) fn proxy_spawner() -> Arc<crate::agent::completions::ProxyFactory> {
     PROXY_SPAWNER.clone()
 }
 

@@ -1,28 +1,26 @@
-//! Shared format + parse for the `<system-reminder>` wrapper that
-//! the MCP proxy prepends to tool responses when surfacing
+//! Shared format + parse for the `<system-reminder-{token}>` wrapper
+//! that the MCP proxy prepends to tool responses when surfacing
 //! pending `message_queue` content. The proxy emits via
 //! [`format_prefix`]; `run_agent_loop` (in `objectiveai-api`)
 //! matches via [`extract_tokens`]. Owning both in one module
 //! keeps the two ends in lockstep — a format change here
 //! updates the matcher implicitly.
 //!
-//! The prefix embeds a confirmation token inline as `(id: <UUID>)`.
-//! The API delegate generates the token on every
-//! `read_pending_blocks` call and stashes the `token → ids`
-//! mapping until the run-loop sees the token in a tool message
-//! and confirms delivery. Tokens never echoed back stay in
+//! The confirmation token is embedded directly in the opening tag
+//! name: `<system-reminder-<UUID>>`. The API delegate generates the
+//! token on every `read_pending_blocks` call and stashes the
+//! `token → ids` mapping until the run-loop sees the token in a tool
+//! message and confirms delivery. Tokens never echoed back stay in
 //! "pending" limbo and re-deliver on the next loop's reads —
 //! that's the robustness win over a naive ban-list-only design.
 
-/// Format the wrapper prefix the proxy prepends to a tool
-/// response when surfacing queued blocks. The token is opaque to
-/// the proxy — it round-trips through the agent's tool-message
-/// text to `run_agent_loop`'s confirmation scan.
+/// Format the wrapper opening tag the proxy prepends to a tool
+/// response when surfacing queued blocks. The token is embedded in
+/// the tag name and is opaque to the proxy — it round-trips through
+/// the agent's tool-message text to `run_agent_loop`'s confirmation
+/// scan.
 pub fn format_prefix(token: &str) -> String {
-    format!(
-        "<system-reminder>\n\
-         The user sent a new message while you were working: (id: {token})\n",
-    )
+    format!("<system-reminder-{token}>\nThe user sent a new message while you were working:\n")
 }
 
 /// The matching suffix. Token-independent; mirrors the historic
@@ -43,12 +41,17 @@ pub const SUFFIX: &str = "\n\n</system-reminder>";
 pub fn extract_tokens(text: &str) -> Vec<String> {
     static RE: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let re = RE.get_or_init(|| {
-        // Anchored to `format_prefix`'s exact output. Token is
-        // UUID v4 (lowercase hex + hyphens, 8-4-4-4-12). Strict
-        // pattern avoids false positives against arbitrary
-        // tool-output text that happens to mention parens.
+        // Match just the opening tag and capture the UUID token in its
+        // name. The human-readable line that follows the tag is
+        // ignored — only `<system-reminder-{token}>` is matched. Not
+        // anchored to start/end and no newline requirement (the model
+        // may reflow whitespace around the tag), but the token keeps
+        // the strict UUID v4 shape (lowercase hex, 8-4-4-4-12) so
+        // arbitrary tool output can't be mistaken for a token. The
+        // leading `<` (with no `/`) means the `</system-reminder>`
+        // closing tag is never captured.
         regex::Regex::new(
-            r"<system-reminder>\nThe user sent a new message while you were working: \(id: ([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)\n",
+            r"<system-reminder-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>",
         )
         .expect("static regex pattern is well-formed")
     });
@@ -98,7 +101,7 @@ mod tests {
     fn uppercase_hex_does_not_match() {
         // UUID v4 in the regex is lowercase-only. Catches accidental
         // case drift in the format function.
-        let prefix = "<system-reminder>\nThe user sent a new message while you were working: (id: ABCDEF01-1234-1234-1234-1234567890AB)\n";
+        let prefix = "<system-reminder-ABCDEF01-1234-1234-1234-1234567890AB>";
         assert!(extract_tokens(prefix).is_empty());
     }
 }

@@ -21,24 +21,12 @@ pub enum Error {
         error: std::sync::Arc<objectiveai_sdk::mcp::Error>,
     },
 
-    #[error("MCP drain_notifications error ({url}): {error}")]
-    McpDrainNotifications {
-        url: String,
-        error: objectiveai_sdk::mcp::Error,
-    },
-
     /// `read_message_queue` server-request to the CLI failed — either
     /// the WS reverse-attach is down (no live channel, timeout, drop),
     /// or the CLI returned a JSON-RPC error envelope. `clear` failures
     /// are fire-and-forget so don't surface here.
     #[error("read_message_queue via WS reverse-attach failed: {0}")]
     MessageQueueRead(String),
-
-    #[error("MCP has_pending_notifications error ({url}): {error}")]
-    McpQueuedNotifications {
-        url: String,
-        error: objectiveai_sdk::mcp::Error,
-    },
 
     #[error("MCP call_tool error: {0}")]
     McpCallTool(objectiveai_sdk::mcp::Error),
@@ -91,9 +79,7 @@ impl objectiveai_sdk::error::StatusError for Error {
             Self::AgentNotFound(_) => 404,
             Self::McpConnection(_) | Self::McpConnectionArc(_) => 502,
             Self::McpListTools { .. } => 502,
-            Self::McpDrainNotifications { .. } => 502,
             Self::MessageQueueRead(_) => 502,
-            Self::McpQueuedNotifications { .. } => 502,
             Self::McpCallTool(_) => 502,
             Self::McpProxyBootstrap(_) => 500,
             Self::ClientObjectiveaiMcpUnavailable => 400,

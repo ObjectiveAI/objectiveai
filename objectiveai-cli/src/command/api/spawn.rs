@@ -91,14 +91,18 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     // Project the configured `api.mcp_timeout_ms` onto the spawned api's
     // env — but ONLY when the user explicitly set it. The single value
     // fans out to the connect timeout, the per-call timeout, and the
-    // backoff max-elapsed-time (the api forwards these to the proxy it
-    // spawns, so it drives every server-side MCP connection too). The
-    // keys are scrubbed above, so when `mcp_timeout_ms` is unset we leave
-    // them unset and the api resolves them itself (`<OBJECTIVEAI_DIR>/
-    // .env`, then its built-in default) — identical to passing the
-    // canonical default in production, and it preserves the test `.env`'s
-    // `MCP_BACKOFF_*=0` fast-fail on the shared (machine-wide,
-    // first-spawn-wins) api. See `Context::resolve_mcp_timeout_ms_opt`.
+    // reverse-channel (WebSocket reverse-attach) round-trip timeout (the
+    // api forwards the timeouts to the proxy it spawns, so they drive
+    // every server-side MCP connection too; the reverse-channel budget
+    // bounds one CLI round-trip, which carries exactly one upstream MCP
+    // call — so the same MCP timeout fits it). The backoff
+    // max-elapsed-time is deliberately NOT projected: the retry budget is
+    // independent of the timeout, sourced from `MCP_BACKOFF_MAX_ELAPSED_TIME`
+    // (`<OBJECTIVEAI_DIR>/.env`, then the api's built-in default), so the
+    // test `.env`'s `MCP_BACKOFF_*=0` fast-fail survives instead of being
+    // clobbered by the timeout value. The keys are scrubbed above, so
+    // when `mcp_timeout_ms` is unset the api resolves the timeouts itself.
+    // See `Context::resolve_mcp_timeout_ms_opt`.
     let timeout_ms = ctx.resolve_mcp_timeout_ms_opt().await?;
 
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
@@ -111,7 +115,7 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
             let v = timeout_ms.to_string();
             cmd.env("MCP_CONNECT_TIMEOUT", &v)
                 .env("MCP_CALL_TIMEOUT", &v)
-                .env("MCP_BACKOFF_MAX_ELAPSED_TIME", &v);
+                .env("REVERSE_CHANNEL_TIMEOUT", &v);
         }
     })
     .await

@@ -57,7 +57,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
     /// MCP Client
     pub mcp_client: Arc<objectiveai_sdk::mcp::Client>,
     /// Lazy in-process mcp-proxy used for every per-agent MCP connection.
-    pub proxy_spawner: Arc<super::ProxySpawner>,
+    pub proxy_spawner: Arc<super::ProxyFactory>,
     /// Default MCP authorization headers (used when ctx doesn't provide them).
     pub mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
     /// Retrieve router for resolving remote agent references.
@@ -95,7 +95,7 @@ pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RET
 impl<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
     pub fn new(
         mcp_client: Arc<objectiveai_sdk::mcp::Client>,
-        proxy_spawner: Arc<super::ProxySpawner>,
+        proxy_spawner: Arc<super::ProxyFactory>,
         mcp_authorization: Option<Arc<std::collections::HashMap<String, String>>>,
         retrieve_router: Arc<crate::retrieval::retrieve::Router<RETRG, RETRF, RETRM, CTXEXT>>,
         usage_handler: Arc<CUSG>,
@@ -465,33 +465,42 @@ where
                     .collect(),
             };
 
-        // 5. Boot the in-process proxy (idempotent — first call wins,
-        //    subsequent calls reuse the same handle) and kick off one
-        //    connect per agent in parallel. Awaiting each `JoinHandle`
+        // 5. Boot THIS request's proxy — lazily, once per `Context` — and
+        //    kick off one connect per agent in parallel. The proxy lives
+        //    on the Context (`proxy_cell`) and dies with it; the factory
+        //    (config recipe) + this request's reverse channel + queue
+        //    delegate are the boot inputs. Awaiting each `JoinHandle`
         //    inside the per-agent branch later means the round-trips
         //    overlap rather than serializing.
-        let proxy_handle = self
-            .proxy_spawner
-            .get()
-            .await
-            .map_err(|e| super::Error::McpProxyBootstrap(e.to_string()))?;
+        let proxy_handle = {
+            let factory = self.proxy_spawner.clone();
+            let reverse_channel = ctx.reverse_channel().cloned();
+            let queue_delegate = ctx.queue_delegate();
+            ctx.proxy_cell()
+                .get_or_try_init(|| async move {
+                    factory.boot(reverse_channel, queue_delegate).await
+                })
+                .await
+                .map(Arc::clone)
+                .map_err(|e: std::io::Error| super::Error::McpProxyBootstrap(e.to_string()))?
+        };
         let proxy_url = proxy_handle.url.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
         let default_mcp_auth_owned = self.mcp_authorization.clone();
         let internal_conn_for_resume = internal_conn.clone();
-        // Client-side resume path: when the wire continuation carries
-        // a `mcp_sessions[proxy_url]`, use it to resume the proxy
-        // session so upstream MCP sessions (and therefore tool
-        // subprocess `MCP_SESSION_ID`s) stay stable across separate
-        // `agents message` / `agent completions create` invocations.
-        // Without this fallback, every continuation turn creates a
-        // fresh proxy session, which dials upstream MCPs fresh, and
-        // any per-session tool state (counters, caches keyed on
-        // `MCP_SESSION_ID`) resets per turn.
+        // Client-side resume path: the wire continuation carries the
+        // proxy session id (≤1 — one proxy per request). The proxy is now
+        // per-request on an ephemeral port, so we no longer key by
+        // `proxy_url` (it changes every turn); take the single recorded
+        // session id and hand it to the fresh proxy, whose decrypt+
+        // reconnect path re-dials every upstream (the `ws://…` URLs in the
+        // AEAD payload are stable) over this turn's reverse channel —
+        // keeping upstream MCP sessions (and tool subprocess
+        // `MCP_SESSION_ID`s) stable across continuation turns.
         let wire_proxy_session_id: Option<String> = request_continuation
             .as_ref()
-            .and_then(|rc| rc.mcp_sessions().get(&proxy_url).cloned());
+            .and_then(|rc| rc.mcp_sessions().values().next().cloned());
 
         // Per-agent reverse-attach registration. For every surviving
         // agent that declares `client_objectiveai_mcp`, register that
@@ -524,24 +533,17 @@ where
         //   request goes out). The api-side registry key is
         //   deliberately a per-turn value because that's what
         //   `apply_transient_headers` keeps fresh.
+        // A CLI-hosted MCP (`client_objectiveai_mcp`) needs this request's
+        // reverse channel (the WS). No per-agent registration: the
+        // per-request proxy holds the channel directly — there's no
+        // response-id routing registry to populate anymore.
         let agent_needs_reverse_attach: Vec<bool> = filtered_agents
             .iter()
-            .enumerate()
-            .map(|(i, agent)| {
-                let needs = agent.base().client_objectiveai_mcp().is_some()
-                    && ctx.mcp_port().is_some()
-                    && ctx.reverse_attach().is_some();
-                if needs {
-                    // Both `mcp_port` and `reverse_attach` were just
-                    // checked above; unwrap is safe.
-                    ctx.reverse_attach()
-                        .unwrap()
-                        .register(response_ids[i].clone());
-                }
-                needs
+            .map(|agent| {
+                agent.base().client_objectiveai_mcp().is_some()
+                    && ctx.reverse_channel().is_some()
             })
             .collect();
-        let mcp_port_for_synth = ctx.mcp_port();
 
         // Dash-joined list of every per-agent response_id leaf in
         // this completion. Stamped identically on every per-agent
@@ -602,10 +604,9 @@ where
                     Option<indexmap::IndexMap<String, Option<String>>>,
                 )> = match (
                     needs_reverse_attach,
-                    mcp_port_for_synth,
                     agent.base().client_objectiveai_mcp(),
                 ) {
-                    (true, Some(mcp_port), Some(client_mcp)) => {
+                    (true, Some(client_mcp)) => {
                         let mut out: Vec<(
                             String,
                             Option<indexmap::IndexMap<String, Option<String>>>,
@@ -614,10 +615,7 @@ where
                             || client_mcp.objectiveai.unwrap_or(false)
                             || client_mcp.plugins.iter().any(|p| p.executable);
                         if needs_objectiveai {
-                            out.push((
-                                format!("http://127.0.0.1:{mcp_port}/objectiveai"),
-                                None,
-                            ));
+                            out.push(("ws://objectiveai".to_string(), None));
                         }
                         for plugin in &client_mcp.plugins {
                             for entry in plugin.mcp_servers.as_deref().unwrap_or(&[]) {
@@ -629,7 +627,7 @@ where
                                     mcp = percent_encode_segment(&entry.name),
                                 );
                                 out.push((
-                                    format!("http://127.0.0.1:{mcp_port}/{path}"),
+                                    format!("ws:///{path}"),
                                     entry.arguments.clone(),
                                 ));
                             }
@@ -723,12 +721,8 @@ where
                 // key when `client_mcp_synthetic_urls` synthesized it
                 // above (driven by `needs_objectiveai`), so a missing
                 // entry is the correct no-op signal.
-                if let (Some(mcp_port), Some(client_mcp)) = (
-                    mcp_port_for_synth,
-                    agent.base().client_objectiveai_mcp(),
-                ) {
-                    let objectiveai_url =
-                        format!("http://127.0.0.1:{mcp_port}/objectiveai");
+                if let Some(client_mcp) = agent.base().client_objectiveai_mcp() {
+                    let objectiveai_url = "ws://objectiveai".to_string();
                     if let Some(entry) =
                         per_url_headers.get_mut(&objectiveai_url)
                     {
@@ -922,7 +916,7 @@ where
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
                     if attempt.agent.base().client_objectiveai_mcp().is_some()
-                        && (ctx.mcp_port().is_none() || ctx.reverse_attach().is_none())
+                        && ctx.reverse_attach().is_none()
                     {
                         errors.push(super::Error::ClientObjectiveaiMcpUnavailable);
                     }
@@ -953,6 +947,7 @@ where
                             match self.run_agent_loop(
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -984,6 +979,7 @@ where
                             match self.run_agent_loop(
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1015,6 +1011,7 @@ where
                             match self.run_agent_loop(
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1046,6 +1043,7 @@ where
                             match self.run_agent_loop(
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
+                                ctx.queue_delegate(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1109,6 +1107,7 @@ where
         params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         reverse_attach: Option<Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
+        queue_delegate: Arc<super::queue_delegate::ApiQueueDelegate>,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -1265,7 +1264,7 @@ where
         // the delegate can't reach back to the CLI to read the
         // queue, so the proxy gets a no-op when it calls in.
         let delegate_guard = if let Some(handle) = &reverse_attach {
-            let delegate = self.proxy_spawner.queue_delegate();
+            let delegate = queue_delegate.clone();
             delegate
                 .register(
                     agent_instance_hierarchy_header.to_string(),
@@ -1350,8 +1349,7 @@ where
         // (and therefore weren't really delivered) drop with the
         // state, so the queue rows re-issue on the next loop.
         let _delegate_guard = delegate_guard;
-        let queue_delegate_for_stream =
-            self.proxy_spawner.queue_delegate();
+        let queue_delegate_for_stream = queue_delegate.clone();
 
         Ok(Box::pin(async_stream::stream! {
             let mut aggregate: Option<
@@ -1693,41 +1691,6 @@ where
                 ));
             }
 
-            // Peek the proxy's pending-notifications queue so the
-            // caller can tell whether a follow-up continuation would
-            // surface queued blocks. Only meaningful when a
-            // continuation is also being returned — this site always
-            // sets `continuation: Some(_)`, so the peek is
-            // unconditionally relevant here. A peek failure is
-            // surfaced via the chunk's `error` field only if no prior
-            // error already occupies it (the earlier failure is the
-            // more important signal).
-            //
-            // With the CLI→API notify path removed there's nothing to
-            // serialize against here — the read of the proxy queue is
-            // straight, no lock needed. `messages_queued` simply
-            // initializes to `None` and is populated from the peek
-            // below.
-            let mut messages_queued: Option<bool> = None;
-            if let Some(conn) = &mcp_connection {
-                match conn.has_pending_notifications().await {
-                    Ok(true) => messages_queued = Some(true),
-                    Ok(false) => {}
-                    Err(error) => {
-                        if final_error.is_none() {
-                            final_error = Some(
-                                objectiveai_sdk::error::ResponseError::from(
-                                    &super::Error::McpQueuedNotifications {
-                                        url: conn.url.clone(),
-                                        error,
-                                    },
-                                ),
-                            );
-                        }
-                    }
-                }
-            }
-
             // Single site for usage, continuation, and error (if a continuation call failed).
             yield super::StreamItem::Chunk(
                 objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -1741,7 +1704,6 @@ where
                     usage: Some(usage),
                     error: final_error,
                     continuation: Some(continuation_token),
-                    messages_queued,
                     ..Default::default()
                 },
             );
@@ -1750,18 +1712,6 @@ where
         }))
     }
 
-}
-
-/// Resolves the response format for a given agent from the request params.
-fn resolve_response_format(
-    agent_instance_hierarchy: &str,
-    params: &objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
-) -> Option<objectiveai_sdk::agent::completions::request::ResponseFormat> {
-    use objectiveai_sdk::agent::completions::request::ResponseFormatParam;
-    match params.response_format.as_ref()? {
-        ResponseFormatParam::Single(rf) => Some(rf.clone()),
-        ResponseFormatParam::PerAgent(map) => map.get(agent_instance_hierarchy).cloned(),
-    }
 }
 
 /// Extracts callable tool calls from the last assistant message.
@@ -1809,30 +1759,6 @@ fn extract_callable_tool_calls(
         }
     }
     callable
-}
-
-/// Wrap MCP `ContentBlock`s drained from the proxy at agent init time
-/// into a `UserMessage`.
-///
-/// The blocks are presented to the model as a plain user turn — no
-/// `<system-reminder>` wrapper. (The wrapper is reserved for the
-/// proxy's tool-response drain path, where notifications surface
-/// mid-turn and need the "while you were working" framing.) Init-time
-/// notifications are semantically a user message that arrived between
-/// turns, so they take the user-message shape directly.
-///
-/// Delegates to the SDK's [`From<Vec<ContentBlock>> for RichContent`]
-/// impl — same mapping (text / image-data-URL / audio direct;
-/// `ResourceLink` / `EmbeddedResource` → JSON text), same collapse
-/// of all-text inputs into a single `RichContent::Text`. Empty input
-/// is the caller's responsibility.
-fn build_drain_user_message(
-    blocks: Vec<objectiveai_sdk::mcp::tool::ContentBlock>,
-) -> objectiveai_sdk::agent::completions::message::UserMessage {
-    objectiveai_sdk::agent::completions::message::UserMessage {
-        content: blocks.into(),
-        name: None,
-    }
 }
 
 // The time budget for one `read_message_queue` round-trip over the
@@ -2012,112 +1938,4 @@ fn percent_encode_segment(s: &str) -> String {
             .remove(b':')
             .remove(b'@');
     percent_encoding::utf8_percent_encode(s, SEGMENT).to_string()
-}
-
-#[cfg(test)]
-mod build_drain_user_message_tests {
-    use super::build_drain_user_message;
-    use objectiveai_sdk::agent::completions::message::{
-        RichContent, RichContentPart,
-    };
-    use objectiveai_sdk::mcp::tool::{
-        AudioContent, ContentBlock, ImageContent, TextContent,
-    };
-
-    /// All-text input collapses to a single `RichContent::Text` joined
-    /// with `\n\n` between blocks. No `<system-reminder>` wrapper —
-    /// that's reserved for the proxy's tool-response drain path.
-    #[test]
-    fn text_only_blocks_collapse_to_joined_text() {
-        let msg = build_drain_user_message(vec![
-            ContentBlock::Text(TextContent {
-                text: "hello".into(),
-                annotations: None,
-                _meta: None,
-            }),
-            ContentBlock::Text(TextContent {
-                text: "world".into(),
-                annotations: None,
-                _meta: None,
-            }),
-        ]);
-        assert_eq!(msg.name, None);
-        match msg.content {
-            RichContent::Text(s) => assert_eq!(s, "hello\n\nworld"),
-            other => panic!("expected RichContent::Text, got {other:?}"),
-        }
-    }
-
-    /// A single text block becomes a plain `Text` (no `Parts` wrapper).
-    #[test]
-    fn single_text_block_is_plain_text() {
-        let msg = build_drain_user_message(vec![ContentBlock::Text(TextContent {
-            text: "just one".into(),
-            annotations: None,
-            _meta: None,
-        })]);
-        match msg.content {
-            RichContent::Text(s) => assert_eq!(s, "just one"),
-            other => panic!("expected RichContent::Text, got {other:?}"),
-        }
-    }
-
-    /// Mixed content (text + image) stays as `Parts` since the image
-    /// has to ride alongside the text in a multimodal-aware shape.
-    #[test]
-    fn mixed_content_becomes_parts() {
-        let msg = build_drain_user_message(vec![
-            ContentBlock::Text(TextContent {
-                text: "look at this".into(),
-                annotations: None,
-                _meta: None,
-            }),
-            ContentBlock::Image(ImageContent {
-                data: "BASE64DATA".into(),
-                mime_type: "image/png".into(),
-                annotations: None,
-                _meta: None,
-            }),
-        ]);
-        match msg.content {
-            RichContent::Parts(parts) => {
-                assert_eq!(parts.len(), 2);
-                match &parts[0] {
-                    RichContentPart::Text { text } => assert_eq!(text, "look at this"),
-                    other => panic!("expected text part, got {other:?}"),
-                }
-                match &parts[1] {
-                    RichContentPart::ImageUrl { image_url } => {
-                        assert_eq!(image_url.url, "data:image/png;base64,BASE64DATA");
-                    }
-                    other => panic!("expected image part, got {other:?}"),
-                }
-            }
-            other => panic!("expected RichContent::Parts, got {other:?}"),
-        }
-    }
-
-    /// Audio block round-trips through `InputAudio` part.
-    #[test]
-    fn audio_block_becomes_input_audio_part() {
-        let msg = build_drain_user_message(vec![ContentBlock::Audio(AudioContent {
-            data: "AUDIO".into(),
-            mime_type: "audio/wav".into(),
-            annotations: None,
-            _meta: None,
-        })]);
-        match msg.content {
-            RichContent::Parts(parts) => {
-                assert_eq!(parts.len(), 1);
-                match &parts[0] {
-                    RichContentPart::InputAudio { input_audio } => {
-                        assert_eq!(input_audio.data, "AUDIO");
-                        assert_eq!(input_audio.format, "audio/wav");
-                    }
-                    other => panic!("expected input_audio part, got {other:?}"),
-                }
-            }
-            other => panic!("expected RichContent::Parts, got {other:?}"),
-        }
-    }
 }

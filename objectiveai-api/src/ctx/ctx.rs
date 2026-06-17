@@ -40,14 +40,6 @@ pub struct Context<CTXEXT, PC> {
     /// Plays the role of the *parent* when composing the agent id we
     /// forward to the MCP proxy inside agent completions.
     agent_instance_hierarchy: Option<Arc<String>>,
-    /// Loopback-only MCP listener port the API process bound. Used
-    /// to synthesize `http://127.0.0.1:{mcp_port}/objectiveai` and
-    /// `http://127.0.0.1:{mcp_port}/{owner}/{name}/{ver}/{mcp}`
-    /// reverse-attach URLs when an agent declares
-    /// `client_objectiveai_mcp`. `None` on HTTP/SSE requests (no
-    /// reverse-attach possible) and when running outside a bound
-    /// server.
-    mcp_port: Option<u16>,
     /// Handle for registering per-agent `response_id`s against the
     /// current WS reverse channel. Set on WS-attached requests by the
     /// streaming handlers; `None` on HTTP/SSE. Many ids may register
@@ -55,6 +47,23 @@ pub struct Context<CTXEXT, PC> {
     /// `client_objectiveai_mcp` — all cleaned up when the owning
     /// [`crate::streaming_ws::ReverseAttachGuard`] drops at WS close.
     reverse_attach: Option<Arc<crate::streaming_ws::ReverseAttachHandle>>,
+    /// Per-request reverse channel for `ws://` MCP upstreams. Set by the
+    /// streaming WS handler (`with_reverse_channel`); `None` on HTTP/SSE
+    /// (no CLI attached → HTTP MCP upstreams only). Handed to this
+    /// request's proxy at boot so `ws://objectiveai` / `ws:///…` upstreams
+    /// speak the reverse-channel protocol directly over the WS.
+    reverse_channel: Option<objectiveai_mcp_proxy::ReverseChannel>,
+    /// This request's in-process MCP proxy, lazily booted on first MCP
+    /// need (see `agent::completions::Client::create_streaming`). Held by
+    /// `Arc<OnceCell>` so the proxy's `axum::serve` task is cancelled (via
+    /// the `ProxyHandle`'s `DropGuard`) when the context's last clone
+    /// drops — i.e. the proxy dies with the request.
+    proxy: Arc<OnceCell<Arc<crate::agent::completions::ProxyHandle>>>,
+    /// Per-request queue-read delegate the proxy uses to splice pending
+    /// `message_queue` content onto tool responses; also driven by
+    /// `run_agent_loop` (register/confirm/unregister). Per-request so its
+    /// per-AIH state dies with the context.
+    queue_delegate: Arc<crate::agent::completions::ApiQueueDelegate>,
     /// Cached resolved OpenRouter authorization (self + ext).
     openrouter_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved GitHub authorization (self + ext).
@@ -147,8 +156,10 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
             github_authorization: self.github_authorization.clone(),
             mcp_authorization: self.mcp_authorization.clone(),
             agent_instance_hierarchy: self.agent_instance_hierarchy.clone(),
-            mcp_port: self.mcp_port,
             reverse_attach: self.reverse_attach.clone(),
+            reverse_channel: self.reverse_channel.clone(),
+            proxy: self.proxy.clone(),
+            queue_delegate: self.queue_delegate.clone(),
             openrouter_authorization_cached: self.openrouter_authorization_cached.clone(),
             github_authorization_cached: self.github_authorization_cached.clone(),
             mcp_authorization_cached: self.mcp_authorization_cached.clone(),
@@ -230,8 +241,12 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             mcp_authorization,
             objectiveai_authorization,
             agent_instance_hierarchy,
-            mcp_port: None,
             reverse_attach: None,
+            reverse_channel: None,
+            proxy: Arc::new(OnceCell::new()),
+            queue_delegate: Arc::new(
+                crate::agent::completions::ApiQueueDelegate::new(),
+            ),
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
             mcp_authorization_cached: Arc::new(OnceCell::new()),
@@ -258,12 +273,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         self.agent_instance_hierarchy.as_deref().map(|s| s.as_str())
     }
 
-    /// Returns the loopback-only MCP listener port the API process
-    /// bound, if a streaming WS handler stamped one on this context.
-    pub fn mcp_port(&self) -> Option<u16> {
-        self.mcp_port
-    }
-
     /// Returns the shared reverse-attach handle for registering
     /// per-agent `response_id`s against the current WS, if a
     /// streaming WS handler stamped one.
@@ -271,14 +280,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
         &self,
     ) -> Option<&Arc<crate::streaming_ws::ReverseAttachHandle>> {
         self.reverse_attach.as_ref()
-    }
-
-    /// Stamps the loopback MCP listener port (from
-    /// `ReverseAttachConfig.mcp_port`) on the context. Returns the
-    /// modified context for chaining.
-    pub fn with_mcp_port(mut self, port: u16) -> Self {
-        self.mcp_port = Some(port);
-        self
     }
 
     /// Stamps the shared reverse-attach handle on the context.
@@ -289,6 +290,38 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     ) -> Self {
         self.reverse_attach = Some(handle);
         self
+    }
+
+    /// Stamps the per-request reverse channel (for `ws://` MCP upstreams)
+    /// on the context. Set by the streaming WS handler. Returns the
+    /// modified context for chaining.
+    pub fn with_reverse_channel(
+        mut self,
+        channel: objectiveai_mcp_proxy::ReverseChannel,
+    ) -> Self {
+        self.reverse_channel = Some(channel);
+        self
+    }
+
+    /// The per-request reverse channel, if a WS handler stamped one.
+    pub fn reverse_channel(&self) -> Option<&objectiveai_mcp_proxy::ReverseChannel> {
+        self.reverse_channel.as_ref()
+    }
+
+    /// This request's lazily-booted proxy cell. `create_streaming` calls
+    /// `get_or_try_init` on it with a boot closure built from the
+    /// `Client`'s proxy factory + this context's reverse channel +
+    /// queue delegate. The `ProxyHandle` (and its serve-task `DropGuard`)
+    /// lives here, so the proxy dies when the context's last clone drops.
+    pub fn proxy_cell(&self) -> &OnceCell<Arc<crate::agent::completions::ProxyHandle>> {
+        &self.proxy
+    }
+
+    /// This request's queue-read delegate (per-AIH state, request-scoped).
+    pub fn queue_delegate(
+        &self,
+    ) -> Arc<crate::agent::completions::ApiQueueDelegate> {
+        self.queue_delegate.clone()
     }
 }
 

@@ -82,6 +82,10 @@ impl Args {
 
 #[tokio::main]
 async fn main() {
+    // If launched as a subprocess-reaper guardian (macOS only), run the
+    // watch loop and exit before touching args. No-op otherwise.
+    objectiveai_sdk::subprocess_reaper::run_guardian_if_invoked();
+
     let env = Args::parse();
     // `run` either serves forever or fails: every early exit —
     // lock already held, install/initdb/postgres failure, postmaster
@@ -403,17 +407,11 @@ fn free_port() -> Result<u16, String> {
 
 /// Spawn `postgres` directly (NOT `pg_ctl start`, which daemonizes)
 /// so the postmaster is a true child that lives and dies with this
-/// process:
-///
-/// - **Windows**: the child is assigned to a job object with
-///   `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. The job handle is
-///   deliberately leaked — the kernel closes it when THIS process
-///   dies (crash included), killing the whole postgres tree.
-/// - **Linux**: `PR_SET_PDEATHSIG(SIGKILL)` in `pre_exec` — the
-///   kernel signals the child the instant its parent dies.
-/// - **macOS**: no parent-death primitive exists; `kill_on_drop`
-///   covers orderly exits and panics, a hard crash can leave the
-///   postmaster until `db kill`.
+/// process. The OS-level "die with the parent" leash — Windows
+/// kill-on-close job object, Linux `PR_SET_PDEATHSIG`, macOS kqueue
+/// guardian — is the shared
+/// [`objectiveai_sdk::subprocess_reaper::spawn`] primitive, the same one
+/// the cli uses for tools and plugins.
 fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String> {
     let data_dir = env.state_dir().join("db");
     let postgres = postgres_binary(env)?;
@@ -427,8 +425,7 @@ fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String
         .arg("127.0.0.1")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .kill_on_drop(true);
+        .stderr(std::process::Stdio::null());
 
     #[cfg(unix)]
     {
@@ -436,79 +433,10 @@ fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String
         cmd.arg("-c").arg("unix_socket_directories=");
     }
 
-    #[cfg(target_os = "linux")]
-    {
-        // SAFETY: prctl is async-signal-safe; runs post-fork in the
-        // child before exec.
-        unsafe {
-            cmd.pre_exec(|| {
-                if nix::libc::prctl(nix::libc::PR_SET_PDEATHSIG, nix::libc::SIGKILL)
-                    != 0
-                {
-                    return Err(std::io::Error::last_os_error());
-                }
-                Ok(())
-            });
-        }
-    }
-
-    let child = cmd
-        .spawn()
-        .map_err(|e| format!("spawn {postgres:?}: {e}"))?;
-
-    #[cfg(windows)]
-    assign_kill_on_close_job(&child)?;
-
-    Ok(child)
-}
-
-/// Put `child` in a fresh job object whose closure kills every
-/// process in it, and leak the job handle so it closes exactly when
-/// this process dies.
-#[cfg(windows)]
-fn assign_kill_on_close_job(child: &tokio::process::Child) -> Result<(), String> {
-    use windows_sys::Win32::System::JobObjects::{
-        AssignProcessToJobObject, CreateJobObjectW,
-        JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE, JOBOBJECT_EXTENDED_LIMIT_INFORMATION,
-        JobObjectExtendedLimitInformation, SetInformationJobObject,
-    };
-
-    let Some(child_handle) = child.raw_handle() else {
-        return Err("postgres child has no process handle".to_string());
-    };
-    // SAFETY: plain Win32 calls with valid arguments; `info` is a
-    // properly-sized, zero-initialized POD out-structure.
-    unsafe {
-        let job = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-        if job.is_null() {
-            return Err(format!(
-                "CreateJobObjectW: {}",
-                std::io::Error::last_os_error()
-            ));
-        }
-        let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-        info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-        if SetInformationJobObject(
-            job,
-            JobObjectExtendedLimitInformation,
-            &info as *const _ as *const core::ffi::c_void,
-            std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-        ) == 0
-        {
-            return Err(format!(
-                "SetInformationJobObject: {}",
-                std::io::Error::last_os_error()
-            ));
-        }
-        if AssignProcessToJobObject(job, child_handle as _) == 0 {
-            return Err(format!(
-                "AssignProcessToJobObject: {}",
-                std::io::Error::last_os_error()
-            ));
-        }
-        // `job` is intentionally NOT closed.
-    }
-    Ok(())
+    // Sets `kill_on_drop` AND the OS leash so the postmaster dies with
+    // this supervisor by any means (force-kill included).
+    objectiveai_sdk::subprocess_reaper::spawn(&mut cmd)
+        .map_err(|e| format!("spawn {postgres:?}: {e}"))
 }
 
 /// Poll TCP until postgres accepts connections, failing fast if the

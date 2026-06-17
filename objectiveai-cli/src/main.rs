@@ -3,7 +3,28 @@ use tokio::io::AsyncWriteExt;
 
 #[tokio::main]
 async fn main() {
+    // Before anything else: if this process was launched as a
+    // subprocess-reaper guardian (macOS only), run its kqueue watch loop
+    // and `process::exit`. A no-op on every other platform and on every
+    // normal invocation.
+    objectiveai_sdk::subprocess_reaper::run_guardian_if_invoked();
+
+    // Two-tier dotenv, matching the api (objectiveai-api/src/main.rs):
+    // the regular CWD `.env` overrides `<OBJECTIVEAI_DIR>/.env`. dotenv
+    // never overrides an already-set var, so loading the CWD file FIRST
+    // makes it win over the dir-scoped file, and the real environment
+    // still wins over both. The dir-scoped file is the shared test/dev
+    // config (`.objectiveai/.env`) — the source of e.g.
+    // `MCP_BACKOFF_MAX_ELAPSED_TIME` for the conduit's MCP backoff.
     let _ = dotenv::dotenv();
+    let dir = std::env::var_os("OBJECTIVEAI_DIR")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            dirs::home_dir()
+                .unwrap_or_else(|| std::path::PathBuf::from("."))
+                .join(".objectiveai")
+        });
+    let _ = dotenv::from_path(dir.join(".env"));
 
     // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
     // stdio handles before any child spawns. See

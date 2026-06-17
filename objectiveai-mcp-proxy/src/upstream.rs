@@ -5,7 +5,9 @@ use axum::http::HeaderMap;
 use futures::TryFutureExt;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
-use objectiveai_sdk::mcp::{Client, Connection};
+use objectiveai_sdk::mcp::Client;
+
+use crate::reverse_channel::{ReverseChannel, Upstream};
 
 const SERVERS_HEADER: &str = "X-MCP-Servers";
 const HEADERS_HEADER: &str = "X-MCP-Headers";
@@ -95,8 +97,9 @@ pub const MCP_SESSION_ID_KEY: &str = "Mcp-Session-Id";
 /// attempts are dropped.
 pub async fn connect_all_fresh(
     client: &Client,
+    reverse_channel: Option<&ReverseChannel>,
     http_headers: &HeaderMap,
-) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
+) -> Result<Vec<(Upstream, IndexMap<String, String>)>, BadInit> {
     let specs = parse_init_headers(http_headers)?;
 
     // Extract the session-global transient header set from the inbound
@@ -124,30 +127,19 @@ pub async fn connect_all_fresh(
         let transient = transient.clone();
         async move {
             // Hoist any caller-supplied `Mcp-Session-Id` out of the
-            // header bag and pass it as the dedicated `session_id` arg.
-            // Otherwise the upstream sees a session-id header but the
-            // mcp client treats the connection as brand-new and
-            // expects the server to mint a fresh id in the response;
-            // when the upstream is already a pre-seeded rmcp session
-            // (existing-session branch in rmcp's tower) the response
-            // does NOT echo `Mcp-Session-Id`, so the client errors with
-            // `NoSessionId` and retries forever.
+            // header bag and pass it as the dedicated `session_id` arg
+            // (HTTP) / replayed resume header (WS).
             let mut headers = spec.headers;
             let session_id = headers.shift_remove(MCP_SESSION_ID_KEY);
             // Stamp the session-global transient headers on the initial
-            // connect. Subsequent calls on this connection get them via
-            // `Connection::extra_headers` (refreshed on every
+            // connect. Subsequent calls get them via the upstream's
+            // extra-headers bag (refreshed on every
             // `Session::apply_transient_headers`).
             for (k, v) in transient {
                 headers.entry(k).or_insert(v);
             }
-            let conn_result = client
-                .connect(spec.url, session_id, Some(headers))
-                .await;
-            let conn = conn_result.map_err(|source| BadInit::UpstreamConnectFailed {
-                url: url.clone(),
-                source,
-            })?;
+            let upstream =
+                connect_upstream(client, reverse_channel, &url, session_id, headers).await?;
             // Health probe: the upstream must list both its tools and its
             // resources before we count it as connected. Run concurrently;
             // `try_join!` short-circuits on the first failure. `list_tools` /
@@ -155,20 +147,20 @@ pub async fn connect_all_fresh(
             // capability is absent, so a capability-less server passes and
             // only a genuine RPC/transport error fails the init.
             tokio::try_join!(
-                conn.list_tools().map_err(|source| BadInit::UpstreamListFailed {
+                upstream.list_tools().map_err(|source| BadInit::UpstreamListFailed {
                     url: url.clone(),
                     kind: "tools",
                     source,
                 }),
-                conn.list_resources().map_err(|source| BadInit::UpstreamListFailed {
+                upstream.list_resources().map_err(|source| BadInit::UpstreamListFailed {
                     url: url.clone(),
                     kind: "resources",
                     source,
                 }),
             )?;
             let payload_headers =
-                build_canonical_headers(&headers_for_payload, &conn.session_id);
-            Ok::<_, BadInit>((conn, payload_headers))
+                build_canonical_headers(&headers_for_payload, upstream.session_id());
+            Ok::<_, BadInit>((upstream, payload_headers))
         }
     });
 
@@ -191,8 +183,27 @@ pub async fn connect_all_fresh(
 /// (which may be the same or a rotated sid).
 pub async fn reconnect_from_payload(
     client: &Client,
+    reverse_channel: Option<&ReverseChannel>,
     payload: &crate::session_manager::SessionPayload,
-) -> Result<Vec<(Connection, IndexMap<String, String>)>, BadInit> {
+    http_headers: &HeaderMap,
+) -> Result<Vec<(Upstream, IndexMap<String, String>)>, BadInit> {
+    // Same transient extraction as `connect_all_fresh`. The agent
+    // identity headers are NOT in the payload (stripped at parse time +
+    // stored on `Session::transient_headers`, never encoded into the
+    // id) — they come from THIS reconnect request's HeaderMap and MUST
+    // be stamped on the resume `initialize`: the CLI conduit's
+    // `require_transient` rejects an `initialize` missing
+    // `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` (& the other four) with
+    // -32600, failing the whole reconnect. The fresh path already does
+    // this; the resume path must match or every MCP continuation 400s.
+    let transient: IndexMap<String, String> = crate::session::Session::TRANSIENT_HEADER_KEYS
+        .iter()
+        .filter_map(|key| {
+            let v = http_headers.get(*key)?.to_str().ok()?;
+            Some((key.to_string(), v.to_string()))
+        })
+        .collect();
+
     let attempts = payload.connections.iter().map(|(url, headers)| {
         let url = url.clone();
         let mut headers = headers.clone();
@@ -200,36 +211,100 @@ pub async fn reconnect_from_payload(
         // Agent identity headers live on `Session::transient_headers`
         // (extracted from the reconnect request's HeaderMap in
         // `handle_initialize`), not on the payload. The per-URL bag
-        // here carries only `Authorization` + custom headers.
+        // here carries only `Authorization` + custom headers — so the
+        // canonical payload we re-encode stays transient-free and the
+        // re-minted id is byte-stable across resumes.
         let payload_headers = headers.clone();
+        let transient = transient.clone();
         async move {
-            let conn_result = client
-                .connect(url.clone(), session_id, Some(headers))
-                .await;
-            let conn = conn_result.map_err(|source| BadInit::UpstreamConnectFailed {
-                url: url.clone(),
-                source,
-            })?;
+            // Stamp the session-global transient identity headers on the
+            // reconnect `initialize`, exactly as `connect_all_fresh` does.
+            for (k, v) in transient {
+                headers.entry(k).or_insert(v);
+            }
+            let upstream =
+                connect_upstream(client, reverse_channel, &url, session_id, headers).await?;
             // Same post-connect health probe as the fresh path: a resumed
             // upstream must still list its tools and resources.
             tokio::try_join!(
-                conn.list_tools().map_err(|source| BadInit::UpstreamListFailed {
+                upstream.list_tools().map_err(|source| BadInit::UpstreamListFailed {
                     url: url.clone(),
                     kind: "tools",
                     source,
                 }),
-                conn.list_resources().map_err(|source| BadInit::UpstreamListFailed {
+                upstream.list_resources().map_err(|source| BadInit::UpstreamListFailed {
                     url: url.clone(),
                     kind: "resources",
                     source,
                 }),
             )?;
-            let canonical = build_canonical_headers(&payload_headers, &conn.session_id);
-            Ok::<_, BadInit>((conn, canonical))
+            let canonical = build_canonical_headers(&payload_headers, upstream.session_id());
+            Ok::<_, BadInit>((upstream, canonical))
         }
     });
 
     try_join_all(attempts).await
+}
+
+/// Connect one upstream — HTTP via `client`, or `ws://` via the reverse
+/// `channel` — returning the unified [`Upstream`]. `session_id` is the
+/// resume `Mcp-Session-Id` (if any); `headers` is the per-upstream header
+/// set already merged with the transient identity bag.
+async fn connect_upstream(
+    client: &Client,
+    reverse_channel: Option<&ReverseChannel>,
+    url: &str,
+    session_id: Option<String>,
+    mut headers: IndexMap<String, String>,
+) -> Result<Upstream, BadInit> {
+    if let Some(mcp_kind) = crate::reverse_channel::parse_ws_mcp_kind(url) {
+        let channel = reverse_channel.cloned().ok_or_else(|| {
+            BadInit::UpstreamConnectFailed {
+                url: url.to_string(),
+                source: objectiveai_sdk::mcp::Error::MalformedResponse {
+                    url: url.to_string(),
+                    message: "ws:// upstream requires a reverse channel".into(),
+                },
+            }
+        })?;
+        // Resume: replay the stored upstream `Mcp-Session-Id` as a header
+        // so the CLI conduit resumes that upstream's session.
+        if let Some(sid) = session_id {
+            headers.insert(MCP_SESSION_ID_KEY.to_string(), sid);
+        }
+        // Plugin args ride as the `X-OBJECTIVEAI-ARGUMENTS` per-upstream
+        // header (JSON `{key: value|null}`), the same way the loopback path
+        // carried them; lift them into the typed `InitializeRequest.args`
+        // the CLI's `dial_plugin` reads. The header itself stays in
+        // `headers` (later requests that touch the plugin env still read it).
+        let args: IndexMap<String, Option<String>> = headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
+            .and_then(|(_, v)| serde_json::from_str(v).ok())
+            .unwrap_or_default();
+        let upstream = crate::reverse_channel::connect_ws(
+            channel,
+            url.to_string(),
+            mcp_kind,
+            args,
+            headers,
+        )
+        .await
+        .map_err(|source| BadInit::UpstreamConnectFailed {
+            url: url.to_string(),
+            source,
+        })?;
+        Ok(Upstream::Ws(upstream))
+    } else {
+        let conn = client
+            .connect(url.to_string(), session_id, Some(headers))
+            .await
+            .map_err(|source| BadInit::UpstreamConnectFailed {
+                url: url.to_string(),
+                source,
+            })?;
+        Ok(Upstream::Http(conn))
+    }
 }
 
 /// Build the canonical full header map for one upstream, suitable for
