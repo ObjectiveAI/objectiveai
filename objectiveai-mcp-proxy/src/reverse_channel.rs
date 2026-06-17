@@ -175,6 +175,16 @@ pub struct WsUpstream {
     /// reply — feeds the session's routing-prefix derivation.
     server_name: String,
     server_version: String,
+    /// Whether the upstream advertised the `tools` / `resources`
+    /// capability in its `initialize` reply. We must NOT issue
+    /// `tools/list` / `resources/list` against an upstream that didn't
+    /// advertise the capability: many servers (incl. the test
+    /// fixtures) 404 the un-advertised method, and a hard error there
+    /// fails the whole aggregate — and, on the post-init health probe,
+    /// fails the connect and churns endless re-`initialize`s. Mirrors
+    /// `mcp::Connection::has_{tools,resources}_cap`.
+    has_tools_cap: bool,
+    has_resources_cap: bool,
     /// Per-request stamped headers (transient identity + auth), re-applied
     /// per request (mirrors `Connection::extra_headers`).
     extra_headers: RwLock<IndexMap<String, String>>,
@@ -202,6 +212,11 @@ impl WsUpstream {
     }
 
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
+        // Capability gate — an upstream that didn't advertise `tools`
+        // has no `tools/list`; calling it anyway 404s on most servers.
+        if !self.has_tools_cap {
+            return Ok(Arc::new(Vec::new()));
+        }
         let headers = self.headers().await;
         let response = self
             .channel
@@ -223,6 +238,12 @@ impl WsUpstream {
     }
 
     pub async fn list_resources(&self) -> Result<Arc<Vec<Resource>>, Arc<McpError>> {
+        // Capability gate — an upstream that didn't advertise
+        // `resources` has no `resources/list`; calling it anyway 404s
+        // on most servers (e.g. the tools-only plugin fixtures).
+        if !self.has_resources_cap {
+            return Ok(Arc::new(Vec::new()));
+        }
         let headers = self.headers().await;
         let response = self
             .channel
@@ -484,6 +505,8 @@ pub async fn connect_ws(
     // but keeps the transient identity + auth so the post-init health
     // probe + every later call still pass the conduit's transient check.
     headers.shift_remove(crate::upstream::MCP_SESSION_ID_KEY);
+    let has_tools_cap = reply.result.capabilities.tools.is_some();
+    let has_resources_cap = reply.result.capabilities.resources.is_some();
     Ok(WsUpstream {
         channel,
         mcp_kind,
@@ -491,6 +514,8 @@ pub async fn connect_ws(
         session_id: reply.mcp_session_id,
         server_name: reply.result.server_info.name,
         server_version: reply.result.server_info.version,
+        has_tools_cap,
+        has_resources_cap,
         extra_headers: RwLock::new(headers),
     })
 }
