@@ -555,14 +555,31 @@ pub async fn setup(
     // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_*`) the
     // api itself reads — without this the proxy would fall back to its
     // own crate-internal defaults.
-    let proxy_encryption_key: Option<[u8; 32]> = mcp_encryption_key
+    // The proxy is PER-REQUEST (one per `Context`), so a session id
+    // minted by one request's proxy must still decode in the NEXT
+    // request's proxy for an MCP continuation to resume. That requires
+    // every per-request proxy to share ONE key. Use the configured
+    // `MCP_ENCRYPTION_KEY` when present; otherwise mint a single random
+    // key HERE, once, at server startup and reuse it for every proxy
+    // this process spawns (restoring the pre-per-request behaviour where
+    // the lone long-lived proxy's ephemeral key was stable for the
+    // process's life). Letting each per-request proxy fall back to its
+    // own random ephemeral key 401s — "Session not found" — on every
+    // continuation, because the key that encoded the id is already gone.
+    let proxy_encryption_key: [u8; 32] = mcp_encryption_key
         .as_deref()
         .and_then(|s| match objectiveai_mcp_proxy::parse_key_env(s) {
             Ok(opt) => opt,
             Err(e) => {
-                eprintln!("MCP_ENCRYPTION_KEY parse failed; falling back to ephemeral key in proxy: {e}");
+                eprintln!("MCP_ENCRYPTION_KEY parse failed; using a process-stable random key in the proxy: {e}");
                 None
             }
+        })
+        .unwrap_or_else(|| {
+            use rand::RngCore;
+            let mut key = [0u8; 32];
+            rand::rng().fill_bytes(&mut key);
+            key
         });
     // When logging is on, route the in-process proxy's request/response
     // trace to <OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl.
@@ -589,7 +606,7 @@ pub async fn setup(
             mcp_backoff_multiplier: Some(mcp_backoff_multiplier),
             mcp_backoff_max_interval: Some(mcp_backoff_max_interval),
             mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
-            mcp_encryption_key: proxy_encryption_key,
+            mcp_encryption_key: Some(proxy_encryption_key),
             ..Default::default()
         }
     }));
