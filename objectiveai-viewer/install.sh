@@ -41,20 +41,12 @@ case "$(uname -s)" in
 esac
 
 # ── Build embedded binaries ────────────────────────────────────────────
-# The viewer no longer links objectiveai-cli (cli_run spawns the
-# installed cli binary at runtime via the SDK's BinaryExecutor), but
-# the sdk-runner + mcp-filesystem artifacts are still produced here so
-# a viewer install leaves the same on-disk layout the cli install
-# expects. TODO: reassess whether these are still needed for a
-# standalone viewer install.
+# The viewer embeds the linux-musl mcp-filesystem (injected into the
+# orchestrator's Docker containers). It no longer produces the
+# sdk-runner binaries — the api spawns those from <OBJECTIVEAI_DIR>/bin/
+# at runtime, and they ship as their own release artifacts.
 
 echo "Building embedded dependencies..."
-
-# claude-agent-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
-
-# codex-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
 
 # mcp-filesystem (linux-musl, Docker container injection)
 bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$HOST_ARCH-unknown-linux-musl" --release

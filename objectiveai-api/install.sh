@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
 # Builds and installs a standalone objectiveai-api server binary.
 #
-# Mirrors objectiveai-cli/install.sh's structure: build the per-host
-# embedded dependencies first (claude-agent-sdk-runner, codex-sdk-runner,
-# mcp-filesystem), then cargo-build objectiveai-api in release mode with
-# all features turned on, then copy the binary to ~/.objectiveai/.
+# Build the per-host embedded dependency first (the linux-musl
+# mcp-filesystem, injected into the orchestrator's Docker containers),
+# then cargo-build objectiveai-api in release mode with all features
+# turned on, then copy the binary to ~/.objectiveai/.
+#
+# The api no longer embeds the claude-agent-sdk / codex-sdk runners — it
+# spawns them at runtime from <OBJECTIVEAI_DIR>/bin/. They are built and
+# shipped as their own release artifacts, not baked in here.
 #
 # Usage:
 #   bash objectiveai-api/install.sh
@@ -34,17 +38,10 @@ else
 fi
 
 # ── Build embedded binaries ────────────────────────────────────────────
-# objectiveai-api's build.rs always reaches into the two sibling sdk-runner
-# crates and bakes their PyInstaller binaries via include_bytes!, and embeds
-# the linux-musl mcp-filesystem under the orchestrator-bollard feature.
+# objectiveai-api embeds the linux-musl mcp-filesystem under the
+# orchestrator-bollard feature (injected into Docker containers).
 
 echo "Building embedded dependencies..."
-
-# claude-agent-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" --release
-
-# codex-sdk-runner (native target, Python)
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" --release
 
 # mcp-filesystem (linux-musl, Docker container injection) — embedded by
 # objectiveai-api with orchestrator-bollard. Match the host architecture

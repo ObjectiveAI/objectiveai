@@ -1,5 +1,5 @@
-name: Build API leg and publish to release
-description: Set up toolchains, download the paired mcp-filesystem artifact, build the objectiveai-api server binary for this leg's platform, upload it as an artifact and append it to the GitHub Release.
+name: Build API leg and upload artifact
+description: Set up the Rust toolchain, download the paired mcp-filesystem artifact, build the objectiveai-api server binary for this leg's platform, and upload it as a workflow artifact for the per-platform packaging job to bundle into a zip.
 
 inputs:
   mcp_target:
@@ -9,35 +9,23 @@ inputs:
     description: Name of the mcp-filesystem artifact uploaded by this leg's paired mcp-fs job.
     required: true
   asset:
-    description: Filename of the released asset (e.g. objectiveai-linux-x86_64-api).
+    description: Name of the workflow artifact (and staged filename) for this leg's binary (e.g. objectiveai-linux-x86_64-api).
     required: true
   src_name:
     description: Filename of the built binary inside ~/.objectiveai/bin/ (objectiveai-api or objectiveai-api.exe).
-    required: true
-  version:
-    description: The version string (without leading "v") used in the release tag.
-    required: true
-  repository:
-    description: The owner/repo slug for `gh release upload`.
     required: true
 
 runs:
   using: composite
   steps:
     - uses: dtolnay/rust-toolchain@stable
-    - uses: actions/setup-python@v5
-      with:
-        # Pin Python so PyInstaller's sdk-runner fingerprint stays
-        # stable across runner OS versions (same pin as build-cli-leg).
-        python-version: '3.13'
     - name: Download pre-built objectiveai-mcp-filesystem
       uses: actions/download-artifact@v4
       with:
         name: ${{ inputs.mcp_artifact_name }}
         path: objectiveai-mcp-filesystem/embed/${{ inputs.mcp_target }}/release/
     - name: Re-stamp mcp-filesystem fingerprint with this runner's view
-      # See build-cli-leg/action.yml for the rationale — the
-      # mcp-filesystem fingerprint computed on the builder runner
+      # The mcp-filesystem fingerprint computed on the builder runner
       # doesn't always match what fingerprint.sh computes on this
       # runner. Re-stamp it here so install.sh skips the rebuild
       # (which would fail for lack of the musl rustup target on
@@ -68,11 +56,3 @@ runs:
         name: ${{ inputs.asset }}
         path: ${{ inputs.asset }}
         if-no-files-found: error
-    - name: Upload asset to release
-      # Same upload-as-you-finish pattern as build-cli-leg: each leg
-      # appends its asset the moment it's built, no cross-leg gating.
-      shell: bash
-      run: |
-        gh release upload "v${{ inputs.version }}" "${{ inputs.asset }}" \
-          --clobber \
-          --repo "${{ inputs.repository }}"

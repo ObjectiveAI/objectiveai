@@ -8,28 +8,32 @@ on:
 permissions:
   contents: write
 
-# Per-leg flat structure:
+# ── Structure ─────────────────────────────────────────────────────────────
 #
-# check-version
-# ├─→ create-release
-# │
-# ├─→ cli-<leg>                            (× 5 cli legs)
-# ├─→ mcp-fs-api-<leg> ──→ api-<leg>       (× 5 api legs)
-# ├─→ mcp-fs-viewer-<leg> ──→ viewer-<leg> (× 5 viewer legs)
-# ├─→ mcp-<leg>                            (× 5 mcp legs)
-# └─→ db-<leg>                             (× 5 db legs)
+# check-version ─→ create-release
 #
-# The cli no longer embeds the viewer binary or the api server. Since
-# objectiveai-mcp depends on the cli (not on api), the mcp legs
-# also no longer need a paired mcp-filesystem artifact. Only the api
-# and viewer legs (which DO embed mcp-filesystem for their own use)
-# keep their dedicated `mcp-fs-<leg>` upstreams. 10 mcp-fs jobs total
-# (5 api + 5 viewer).
+# mcp-filesystem (matrix: 2 musl arches) ─→ artifacts
+#   The api & viewer embed the linux-musl mcp-filesystem (injected into the
+#   orchestrator's Docker containers). Built once per arch on ubuntu, shared
+#   by every platform whose host arch matches.
 #
-# All 25 leg jobs (5 cli + 5 api + 5 viewer + 5 mcp + 5 db) append
-# their assets to the same `v<version>` GitHub Release as they finish.
-# `objectiveai-db`, like cli/mcp, has no paired mcp-filesystem upstream;
-# it bundles its own postgres at build time.
+# cli / api / viewer / mcp / db / runner  (each a matrix over the 6 platforms)
+#   Each leg builds ONE binary for ONE platform on its own runner and uploads
+#   it as a workflow artifact named objectiveai-<os>-<arch>[-<pkg>][.exe].
+#   Legs no longer append to the release directly — the release is six zips.
+#
+# package (matrix: 6 platforms) ─→ six release assets
+#   Each entry downloads its platform's 7 artifacts (cli, api, viewer, mcp,
+#   db, claude-runner, codex-runner), renames them to their runtime bin names,
+#   zips them at the archive root, and uploads objectiveai-<os>-<arch>.zip.
+#
+# Six platforms = {linux, macos, windows} × {x86_64, aarch64}.
+#
+# NOTE — windows-aarch64 is new. It runs on the `windows-11-arm` runner, whose
+# toolchain support for the Tauri viewer, the PyInstaller sdk-runners, and
+# objectiveai-db's bundled postgres is not yet proven. `package` runs with
+# `if: always()` + `fail-fast: false`, so if any windows-aarch64 leg fails its
+# zip is simply skipped — the other five zips still publish.
 
 jobs:
   check-version:
@@ -91,541 +95,233 @@ jobs:
             echo "Release v$VERSION already exists — leaving as-is."
             exit 0
           fi
-          # Created without --draft so per-asset uploads are user-visible
-          # the moment each cli-<leg> job finishes uploading. CLI legs
-          # append assets in parallel via `gh release upload --clobber`.
+          # Created up front (not --draft) so the six per-platform zips
+          # become visible as each `package` job finishes uploading.
           gh release create "v$VERSION" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "v$VERSION" \
             --notes-file release-notes.md
 
-  # ── CLI builders (5 dedicated jobs) ───────────────────────────────────────
-  # The cli no longer embeds the viewer or the api server, so each cli
-  # leg just runs `cargo build` on its own — no paired mcp-fs upstream
-  # needed.
+  # ── mcp-filesystem (one artifact per musl arch) ───────────────────────────
 
-  cli-linux-x86_64:
+  mcp-filesystem:
+    name: mcp-filesystem (${{ matrix.arch }})
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/build-mcp-filesystem
+        with:
+          target: ${{ matrix.arch }}-unknown-linux-musl
+          artifact-name: mcp-filesystem-${{ matrix.arch }}
+
+  # ── CLI ───────────────────────────────────────────────────────────────────
+
+  cli:
+    name: cli (${{ matrix.os }}-${{ matrix.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-cli-leg
         with:
-          asset: objectiveai-linux-x86_64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
+          src_name: objectiveai${{ matrix.ext }}
 
-  cli-linux-aarch64:
-    needs: [check-version, create-release]
+  # ── API (embeds the linux-musl mcp-filesystem matching its host arch) ──────
+
+  api:
+    name: api (${{ matrix.os }}-${{ matrix.arch }})
+    needs: [check-version, create-release, mcp-filesystem]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-linux-aarch64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  cli-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-macos-x86_64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  cli-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-macos-aarch64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  cli-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-windows-x86_64.exe
-          src_name: objectiveai.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── mcp-filesystem builders for API legs (5 dedicated jobs) ───────────────
-
-  mcp-fs-api-linux-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-linux-x86_64
-
-  mcp-fs-api-linux-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-linux-aarch64
-
-  mcp-fs-api-macos-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-macos-x86_64
-
-  mcp-fs-api-macos-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-macos-aarch64
-
-  mcp-fs-api-windows-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-windows-x86_64
-
-  # ── mcp-filesystem builders for Viewer legs (5 dedicated jobs) ────────────
-
-  mcp-fs-viewer-linux-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-linux-x86_64
-
-  mcp-fs-viewer-linux-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-linux-aarch64
-
-  mcp-fs-viewer-macos-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-macos-x86_64
-
-  mcp-fs-viewer-macos-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-macos-aarch64
-
-  mcp-fs-viewer-windows-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-windows-x86_64
-
-  # ── API builders (5 dedicated jobs, each pinned to its mcp-fs upstream) ───
-
-  api-linux-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-linux-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-api-leg
         with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-linux-x86_64
-          asset: objectiveai-linux-x86_64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          mcp_target: ${{ matrix.arch }}-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-${{ matrix.arch }}
+          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-api${{ matrix.ext }}
+          src_name: objectiveai-api${{ matrix.ext }}
 
-  api-linux-aarch64:
-    needs: [check-version, create-release, mcp-fs-api-linux-aarch64]
+  # ── Viewer (embeds the linux-musl mcp-filesystem matching its host arch) ───
+
+  viewer:
+    name: viewer (${{ matrix.os }}-${{ matrix.arch }})
+    needs: [check-version, create-release, mcp-filesystem]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-linux-aarch64
-          asset: objectiveai-linux-aarch64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-macos-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-macos-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-macos-x86_64
-          asset: objectiveai-macos-x86_64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-macos-aarch64:
-    needs: [check-version, create-release, mcp-fs-api-macos-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-macos-aarch64
-          asset: objectiveai-macos-aarch64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-windows-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-windows-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-windows-x86_64
-          asset: objectiveai-windows-x86_64-api.exe
-          src_name: objectiveai-api.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── Viewer builders (5 dedicated jobs, each pinned to its mcp-fs upstream) ─
-
-  viewer-linux-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-linux-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-viewer-leg
         with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-linux-x86_64
-          asset: objectiveai-linux-x86_64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          mcp_target: ${{ matrix.arch }}-unknown-linux-musl
+          mcp_artifact_name: mcp-filesystem-${{ matrix.arch }}
+          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-viewer${{ matrix.ext }}
+          src_name: objectiveai-viewer${{ matrix.ext }}
 
-  viewer-linux-aarch64:
-    needs: [check-version, create-release, mcp-fs-viewer-linux-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-linux-aarch64
-          asset: objectiveai-linux-aarch64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+  # ── MCP ────────────────────────────────────────────────────────────────────
 
-  viewer-macos-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-macos-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-macos-x86_64
-          asset: objectiveai-macos-x86_64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-macos-aarch64:
-    needs: [check-version, create-release, mcp-fs-viewer-macos-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-macos-aarch64
-          asset: objectiveai-macos-aarch64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-windows-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-windows-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-windows-x86_64
-          asset: objectiveai-windows-x86_64-viewer.exe
-          src_name: objectiveai-viewer.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── MCP builders (5 dedicated jobs) ───────────────────────────────────────
-  # objectiveai-mcp no longer transitively pulls in objectiveai-api
-  # (because the cli no longer does either), so the mcp legs don't need
-  # a paired mcp-filesystem artifact either.
-
-  mcp-linux-x86_64:
+  mcp:
+    name: mcp (${{ matrix.os }}-${{ matrix.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-mcp-leg
         with:
-          asset: objectiveai-linux-x86_64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-mcp${{ matrix.ext }}
+          src_name: objectiveai-mcp${{ matrix.ext }}
 
-  mcp-linux-aarch64:
+  # ── DB (bundles its own postgres; needs GITHUB_TOKEN for the archive) ──────
+
+  db:
+    name: db (${{ matrix.os }}-${{ matrix.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-linux-aarch64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-macos-x86_64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-macos-aarch64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-windows-x86_64-mcp.exe
-          src_name: objectiveai-mcp.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── DB builders (5 dedicated jobs) ────────────────────────────────────────
-  # objectiveai-db is the embedded-postgres database binary. Like the cli
-  # and mcp legs it has no paired mcp-filesystem upstream; build-db-leg
-  # bundles postgres at build time (needs GITHUB_TOKEN for the archive
-  # download). Each leg uploads `objectiveai-<plat>-db{ext}` — the exact
-  # asset name the cli updater's `db` package expects.
-
-  db-linux-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/build-db-leg
         with:
-          asset: objectiveai-linux-x86_64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-db${{ matrix.ext }}
+          src_name: objectiveai-db${{ matrix.ext }}
 
-  db-linux-aarch64:
+  # ── SDK runners (PyInstaller; spawned by the api from bin/ at runtime) ─────
+
+  runner:
+    name: runner ${{ matrix.runner.label }} (${{ matrix.platform.os }}-${{ matrix.platform.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    runs-on: ${{ matrix.platform.runs-on }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
+          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
+        runner:
+          - { crate: objectiveai-claude-agent-sdk-runner, label: claude-runner }
+          - { crate: objectiveai-codex-sdk-runner,        label: codex-runner }
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
+      - uses: ./.github/actions/build-runner-leg
         with:
-          asset: objectiveai-linux-aarch64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          runner: ${{ matrix.runner.crate }}
+          asset: objectiveai-${{ matrix.platform.os }}-${{ matrix.platform.arch }}-${{ matrix.runner.label }}${{ matrix.platform.ext }}
 
-  db-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-macos-x86_64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+  # ── Package: six per-platform zips ─────────────────────────────────────────
+  # `if: always()` (plus fail-fast: false) so a failed leg on ONE platform
+  # doesn't skip packaging for the others — each entry pulls only its own
+  # platform's artifacts; a missing one fails just that entry.
 
-  db-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
+  package:
+    name: package (${{ matrix.os }}-${{ matrix.arch }})
+    needs: [check-version, cli, api, viewer, mcp, db, runner]
+    if: always() && needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  ext: "" }
+          - { os: linux,   arch: aarch64, ext: "" }
+          - { os: macos,   arch: x86_64,  ext: "" }
+          - { os: macos,   arch: aarch64, ext: "" }
+          - { os: windows, arch: x86_64,  ext: ".exe" }
+          - { os: windows, arch: aarch64, ext: ".exe" }
     steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
+      - name: Download this platform's binaries
+        uses: actions/download-artifact@v4
         with:
-          asset: objectiveai-macos-aarch64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  db-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-windows-x86_64-db.exe
-          src_name: objectiveai-db.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          path: artifacts
+          pattern: objectiveai-${{ matrix.os }}-${{ matrix.arch }}*
+      - name: Assemble bin/ layout and zip
+        run: |
+          set -euo pipefail
+          P="objectiveai-${{ matrix.os }}-${{ matrix.arch }}"
+          E="${{ matrix.ext }}"
+          # download-artifact lands each artifact at artifacts/<name>/<name>.
+          pick() { echo "artifacts/$1/$1"; }
+          mkdir -p stage
+          cp "$(pick "$P$E")"                "stage/objectiveai$E"
+          cp "$(pick "$P-api$E")"            "stage/objectiveai-api$E"
+          cp "$(pick "$P-viewer$E")"         "stage/objectiveai-viewer$E"
+          cp "$(pick "$P-mcp$E")"            "stage/objectiveai-mcp$E"
+          cp "$(pick "$P-db$E")"             "stage/objectiveai-db$E"
+          cp "$(pick "$P-claude-runner$E")"  "stage/objectiveai-claude-agent-sdk-runner$E"
+          cp "$(pick "$P-codex-runner$E")"   "stage/objectiveai-codex-sdk-runner$E"
+          (cd stage && zip -r "../$P.zip" .)
+          echo "Built $P.zip:"
+          unzip -l "$P.zip"
+      - name: Upload zip to release
+        run: |
+          VERSION="${{ needs.check-version.outputs.version }}"
+          P="objectiveai-${{ matrix.os }}-${{ matrix.arch }}"
+          gh release upload "v$VERSION" "$P.zip" \
+            --clobber \
+            --repo "${{ github.repository }}"

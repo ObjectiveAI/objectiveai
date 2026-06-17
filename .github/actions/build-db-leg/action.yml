@@ -1,18 +1,12 @@
-name: Build DB leg and publish to release
-description: Set up the Rust toolchain, build the standalone objectiveai-db binary (the ObjectiveAI database server — the embedded-postgres vehicle, published from the objectiveai-db crate) for this leg's platform, upload it as an artifact and append it to the GitHub Release.
+name: Build DB leg and upload artifact
+description: Set up the Rust toolchain, build the standalone objectiveai-db binary (the ObjectiveAI database server — the embedded-postgres vehicle, published from the objectiveai-db crate) for this leg's platform, and upload it as a workflow artifact for the per-platform packaging job to bundle into a zip.
 
 inputs:
   asset:
-    description: Filename of the released asset (e.g. objectiveai-linux-x86_64-db).
+    description: Name of the workflow artifact (and staged filename) for this leg's binary (e.g. objectiveai-linux-x86_64-db).
     required: true
   src_name:
     description: Filename of the built binary inside ~/.objectiveai/bin/ (objectiveai-db or objectiveai-db.exe).
-    required: true
-  version:
-    description: The version string (without leading "v") used in the release tag.
-    required: true
-  repository:
-    description: The owner/repo slug for `gh release upload`.
     required: true
 
 runs:
@@ -47,13 +41,3 @@ runs:
         name: ${{ inputs.asset }}
         path: ${{ inputs.asset }}
         if-no-files-found: error
-    - name: Upload asset to release
-      # Same upload-as-you-finish pattern as the other legs: each leg
-      # appends its asset the moment it's built, no cross-leg gating.
-      # `--clobber` keeps re-runs idempotent. GH_TOKEN is provided by the
-      # calling job's `env:`.
-      shell: bash
-      run: |
-        gh release upload "v${{ inputs.version }}" "${{ inputs.asset }}" \
-          --clobber \
-          --repo "${{ inputs.repository }}"

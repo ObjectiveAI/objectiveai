@@ -1,18 +1,12 @@
-name: Build CLI leg and publish to release
-description: Set up the Rust toolchain, build the CLI for this leg's platform, upload the binary as an artifact and append it to the GitHub Release.
+name: Build CLI leg and upload artifact
+description: Set up the Rust toolchain, build the CLI for this leg's platform, and upload the binary as a workflow artifact for the per-platform packaging job to bundle into a zip.
 
 inputs:
   asset:
-    description: Filename of the released asset (e.g. objectiveai-linux-x86_64).
+    description: Name of the workflow artifact (and staged filename) for this leg's binary (e.g. objectiveai-linux-x86_64).
     required: true
   src_name:
     description: Filename of the built binary inside ~/.objectiveai/bin/ (objectiveai or objectiveai.exe).
-    required: true
-  version:
-    description: The version string (without leading "v") used in the release tag.
-    required: true
-  repository:
-    description: The owner/repo slug for `gh release upload`.
     required: true
 
 runs:
@@ -46,12 +40,3 @@ runs:
         name: ${{ inputs.asset }}
         path: ${{ inputs.asset }}
         if-no-files-found: error
-    - name: Upload asset to release
-      # Each leg appends its single asset to the release the moment this
-      # leg finishes building — no cross-leg gating. `--clobber` keeps
-      # re-runs idempotent. GH_TOKEN is provided by the calling job's `env:`.
-      shell: bash
-      run: |
-        gh release upload "v${{ inputs.version }}" "${{ inputs.asset }}" \
-          --clobber \
-          --repo "${{ inputs.repository }}"
