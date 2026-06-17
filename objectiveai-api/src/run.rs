@@ -110,15 +110,11 @@ struct EnvConfigBuilder {
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_DIR")]
     objectiveai_dir: Option<String>,
-    #[envconfig(from = "OBJECTIVEAI_STATE")]
-    objectiveai_state: Option<String>,
     /// `OBJECTIVEAI_LOGS` — master switch (default on) for writing
     /// request/response traces. When on, the in-process mcp-proxy logs
     /// to `<OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl`.
     #[envconfig(from = "OBJECTIVEAI_LOGS")]
     logs: Option<String>,
-    #[envconfig(from = "PERSISTENT_CACHE_TRANSIENT_TTL_MS")]
-    persistent_cache_transient_ttl_ms: Option<u64>,
     #[envconfig(from = "MOCK_DELAY_MS")]
     mock_delay_ms: Option<u64>,
     #[envconfig(from = "MOCK_MAX_TOOL_CALLS")]
@@ -180,9 +176,7 @@ impl EnvConfigBuilder {
             reverse_channel_timeout: self.reverse_channel_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
-            objectiveai_state: self.objectiveai_state,
             logs: self.logs.map(|s| parse_bool(&s)),
-            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
             address: self.address,
@@ -238,9 +232,7 @@ pub struct ConfigBuilder {
     pub reverse_channel_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
-    pub objectiveai_state: Option<String>,
     pub logs: Option<bool>,
-    pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
     pub address: Option<String>,
@@ -318,21 +310,7 @@ impl ConfigBuilder {
                     .unwrap_or_else(|| std::path::PathBuf::from("."))
                     .join(".objectiveai"),
             },
-            // The api's filesystem client holds per-state data
-            // (functions/, profiles/), so resolve straight to the
-            // state dir: <dir>/state/<state>.
-            config_base_dir: {
-                let dir = match self.objectiveai_dir {
-                    Some(dir) => std::path::PathBuf::from(dir),
-                    None => dirs::home_dir()
-                        .unwrap_or_else(|| std::path::PathBuf::from("."))
-                        .join(".objectiveai"),
-                };
-                let state = self.objectiveai_state.unwrap_or_else(|| "default".to_string());
-                dir.join("state").join(state)
-            },
             logs: self.logs.unwrap_or(true),
-            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
             // Loopback + ephemeral by default: the actual bound port
@@ -397,15 +375,12 @@ pub struct Config {
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
     /// per process.
     pub mcp_encryption_key: Option<String>,
-    /// Layout root (`OBJECTIVEAI_DIR`); `config_base_dir` is the
-    /// per-state dir derived from it.
+    /// Layout root (`OBJECTIVEAI_DIR`).
     pub objectiveai_dir: std::path::PathBuf,
-    pub config_base_dir: std::path::PathBuf,
     /// Master switch (default on) for request/response trace logging.
     /// When on, the in-process mcp-proxy writes to
     /// `<objectiveai_dir>/bin/api/logs/mcp-proxy.jsonl`.
     pub logs: bool,
-    pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
     pub address: String,
@@ -461,9 +436,7 @@ pub async fn setup(
         reverse_channel_timeout,
         mcp_encryption_key,
         objectiveai_dir,
-        config_base_dir,
         logs,
-        persistent_cache_transient_ttl_ms,
         mock_delay_ms,
         mock_max_tool_calls,
         address,
@@ -689,21 +662,6 @@ pub async fn setup(
         objectiveai_http_client.clone(),
     ));
 
-    // Persistent Cache Client
-    #[cfg(feature = "sqlite-persistent-cache")]
-    let persistent_cache = Arc::new(
-        ctx::persistent_cache::sqlite::SqlitePersistentCacheClient::new(
-            config_base_dir,
-            std::time::Duration::from_millis(persistent_cache_transient_ttl_ms),
-        )
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-    );
-    #[cfg(not(feature = "sqlite-persistent-cache"))]
-    let persistent_cache = {
-        let _ = persistent_cache_transient_ttl_ms;
-        let _ = &config_base_dir;
-        Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient)
-    };
 
     // Router
     let app = axum::Router::new()
@@ -712,11 +670,9 @@ pub async fn setup(
             "/agent/completions",
             axum::routing::any({
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -727,13 +683,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_agent_completion(agent_completions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_agent_completion(agent_completions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -748,12 +704,10 @@ pub async fn setup(
             axum::routing::any({
                 let vector_completions_client = vector_completions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let vector_completions_client = vector_completions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -764,13 +718,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_vector_completion(vector_completions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_vector_completion(vector_completions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -785,12 +739,10 @@ pub async fn setup(
             axum::routing::any({
                 let function_executions_client = function_executions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let function_executions_client = function_executions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -801,13 +753,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => execute_function(function_executions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => execute_function(function_executions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -823,12 +775,10 @@ pub async fn setup(
                 let profile_computations_client =
                     profile_computations_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let profile_computations_client = profile_computations_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -839,13 +789,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_profile_computation(profile_computations_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_profile_computation(profile_computations_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -859,11 +809,10 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::post({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::CreateApiKeyRequest,
                 >| {
-                    create_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    create_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -872,11 +821,10 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::post({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
                 >| {
-                    create_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    create_openrouter_byok_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -885,11 +833,10 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::delete({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::DisableApiKeyRequest,
                 >| {
-                    disable_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    disable_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -898,9 +845,8 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::delete({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    delete_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output)
+                    delete_openrouter_byok_api_key(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -909,9 +855,8 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    list_api_keys(auth_client, headers, persistent_cache, suppress_output)
+                    list_api_keys(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -920,9 +865,8 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    get_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output)
+                    get_openrouter_byok_api_key(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -931,9 +875,8 @@ pub async fn setup(
             "/auth/credits",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    get_credits(auth_client, headers, persistent_cache, suppress_output)
+                    get_credits(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -943,12 +886,10 @@ pub async fn setup(
             axum::routing::any({
                 let error_client = Arc::new(crate::error::Client::new());
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let error_client = error_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -959,13 +900,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::error::request::ErrorCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_error(error_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_error(error_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -1036,10 +977,9 @@ pub async fn run(config: Config) -> std::io::Result<()> {
 
 // Create Context
 
-pub(crate) fn context(headers: &axum::http::HeaderMap, persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt, impl ctx::persistent_cache::PersistentCacheClient> {
+pub(crate) fn context(headers: &axum::http::HeaderMap, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt> {
     ctx::Context::new(
         Arc::new(ctx::DefaultContextExt),
-        persistent_cache,
         rust_decimal::Decimal::ONE,
         suppress_output,
         headers,
@@ -1092,11 +1032,10 @@ async fn create_agent_completion(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(
@@ -1200,11 +1139,10 @@ async fn create_vector_completion(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(ctx, Arc::new(body))
@@ -1289,11 +1227,10 @@ async fn execute_function(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     request: objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if request.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(ctx, Arc::new(request))
@@ -1338,11 +1275,10 @@ async fn create_profile_computation(
     // using a concrete type for client instead
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     request: objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if request.stream.unwrap_or(false) {
         match client.create_streaming(ctx, Arc::new(request)).await {
             Ok(stream) => Sse::new(
@@ -1380,11 +1316,10 @@ async fn create_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::CreateApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.create_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1396,11 +1331,10 @@ async fn create_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.create_openrouter_byok_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1412,11 +1346,10 @@ async fn disable_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::DisableApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.disable_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1428,10 +1361,9 @@ async fn delete_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.delete_openrouter_byok_api_key(ctx).await {
         Ok(()) => axum::http::StatusCode::OK.into_response(),
         Err(e) => e.into_response(),
@@ -1443,10 +1375,9 @@ async fn list_api_keys(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.list_api_keys(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1458,10 +1389,9 @@ async fn get_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.get_openrouter_byok_api_key(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1473,10 +1403,9 @@ async fn get_credits(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.get_credits(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1488,11 +1417,10 @@ async fn get_credits(
 async fn create_error(
     client: Arc<crate::error::Client>,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::error::request::ErrorCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client.create_streaming(&ctx, &body) {
             Ok(stream) => Sse::new(

@@ -9,9 +9,8 @@
 # Usage:
 #   bash objectiveai-api/install.sh
 #
-# Default feature set: orchestrator-bollard (default) + sqlite-persistent-cache.
-# That's the "fully featured" api server — Docker-orchestrator-enabled +
-# persistent SQLite cache.
+# Default feature set: orchestrator-bollard (default) — the "fully
+# featured" Docker-orchestrator-enabled api server.
 
 set -euo pipefail
 
@@ -59,14 +58,8 @@ bash "$REPO_ROOT/objectiveai-mcp-filesystem/build.sh" --target "$MCP_ARCH-unknow
 
 # ── Build api ──────────────────────────────────────────────────────────
 
-# Fully-featured: orchestrator-bollard is on by default; explicitly
-# opt into sqlite-persistent-cache so the shipped binary supports both
-# in-memory and SQLite-backed caches.
-FEATURES="sqlite-persistent-cache"
-
-echo "Building objectiveai-api (release, features: default + $FEATURES)..."
+echo "Building objectiveai-api (release)..."
 cargo build --release -p objectiveai-api \
-  --features "$FEATURES" \
   --manifest-path "$REPO_ROOT/Cargo.toml"
 
 SRC="$REPO_ROOT/target/release/$SRC_NAME"

@@ -21,9 +21,9 @@ impl<CTXEXT> super::Client<CTXEXT> for ObjectiveAiClient
 where
     CTXEXT: Send + Sync + 'static + ctx::ContextExt,
 {
-    async fn create_api_key<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_api_key(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: objectiveai_sdk::auth::request::CreateApiKeyRequest,
     ) -> Result<
         objectiveai_sdk::auth::response::CreateApiKeyResponse,
@@ -35,9 +35,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn create_openrouter_byok_api_key<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_openrouter_byok_api_key(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
     ) -> Result<
         objectiveai_sdk::auth::response::CreateOpenRouterByokApiKeyResponse,
@@ -49,9 +49,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn disable_api_key<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn disable_api_key(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: objectiveai_sdk::auth::request::DisableApiKeyRequest,
     ) -> Result<
         objectiveai_sdk::auth::response::DisableApiKeyResponse,
@@ -63,9 +63,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn delete_openrouter_byok_api_key<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn delete_openrouter_byok_api_key(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
     ) -> Result<(), objectiveai_sdk::error::ResponseError> {
         let client = self.client.with_authorization(&ctx).await;
         objectiveai_sdk::auth::delete_openrouter_byok_api_key(&client)
@@ -73,9 +73,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn list_api_keys<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn list_api_keys(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
     ) -> Result<
         objectiveai_sdk::auth::response::ListApiKeyResponse,
         objectiveai_sdk::error::ResponseError,
@@ -86,9 +86,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn get_openrouter_byok_api_key<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_openrouter_byok_api_key(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
     ) -> Result<
         objectiveai_sdk::auth::response::GetOpenRouterByokApiKeyResponse,
         objectiveai_sdk::error::ResponseError,
@@ -99,9 +99,9 @@ where
             .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn get_credits<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_credits(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
     ) -> Result<
         objectiveai_sdk::auth::response::GetCreditsResponse,
         objectiveai_sdk::error::ResponseError,

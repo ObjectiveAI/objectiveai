@@ -23,10 +23,6 @@ include = [
     "LICENSE*",
 ]
 
-[features]
-default = ["sqlite-persistent-cache"]
-sqlite-persistent-cache = ["dep:rusqlite"]
-
 [dependencies]
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.3", default-features = false, features = ["http", "mcp", "lockfile"] }
 objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.2.3" }
@@ -63,7 +59,6 @@ base62 = { version = "2.2.4" }
 tokio-util = { version = "0.7.18", features = ["io"] }
 rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
 futures-util = { version = "0.3.32" }
-rusqlite = { version = "0.31.0", features = ["bundled"], optional = true }
 base64 = { version = "0.22.1" }
 tempfile = { version = "3.27.0" }
 percent-encoding = { version = "2.3.2" }

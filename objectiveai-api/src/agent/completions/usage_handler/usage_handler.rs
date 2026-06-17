@@ -10,7 +10,7 @@ pub trait UsageHandler<CTXEXT> {
     /// The `request` is `None` when called from vector completions.
     fn handle_usage(
         &self,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static;

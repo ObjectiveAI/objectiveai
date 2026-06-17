@@ -50,7 +50,7 @@ impl Client {
     /// populated from the request context.
     pub async fn with_authorization<CTXEXT: ctx::ContextExt>(
         &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: &ctx::Context<CTXEXT>,
     ) -> objectiveai_sdk::HttpClient {
         let (
             ctx_github_authorization,

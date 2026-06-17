@@ -514,7 +514,7 @@ where
     /// Collects the full streaming response and records usage.
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
     ) -> Result<
         objectiveai_sdk::functions::executions::response::unary::FunctionExecution,
@@ -546,7 +546,7 @@ where
     /// original scores.
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
     ) -> Result<
         impl Stream<Item = objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk>
@@ -659,7 +659,7 @@ where
     /// if requested.
     pub async fn create_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
     ) -> Result<
         futures::stream::BoxStream<'static, objectiveai_sdk::functions::executions::response::streaming::FunctionExecutionChunk>,
@@ -876,7 +876,7 @@ where
     /// (Swiss System vs default) and reasoning summary handling.
     async fn execute_for_input(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         input: objectiveai_sdk::functions::expression::InputValue,
         response_id: String,
@@ -1885,7 +1885,7 @@ where
 
     fn execute_ftp_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         ftp: functions::FlatTaskProfile,
         created: u64,
@@ -2024,7 +2024,7 @@ where
 
     fn execute_map_function_ftp_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         ftp: functions::MapFunctionFlatTaskProfile,
         created: u64,
@@ -2144,7 +2144,7 @@ where
 
     fn execute_function_ftp_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         ftp: functions::FunctionFlatTaskProfile,
         response_id: Option<String>,
@@ -2471,7 +2471,7 @@ where
 
     async fn execute_map_vector_ftp_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         ftp: functions::MapVectorCompletionFlatTaskProfile,
         task_index: u64,
@@ -2548,7 +2548,7 @@ where
 
     async fn execute_vector_ftp_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         ftp: functions::VectorCompletionFlatTaskProfile,
         task_index: u64,
@@ -2650,7 +2650,7 @@ where
 
     async fn create_reasoning_summary_streaming(
         &self,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         agent: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
         description: Option<String>,
