@@ -2,11 +2,10 @@ name: Auto-publish libraries
 
 # Fires on every push to main. If the version in
 # objectiveai-sdk-rs/Cargo.toml is not yet on crates.io as
-# `objectiveai-sdk@<version>`, this orchestrator runs the same
-# 6-wave dependency chain that `publish.sh` uses manually and
-# rolls out every library to its registry.
+# `objectiveai-sdk@<version>`, this orchestrator runs the 6-wave
+# dependency chain below and rolls out every library to its registry.
 #
-# Wave map (matches publish.sh):
+# Wave map:
 #   1. sdk-rs-macros (crates), sdk-go (git tag — versioned independently
 #      by objectiveai-sdk-go/version.txt, not the canonical version)
 #   2. sdk-rs (crates)             — needs macros
