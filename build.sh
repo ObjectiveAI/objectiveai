@@ -16,6 +16,10 @@
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
 #                     (objectiveai-dotnet is disconnected from the root build for now;
 #                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
+# Final: package the HOST platform's 7 binaries into the same per-platform
+#        zip the release ships (objectiveai-<os>-<arch>.zip) and drop it in
+#        <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
+#        use it locally. Host only — not the other five platforms.
 # The viewer is NOT built here. Nothing consumes
 # objectiveai-viewer/embed/ anymore (the cli stopped embedding the
 # viewer binary; its build.rs only sets linker flags), and the GitHub
@@ -132,16 +136,19 @@ run_phase objectiveai-json-schema/build.sh
 #       serialize on the cargo target lock). Honors --release.
 # mcp-proxy is NOT built here — objectiveai-api consumes it in-process as a
 # regular cargo path dep, folded into the api's own cargo build.
-bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" &
+# PROFILE_FLAG is shared by the runners and the cargo build so the
+# host/<profile> embed paths line up with target/<profile> for packaging.
+PROFILE_FLAG=""
+[ "$RELEASE" = "1" ] && PROFILE_FLAG="--release"
+
+bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" $PROFILE_FLAG &
 CLAUDE_RUNNER_PID=$!
-bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" &
+bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
 CODEX_RUNNER_PID=$!
 
-CARGO_WORKSPACE_FLAG=""
-[ "$RELEASE" = "1" ] && CARGO_WORKSPACE_FLAG="--release"
 (
   cd "$REPO_ROOT"
-  if cargo build $CARGO_WORKSPACE_FLAG \
+  if cargo build $PROFILE_FLAG \
        -p objectiveai-viewer \
        -p objectiveai-cli \
        -p objectiveai-api \
@@ -175,5 +182,81 @@ for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID; do
 done
 
 if $FAILED; then
+  exit 1
+fi
+
+# ── Package the host's 7 binaries into <dir>/bin/<release-asset>.zip ─────
+# Bundles the freshly-built binaries into the same per-platform zip the
+# GitHub Release ships (objectiveai-<os>-<arch>.zip) and drops it in
+# <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can pick it
+# up locally. Host platform only — not the other 5. Uses `python -m
+# zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli crate
+# builds as `objectiveai-cli` but ships as `objectiveai`.
+package_host_zip() {
+  local os arch ext profile host_triple
+  case "$(uname -s)" in
+    Linux*)               os="linux"   ;;
+    Darwin*)              os="macos"   ;;
+    CYGWIN*|MINGW*|MSYS*) os="windows" ;;
+    *) echo "package: unsupported OS: $(uname -s)" >&2; return 1 ;;
+  esac
+  arch=$(uname -m)
+  case "$arch" in
+    x86_64|amd64)  arch="x86_64"  ;;
+    arm64|aarch64) arch="aarch64" ;;
+    *) echo "package: unsupported architecture: $arch" >&2; return 1 ;;
+  esac
+  [ "$os" = "windows" ] && ext=".exe" || ext=""
+  profile="debug"; [ "$RELEASE" = "1" ] && profile="release"
+  host_triple=$(rustc -vV | awk '/^host:/{print $2}')
+
+  local py
+  py=$(command -v python3 || command -v python || true)
+  [ -n "$py" ] || { echo "package: need python3 to build the zip" >&2; return 1; }
+
+  local asset="objectiveai-${os}-${arch}.zip"
+  local install_dir="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}"
+  local bin_dir="$install_dir/bin"
+  mkdir -p "$bin_dir"
+
+  # Stage the 7 binaries under their shipped names (built-name -> ship-name).
+  local stage="$REPO_ROOT/target/.package-stage.$$"
+  rm -rf "$stage"; mkdir -p "$stage"
+
+  local cargo_dir="$REPO_ROOT/target/$profile"
+  # built basename | shipped basename
+  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-viewer|objectiveai-viewer objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db"
+  local entry built ship src
+  for entry in $pairs; do
+    built="${entry%%|*}"; ship="${entry##*|}"
+    src="$cargo_dir/$built$ext"
+    if [ ! -f "$src" ]; then
+      echo "package: missing $src" >&2; rm -rf "$stage"; return 1
+    fi
+    cp "$src" "$stage/$ship$ext"
+  done
+
+  local r
+  for r in objectiveai-claude-agent-sdk-runner objectiveai-codex-sdk-runner; do
+    src="$REPO_ROOT/$r/embed/$host_triple/$profile/$r$ext"
+    if [ ! -f "$src" ]; then
+      echo "package: missing $src" >&2; rm -rf "$stage"; return 1
+    fi
+    cp "$src" "$stage/$r$ext"
+  done
+
+  # Build the zip to a temp path, then move into place (no partial asset).
+  local out="$bin_dir/$asset" tmp="$bin_dir/$asset.partial.$$"
+  rm -f "$tmp"
+  if ! ( cd "$stage" && "$py" -m zipfile -c "$tmp" * ); then
+    rm -f "$tmp"; rm -rf "$stage"
+    echo "package: zip creation failed" >&2; return 1
+  fi
+  mv -f "$tmp" "$out"
+  rm -rf "$stage"
+  echo "Packaged $out ($profile)"
+}
+
+if ! package_host_zip; then
   exit 1
 fi
