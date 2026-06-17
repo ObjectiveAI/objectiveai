@@ -5,10 +5,14 @@
 #   (inlined below; wasm-pack, maturin, cargo-nextest, pinned from
 #   [workspace.metadata.tools] in Cargo.toml). Runs first and alone —
 #   the wasm/cffi (phase 2) and SDK (phase 3) builds invoke these tools.
-# Phase 1: objectiveai-json-schema (its output feeds the phase-3 SDK codegen)
-# Background: claude-agent-sdk + codex-sdk runners (after phase 1, concurrent with phases 2+3)
-# Phase 2 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
-# Phase 3 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
+# Phase 1: objectiveai-json-schema (its output feeds the phase-4 SDK codegen)
+# Phase 2 (background, concurrent with phases 3+4):
+#   - claude-agent-sdk + codex-sdk runners (PyInstaller binaries the api
+#     spawns at runtime from <OBJECTIVEAI_DIR>/bin/)
+#   - a single cargo build of the five product crates (viewer, cli, api,
+#     db, mcp) in ONE invocation so they share the compile cache
+# Phase 3 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
+# Phase 4 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
 #                     (objectiveai-dotnet is disconnected from the root build for now;
 #                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
@@ -117,32 +121,54 @@ else
   exit 1
 fi
 
-# Phase 1: json schema (its output feeds the phase-3 SDK codegen).
+# Phase 1: json schema (its output feeds the phase-4 SDK codegen).
 run_phase objectiveai-json-schema/build.sh
 
-# SDK runners (depend on phase 1, run concurrently with phases 2+3).
-# claude-agent-sdk-runner and codex-sdk-runner are PyInstaller binaries
-# the api spawns at runtime from <OBJECTIVEAI_DIR>/bin/. mcp-proxy is NOT
-# built here — objectiveai-api consumes it in-process as a regular cargo
-# path dep, folded into the api's own cargo build.
+# Phase 2 (background, concurrent with phases 3+4):
+#   (a) the two PyInstaller SDK runners (claude + codex), and
+#   (b) one cargo build of the five product crates — viewer, cli, api, db,
+#       mcp — in a SINGLE invocation so they share the compile cache (the
+#       per-crate builds would otherwise recompile common dependencies and
+#       serialize on the cargo target lock). Honors --release.
+# mcp-proxy is NOT built here — objectiveai-api consumes it in-process as a
+# regular cargo path dep, folded into the api's own cargo build.
 bash "$REPO_ROOT/objectiveai-claude-agent-sdk-runner/build.sh" &
 CLAUDE_RUNNER_PID=$!
 bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" &
 CODEX_RUNNER_PID=$!
 
-# Phase 2: wasm + cffi (need build tools from phase 0)
+CARGO_WORKSPACE_FLAG=""
+[ "$RELEASE" = "1" ] && CARGO_WORKSPACE_FLAG="--release"
+(
+  cd "$REPO_ROOT"
+  if cargo build $CARGO_WORKSPACE_FLAG \
+       -p objectiveai-viewer \
+       -p objectiveai-cli \
+       -p objectiveai-api \
+       -p objectiveai-db \
+       -p objectiveai-mcp \
+       > "$LOG_DIR/cargo-workspace.txt" 2>&1; then
+    echo "cargo-workspace: SUCCESS"
+  else
+    echo "cargo-workspace: ERROR (see .logs/build/cargo-workspace.txt)"
+    exit 1
+  fi
+) &
+CARGO_WORKSPACE_PID=$!
+
+# Phase 3: wasm + cffi (need build tools from phase 0)
 run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 
-# Phase 3: js + py + go (all need wasm/cffi from phase 2). objectiveai-dotnet
+# Phase 4: js + py + go (all need wasm/cffi from phase 3). objectiveai-dotnet
 # is intentionally NOT part of this phase — its codegen has a duplicate-
 # variant-property bug that breaks on newly-added internally-tagged enums;
 # run `bash objectiveai-dotnet/build.sh` directly if you need it.
 # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
 run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 
-# Wait for the background SDK runner builds.
+# Wait for the background phase-2 jobs (runners + the 5-crate cargo build).
 FAILED=false
-for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID; do
+for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID; do
   if ! wait "$pid"; then
     FAILED=true
   fi

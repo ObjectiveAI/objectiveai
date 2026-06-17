@@ -1,0 +1,1 @@
+var e=`__TAURI_TO_IPC_KEY__`;function t(e,t=!1){return window.__TAURI_INTERNALS__.transformCallback(e,t)}async function n(e,t={},n){return window.__TAURI_INTERNALS__.invoke(e,t,n)}export{n,t as r,e as t};
