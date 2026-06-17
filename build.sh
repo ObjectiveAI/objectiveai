@@ -36,10 +36,13 @@
 #
 # Pass --no-zip to skip phase 1 (the product-binary + runner compilation)
 # AND the final packaging — useful when you only want the schemas/tools/SDKs
-# and don't need the per-platform zip.
+# and don't need the per-platform zip. --no-sdk is the inverse: it skips
+# phases 2-4 (build/dev tools incl. nextest, json schema, wasm/cffi, and the
+# JS/Py/Go SDKs), leaving only phase 1 + packaging. Passing both skips every
+# phase — by construction, nothing happens.
 #
 # Usage:
-#   bash build.sh [--release] [--no-zip]
+#   bash build.sh [--release] [--no-zip] [--no-sdk]
 
 set -euo pipefail
 
@@ -51,12 +54,14 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 # with no args, so the env var is how the profile reaches them.
 RELEASE=0
 NO_ZIP=0
+NO_SDK=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --release) RELEASE=1; shift ;;
     --no-zip)  NO_ZIP=1; shift ;;
-    -h|--help) echo "Usage: bash build.sh [--release] [--no-zip]"; exit 0 ;;
-    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release] [--no-zip]" >&2; exit 1 ;;
+    --no-sdk)  NO_SDK=1; shift ;;
+    -h|--help) echo "Usage: bash build.sh [--release] [--no-zip] [--no-sdk]"; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release] [--no-zip] [--no-sdk]" >&2; exit 1 ;;
   esac
 done
 if [ "$RELEASE" = "1" ]; then
@@ -67,6 +72,9 @@ else
 fi
 if [ "$NO_ZIP" = "1" ]; then
   echo "Skipping phase 1 (product binaries + runners) and packaging (--no-zip)."
+fi
+if [ "$NO_SDK" = "1" ]; then
+  echo "Skipping phases 2-4 (build tools, json schema, wasm/cffi, SDKs) (--no-sdk)."
 fi
 
 LOG_DIR="$REPO_ROOT/.logs/build"
@@ -165,39 +173,45 @@ if [ "$NO_ZIP" != "1" ]; then
   CARGO_WORKSPACE_PID=$!
 fi
 
-# ── Phase 2 (parallel): build/dev tools + json schema ───────────────────
-(
-  if build_bin > "$LOG_DIR/build-bin.txt" 2>&1; then
-    echo "build-bin: SUCCESS"
-  else
-    echo "build-bin: ERROR (see .logs/build/build-bin.txt)"
+# ── Phases 2-4 (the SDK toolchain) ──────────────────────────────────────
+# Skipped entirely under --no-sdk: the build/dev tools (including
+# cargo-nextest), the json schema, the wasm/cffi bindings, and the
+# JS/Py/Go SDKs. Phase 1 + packaging don't depend on any of these.
+if [ "$NO_SDK" != "1" ]; then
+  # Phase 2 (parallel): build/dev tools + json schema.
+  (
+    if build_bin > "$LOG_DIR/build-bin.txt" 2>&1; then
+      echo "build-bin: SUCCESS"
+    else
+      echo "build-bin: ERROR (see .logs/build/build-bin.txt)"
+      exit 1
+    fi
+  ) &
+  BUILD_BIN_PID=$!
+  bash "$REPO_ROOT/objectiveai-json-schema/build.sh" &
+  JSON_SCHEMA_PID=$!
+
+  PHASE2_FAILED=false
+  for pid in $BUILD_BIN_PID $JSON_SCHEMA_PID; do
+    if ! wait "$pid"; then
+      PHASE2_FAILED=true
+    fi
+  done
+  if $PHASE2_FAILED; then
     exit 1
   fi
-) &
-BUILD_BIN_PID=$!
-bash "$REPO_ROOT/objectiveai-json-schema/build.sh" &
-JSON_SCHEMA_PID=$!
 
-PHASE2_FAILED=false
-for pid in $BUILD_BIN_PID $JSON_SCHEMA_PID; do
-  if ! wait "$pid"; then
-    PHASE2_FAILED=true
-  fi
-done
-if $PHASE2_FAILED; then
-  exit 1
+  # Phase 3: wasm + cffi (need the build tools from phase 2)
+  run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
+
+  # Phase 4: js + py + go (js/go need wasm/cffi from phase 3; all need the
+  # json schemas from phase 2). objectiveai-dotnet is intentionally NOT part
+  # of this phase — its codegen has a duplicate-variant-property bug that
+  # breaks on newly-added internally-tagged enums; run
+  # `bash objectiveai-dotnet/build.sh` directly if you need it.
+  # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
+  run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 fi
-
-# Phase 3: wasm + cffi (need the build tools from phase 2)
-run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
-
-# Phase 4: js + py + go (js/go need wasm/cffi from phase 3; all need the
-# json schemas from phase 2). objectiveai-dotnet is intentionally NOT part
-# of this phase — its codegen has a duplicate-variant-property bug that
-# breaks on newly-added internally-tagged enums; run
-# `bash objectiveai-dotnet/build.sh` directly if you need it.
-# objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
-run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 
 # Wait for the background phase-1 jobs (the 5-crate cargo build + runners).
 # Skipped under --no-zip (phase 1 never launched).
