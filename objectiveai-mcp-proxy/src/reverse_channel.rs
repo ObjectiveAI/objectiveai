@@ -62,6 +62,12 @@ struct Inner {
 #[derive(Clone)]
 pub struct ReverseChannel(Arc<Inner>);
 
+impl std::fmt::Debug for ReverseChannel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ReverseChannel").finish_non_exhaustive()
+    }
+}
+
 impl ReverseChannel {
     /// Build a channel. Returns the channel plus the receiver the API
     /// drains (serializing each `server_request` onto the shared WS sink).

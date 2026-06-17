@@ -246,14 +246,21 @@ async fn connect_upstream(
         if let Some(sid) = session_id {
             headers.insert(MCP_SESSION_ID_KEY.to_string(), sid);
         }
-        // TODO(ws plugin args): parse plugin args off the `ws://` URL query
-        // string once the API emits them; empty for now (objectiveai takes
-        // none, and arg-less plugins work).
+        // Plugin args ride as the `X-OBJECTIVEAI-ARGUMENTS` per-upstream
+        // header (JSON `{key: value|null}`), the same way the loopback path
+        // carried them; lift them into the typed `InitializeRequest.args`
+        // the CLI's `dial_plugin` reads. The header itself stays in
+        // `headers` (later requests that touch the plugin env still read it).
+        let args: IndexMap<String, Option<String>> = headers
+            .iter()
+            .find(|(k, _)| k.eq_ignore_ascii_case("X-OBJECTIVEAI-ARGUMENTS"))
+            .and_then(|(_, v)| serde_json::from_str(v).ok())
+            .unwrap_or_default();
         let upstream = crate::reverse_channel::connect_ws(
             channel,
             url.to_string(),
             mcp_kind,
-            IndexMap::new(),
+            args,
             headers,
         )
         .await

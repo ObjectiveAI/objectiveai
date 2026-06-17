@@ -21,6 +21,14 @@ pub struct ProxyHandle {
     _shutdown: DropGuard,
 }
 
+impl std::fmt::Debug for ProxyHandle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ProxyHandle")
+            .field("url", &self.url)
+            .finish_non_exhaustive()
+    }
+}
+
 /// Server-level recipe for booting a per-request proxy. Holds the static
 /// config builder + an optional runtime handle (tests anchor the serve
 /// task on a process-wide runtime so it isn't aborted when an individual

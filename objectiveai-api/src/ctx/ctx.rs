@@ -71,7 +71,7 @@ pub struct Context<CTXEXT, PC> {
     /// `message_queue` content onto tool responses; also driven by
     /// `run_agent_loop` (register/confirm/unregister). Per-request so its
     /// per-AIH state dies with the context.
-    queue_delegate: Arc<crate::agent::completions::queue_delegate::ApiQueueDelegate>,
+    queue_delegate: Arc<crate::agent::completions::ApiQueueDelegate>,
     /// Cached resolved OpenRouter authorization (self + ext).
     openrouter_authorization_cached: Arc<OnceCell<Option<Arc<String>>>>,
     /// Cached resolved GitHub authorization (self + ext).
@@ -255,7 +255,7 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             reverse_channel: None,
             proxy: Arc::new(OnceCell::new()),
             queue_delegate: Arc::new(
-                crate::agent::completions::queue_delegate::ApiQueueDelegate::new(),
+                crate::agent::completions::ApiQueueDelegate::new(),
             ),
             openrouter_authorization_cached: Arc::new(OnceCell::new()),
             github_authorization_cached: Arc::new(OnceCell::new()),
@@ -344,7 +344,7 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     /// This request's queue-read delegate (per-AIH state, request-scoped).
     pub fn queue_delegate(
         &self,
-    ) -> Arc<crate::agent::completions::queue_delegate::ApiQueueDelegate> {
+    ) -> Arc<crate::agent::completions::ApiQueueDelegate> {
         self.queue_delegate.clone()
     }
 }

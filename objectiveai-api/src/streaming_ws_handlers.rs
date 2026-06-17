@@ -91,9 +91,12 @@ pub(crate) async fn create_agent_completion_ws(
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so the `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`'s
@@ -141,6 +144,7 @@ pub(crate) async fn create_agent_completion_ws(
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -223,9 +227,12 @@ where
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // `create_streaming_handle_usage` lives INSIDE the `send`
         // branch so the `recv_loop` (which dispatches incoming
@@ -264,6 +271,7 @@ where
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -347,9 +355,12 @@ where
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming_handle_usage`.
@@ -384,6 +395,7 @@ where
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -442,9 +454,12 @@ where
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
 
         // Stream setup lives INSIDE the `send` branch so `recv_loop`
         // is polled concurrently with `create_streaming`. See
@@ -493,6 +508,7 @@ where
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {
@@ -550,9 +566,12 @@ where
             pending.clone(),
             reverse_attach.reverse_channel_timeout,
         );
+        let (reverse_channel, reverse_req_rx) =
+            objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
+        tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
         let ctx = crate::context(&headers, persistent_cache, suppress_output)
-            .with_mcp_port(reverse_attach.mcp_port)
-            .with_reverse_attach(_attach_guard.handle());
+            .with_reverse_attach(_attach_guard.handle())
+            .with_reverse_channel(reverse_channel.clone());
         let stream = match client.create_streaming(&ctx, &body) {
             Ok(s) => s,
             Err(e) => {
@@ -594,6 +613,7 @@ where
             pending,
             reverse_attach.mcp_listeners.clone(),
             _attach_guard.handle(),
+            reverse_channel,
         );
 
         tokio::select! {

@@ -13,21 +13,14 @@
 //! [`sse::handle_get_sse`] — lives here too. Used to be in the SDK's
 //! `mcp::conduit::server`; canonical home is now this module.
 
-mod context;
-mod handlers;
 mod listeners;
 mod registry;
-mod routes;
 mod send;
-mod sse;
 
-pub use context::McpRequestContext;
 pub use listeners::McpListenerRegistry;
 pub use registry::{
     PendingRequests, ReverseAttachConfig, ReverseAttachGuard, ReverseAttachHandle,
     ReverseChannel, ReverseChannelRegistry, SessionTracker, SharedSink,
     new_pending_requests, new_reverse_channel_registry,
 };
-pub use routes::router;
 pub use send::send_server_request;
-pub use sse::handle_get_sse;

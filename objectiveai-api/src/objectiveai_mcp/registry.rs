@@ -105,7 +105,6 @@ pub fn new_reverse_channel_registry() -> ReverseChannelRegistry {
 #[derive(Clone)]
 pub struct ReverseAttachConfig {
     pub registry: ReverseChannelRegistry,
-    pub mcp_port: u16,
     pub mcp_listeners: McpListenerRegistry,
     /// Budget for one WS reverse-channel round-trip (from
     /// `Config.reverse_channel_timeout`); stamped onto every
