@@ -99,8 +99,8 @@ prebuild_failed=0
 for crate in "${CRATES[@]}"; do
   echo "test-integration: build $crate ..."
   if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" \
-       >"$BUILD_LOG_DIR/${crate}-nextest-${TIMESTAMP}.txt" 2>&1; then
-    echo "test-integration: BUILD FAILED: $crate (see .logs/build/${crate}-nextest-${TIMESTAMP}.txt)" >&2
+       >"$BUILD_LOG_DIR/${crate}-integration-nextest-${TIMESTAMP}.txt" 2>&1; then
+    echo "test-integration: BUILD FAILED: $crate (see .logs/build/${crate}-integration-nextest-${TIMESTAMP}.txt)" >&2
     prebuild_failed=1
   fi
 done
@@ -113,7 +113,7 @@ fi
 pids=()
 pid_crates=()
 for crate in "${CRATES[@]}"; do
-  log="$LOG_DIR/${crate}-${TIMESTAMP}.txt"
+  log="$LOG_DIR/${crate}-integration-${TIMESTAMP}.txt"
   cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" >"$log" 2>&1 &
   pids+=("$!")
   pid_crates+=("$crate")
