@@ -109,28 +109,30 @@ impl ConduitMcpHandler {
         mcp_server: crate::websockets::mcp_server::McpServerHandle,
         ctx: crate::context::Context,
         agent_tag: Option<String>,
-        backoff: objectiveai_sdk::mcp::Backoff,
+        mcp_timeout_ms: u64,
+        backoff_max_elapsed_time_ms: u64,
     ) -> Self {
         let http = reqwest::Client::builder()
             .build()
             .expect("reqwest::Client::build is infallible without rustls toggles");
-        // Timeouts + backoff come from the resolved `api.mcp_backoff` config
-        // (or its default) so the CLI's single MCP client matches the
-        // api/proxy and tests can dial it down to fail deterministic errors
-        // fast.
+        // The CLI's single MCP client uses the two configured values:
+        // `mcp_timeout_ms` for BOTH the connect + per-call timeout, and
+        // `backoff_max_elapsed_time_ms` for the retry budget. The other
+        // exponential-backoff knobs are fixed defaults matching the
+        // api/proxy (100ms / 100ms / 0.5 / 1.5 / 1000ms).
         let client = objectiveai_sdk::mcp::Client::new(
             http,
             "objectiveai-cli-stream-conduit".to_string(),
             String::new(),
             String::new(),
-            Duration::from_millis(backoff.connect_timeout_ms),
-            Duration::from_millis(backoff.current_interval_ms),
-            Duration::from_millis(backoff.initial_interval_ms),
-            backoff.randomization_factor,
-            backoff.multiplier,
-            Duration::from_millis(backoff.max_interval_ms),
-            Duration::from_millis(backoff.max_elapsed_time_ms),
-            Duration::from_millis(backoff.call_timeout_ms),
+            Duration::from_millis(mcp_timeout_ms),
+            Duration::from_millis(100),
+            Duration::from_millis(100),
+            0.5,
+            1.5,
+            Duration::from_millis(1000),
+            Duration::from_millis(backoff_max_elapsed_time_ms),
+            Duration::from_millis(mcp_timeout_ms),
         );
         Self {
             inner: Arc::new(Inner {

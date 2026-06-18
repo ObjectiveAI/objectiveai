@@ -38,43 +38,6 @@ pub struct Client {
     pub call_timeout: Duration,
 }
 
-/// Serializable MCP client tuning — the canonical `mcp_backoff` blob, as a
-/// single JSON object. Covers the full retry/timeout knob set [`Client`]
-/// uses: the connect + per-call timeouts plus the six exponential-backoff
-/// parameters. [`Default`] is the project-wide default (connect 60000ms,
-/// 100ms / 100ms / 0.5 / 1.5 / 1000ms / 40000ms, call 60000ms) — the same
-/// values the api and proxy already use when their `MCP_*` env vars are
-/// unset. Field order mirrors [`Client::new`]'s timeout/backoff arguments.
-#[derive(
-    Debug, Clone, Copy, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
-#[schemars(rename = "mcp.Backoff")]
-pub struct Backoff {
-    pub connect_timeout_ms: u64,
-    pub current_interval_ms: u64,
-    pub initial_interval_ms: u64,
-    pub randomization_factor: f64,
-    pub multiplier: f64,
-    pub max_interval_ms: u64,
-    pub max_elapsed_time_ms: u64,
-    pub call_timeout_ms: u64,
-}
-
-impl Default for Backoff {
-    fn default() -> Self {
-        Self {
-            connect_timeout_ms: 60000,
-            current_interval_ms: 100,
-            initial_interval_ms: 100,
-            randomization_factor: 0.5,
-            multiplier: 1.5,
-            max_interval_ms: 1000,
-            max_elapsed_time_ms: 40000,
-            call_timeout_ms: 60000,
-        }
-    }
-}
-
 impl Client {
     /// Creates a new MCP client.
     pub fn new(
