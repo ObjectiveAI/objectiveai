@@ -31,7 +31,7 @@ Install all four prebuilt binaries with one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
 | Binary | What it does | Download |
@@ -113,7 +113,7 @@ Install the CLI, API server, viewer, and MCP server from the latest release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
 Set your API key:
@@ -423,10 +423,10 @@ The .NET SDK (`ObjectiveAI`, targeting net10.0) is in active development. The Nu
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
-All four binaries land in `~/.objectiveai/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api`, `objectiveai-viewer`, and `objectiveai-mcp`.
+All four binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api`, `objectiveai-viewer`, and `objectiveai-mcp`.
 
 ### `objectiveai` (CLI)
 

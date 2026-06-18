@@ -265,35 +265,32 @@ commit_files() {
 commit_files
 
 # ── PATH ──────────────────────────────────────────────────────────────
-# A child process can't mutate its parent shell's environment, so the
-# canonical pattern (rustup, etc.) is to write a sourceable env file.
+# A child process can't mutate its parent shell's environment, so we add a
+# guarded `export PATH` for the BIN dir directly to the user's shell rc
+# files (and the Windows user PATH). We do NOT write an `env` file into the
+# install dir — and we remove a stale one a previous installer may have left.
 
-write_env_file() {
-  cat > "$INSTALL_DIR/env" <<EOF
-#!/bin/sh
-# objectiveai shell setup. Source this file from your shell rc, or run
-#   . "$INSTALL_DIR/env"
-# to put the objectiveai binaries on PATH for the current shell.
+# Never leave an `env` file behind. Older installers dropped a sourceable
+# "$INSTALL_DIR/env"; delete it so nothing lingers in the install dir.
+rm -f "$INSTALL_DIR/env"
 
+add_to_path() {
+  local shell_rc="$1"
+  # Idempotent: skip if this rc already puts the bin dir on PATH.
+  if [ -f "$shell_rc" ] && grep -qF "$BIN_DIR" "$shell_rc"; then
+    return
+  fi
+  # Write the export directly (no env file to source). Expands $BIN_DIR at
+  # write time; keeps $PATH literal so it re-resolves on each shell start.
+  cat >> "$shell_rc" <<EOF
+
+# ObjectiveAI
 case ":\${PATH}:" in
     *:"$BIN_DIR":*) ;;
     *) export PATH="$BIN_DIR:\$PATH" ;;
 esac
 EOF
-}
-
-add_to_path() {
-  local shell_rc="$1"
-  local line=". \"$INSTALL_DIR/env\""
-  if [ -f "$shell_rc" ] && grep -qF "$INSTALL_DIR/env" "$shell_rc"; then
-    return
-  fi
-  {
-    echo ""
-    echo "# ObjectiveAI"
-    echo "$line"
-  } >> "$shell_rc"
-  echo "Added to PATH in $shell_rc"
+  echo "Added $BIN_DIR to PATH in $shell_rc"
 }
 
 if [ "$NO_EXPORT_PATH" = "1" ]; then
@@ -303,11 +300,8 @@ if [ "$NO_EXPORT_PATH" = "1" ]; then
   exit 0
 fi
 
-write_env_file
-
 case "$PLATFORM" in
   windows)
-    INSTALL_DIR_WIN="$(cygpath -w "$INSTALL_DIR" 2>/dev/null || echo "$INSTALL_DIR")"
     BIN_DIR_WIN="$(cygpath -w "$BIN_DIR" 2>/dev/null || echo "$BIN_DIR")"
     CURRENT_PATH=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path', 'User')" 2>/dev/null | tr -d '\r' || true)
     NEED_PREPEND=""
@@ -321,7 +315,7 @@ case "$PLATFORM" in
     else
       echo "PATH already contains $BIN_DIR_WIN"
     fi
-    # Also wire up Git Bash / MSYS via the env file.
+    # Also wire up Git Bash / MSYS via ~/.bashrc.
     [ -f "$HOME/.bashrc" ] && add_to_path "$HOME/.bashrc"
     ;;
   macos)
@@ -336,7 +330,7 @@ esac
 echo ""
 echo "Done!"
 echo ""
-echo "To use the objectiveai binaries in your current shell, run:"
-echo "  . \"$INSTALL_DIR/env\""
+echo "Restart your shell, or run this to use the binaries now:"
+echo "  export PATH=\"$BIN_DIR:\$PATH\""
 echo ""
 echo "(New shells will pick it up automatically.)"
