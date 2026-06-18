@@ -81,7 +81,7 @@ fi
 
 # ── Step 4: configure for testing ───────────────────────────────────
 BIN="$(oai_bin)"
-OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-timeout-ms set 300_000 --global \
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-timeout-ms set 300000 --global \
   || { echo "test: 'api config mcp-timeout-ms set' failed" >&2; exit 1; }
 OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set 0 --global \
   || { echo "test: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
