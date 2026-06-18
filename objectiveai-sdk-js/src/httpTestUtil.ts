@@ -57,7 +57,7 @@ export function httpTestSuite<Chunk, Unary>(opts: HttpTestSuiteOptions<Chunk, Un
     return opts.chunkToUnary(acc!);
   }
 
-  describe.skipIf(!port)(opts.name, () => {
+  describe.skipIf(!address)(opts.name, () => {
     for (const c of opts.cases) {
       it(`${c.snapshot} (unary)`, async () => {
         const expected = rounded(loadSnapshot<Unary>(opts.snapshotsDir, c.snapshot));
