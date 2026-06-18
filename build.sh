@@ -174,13 +174,22 @@ if [ "$NO_ZIP" != "1" ]; then
   ) &
   CARGO_WORKSPACE_PID=$!
 
-  # The viewer is a Tauri app: its build.sh runs `tauri build`, which builds
-  # the frontend (vite, against the committed workspace SDK — no SDK build
-  # needed) and embeds it + the icon, then drops the binary raw in
-  # objectiveai-viewer/embed/. A plain `cargo build -p objectiveai-viewer`
-  # would produce a non-working dev-mode binary (no frontend, no icon).
-  bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
-  VIEWER_PID=$!
+  # The viewer is a Tauri app: its build.sh runs `tauri build`, embedding the
+  # frontend (vite, against the workspace @objectiveai/sdk dist) + the icon,
+  # raw into objectiveai-viewer/embed/. A plain `cargo build -p
+  # objectiveai-viewer` would be a non-working dev-mode binary (no frontend,
+  # no icon).
+  #
+  # Timing depends on whether the SDK is also being rebuilt this run:
+  #   • --no-sdk (zip only): the committed sdk-js dist is final, so build the
+  #     viewer now, concurrently with the cargo build + runners.
+  #   • building both zip + SDK: DEFER the viewer until after phase 4's
+  #     sdk-js build, so it embeds the freshly-built SDK rather than racing
+  #     the dist that phase 4 is regenerating.
+  if [ "$NO_SDK" = "1" ]; then
+    bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
+    VIEWER_PID=$!
+  fi
 fi
 
 # ── Phases 2-4 (the SDK toolchain) ──────────────────────────────────────
@@ -214,13 +223,24 @@ if [ "$NO_SDK" != "1" ]; then
   # Phase 3: wasm + cffi (need the build tools from phase 2)
   run_phase objectiveai-sdk-rs-wasm-js/build.sh objectiveai-sdk-rs-cffi/build.sh
 
-  # Phase 4: js + py + go (js/go need wasm/cffi from phase 3; all need the
-  # json schemas from phase 2). objectiveai-dotnet is intentionally NOT part
-  # of this phase — its codegen has a duplicate-variant-property bug that
-  # breaks on newly-added internally-tagged enums; run
-  # `bash objectiveai-dotnet/build.sh` directly if you need it.
-  # objectiveai-sdk-py compiles its own Rust extension (_pyo3) via maturin as part of its build.
-  run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
+  # Phase 4: sdk-js FIRST (its freshly-rebuilt dist is what the viewer
+  # embeds), then sdk-py + sdk-go in parallel — and, when also building the
+  # zip, the deferred viewer build runs alongside them now that sdk-js is
+  # done. objectiveai-dotnet is intentionally NOT part of this phase — its
+  # codegen has a duplicate-variant-property bug that breaks on newly-added
+  # internally-tagged enums; run `bash objectiveai-dotnet/build.sh` directly
+  # if you need it. objectiveai-sdk-py compiles its own Rust extension
+  # (_pyo3) via maturin as part of its build.
+  run_phase objectiveai-sdk-js/build.sh
+
+  # Deferred viewer (building both zip + SDK): the fresh sdk-js dist now
+  # exists, so the viewer embeds the new SDK. Runs concurrently with py/go.
+  if [ "$NO_ZIP" != "1" ]; then
+    bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
+    VIEWER_PID=$!
+  fi
+
+  run_phase objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 fi
 
 # Wait for the background phase-1 jobs (cargo bins + viewer + runners).
