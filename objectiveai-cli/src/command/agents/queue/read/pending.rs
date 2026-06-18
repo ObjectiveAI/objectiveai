@@ -52,8 +52,11 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 }
 
 /// Direct mode resolves to an AIH; tag mode resolves the tag via
-/// `tags::lookup` and errors on PENDING/ABSENT (same posture as
-/// `agents logs read all`).
+/// `tags::lookup` to the tag NAME for any registered tag (BOUND or
+/// GROUPED) — the queue is keyed by tag name, so it's readable even
+/// before the agent is spawned. Only an unregistered (ABSENT) tag
+/// errors. (Unlike `agents logs read all`, which needs the agent
+/// spawned because logs don't exist until then.)
 async fn resolve_target(
     db: &crate::db::Pool,
     target: Target,
@@ -70,23 +73,17 @@ async fn resolve_target(
         }
         // The caller's own AIH itself — no child leaf appended.
         Target::Me => Ok(ResolvedTarget::Hierarchy(default_parent.to_string())),
+        // A registered tag's queue is keyed by the tag NAME — queue rows
+        // carry the literal tag, not the resolved hierarchy. So the queue
+        // doesn't depend on the agent being spawned: a GROUPED (registered
+        // but not-yet-spawned) tag has a perfectly readable queue, and a
+        // rebind doesn't strand queued prompts. Both BOUND and GROUPED
+        // therefore resolve to the tag name; only an unregistered (ABSENT)
+        // tag has no queue.
         Target::Tag { agent_tag } => match tags::lookup(db, &agent_tag).await? {
-            tags::LookupState::Bound { agent_instance_hierarchy: _ } => {
-                // Bound tags filter the queue by the tag NAME (queue rows
-                // carry the literal tag, not the resolved hierarchy —
-                // matching the historical queue behavior so a tag rebind
-                // doesn't strand its queued prompts).
+            tags::LookupState::Bound { .. } | tags::LookupState::Grouped { .. } => {
                 Ok(ResolvedTarget::Tag(agent_tag))
             }
-            tags::LookupState::Grouped {
-                tag_group_id,
-                parent_agent_instance_hierarchy,
-                ..
-            } => Err(Error::TagGrouped {
-                tag: agent_tag,
-                tag_group_id,
-                parent_agent_instance_hierarchy,
-            }),
             tags::LookupState::Absent => Err(Error::TagNotFound(agent_tag)),
         },
     }
