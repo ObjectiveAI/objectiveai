@@ -41,8 +41,18 @@
 # JS/Py/Go SDKs), leaving only phase 1 + packaging. Passing both skips every
 # phase — by construction, nothing happens.
 #
+# By default phase 1 ALSO compiles the integration-test fixture crates —
+# the plugin/tool stubs under tests/plugins/ and tests/tools/ that the cli
+# integration tests build and exec. They're discovered by glob (no
+# hardcoded list, so new fixtures are picked up automatically), built in
+# the same cargo invocation as the product binaries, and never packaged
+# (they're test inputs, not shipped artifacts). Pass --no-test-integration
+# to skip them — the release does this, since it ships zips, not tests.
+# These fixtures ride phase 1, so --no-zip already excludes them;
+# --no-test-integration only matters on a run that IS building the zip.
+#
 # Usage:
-#   bash build.sh [--release] [--no-zip] [--no-sdk]
+#   bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]
 
 set -euo pipefail
 
@@ -55,13 +65,16 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 RELEASE=0
 NO_ZIP=0
 NO_SDK=0
+NO_TEST_INTEGRATION=0
+USAGE="Usage: bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --release) RELEASE=1; shift ;;
     --no-zip)  NO_ZIP=1; shift ;;
     --no-sdk)  NO_SDK=1; shift ;;
-    -h|--help) echo "Usage: bash build.sh [--release] [--no-zip] [--no-sdk]"; exit 0 ;;
-    *) echo "unknown argument: $1" >&2; echo "Usage: bash build.sh [--release] [--no-zip] [--no-sdk]" >&2; exit 1 ;;
+    --no-test-integration) NO_TEST_INTEGRATION=1; shift ;;
+    -h|--help) echo "$USAGE"; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; echo "$USAGE" >&2; exit 1 ;;
   esac
 done
 if [ "$RELEASE" = "1" ]; then
@@ -75,6 +88,9 @@ if [ "$NO_ZIP" = "1" ]; then
 fi
 if [ "$NO_SDK" = "1" ]; then
   echo "Skipping phases 2-4 (build tools, json schema, wasm/cffi, SDKs) (--no-sdk)."
+fi
+if [ "$NO_TEST_INTEGRATION" = "1" ]; then
+  echo "Skipping the integration-test fixture crates (--no-test-integration)."
 fi
 
 LOG_DIR="$REPO_ROOT/.logs/build"
@@ -143,6 +159,21 @@ build_bin() {
   echo "Done. Tools at $BIN_DIR/"
 }
 
+# Print the cargo package name of every integration-test fixture crate
+# — the plugin/tool stubs under tests/plugins/ and tests/tools/ — one
+# per line. Discovery is by glob over their Cargo.toml `name` fields, so
+# a fixture added under either folder is co-built with no edit here.
+# Prints nothing if the folders are absent (the glob is nullglob-guarded
+# by the `-f` test).
+discover_test_integration_crates() {
+  local toml name
+  for toml in "$REPO_ROOT"/tests/plugins/*/Cargo.toml "$REPO_ROOT"/tests/tools/*/Cargo.toml; do
+    [ -f "$toml" ] || continue
+    name=$(sed -n 's/^name *= *"\(.*\)"/\1/p' "$toml" | head -1)
+    [ -n "$name" ] && printf '%s\n' "$name"
+  done
+}
+
 # ── Phase 1 (background; awaited at the very end) ───────────────────────
 # The four CLI/server product crates in one cargo build (shared cache),
 # the Tauri viewer via its own build.sh (`tauri build` — embeds the frontend
@@ -158,6 +189,24 @@ if [ "$NO_ZIP" != "1" ]; then
   bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
   CODEX_RUNNER_PID=$!
 
+  # The integration-test fixture crates (plugins + tools under tests/)
+  # co-build with the product binaries in the single cargo invocation
+  # below — shared compile cache, no extra target-lock contention. They
+  # are NOT staged into the zip (test inputs, not shipped). Default-on;
+  # --no-test-integration drops them (the release uses that). They ride
+  # phase 1, so --no-zip already excludes them — no separate gate needed.
+  # Built as an array of `-p <name>` args so an empty selection expands
+  # to nothing in the cargo line.
+  FIXTURE_PKG_ARGS=()
+  if [ "$NO_TEST_INTEGRATION" != "1" ]; then
+    while IFS= read -r _fixture; do
+      FIXTURE_PKG_ARGS+=(-p "$_fixture")
+    done < <(discover_test_integration_crates)
+    if [ "${#FIXTURE_PKG_ARGS[@]}" -gt 0 ]; then
+      echo "Co-building $(( ${#FIXTURE_PKG_ARGS[@]} / 2 )) integration-test fixture crate(s) from tests/{plugins,tools}/."
+    fi
+  fi
+
   (
     cd "$REPO_ROOT"
     if cargo build $PROFILE_FLAG \
@@ -165,6 +214,7 @@ if [ "$NO_ZIP" != "1" ]; then
          -p objectiveai-api \
          -p objectiveai-db \
          -p objectiveai-mcp \
+         "${FIXTURE_PKG_ARGS[@]}" \
          > "$LOG_DIR/cargo-workspace.txt" 2>&1; then
       echo "cargo-workspace: SUCCESS"
     else
