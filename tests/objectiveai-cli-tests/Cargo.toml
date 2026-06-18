@@ -1,0 +1,23 @@
+[package]
+name = "objectiveai-cli-tests"
+version = "2.2.3"
+edition = "2024"
+description = "Integration tests for objectiveai-cli (drives the installed cli shim end-to-end)"
+publish = false
+
+# The integration suite lives under tests/; this crate's src/ is an
+# empty library target to hang it off. All deps are dev-only.
+[dev-dependencies]
+objectiveai-sdk = { path = "../../objectiveai-sdk-rs", features = ["lockfile", "subprocess-reaper"] }
+objectiveai-cli = { path = "../../objectiveai-cli" }
+serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde = { version = "1.0.228", features = ["derive"] }
+thiserror = "2.0.18"
+tokio = { version = "1.50.0", features = ["full"] }
+tokio-stream = { version = "0.1.18", features = ["io-util", "sync"] }
+futures = "0.3.32"
+axum = "0.8.8"
+insta = { version = "1.40", features = ["json"] }
+uuid = { version = "1.22", features = ["v4"] }
+wiremock = "0.6"
+notify = "8.2"

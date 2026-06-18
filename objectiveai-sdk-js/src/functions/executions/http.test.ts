@@ -12,7 +12,7 @@ import type { FunctionsExecutionsResponseUnaryFunctionExecution } from "./respon
 httpTestSuite<FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseUnaryFunctionExecution>({
   name: "functions executions http",
   fn: functionsExecutionsCreateFunctionExecution,
-  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api/assets/functions/executions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/functions/executions/client_tests"),
   merge: functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
   chunkToUnary: wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary,
   normalize,

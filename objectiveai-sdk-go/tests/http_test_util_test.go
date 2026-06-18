@@ -13,19 +13,19 @@ import (
 	. "github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go"
 )
 
-var testPort = os.Getenv("OBJECTIVEAI_TEST_PORT")
+var testAddress = os.Getenv("OBJECTIVEAI_ADDRESS")
 
 func assetsDir() string {
-	return filepath.Join(RepoRoot(), "objectiveai-api", "assets")
+	return filepath.Join(RepoRoot(), "tests", "objectiveai-api-tests", "assets")
 }
 
 func getTestClient(t *testing.T) *Client {
 	t.Helper()
-	if testPort == "" {
-		t.Skip("OBJECTIVEAI_TEST_PORT not set")
+	if testAddress == "" {
+		t.Skip("OBJECTIVEAI_ADDRESS not set")
 	}
 	return NewClient(func(c *Client) {
-		c.Address = fmt.Sprintf("http://127.0.0.1:%s", testPort)
+		c.Address = testAddress
 	})
 }
 

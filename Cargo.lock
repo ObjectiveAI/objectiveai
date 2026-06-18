@@ -4216,6 +4216,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "objectiveai-api-tests"
+version = "2.2.3"
+dependencies = [
+ "axum",
+ "base64 0.22.1",
+ "dunce",
+ "futures",
+ "indexmap 2.14.0",
+ "objectiveai-sdk",
+ "regex",
+ "reqwest 0.12.28",
+ "rmcp",
+ "rust_decimal",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "walkdir",
+]
+
+[[package]]
 name = "objectiveai-cli"
 version = "2.2.3"
 dependencies = [
@@ -4270,6 +4290,25 @@ dependencies = [
  "wiremock",
  "zip",
  "zstd",
+]
+
+[[package]]
+name = "objectiveai-cli-tests"
+version = "2.2.3"
+dependencies = [
+ "axum",
+ "futures",
+ "insta",
+ "notify",
+ "objectiveai-cli",
+ "objectiveai-sdk",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-stream",
+ "uuid",
+ "wiremock",
 ]
 
 [[package]]
@@ -4457,15 +4496,6 @@ dependencies = [
  "serde-wasm-bindgen",
  "serde_json",
  "wasm-bindgen",
-]
-
-[[package]]
-name = "objectiveai-test-cleanup"
-version = "0.0.0"
-dependencies = [
- "objectiveai-sdk",
- "sysinfo",
- "tokio",
 ]
 
 [[package]]

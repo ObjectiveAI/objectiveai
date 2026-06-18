@@ -72,9 +72,11 @@ fn sync_snapshots_env() {
 /// per-test state accumulates under `state/<test-fn-name>/`
 /// (gitignored).
 pub fn objectiveai_dir() -> PathBuf {
+    // <repo>/tests/objectiveai-cli-tests -> <repo> is two levels up.
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .parent()
-        .expect("crate dir has a parent")
+        .and_then(|p| p.parent())
+        .expect("crate dir is two levels under the repo root")
         .join(".objectiveai")
 }
 

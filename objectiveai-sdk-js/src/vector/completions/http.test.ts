@@ -14,7 +14,7 @@ const mockAgent = { upstream: "mock", output_mode: "instruction" };
 httpTestSuite<VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseUnaryVectorCompletion>({
   name: "vector completions http",
   fn: vectorCompletionsCreateVectorCompletion,
-  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api/assets/vector/completions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/vector/completions/client_tests"),
   merge: vectorCompletionsResponseStreamingVectorCompletionChunkMerged,
   chunkToUnary: wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary,
   normalize,

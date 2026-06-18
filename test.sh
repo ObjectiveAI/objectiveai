@@ -86,7 +86,24 @@ OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-timeout-ms set 300_000 --global
 OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set 0 --global \
   || { echo "test: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
 
-# ── Step 5: run the enabled suites in parallel ──────────────────────
+# ── Step 5: spawn the api server and publish its address ────────────
+# The sdk and integration suites all talk to ONE shared server. Spawn
+# it (idempotent behind the api lockfile singleton) and export its
+# published base URL as OBJECTIVEAI_ADDRESS — the same env var the
+# objectiveai client reads for its address — so every suite inherits
+# it.
+SPAWN_OUT="$(OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api spawn)" \
+  || { echo "test: 'api spawn' failed" >&2; printf '%s\n' "$SPAWN_OUT" >&2; exit 1; }
+OBJECTIVEAI_ADDRESS="$(printf '%s' "$SPAWN_OUT" | grep -oE 'https?://[^"]+' | head -1)"
+if [ -z "$OBJECTIVEAI_ADDRESS" ]; then
+  echo "test: could not parse a URL from 'api spawn' output:" >&2
+  printf '%s\n' "$SPAWN_OUT" >&2
+  exit 1
+fi
+export OBJECTIVEAI_ADDRESS
+echo "test: api server at $OBJECTIVEAI_ADDRESS"
+
+# ── Step 6: run the enabled suites in parallel ──────────────────────
 pids=()
 names=()
 launch() { bash "$REPO_ROOT/$2" & pids+=("$!"); names+=("$1"); }
@@ -104,7 +121,7 @@ for i in "${!pids[@]}"; do
   fi
 done
 
-# ── Step 6: kill-all again ──────────────────────────────────────────
+# ── Step 7: kill-all again ──────────────────────────────────────────
 BIN="$(oai_bin)"
 if [ -f "$BIN" ]; then
   echo "test: kill-all (post)"

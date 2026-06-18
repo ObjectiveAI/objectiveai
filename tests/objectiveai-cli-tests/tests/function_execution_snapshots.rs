@@ -6,7 +6,7 @@
 //! `normalize_for_tests`, and structurally compares the **whole**
 //! rounded `FunctionExecution` against the canonical api-side
 //! snapshot at
-//! `objectiveai-api/assets/functions/executions/client_tests/`.
+//! `tests/objectiveai-api-tests/assets/functions/executions/client_tests/`.
 //!
 //! Mirrors the canonical 3-SDK pattern in
 //! `objectiveai-sdk-py/tests/http_test_util.py`,
@@ -35,7 +35,7 @@ use objectiveai_sdk::functions::executions::response::unary::FunctionExecution;
 
 fn snapshots_dir() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../objectiveai-api/assets/functions/executions/client_tests")
+        .join("../objectiveai-api-tests/assets/functions/executions/client_tests")
 }
 
 /// Build the `function`/`profile` specs from mock fixture names.

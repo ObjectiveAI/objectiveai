@@ -25,6 +25,8 @@ members = [
     "tests/tools/error-tool",
     "objectiveai-viewer/src-tauri",
     "tests/objectiveai-tests",
+    "tests/objectiveai-api-tests",
+    "tests/objectiveai-cli-tests",
 ]
 
 [workspace.metadata.tools]

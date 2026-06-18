@@ -6,11 +6,12 @@
 # .logs/tests/<sdk>-tests-<timestamp>.txt, waits for them, and
 # aggregates exit codes: 0 iff all passed, 1 if any failed.
 #
-# The SDK test.sh scripts require OBJECTIVEAI_TEST_PORT (a running API
-# server's port); this wrapper passes the environment through unchanged.
+# The SDK test.sh scripts require OBJECTIVEAI_ADDRESS (a running API
+# server's base URL); this wrapper passes the environment through
+# unchanged.
 #
 # Usage:
-#   OBJECTIVEAI_TEST_PORT=8080 bash test-sdk.sh
+#   OBJECTIVEAI_ADDRESS=http://127.0.0.1:8080 bash test-sdk.sh
 
 set -uo pipefail
 

@@ -1,7 +1,7 @@
 """Shared utilities for HTTP integration tests.
 
-Requires a running ObjectiveAI API server. Set OBJECTIVEAI_TEST_PORT
-environment variable to the server's port.
+Requires a running ObjectiveAI API server. Set OBJECTIVEAI_ADDRESS
+environment variable to the server's base URL.
 """
 
 from __future__ import annotations
@@ -15,9 +15,9 @@ import pytest
 
 from tests.push_test_utils import rounded
 
-ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "objectiveai-api" / "assets"
+ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "tests" / "objectiveai-api-tests" / "assets"
 
-_port = os.environ.get("OBJECTIVEAI_TEST_PORT")
+_address = os.environ.get("OBJECTIVEAI_ADDRESS")
 
 
 class _AttrDict(dict):
@@ -36,10 +36,10 @@ class _AttrDict(dict):
 
 def get_test_client():
     """Create a test client connected to the local test server."""
-    if not _port:
-        pytest.skip("OBJECTIVEAI_TEST_PORT not set")
+    if not _address:
+        pytest.skip("OBJECTIVEAI_ADDRESS not set")
     from objectiveai_sdk.client import ObjectiveAI
-    return ObjectiveAI(address=f"http://127.0.0.1:{_port}")
+    return ObjectiveAI(address=_address)
 
 
 def load_snapshot(snapshots_dir: Path, name: str) -> dict:
