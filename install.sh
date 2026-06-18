@@ -9,6 +9,10 @@
 #   --objectiveai-dir <dir>   Install root. Falls back to $OBJECTIVEAI_DIR,
 #                             then $HOME/.objectiveai.
 #   --no-export-path          Don't add the bin dir to PATH / shell rc.
+#   --from-source             Build the binaries locally with build.sh
+#                             (debug) and install those instead of
+#                             downloading a release zip.
+#   --from-source-release     Same, but build in release mode.
 #
 # Zip resolution, in order:
 #   1. ./<asset>            (current working directory)
@@ -30,10 +34,10 @@
 #   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
 #   <dir>/bin/objectiveai-codex-sdk-runner{.exe}
 #
-# No toolchain required. For a from-source build, clone the repo and run
-# `bash build.sh --release` — it builds every binary and packages them into
-# <dir>/bin/objectiveai-<os>-<arch>.zip, which this installer then picks up
-# (step 2 above).
+# No toolchain required for the default (download) path. To build from a
+# repo checkout instead, pass --from-source (or --from-source-release):
+# this runs build.sh, then stages the packaged zip so the resolution
+# above picks it up (step 2) — no download.
 
 set -euo pipefail
 
@@ -45,10 +49,21 @@ REPO="ObjectiveAI/objectiveai"
 
 NO_EXPORT_PATH=0
 DIR_ARG=""
+FROM_SOURCE=0
+FROM_SOURCE_RELEASE=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --no-export-path)
       NO_EXPORT_PATH=1
+      shift
+      ;;
+    --from-source)
+      FROM_SOURCE=1
+      shift
+      ;;
+    --from-source-release)
+      FROM_SOURCE=1
+      FROM_SOURCE_RELEASE=1
       shift
       ;;
     --objectiveai-dir)
@@ -64,7 +79,7 @@ while [ "$#" -gt 0 ]; do
       shift
       ;;
     -h|--help)
-      sed -n '2,30p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
@@ -118,6 +133,37 @@ ASSET="objectiveai-${PLATFORM}-${ARCH}.zip"
 # 1. CWD, 2. <dir>/bin, 3. download into <dir>/bin (and leave it there).
 
 mkdir -p "$BIN_DIR"
+
+# ── From-source build (optional) ──────────────────────────────────────
+# --from-source / --from-source-release: build the binaries locally with
+# build.sh (binaries only — `--no-sdk` runs phase 1 + packaging), then
+# stage the resulting zip into BIN_DIR. The zip resolution below then
+# finds it as a "cached" copy (step 2) and unpacks it — no download.
+if [ "$FROM_SOURCE" = "1" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
+    echo "--from-source requires a repo checkout (build.sh not found beside install.sh)" >&2
+    exit 1
+  fi
+  BUILD_ARGS=(--no-sdk)
+  if [ "$FROM_SOURCE_RELEASE" = "1" ]; then
+    BUILD_ARGS+=(--release)
+  fi
+  echo "Building from source: bash build.sh ${BUILD_ARGS[*]}"
+  bash "$SCRIPT_DIR/build.sh" "${BUILD_ARGS[@]}"
+  # build.sh packages the host zip into
+  # ${OBJECTIVEAI_DIR:-$HOME/.objectiveai}/bin/<asset> — the same dir
+  # resolution build.sh itself uses (it doesn't know --objectiveai-dir).
+  BUILT_ZIP="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}/bin/$ASSET"
+  if [ ! -f "$BUILT_ZIP" ]; then
+    echo "build.sh did not produce $BUILT_ZIP" >&2
+    exit 1
+  fi
+  if [ "$BUILT_ZIP" != "$BIN_DIR/$ASSET" ]; then
+    cp -f "$BUILT_ZIP" "$BIN_DIR/$ASSET"
+    echo "Staged $ASSET into $BIN_DIR."
+  fi
+fi
 
 download() {
   local url="$1" dst="$2"
