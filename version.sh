@@ -209,9 +209,9 @@ ensure_py_module_version() {
 }
 
 # Overwrite a single-line version file (the Go SDK's independent
-# version source — see objectiveai-sdk-go/publish.sh). The lockstep
-# bump moves it along with everything else by default; edit the file
-# alone to release (or hold back) the Go SDK independently.
+# version source — the Release workflow tags objectiveai-sdk-go/v<this>).
+# The lockstep bump moves it along with everything else by default; edit
+# the file alone to release (or hold back) the Go SDK independently.
 set_version_txt() {
   local file="$1"
   printf '%s\n' "$NEW_VERSION" > "$file"

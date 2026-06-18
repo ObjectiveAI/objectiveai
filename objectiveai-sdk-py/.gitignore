@@ -11,6 +11,7 @@ build/
 .pytest_cache/
 target/
 
-# Staged at publish time by publish.sh — copied from repo root, not tracked here.
+# Staged at build time (copied from repo root by build.sh / the Release
+# workflow), not tracked here.
 /LICENSE
 /README.md

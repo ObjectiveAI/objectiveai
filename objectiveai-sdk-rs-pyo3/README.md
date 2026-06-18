@@ -21,8 +21,10 @@ There is no standalone build for this crate; it is built as part of the
 
 ```bash
 bash objectiveai-sdk-py/build.sh             # local dev (maturin develop)
-bash objectiveai-sdk-py/publish.sh           # cross-platform wheels via GHA
 ```
+
+Cross-platform wheels are built and published to PyPI by the `Release`
+GitHub Actions workflow on a version bump.
 
 `maturin` reads `objectiveai-sdk-py/pyproject.toml`, follows `manifest-path` to
 this `Cargo.toml`, and produces a wheel containing the pure-Python sources

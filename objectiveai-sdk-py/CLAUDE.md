@@ -17,7 +17,7 @@ objectiveai-sdk-py/
 │   └── _pyo3.<abi>.pyd     # built by maturin into the package at install/develop time
 ├── scripts/install_pydantic.py
 ├── tests/
-├── build.sh, test.sh, publish.sh
+├── build.sh, test.sh
 └── requirements.txt, requirements-dev.txt
 
 ../objectiveai-sdk-rs-pyo3/
@@ -81,31 +81,13 @@ objectiveai-sdk-py/venv/Scripts/python.exe -m pytest objectiveai-sdk-py/tests/te
 
 ## Publish
 
-Real publishes are cross-platform via the GitHub Actions workflow at
-`.github/workflows/publish-objectiveai-sdk-py.yml`. It builds wheels for
-linux-x86_64, linux-aarch64, macos-x86_64, macos-arm64, windows-x86_64
-plus an sdist, then uploads to PyPI via Trusted Publishing.
-
-```bash
-bash objectiveai-sdk-py/publish.sh                  # PyPI (cross-platform via GHA)
-bash objectiveai-sdk-py/publish.sh --test           # TestPyPI (cross-platform via GHA)
-bash objectiveai-sdk-py/publish.sh --build-only     # local single-platform sanity check
-```
+There is no per-package publish script. The unified `Release` GitHub Actions
+workflow (`.github/workflows/release.yml`) publishes everything on a
+CLI-version bump: its `python` jobs build cross-platform wheels
+(linux-x86_64, linux-aarch64, macos-arm64, windows-x86_64) plus an sdist via
+maturin — using the committed Pydantic types (no codegen) — and upload to
+PyPI with the `PYPI_API_TOKEN` repo secret (`skip-existing`).
 
 The wheels use `pyo3 = { features = ["abi3-py310"] }`, so each per-platform
 wheel is forward-compatible across CPython 3.10+ — only one wheel per
 platform, not one per (platform × Python version).
-
-### One-time setup for Trusted Publishing
-
-1. Configure trusted publishing on PyPI:
-   https://pypi.org/manage/project/objectiveai/settings/publishing/
-   Add a "GitHub Actions" trusted publisher pointing at this workflow with
-   environment name `pypi` (and `testpypi` if you also want test uploads).
-2. Create matching environments in this repo's settings → environments.
-3. `gh` CLI must be authenticated locally (`gh auth login`) for the script
-   to dispatch the workflow.
-
-No `TWINE_USERNAME`/`TWINE_PASSWORD` is needed for the GHA path — Trusted
-Publishing uses OIDC. The local `.env` is only relevant for `--build-only`
-mode (which doesn't upload anyway).

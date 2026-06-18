@@ -91,8 +91,8 @@ run() {
   "$PYTHON" "$SCRIPT_DIR/scripts/install_pydantic.py"
 
   # ── stage README + LICENSE (pyproject.toml references them; sdists can't
-  # include `../`, so we copy the canonical files from repo root). Matches
-  # publish.sh — gitignored, never committed.
+  # include `../`, so we copy the canonical files from repo root). Gitignored,
+  # never committed.
   cp "$REPO_ROOT/README.md" "$SCRIPT_DIR/README.md"
   cp "$REPO_ROOT/LICENSE" "$SCRIPT_DIR/LICENSE"
 
