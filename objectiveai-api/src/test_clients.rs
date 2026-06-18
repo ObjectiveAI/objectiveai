@@ -320,11 +320,6 @@ static PROXY_SPAWNER: LazyLock<Arc<crate::agent::completions::ProxyFactory>> = L
         || objectiveai_mcp_proxy::ConfigBuilder {
             mcp_connect_timeout: Some(MCP_CONNECT_TIMEOUT_MS),
             mcp_call_timeout: Some(MCP_CALL_TIMEOUT_MS),
-            mcp_backoff_current_interval: Some(MCP_BACKOFF_CURRENT_INTERVAL_MS),
-            mcp_backoff_initial_interval: Some(MCP_BACKOFF_INITIAL_INTERVAL_MS),
-            mcp_backoff_randomization_factor: Some(MCP_BACKOFF_RANDOMIZATION_FACTOR),
-            mcp_backoff_multiplier: Some(MCP_BACKOFF_MULTIPLIER),
-            mcp_backoff_max_interval: Some(MCP_BACKOFF_MAX_INTERVAL_MS),
             mcp_backoff_max_elapsed_time: Some(MCP_BACKOFF_MAX_ELAPSED_TIME_MS),
             ..Default::default()
         },
