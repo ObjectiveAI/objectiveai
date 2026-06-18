@@ -79,7 +79,7 @@ for p in md["packages"]:
     names.add(p["name"])
 for n in sorted(names):
     print(n)
-'
+' | tr -d '\r'
 )
 
 if [ "${#CRATES[@]}" -eq 0 ]; then
