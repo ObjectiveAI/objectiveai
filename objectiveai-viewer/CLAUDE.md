@@ -74,4 +74,4 @@ When developing a plugin with `viewer_url: "http://localhost:5173"`, run your de
 - `pnpm --filter objectiveai-viewer run build` — front-end TypeScript + Vite build.
 - `pnpm tauri dev` (from `objectiveai-viewer/`) — Tauri dev shell with Vite HMR.
 - `bash objectiveai-viewer/test.sh` — Rust + integration tests. Uses `--lib --tests` to skip the bin target (Tauri's deps can't link in `cargo test`'s bin pass).
-- `bash objectiveai-viewer/install.sh` — production build, lands at `~/.objectiveai/objectiveai-viewer(.exe)`.
+- `bash objectiveai-viewer/build.sh [--release]` — production build via `tauri build` (embeds the frontend + icon), lands raw in `objectiveai-viewer/embed/objectiveai-viewer(.exe)`.

@@ -30,8 +30,10 @@
 #   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
 #   <dir>/bin/objectiveai-codex-sdk-runner{.exe}
 #
-# No toolchain required. For a from-source install, clone the repo and run
-# the per-crate install.sh scripts.
+# No toolchain required. For a from-source build, clone the repo and run
+# `bash build.sh --release` — it builds every binary and packages them into
+# <dir>/bin/objectiveai-<os>-<arch>.zip, which this installer then picks up
+# (step 2 above).
 
 set -euo pipefail
 
