@@ -1,15 +1,18 @@
 #!/usr/bin/env bash
 # Builds all packages in dependency order with parallelism.
 #
-# Phase 1 (background, NOT awaited until the very end): the Rust product
-#   binaries — one cargo build of viewer, cli, api, db, mcp in a SINGLE
-#   invocation so they share the compile cache — plus the two PyInstaller
-#   SDK runners (claude + codex). None of these need the phase-2 build
-#   tools or the json schemas, so they start immediately and run
-#   concurrently with everything below. (build_bin's `cargo install` uses a
-#   throwaway target dir, so it doesn't fight this build for the workspace
-#   target lock; the json-schema/cffi/pyo3 cargo steps do share it and so
-#   serialize behind this build — fine, they're quick once they get it.)
+# Phase 1 (background, NOT awaited until the very end): the product binaries
+#   — one cargo build of cli, api, db, mcp in a SINGLE invocation (shared
+#   compile cache); the Tauri viewer via objectiveai-viewer/build.sh
+#   (`tauri build`, which builds the frontend against the committed
+#   workspace SDK and embeds it + the icon, then drops the binary raw in
+#   objectiveai-viewer/embed/); and the two PyInstaller SDK runners (claude
+#   + codex). None need the phase-2 build tools or json schemas, so they
+#   start immediately and run concurrently with everything below.
+#   (build_bin's `cargo install` uses a throwaway target dir, so it doesn't
+#   fight this build for the workspace target lock; the json-schema/cffi/pyo3
+#   cargo steps do share it and serialize behind it — fine, they're quick
+#   once they get it.)
 # Phase 2 (parallel): build/dev tools (wasm-pack, maturin, cargo-nextest,
 #   into ./bin/) + objectiveai-json-schema. Independent of each other; both
 #   must finish before phases 3+4, which need the tools + the schemas.
@@ -23,12 +26,9 @@
 #        (objectiveai-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
 #        so the installer / `objectiveai update` can use it locally. Host
 #        only — not the other five platforms.
-# The viewer is NOT built (as a Tauri bundle) here. Nothing consumes
-# objectiveai-viewer/embed/ anymore (the cli stopped embedding the
-# viewer binary; its build.rs only sets linker flags), and the GitHub
-# Release viewer legs build their own binaries via
-# objectiveai-viewer/install.sh. Run `bash objectiveai-viewer/build.sh`
-# directly if you want a local embed build.
+# The viewer is built with `tauri build --no-bundle` (a raw exe, no
+# installer bundle) — the cli no longer embeds it; this build just stages
+# it into the zip alongside the others.
 #
 # Build profile defaults to debug. Pass --release for optimized builds;
 # this propagates (via OBJECTIVEAI_BUILD_RELEASE) to the cffi, wasm-js,
@@ -144,8 +144,11 @@ build_bin() {
 }
 
 # ── Phase 1 (background; awaited at the very end) ───────────────────────
-# The five product crates in one cargo build (shared cache) + the two
-# PyInstaller SDK runners. mcp-proxy is NOT built here — objectiveai-api
+# The four CLI/server product crates in one cargo build (shared cache),
+# the Tauri viewer via its own build.sh (`tauri build` — embeds the frontend
+# + icon; the frontend resolves @objectiveai/sdk from the committed
+# workspace dist, so no SDK build is needed here), and the two PyInstaller
+# SDK runners. mcp-proxy is NOT built here — objectiveai-api
 # consumes it in-process as a regular cargo path dep, folded into the api's
 # own cargo build. Skipped entirely under --no-zip (these binaries exist
 # only to be packaged; nothing in phases 2-4 depends on them).
@@ -158,7 +161,6 @@ if [ "$NO_ZIP" != "1" ]; then
   (
     cd "$REPO_ROOT"
     if cargo build $PROFILE_FLAG \
-         -p objectiveai-viewer \
          -p objectiveai-cli \
          -p objectiveai-api \
          -p objectiveai-db \
@@ -171,6 +173,14 @@ if [ "$NO_ZIP" != "1" ]; then
     fi
   ) &
   CARGO_WORKSPACE_PID=$!
+
+  # The viewer is a Tauri app: its build.sh runs `tauri build`, which builds
+  # the frontend (vite, against the committed workspace SDK — no SDK build
+  # needed) and embeds it + the icon, then drops the binary raw in
+  # objectiveai-viewer/embed/. A plain `cargo build -p objectiveai-viewer`
+  # would produce a non-working dev-mode binary (no frontend, no icon).
+  bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
+  VIEWER_PID=$!
 fi
 
 # ── Phases 2-4 (the SDK toolchain) ──────────────────────────────────────
@@ -213,11 +223,11 @@ if [ "$NO_SDK" != "1" ]; then
   run_phase objectiveai-sdk-js/build.sh objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
 fi
 
-# Wait for the background phase-1 jobs (the 5-crate cargo build + runners).
+# Wait for the background phase-1 jobs (cargo bins + viewer + runners).
 # Skipped under --no-zip (phase 1 never launched).
 if [ "$NO_ZIP" != "1" ]; then
   FAILED=false
-  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID; do
+  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID; do
     if ! wait "$pid"; then
       FAILED=true
     fi
@@ -267,9 +277,11 @@ package_host_zip() {
   rm -rf "$stage"; mkdir -p "$stage"
 
   local cargo_dir="$REPO_ROOT/target/$profile"
-  # built basename | shipped basename
-  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-viewer|objectiveai-viewer objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db"
-  local entry built ship src
+  local src
+  # The four CLI/server crates from the cargo build (built-name -> ship-name;
+  # the cli crate builds as objectiveai-cli but ships as objectiveai).
+  local pairs="objectiveai-cli|objectiveai objectiveai-api|objectiveai-api objectiveai-mcp|objectiveai-mcp objectiveai-db|objectiveai-db"
+  local entry built ship
   for entry in $pairs; do
     built="${entry%%|*}"; ship="${entry##*|}"
     src="$cargo_dir/$built$ext"
@@ -278,6 +290,14 @@ package_host_zip() {
     fi
     cp "$src" "$stage/$ship$ext"
   done
+
+  # The viewer comes from its `tauri build` (objectiveai-viewer/build.sh),
+  # which places it raw in objectiveai-viewer/embed/ — NOT target/.
+  src="$REPO_ROOT/objectiveai-viewer/embed/objectiveai-viewer$ext"
+  if [ ! -f "$src" ]; then
+    echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
+  fi
+  cp "$src" "$stage/objectiveai-viewer$ext"
 
   local r
   for r in objectiveai-claude-agent-sdk-runner objectiveai-codex-sdk-runner; do

@@ -30,7 +30,10 @@ if [ -z "$TARGET" ]; then
   TARGET=$(rustc -vV | grep '^host:' | awk '{print $2}')
 fi
 
-EMBED_DIR="$SCRIPT_DIR/embed/$TARGET/$PROFILE"
+# The binary lands raw in embed/ (no <target>/<profile> subdir — each
+# checkout builds for its own host). TARGET/PROFILE still drive the tauri
+# build + the PROFILE line in the hash, so debug vs release still differ.
+EMBED_DIR="$SCRIPT_DIR/embed"
 FINGERPRINT_FILE="$EMBED_DIR/.fingerprint"
 
 # macOS ships `shasum` (Perl) but not GNU `sha256sum`; prefer the latter
@@ -83,7 +86,7 @@ export CURRENT_FP FINGERPRINT_FILE TARGET PROFILE
 if [ -f "$FINGERPRINT_FILE" ]; then
   STORED_FP=$(cat "$FINGERPRINT_FILE")
   if [ "$CURRENT_FP" = "$STORED_FP" ]; then
-    echo "embed/$TARGET/$PROFILE is up to date (fingerprint: ${CURRENT_FP:0:12}...)"
+    echo "embed/ is up to date ($PROFILE, fingerprint: ${CURRENT_FP:0:12}...)"
     return 1 2>/dev/null || exit 1
   fi
   echo "Fingerprint changed: ${STORED_FP:0:12}... -> ${CURRENT_FP:0:12}..."

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Builds objectiveai-viewer and places the binary in embed/<target>/<profile>/.
+# Builds objectiveai-viewer (via `tauri build`, so the frontend + icon are
+# embedded) and places the binary raw in embed/ (embed/objectiveai-viewer[.exe]).
 # Skips the build if the source fingerprint hasn't changed.
 # All arguments are forwarded to cargo build.
 # Output is captured to .logs/build/objectiveai-viewer.txt.
@@ -54,8 +55,8 @@ run() {
     return 1
   fi
 
-  # Copy binary to embed/<target>/<profile>/
-  EMBED_DIR="$SCRIPT_DIR/embed/$TARGET/$PROFILE"
+  # Copy binary raw into embed/ (no <target>/<profile> subdir).
+  EMBED_DIR="$SCRIPT_DIR/embed"
   mkdir -p "$EMBED_DIR"
 
   if [[ "$TARGET" == *"windows"* ]]; then
