@@ -2342,6 +2342,107 @@ async function apiConfigAddressSetResponseSchemaExecuteTransform(request, transf
   }
   return first;
 }
+var CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema = zod.z.object({
+  backoff_max_elapsed_time_ms: zod.z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
+}).meta({ title: "cli.command.api.config.backoff_max_elapsed_time_ms.get.Response" });
+
+// src/viewer/command/api/config/backoff_max_elapsed_time_ms/get.ts
+async function apiConfigBackoffMaxElapsedTimeMsGetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), zod.z.union([CliErrorSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms get response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/backoff_max_elapsed_time_ms/set" }), zod.z.union([CliErrorSchema, CliCommandOkSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/backoff_max_elapsed_time_ms/set" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/backoff_max_elapsed_time_ms/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/set/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "api/config/backoff_max_elapsed_time_ms/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/set/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("api config backoff_max_elapsed_time_ms set response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
 var CliCommandApiConfigCommitAuthorEmailGetResponseSchema = zod.z.object({
   commit_author_email: zod.z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.commit_author_email.get.Response" });
@@ -4701,6 +4802,59 @@ async function functionsPublishResponseSchemaExecuteTransform(request, transform
   }
   return first;
 }
+var CliCommandKillAllResponseSchema = zod.z.object({
+  killed: zod.z.number().int().min(0).max(4294967295)
+}).meta({ title: "cli.command.kill_all.Response" });
+
+// src/viewer/command/kill_all.ts
+async function killAllExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "kill-all" }), zod.z.union([CliErrorSchema, CliCommandKillAllResponseSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function killAllExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "kill-all" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function killAllRequestSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "kill-all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function killAllRequestSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "kill-all/request_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all request_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function killAllResponseSchemaExecute(request) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, path_type: "kill-all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
+async function killAllResponseSchemaExecuteTransform(request, transform) {
+  const stream = new CliStream(invokeCliRequest({ ...request, jq: void 0, python: void 0, ...transform, path_type: "kill-all/response_schema" }), zod.z.union([CliErrorSchema, JsonValueSchema]));
+  const first = await stream.first();
+  if (first === void 0) {
+    throw new Error("kill_all response_schema: cli produced no output before the end marker");
+  }
+  return first;
+}
 var CliCommandMcpConfigAddressGetResponseSchema = zod.z.object({
   address: zod.z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.mcp.config.address.get.Response" });
@@ -6728,6 +6882,18 @@ exports.apiConfigAddressSetRequestSchemaExecute = apiConfigAddressSetRequestSche
 exports.apiConfigAddressSetRequestSchemaExecuteTransform = apiConfigAddressSetRequestSchemaExecuteTransform;
 exports.apiConfigAddressSetResponseSchemaExecute = apiConfigAddressSetResponseSchemaExecute;
 exports.apiConfigAddressSetResponseSchemaExecuteTransform = apiConfigAddressSetResponseSchemaExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsGetExecute = apiConfigBackoffMaxElapsedTimeMsGetExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform = apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute = apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform = apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute = apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform = apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsSetExecute = apiConfigBackoffMaxElapsedTimeMsSetExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform = apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute = apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform = apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform;
+exports.apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute = apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute;
+exports.apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform = apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform;
 exports.apiConfigCommitAuthorEmailGetExecute = apiConfigCommitAuthorEmailGetExecute;
 exports.apiConfigCommitAuthorEmailGetExecuteTransform = apiConfigCommitAuthorEmailGetExecuteTransform;
 exports.apiConfigCommitAuthorEmailGetRequestSchemaExecute = apiConfigCommitAuthorEmailGetRequestSchemaExecute;
@@ -6997,6 +7163,12 @@ exports.functionsPublishRequestSchemaExecuteTransform = functionsPublishRequestS
 exports.functionsPublishResponseSchemaExecute = functionsPublishResponseSchemaExecute;
 exports.functionsPublishResponseSchemaExecuteTransform = functionsPublishResponseSchemaExecuteTransform;
 exports.invokeCliRequest = invokeCliRequest;
+exports.killAllExecute = killAllExecute;
+exports.killAllExecuteTransform = killAllExecuteTransform;
+exports.killAllRequestSchemaExecute = killAllRequestSchemaExecute;
+exports.killAllRequestSchemaExecuteTransform = killAllRequestSchemaExecuteTransform;
+exports.killAllResponseSchemaExecute = killAllResponseSchemaExecute;
+exports.killAllResponseSchemaExecuteTransform = killAllResponseSchemaExecuteTransform;
 exports.listen = listen2;
 exports.mcpConfigAddressGetExecute = mcpConfigAddressGetExecute;
 exports.mcpConfigAddressGetExecuteTransform = mcpConfigAddressGetExecuteTransform;

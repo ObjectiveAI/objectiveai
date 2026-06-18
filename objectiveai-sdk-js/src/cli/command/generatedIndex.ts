@@ -4,6 +4,7 @@ export * from "./agents/index";
 export * from "./api/index";
 export * from "./db/index";
 export * from "./functions/index";
+export * from "./kill_all/index";
 export * from "./mcp/index";
 export * from "./plugins/index";
 export * from "./swarms/index";

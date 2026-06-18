@@ -38,6 +38,10 @@
       "$ref": "cli.command.api.config.mcp_timeout_ms.Request"
     },
     {
+      "title": "BackoffMaxElapsedTimeMs",
+      "$ref": "cli.command.api.config.backoff_max_elapsed_time_ms.Request"
+    },
+    {
       "title": "UserAgent",
       "$ref": "cli.command.api.config.user_agent.Request"
     },

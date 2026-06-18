@@ -12,6 +12,9 @@ type CliCommandRequest struct {
 	API *CliCommandApiRequest `variantTitle:"Api"`
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
+	KillAll *CliCommandKillAllRequest 
+	KillAllRequestSchema *CliCommandKillAllRequestSchemaRequest 
+	KillAllResponseSchema *CliCommandKillAllResponseSchemaRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
 	Swarms *CliCommandSwarmsRequest 
@@ -35,6 +38,15 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Functions != nil {
 		return json.Marshal(v.Functions)
+	}
+	if v.KillAll != nil {
+		return json.Marshal(v.KillAll)
+	}
+	if v.KillAllRequestSchema != nil {
+		return json.Marshal(v.KillAllRequestSchema)
+	}
+	if v.KillAllResponseSchema != nil {
+		return json.Marshal(v.KillAllResponseSchema)
 	}
 	if v.MCP != nil {
 		return json.Marshal(v.MCP)
@@ -105,6 +117,39 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.Functions = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandKillAllRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.KillAll = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandKillAllRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.KillAllRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandKillAllResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.KillAllResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -219,6 +264,9 @@ func (v CliCommandRequest) Validate() error {
 	if v.API != nil { count++ }
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
+	if v.KillAll != nil { count++ }
+	if v.KillAllRequestSchema != nil { count++ }
+	if v.KillAllResponseSchema != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
 	if v.Swarms != nil { count++ }
