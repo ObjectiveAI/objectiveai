@@ -17,6 +17,16 @@ use objectiveai_sdk::mcp::Client;
 use crate::session_manager::SessionManager;
 use crate::{AppState, mcp};
 
+// Backoff knobs other than the max-elapsed-time are no longer configurable;
+// the MCP retry policy uses these fixed defaults. Only
+// `MCP_BACKOFF_MAX_ELAPSED_TIME` stays env-configurable. Kept in lockstep
+// with objectiveai-api/src/run.rs.
+const BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
+const BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;
+const BACKOFF_MULTIPLIER: f64 = 1.5;
+const BACKOFF_MAX_INTERVAL_MS: u64 = 1000;
+const BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS: u64 = 60000;
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "ADDRESS")]
@@ -33,16 +43,6 @@ struct EnvConfigBuilder {
     mcp_connect_timeout: Option<u64>,
     #[envconfig(from = "MCP_CALL_TIMEOUT")]
     mcp_call_timeout: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_CURRENT_INTERVAL")]
-    mcp_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_INITIAL_INTERVAL")]
-    mcp_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_RANDOMIZATION_FACTOR")]
-    mcp_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MULTIPLIER")]
-    mcp_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MAX_INTERVAL")]
-    mcp_backoff_max_interval: Option<u64>,
     #[envconfig(from = "MCP_BACKOFF_MAX_ELAPSED_TIME")]
     mcp_backoff_max_elapsed_time: Option<u64>,
     /// Base64-encoded 32-byte key. Used to AEAD-encrypt the proxy
@@ -78,11 +78,6 @@ impl EnvConfigBuilder {
             x_title: self.x_title,
             mcp_connect_timeout: self.mcp_connect_timeout,
             mcp_call_timeout: self.mcp_call_timeout,
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval,
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval,
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor,
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier,
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval,
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time,
             mcp_encryption_key: match self.mcp_encryption_key.as_deref() {
                 Some(s) => match crate::session_manager::parse_key_env(s) {
@@ -111,11 +106,6 @@ pub struct ConfigBuilder {
     pub x_title: Option<String>,
     pub mcp_connect_timeout: Option<u64>,
     pub mcp_call_timeout: Option<u64>,
-    pub mcp_backoff_current_interval: Option<u64>,
-    pub mcp_backoff_initial_interval: Option<u64>,
-    pub mcp_backoff_randomization_factor: Option<f64>,
-    pub mcp_backoff_multiplier: Option<f64>,
-    pub mcp_backoff_max_interval: Option<u64>,
     pub mcp_backoff_max_elapsed_time: Option<u64>,
     /// 256-bit AEAD key. `None` → the proxy generates one ephemeral
     /// key per process. See [`EnvConfigBuilder`]'s `mcp_encryption_key`
@@ -163,12 +153,7 @@ impl ConfigBuilder {
             // either binary independently.
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(60000),
             mcp_call_timeout: self.mcp_call_timeout.unwrap_or(60000),
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval.unwrap_or(100),
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval.unwrap_or(100),
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor.unwrap_or(0.5),
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier.unwrap_or(1.5),
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval.unwrap_or(1000),
-            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(40000),
+            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             mcp_encryption_key: self.mcp_encryption_key,
             suppress_output: self.suppress_output.unwrap_or(false),
             logs_dir: self.logs_dir.map(std::path::PathBuf::from),
@@ -184,11 +169,6 @@ pub struct Config {
     pub x_title: String,
     pub mcp_connect_timeout: u64,
     pub mcp_call_timeout: u64,
-    pub mcp_backoff_current_interval: u64,
-    pub mcp_backoff_initial_interval: u64,
-    pub mcp_backoff_randomization_factor: f64,
-    pub mcp_backoff_multiplier: f64,
-    pub mcp_backoff_max_interval: u64,
     pub mcp_backoff_max_elapsed_time: u64,
     /// `None` → caller / proxy will generate one ephemeral key.
     pub mcp_encryption_key: Option<[u8; 32]>,
@@ -211,11 +191,6 @@ pub async fn setup(
         x_title,
         mcp_connect_timeout,
         mcp_call_timeout,
-        mcp_backoff_current_interval,
-        mcp_backoff_initial_interval,
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        mcp_backoff_max_interval,
         mcp_backoff_max_elapsed_time,
         mcp_encryption_key,
         suppress_output: _,
@@ -228,11 +203,11 @@ pub async fn setup(
         x_title,
         http_referer,
         Duration::from_millis(mcp_connect_timeout),
-        Duration::from_millis(mcp_backoff_current_interval),
-        Duration::from_millis(mcp_backoff_initial_interval),
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        Duration::from_millis(mcp_backoff_max_interval),
+        Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         Duration::from_millis(mcp_backoff_max_elapsed_time),
         Duration::from_millis(mcp_call_timeout),
     );

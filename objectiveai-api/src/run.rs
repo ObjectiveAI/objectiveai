@@ -22,6 +22,15 @@ use crate::{
 use std::{convert::Infallible, sync::Arc};
 use tokio_stream::StreamExt;
 
+// Backoff knobs other than the max-elapsed-time are no longer configurable;
+// every retry policy (agent completions, mcp, github) uses these fixed
+// defaults. Only `*_BACKOFF_MAX_ELAPSED_TIME` stays env-configurable.
+const BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
+const BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;
+const BACKOFF_MULTIPLIER: f64 = 1.5;
+const BACKOFF_MAX_INTERVAL_MS: u64 = 1000;
+const BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS: u64 = 60000;
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     // -- HttpClient fields (identical order across all 3 structs) --
@@ -60,40 +69,12 @@ struct EnvConfigBuilder {
     codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     #[envconfig(from = "CODEX_SDK_QUERY_LIMIT")]
     codex_sdk_query_limit: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL")]
-    agent_completions_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL")]
-    agent_completions_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_RANDOMIZATION_FACTOR")]
-    agent_completions_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MULTIPLIER")]
-    agent_completions_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL")]
-    agent_completions_backoff_max_interval: Option<u64>,
+    // Only the max-elapsed-time is configurable; the rest of the backoff
+    // policy uses fixed defaults.
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME")]
     agent_completions_backoff_max_elapsed_time: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_CURRENT_INTERVAL")]
-    mcp_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_INITIAL_INTERVAL")]
-    mcp_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_RANDOMIZATION_FACTOR")]
-    mcp_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MULTIPLIER")]
-    mcp_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MAX_INTERVAL")]
-    mcp_backoff_max_interval: Option<u64>,
     #[envconfig(from = "MCP_BACKOFF_MAX_ELAPSED_TIME")]
     mcp_backoff_max_elapsed_time: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_CURRENT_INTERVAL")]
-    github_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_INITIAL_INTERVAL")]
-    github_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_RANDOMIZATION_FACTOR")]
-    github_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "GITHUB_BACKOFF_MULTIPLIER")]
-    github_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "GITHUB_BACKOFF_MAX_INTERVAL")]
-    github_backoff_max_interval: Option<u64>,
     #[envconfig(from = "GITHUB_BACKOFF_MAX_ELAPSED_TIME")]
     github_backoff_max_elapsed_time: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT")]
@@ -151,23 +132,8 @@ impl EnvConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries,
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs,
             codex_sdk_query_limit: self.codex_sdk_query_limit,
-            agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval,
-            agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval,
-            agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor,
-            agent_completions_backoff_multiplier: self.agent_completions_backoff_multiplier,
-            agent_completions_backoff_max_interval: self.agent_completions_backoff_max_interval,
             agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time,
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval,
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval,
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor,
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier,
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval,
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time,
-            github_backoff_current_interval: self.github_backoff_current_interval,
-            github_backoff_initial_interval: self.github_backoff_initial_interval,
-            github_backoff_randomization_factor: self.github_backoff_randomization_factor,
-            github_backoff_multiplier: self.github_backoff_multiplier,
-            github_backoff_max_interval: self.github_backoff_max_interval,
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time,
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout,
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
@@ -207,23 +173,8 @@ pub struct ConfigBuilder {
     pub codex_sdk_rate_limit_max_retries: Option<u64>,
     pub codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     pub codex_sdk_query_limit: Option<u64>,
-    pub agent_completions_backoff_current_interval: Option<u64>,
-    pub agent_completions_backoff_initial_interval: Option<u64>,
-    pub agent_completions_backoff_randomization_factor: Option<f64>,
-    pub agent_completions_backoff_multiplier: Option<f64>,
-    pub agent_completions_backoff_max_interval: Option<u64>,
     pub agent_completions_backoff_max_elapsed_time: Option<u64>,
-    pub mcp_backoff_current_interval: Option<u64>,
-    pub mcp_backoff_initial_interval: Option<u64>,
-    pub mcp_backoff_randomization_factor: Option<f64>,
-    pub mcp_backoff_multiplier: Option<f64>,
-    pub mcp_backoff_max_interval: Option<u64>,
     pub mcp_backoff_max_elapsed_time: Option<u64>,
-    pub github_backoff_current_interval: Option<u64>,
-    pub github_backoff_initial_interval: Option<u64>,
-    pub github_backoff_randomization_factor: Option<f64>,
-    pub github_backoff_multiplier: Option<f64>,
-    pub github_backoff_max_interval: Option<u64>,
     pub github_backoff_max_elapsed_time: Option<u64>,
     pub agent_completions_first_chunk_timeout: Option<u64>,
     pub agent_completions_other_chunk_timeout: Option<u64>,
@@ -277,24 +228,9 @@ impl ConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries.unwrap_or(10),
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs.unwrap_or(180),
             codex_sdk_query_limit: self.codex_sdk_query_limit.unwrap_or(10),
-            agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval.unwrap_or(100),
-            agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval.unwrap_or(100),
-            agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor.unwrap_or(0.5),
-            agent_completions_backoff_multiplier: self.agent_completions_backoff_multiplier.unwrap_or(1.5),
-            agent_completions_backoff_max_interval: self.agent_completions_backoff_max_interval.unwrap_or(1000),
-            agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time.unwrap_or(40000),
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval.unwrap_or(100),
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval.unwrap_or(100),
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor.unwrap_or(0.5),
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier.unwrap_or(1.5),
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval.unwrap_or(1000),
-            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(40000),
-            github_backoff_current_interval: self.github_backoff_current_interval.unwrap_or(100),
-            github_backoff_initial_interval: self.github_backoff_initial_interval.unwrap_or(100),
-            github_backoff_randomization_factor: self.github_backoff_randomization_factor.unwrap_or(0.5),
-            github_backoff_multiplier: self.github_backoff_multiplier.unwrap_or(1.5),
-            github_backoff_max_interval: self.github_backoff_max_interval.unwrap_or(1000),
-            github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(40000),
+            agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
+            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
+            github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(60000),
@@ -343,23 +279,8 @@ pub struct Config {
     pub codex_sdk_rate_limit_max_retries: u64,
     pub codex_sdk_rate_limit_max_wait_secs: u64,
     pub codex_sdk_query_limit: u64,
-    pub agent_completions_backoff_current_interval: u64,
-    pub agent_completions_backoff_initial_interval: u64,
-    pub agent_completions_backoff_randomization_factor: f64,
-    pub agent_completions_backoff_multiplier: f64,
-    pub agent_completions_backoff_max_interval: u64,
     pub agent_completions_backoff_max_elapsed_time: u64,
-    pub mcp_backoff_current_interval: u64,
-    pub mcp_backoff_initial_interval: u64,
-    pub mcp_backoff_randomization_factor: f64,
-    pub mcp_backoff_multiplier: f64,
-    pub mcp_backoff_max_interval: u64,
     pub mcp_backoff_max_elapsed_time: u64,
-    pub github_backoff_current_interval: u64,
-    pub github_backoff_initial_interval: u64,
-    pub github_backoff_randomization_factor: f64,
-    pub github_backoff_multiplier: f64,
-    pub github_backoff_max_interval: u64,
     pub github_backoff_max_elapsed_time: u64,
     pub agent_completions_first_chunk_timeout: u64,
     pub agent_completions_other_chunk_timeout: u64,
@@ -411,23 +332,8 @@ pub async fn setup(
         codex_sdk_rate_limit_max_retries,
         codex_sdk_rate_limit_max_wait_secs,
         codex_sdk_query_limit,
-        agent_completions_backoff_current_interval,
-        agent_completions_backoff_initial_interval,
-        agent_completions_backoff_randomization_factor,
-        agent_completions_backoff_multiplier,
-        agent_completions_backoff_max_interval,
         agent_completions_backoff_max_elapsed_time,
-        mcp_backoff_current_interval,
-        mcp_backoff_initial_interval,
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        mcp_backoff_max_interval,
         mcp_backoff_max_elapsed_time,
-        github_backoff_current_interval,
-        github_backoff_initial_interval,
-        github_backoff_randomization_factor,
-        github_backoff_multiplier,
-        github_backoff_max_interval,
         github_backoff_max_elapsed_time,
         agent_completions_first_chunk_timeout,
         agent_completions_other_chunk_timeout,
@@ -478,11 +384,11 @@ pub async fn setup(
         user_agent.clone(),
         x_title.clone(),
         http_referer.clone(),
-        std::time::Duration::from_millis(github_backoff_current_interval),
-        std::time::Duration::from_millis(github_backoff_initial_interval),
-        github_backoff_randomization_factor,
-        github_backoff_multiplier,
-        std::time::Duration::from_millis(github_backoff_max_interval),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(github_backoff_max_elapsed_time),
     ));
 
@@ -504,18 +410,12 @@ pub async fn setup(
         x_title.clone(),
         http_referer.clone(),
         std::time::Duration::from_millis(mcp_connect_timeout),
-        std::time::Duration::from_millis(
-            mcp_backoff_current_interval,
-        ),
-        std::time::Duration::from_millis(
-            mcp_backoff_initial_interval,
-        ),
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        std::time::Duration::from_millis(mcp_backoff_max_interval),
-        std::time::Duration::from_millis(
-            mcp_backoff_max_elapsed_time,
-        ),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
+        std::time::Duration::from_millis(mcp_backoff_max_elapsed_time),
         std::time::Duration::from_millis(mcp_call_timeout),
     ));
 
@@ -525,8 +425,8 @@ pub async fn setup(
     //
     // Propagate the api's loaded MCP config into the in-process proxy's
     // ConfigBuilder so the proxy honours the same env vars
-    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_*`) the
-    // api itself reads — without this the proxy would fall back to its
+    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_MAX_ELAPSED_TIME`)
+    // the api itself reads — without this the proxy would fall back to its
     // own crate-internal defaults.
     // The proxy is PER-REQUEST (one per `Context`), so a session id
     // minted by one request's proxy must still decode in the NEXT
@@ -576,11 +476,6 @@ pub async fn setup(
             logs_dir: proxy_logs_dir.clone(),
             mcp_connect_timeout: Some(mcp_connect_timeout),
             mcp_call_timeout: Some(mcp_call_timeout),
-            mcp_backoff_current_interval: Some(mcp_backoff_current_interval),
-            mcp_backoff_initial_interval: Some(mcp_backoff_initial_interval),
-            mcp_backoff_randomization_factor: Some(mcp_backoff_randomization_factor),
-            mcp_backoff_multiplier: Some(mcp_backoff_multiplier),
-            mcp_backoff_max_interval: Some(mcp_backoff_max_interval),
             mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
             mcp_encryption_key: Some(proxy_encryption_key),
             ..Default::default()
@@ -608,18 +503,12 @@ pub async fn setup(
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
         }),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_current_interval,
-        ),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_initial_interval,
-        ),
-        agent_completions_backoff_randomization_factor,
-        agent_completions_backoff_multiplier,
-        std::time::Duration::from_millis(agent_completions_backoff_max_interval),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_max_elapsed_time,
-        ),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
+        std::time::Duration::from_millis(agent_completions_backoff_max_elapsed_time),
         std::time::Duration::from_millis(agent_completions_first_chunk_timeout),
         std::time::Duration::from_millis(agent_completions_other_chunk_timeout),
     ));
