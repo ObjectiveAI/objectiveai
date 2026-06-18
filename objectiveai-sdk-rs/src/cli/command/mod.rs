@@ -50,6 +50,7 @@ pub mod agents;
 pub mod api;
 pub mod db;
 pub mod functions;
+pub mod kill_all;
 pub mod mcp;
 pub mod plugins;
 pub mod swarms;
