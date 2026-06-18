@@ -5,8 +5,8 @@
 #   — one cargo build of cli, api, db, mcp in a SINGLE invocation (shared
 #   compile cache); the Tauri viewer via objectiveai-viewer/build.sh
 #   (`tauri build`, which builds the frontend against the committed
-#   workspace SDK and embeds it + the icon, then drops the binary raw in
-#   objectiveai-viewer/embed/); and the two PyInstaller SDK runners (claude
+#   workspace SDK and embeds it + the icon, then drops the binary in
+#   objectiveai-viewer/embed/<profile>/); and the two PyInstaller SDK runners (claude
 #   + codex). None need the phase-2 build tools or json schemas, so they
 #   start immediately and run concurrently with everything below.
 #   (build_bin's `cargo install` uses a throwaway target dir, so it doesn't
@@ -228,7 +228,7 @@ if [ "$NO_ZIP" != "1" ]; then
 
   # The viewer is a Tauri app: its build.sh runs `tauri build`, embedding the
   # frontend (vite, against the workspace @objectiveai/sdk dist) + the icon,
-  # raw into objectiveai-viewer/embed/. A plain `cargo build -p
+  # into objectiveai-viewer/embed/<profile>/. A plain `cargo build -p
   # objectiveai-viewer` would be a non-working dev-mode binary (no frontend,
   # no icon).
   #
@@ -370,8 +370,8 @@ package_host_zip() {
   done
 
   # The viewer comes from its `tauri build` (objectiveai-viewer/build.sh),
-  # which places it raw in objectiveai-viewer/embed/ — NOT target/.
-  src="$REPO_ROOT/objectiveai-viewer/embed/objectiveai-viewer$ext"
+  # which places it in objectiveai-viewer/embed/<profile>/ — NOT target/.
+  src="$REPO_ROOT/objectiveai-viewer/embed/$profile/objectiveai-viewer$ext"
   if [ ! -f "$src" ]; then
     echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
   fi
