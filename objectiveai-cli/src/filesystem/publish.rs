@@ -164,19 +164,22 @@ async fn publish(
         ));
     }
 
-    // Write file.
-    tokio::fs::write(path.join(filename), content.as_bytes()).await?;
-
-    // Git operations are synchronous — run on a blocking thread.
+    // Git operations are synchronous — run on a blocking thread. The new
+    // file content is written INSIDE git_commit, after it resets the
+    // working tree to a clean HEAD. Writing it here (before that reset)
+    // is what made overwrite a no-op: the hard reset clobbered the new
+    // file, so the staged tree matched HEAD and no commit was created.
     let commit_author_name = client.commit_author_name.clone();
     let commit_author_email = client.commit_author_email.clone();
     let message = message.to_string();
     let filename = filename.to_string();
+    let content = content.to_string();
 
     tokio::task::spawn_blocking(move || {
         git_commit(
             &path,
             &filename,
+            &content,
             &commit_author_name,
             &commit_author_email,
             &message,
@@ -186,10 +189,18 @@ async fn publish(
     .map_err(|e| Error::Io(std::io::Error::new(std::io::ErrorKind::Other, e)))?
 }
 
-/// Opens or initializes the git repo, stages the file, and commits.
+/// Opens or initializes the git repo, writes `content` to `filename`,
+/// stages it, and commits.
+///
+/// The working tree is reset to a clean HEAD *before* the content is
+/// written, so a prior interrupted publish can't leave dirty/untracked
+/// state behind — and, critically, the reset can't clobber the new
+/// content (which is exactly what happened when the write was done by
+/// the caller beforehand: overwrite then no-op'd back to the parent SHA).
 fn git_commit(
     repo_path: &Path,
     filename: &str,
+    content: &str,
     author_name: &str,
     author_email: &str,
     message: &str,
@@ -215,6 +226,12 @@ fn git_commit(
         Err(_) => git2::Repository::init(repo_path)?,
     };
 
+    // Write the new content AFTER the reset above, so it survives into
+    // the staged tree.
+    let file_path = repo_path.join(filename);
+    std::fs::write(&file_path, content.as_bytes())
+        .map_err(|e| Error::Write(file_path, e))?;
+
     // Stage.
     let mut index = repo.index()?;
     index.add_path(Path::new(filename))?;
@@ -238,4 +255,45 @@ fn git_commit(
         repo.commit(Some("HEAD"), &sig, &sig, message, &tree, &parents)?;
 
     Ok(commit_oid.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn read(dir: &Path, name: &str) -> String {
+        std::fs::read_to_string(dir.join(name)).unwrap()
+    }
+
+    /// Regression test for the overwrite no-op bug: committing new content
+    /// over an existing file must update BOTH the file on disk and the
+    /// returned commit SHA. The original bug hard-reset the working tree
+    /// *after* the new file had been written, so overwrite silently
+    /// reverted the content and returned the unchanged parent SHA.
+    #[test]
+    fn overwrite_changes_content_and_sha() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        let (name, email) = ("alice", "alice@example.com");
+
+        let sha1 = git_commit(p, "agent.json", "v1", name, email, "first").unwrap();
+        assert_eq!(read(p, "agent.json"), "v1");
+
+        let sha2 = git_commit(p, "agent.json", "v2", name, email, "second").unwrap();
+        assert_eq!(read(p, "agent.json"), "v2", "overwrite must update the file on disk");
+        assert_ne!(sha1, sha2, "overwrite with new content must create a new commit");
+    }
+
+    /// Re-committing identical content is a genuine no-op: same tree as the
+    /// parent, so no new commit is made and the parent SHA is returned.
+    #[test]
+    fn identical_content_is_a_noop() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path();
+        let (name, email) = ("bob", "bob@example.com");
+
+        let sha1 = git_commit(p, "function.json", "same", name, email, "first").unwrap();
+        let sha2 = git_commit(p, "function.json", "same", name, email, "again").unwrap();
+        assert_eq!(sha1, sha2, "identical content must not create a new commit");
+    }
 }
