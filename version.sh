@@ -93,14 +93,11 @@ set_toml_package_version() {
 #   objectiveai             = { path = "..", version = "X.Y.Z", ... }
 #   objectiveai-api         = { version = "X.Y.Z", ... }
 #   objectiveai-cli         = { ... }
-#   test-upstream           = { path = "test-upstream", version = "X.Y.Z" }
-# ...and rewrites the `version = "..."` token inside. The `test-upstream`
-# alternative covers the workspace-internal sibling crate that
-# objectiveai-mcp-proxy depends on for its dev tests.
+# ...and rewrites the `version = "..."` token inside.
 set_cargo_objectiveai_deps() {
   local file="$1"
   inline_substitute "$file" \
-    '^(objectiveai(-[a-zA-Z0-9_-]+)?|test-upstream)[[:space:]]*=' \
+    '^objectiveai(-[a-zA-Z0-9_-]+)?[[:space:]]*=' \
     'version = "[0-9][^"]*"' \
     "version = \"$NEW_VERSION\""
 }
@@ -115,19 +112,6 @@ set_objectiveai_string_dep() {
     '^objectiveai-sdk[[:space:]]*=[[:space:]]*"[0-9]' \
     '"[0-9][0-9.]*"' \
     "\"$NEW_VERSION\""
-}
-
-# `version: 'X.Y.Z'` property lines in TypeScript / JavaScript. Used by
-# files whose runtime identifier (e.g. an MCP client `name`+`version`
-# pair) should track the package version. Matches every `version: '...'`
-# in the file — list the file here only if all such occurrences share
-# the package version.
-set_ts_version_string() {
-  local file="$1"
-  inline_substitute "$file" \
-    "version:[[:space:]]*'[0-9]" \
-    "'[0-9][0-9.]*'" \
-    "'$NEW_VERSION'"
 }
 
 # Root "version": "..." in a package.json. Relies on the standard layout
@@ -240,7 +224,6 @@ CARGO_TOMLS=(
   objectiveai-mcp/Cargo.toml
   objectiveai-mcp-filesystem/Cargo.toml
   objectiveai-mcp-proxy/Cargo.toml
-  objectiveai-mcp-proxy/test-upstream/Cargo.toml
   objectiveai-sdk-rs/Cargo.toml
   objectiveai-sdk-rs-cffi/Cargo.toml
   objectiveai-sdk-rs-macros/Cargo.toml
@@ -257,7 +240,6 @@ PYPROJECT_TOMLS=(
 PACKAGE_JSONS=(
   objectiveai-sdk-js/package.json
   objectiveai-viewer/package.json
-  objectiveai-mcp-proxy/tests-ts/package.json
 )
 
 CSPROJS=(
@@ -278,14 +260,6 @@ REQUIREMENTS_TXTS=(
 # dep snippets (typically install instructions for the Rust SDK).
 MARKDOWN_FILES=(
   README.md
-)
-
-# TypeScript/JavaScript files that embed a literal `version: 'X.Y.Z'`
-# property tied to the workspace version (e.g. MCP client identifiers
-# in test rigs). All `version: '...'` lines in each listed file get
-# bumped — verify there are no unrelated occurrences before adding.
-TS_VERSION_STRING_FILES=(
-  objectiveai-mcp-proxy/tests-ts/src/rig.ts
 )
 
 # Single-line version files for packages that version independently of
@@ -341,9 +315,6 @@ update() {
     md)
       set_objectiveai_string_dep "$file"
       ;;
-    ts)
-      set_ts_version_string "$file"
-      ;;
     vertxt)
       set_version_txt "$file"
       ;;
@@ -362,7 +333,6 @@ for rel in "${CSPROJS[@]}";                do update csproj "$rel"; done
 for rel in "${PY_RUNNER_MAINS[@]}";        do update pyrun  "$rel"; done
 for rel in "${REQUIREMENTS_TXTS[@]}";       do update reqs   "$rel"; done
 for rel in "${MARKDOWN_FILES[@]}";          do update md     "$rel"; done
-for rel in "${TS_VERSION_STRING_FILES[@]}"; do update ts     "$rel"; done
 for rel in "${VERSION_TXTS[@]}";            do update vertxt "$rel"; done
 for rel in "${INSTALL_SHS[@]}";             do update installsh "$rel"; done
 

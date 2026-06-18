@@ -47,7 +47,6 @@ for suite in \
   objectiveai-api \
   objectiveai-json-schema \
   objectiveai-cli \
-  objectiveai-mcp-proxy \
   objectiveai-viewer \
   objectiveai-tests \
 ; do
@@ -79,7 +78,6 @@ for suite in \
   objectiveai-api \
   objectiveai-json-schema \
   objectiveai-cli \
-  objectiveai-mcp-proxy \
   objectiveai-sdk-js \
   objectiveai-sdk-py \
   objectiveai-sdk-go \

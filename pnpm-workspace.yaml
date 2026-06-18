@@ -1,5 +1,4 @@
 packages:
   - objectiveai-sdk-js
-  - objectiveai-mcp-proxy/tests-ts
   - objectiveai-web
   - objectiveai-viewer

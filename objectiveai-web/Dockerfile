@@ -45,7 +45,6 @@ COPY objectiveai-sdk-js/package.json objectiveai-sdk-js/
 COPY objectiveai-viewer-sdk/package.json objectiveai-viewer-sdk/
 COPY objectiveai-web/package.json objectiveai-web/
 COPY objectiveai-viewer/package.json objectiveai-viewer/
-COPY objectiveai-mcp-proxy/tests-ts/package.json objectiveai-mcp-proxy/tests-ts/
 RUN pnpm install --frozen-lockfile
 
 # Build JS SDK (workspace resolves "objectiveai" locally)
