@@ -8,8 +8,7 @@ license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 publish = false
 
-# The invariant tests are dev-dependency-only. (`test-cleanup` is
-# its own crate: ../objectiveai-test-cleanup.)
+# The invariant tests are dev-dependency-only.
 [dev-dependencies]
 git2 = { version = "0.20.4", default-features = false, features = ["vendored-libgit2"] }
 toml = "0.8"

@@ -24,8 +24,7 @@ members = [
     "tests/tools/hello-tool",
     "tests/tools/error-tool",
     "objectiveai-viewer/src-tauri",
-    "objectiveai-tests",
-    "objectiveai-tests/test-cleanup",
+    "tests/objectiveai-tests",
 ]
 
 [workspace.metadata.tools]
