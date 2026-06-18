@@ -32,6 +32,33 @@ PY="$(command -v python3 || command -v python || true)"
 # One timestamp for the whole run, so a run's logs sort together.
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
+# Install the plugin/tool fixtures into the shared .objectiveai test
+# root before running anything — the integration tests exec them. Run
+# every install.sh found under tests/plugins and tests/tools in
+# parallel; if any fails, abort before the test crates run.
+ipids=()
+inames=()
+while IFS= read -r installer; do
+  iname="$(basename "$(dirname "$installer")")"
+  bash "$installer" >"$LOG_DIR/install-${iname}-${TIMESTAMP}.txt" 2>&1 &
+  ipids+=("$!")
+  inames+=("$iname")
+done < <(find "$REPO_ROOT/tests/plugins" "$REPO_ROOT/tests/tools" -name install.sh 2>/dev/null | sort)
+
+ifailed=0
+for i in "${!ipids[@]}"; do
+  if wait "${ipids[$i]}"; then
+    echo "test-integration: fixture install ${inames[$i]}: OK"
+  else
+    echo "test-integration: fixture install ${inames[$i]}: FAILED" >&2
+    ifailed=1
+  fi
+done
+if [ "$ifailed" -ne 0 ]; then
+  echo "test-integration: one or more fixture installs failed; aborting" >&2
+  exit 1
+fi
+
 # Workspace member crates whose manifest lives under one of the two
 # integration-test crate dirs.
 mapfile -t CRATES < <(
