@@ -13,8 +13,8 @@
 #   fight this build for the workspace target lock; the json-schema/cffi/pyo3
 #   cargo steps do share it and serialize behind it — fine, they're quick
 #   once they get it.)
-# Phase 2 (parallel): build/dev tools (wasm-pack, maturin, cargo-nextest,
-#   into ./bin/) + objectiveai-json-schema. Independent of each other; both
+# Phase 2 (parallel): build/dev tools (wasm-pack, maturin, into ./bin/)
+#   + objectiveai-json-schema. Independent of each other; both
 #   must finish before phases 3+4, which need the tools + the schemas.
 # Phase 3 (parallel): objectiveai-sdk-rs-wasm-js + objectiveai-sdk-rs-cffi
 # Phase 4 (parallel): objectiveai-sdk-js + objectiveai-sdk-py + objectiveai-sdk-go
@@ -121,19 +121,18 @@ run_phase() {
   fi
 }
 
-# Installs wasm-pack, maturin, and cargo-nextest into ./bin/ using the
-# versions pinned in [workspace.metadata.tools] in Cargo.toml. Runs in
-# phase 2 (parallel with json-schema); phases 3 and 4 invoke these tools,
-# so it must finish before them. Output captured to .logs/build/build-bin.txt.
+# Installs wasm-pack and maturin into ./bin/ using the versions pinned
+# in [workspace.metadata.tools] in Cargo.toml. Runs in phase 2 (parallel
+# with json-schema); phases 3 and 4 invoke these tools, so it must
+# finish before them. Output captured to .logs/build/build-bin.txt.
+# (Test runs use the host cargo-nextest, not a pinned ./bin/ copy.)
 build_bin() {
-  local WASM_PACK_VERSION MATURIN_VERSION CARGO_NEXTEST_VERSION BIN_DIR
+  local WASM_PACK_VERSION MATURIN_VERSION BIN_DIR
   WASM_PACK_VERSION=$(sed -n 's/^wasm-pack *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
   MATURIN_VERSION=$(sed -n 's/^maturin *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
-  CARGO_NEXTEST_VERSION=$(sed -n 's/^cargo-nextest *= *"\(.*\)"/\1/p' "$REPO_ROOT/Cargo.toml")
 
   [ -n "$WASM_PACK_VERSION" ] || { echo "ERROR: Could not read wasm-pack version from Cargo.toml" >&2; return 1; }
   [ -n "$MATURIN_VERSION" ] || { echo "ERROR: Could not read maturin version from Cargo.toml" >&2; return 1; }
-  [ -n "$CARGO_NEXTEST_VERSION" ] || { echo "ERROR: Could not read cargo-nextest version from Cargo.toml" >&2; return 1; }
 
   BIN_DIR="$REPO_ROOT/bin"
 
@@ -154,7 +153,6 @@ build_bin() {
 
   install_if_needed wasm-pack "$WASM_PACK_VERSION"
   install_if_needed maturin "$MATURIN_VERSION"
-  install_if_needed cargo-nextest "$CARGO_NEXTEST_VERSION"
 
   echo "Done. Tools at $BIN_DIR/"
 }
@@ -243,9 +241,9 @@ if [ "$NO_ZIP" != "1" ]; then
 fi
 
 # ── Phases 2-4 (the SDK toolchain) ──────────────────────────────────────
-# Skipped entirely under --no-sdk: the build/dev tools (including
-# cargo-nextest), the json schema, the wasm/cffi bindings, and the
-# JS/Py/Go SDKs. Phase 1 + packaging don't depend on any of these.
+# Skipped entirely under --no-sdk: the build/dev tools, the json
+# schema, the wasm/cffi bindings, and the JS/Py/Go SDKs. Phase 1 +
+# packaging don't depend on any of these.
 if [ "$NO_SDK" != "1" ]; then
   # Phase 2 (parallel): build/dev tools + json schema.
   (

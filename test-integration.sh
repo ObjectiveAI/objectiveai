@@ -6,8 +6,8 @@
 # each to .logs/tests/<crate>-<timestamp>.txt. All run concurrently; the
 # script waits for every one. test-unit.sh runs everything else.
 #
-# Uses the HOST cargo-nextest — whatever `cargo nextest` resolves to on
-# PATH — NOT the repo's pinned bin/cargo-nextest.
+# Uses the host cargo-nextest — whatever `cargo nextest` resolves to on
+# PATH.
 #
 # Exit status: 0 iff every run exited 0; 1 if any failed.
 #
@@ -20,7 +20,7 @@ REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/tests"
 mkdir -p "$LOG_DIR"
 
-# Host nextest, explicitly NOT $REPO_ROOT/bin/cargo-nextest.
+# Host nextest (whatever `cargo nextest` resolves to on PATH).
 if ! cargo nextest --version >/dev/null 2>&1; then
   echo "test-integration: host cargo-nextest not found on PATH; install it (cargo install cargo-nextest)" >&2
   exit 1
