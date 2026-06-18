@@ -95,6 +95,9 @@ fi
 
 LOG_DIR="$REPO_ROOT/.logs/build"
 mkdir -p "$LOG_DIR"
+# Timestamp for the per-crate build logs (<crate>-<BUILD_TS>.txt), the
+# same shape as the test logs.
+BUILD_TS="$(date +%Y%m%d-%H%M%S)"
 
 # PROFILE_FLAG is shared by the runners and the cargo build so the
 # embed/<profile>/ runner path lines up with target/<profile>/ for packaging.
@@ -188,37 +191,38 @@ if [ "$NO_ZIP" != "1" ]; then
   CODEX_RUNNER_PID=$!
 
   # The integration-test fixture crates (plugins + tools under tests/)
-  # co-build with the product binaries in the single cargo invocation
-  # below — shared compile cache, no extra target-lock contention. They
-  # are NOT staged into the zip (test inputs, not shipped). Default-on;
-  # --no-test-integration drops them (the release uses that). They ride
-  # phase 1, so --no-zip already excludes them — no separate gate needed.
-  # Built as an array of `-p <name>` args so an empty selection expands
-  # to nothing in the cargo line.
-  FIXTURE_PKG_ARGS=()
+  # co-build with the product binaries — discovered by glob over their
+  # Cargo.toml names. They are NOT staged into the zip (test inputs, not
+  # shipped). Default-on; --no-test-integration drops them (the release
+  # uses that). They ride phase 1, so --no-zip already excludes them.
+  FIXTURE_CRATES=()
   if [ "$NO_TEST_INTEGRATION" != "1" ]; then
     while IFS= read -r _fixture; do
-      FIXTURE_PKG_ARGS+=(-p "$_fixture")
+      FIXTURE_CRATES+=("$_fixture")
     done < <(discover_test_integration_crates)
-    if [ "${#FIXTURE_PKG_ARGS[@]}" -gt 0 ]; then
-      echo "Co-building $(( ${#FIXTURE_PKG_ARGS[@]} / 2 )) integration-test fixture crate(s) from tests/{plugins,tools}/."
+    if [ "${#FIXTURE_CRATES[@]}" -gt 0 ]; then
+      echo "Co-building ${#FIXTURE_CRATES[@]} integration-test fixture crate(s) from tests/{plugins,tools}/."
     fi
   fi
 
+  # Build each product (and fixture) crate ONE AT A TIME, capturing
+  # per-crate output to .logs/build/<crate>-<timestamp>.txt. cargo
+  # shares the target dir across invocations so common deps compile
+  # once; the per-crate split is purely for diagnosable, isolated logs
+  # (the same shape as the test logs). Every crate is attempted so one
+  # failure doesn't hide the rest.
   (
     cd "$REPO_ROOT"
-    if cargo build $PROFILE_FLAG \
-         -p objectiveai-cli \
-         -p objectiveai-api \
-         -p objectiveai-db \
-         -p objectiveai-mcp \
-         "${FIXTURE_PKG_ARGS[@]}" \
-         > "$LOG_DIR/cargo-workspace.txt" 2>&1; then
-      echo "cargo-workspace: SUCCESS"
-    else
-      echo "cargo-workspace: ERROR (see .logs/build/cargo-workspace.txt)"
-      exit 1
-    fi
+    ws_failed=0
+    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp "${FIXTURE_CRATES[@]}"; do
+      if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
+        echo "$crate: SUCCESS"
+      else
+        echo "$crate: ERROR (see .logs/build/${crate}-${BUILD_TS}.txt)"
+        ws_failed=1
+      fi
+    done
+    [ "$ws_failed" -eq 0 ] || exit 1
   ) &
   CARGO_WORKSPACE_PID=$!
 

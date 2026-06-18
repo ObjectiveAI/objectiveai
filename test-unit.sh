@@ -63,6 +63,28 @@ fi
 
 echo "test-unit: running ${#CRATES[@]} crate(s) via host cargo-nextest -> $LOG_DIR"
 
+# Build each crate's test binaries up front, ONE AT A TIME, capturing
+# per-crate output to .logs/build/<crate>-nextest-<timestamp>.txt.
+# Sequential (not the parallel run pattern below) so concurrent full
+# builds don't oversubscribe the shared target dir; with the binaries
+# prebuilt, the parallel run phase only executes tests. Every crate is
+# attempted so one broken build doesn't hide the others.
+BUILD_LOG_DIR="$REPO_ROOT/.logs/build"
+mkdir -p "$BUILD_LOG_DIR"
+prebuild_failed=0
+for crate in "${CRATES[@]}"; do
+  echo "test-unit: build $crate ..."
+  if ! cargo nextest run --no-run --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" \
+       >"$BUILD_LOG_DIR/${crate}-nextest-${TIMESTAMP}.txt" 2>&1; then
+    echo "test-unit: BUILD FAILED: $crate (see .logs/build/${crate}-nextest-${TIMESTAMP}.txt)" >&2
+    prebuild_failed=1
+  fi
+done
+if [ "$prebuild_failed" -ne 0 ]; then
+  echo "test-unit: one or more test builds failed; aborting" >&2
+  exit 1
+fi
+
 # Launch one nextest run per crate, all in parallel.
 pids=()
 pid_crates=()
