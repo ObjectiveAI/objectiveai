@@ -23,7 +23,7 @@
 #                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
 # Final: wait for phase 1, then package the HOST platform's 7 binaries into
 #        the same per-platform zip the release ships
-#        (objectiveai-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
+#        (objectiveai-<version>-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
 #        so the installer / `objectiveai update` can use it locally. Host
 #        only — not the other five platforms.
 # The viewer is built with `tauri build --no-bundle` (a raw exe, no
@@ -308,11 +308,13 @@ fi
 
 # ── Package the host's 7 binaries into <dir>/bin/<release-asset>.zip ─────
 # Bundles the freshly-built binaries into the same per-platform zip the
-# GitHub Release ships (objectiveai-<os>-<arch>.zip) and drops it in
-# <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can pick it
-# up locally. Host platform only — not the other 5. Uses `python -m
-# zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli crate
-# builds as `objectiveai-cli` but ships as `objectiveai`.
+# GitHub Release ships (objectiveai-<version>-<os>-<arch>.zip) and drops
+# it in <OBJECTIVEAI_DIR>/bin so the installer / `objectiveai update` can
+# pick it up locally. Host platform only — not the other 5. Uses `python
+# -m zipfile` (cross-platform; `zip(1)` is absent in Git Bash). The cli
+# crate builds as `objectiveai-cli` but ships as `objectiveai`. The
+# version is read from objectiveai-cli/Cargo.toml — the canonical release
+# version (release.yml gates on it, version.sh keeps install.sh in sync).
 package_host_zip() {
   local os arch ext profile host_triple
   case "$(uname -s)" in
@@ -335,7 +337,11 @@ package_host_zip() {
   py=$(command -v python3 || command -v python || true)
   [ -n "$py" ] || { echo "package: need python3 to build the zip" >&2; return 1; }
 
-  local asset="objectiveai-${os}-${arch}.zip"
+  local version
+  version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' "$REPO_ROOT/objectiveai-cli/Cargo.toml" | head -1)
+  [ -n "$version" ] || { echo "package: could not read version from objectiveai-cli/Cargo.toml" >&2; return 1; }
+
+  local asset="objectiveai-${version}-${os}-${arch}.zip"
   local install_dir="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}"
   local bin_dir="$install_dir/bin"
   mkdir -p "$bin_dir"

@@ -5,7 +5,7 @@ name: Release
 # the GitHub Release `v<version>` does not yet exist, this workflow rolls
 # out (all-or-nothing, keyed off that one version):
 #
-#   • the six per-platform binary zips (objectiveai-<os>-<arch>.zip), each
+#   • the six per-platform binary zips (objectiveai-<version>-<os>-<arch>.zip), each
 #     produced by `bash build.sh --release --no-sdk --no-test-integration`
 #     and uploaded to the release; and
 #   • the language SDKs, published sequentially so each resolves before the

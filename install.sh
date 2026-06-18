@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ObjectiveAI installer — installs the pre-built release binaries from the
-# per-platform release zip (objectiveai-<os>-<arch>.zip), which bundles
+# per-platform release zip (objectiveai-<version>-<os>-<arch>.zip), which bundles
 # the CLI, api, viewer, mcp, db, and the two SDK runners.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
@@ -127,7 +127,7 @@ if [ "$SUPPORTED" = "0" ]; then
   exit 1
 fi
 
-ASSET="objectiveai-${PLATFORM}-${ARCH}.zip"
+ASSET="objectiveai-${VERSION}-${PLATFORM}-${ARCH}.zip"
 
 # ── Locate the zip ────────────────────────────────────────────────────
 # 1. CWD, 2. <dir>/bin, 3. download into <dir>/bin (and leave it there).

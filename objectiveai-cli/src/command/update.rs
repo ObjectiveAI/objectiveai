@@ -2,9 +2,9 @@
 //!
 //! Refreshes every shipped binary from the latest GitHub release by
 //! downloading a single per-platform zip
-//! (`objectiveai-<os>-<arch>.zip`) and replacing the contents of the
-//! machine-wide `bin/` directory wholesale. Emits one [`ResponseItem`]
-//! per stage as the run progresses.
+//! (`objectiveai-<version>-<os>-<arch>.zip`) and replacing the contents
+//! of the machine-wide `bin/` directory wholesale. Emits one
+//! [`ResponseItem`] per stage as the run progresses.
 //!
 //! Layout on disk (resolved via `ctx.filesystem.bin_dir()` — every
 //! binary is machine-wide, shared across states):
@@ -131,19 +131,9 @@ async fn run(
     // swap before we begin.
     sweep_stale_old(&current_exe);
 
-    // One asset per platform: objectiveai-<os>-<arch>.zip.
-    let asset_name = format!("objectiveai-{os}-{arch}.zip");
-
     let local = env!("CARGO_PKG_VERSION");
     let local_ver = semver::Version::parse(local)
         .map_err(|e| Error::Updater(format!("semver parse: {e}")))?;
-
-    let _ = tx
-        .send(Ok(ResponseItem::Checking {
-            asset_name: asset_name.clone(),
-            current_version: local.to_string(),
-        }))
-        .await;
 
     // Fetch the latest release metadata.
     let http = reqwest::Client::new();
@@ -174,6 +164,27 @@ async fn run(
             .map_err(|e| Error::Updater(format!("malformed release metadata: {e}")))?
     };
 
+    // Compare versions. Tag is `v<X.Y.Z>` by repo convention. The asset
+    // name embeds this version, so it has to be resolved before we can
+    // look the asset up.
+    let remote_str = release
+        .tag_name
+        .strip_prefix('v')
+        .unwrap_or(&release.tag_name);
+    let remote = semver::Version::parse(remote_str)
+        .map_err(|e| Error::Updater(format!("semver parse: {e}")))?;
+
+    // One asset per platform, version-stamped:
+    // objectiveai-<version>-<os>-<arch>.zip.
+    let asset_name = format!("objectiveai-{remote_str}-{os}-{arch}.zip");
+
+    let _ = tx
+        .send(Ok(ResponseItem::Checking {
+            asset_name: asset_name.clone(),
+            current_version: local.to_string(),
+        }))
+        .await;
+
     // The platform's zip must be present, or there's nothing to install.
     let Some(asset) = release.assets.iter().find(|a| a.name == asset_name) else {
         let _ = tx
@@ -184,13 +195,6 @@ async fn run(
         return Ok(());
     };
 
-    // Compare versions. Tag is `v<X.Y.Z>` by repo convention.
-    let remote_str = release
-        .tag_name
-        .strip_prefix('v')
-        .unwrap_or(&release.tag_name);
-    let remote = semver::Version::parse(remote_str)
-        .map_err(|e| Error::Updater(format!("semver parse: {e}")))?;
     if remote <= local_ver {
         let _ = tx
             .send(Ok(ResponseItem::UpToDate {
