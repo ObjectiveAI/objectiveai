@@ -683,7 +683,7 @@ pnpm test                    # JS/TS tests
 - **No network-hitting tests.** Tests must not contact the production API. Mock responses or use local fixtures.
 - **Test failures are not pre-existing issues.** Every failure must be investigated and fixed; never dismiss one to move on.
 - **Single shared version.** All packages share one version number. Bump atomically across Cargo.toml, package.json, pyproject.toml, .csproj, and all inter-package dependency references with `bash version.sh <new-version>`.
-- **Publishing.** The `Auto-publish libraries` GitHub Actions workflow fires on every push to main and rolls out the full release across crates.io, PyPI, npm, the Go module proxy, and GitHub Releases in dependency-order waves, polling each registry until the new version is live before proceeding.
+- **Publishing.** The `Release` GitHub Actions workflow fires on every push to main, gated on the `objectiveai-cli` version: if the GitHub Release `v<version>` doesn't exist yet, it rolls out everything for that version, all-or-nothing — the six per-platform binary zips (each built by `build.sh --release --no-sdk`) plus the language SDKs published sequentially (rust → python → javascript → golang). The SDK jobs ship already-committed artifacts (no codegen, no wasm build), so commit fresh generated artifacts (via `build.sh`) before bumping the version.
 
 ## License
 

@@ -1,34 +1,40 @@
 name: Release
 
+# One CLI-version-gated release for everything. The version in
+# objectiveai-cli/Cargo.toml is the core trigger: on a push to main where
+# the GitHub Release `v<version>` does not yet exist, this workflow rolls
+# out (all-or-nothing, keyed off that one version):
+#
+#   • the six per-platform binary zips (objectiveai-<os>-<arch>.zip), each
+#     produced by `bash build.sh --release --no-sdk` and uploaded to the
+#     release; and
+#   • the language SDKs, published sequentially so each resolves before the
+#     next: rust (crates.io) → python (PyPI) → javascript (npm) → golang
+#     (git tag).
+#
+# The SDK jobs DO NOT run code generation or build wasm — they ship the
+# artifacts already committed to the repo (committed dist/ for js, committed
+# lib wasm + types for go, committed pydantic types for py; rust is a plain
+# cargo publish). Whoever bumps the version is responsible for committing
+# fresh generated artifacts first (via build.sh).
+#
+# Re-runs: the GitHub-release-exists gate makes a new version publish once.
+# To resume after a partial failure, delete the release and re-run — the
+# per-package "skip if already published" guards make completed publishes
+# no-ops.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # create the release, upload zips, push the go tag
+  id-token: write   # npm Trusted Publishing (OIDC) for the js publish
 
-# ── Structure ─────────────────────────────────────────────────────────────
-#
-# check-version ─→ create-release
-#
-# cli / api / viewer / mcp / db / runner  (each a matrix over the 6 platforms)
-#   Each leg builds ONE binary for ONE platform on its own runner and uploads
-#   it as a workflow artifact named objectiveai-<os>-<arch>[-<pkg>][.exe].
-#   Legs no longer append to the release directly — the release is six zips.
-#
-# package (matrix: 6 platforms) ─→ six release assets
-#   Each entry downloads its platform's 7 artifacts (cli, api, viewer, mcp,
-#   db, claude-runner, codex-runner), renames them to their runtime bin names,
-#   zips them at the archive root, and uploads objectiveai-<os>-<arch>.zip.
-#
-# Six platforms = {linux, macos, windows} × {x86_64, aarch64}.
-#
-# NOTE — windows-aarch64 is new. It runs on the `windows-11-arm` runner, whose
-# toolchain support for the Tauri viewer, the PyInstaller sdk-runners, and
-# objectiveai-db's bundled postgres is not yet proven. `package` runs with
-# `if: always()` + `fail-fast: false`, so if any windows-aarch64 leg fails its
-# zip is simply skipped — the other five zips still publish.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   check-version:
@@ -48,10 +54,10 @@ jobs:
           echo "CLI version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release v$VERSION already exists — skipping build"
+            echo "Release v$VERSION already exists — skipping"
             echo "should-release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Release v$VERSION does not exist — will build"
+            echo "Release v$VERSION does not exist — will release"
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -65,20 +71,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Generate release notes
-        # Write notes to a file rather than capturing into a step output —
-        # commit messages routinely contain backticks (`like this`) and
-        # other shell metacharacters, which GHA's `${{ }}` interpolator
-        # would inline literally into the next step's bash script and
-        # cause bash to try evaluating them as command substitutions.
-        # `--notes-file` reads the bytes directly with zero shell
-        # interpolation involved.
         run: |
           PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            echo "Previous tag: $PREV_TAG"
             git log --pretty=format:"- %s" "$PREV_TAG"..HEAD > release-notes.md
           else
-            echo "No previous tags — using full history"
             git log --pretty=format:"- %s" > release-notes.md
           fi
       - name: Create release if missing
@@ -90,211 +87,283 @@ jobs:
             echo "Release v$VERSION already exists — leaving as-is."
             exit 0
           fi
-          # Created up front (not --draft) so the six per-platform zips
-          # become visible as each `package` job finishes uploading.
           gh release create "v$VERSION" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "v$VERSION" \
             --notes-file release-notes.md
 
-  # ── CLI ───────────────────────────────────────────────────────────────────
+  # ── Binary zips (6 platforms; build.sh --release --no-sdk) ─────────────────
 
-  cli:
-    name: cli (${{ matrix.os }}-${{ matrix.arch }})
+  binaries:
+    name: zip (${{ matrix.os }}-${{ matrix.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.ext }}
-          src_name: objectiveai${{ matrix.ext }}
-
-  # ── API ────────────────────────────────────────────────────────────────────
-
-  api:
-    name: api (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-api${{ matrix.ext }}
-          src_name: objectiveai-api${{ matrix.ext }}
-
-  # ── Viewer ─────────────────────────────────────────────────────────────────
-
-  viewer:
-    name: viewer (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-viewer${{ matrix.ext }}
-          src_name: objectiveai-viewer${{ matrix.ext }}
-
-  # ── MCP ────────────────────────────────────────────────────────────────────
-
-  mcp:
-    name: mcp (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-mcp${{ matrix.ext }}
-          src_name: objectiveai-mcp${{ matrix.ext }}
-
-  # ── DB (bundles its own postgres; needs GITHUB_TOKEN for the archive) ──────
-
-  db:
-    name: db (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-${{ matrix.os }}-${{ matrix.arch }}-db${{ matrix.ext }}
-          src_name: objectiveai-db${{ matrix.ext }}
-
-  # ── SDK runners (PyInstaller; spawned by the api from bin/ at runtime) ─────
-
-  runner:
-    name: runner ${{ matrix.runner.label }} (${{ matrix.platform.os }}-${{ matrix.platform.arch }})
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.platform.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        platform:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,     ext: "" }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm, ext: "" }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,   ext: "" }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,         ext: "" }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,   ext: ".exe" }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm,   ext: ".exe" }
-        runner:
-          - { crate: objectiveai-claude-agent-sdk-runner, label: claude-runner }
-          - { crate: objectiveai-codex-sdk-runner,        label: codex-runner }
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-runner-leg
-        with:
-          runner: ${{ matrix.runner.crate }}
-          asset: objectiveai-${{ matrix.platform.os }}-${{ matrix.platform.arch }}-${{ matrix.runner.label }}${{ matrix.platform.ext }}
-
-  # ── Package: six per-platform zips ─────────────────────────────────────────
-  # `if: always()` (plus fail-fast: false) so a failed leg on ONE platform
-  # doesn't skip packaging for the others — each entry pulls only its own
-  # platform's artifacts; a missing one fails just that entry.
-
-  package:
-    name: package (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, cli, api, viewer, mcp, db, runner]
-    if: always() && needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
         include:
-          - { os: linux,   arch: x86_64,  ext: "" }
-          - { os: linux,   arch: aarch64, ext: "" }
-          - { os: macos,   arch: x86_64,  ext: "" }
-          - { os: macos,   arch: aarch64, ext: "" }
-          - { os: windows, arch: x86_64,  ext: ".exe" }
-          - { os: windows, arch: aarch64, ext: ".exe" }
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04 }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel }
+          - { os: macos,   arch: aarch64, runs-on: macos-14 }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm }
     steps:
-      - name: Download this platform's binaries
-        uses: actions/download-artifact@v4
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          path: artifacts
-          pattern: objectiveai-${{ matrix.os }}-${{ matrix.arch }}*
-      - name: Assemble bin/ layout and zip
+          python-version: '3.13'
+      - name: Install Linux Tauri deps
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev
+      - name: Build + package the zip
+        shell: bash
+        # --no-sdk: only phase 1 (the 5 product crates + the 2 PyInstaller
+        # runners) and the packaging step run; no SDK toolchain. GITHUB_TOKEN
+        # lets objectiveai-db's postgres archive download avoid rate limits.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash build.sh --release --no-sdk
+      - name: Dump build logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for log in .logs/build/*.txt; do
+            echo "::group::$log"; cat "$log"; echo "::endgroup::"
+          done
+      - name: Upload zip to release
+        shell: bash
+        run: |
+          gh release upload "v${{ needs.check-version.outputs.version }}" \
+            "$HOME"/.objectiveai/bin/objectiveai-*.zip \
+            --clobber --repo "${{ github.repository }}"
+
+  # ── SDK: rust → python → javascript → golang (sequential) ──────────────────
+  # No codegen, no wasm build — ship what's committed.
+
+  publish-rust:
+    name: SDK · rust (crates.io)
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo publish (dependency order, with sparse-index waits)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.version }}
         run: |
           set -euo pipefail
-          P="objectiveai-${{ matrix.os }}-${{ matrix.arch }}"
-          E="${{ matrix.ext }}"
-          # download-artifact lands each artifact at artifacts/<name>/<name>.
-          pick() { echo "artifacts/$1/$1"; }
-          mkdir -p stage
-          cp "$(pick "$P$E")"                "stage/objectiveai$E"
-          cp "$(pick "$P-api$E")"            "stage/objectiveai-api$E"
-          cp "$(pick "$P-viewer$E")"         "stage/objectiveai-viewer$E"
-          cp "$(pick "$P-mcp$E")"            "stage/objectiveai-mcp$E"
-          cp "$(pick "$P-db$E")"             "stage/objectiveai-db$E"
-          cp "$(pick "$P-claude-runner$E")"  "stage/objectiveai-claude-agent-sdk-runner$E"
-          cp "$(pick "$P-codex-runner$E")"   "stage/objectiveai-codex-sdk-runner$E"
-          (cd stage && zip -r "../$P.zip" .)
-          echo "Built $P.zip:"
-          unzip -l "$P.zip"
-      - name: Upload zip to release
+          # Skip a crate already live at $VERSION (makes a re-run resumable).
+          publish_crate() {
+            local name="$1"; shift
+            local sparse="${name:0:2}/${name:2:2}/$name"
+            if curl -fsS "https://index.crates.io/$sparse" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
+              echo "$name@$VERSION already on crates.io — skip"
+              return 0
+            fi
+            cargo publish -p "$name" "$@"
+          }
+          # Block until a just-published crate is in the sparse index cargo
+          # reads when resolving the next crate's deps.
+          wait_crate() {
+            local name="$1"
+            local sparse="${name:0:2}/${name:2:2}/$name"
+            for _ in $(seq 1 120); do
+              if curl -fsS "https://index.crates.io/$sparse" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
+                echo "$name@$VERSION live in sparse index"; return 0
+              fi
+              sleep 5
+            done
+            echo "timed out waiting for $name@$VERSION in sparse index" >&2; exit 1
+          }
+
+          publish_crate objectiveai-sdk-macros
+          wait_crate objectiveai-sdk-macros
+
+          publish_crate objectiveai-sdk
+          wait_crate objectiveai-sdk
+
+          # --no-verify on api/cli/mcp/mcp-proxy: their build.rs / dev-only
+          # path deps don't resolve from the published tarball alone.
+          publish_crate objectiveai-mcp-proxy --no-verify
+          publish_crate objectiveai-mcp-filesystem
+          publish_crate objectiveai-mcp --no-verify
+          wait_crate objectiveai-mcp-proxy
+          wait_crate objectiveai-mcp
+
+          publish_crate objectiveai-api --no-verify
+          publish_crate objectiveai-cli --no-verify
+
+  # Python: build the sdk-py wheels/sdist (maturin compiles the pyo3
+  # extension; no pydantic codegen — the committed types are used), then
+  # publish sdk-py + the pure-python cocoindex to PyPI.
+  py-wheels:
+    name: SDK · python · wheel (${{ matrix.platform }})
+    needs: [check-version, publish-rust]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    platform: linux-x86_64,  target: x86_64-unknown-linux-gnu,  manylinux: auto }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-gnu, manylinux: auto }
+          - { os: macos-14,         platform: macos-arm64,   target: aarch64-apple-darwin }
+          - { os: windows-latest,   platform: windows-x86_64, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Stage README + LICENSE
+        shell: bash
         run: |
-          VERSION="${{ needs.check-version.outputs.version }}"
-          P="objectiveai-${{ matrix.os }}-${{ matrix.arch }}"
-          gh release upload "v$VERSION" "$P.zip" \
-            --clobber \
-            --repo "${{ github.repository }}"
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+      - name: Build wheel (committed pydantic types — no codegen)
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.manylinux || '' }}
+          sccache: 'true'
+          working-directory: objectiveai-sdk-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: py-wheel-${{ matrix.platform }}
+          path: objectiveai-sdk-py/dist/*.whl
+          if-no-files-found: error
+
+  py-sdist:
+    name: SDK · python · sdist
+    needs: [check-version, publish-rust]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Stage README + LICENSE
+        run: |
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+      - name: Build sdist (no codegen)
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: objectiveai-sdk-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: py-sdist
+          path: objectiveai-sdk-py/dist/*.tar.gz
+          if-no-files-found: error
+
+  publish-python:
+    name: SDK · python (PyPI)
+    needs: [check-version, py-wheels, py-sdist]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Download sdk-py artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: 'py-*'
+          merge-multiple: true
+      - name: Publish objectiveai-sdk to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+      - name: Build + publish objectiveai-cocoindex (pure python)
+        run: |
+          cp README.md objectiveai-cocoindex/README.md
+          cp LICENSE objectiveai-cocoindex/LICENSE
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel --outdir cocoindex-dist objectiveai-cocoindex
+      - name: Publish cocoindex to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cocoindex-dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+
+  publish-javascript:
+    name: SDK · javascript (npm)
+    needs: [check-version, publish-python]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.14.0'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade npm to a Trusted-Publishing-aware version
+        run: npm install -g npm@latest
+      - name: Publish committed dist to npm (no build — ships committed wasm/zod)
+        working-directory: objectiveai-sdk-js
+        # The package's `files` is ["dist"] and dist/ is committed (wasm
+        # baked in as base64); there are no prepublish build hooks, so this
+        # ships exactly what's committed. OIDC Trusted Publishing — no token.
+        run: |
+          if npm view "@objectiveai/sdk@${{ needs.check-version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "@objectiveai/sdk@${{ needs.check-version.outputs.version }} already on npm — skip"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks --provenance
+
+  publish-golang:
+    name: SDK · golang (git tag)
+    needs: [check-version, publish-javascript]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Push tag objectiveai-sdk-go/v<version.txt>
+        # The Go SDK versions independently via objectiveai-sdk-go/version.txt.
+        # Ships committed Go types + committed lib/objectiveai_cffi.wasm — no
+        # build. The tag-exists guard makes it a no-op until version.txt moves.
+        run: |
+          VERSION="$(tr -d ' \r\n' < objectiveai-sdk-go/version.txt)"
+          if [ -z "$VERSION" ]; then
+            echo "objectiveai-sdk-go/version.txt is missing or empty" >&2
+            exit 1
+          fi
+          TAG="objectiveai-sdk-go/v$VERSION"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists on origin — skip"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "objectiveai-sdk-go v$VERSION"
+          git push origin "$TAG"
