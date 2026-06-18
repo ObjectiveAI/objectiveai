@@ -5,10 +5,10 @@ import type { Stream } from "./stream";
 import * as fs from "fs";
 import * as path from "path";
 
-const port = process.env.OBJECTIVEAI_TEST_PORT;
+const address = process.env.OBJECTIVEAI_ADDRESS;
 
-export const httpTestClient = port
-  ? new ObjectiveAI({ address: `http://127.0.0.1:${port}` })
+export const httpTestClient = address
+  ? new ObjectiveAI({ address })
   : null;
 
 export function loadSnapshot<U>(snapshotsDir: string, name: string): U {
@@ -57,7 +57,7 @@ export function httpTestSuite<Chunk, Unary>(opts: HttpTestSuiteOptions<Chunk, Un
     return opts.chunkToUnary(acc!);
   }
 
-  describe.skipIf(!port)(opts.name, () => {
+  describe.skipIf(!address)(opts.name, () => {
     for (const c of opts.cases) {
       it(`${c.snapshot} (unary)`, async () => {
         const expected = rounded(loadSnapshot<Unary>(opts.snapshotsDir, c.snapshot));

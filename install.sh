@@ -1,103 +1,98 @@
 #!/usr/bin/env bash
-# ObjectiveAI installer — downloads the pre-built release binaries.
-#
-# Default: installs `objectiveai` (CLI), `objectiveai-api` (server),
-# `objectiveai-viewer` (Tauri desktop app), and `objectiveai-mcp`
-# (MCP server) from the latest GitHub Release.
+# ObjectiveAI installer — installs the pre-built release binaries from the
+# per-platform release zip (objectiveai-<version>-<os>-<arch>.zip), which bundles
+# the CLI, api, viewer, mcp, db, and the two SDK runners.
 #
 #   curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
 #
-# Flags (compose freely):
-#   --no-viewer        skip the standalone viewer binary.
-#   --no-api           skip the standalone API server binary.
-#   --no-mcp           skip the standalone MCP server binary.
-#   --cli-only         skip viewer, api, and mcp (only install the CLI).
-#   --dev,             delegate to
-#   --development      objectiveai-development-launcher/install.sh, which
-#                      installs launchers that shell out to
-#                      `cargo run -p <pkg>` against the local clone.
-#                      Requires running this script from a clone (not
-#                      via `curl | bash`). --no-*/--cli-only flags are
-#                      ignored when --dev is set.
+# Options:
+#   --objectiveai-dir <dir>   Install root. Falls back to $OBJECTIVEAI_DIR,
+#                             then $HOME/.objectiveai.
+#   --no-export-path          Don't add the bin dir to PATH / shell rc.
+#   --from-source             Build the binaries locally with build.sh
+#                             (debug) and install those instead of
+#                             downloading a release zip.
+#   --from-source-release     Same, but build in release mode.
+#
+# Zip resolution, in order:
+#   1. ./<asset>            (current working directory)
+#   2. <dir>/bin/<asset>    (a previously-downloaded copy)
+#   3. download from the v<VERSION> GitHub Release into <dir>/bin/<asset>
+#      (left in place — not cleaned up, so a re-run reuses it via step 2).
+#
+# The zip is unpacked into <dir>/bin, replacing any existing binaries.
+# The replacement is all-or-nothing: every file is staged first, then
+# swapped in with rollback, so a failure never leaves bin/ half-updated.
 #
 # Layout on disk (bin/ is machine-wide; per-state data lives under
-# ~/.objectiveai/state/<OBJECTIVEAI_STATE>, default "default"):
-#   ~/.objectiveai/bin/objectiveai{.exe}        ← CLI
-#   ~/.objectiveai/bin/objectiveai-api{.exe}
-#   ~/.objectiveai/bin/objectiveai-viewer{.exe}
-#   ~/.objectiveai/bin/objectiveai-mcp{.exe}
+# <dir>/state/<OBJECTIVEAI_STATE>, default "default"):
+#   <dir>/bin/objectiveai{.exe}        ← CLI
+#   <dir>/bin/objectiveai-api{.exe}
+#   <dir>/bin/objectiveai-viewer{.exe}
+#   <dir>/bin/objectiveai-mcp{.exe}
+#   <dir>/bin/objectiveai-db{.exe}
+#   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
+#   <dir>/bin/objectiveai-codex-sdk-runner{.exe}
 #
-# ~/.objectiveai/bin is added to PATH.
-# No toolchain required.
-#
-# For a from-source install, clone the repo and run the per-crate
-# install.sh scripts under objectiveai-cli/, objectiveai-api/,
-# objectiveai-viewer/, objectiveai-mcp/.
+# No toolchain required for the default (download) path. To build from a
+# repo checkout instead, pass --from-source (or --from-source-release):
+# this runs build.sh, then stages the packaged zip so the resolution
+# above picks it up (step 2) — no download.
 
 set -euo pipefail
 
+# Release version this installer pulls. Kept in lockstep by version.sh.
+VERSION="2.2.4"
 REPO="ObjectiveAI/objectiveai"
-INSTALL_DIR="$HOME/.objectiveai"
 
-INSTALL_API=1
-INSTALL_VIEWER=1
-INSTALL_MCP=1
-DEV=0
+# ── Parse arguments ───────────────────────────────────────────────────
 
-for arg in "$@"; do
-  case "$arg" in
-    --no-viewer)
-      INSTALL_VIEWER=0
+NO_EXPORT_PATH=0
+DIR_ARG=""
+FROM_SOURCE=0
+FROM_SOURCE_RELEASE=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-export-path)
+      NO_EXPORT_PATH=1
+      shift
       ;;
-    --no-api)
-      INSTALL_API=0
+    --from-source)
+      FROM_SOURCE=1
+      shift
       ;;
-    --no-mcp)
-      INSTALL_MCP=0
+    --from-source-release)
+      FROM_SOURCE=1
+      FROM_SOURCE_RELEASE=1
+      shift
       ;;
-    --cli-only)
-      INSTALL_API=0
-      INSTALL_VIEWER=0
-      INSTALL_MCP=0
+    --objectiveai-dir)
+      if [ "$#" -lt 2 ]; then
+        echo "--objectiveai-dir requires a value" >&2
+        exit 1
+      fi
+      DIR_ARG="$2"
+      shift 2
       ;;
-    --dev|--development)
-      DEV=1
+    --objectiveai-dir=*)
+      DIR_ARG="${1#*=}"
+      shift
       ;;
     -h|--help)
-      sed -n '2,28p' "$0" | sed 's/^# \{0,1\}//'
+      sed -n '2,36p' "$0" | sed 's/^# \{0,1\}//'
       exit 0
       ;;
     *)
-      echo "unknown option: $arg" >&2
-      exit 2
+      echo "unknown argument: $1" >&2
+      echo "run with --help for usage" >&2
+      exit 1
       ;;
   esac
 done
 
-# ── --dev: delegate to the development launcher installer ────────────
-# Requires being run from a clone of the repo (BASH_SOURCE must be a
-# regular file). curl|bash invocations have no clone to point at and
-# error out.
-if [ "$DEV" = "1" ]; then
-  SCRIPT_PATH="${BASH_SOURCE[0]:-}"
-  if [ -z "$SCRIPT_PATH" ] || [ ! -f "$SCRIPT_PATH" ]; then
-    cat >&2 <<'MSG'
---dev requires running install.sh from a checkout of the repo.
-This invocation looks piped via curl. Clone the repo first:
-  git clone https://github.com/ObjectiveAI/objectiveai
-  bash objectiveai/install.sh --dev
-MSG
-    exit 1
-  fi
-  REPO_ROOT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-  LAUNCHER_INSTALL="$REPO_ROOT_DIR/objectiveai-development-launcher/install.sh"
-  if [ ! -f "$LAUNCHER_INSTALL" ]; then
-    echo "ERROR: $LAUNCHER_INSTALL missing — is this an objectiveai clone?" >&2
-    exit 1
-  fi
-  echo "--dev: delegating to objectiveai-development-launcher/install.sh"
-  exec bash "$LAUNCHER_INSTALL"
-fi
+# --objectiveai-dir wins, then $OBJECTIVEAI_DIR, then the default.
+INSTALL_DIR="${DIR_ARG:-${OBJECTIVEAI_DIR:-$HOME/.objectiveai}}"
+BIN_DIR="$INSTALL_DIR/bin"
 
 # ── Detect platform ───────────────────────────────────────────────────
 
@@ -121,40 +116,64 @@ case "$ARCH" in
     ;;
 esac
 
-# Only these platform/arch combos have release assets.
+# Only these platform/arch combos have release zips.
 SUPPORTED=0
 case "$PLATFORM-$ARCH" in
-  linux-x86_64|linux-aarch64|macos-x86_64|macos-aarch64|windows-x86_64) SUPPORTED=1 ;;
+  linux-x86_64|linux-aarch64|macos-x86_64|macos-aarch64|windows-x86_64|windows-aarch64)
+    SUPPORTED=1 ;;
 esac
 if [ "$SUPPORTED" = "0" ]; then
-  echo "no release asset for $PLATFORM-$ARCH" >&2
+  echo "no release zip for $PLATFORM-$ARCH" >&2
   exit 1
 fi
 
-if [ "$PLATFORM" = "windows" ]; then
-  EXE_SUFFIX=".exe"
-else
-  EXE_SUFFIX=""
+ASSET="objectiveai-${VERSION}-${PLATFORM}-${ARCH}.zip"
+
+# ── Locate the zip ────────────────────────────────────────────────────
+# 1. CWD, 2. <dir>/bin, 3. download into <dir>/bin (and leave it there).
+
+mkdir -p "$BIN_DIR"
+
+# ── From-source build (optional) ──────────────────────────────────────
+# --from-source / --from-source-release: build the binaries locally with
+# build.sh (binaries only — `--no-sdk` runs phase 1 + packaging), then
+# stage the resulting zip into BIN_DIR. The zip resolution below then
+# finds it as a "cached" copy (step 2) and unpacks it — no download.
+if [ "$FROM_SOURCE" = "1" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+  if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
+    echo "--from-source requires a repo checkout (build.sh not found beside install.sh)" >&2
+    exit 1
+  fi
+  BUILD_ARGS=(--no-sdk)
+  if [ "$FROM_SOURCE_RELEASE" = "1" ]; then
+    BUILD_ARGS+=(--release)
+  fi
+  echo "Building from source: bash build.sh ${BUILD_ARGS[*]}"
+  bash "$SCRIPT_DIR/build.sh" "${BUILD_ARGS[@]}"
+  # build.sh packages the host zip into
+  # ${OBJECTIVEAI_DIR:-$HOME/.objectiveai}/bin/<asset> — the same dir
+  # resolution build.sh itself uses (it doesn't know --objectiveai-dir).
+  BUILT_ZIP="${OBJECTIVEAI_DIR:-$HOME/.objectiveai}/bin/$ASSET"
+  if [ ! -f "$BUILT_ZIP" ]; then
+    echo "build.sh did not produce $BUILT_ZIP" >&2
+    exit 1
+  fi
+  if [ "$BUILT_ZIP" != "$BIN_DIR/$ASSET" ]; then
+    cp -f "$BUILT_ZIP" "$BIN_DIR/$ASSET"
+    echo "Staged $ASSET into $BIN_DIR."
+  fi
 fi
 
-# ── Download helper ───────────────────────────────────────────────────
-
-# install_binary <asset_filename> <dst_dir> <dst_filename>
-#
-# Fetches the asset from /releases/latest/download/ and installs it at
-# <dst_dir>/<dst_filename> with the executable bit set.
-install_binary() {
-  local asset="$1" dst_dir="$2" dst_name="$3"
-  local url="https://github.com/${REPO}/releases/latest/download/${asset}"
-  local tmp dst
-  tmp=$(mktemp -t objectiveai.XXXXXX)
-  # shellcheck disable=SC2064
-  trap "rm -f '$tmp'" RETURN
-
-  echo "Downloading $asset..."
+download() {
+  local url="$1" dst="$2"
+  # Download to a temp sibling, then move into place, so a failed/partial
+  # download never leaves a corrupt <asset> that step 2 would treat as
+  # a valid cached copy on the next run.
+  local tmp="$dst.partial.$$"
+  echo "Downloading $ASSET (v$VERSION)..."
   if command -v curl >/dev/null 2>&1; then
-    # -L follows the redirect from /releases/latest/download/ to the
-    # actual asset URL; -f fails hard on 4xx/5xx instead of writing HTML.
+    # -L follows the release redirect; -f fails hard on 4xx/5xx.
     curl -fSL --progress-bar "$url" -o "$tmp"
   elif command -v wget >/dev/null 2>&1; then
     wget -O "$tmp" "$url"
@@ -162,115 +181,141 @@ install_binary() {
     echo "need curl or wget to download" >&2
     return 1
   fi
-
   if [ ! -s "$tmp" ]; then
+    rm -f "$tmp"
     echo "download produced an empty file" >&2
     return 1
   fi
-
-  mkdir -p "$dst_dir"
-  dst="$dst_dir/$dst_name"
-  # `mv` onto a running Windows exe fails ("in use"); prefer `cp` so a
-  # later install over an in-use binary degrades to a clearer error.
-  cp "$tmp" "$dst"
-  chmod +x "$dst"
-  echo "Installed $dst"
+  mv -f "$tmp" "$dst"
 }
 
-# ── Install binaries ──────────────────────────────────────────────────
-# Every binary lands in bin/ — machine-wide, shared by every state —
-# so the cli's own `objectiveai update` has one stable place to
-# refresh them all.
-
-BIN_DIR="$INSTALL_DIR/bin"
-
-# CLI — always installed.
-install_binary \
-  "objectiveai-${PLATFORM}-${ARCH}${EXE_SUFFIX}" \
-  "$BIN_DIR" \
-  "objectiveai${EXE_SUFFIX}"
-
-# API server — standalone objectiveai-api binary.
-if [ "$INSTALL_API" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-api${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-api${EXE_SUFFIX}"
+if [ -f "$PWD/$ASSET" ]; then
+  ZIP="$PWD/$ASSET"
+  echo "Using $ASSET from the current directory."
+elif [ -f "$BIN_DIR/$ASSET" ]; then
+  ZIP="$BIN_DIR/$ASSET"
+  echo "Using cached $ASSET from $BIN_DIR."
+else
+  ZIP="$BIN_DIR/$ASSET"
+  download "https://github.com/${REPO}/releases/download/v${VERSION}/${ASSET}" "$ZIP"
 fi
 
-# Viewer — standalone Tauri desktop app.
-if [ "$INSTALL_VIEWER" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-viewer${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-viewer${EXE_SUFFIX}"
+# ── Unpack (all-or-nothing) ───────────────────────────────────────────
+# Extract everything to a staging dir on the same filesystem as bin/,
+# then swap each file into place with rollback. A failure at any point
+# leaves bin/ exactly as it was.
+
+STAGING="$BIN_DIR/.objectiveai-install-staging.$$"
+rm -rf "$STAGING"
+mkdir -p "$STAGING"
+trap 'rm -rf "$STAGING"' EXIT
+
+echo "Unpacking into $BIN_DIR..."
+if command -v unzip >/dev/null 2>&1; then
+  unzip -o -q "$ZIP" -d "$STAGING"
+elif command -v tar >/dev/null 2>&1; then
+  # bsdtar (macOS, modern Windows) reads zips; GNU tar does not.
+  tar -xf "$ZIP" -C "$STAGING"
+else
+  echo "need unzip or tar to unpack $ASSET" >&2
+  exit 1
 fi
 
-# MCP — standalone MCP (Model Context Protocol) server.
-if [ "$INSTALL_MCP" = "1" ]; then
-  install_binary \
-    "objectiveai-${PLATFORM}-${ARCH}-mcp${EXE_SUFFIX}" \
-    "$BIN_DIR" \
-    "objectiveai-mcp${EXE_SUFFIX}"
-fi
+commit_files() {
+  local placed=() backups=() entry target bak f base ok=1
+
+  rollback() {
+    local t e tgt bk
+    for t in "${placed[@]}"; do rm -f "$t"; done
+    for e in "${backups[@]}"; do
+      tgt="${e%%|*}"; bk="${e##*|}"
+      mv -f "$bk" "$tgt" 2>/dev/null || true
+    done
+  }
+
+  shopt -s nullglob
+  for f in "$STAGING"/*; do
+    [ -f "$f" ] || continue
+    base=$(basename "$f")
+    target="$BIN_DIR/$base"
+    if [ -e "$target" ]; then
+      bak="$BIN_DIR/.bak.$$.$base"
+      if ! mv -f "$target" "$bak"; then ok=0; break; fi
+      backups+=("$target|$bak")
+    fi
+    if ! mv -f "$f" "$target"; then ok=0; break; fi
+    placed+=("$target")
+  done
+
+  if [ "$ok" != "1" ]; then
+    rollback
+    echo "unpack failed — rolled back; $BIN_DIR left unchanged" >&2
+    return 1
+  fi
+
+  # Commit: make the new binaries executable, drop the backups.
+  for target in "${placed[@]}"; do chmod +x "$target" 2>/dev/null || true; done
+  for entry in "${backups[@]}"; do
+    bak="${entry##*|}"
+    rm -f "$bak" 2>/dev/null || true
+  done
+  for target in "${placed[@]}"; do echo "Installed $target"; done
+}
+
+commit_files
 
 # ── PATH ──────────────────────────────────────────────────────────────
-#
-# A child process can't mutate its parent shell's environment, so the
-# canonical pattern (rustup, etc.) is to write a sourceable env file.
-# Future shells pick it up via a one-liner appended to the user's rc;
-# the current shell sources it on demand.
+# A child process can't mutate its parent shell's environment, so we add a
+# guarded `export PATH` for the BIN dir directly to the user's shell rc
+# files (and the Windows user PATH). We do NOT write an `env` file into the
+# install dir — and we remove a stale one a previous installer may have left.
 
-write_env_file() {
-  cat > "$INSTALL_DIR/env" <<'EOF'
-#!/bin/sh
-# objectiveai shell setup. Source this file from your shell rc, or run
-#   . "$HOME/.objectiveai/env"
-# to put the objectiveai binaries on PATH for the current shell.
-
-case ":${PATH}:" in
-    *:"$HOME/.objectiveai/bin":*) ;;
-    *) export PATH="$HOME/.objectiveai/bin:$PATH" ;;
-esac
-EOF
-}
+# Never leave an `env` file behind. Older installers dropped a sourceable
+# "$INSTALL_DIR/env"; delete it so nothing lingers in the install dir.
+rm -f "$INSTALL_DIR/env"
 
 add_to_path() {
   local shell_rc="$1"
-  local line='. "$HOME/.objectiveai/env"'
-  if [ -f "$shell_rc" ] && grep -qF '.objectiveai/env' "$shell_rc"; then
+  # Idempotent: skip if this rc already puts the bin dir on PATH.
+  if [ -f "$shell_rc" ] && grep -qF "$BIN_DIR" "$shell_rc"; then
     return
   fi
-  {
-    echo ""
-    echo "# ObjectiveAI"
-    echo "$line"
-  } >> "$shell_rc"
-  echo "Added to PATH in $shell_rc"
+  # Write the export directly (no env file to source). Expands $BIN_DIR at
+  # write time; keeps $PATH literal so it re-resolves on each shell start.
+  cat >> "$shell_rc" <<EOF
+
+# ObjectiveAI
+case ":\${PATH}:" in
+    *:"$BIN_DIR":*) ;;
+    *) export PATH="$BIN_DIR:\$PATH" ;;
+esac
+EOF
+  echo "Added $BIN_DIR to PATH in $shell_rc"
 }
 
-write_env_file
+if [ "$NO_EXPORT_PATH" = "1" ]; then
+  echo ""
+  echo "Done! (skipped PATH export — --no-export-path)"
+  echo "The binaries are in $BIN_DIR."
+  exit 0
+fi
 
 case "$PLATFORM" in
   windows)
-    INSTALL_DIR_WIN="$(cygpath -w "$INSTALL_DIR" 2>/dev/null || echo "$INSTALL_DIR")"
     BIN_DIR_WIN="$(cygpath -w "$BIN_DIR" 2>/dev/null || echo "$BIN_DIR")"
     CURRENT_PATH=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path', 'User')" 2>/dev/null | tr -d '\r' || true)
     NEED_PREPEND=""
-    if ! echo "$CURRENT_PATH" | grep -qiF "$INSTALL_DIR_WIN"; then
-      NEED_PREPEND="$INSTALL_DIR_WIN;"
-    fi
     if ! echo "$CURRENT_PATH" | grep -qiF "$BIN_DIR_WIN"; then
-      NEED_PREPEND="$NEED_PREPEND$BIN_DIR_WIN;"
+      NEED_PREPEND="$BIN_DIR_WIN;"
     fi
     if [ -n "$NEED_PREPEND" ]; then
       powershell.exe -NoProfile -Command \
         "[Environment]::SetEnvironmentVariable('Path', '$NEED_PREPEND' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" 2>/dev/null
       echo "Added $NEED_PREPEND to user PATH (restart cmd/PowerShell to use it)."
     else
-      echo "PATH already contains $INSTALL_DIR_WIN and $BIN_DIR_WIN"
+      echo "PATH already contains $BIN_DIR_WIN"
     fi
-    # Also wire up Git Bash / MSYS via the env file.
+    # Also wire up Git Bash / MSYS via ~/.bashrc.
     [ -f "$HOME/.bashrc" ] && add_to_path "$HOME/.bashrc"
     ;;
   macos)
@@ -285,7 +330,7 @@ esac
 echo ""
 echo "Done!"
 echo ""
-echo "To use the objectiveai binaries in your current shell, run:"
-echo '  . "$HOME/.objectiveai/env"'
+echo "Restart your shell, or run this to use the binaries now:"
+echo "  export PATH=\"$BIN_DIR:\$PATH\""
 echo ""
 echo "(New shells will pick it up automatically.)"

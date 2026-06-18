@@ -18,6 +18,18 @@
       "$ref": "cli.command.functions.Request"
     },
     {
+      "title": "KillAll",
+      "$ref": "cli.command.kill_all.Request"
+    },
+    {
+      "title": "KillAllRequestSchema",
+      "$ref": "cli.command.kill_all.request_schema.Request"
+    },
+    {
+      "title": "KillAllResponseSchema",
+      "$ref": "cli.command.kill_all.response_schema.Request"
+    },
+    {
       "title": "Mcp",
       "$ref": "cli.command.mcp.Request"
     },

@@ -62,7 +62,7 @@ impl Client {
     /// Resolves the authorization token: per-request header → ext → self.authorization.
     async fn resolve_authorization<CTXEXT: ctx::ContextExt>(
         &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: &ctx::Context<CTXEXT>,
     ) -> Option<Arc<String>> {
         if let Some(token) = ctx.github_authorization().await {
             return Some(token);
@@ -95,7 +95,7 @@ impl Client {
     /// Fetches the latest commit SHA for a repository.
     pub async fn fetch_latest_commit<CTXEXT: ctx::ContextExt>(
         &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: &ctx::Context<CTXEXT>,
         owner: &str,
         repository: &str,
     ) -> Result<Option<String>, super::Error> {
@@ -147,7 +147,7 @@ impl Client {
     /// Tries raw.githubusercontent.com first, falls back to the Contents API.
     pub async fn read_file<CTXEXT: ctx::ContextExt>(
         &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: &ctx::Context<CTXEXT>,
         owner: &str,
         repository: &str,
         commit: &str,
@@ -175,7 +175,7 @@ impl Client {
     /// Fetches a JSON file from a GitHub repository and deserializes it.
     pub async fn read_json<T, CTXEXT: ctx::ContextExt>(
         &self,
-        ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: &ctx::Context<CTXEXT>,
         owner: &str,
         repository: &str,
         commit: &str,

@@ -510,6 +510,62 @@ pub async fn owners(dir: &Path, key: &str) -> std::io::Result<Vec<u32>> {
     .map_err(|e| std::io::Error::other(format!("join: {e}")))?
 }
 
+/// Recursively collect the live owner PIDs of every lockfile in the
+/// tree rooted at `root` — the de-duplicated union of [`file_owners`]
+/// across every `*.lock` file (both the `.lock` gates and the
+/// `.live.lock` announces) found anywhere beneath it.
+///
+/// This is the whole-subtree analogue of [`owners`]: where `owners`
+/// resolves the holders of one `(dir, key)`, this sweeps an entire
+/// directory subtree and returns every distinct process holding any
+/// lock within it — the basis for a "kill everything rooted at this
+/// `OBJECTIVEAI_DIR`" operation. Because it works straight off the
+/// on-disk `*.lock` filenames it needs no key round-trip (no
+/// un-escaping): the gate path IS what `file_owners` consumes.
+///
+/// A `root` that does not exist (or vanishes mid-walk) contributes
+/// nothing rather than erroring; only an unreadable directory that
+/// does exist surfaces its `io::Error`. Symlinked directories are
+/// not followed (the `read_dir` entry's file type reports the link,
+/// not its target), so the walk cannot loop. The current process is
+/// **not** filtered — a caller that must avoid terminating itself
+/// drops `std::process::id()` from the result.
+pub async fn owners_in_tree(root: &Path) -> std::io::Result<Vec<u32>> {
+    let root = root.to_path_buf();
+    tokio::task::spawn_blocking(move || {
+        let mut pids: Vec<u32> = Vec::new();
+        let mut stack = vec![root];
+        while let Some(dir) = stack.pop() {
+            let entries = match std::fs::read_dir(&dir) {
+                Ok(entries) => entries,
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
+                Err(e) => return Err(e),
+            };
+            for entry in entries {
+                let entry = entry?;
+                let file_type = entry.file_type()?;
+                let path = entry.path();
+                if file_type.is_dir() {
+                    stack.push(path);
+                } else if path
+                    .file_name()
+                    .and_then(|n| n.to_str())
+                    .is_some_and(|n| n.ends_with(".lock"))
+                {
+                    for pid in file_owners(&path)? {
+                        if !pids.contains(&pid) {
+                            pids.push(pid);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(pids)
+    })
+    .await
+    .map_err(|e| std::io::Error::other(format!("join: {e}")))?
+}
+
 #[cfg(windows)]
 fn file_owners(path: &Path) -> std::io::Result<Vec<u32>> {
     use std::os::windows::ffi::OsStrExt;

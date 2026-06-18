@@ -4,7 +4,8 @@
 # Usage:
 #   source fingerprint.sh [--target <triple>] [--release]
 #
-# Exports: CURRENT_FP, FINGERPRINT_FILE, TARGET, PROFILE
+# Exports: CURRENT_FP, FINGERPRINT_FILE, TARGET, PROFILE, EMBED_DIR
+#          (EMBED_DIR is embed/<profile>/ — debug and release stay separate)
 # Returns 0 if fingerprint changed (build needed), 1 if up to date.
 
 set -euo pipefail
@@ -30,7 +31,12 @@ if [ -z "$TARGET" ]; then
   TARGET=$(rustc -vV | grep '^host:' | awk '{print $2}')
 fi
 
-EMBED_DIR="$SCRIPT_DIR/embed/$TARGET/$PROFILE"
+# The binary lands in embed/<profile>/ — debug and release coexist in
+# separate folders, each with its own .fingerprint (no <target> subdir;
+# each checkout builds for its own host). TARGET/PROFILE drive the tauri
+# build; PROFILE also selects the per-profile embed dir and is folded into
+# the hash, so debug vs release never share a fingerprint or a binary.
+EMBED_DIR="$SCRIPT_DIR/embed/$PROFILE"
 FINGERPRINT_FILE="$EMBED_DIR/.fingerprint"
 
 # macOS ships `shasum` (Perl) but not GNU `sha256sum`; prefer the latter
@@ -78,12 +84,12 @@ compute_fingerprint() {
 }
 
 CURRENT_FP=$(compute_fingerprint)
-export CURRENT_FP FINGERPRINT_FILE TARGET PROFILE
+export CURRENT_FP FINGERPRINT_FILE TARGET PROFILE EMBED_DIR
 
 if [ -f "$FINGERPRINT_FILE" ]; then
   STORED_FP=$(cat "$FINGERPRINT_FILE")
   if [ "$CURRENT_FP" = "$STORED_FP" ]; then
-    echo "embed/$TARGET/$PROFILE is up to date (fingerprint: ${CURRENT_FP:0:12}...)"
+    echo "embed/ is up to date ($PROFILE, fingerprint: ${CURRENT_FP:0:12}...)"
     return 1 2>/dev/null || exit 1
   fi
   echo "Fingerprint changed: ${STORED_FP:0:12}... -> ${CURRENT_FP:0:12}..."

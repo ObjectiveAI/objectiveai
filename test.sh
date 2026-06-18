@@ -1,103 +1,132 @@
 #!/usr/bin/env bash
-# Runs all test suites in parallel against the repo's committed
-# shared test root (.objectiveai/). No server orchestration: suites
-# that need the api run `objectiveai api spawn` themselves, and the
-# api lockfile singleton guarantees exactly one server materializes
-# no matter how many suites ask. This script owns the bracketing —
-# at start it resets the shared root (kill lockfile owners + wipe
-# state/) via test-cleanup.sh while test-build.sh builds the five
-# shim-target binaries in parallel, at the very end it always runs
-# test-cleanup.sh again, and it tells the inner scripts to skip
-# their own bracketing through OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT.
+# test.sh — full test orchestration.
+#
+# Resets the shared .objectiveai test root, (re)installs the cli/api
+# binaries from the kept release zip, configures them for testing, then
+# runs the unit / sdk / integration suites in parallel and reports their
+# aggregate result.
+#
+# Flags (all optional): --no-unit, --no-sdk, --no-integration.
+#
+# Special case: with BOTH --no-sdk and --no-integration, none of the
+# .objectiveai / server setup is needed (unit tests hit no server), so
+# we skip all of it and defer straight to test-unit.sh.
 #
 # Usage:
-#   bash test.sh
+#   bash test.sh [--no-unit] [--no-sdk] [--no-integration]
 
-set -euo pipefail
+set -uo pipefail
 
 REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
-LOG_DIR="$REPO_ROOT/.logs/test"
-CLEANUP_LOG="$LOG_DIR/test-cleanup.txt"
-BUILD_LOG="$LOG_DIR/test-build.txt"
+OAI_DIR="$REPO_ROOT/.objectiveai"
+USAGE="Usage: bash test.sh [--no-unit] [--no-sdk] [--no-integration]"
 
-mkdir -p "$LOG_DIR"
-: > "$CLEANUP_LOG"
-: > "$BUILD_LOG"
-
-export OBJECTIVEAI_TESTS_RUNNING_FROM_ROOT=1
-
-# Reset the shared root and build the shim binaries, in parallel.
-# Cleanup kills every lockfile-owning process first thing, so nothing
-# is left running the binaries the build is about to relink.
-bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 & CLEANUP_PID=$!
-bash "$REPO_ROOT/test-build.sh" >>"$BUILD_LOG" 2>&1 & BUILD_PID=$!
-wait "$CLEANUP_PID"
-wait "$BUILD_PID"
-
-# Pre-build every suite's TEST binaries up front — BEFORE the parallel
-# test phase spawns any server — so no suite relinks a running `.exe`
-# (the Windows "Access is denied" relink race). test-build.sh above
-# builds the shim bins; this builds the per-suite test binaries cargo
-# would otherwise relink during the parallel phase. Sequential: cargo's
-# target-dir build lock serializes them anyway. Each build-tests.sh
-# runs the suite's `nextest list`, so the later `nextest run` is a pure
-# cache hit. A build failure here aborts before the test phase (set -e).
-for suite in \
-  objectiveai-sdk-rs \
-  objectiveai-api \
-  objectiveai-json-schema \
-  objectiveai-cli \
-  objectiveai-mcp-proxy \
-  objectiveai-viewer \
-  objectiveai-tests \
-; do
-  bash "$REPO_ROOT/$suite/build-tests.sh" >>"$BUILD_LOG" 2>&1
+NO_UNIT=0
+NO_SDK=0
+NO_INTEGRATION=0
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --no-unit)        NO_UNIT=1; shift ;;
+    --no-sdk)         NO_SDK=1; shift ;;
+    --no-integration) NO_INTEGRATION=1; shift ;;
+    -h|--help)        echo "$USAGE"; exit 0 ;;
+    *) echo "unknown argument: $1" >&2; echo "$USAGE" >&2; exit 1 ;;
+  esac
 done
 
-# The root ALWAYS reruns test-cleanup.sh at the very end, exactly
-# once — the EXIT trap covers success, failure, and interruption.
-# It's kill-only: every lockfile-owning process dies but `state/`
-# survives, so a failed run's db can be re-spawned and its logs read
-# back with the cli (`OBJECTIVEAI_STATE=<test-fn> objectiveai agents
-# instances list` / `agents logs read`). The START cleanup above ran
-# WITHOUT the env var, so it still wiped a stale tree for a clean
-# slate. Mirrors the per-suite test.sh bracketing.
-FINAL_CLEANUP_DONE=false
-final_cleanup() {
-  $FINAL_CLEANUP_DONE && return 0
-  FINAL_CLEANUP_DONE=true
-  OBJECTIVEAI_TEST_CLEANUP_KILL_ONLY=1 \
-    bash "$REPO_ROOT/test-cleanup.sh" >>"$CLEANUP_LOG" 2>&1 || true
+# The installed cli binary (.exe on Windows). May not exist yet on a
+# fresh tree.
+oai_bin() {
+  if [ -f "$OAI_DIR/bin/objectiveai.exe" ]; then
+    printf '%s\n' "$OAI_DIR/bin/objectiveai.exe"
+  else
+    printf '%s\n' "$OAI_DIR/bin/objectiveai"
+  fi
 }
-trap final_cleanup EXIT INT TERM
 
-# Run all test suites in parallel.
-# Each script prints exactly one line: "$MODULE: PASS N/N" or "$MODULE: FAIL N/N".
-PIDS=()
-for suite in \
-  objectiveai-sdk-rs \
-  objectiveai-api \
-  objectiveai-json-schema \
-  objectiveai-cli \
-  objectiveai-mcp-proxy \
-  objectiveai-sdk-js \
-  objectiveai-sdk-py \
-  objectiveai-sdk-go \
-  objectiveai-viewer \
-  objectiveai-tests \
-; do
-  bash "$REPO_ROOT/$suite/test.sh" &
-  PIDS+=($!)
-done
+# ── Unit-only shortcut ──────────────────────────────────────────────
+# With both the SDK and integration suites disabled, only unit tests can
+# run, and they need no server / .objectiveai setup — skip everything
+# else and defer to test-unit.sh.
+if [ "$NO_SDK" = "1" ] && [ "$NO_INTEGRATION" = "1" ]; then
+  if [ "$NO_UNIT" = "1" ]; then
+    echo "test: nothing to run (--no-unit --no-sdk --no-integration)"
+    exit 0
+  fi
+  exec bash "$REPO_ROOT/test-unit.sh"
+fi
 
-# Wait for all suites, collect exit codes
-FAILED=false
-for pid in "${PIDS[@]}"; do
-  if ! wait "$pid"; then
-    FAILED=true
+# ── Step 1: kill-all, only if the cli is already installed ──────────
+BIN="$(oai_bin)"
+if [ -f "$BIN" ]; then
+  echo "test: kill-all (pre)"
+  OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" kill-all || true
+fi
+
+# ── Step 2: reset .objectiveai down to the keepers ──────────────────
+# In bin/, keep only top-level *.zip release assets and the pg-bin
+# postgres dir; delete everything else (files + folders, recursively).
+# Wipe state/ entirely.
+if [ -d "$OAI_DIR/bin" ]; then
+  find "$OAI_DIR/bin" -mindepth 1 -maxdepth 1 \
+    ! -name '*.zip' ! -name 'pg-bin' -exec rm -rf {} +
+fi
+rm -rf "$OAI_DIR/state"
+
+# ── Step 3: (re)install the binaries from the kept zip ──────────────
+if ! bash "$REPO_ROOT/install.sh" --objectiveai-dir "$OAI_DIR" --no-export-path; then
+  echo "test: install.sh failed" >&2
+  exit 1
+fi
+
+# ── Step 4: configure for testing ───────────────────────────────────
+BIN="$(oai_bin)"
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config mcp-timeout-ms set 300000 --global \
+  || { echo "test: 'api config mcp-timeout-ms set' failed" >&2; exit 1; }
+OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api config backoff-max-elapsed-time-ms set 0 --global \
+  || { echo "test: 'api config backoff-max-elapsed-time-ms set' failed" >&2; exit 1; }
+
+# ── Step 5: spawn the api server and publish its address ────────────
+# The sdk and integration suites all talk to ONE shared server. Spawn
+# it (idempotent behind the api lockfile singleton) and export its
+# published base URL as OBJECTIVEAI_ADDRESS — the same env var the
+# objectiveai client reads for its address — so every suite inherits
+# it.
+SPAWN_OUT="$(OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" api spawn)" \
+  || { echo "test: 'api spawn' failed" >&2; printf '%s\n' "$SPAWN_OUT" >&2; exit 1; }
+OBJECTIVEAI_ADDRESS="$(printf '%s' "$SPAWN_OUT" | grep -oE 'https?://[^"]+' | head -1)"
+if [ -z "$OBJECTIVEAI_ADDRESS" ]; then
+  echo "test: could not parse a URL from 'api spawn' output:" >&2
+  printf '%s\n' "$SPAWN_OUT" >&2
+  exit 1
+fi
+export OBJECTIVEAI_ADDRESS
+echo "test: api server at $OBJECTIVEAI_ADDRESS"
+
+# ── Step 6: run the enabled suites in parallel ──────────────────────
+pids=()
+names=()
+launch() { bash "$REPO_ROOT/$2" & pids+=("$!"); names+=("$1"); }
+[ "$NO_UNIT" = "1" ]        || launch unit        test-unit.sh
+[ "$NO_SDK" = "1" ]         || launch sdk         test-sdk.sh
+[ "$NO_INTEGRATION" = "1" ] || launch integration test-integration.sh
+
+failed=0
+for i in "${!pids[@]}"; do
+  if wait "${pids[$i]}"; then
+    echo "test: ${names[$i]} suite: PASS"
+  else
+    echo "test: ${names[$i]} suite: FAIL"
+    failed=1
   fi
 done
 
-if $FAILED; then
-  exit 1
+# ── Step 7: kill-all again ──────────────────────────────────────────
+BIN="$(oai_bin)"
+if [ -f "$BIN" ]; then
+  echo "test: kill-all (post)"
+  OBJECTIVEAI_DIR="$OAI_DIR" "$BIN" kill-all || true
 fi
+
+# Exit 0 iff every suite that ran exited 0.
+exit "$failed"

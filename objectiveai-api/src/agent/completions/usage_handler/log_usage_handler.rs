@@ -12,7 +12,7 @@ where
 {
     fn handle_usage(
         &self,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         _request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {

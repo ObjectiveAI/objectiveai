@@ -3,7 +3,6 @@ pub mod beta_message;
 pub mod beta_raw_message_stream_event;
 pub mod beta_text_citation;
 pub mod beta_usage;
-pub mod claude_agent_sdk_binary;
 mod client;
 pub mod content_block_param;
 mod error;

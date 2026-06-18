@@ -1,6 +1,6 @@
 {
   "name": "objectiveai-viewer",
-  "version": "2.2.3",
+  "version": "2.2.4",
   "private": true,
   "type": "module",
   "scripts": {
@@ -10,7 +10,6 @@
     "tauri": "tauri"
   },
   "dependencies": {
-    "@objectiveai/function-tree": "workspace:*",
     "@objectiveai/sdk": "workspace:*",
     "@radix-ui/react-collapsible": "^1.1.12",
     "@radix-ui/react-dialog": "^1.1.15",

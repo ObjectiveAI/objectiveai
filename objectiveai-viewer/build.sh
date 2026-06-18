@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Builds objectiveai-viewer and places the binary in embed/<target>/<profile>/.
+# Builds objectiveai-viewer (via `tauri build`, so the frontend + icon are
+# embedded) and places the binary in embed/<profile>/ — debug and release
+# coexist (embed/debug/objectiveai-viewer[.exe], embed/release/...[.exe]).
 # Skips the build if the source fingerprint hasn't changed.
 # All arguments are forwarded to cargo build.
 # Output is captured to .logs/build/objectiveai-viewer.txt.
@@ -49,23 +51,14 @@ run() {
     return 1
   fi
 
-  # Build the viewer's workspace dependency before the frontend
-  # compiles. @objectiveai/function-tree is `workspace:*` — its
-  # dist/ (type declarations included) must exist or tsc fails with
-  # TS2307 on a fresh checkout (CI release legs build the viewer
-  # directly, without the root build.sh's function-tree phase).
-  echo "Building @objectiveai/function-tree (workspace dependency)..."
-  if ! (cd "$REPO_ROOT" && pnpm --filter @objectiveai/function-tree run build); then
-    return 1
-  fi
-
   echo "Building $MODULE ($PROFILE, $TARGET) via tauri build..."
   if ! (cd "$SCRIPT_DIR" && pnpm exec tauri build "${tauri_args[@]}"); then
     return 1
   fi
 
-  # Copy binary to embed/<target>/<profile>/
-  EMBED_DIR="$SCRIPT_DIR/embed/$TARGET/$PROFILE"
+  # Copy binary into embed/<profile>/ — EMBED_DIR is set + exported by
+  # fingerprint.sh (sourced above), so debug and release land in separate
+  # folders and never clobber each other.
   mkdir -p "$EMBED_DIR"
 
   if [[ "$TARGET" == *"windows"* ]]; then

@@ -1,4 +1,5 @@
 pub mod address;
+pub mod backoff_max_elapsed_time_ms;
 pub mod commit_author_email;
 pub mod commit_author_name;
 pub mod get;
@@ -37,6 +38,10 @@ pub enum Command {
     McpTimeoutMs {
         #[command(subcommand)]
         command: mcp_timeout_ms::Command,
+    },
+    BackoffMaxElapsedTimeMs {
+        #[command(subcommand)]
+        command: backoff_max_elapsed_time_ms::Command,
     },
     UserAgent {
         #[command(subcommand)]
@@ -82,6 +87,8 @@ pub enum Request {
     McpAuthorization(mcp_authorization::Request),
     #[schemars(title = "McpTimeoutMs")]
     McpTimeoutMs(mcp_timeout_ms::Request),
+    #[schemars(title = "BackoffMaxElapsedTimeMs")]
+    BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Request),
     #[schemars(title = "UserAgent")]
     UserAgent(user_agent::Request),
     #[schemars(title = "HttpReferer")]
@@ -119,6 +126,8 @@ pub enum Response {
     McpAuthorization(mcp_authorization::Response),
     #[schemars(title = "McpTimeoutMs")]
     McpTimeoutMs(mcp_timeout_ms::Response),
+    #[schemars(title = "BackoffMaxElapsedTimeMs")]
+    BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Response),
     #[schemars(title = "UserAgent")]
     UserAgent(user_agent::Response),
     #[schemars(title = "HttpReferer")]
@@ -144,6 +153,7 @@ impl crate::cli::command::CommandResponse for Response {
             Response::GithubAuthorization(v) => v.into_mcp(),
             Response::McpAuthorization(v) => v.into_mcp(),
             Response::McpTimeoutMs(v) => v.into_mcp(),
+            Response::BackoffMaxElapsedTimeMs(v) => v.into_mcp(),
             Response::UserAgent(v) => v.into_mcp(),
             Response::HttpReferer(v) => v.into_mcp(),
             Response::XTitle(v) => v.into_mcp(),
@@ -176,6 +186,8 @@ impl TryFrom<Command> for Request {
                 Ok(Request::McpAuthorization(mcp_authorization::Request::try_from(command)?)),
             Command::McpTimeoutMs { command } =>
                 Ok(Request::McpTimeoutMs(mcp_timeout_ms::Request::try_from(command)?)),
+            Command::BackoffMaxElapsedTimeMs { command } =>
+                Ok(Request::BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::Request::try_from(command)?)),
             Command::UserAgent { command } =>
                 Ok(Request::UserAgent(user_agent::Request::try_from(command)?)),
             Command::HttpReferer { command } =>
@@ -202,6 +214,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GithubAuthorization(inner) => inner.into_command(),
             Request::McpAuthorization(inner) => inner.into_command(),
             Request::McpTimeoutMs(inner) => inner.into_command(),
+            Request::BackoffMaxElapsedTimeMs(inner) => inner.into_command(),
             Request::UserAgent(inner) => inner.into_command(),
             Request::HttpReferer(inner) => inner.into_command(),
             Request::XTitle(inner) => inner.into_command(),
@@ -221,6 +234,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GithubAuthorization(inner) => inner.request_base(),
             Request::McpAuthorization(inner) => inner.request_base(),
             Request::McpTimeoutMs(inner) => inner.request_base(),
+            Request::BackoffMaxElapsedTimeMs(inner) => inner.request_base(),
             Request::UserAgent(inner) => inner.request_base(),
             Request::HttpReferer(inner) => inner.request_base(),
             Request::XTitle(inner) => inner.request_base(),
@@ -240,6 +254,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::GithubAuthorization(inner) => inner.request_base_mut(),
             Request::McpAuthorization(inner) => inner.request_base_mut(),
             Request::McpTimeoutMs(inner) => inner.request_base_mut(),
+            Request::BackoffMaxElapsedTimeMs(inner) => inner.request_base_mut(),
             Request::UserAgent(inner) => inner.request_base_mut(),
             Request::HttpReferer(inner) => inner.request_base_mut(),
             Request::XTitle(inner) => inner.request_base_mut(),
@@ -303,6 +318,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::McpTimeoutMs(req) => {
                 let inner = mcp_timeout_ms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(Response::McpTimeoutMs)))
+            }
+            Request::BackoffMaxElapsedTimeMs(req) => {
+                let inner = backoff_max_elapsed_time_ms::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(Response::BackoffMaxElapsedTimeMs)))
             }
             Request::UserAgent(req) => {
                 let inner = user_agent::execute(executor, req, agent_arguments).await?;
@@ -375,6 +394,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             }
             Request::McpTimeoutMs(req) => {
                 let inner = mcp_timeout_ms::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::BackoffMaxElapsedTimeMs(req) => {
+                let inner = backoff_max_elapsed_time_ms::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::UserAgent(req) => {

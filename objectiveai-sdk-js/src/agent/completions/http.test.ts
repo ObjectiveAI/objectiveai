@@ -12,7 +12,7 @@ import type { AgentCompletionsResponseUnaryAgentCompletion } from "./response/un
 httpTestSuite<AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseUnaryAgentCompletion>({
   name: "agent completions http",
   fn: agentCompletionsCreateAgentCompletion,
-  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api/assets/agent/completions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/agent/completions/client_tests"),
   merge: agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   chunkToUnary: wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary,
   normalize,

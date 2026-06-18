@@ -16,7 +16,7 @@ impl Client {
     /// Creates an unary error response. Coin flip determines Ok vs Err.
     pub fn create_unary<CTXEXT>(
         &self,
-        _ctx: &crate::ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        _ctx: &crate::ctx::Context<CTXEXT>,
         body: &ErrorCreateParams,
     ) -> Result<ErrorResponse, objectiveai_sdk::error::ResponseError> {
         let mut rng = make_rng(body.seed);
@@ -35,12 +35,12 @@ impl Client {
     /// Initial coin flip determines if the stream starts at all (Ok vs Err).
     /// If Ok, returns a stream that yields at least one Ok item, then coin-flips
     /// for each subsequent item until a flip fails.
-    pub fn create_streaming<CTXEXT, PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub fn create_streaming<CTXEXT>(
         &self,
-        _ctx: &crate::ctx::Context<CTXEXT, PC>,
+        _ctx: &crate::ctx::Context<CTXEXT>,
         body: &ErrorCreateParams,
     ) -> Result<
-        impl Stream<Item = Result<ErrorResponse, objectiveai_sdk::error::ResponseError>> + use<CTXEXT, PC>,
+        impl Stream<Item = Result<ErrorResponse, objectiveai_sdk::error::ResponseError>> + use<CTXEXT>,
         objectiveai_sdk::error::ResponseError,
     > {
         let mut rng = make_rng(body.seed);

@@ -33,9 +33,9 @@ impl<CTXEXT> super::super::Client<CTXEXT> for GithubClient
 where
     CTXEXT: Send + Sync + 'static + ctx::ContextExt,
 {
-    async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_agent(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         let (owner, repository, commit) = github_fields(path);
@@ -45,9 +45,9 @@ where
             .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_swarm(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         let (owner, repository, commit) = github_fields(path);
@@ -57,9 +57,9 @@ where
             .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_function(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let (owner, repository, commit) = github_fields(path);
@@ -69,9 +69,9 @@ where
             .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_profile(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         let (owner, repository, commit) = github_fields(path);
@@ -81,9 +81,9 @@ where
             .map_err(|e| ResponseError::from(&e))
     }
 
-    async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn resolve_latest(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         _kind: crate::retrieval::Kind,
         path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {

@@ -6,7 +6,6 @@ use futures::FutureExt;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::OnceCell;
-use super::persistent_cache::PersistentCacheClient;
 
 /// Per-request context containing user-specific state and deduplication caches.
 ///
@@ -19,15 +18,13 @@ use super::persistent_cache::PersistentCacheClient;
 /// When multiple parts of a request need the same swarm or agent,
 /// only one fetch is performed and the result is shared.
 #[derive(Debug)]
-pub struct Context<CTXEXT, PC> {
+pub struct Context<CTXEXT> {
     /// Custom context extension (e.g., for BYOK keys).
     pub ext: Arc<CTXEXT>,
     /// Multiplier applied to costs for this request.
     pub cost_multiplier: rust_decimal::Decimal,
     /// Whether to suppress output (eprintln, logging, etc).
     pub suppress_output: bool,
-    /// Persistent cache client for key-value storage.
-    persistent_cache: Arc<PC>,
     /// Per-request ObjectiveAI authorization token.
     objectiveai_authorization: Option<Arc<String>>,
     /// Per-request OpenRouter authorization token.
@@ -144,13 +141,12 @@ pub struct Context<CTXEXT, PC> {
     >,
 }
 
-impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
+impl<CTXEXT> Clone for Context<CTXEXT> {
     fn clone(&self) -> Self {
         Self {
             ext: self.ext.clone(),
             cost_multiplier: self.cost_multiplier,
             suppress_output: self.suppress_output,
-            persistent_cache: self.persistent_cache.clone(),
             objectiveai_authorization: self.objectiveai_authorization.clone(),
             openrouter_authorization: self.openrouter_authorization.clone(),
             github_authorization: self.github_authorization.clone(),
@@ -173,7 +169,7 @@ impl<CTXEXT, PC> Clone for Context<CTXEXT, PC> {
     }
 }
 
-impl<CTXEXT, PC> Context<CTXEXT, PC> {
+impl<CTXEXT> Context<CTXEXT> {
     /// Returns whether this context has been cancelled.
     pub fn is_cancelled(&self) -> bool {
         self.cancelled.load(std::sync::atomic::Ordering::Relaxed)
@@ -194,7 +190,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     /// - `X-OBJECTIVEAI-AUTHORIZATION` / `AUTHORIZATION`: ObjectiveAI API key
     pub fn new(
         ext: Arc<CTXEXT>,
-        persistent_cache: Arc<PC>,
         cost_multiplier: rust_decimal::Decimal,
         suppress_output: bool,
         headers: &axum::http::HeaderMap,
@@ -235,7 +230,6 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
             ext,
             cost_multiplier,
             suppress_output,
-            persistent_cache,
             openrouter_authorization,
             github_authorization,
             mcp_authorization,
@@ -260,7 +254,7 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     }
 }
 
-impl<CTXEXT, PC> Context<CTXEXT, PC> {
+impl<CTXEXT> Context<CTXEXT> {
     /// Returns the per-request ObjectiveAI authorization token, if present.
     pub fn objectiveai_authorization(&self) -> Option<&Arc<String>> {
         self.objectiveai_authorization.as_ref()
@@ -325,56 +319,30 @@ impl<CTXEXT, PC> Context<CTXEXT, PC> {
     }
 }
 
-/// Check the in-memory DashMap, then the persistent cache, then call `fetch`.
-/// Non-None results from `fetch` are written to the persistent cache.
-/// All results (including None/Err) are cached in the DashMap for per-request dedup.
-async fn cached_get_or_fetch<K, V, PC, F, Fut>(
+/// Per-request fetch dedup: check the in-memory `DashMap`, and on a miss
+/// run `fetch` once, sharing its result across concurrent callers for the
+/// same key within this request. All results (including `None`/`Err`) are
+/// memoized for the request's lifetime.
+async fn cached_get_or_fetch<K, V, F, Fut>(
     cache: &DashMap<
         K,
         Shared<tokio::sync::oneshot::Receiver<Result<Option<V>, objectiveai_sdk::error::ResponseError>>>,
     >,
-    persistent_cache: &Arc<PC>,
-    namespace: &'static str,
     key: K,
-    permanent: bool,
     fetch: F,
 ) -> Result<Option<V>, objectiveai_sdk::error::ResponseError>
 where
-    K: std::hash::Hash + Eq + serde::Serialize + Clone + Send + Sync + 'static,
-    V: serde::Serialize + serde::de::DeserializeOwned + Clone + Send + Sync + 'static,
-    PC: PersistentCacheClient,
+    K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
+    V: Clone + Send + Sync + 'static,
     F: FnOnce() -> Fut + Send + 'static,
     Fut: std::future::Future<Output = Result<Option<V>, objectiveai_sdk::error::ResponseError>> + Send,
 {
-    let persistent_cache = persistent_cache.clone();
-    let persistent_key = serde_json::to_string(&key).unwrap();
     let shared = cache
         .entry(key)
         .or_insert_with(|| {
             let (tx, rx) = tokio::sync::oneshot::channel();
             tokio::spawn(async move {
-                let from_persistent = persistent_cache
-                    .get(namespace, &persistent_key)
-                    .await
-                    .ok()
-                    .flatten()
-                    .and_then(|s| serde_json::from_str::<V>(&s).ok());
-
-                if let Some(value) = from_persistent {
-                    let _ = tx.send(Ok(Some(value)));
-                } else {
-                    let result = fetch().await;
-                    // Serialize before sending so we can write to persistent cache after.
-                    let json_to_persist = match &result {
-                        Ok(Some(value)) => serde_json::to_string(value).ok(),
-                        _ => None,
-                    };
-                    let _ = tx.send(result);
-                    // Write to persistent cache after unblocking the caller.
-                    if let Some(json) = json_to_persist {
-                        let _ = persistent_cache.set(namespace, &persistent_key, &json, permanent).await;
-                    }
-                }
+                let _ = tx.send(fetch().await);
             });
             rx.shared()
         })
@@ -382,7 +350,7 @@ where
     shared.await.unwrap()
 }
 
-impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
+impl<CTXEXT> Context<CTXEXT> {
     pub async fn cached_agent<F, Fut>(
         &self,
         key: objectiveai_sdk::RemotePath,
@@ -392,7 +360,7 @@ impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, objectiveai_sdk::error::ResponseError>> + Send,
     {
-        cached_get_or_fetch(&self.agent_cache, &self.persistent_cache, "agent", key, true, fetch).await
+        cached_get_or_fetch(&self.agent_cache, key, fetch).await
     }
 
     pub async fn cached_swarm<F, Fut>(
@@ -404,7 +372,7 @@ impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, objectiveai_sdk::error::ResponseError>> + Send,
     {
-        cached_get_or_fetch(&self.swarm_cache, &self.persistent_cache, "swarm", key, true, fetch).await
+        cached_get_or_fetch(&self.swarm_cache, key, fetch).await
     }
 
     pub async fn cached_function<F, Fut>(
@@ -416,7 +384,7 @@ impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, objectiveai_sdk::error::ResponseError>> + Send,
     {
-        cached_get_or_fetch(&self.function_cache, &self.persistent_cache, "function", key, true, fetch).await
+        cached_get_or_fetch(&self.function_cache, key, fetch).await
     }
 
     pub async fn cached_profile<F, Fut>(
@@ -428,7 +396,7 @@ impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError>> + Send,
     {
-        cached_get_or_fetch(&self.profile_cache, &self.persistent_cache, "profile", key, true, fetch).await
+        cached_get_or_fetch(&self.profile_cache, key, fetch).await
     }
 
     pub async fn cached_remote_latest<F, Fut>(
@@ -440,11 +408,11 @@ impl<CTXEXT, PC: PersistentCacheClient> Context<CTXEXT, PC> {
         F: FnOnce() -> Fut + Send + 'static,
         Fut: std::future::Future<Output = Result<Option<objectiveai_sdk::RemotePath>, objectiveai_sdk::error::ResponseError>> + Send,
     {
-        cached_get_or_fetch(&self.remote_latest_cache, &self.persistent_cache, "remote_latest", key, false, fetch).await
+        cached_get_or_fetch(&self.remote_latest_cache, key, fetch).await
     }
 }
 
-impl<CTXEXT: super::ContextExt, PC> Context<CTXEXT, PC> {
+impl<CTXEXT: super::ContextExt> Context<CTXEXT> {
     /// Returns the resolved upstream BYOK API key.
     ///
     /// Only OpenRouter is supported. Returns `None` for other upstreams.

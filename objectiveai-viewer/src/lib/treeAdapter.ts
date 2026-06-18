@@ -12,7 +12,7 @@ import type {
   InputTask,
   InputVote,
   InputCompletion,
-} from "@objectiveai/function-tree";
+} from "../function-tree";
 
 type RemotePath = { owner?: string; repository?: string; name?: string } | null | undefined;
 

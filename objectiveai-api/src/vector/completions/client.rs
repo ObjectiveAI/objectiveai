@@ -208,10 +208,7 @@ where
     /// Collects all streaming chunks into a single response.
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<
-            CTXEXT,
-            impl crate::ctx::persistent_cache::PersistentCacheClient,
-        >,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
         objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
@@ -238,7 +235,7 @@ where
     /// Spawns a background task to track usage after the stream completes.
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
         impl Stream<Item = objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>
@@ -360,7 +357,7 @@ where
     /// votes from each and combining them with weights to produce scores.
     pub async fn create_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
     ) -> Result<
         impl Stream<Item = objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk>
@@ -562,7 +559,7 @@ where
     /// votes from the response.
     async fn llm_create_streaming(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         id: String,
         created: u64,
         swarm: String,

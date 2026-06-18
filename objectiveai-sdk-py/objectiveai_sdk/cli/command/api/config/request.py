@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.api.config.address.request import Request as CliCommandApiConfigAddressRequest
+from objectiveai_sdk.cli.command.api.config.backoff_max_elapsed_time_ms.request import Request as CliCommandApiConfigBackoffMaxElapsedTimeMsRequest
 from objectiveai_sdk.cli.command.api.config.commit_author_email.request import Request as CliCommandApiConfigCommitAuthorEmailRequest
 from objectiveai_sdk.cli.command.api.config.commit_author_name.request import Request as CliCommandApiConfigCommitAuthorNameRequest
 from objectiveai_sdk.cli.command.api.config.get.request import Request as CliCommandApiConfigGetRequest
@@ -73,6 +74,12 @@ class RequestMcpTimeoutMs(RootModel):
     root: CliCommandApiConfigMcpTimeoutMsRequest
 
 
+class RequestBackoffMaxElapsedTimeMs(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'BackoffMaxElapsedTimeMs'})
+
+    root: CliCommandApiConfigBackoffMaxElapsedTimeMsRequest
+
+
 class RequestUserAgent(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'UserAgent'})
 
@@ -106,5 +113,5 @@ class RequestCommitAuthorEmail(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.api.config.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestAddress, RequestObjectiveaiAuthorization, RequestOpenrouterAuthorization, RequestGithubAuthorization, RequestMcpAuthorization, RequestMcpTimeoutMs, RequestUserAgent, RequestHttpReferer, RequestXTitle, RequestCommitAuthorName, RequestCommitAuthorEmail]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestAddress, RequestObjectiveaiAuthorization, RequestOpenrouterAuthorization, RequestGithubAuthorization, RequestMcpAuthorization, RequestMcpTimeoutMs, RequestBackoffMaxElapsedTimeMs, RequestUserAgent, RequestHttpReferer, RequestXTitle, RequestCommitAuthorName, RequestCommitAuthorEmail]
 

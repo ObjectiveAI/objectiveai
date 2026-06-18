@@ -3,6 +3,6 @@
 from .agent_arguments import AgentArguments  # noqa: F401
 from .get_scope import GetScope  # noqa: F401
 from .ok import Ok  # noqa: F401
-from .request import Request, RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer  # noqa: F401
+from .request import Request, RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer  # noqa: F401
 from .request_base import RequestBase  # noqa: F401
 from .set_scope import SetScope  # noqa: F401

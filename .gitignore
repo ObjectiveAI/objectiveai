@@ -52,5 +52,8 @@ target-*/
 # rustpython wasm blob cache (built by objectiveai-cli/build.rs)
 objectiveai-cli/.cache/
 
-# staged at publish time by .github/workflows/publish-objectiveai-sdk-rs.yml
+# local staging dir for json schemas; never committed (the crate's
+# cargo publish does not need it staged)
 objectiveai-sdk-rs/schemas/
+
+.objectiveai/

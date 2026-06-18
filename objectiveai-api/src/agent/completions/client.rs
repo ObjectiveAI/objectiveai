@@ -179,7 +179,7 @@ where
     /// Internally streams the response and aggregates chunks into a single response.
     pub async fn create_unary_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<
@@ -218,7 +218,7 @@ where
     /// Creates a streaming agent completion, tracking usage after the stream ends.
     pub async fn create_streaming_handle_usage(
         self: Arc<Self>,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<
@@ -301,7 +301,7 @@ where
 
     pub async fn create_streaming(
         &self,
-        ctx: ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        ctx: ctx::Context<CTXEXT>,
         params: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         continuation: Option<
             super::Continuation<

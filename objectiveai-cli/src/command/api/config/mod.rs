@@ -9,6 +9,7 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod address;
+pub mod backoff_max_elapsed_time_ms;
 pub mod commit_author_email;
 pub mod commit_author_name;
 pub mod get;
@@ -66,6 +67,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::McpTimeoutMs(req) => {
             let inner = mcp_timeout_ms::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(Response::McpTimeoutMs)))
+        }
+        Request::BackoffMaxElapsedTimeMs(req) => {
+            let inner = backoff_max_elapsed_time_ms::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(Response::BackoffMaxElapsedTimeMs)))
         }
         Request::UserAgent(req) => {
             let inner = user_agent::execute(ctx, req).await?;

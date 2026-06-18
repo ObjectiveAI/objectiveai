@@ -1,35 +1,40 @@
 name: Release
 
+# One CLI-version-gated release for everything. The version in
+# objectiveai-cli/Cargo.toml is the core trigger: on a push to main where
+# the GitHub Release `v<version>` does not yet exist, this workflow rolls
+# out (all-or-nothing, keyed off that one version):
+#
+#   • the six per-platform binary zips (objectiveai-<version>-<os>-<arch>.zip), each
+#     produced by `bash build.sh --release --no-sdk --no-test-integration`
+#     and uploaded to the release; and
+#   • the language SDKs, published sequentially so each resolves before the
+#     next: rust (crates.io) → python (PyPI) → javascript (npm) → golang
+#     (git tag).
+#
+# The SDK jobs DO NOT run code generation or build wasm — they ship the
+# artifacts already committed to the repo (committed dist/ for js, committed
+# lib wasm + types for go, committed pydantic types for py; rust is a plain
+# cargo publish). Whoever bumps the version is responsible for committing
+# fresh generated artifacts first (via build.sh).
+#
+# Re-runs: the GitHub-release-exists gate makes a new version publish once.
+# To resume after a partial failure, delete the release and re-run — the
+# per-package "skip if already published" guards make completed publishes
+# no-ops.
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: write   # create the release, upload zips, push the go tag
+  id-token: write   # npm Trusted Publishing (OIDC) for the js publish
 
-# Per-leg flat structure:
-#
-# check-version
-# ├─→ create-release
-# │
-# ├─→ cli-<leg>                            (× 5 cli legs)
-# ├─→ mcp-fs-api-<leg> ──→ api-<leg>       (× 5 api legs)
-# ├─→ mcp-fs-viewer-<leg> ──→ viewer-<leg> (× 5 viewer legs)
-# ├─→ mcp-<leg>                            (× 5 mcp legs)
-# └─→ db-<leg>                             (× 5 db legs)
-#
-# The cli no longer embeds the viewer binary or the api server. Since
-# objectiveai-mcp depends on the cli (not on api), the mcp legs
-# also no longer need a paired mcp-filesystem artifact. Only the api
-# and viewer legs (which DO embed mcp-filesystem for their own use)
-# keep their dedicated `mcp-fs-<leg>` upstreams. 10 mcp-fs jobs total
-# (5 api + 5 viewer).
-#
-# All 25 leg jobs (5 cli + 5 api + 5 viewer + 5 mcp + 5 db) append
-# their assets to the same `v<version>` GitHub Release as they finish.
-# `objectiveai-db`, like cli/mcp, has no paired mcp-filesystem upstream;
-# it bundles its own postgres at build time.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   check-version:
@@ -49,10 +54,10 @@ jobs:
           echo "CLI version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           if gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
-            echo "Release v$VERSION already exists — skipping build"
+            echo "Release v$VERSION already exists — skipping"
             echo "should-release=false" >> "$GITHUB_OUTPUT"
           else
-            echo "Release v$VERSION does not exist — will build"
+            echo "Release v$VERSION does not exist — will release"
             echo "should-release=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -66,20 +71,11 @@ jobs:
         with:
           fetch-depth: 0
       - name: Generate release notes
-        # Write notes to a file rather than capturing into a step output —
-        # commit messages routinely contain backticks (`like this`) and
-        # other shell metacharacters, which GHA's `${{ }}` interpolator
-        # would inline literally into the next step's bash script and
-        # cause bash to try evaluating them as command substitutions.
-        # `--notes-file` reads the bytes directly with zero shell
-        # interpolation involved.
         run: |
           PREV_TAG=$(git tag --list 'v*' --sort=-v:refname | head -n 1)
           if [ -n "$PREV_TAG" ]; then
-            echo "Previous tag: $PREV_TAG"
             git log --pretty=format:"- %s" "$PREV_TAG"..HEAD > release-notes.md
           else
-            echo "No previous tags — using full history"
             git log --pretty=format:"- %s" > release-notes.md
           fi
       - name: Create release if missing
@@ -91,541 +87,292 @@ jobs:
             echo "Release v$VERSION already exists — leaving as-is."
             exit 0
           fi
-          # Created without --draft so per-asset uploads are user-visible
-          # the moment each cli-<leg> job finishes uploading. CLI legs
-          # append assets in parallel via `gh release upload --clobber`.
           gh release create "v$VERSION" \
             --repo "${{ github.repository }}" \
             --target "${{ github.sha }}" \
             --title "v$VERSION" \
             --notes-file release-notes.md
 
-  # ── CLI builders (5 dedicated jobs) ───────────────────────────────────────
-  # The cli no longer embeds the viewer or the api server, so each cli
-  # leg just runs `cargo build` on its own — no paired mcp-fs upstream
-  # needed.
+  # ── Binary zips (6 platforms; build.sh --release --no-sdk --no-test-integration) ──
 
-  cli-linux-x86_64:
+  binaries:
+    name: zip (${{ matrix.os }}-${{ matrix.arch }})
     needs: [check-version, create-release]
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.runs-on }}
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04 }
+          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm }
+          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel }
+          - { os: macos,   arch: aarch64, runs-on: macos-14 }
+          - { os: windows, arch: x86_64,  runs-on: windows-latest }
+          - { os: windows, arch: aarch64, runs-on: windows-11-arm }
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-python@v5
         with:
-          asset: objectiveai-linux-x86_64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  cli-linux-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
+          python-version: '3.13'
+      # node + pnpm: the viewer's build.sh runs `pnpm install` + `tauri build`
+      # (frontend against the committed workspace SDK — no SDK build).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          asset: objectiveai-linux-aarch64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          node-version: 20
+      - name: Install Linux Tauri deps
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev
+      - name: Build + package the zip
+        shell: bash
+        # --no-sdk: only phase 1 (the 4 cli/server crates, the Tauri viewer
+        # via `tauri build`, and the 2 PyInstaller runners) + packaging run;
+        # no SDK toolchain. --no-test-integration: skip the plugin/tool
+        # integration-test fixture crates — they're test inputs, never
+        # shipped in the release zip. GITHUB_TOKEN lets objectiveai-db's
+        # postgres archive download avoid rate limits.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash build.sh --release --no-sdk --no-test-integration
+      - name: Dump build logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for log in .logs/build/*.txt; do
+            echo "::group::$log"; cat "$log"; echo "::endgroup::"
+          done
+      - name: Upload zip to release
+        shell: bash
+        run: |
+          gh release upload "v${{ needs.check-version.outputs.version }}" \
+            "$HOME"/.objectiveai/bin/objectiveai-*.zip \
+            --clobber --repo "${{ github.repository }}"
 
-  cli-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-macos-x86_64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+  # ── SDK: rust → python → javascript → golang (sequential) ──────────────────
+  # No codegen, no wasm build — ship what's committed.
 
-  cli-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-macos-aarch64
-          src_name: objectiveai
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  cli-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-cli-leg
-        with:
-          asset: objectiveai-windows-x86_64.exe
-          src_name: objectiveai.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── mcp-filesystem builders for API legs (5 dedicated jobs) ───────────────
-
-  mcp-fs-api-linux-x86_64:
+  publish-rust:
+    name: SDK · rust (crates.io)
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-linux-x86_64
+      - uses: dtolnay/rust-toolchain@stable
+      - name: cargo publish (dependency order, with sparse-index waits)
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          set -euo pipefail
+          # Skip a crate already live at $VERSION (makes a re-run resumable).
+          publish_crate() {
+            local name="$1"; shift
+            local sparse="${name:0:2}/${name:2:2}/$name"
+            if curl -fsS "https://index.crates.io/$sparse" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
+              echo "$name@$VERSION already on crates.io — skip"
+              return 0
+            fi
+            cargo publish -p "$name" "$@"
+          }
+          # Block until a just-published crate is in the sparse index cargo
+          # reads when resolving the next crate's deps.
+          wait_crate() {
+            local name="$1"
+            local sparse="${name:0:2}/${name:2:2}/$name"
+            for _ in $(seq 1 120); do
+              if curl -fsS "https://index.crates.io/$sparse" 2>/dev/null | grep -q "\"vers\":\"$VERSION\""; then
+                echo "$name@$VERSION live in sparse index"; return 0
+              fi
+              sleep 5
+            done
+            echo "timed out waiting for $name@$VERSION in sparse index" >&2; exit 1
+          }
 
-  mcp-fs-api-linux-aarch64:
-    needs: check-version
+          publish_crate objectiveai-sdk-macros
+          wait_crate objectiveai-sdk-macros
+
+          publish_crate objectiveai-sdk
+          wait_crate objectiveai-sdk
+
+          # --no-verify on api/cli/mcp/mcp-proxy: their build.rs / dev-only
+          # path deps don't resolve from the published tarball alone.
+          publish_crate objectiveai-mcp-proxy --no-verify
+          publish_crate objectiveai-mcp-filesystem
+          publish_crate objectiveai-mcp --no-verify
+          wait_crate objectiveai-mcp-proxy
+          wait_crate objectiveai-mcp
+
+          publish_crate objectiveai-api --no-verify
+          publish_crate objectiveai-cli --no-verify
+
+  # Python: build the sdk-py wheels/sdist (maturin compiles the pyo3
+  # extension; no pydantic codegen — the committed types are used), then
+  # publish sdk-py + the pure-python cocoindex to PyPI.
+  py-wheels:
+    name: SDK · python · wheel (${{ matrix.platform }})
+    needs: [check-version, publish-rust]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest,    platform: linux-x86_64,  target: x86_64-unknown-linux-gnu,  manylinux: auto }
+          - { os: ubuntu-24.04-arm, platform: linux-aarch64, target: aarch64-unknown-linux-gnu, manylinux: auto }
+          - { os: macos-14,         platform: macos-arm64,   target: aarch64-apple-darwin }
+          - { os: windows-latest,   platform: windows-x86_64, target: x86_64-pc-windows-msvc }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Stage README + LICENSE
+        shell: bash
+        run: |
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+      - name: Build wheel (committed pydantic types — no codegen)
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          manylinux: ${{ matrix.manylinux || '' }}
+          sccache: 'true'
+          working-directory: objectiveai-sdk-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: py-wheel-${{ matrix.platform }}
+          path: objectiveai-sdk-py/dist/*.whl
+          if-no-files-found: error
+
+  py-sdist:
+    name: SDK · python · sdist
+    needs: [check-version, publish-rust]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
+      - uses: actions/setup-python@v5
         with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-linux-aarch64
+          python-version: '3.10'
+      - name: Stage README + LICENSE
+        run: |
+          cp README.md objectiveai-sdk-py/README.md
+          cp LICENSE objectiveai-sdk-py/LICENSE
+      - name: Build sdist (no codegen)
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          working-directory: objectiveai-sdk-py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: py-sdist
+          path: objectiveai-sdk-py/dist/*.tar.gz
+          if-no-files-found: error
 
-  mcp-fs-api-macos-x86_64:
-    needs: check-version
+  publish-python:
+    name: SDK · python (PyPI)
+    needs: [check-version, py-wheels, py-sdist]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
+      - uses: actions/setup-python@v5
         with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-macos-x86_64
+          python-version: '3.10'
+      - name: Download sdk-py artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: 'py-*'
+          merge-multiple: true
+      - name: Publish objectiveai-sdk to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
+      - name: Build + publish objectiveai-cocoindex (pure python)
+        run: |
+          cp README.md objectiveai-cocoindex/README.md
+          cp LICENSE objectiveai-cocoindex/LICENSE
+          python -m pip install --upgrade pip build
+          python -m build --sdist --wheel --outdir cocoindex-dist objectiveai-cocoindex
+      - name: Publish cocoindex to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: cocoindex-dist
+          password: ${{ secrets.PYPI_API_TOKEN }}
+          skip-existing: true
 
-  mcp-fs-api-macos-aarch64:
-    needs: check-version
+  publish-javascript:
+    name: SDK · javascript (npm)
+    needs: [check-version, publish-python]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
         with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-macos-aarch64
+          node-version: '22.14.0'
+          registry-url: 'https://registry.npmjs.org'
+      - name: Upgrade npm to a Trusted-Publishing-aware version
+        run: npm install -g npm@latest
+      - name: Publish committed dist to npm (no build — ships committed wasm/zod)
+        working-directory: objectiveai-sdk-js
+        # The package's `files` is ["dist"] and dist/ is committed (wasm
+        # baked in as base64); there are no prepublish build hooks, so this
+        # ships exactly what's committed. OIDC Trusted Publishing — no token.
+        run: |
+          if npm view "@objectiveai/sdk@${{ needs.check-version.outputs.version }}" version >/dev/null 2>&1; then
+            echo "@objectiveai/sdk@${{ needs.check-version.outputs.version }} already on npm — skip"
+            exit 0
+          fi
+          pnpm publish --access public --no-git-checks --provenance
 
-  mcp-fs-api-windows-x86_64:
-    needs: check-version
+  publish-golang:
+    name: SDK · golang (git tag)
+    needs: [check-version, publish-javascript]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
         with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-api-windows-x86_64
-
-  # ── mcp-filesystem builders for Viewer legs (5 dedicated jobs) ────────────
-
-  mcp-fs-viewer-linux-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-linux-x86_64
-
-  mcp-fs-viewer-linux-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-linux-aarch64
-
-  mcp-fs-viewer-macos-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-macos-x86_64
-
-  mcp-fs-viewer-macos-aarch64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: aarch64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-macos-aarch64
-
-  mcp-fs-viewer-windows-x86_64:
-    needs: check-version
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-filesystem
-        with:
-          target: x86_64-unknown-linux-musl
-          artifact-name: mcp-filesystem-viewer-windows-x86_64
-
-  # ── API builders (5 dedicated jobs, each pinned to its mcp-fs upstream) ───
-
-  api-linux-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-linux-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-linux-x86_64
-          asset: objectiveai-linux-x86_64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-linux-aarch64:
-    needs: [check-version, create-release, mcp-fs-api-linux-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-linux-aarch64
-          asset: objectiveai-linux-aarch64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-macos-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-macos-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-macos-x86_64
-          asset: objectiveai-macos-x86_64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-macos-aarch64:
-    needs: [check-version, create-release, mcp-fs-api-macos-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-macos-aarch64
-          asset: objectiveai-macos-aarch64-api
-          src_name: objectiveai-api
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  api-windows-x86_64:
-    needs: [check-version, create-release, mcp-fs-api-windows-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-api-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-api-windows-x86_64
-          asset: objectiveai-windows-x86_64-api.exe
-          src_name: objectiveai-api.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── Viewer builders (5 dedicated jobs, each pinned to its mcp-fs upstream) ─
-
-  viewer-linux-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-linux-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-linux-x86_64
-          asset: objectiveai-linux-x86_64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-linux-aarch64:
-    needs: [check-version, create-release, mcp-fs-viewer-linux-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-linux-aarch64
-          asset: objectiveai-linux-aarch64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-macos-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-macos-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-macos-x86_64
-          asset: objectiveai-macos-x86_64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-macos-aarch64:
-    needs: [check-version, create-release, mcp-fs-viewer-macos-aarch64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: aarch64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-macos-aarch64
-          asset: objectiveai-macos-aarch64-viewer
-          src_name: objectiveai-viewer
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  viewer-windows-x86_64:
-    needs: [check-version, create-release, mcp-fs-viewer-windows-x86_64]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-viewer-leg
-        with:
-          mcp_target: x86_64-unknown-linux-musl
-          mcp_artifact_name: mcp-filesystem-viewer-windows-x86_64
-          asset: objectiveai-windows-x86_64-viewer.exe
-          src_name: objectiveai-viewer.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── MCP builders (5 dedicated jobs) ───────────────────────────────────────
-  # objectiveai-mcp no longer transitively pulls in objectiveai-api
-  # (because the cli no longer does either), so the mcp legs don't need
-  # a paired mcp-filesystem artifact either.
-
-  mcp-linux-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-linux-x86_64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-linux-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-linux-aarch64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-macos-x86_64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-macos-aarch64-mcp
-          src_name: objectiveai-mcp
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  mcp-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-mcp-leg
-        with:
-          asset: objectiveai-windows-x86_64-mcp.exe
-          src_name: objectiveai-mcp.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  # ── DB builders (5 dedicated jobs) ────────────────────────────────────────
-  # objectiveai-db is the embedded-postgres database binary. Like the cli
-  # and mcp legs it has no paired mcp-filesystem upstream; build-db-leg
-  # bundles postgres at build time (needs GITHUB_TOKEN for the archive
-  # download). Each leg uploads `objectiveai-<plat>-db{ext}` — the exact
-  # asset name the cli updater's `db` package expects.
-
-  db-linux-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-22.04
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-linux-x86_64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  db-linux-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ubuntu-24.04-arm
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-linux-aarch64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  db-macos-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-15-intel
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-macos-x86_64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  db-macos-aarch64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: macos-14
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-macos-aarch64-db
-          src_name: objectiveai-db
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
-
-  db-windows-x86_64:
-    needs: [check-version, create-release]
-    if: needs.check-version.outputs.should-release == 'true'
-    runs-on: windows-latest
-    env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: ./.github/actions/build-db-leg
-        with:
-          asset: objectiveai-windows-x86_64-db.exe
-          src_name: objectiveai-db.exe
-          version: ${{ needs.check-version.outputs.version }}
-          repository: ${{ github.repository }}
+          fetch-depth: 0
+      - name: Push tag objectiveai-sdk-go/v<version.txt>
+        # The Go SDK versions independently via objectiveai-sdk-go/version.txt.
+        # Ships committed Go types + committed lib/objectiveai_cffi.wasm — no
+        # build. The tag-exists guard makes it a no-op until version.txt moves.
+        run: |
+          VERSION="$(tr -d ' \r\n' < objectiveai-sdk-go/version.txt)"
+          if [ -z "$VERSION" ]; then
+            echo "objectiveai-sdk-go/version.txt is missing or empty" >&2
+            exit 1
+          fi
+          TAG="objectiveai-sdk-go/v$VERSION"
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q "$TAG"; then
+            echo "Tag $TAG already exists on origin — skip"
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git tag -a "$TAG" -m "objectiveai-sdk-go v$VERSION"
+          git push origin "$TAG"

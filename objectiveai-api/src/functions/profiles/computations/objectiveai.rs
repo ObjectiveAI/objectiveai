@@ -22,9 +22,9 @@ impl<CTXEXT> super::Client<CTXEXT> for ObjectiveAiClient
 where
     CTXEXT: Send + Sync + 'static + ctx::ContextExt,
 {
-    async fn create_unary<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_unary(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<
             objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
         >,
@@ -41,9 +41,9 @@ where
         .map_err(|e| objectiveai_sdk::error::ResponseError::from(&e))
     }
 
-    async fn create_streaming<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_streaming(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<
             objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
         >,

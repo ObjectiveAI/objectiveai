@@ -295,8 +295,10 @@ pub(crate) fn run_multi_pass(
         // has been persisted.
         let mut id_emitted = false;
         // Resolve the MCP client tuning once for the whole spawn; every
-        // pass's conduit reuses it (Copy, cheap to pass per pass).
-        let mcp_backoff = ctx.resolve_mcp_backoff().await?;
+        // pass's conduit reuses these (cheap to pass per pass).
+        let mcp_timeout_ms = ctx.resolve_mcp_timeout_ms().await?;
+        let backoff_max_elapsed_time_ms =
+            ctx.resolve_backoff_max_elapsed_time_ms().await?;
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
@@ -309,7 +311,8 @@ pub(crate) fn run_multi_pass(
                     mcp_server,
                     ctx.clone(),
                     agent_tag.clone(),
-                    mcp_backoff,
+                    mcp_timeout_ms,
+                    backoff_max_elapsed_time_ms,
                 );
             // Spawn.rs doesn't need the primary-id ready signal —
             // it yields `ResponseItem::Id` from

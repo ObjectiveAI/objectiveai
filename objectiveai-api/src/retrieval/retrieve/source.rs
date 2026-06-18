@@ -11,36 +11,36 @@ use objectiveai_sdk::error::ResponseError;
 /// ObjectiveAI API does NOT implement this (it proxies to GitHub).
 #[async_trait::async_trait]
 pub trait Client<CTXEXT>: Send + Sync + 'static {
-    async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_agent(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError>;
 
-    async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_swarm(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError>;
 
-    async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_function(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError>;
 
-    async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_profile(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError>;
 
     /// Resolves a `RemotePathCommitOptional` to a full `RemotePath`.
     /// For sources with commits (Github, Client), resolves the latest commit if missing.
     /// For Mock, returns a `RemotePath::Mock` directly.
-    async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn resolve_latest(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         kind: crate::retrieval::Kind,
         path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError>;

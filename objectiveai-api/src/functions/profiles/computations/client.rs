@@ -8,9 +8,9 @@ use std::sync::Arc;
 #[async_trait::async_trait]
 pub trait Client<CTXEXT> {
     /// Computes a Profile and returns the complete result.
-    async fn create_unary<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_unary(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
     ) -> Result<
         objectiveai_sdk::functions::profiles::computations::response::unary::FunctionProfileComputation,
@@ -18,9 +18,9 @@ pub trait Client<CTXEXT> {
     >;
 
     /// Computes a Profile with streaming progress updates.
-    async fn create_streaming<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn create_streaming(
         &self,
-        ctx: ctx::Context<CTXEXT, PC>,
+        ctx: ctx::Context<CTXEXT>,
         request: Arc<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>,
     ) -> Result<
         impl Stream<Item = Result<

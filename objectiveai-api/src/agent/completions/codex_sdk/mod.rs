@@ -7,7 +7,6 @@ pub mod thread_event;
 pub mod thread_item;
 
 mod client;
-mod codex_sdk_binary;
 mod error;
 mod exec_args;
 mod install_result;

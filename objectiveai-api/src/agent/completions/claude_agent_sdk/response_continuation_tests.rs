@@ -2,7 +2,9 @@ use super::super::{ContinuationItem, UpstreamClient};
 use super::State;
 
 fn make_client() -> super::Client {
-    super::Client::new(String::new(), true, 0, 180, 1)
+    // objectiveai_dir is unused by response_continuation (no runner is
+    // spawned in these pure-logic tests), so a dummy path is fine.
+    super::Client::new(String::new(), true, 0, 180, 1, std::path::PathBuf::new())
 }
 
 #[test]

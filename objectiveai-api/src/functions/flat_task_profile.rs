@@ -215,7 +215,7 @@ impl MapPlaceholderVectorFunctionFlatTaskProfile {
 /// Function and profile are fetched concurrently. Nested function tasks
 /// are recursively fetched in parallel.
 pub async fn get_flat_task_profile<CTXEXT>(
-    ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+    ctx: &ctx::Context<CTXEXT>,
     mut path: Vec<u64>,
     function: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional,
     profile: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional,
@@ -580,7 +580,7 @@ fn resolve_child_profile(
 /// This is a named async function so both single and mapped VC tasks produce
 /// the same future type (required by TaskFut's generic VFUT parameter).
 async fn resolve_vc_flat_task_profile<CTXEXT>(
-    ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+    ctx: &ctx::Context<CTXEXT>,
     path: Vec<u64>,
     vc_task: objectiveai_sdk::functions::VectorCompletionTask,
     swarm_base: objectiveai_sdk::swarm::InlineSwarmBase,
@@ -614,7 +614,7 @@ where
 /// Extracts the swarm base for a vector completion task.
 /// Supports inline auto profiles, auto mode fallback, and remote profile/swarm references.
 async fn resolve_vc_swarm_base<CTXEXT>(
-    ctx: &ctx::Context<CTXEXT, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+    ctx: &ctx::Context<CTXEXT>,
     task_profile: &Option<objectiveai_sdk::functions::TaskProfile>,
     auto_swarm: &Option<objectiveai_sdk::swarm::InlineSwarmBase>,
     retrieve_router: &Arc<

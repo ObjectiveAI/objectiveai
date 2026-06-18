@@ -60,7 +60,6 @@ pub(crate) async fn create_agent_completion_ws(
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     ws: WebSocketUpgrade,
 ) -> axum::response::Response {
@@ -92,7 +91,7 @@ pub(crate) async fn create_agent_completion_ws(
         let (reverse_channel, reverse_req_rx) =
             objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
-        let ctx = crate::context(&headers, persistent_cache, suppress_output)
+        let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
             .with_reverse_channel(reverse_channel.clone());
 
@@ -161,7 +160,6 @@ pub(crate) async fn create_vector_completion_ws<
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     ws: WebSocketUpgrade,
 ) -> axum::response::Response
@@ -220,7 +218,7 @@ where
         let (reverse_channel, reverse_req_rx) =
             objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
-        let ctx = crate::context(&headers, persistent_cache, suppress_output)
+        let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
             .with_reverse_channel(reverse_channel.clone());
 
@@ -279,7 +277,6 @@ pub(crate) async fn execute_function_ws<
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     ws: WebSocketUpgrade,
 ) -> axum::response::Response
@@ -340,7 +337,7 @@ where
         let (reverse_channel, reverse_req_rx) =
             objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
-        let ctx = crate::context(&headers, persistent_cache, suppress_output)
+        let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
             .with_reverse_channel(reverse_channel.clone());
 
@@ -388,7 +385,6 @@ pub(crate) async fn create_profile_computation_ws<NOR, NCAG, NCX, NMK, NRG, NRF,
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     ws: WebSocketUpgrade,
 ) -> axum::response::Response
@@ -431,7 +427,7 @@ where
         let (reverse_channel, reverse_req_rx) =
             objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
-        let ctx = crate::context(&headers, persistent_cache, suppress_output)
+        let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
             .with_reverse_channel(reverse_channel.clone());
 
@@ -493,7 +489,6 @@ pub(crate) async fn create_error_ws<NOR, NCAG, NCX, NMK, NRG, NRF, NRM, NAU>(
     >,
     reverse_attach: streaming_ws::ReverseAttachConfig,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     ws: WebSocketUpgrade,
 ) -> axum::response::Response
@@ -536,7 +531,7 @@ where
         let (reverse_channel, reverse_req_rx) =
             objectiveai_mcp_proxy::ReverseChannel::new(reverse_attach.reverse_channel_timeout);
         tokio::spawn(streaming_ws::drain_reverse_channel(sink.clone(), reverse_req_rx));
-        let ctx = crate::context(&headers, persistent_cache, suppress_output)
+        let ctx = crate::context(&headers, suppress_output)
             .with_reverse_attach(_attach_guard.handle())
             .with_reverse_channel(reverse_channel.clone());
         let stream = match client.create_streaming(&ctx, &body) {

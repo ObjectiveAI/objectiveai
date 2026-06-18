@@ -129,39 +129,36 @@ impl Context {
         Ok(build_http_client(&self.config, &mut config, address))
     }
 
-    /// The MCP [`Backoff`](objectiveai_sdk::mcp::Backoff) bundle this CLI
-    /// process uses for ALL of its own MCP clients (the streaming
-    /// conduit, through which every CLI MCP connection flows). The
-    /// connect + per-call timeouts come from the merged (`--final`)
-    /// `api.mcp_timeout_ms` config value (default 60000ms). The backoff
-    /// **retry budget** is INDEPENDENT of that timeout: it's read from
-    /// the `MCP_BACKOFF_MAX_ELAPSED_TIME` environment variable (the CLI
-    /// loads `<OBJECTIVEAI_DIR>/.env` in `main`, the same file the api
-    /// reads), defaulting to the SDK default (40s) when unset. The
-    /// shared test `.env` sets it to `0` so a genuine MCP failure fails
-    /// fast instead of retrying for the full window. The remaining
-    /// exponential-backoff knobs keep [`Backoff::default`]'s values.
-    /// Callers that need to distinguish "configured" from "unset" (the
-    /// api spawn) use [`Self::resolve_mcp_timeout_ms_opt`] instead.
-    pub async fn resolve_mcp_backoff(
-        &self,
-    ) -> Result<objectiveai_sdk::mcp::Backoff, crate::error::Error> {
-        let timeout_ms = self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000);
-        let default = objectiveai_sdk::mcp::Backoff::default();
-        let max_elapsed_time_ms = std::env::var("MCP_BACKOFF_MAX_ELAPSED_TIME")
-            .ok()
-            .and_then(|s| s.trim().parse::<u64>().ok())
-            .unwrap_or(default.max_elapsed_time_ms);
-        Ok(objectiveai_sdk::mcp::Backoff {
-            connect_timeout_ms: timeout_ms,
-            call_timeout_ms: timeout_ms,
-            max_elapsed_time_ms,
-            ..default
-        })
+    /// Effective MCP timeout (ms), used as BOTH the connect and per-call
+    /// timeout for every MCP client this CLI drives (its streaming
+    /// conduit). The merged (`--final`) `api.mcp_timeout_ms` config value,
+    /// or the canonical default (60000ms) when unset.
+    pub async fn resolve_mcp_timeout_ms(&self) -> Result<u64, crate::error::Error> {
+        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000))
     }
 
-    /// The configured `api.mcp_timeout_ms`, or `None` when unset —
-    /// preserving the distinction [`Self::resolve_mcp_backoff`] erases.
+    /// Effective backoff max-elapsed-time (ms) — the retry budget for the
+    /// CLI's own MCP client. The merged `api.backoff_max_elapsed_time_ms`
+    /// config value, or the canonical default (60000ms) when unset. The
+    /// other exponential-backoff knobs keep their built-in defaults.
+    pub async fn resolve_backoff_max_elapsed_time_ms(&self) -> Result<u64, crate::error::Error> {
+        Ok(self.resolve_backoff_max_elapsed_time_ms_opt().await?.unwrap_or(60000))
+    }
+
+    /// The configured `api.backoff_max_elapsed_time_ms`, or `None` when
+    /// unset — the api spawn uses this to project the backoff env onto the
+    /// spawned server only when the user explicitly set it.
+    pub async fn resolve_backoff_max_elapsed_time_ms_opt(
+        &self,
+    ) -> Result<Option<u64>, crate::error::Error> {
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        Ok(config.api().get_backoff_max_elapsed_time_ms())
+    }
+
+    /// The configured `api.mcp_timeout_ms`, or `None` when unset.
     ///
     /// The api spawn uses this to project the `MCP_*` timeout env onto
     /// the spawned (machine-wide, shared) server ONLY when the user

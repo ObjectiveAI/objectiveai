@@ -45,12 +45,10 @@ fn protocol_kind(kind: crate::retrieval::Kind) -> retrieve::Kind {
 
 /// Send a resolution request down the reverse channel and await the
 /// typed reply. Fails when there is no websocket reverse-attach.
-async fn send_retrieve<CTXEXT, PC>(
-    ctx: &ctx::Context<CTXEXT, PC>,
+async fn send_retrieve<CTXEXT>(
+    ctx: &ctx::Context<CTXEXT>,
     request: retrieve::Request,
 ) -> Result<retrieve::Response, ResponseError>
-where
-    PC: crate::ctx::persistent_cache::PersistentCacheClient,
 {
     let handle = ctx.reverse_attach().ok_or_else(|| {
         reverse_error("`client` remote requires a websocket connection")
@@ -89,9 +87,9 @@ impl<CTXEXT> super::super::Client<CTXEXT> for ClientClient
 where
     CTXEXT: Send + Sync + 'static,
 {
-    async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_agent(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         match send_retrieve(ctx, retrieve::Request::GetAgent { path: path.clone() }).await? {
@@ -100,9 +98,9 @@ where
         }
     }
 
-    async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_swarm(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         match send_retrieve(ctx, retrieve::Request::GetSwarm { path: path.clone() }).await? {
@@ -111,9 +109,9 @@ where
         }
     }
 
-    async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_function(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         match send_retrieve(ctx, retrieve::Request::GetFunction { path: path.clone() }).await? {
@@ -122,9 +120,9 @@ where
         }
     }
 
-    async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_profile(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         match send_retrieve(ctx, retrieve::Request::GetProfile { path: path.clone() }).await? {
@@ -133,9 +131,9 @@ where
         }
     }
 
-    async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn resolve_latest(
         &self,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         kind: crate::retrieval::Kind,
         path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {

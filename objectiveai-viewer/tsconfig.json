@@ -12,8 +12,11 @@
     "noEmit": true,
     "jsx": "react-jsx",
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    // Off because the baked-in src/function-tree/ module (formerly the
+    // @objectiveai/function-tree package, built with tsup/esbuild — which
+    // never flagged these) carries some unused locals/imports.
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },

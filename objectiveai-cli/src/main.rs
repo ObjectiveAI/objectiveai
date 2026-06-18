@@ -14,8 +14,8 @@ async fn main() {
     // never overrides an already-set var, so loading the CWD file FIRST
     // makes it win over the dir-scoped file, and the real environment
     // still wins over both. The dir-scoped file is the shared test/dev
-    // config (`.objectiveai/.env`) — the source of e.g.
-    // `MCP_BACKOFF_MAX_ELAPSED_TIME` for the conduit's MCP backoff.
+    // config (`.objectiveai/.env`) — the source of the test credentials
+    // and addresses the CLI and spawned api read.
     let _ = dotenv::dotenv();
     let dir = std::env::var_os("OBJECTIVEAI_DIR")
         .map(std::path::PathBuf::from)

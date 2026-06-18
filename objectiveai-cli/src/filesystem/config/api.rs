@@ -38,17 +38,26 @@ pub struct ApiConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub commit_author_email: Option<String>,
-    /// MCP timeout override, in milliseconds. One value, fanned out to
-    /// the connect timeout, the per-call timeout, AND the backoff
-    /// max-elapsed-time of every MCP client this CLI drives (its
-    /// streaming conduit) and projected onto the spawned API's `MCP_*`
-    /// env (which in turn drives the proxy it spawns). `None` ⇒ the
+    /// MCP timeout override, in milliseconds. One value, used as BOTH the
+    /// connect timeout and the per-call timeout of every MCP client this
+    /// CLI drives (its streaming conduit) and projected onto the spawned
+    /// API's `MCP_CONNECT_TIMEOUT` + `MCP_CALL_TIMEOUT` env (which in turn
+    /// drive the proxy it spawns). `None` ⇒ the canonical default
+    /// (60000ms).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub mcp_timeout_ms: Option<u64>,
+    /// Backoff max-elapsed-time override, in milliseconds. One value,
+    /// fanned out to EVERY backoff retry policy of the spawned API
+    /// (`AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME`,
+    /// `MCP_BACKOFF_MAX_ELAPSED_TIME`, `GITHUB_BACKOFF_MAX_ELAPSED_TIME`)
+    /// and used for the CLI's own MCP client backoff. `None` ⇒ the
     /// canonical default (60000ms). The other exponential-backoff knobs
     /// (intervals / randomization / multiplier) keep their built-in
     /// defaults.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub mcp_timeout_ms: Option<u64>,
+    pub backoff_max_elapsed_time_ms: Option<u64>,
 }
 
 impl ApiConfig {
@@ -64,6 +73,7 @@ impl ApiConfig {
             && self.commit_author_name.is_none()
             && self.commit_author_email.is_none()
             && self.mcp_timeout_ms.is_none()
+            && self.backoff_max_elapsed_time_ms.is_none()
     }
 
     pub fn is_none(this: &Option<Self>) -> bool {
@@ -161,6 +171,13 @@ impl ApiConfig {
     }
     pub fn set_mcp_timeout_ms(&mut self, value: u64) {
         self.mcp_timeout_ms = Some(value);
+    }
+
+    pub fn get_backoff_max_elapsed_time_ms(&self) -> Option<u64> {
+        self.backoff_max_elapsed_time_ms
+    }
+    pub fn set_backoff_max_elapsed_time_ms(&mut self, value: u64) {
+        self.backoff_max_elapsed_time_ms = Some(value);
     }
 
     pub fn jq(

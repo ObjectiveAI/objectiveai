@@ -43,23 +43,8 @@ const API_CONFIG_ENV: &[&str] = &[
     "CODEX_SDK_RATE_LIMIT_MAX_RETRIES",
     "CODEX_SDK_RATE_LIMIT_MAX_WAIT_SECS",
     "CODEX_SDK_QUERY_LIMIT",
-    "AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL",
-    "AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL",
-    "AGENT_COMPLETIONS_BACKOFF_RANDOMIZATION_FACTOR",
-    "AGENT_COMPLETIONS_BACKOFF_MULTIPLIER",
-    "AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL",
     "AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME",
-    "MCP_BACKOFF_CURRENT_INTERVAL",
-    "MCP_BACKOFF_INITIAL_INTERVAL",
-    "MCP_BACKOFF_RANDOMIZATION_FACTOR",
-    "MCP_BACKOFF_MULTIPLIER",
-    "MCP_BACKOFF_MAX_INTERVAL",
     "MCP_BACKOFF_MAX_ELAPSED_TIME",
-    "GITHUB_BACKOFF_CURRENT_INTERVAL",
-    "GITHUB_BACKOFF_INITIAL_INTERVAL",
-    "GITHUB_BACKOFF_RANDOMIZATION_FACTOR",
-    "GITHUB_BACKOFF_MULTIPLIER",
-    "GITHUB_BACKOFF_MAX_INTERVAL",
     "GITHUB_BACKOFF_MAX_ELAPSED_TIME",
     "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT",
     "AGENT_COMPLETIONS_OTHER_CHUNK_TIMEOUT",
@@ -68,7 +53,6 @@ const API_CONFIG_ENV: &[&str] = &[
     "REVERSE_CHANNEL_TIMEOUT",
     "MCP_ENCRYPTION_KEY",
     "OBJECTIVEAI_STATE",
-    "PERSISTENT_CACHE_TRANSIENT_TTL_MS",
     "MOCK_DELAY_MS",
     "MOCK_MAX_TOOL_CALLS",
     "ADDRESS",
@@ -88,22 +72,19 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.bin_dir().join("locks");
 
-    // Project the configured `api.mcp_timeout_ms` onto the spawned api's
-    // env — but ONLY when the user explicitly set it. The single value
-    // fans out to the connect timeout, the per-call timeout, and the
-    // reverse-channel (WebSocket reverse-attach) round-trip timeout (the
-    // api forwards the timeouts to the proxy it spawns, so they drive
-    // every server-side MCP connection too; the reverse-channel budget
-    // bounds one CLI round-trip, which carries exactly one upstream MCP
-    // call — so the same MCP timeout fits it). The backoff
-    // max-elapsed-time is deliberately NOT projected: the retry budget is
-    // independent of the timeout, sourced from `MCP_BACKOFF_MAX_ELAPSED_TIME`
-    // (`<OBJECTIVEAI_DIR>/.env`, then the api's built-in default), so the
-    // test `.env`'s `MCP_BACKOFF_*=0` fast-fail survives instead of being
-    // clobbered by the timeout value. The keys are scrubbed above, so
-    // when `mcp_timeout_ms` is unset the api resolves the timeouts itself.
-    // See `Context::resolve_mcp_timeout_ms_opt`.
+    // Project the two configured api knobs onto the spawned api's env —
+    // each ONLY when the user explicitly set it (the keys are scrubbed
+    // above, so when unset the api resolves them itself from
+    // `<OBJECTIVEAI_DIR>/.env` then its built-in default):
+    //   • `api.mcp_timeout_ms` → MCP_CONNECT_TIMEOUT + MCP_CALL_TIMEOUT
+    //     (the api forwards both to the proxy it spawns, so they drive
+    //     every server-side MCP connection too).
+    //   • `api.backoff_max_elapsed_time_ms` → EVERY backoff max-elapsed
+    //     env the api has (agent-completions, mcp, github).
+    // See `Context::resolve_mcp_timeout_ms_opt` /
+    // `resolve_backoff_max_elapsed_time_ms_opt`.
     let timeout_ms = ctx.resolve_mcp_timeout_ms_opt().await?;
+    let backoff_ms = ctx.resolve_backoff_max_elapsed_time_ms_opt().await?;
 
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "api", |cmd| {
         for key in API_CONFIG_ENV {
@@ -114,8 +95,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
         if let Some(timeout_ms) = timeout_ms {
             let v = timeout_ms.to_string();
             cmd.env("MCP_CONNECT_TIMEOUT", &v)
-                .env("MCP_CALL_TIMEOUT", &v)
-                .env("REVERSE_CHANNEL_TIMEOUT", &v);
+                .env("MCP_CALL_TIMEOUT", &v);
+        }
+        if let Some(backoff_ms) = backoff_ms {
+            let v = backoff_ms.to_string();
+            cmd.env("AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME", &v)
+                .env("MCP_BACKOFF_MAX_ELAPSED_TIME", &v)
+                .env("GITHUB_BACKOFF_MAX_ELAPSED_TIME", &v);
         }
     })
     .await

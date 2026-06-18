@@ -108,12 +108,13 @@ impl Runner {
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::piped());
         cmd.env_remove("CLAUDECODE");
-        // Kill the runner if the parent drops the Child. Otherwise a
-        // panic in this process would leave an orphaned runner alive
-        // until its EOF-on-stdin drain finished.
-        cmd.kill_on_drop(true);
-
-        let mut child = cmd.spawn().map_err(|e| RunnerError::Spawn(e.to_string()))?;
+        // Leash the runner to this process via the OS-level
+        // subprocess-reaper, so it dies if the api goes away by ANY means
+        // — force-kill (`kill -9` / `TerminateProcess`), crash, or normal
+        // exit — not just an orderly `Drop`. (The reaper also sets
+        // `kill_on_drop(true)` itself as the in-process fast path.)
+        let mut child = objectiveai_sdk::subprocess_reaper::spawn(&mut cmd)
+            .map_err(|e| RunnerError::Spawn(e.to_string()))?;
 
         let stdin = child
             .stdin

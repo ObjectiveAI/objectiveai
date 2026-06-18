@@ -31,7 +31,7 @@ Install all four prebuilt binaries with one command:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
 | Binary | What it does | Download |
@@ -113,7 +113,7 @@ Install the CLI, API server, viewer, and MCP server from the latest release:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
 Set your API key:
@@ -423,10 +423,10 @@ The .NET SDK (`ObjectiveAI`, targeting net10.0) is in active development. The Nu
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/ObjectiveAI/objectiveai/main/install.sh | bash
-. "$HOME/.objectiveai/env"
+export PATH="$HOME/.objectiveai/bin:$PATH"
 ```
 
-All four binaries land in `~/.objectiveai/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api`, `objectiveai-viewer`, and `objectiveai-mcp`.
+All four binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI (`objectiveai`) self-updates on startup; re-run the installer to upgrade `objectiveai-api`, `objectiveai-viewer`, and `objectiveai-mcp`.
 
 ### `objectiveai` (CLI)
 
@@ -596,7 +596,6 @@ The [`examples/`](examples/) directory collects real software built on top of Ob
 
 - **`objectiveai-claude-agent-sdk-runner`** — a long-lived Python stdio NDJSON server that runs concurrent Claude Agent SDK sessions on behalf of `objectiveai-api`. The Rust API caller spawns and multiplexes requests over a single stdin/stdout pair using a semaphore-backed FIFO queue; each request carries a string `id` for demultiplexing events from N concurrent streams.
 - **`objectiveai-codex-sdk-runner`** — same architecture as the Claude runner but targets the OpenAI Codex SDK. Authentication is inherited from `~/.codex/auth.json`; the runner shells out to the `codex` binary and streams `ThreadEvent` objects back to the Rust caller.
-- **`objectiveai-function-tree`** — a TypeScript/React package that renders a 2D canvas visualization of ObjectiveAI function execution trees. Exposes a `FunctionTree` component plus a headless `core` export and CSS; peer-depends on React 18+. Used internally by `objectiveai-web`.
 - **`objectiveai-cocoindex`** ([PyPI](https://pypi.org/project/objectiveai-cocoindex/)) — a Python integration that wraps ObjectiveAI function executions as memoized [CocoIndex](https://github.com/cocoindex-io/cocoindex) processing components. The memo key combines the bound `(function, profile, strategy)` triple with the per-call input, making it safe to drop into indexing pipelines.
 - **`objectiveai-github-discord-notifier`** — a Python FastAPI webhook server (Docker-deployable) that validates GitHub webhook signatures and forwards pull-request and issue events to a configured Discord channel.
 - **`objectiveai-json-schema`** — generated JSON Schema files for every public serializable type in the Rust SDK, named using dot-separated module paths (e.g. `functions.executions.RetryToken.json`). Several hundred schemas cover agents, swarms, functions, profiles, executions, CLI output, MCP types, and more. These files drive code generation for the Go SDK and .NET SDK and can be used by any downstream tooling that needs machine-readable type definitions.
@@ -637,7 +636,6 @@ objectiveai/
 │
 ├── # Web & tools
 │   ├── objectiveai-web/                       # Next.js production web interface
-│   ├── objectiveai-function-tree/             # 2D canvas function-tree visualizer
 │   ├── objectiveai-cocoindex/                 # CocoIndex integration (Python)
 │   ├── objectiveai-github-discord-notifier/   # GitHub webhook → Discord notifier
 │   └── objectiveai-json-schema/               # Generated JSON Schema files
@@ -652,10 +650,9 @@ objectiveai/
 
 ### Prerequisites
 
-- **Rust** — stable toolchain via [rustup](https://rustup.rs/). No pinned `rust-toolchain.toml`; use the current stable release. `wasm-pack` and `maturin` are installed automatically by `build-bin.sh` into `./bin/`.
+- **Rust** — stable toolchain via [rustup](https://rustup.rs/). No pinned `rust-toolchain.toml`; use the current stable release. `wasm-pack` and `maturin` are installed automatically into `./bin/` by `build.sh` (its first step).
 - **Node.js + pnpm 10.25.0** — the workspace `packageManager` field pins this version. Install pnpm via `corepack enable` or `npm i -g pnpm@10.25.0`.
 - **Python** — required for `objectiveai-sdk-py` (PyO3/maturin extension build) and the Claude/Codex agent-SDK runners (PyInstaller).
-- **Docker** — required for the `objectiveai-mcp-filesystem` musl cross-compilation step in `build.sh`.
 
 ### Build
 
@@ -663,7 +660,7 @@ objectiveai/
 pnpm install                 # JS workspace dependencies
 cargo build --release        # Rust crates
 bash build.sh                # full monorepo build in dependency order
-bash build-bin.sh            # (re)install pinned build tools into ./bin/
+                             # (first installs pinned build tools into ./bin/)
 ```
 
 `build.sh` generates JSON schemas, compiles WASM and CFFI bindings, builds all language SDKs (.NET, Go, Python, JS), and produces viewer artifacts.
@@ -686,7 +683,7 @@ pnpm test                    # JS/TS tests
 - **No network-hitting tests.** Tests must not contact the production API. Mock responses or use local fixtures.
 - **Test failures are not pre-existing issues.** Every failure must be investigated and fixed; never dismiss one to move on.
 - **Single shared version.** All packages share one version number. Bump atomically across Cargo.toml, package.json, pyproject.toml, .csproj, and all inter-package dependency references with `bash version.sh <new-version>`.
-- **Publishing.** `bash publish.sh` orchestrates the full release across crates.io, PyPI, npm, the Go module proxy, and GitHub Releases in dependency-order waves, polling each registry until the new version is live before proceeding.
+- **Publishing.** The `Release` GitHub Actions workflow fires on every push to main, gated on the `objectiveai-cli` version: if the GitHub Release `v<version>` doesn't exist yet, it rolls out everything for that version, all-or-nothing — the six per-platform binary zips (each built by `build.sh --release --no-sdk`) plus the language SDKs published sequentially (rust → python → javascript → golang). The SDK jobs ship already-committed artifacts (no codegen, no wasm build), so commit fresh generated artifacts (via `build.sh`) before bumping the version.
 
 ## License
 

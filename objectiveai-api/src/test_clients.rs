@@ -22,9 +22,9 @@ pub(crate) struct StubRetrieveClient;
 
 #[async_trait::async_trait]
 impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieveClient {
-    async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_agent(
         &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: &ctx::Context<ctx::DefaultContextExt>,
         _path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, objectiveai_sdk::error::ResponseError> {
         Err(objectiveai_sdk::error::ResponseError {
@@ -33,9 +33,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         })
     }
 
-    async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_swarm(
         &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: &ctx::Context<ctx::DefaultContextExt>,
         _path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, objectiveai_sdk::error::ResponseError> {
         Err(objectiveai_sdk::error::ResponseError {
@@ -44,9 +44,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         })
     }
 
-    async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_function(
         &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: &ctx::Context<ctx::DefaultContextExt>,
         _path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, objectiveai_sdk::error::ResponseError> {
         Err(objectiveai_sdk::error::ResponseError {
@@ -55,9 +55,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         })
     }
 
-    async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn get_profile(
         &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: &ctx::Context<ctx::DefaultContextExt>,
         _path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, objectiveai_sdk::error::ResponseError> {
         Err(objectiveai_sdk::error::ResponseError {
@@ -66,9 +66,9 @@ impl crate::retrieval::retrieve::Client<ctx::DefaultContextExt> for StubRetrieve
         })
     }
 
-    async fn resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn resolve_latest(
         &self,
-        _ctx: &ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: &ctx::Context<ctx::DefaultContextExt>,
         _kind: crate::retrieval::Kind,
         _path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, objectiveai_sdk::error::ResponseError> {
@@ -90,7 +90,7 @@ impl crate::agent::completions::usage_handler::UsageHandler<ctx::DefaultContextE
 {
     fn handle_usage(
         &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, impl crate::ctx::persistent_cache::PersistentCacheClient>,
+        _ctx: ctx::Context<ctx::DefaultContextExt>,
         _request: Arc<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>,
         _response: objectiveai_sdk::agent::completions::response::unary::AgentCompletion,
     ) -> impl std::future::Future<Output = ()> + Send + 'static {
@@ -104,9 +104,9 @@ pub(crate) struct StubVectorUsageHandler;
 impl crate::vector::completions::usage_handler::UsageHandler<ctx::DefaultContextExt>
     for StubVectorUsageHandler
 {
-    async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn handle_usage(
         &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: ctx::Context<ctx::DefaultContextExt>,
         _request: Arc<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>,
         _response: objectiveai_sdk::vector::completions::response::unary::VectorCompletion,
     ) {
@@ -119,9 +119,9 @@ pub(crate) struct StubFunctionUsageHandler;
 impl crate::functions::executions::usage_handler::UsageHandler<ctx::DefaultContextExt>
     for StubFunctionUsageHandler
 {
-    async fn handle_usage<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn handle_usage(
         &self,
-        _ctx: ctx::Context<ctx::DefaultContextExt, PC>,
+        _ctx: ctx::Context<ctx::DefaultContextExt>,
         _request: Arc<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>,
         _response: objectiveai_sdk::functions::executions::response::unary::FunctionExecution,
     ) {
@@ -320,11 +320,6 @@ static PROXY_SPAWNER: LazyLock<Arc<crate::agent::completions::ProxyFactory>> = L
         || objectiveai_mcp_proxy::ConfigBuilder {
             mcp_connect_timeout: Some(MCP_CONNECT_TIMEOUT_MS),
             mcp_call_timeout: Some(MCP_CALL_TIMEOUT_MS),
-            mcp_backoff_current_interval: Some(MCP_BACKOFF_CURRENT_INTERVAL_MS),
-            mcp_backoff_initial_interval: Some(MCP_BACKOFF_INITIAL_INTERVAL_MS),
-            mcp_backoff_randomization_factor: Some(MCP_BACKOFF_RANDOMIZATION_FACTOR),
-            mcp_backoff_multiplier: Some(MCP_BACKOFF_MULTIPLIER),
-            mcp_backoff_max_interval: Some(MCP_BACKOFF_MAX_INTERVAL_MS),
             mcp_backoff_max_elapsed_time: Some(MCP_BACKOFF_MAX_ELAPSED_TIME_MS),
             ..Default::default()
         },

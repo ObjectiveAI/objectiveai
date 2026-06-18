@@ -22,6 +22,15 @@ use crate::{
 use std::{convert::Infallible, sync::Arc};
 use tokio_stream::StreamExt;
 
+// Backoff knobs other than the max-elapsed-time are no longer configurable;
+// every retry policy (agent completions, mcp, github) uses these fixed
+// defaults. Only `*_BACKOFF_MAX_ELAPSED_TIME` stays env-configurable.
+const BACKOFF_INITIAL_INTERVAL_MS: u64 = 100;
+const BACKOFF_RANDOMIZATION_FACTOR: f64 = 0.5;
+const BACKOFF_MULTIPLIER: f64 = 1.5;
+const BACKOFF_MAX_INTERVAL_MS: u64 = 1000;
+const BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS: u64 = 60000;
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     // -- HttpClient fields (identical order across all 3 structs) --
@@ -60,40 +69,12 @@ struct EnvConfigBuilder {
     codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     #[envconfig(from = "CODEX_SDK_QUERY_LIMIT")]
     codex_sdk_query_limit: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_CURRENT_INTERVAL")]
-    agent_completions_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_INITIAL_INTERVAL")]
-    agent_completions_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_RANDOMIZATION_FACTOR")]
-    agent_completions_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MULTIPLIER")]
-    agent_completions_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MAX_INTERVAL")]
-    agent_completions_backoff_max_interval: Option<u64>,
+    // Only the max-elapsed-time is configurable; the rest of the backoff
+    // policy uses fixed defaults.
     #[envconfig(from = "AGENT_COMPLETIONS_BACKOFF_MAX_ELAPSED_TIME")]
     agent_completions_backoff_max_elapsed_time: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_CURRENT_INTERVAL")]
-    mcp_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_INITIAL_INTERVAL")]
-    mcp_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "MCP_BACKOFF_RANDOMIZATION_FACTOR")]
-    mcp_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MULTIPLIER")]
-    mcp_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "MCP_BACKOFF_MAX_INTERVAL")]
-    mcp_backoff_max_interval: Option<u64>,
     #[envconfig(from = "MCP_BACKOFF_MAX_ELAPSED_TIME")]
     mcp_backoff_max_elapsed_time: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_CURRENT_INTERVAL")]
-    github_backoff_current_interval: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_INITIAL_INTERVAL")]
-    github_backoff_initial_interval: Option<u64>,
-    #[envconfig(from = "GITHUB_BACKOFF_RANDOMIZATION_FACTOR")]
-    github_backoff_randomization_factor: Option<f64>,
-    #[envconfig(from = "GITHUB_BACKOFF_MULTIPLIER")]
-    github_backoff_multiplier: Option<f64>,
-    #[envconfig(from = "GITHUB_BACKOFF_MAX_INTERVAL")]
-    github_backoff_max_interval: Option<u64>,
     #[envconfig(from = "GITHUB_BACKOFF_MAX_ELAPSED_TIME")]
     github_backoff_max_elapsed_time: Option<u64>,
     #[envconfig(from = "AGENT_COMPLETIONS_FIRST_CHUNK_TIMEOUT")]
@@ -110,15 +91,11 @@ struct EnvConfigBuilder {
     mcp_encryption_key: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_DIR")]
     objectiveai_dir: Option<String>,
-    #[envconfig(from = "OBJECTIVEAI_STATE")]
-    objectiveai_state: Option<String>,
     /// `OBJECTIVEAI_LOGS` — master switch (default on) for writing
     /// request/response traces. When on, the in-process mcp-proxy logs
     /// to `<OBJECTIVEAI_DIR>/bin/api/logs/mcp-proxy.jsonl`.
     #[envconfig(from = "OBJECTIVEAI_LOGS")]
     logs: Option<String>,
-    #[envconfig(from = "PERSISTENT_CACHE_TRANSIENT_TTL_MS")]
-    persistent_cache_transient_ttl_ms: Option<u64>,
     #[envconfig(from = "MOCK_DELAY_MS")]
     mock_delay_ms: Option<u64>,
     #[envconfig(from = "MOCK_MAX_TOOL_CALLS")]
@@ -155,23 +132,8 @@ impl EnvConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries,
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs,
             codex_sdk_query_limit: self.codex_sdk_query_limit,
-            agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval,
-            agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval,
-            agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor,
-            agent_completions_backoff_multiplier: self.agent_completions_backoff_multiplier,
-            agent_completions_backoff_max_interval: self.agent_completions_backoff_max_interval,
             agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time,
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval,
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval,
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor,
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier,
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval,
             mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time,
-            github_backoff_current_interval: self.github_backoff_current_interval,
-            github_backoff_initial_interval: self.github_backoff_initial_interval,
-            github_backoff_randomization_factor: self.github_backoff_randomization_factor,
-            github_backoff_multiplier: self.github_backoff_multiplier,
-            github_backoff_max_interval: self.github_backoff_max_interval,
             github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time,
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout,
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout,
@@ -180,9 +142,7 @@ impl EnvConfigBuilder {
             reverse_channel_timeout: self.reverse_channel_timeout,
             mcp_encryption_key: self.mcp_encryption_key,
             objectiveai_dir: self.objectiveai_dir,
-            objectiveai_state: self.objectiveai_state,
             logs: self.logs.map(|s| parse_bool(&s)),
-            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms,
             mock_delay_ms: self.mock_delay_ms,
             mock_max_tool_calls: self.mock_max_tool_calls,
             address: self.address,
@@ -213,23 +173,8 @@ pub struct ConfigBuilder {
     pub codex_sdk_rate_limit_max_retries: Option<u64>,
     pub codex_sdk_rate_limit_max_wait_secs: Option<u64>,
     pub codex_sdk_query_limit: Option<u64>,
-    pub agent_completions_backoff_current_interval: Option<u64>,
-    pub agent_completions_backoff_initial_interval: Option<u64>,
-    pub agent_completions_backoff_randomization_factor: Option<f64>,
-    pub agent_completions_backoff_multiplier: Option<f64>,
-    pub agent_completions_backoff_max_interval: Option<u64>,
     pub agent_completions_backoff_max_elapsed_time: Option<u64>,
-    pub mcp_backoff_current_interval: Option<u64>,
-    pub mcp_backoff_initial_interval: Option<u64>,
-    pub mcp_backoff_randomization_factor: Option<f64>,
-    pub mcp_backoff_multiplier: Option<f64>,
-    pub mcp_backoff_max_interval: Option<u64>,
     pub mcp_backoff_max_elapsed_time: Option<u64>,
-    pub github_backoff_current_interval: Option<u64>,
-    pub github_backoff_initial_interval: Option<u64>,
-    pub github_backoff_randomization_factor: Option<f64>,
-    pub github_backoff_multiplier: Option<f64>,
-    pub github_backoff_max_interval: Option<u64>,
     pub github_backoff_max_elapsed_time: Option<u64>,
     pub agent_completions_first_chunk_timeout: Option<u64>,
     pub agent_completions_other_chunk_timeout: Option<u64>,
@@ -238,9 +183,7 @@ pub struct ConfigBuilder {
     pub reverse_channel_timeout: Option<u64>,
     pub mcp_encryption_key: Option<String>,
     pub objectiveai_dir: Option<String>,
-    pub objectiveai_state: Option<String>,
     pub logs: Option<bool>,
-    pub persistent_cache_transient_ttl_ms: Option<u64>,
     pub mock_delay_ms: Option<u64>,
     pub mock_max_tool_calls: Option<u32>,
     pub address: Option<String>,
@@ -285,24 +228,9 @@ impl ConfigBuilder {
             codex_sdk_rate_limit_max_retries: self.codex_sdk_rate_limit_max_retries.unwrap_or(10),
             codex_sdk_rate_limit_max_wait_secs: self.codex_sdk_rate_limit_max_wait_secs.unwrap_or(180),
             codex_sdk_query_limit: self.codex_sdk_query_limit.unwrap_or(10),
-            agent_completions_backoff_current_interval: self.agent_completions_backoff_current_interval.unwrap_or(100),
-            agent_completions_backoff_initial_interval: self.agent_completions_backoff_initial_interval.unwrap_or(100),
-            agent_completions_backoff_randomization_factor: self.agent_completions_backoff_randomization_factor.unwrap_or(0.5),
-            agent_completions_backoff_multiplier: self.agent_completions_backoff_multiplier.unwrap_or(1.5),
-            agent_completions_backoff_max_interval: self.agent_completions_backoff_max_interval.unwrap_or(1000),
-            agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time.unwrap_or(40000),
-            mcp_backoff_current_interval: self.mcp_backoff_current_interval.unwrap_or(100),
-            mcp_backoff_initial_interval: self.mcp_backoff_initial_interval.unwrap_or(100),
-            mcp_backoff_randomization_factor: self.mcp_backoff_randomization_factor.unwrap_or(0.5),
-            mcp_backoff_multiplier: self.mcp_backoff_multiplier.unwrap_or(1.5),
-            mcp_backoff_max_interval: self.mcp_backoff_max_interval.unwrap_or(1000),
-            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(40000),
-            github_backoff_current_interval: self.github_backoff_current_interval.unwrap_or(100),
-            github_backoff_initial_interval: self.github_backoff_initial_interval.unwrap_or(100),
-            github_backoff_randomization_factor: self.github_backoff_randomization_factor.unwrap_or(0.5),
-            github_backoff_multiplier: self.github_backoff_multiplier.unwrap_or(1.5),
-            github_backoff_max_interval: self.github_backoff_max_interval.unwrap_or(1000),
-            github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(40000),
+            agent_completions_backoff_max_elapsed_time: self.agent_completions_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
+            mcp_backoff_max_elapsed_time: self.mcp_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
+            github_backoff_max_elapsed_time: self.github_backoff_max_elapsed_time.unwrap_or(BACKOFF_MAX_ELAPSED_TIME_DEFAULT_MS),
             agent_completions_first_chunk_timeout: self.agent_completions_first_chunk_timeout.unwrap_or(60000),
             agent_completions_other_chunk_timeout: self.agent_completions_other_chunk_timeout.unwrap_or(30000),
             mcp_connect_timeout: self.mcp_connect_timeout.unwrap_or(60000),
@@ -318,21 +246,7 @@ impl ConfigBuilder {
                     .unwrap_or_else(|| std::path::PathBuf::from("."))
                     .join(".objectiveai"),
             },
-            // The api's filesystem client holds per-state data
-            // (functions/, profiles/), so resolve straight to the
-            // state dir: <dir>/state/<state>.
-            config_base_dir: {
-                let dir = match self.objectiveai_dir {
-                    Some(dir) => std::path::PathBuf::from(dir),
-                    None => dirs::home_dir()
-                        .unwrap_or_else(|| std::path::PathBuf::from("."))
-                        .join(".objectiveai"),
-                };
-                let state = self.objectiveai_state.unwrap_or_else(|| "default".to_string());
-                dir.join("state").join(state)
-            },
             logs: self.logs.unwrap_or(true),
-            persistent_cache_transient_ttl_ms: self.persistent_cache_transient_ttl_ms.unwrap_or(3_600_000),
             mock_delay_ms: self.mock_delay_ms.unwrap_or(0),
             mock_max_tool_calls: self.mock_max_tool_calls.unwrap_or(1000),
             // Loopback + ephemeral by default: the actual bound port
@@ -365,23 +279,8 @@ pub struct Config {
     pub codex_sdk_rate_limit_max_retries: u64,
     pub codex_sdk_rate_limit_max_wait_secs: u64,
     pub codex_sdk_query_limit: u64,
-    pub agent_completions_backoff_current_interval: u64,
-    pub agent_completions_backoff_initial_interval: u64,
-    pub agent_completions_backoff_randomization_factor: f64,
-    pub agent_completions_backoff_multiplier: f64,
-    pub agent_completions_backoff_max_interval: u64,
     pub agent_completions_backoff_max_elapsed_time: u64,
-    pub mcp_backoff_current_interval: u64,
-    pub mcp_backoff_initial_interval: u64,
-    pub mcp_backoff_randomization_factor: f64,
-    pub mcp_backoff_multiplier: f64,
-    pub mcp_backoff_max_interval: u64,
     pub mcp_backoff_max_elapsed_time: u64,
-    pub github_backoff_current_interval: u64,
-    pub github_backoff_initial_interval: u64,
-    pub github_backoff_randomization_factor: f64,
-    pub github_backoff_multiplier: f64,
-    pub github_backoff_max_interval: u64,
     pub github_backoff_max_elapsed_time: u64,
     pub agent_completions_first_chunk_timeout: u64,
     pub agent_completions_other_chunk_timeout: u64,
@@ -397,15 +296,12 @@ pub struct Config {
     /// `MCP_ENCRYPTION_KEY`. Unset → proxy generates an ephemeral key
     /// per process.
     pub mcp_encryption_key: Option<String>,
-    /// Layout root (`OBJECTIVEAI_DIR`); `config_base_dir` is the
-    /// per-state dir derived from it.
+    /// Layout root (`OBJECTIVEAI_DIR`).
     pub objectiveai_dir: std::path::PathBuf,
-    pub config_base_dir: std::path::PathBuf,
     /// Master switch (default on) for request/response trace logging.
     /// When on, the in-process mcp-proxy writes to
     /// `<objectiveai_dir>/bin/api/logs/mcp-proxy.jsonl`.
     pub logs: bool,
-    pub persistent_cache_transient_ttl_ms: u64,
     pub mock_delay_ms: u64,
     pub mock_max_tool_calls: u32,
     pub address: String,
@@ -436,23 +332,8 @@ pub async fn setup(
         codex_sdk_rate_limit_max_retries,
         codex_sdk_rate_limit_max_wait_secs,
         codex_sdk_query_limit,
-        agent_completions_backoff_current_interval,
-        agent_completions_backoff_initial_interval,
-        agent_completions_backoff_randomization_factor,
-        agent_completions_backoff_multiplier,
-        agent_completions_backoff_max_interval,
         agent_completions_backoff_max_elapsed_time,
-        mcp_backoff_current_interval,
-        mcp_backoff_initial_interval,
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        mcp_backoff_max_interval,
         mcp_backoff_max_elapsed_time,
-        github_backoff_current_interval,
-        github_backoff_initial_interval,
-        github_backoff_randomization_factor,
-        github_backoff_multiplier,
-        github_backoff_max_interval,
         github_backoff_max_elapsed_time,
         agent_completions_first_chunk_timeout,
         agent_completions_other_chunk_timeout,
@@ -461,9 +342,7 @@ pub async fn setup(
         reverse_channel_timeout,
         mcp_encryption_key,
         objectiveai_dir,
-        config_base_dir,
         logs,
-        persistent_cache_transient_ttl_ms,
         mock_delay_ms,
         mock_max_tool_calls,
         address,
@@ -505,11 +384,11 @@ pub async fn setup(
         user_agent.clone(),
         x_title.clone(),
         http_referer.clone(),
-        std::time::Duration::from_millis(github_backoff_current_interval),
-        std::time::Duration::from_millis(github_backoff_initial_interval),
-        github_backoff_randomization_factor,
-        github_backoff_multiplier,
-        std::time::Duration::from_millis(github_backoff_max_interval),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
         std::time::Duration::from_millis(github_backoff_max_elapsed_time),
     ));
 
@@ -531,18 +410,12 @@ pub async fn setup(
         x_title.clone(),
         http_referer.clone(),
         std::time::Duration::from_millis(mcp_connect_timeout),
-        std::time::Duration::from_millis(
-            mcp_backoff_current_interval,
-        ),
-        std::time::Duration::from_millis(
-            mcp_backoff_initial_interval,
-        ),
-        mcp_backoff_randomization_factor,
-        mcp_backoff_multiplier,
-        std::time::Duration::from_millis(mcp_backoff_max_interval),
-        std::time::Duration::from_millis(
-            mcp_backoff_max_elapsed_time,
-        ),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
+        std::time::Duration::from_millis(mcp_backoff_max_elapsed_time),
         std::time::Duration::from_millis(mcp_call_timeout),
     ));
 
@@ -552,8 +425,8 @@ pub async fn setup(
     //
     // Propagate the api's loaded MCP config into the in-process proxy's
     // ConfigBuilder so the proxy honours the same env vars
-    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_*`) the
-    // api itself reads — without this the proxy would fall back to its
+    // (`MCP_CONNECT_TIMEOUT`, `MCP_CALL_TIMEOUT`, `MCP_BACKOFF_MAX_ELAPSED_TIME`)
+    // the api itself reads — without this the proxy would fall back to its
     // own crate-internal defaults.
     // The proxy is PER-REQUEST (one per `Context`), so a session id
     // minted by one request's proxy must still decode in the NEXT
@@ -603,11 +476,6 @@ pub async fn setup(
             logs_dir: proxy_logs_dir.clone(),
             mcp_connect_timeout: Some(mcp_connect_timeout),
             mcp_call_timeout: Some(mcp_call_timeout),
-            mcp_backoff_current_interval: Some(mcp_backoff_current_interval),
-            mcp_backoff_initial_interval: Some(mcp_backoff_initial_interval),
-            mcp_backoff_randomization_factor: Some(mcp_backoff_randomization_factor),
-            mcp_backoff_multiplier: Some(mcp_backoff_multiplier),
-            mcp_backoff_max_interval: Some(mcp_backoff_max_interval),
             mcp_backoff_max_elapsed_time: Some(mcp_backoff_max_elapsed_time),
             mcp_encryption_key: Some(proxy_encryption_key),
             ..Default::default()
@@ -629,24 +497,18 @@ pub async fn setup(
             x_title.clone(),
             http_referer.clone(),
         )),
-        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit)),
-        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client)),
+        Arc::new(agent::completions::claude_agent_sdk::Client::new(user_agent.clone(), claude_agent_sdk_enabled, claude_agent_sdk_rate_limit_max_retries, claude_agent_sdk_rate_limit_max_wait_secs, claude_agent_sdk_query_limit, objectiveai_dir.clone())),
+        Arc::new(agent::completions::codex_sdk::Client::new(user_agent, codex_sdk_enabled, codex_sdk_rate_limit_max_retries, codex_sdk_rate_limit_max_wait_secs, codex_sdk_query_limit, http_client, objectiveai_dir.clone())),
         Arc::new(agent::completions::mock::Client {
             delay: std::time::Duration::from_millis(mock_delay_ms),
             max_tool_calls: mock_max_tool_calls,
         }),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_current_interval,
-        ),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_initial_interval,
-        ),
-        agent_completions_backoff_randomization_factor,
-        agent_completions_backoff_multiplier,
-        std::time::Duration::from_millis(agent_completions_backoff_max_interval),
-        std::time::Duration::from_millis(
-            agent_completions_backoff_max_elapsed_time,
-        ),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        std::time::Duration::from_millis(BACKOFF_INITIAL_INTERVAL_MS),
+        BACKOFF_RANDOMIZATION_FACTOR,
+        BACKOFF_MULTIPLIER,
+        std::time::Duration::from_millis(BACKOFF_MAX_INTERVAL_MS),
+        std::time::Duration::from_millis(agent_completions_backoff_max_elapsed_time),
         std::time::Duration::from_millis(agent_completions_first_chunk_timeout),
         std::time::Duration::from_millis(agent_completions_other_chunk_timeout),
     ));
@@ -689,21 +551,6 @@ pub async fn setup(
         objectiveai_http_client.clone(),
     ));
 
-    // Persistent Cache Client
-    #[cfg(feature = "sqlite-persistent-cache")]
-    let persistent_cache = Arc::new(
-        ctx::persistent_cache::sqlite::SqlitePersistentCacheClient::new(
-            config_base_dir,
-            std::time::Duration::from_millis(persistent_cache_transient_ttl_ms),
-        )
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?,
-    );
-    #[cfg(not(feature = "sqlite-persistent-cache"))]
-    let persistent_cache = {
-        let _ = persistent_cache_transient_ttl_ms;
-        let _ = &config_base_dir;
-        Arc::new(ctx::persistent_cache::default::DefaultPersistentCacheClient)
-    };
 
     // Router
     let app = axum::Router::new()
@@ -712,11 +559,9 @@ pub async fn setup(
             "/agent/completions",
             axum::routing::any({
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -727,13 +572,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_agent_completion(agent_completions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_agent_completion(agent_completions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_agent_completion_ws(agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -748,12 +593,10 @@ pub async fn setup(
             axum::routing::any({
                 let vector_completions_client = vector_completions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let vector_completions_client = vector_completions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -764,13 +607,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_vector_completion(vector_completions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_vector_completion(vector_completions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_vector_completion_ws(vector_completions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -785,12 +628,10 @@ pub async fn setup(
             axum::routing::any({
                 let function_executions_client = function_executions_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let function_executions_client = function_executions_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -801,13 +642,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => execute_function(function_executions_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => execute_function(function_executions_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::execute_function_ws(function_executions_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -823,12 +664,10 @@ pub async fn setup(
                 let profile_computations_client =
                     profile_computations_client.clone();
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let profile_computations_client = profile_computations_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -839,13 +678,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_profile_computation(profile_computations_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_profile_computation(profile_computations_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_profile_computation_ws(profile_computations_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -859,11 +698,10 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::post({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::CreateApiKeyRequest,
                 >| {
-                    create_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    create_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -872,11 +710,10 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::post({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
                 >| {
-                    create_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    create_openrouter_byok_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -885,11 +722,10 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::delete({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap, Json(body): Json<
                     objectiveai_sdk::auth::request::DisableApiKeyRequest,
                 >| {
-                    disable_api_key(auth_client, headers, persistent_cache, suppress_output, body)
+                    disable_api_key(auth_client, headers, suppress_output, body)
                 }
             }),
         )
@@ -898,9 +734,8 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::delete({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    delete_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output)
+                    delete_openrouter_byok_api_key(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -909,9 +744,8 @@ pub async fn setup(
             "/auth/keys",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    list_api_keys(auth_client, headers, persistent_cache, suppress_output)
+                    list_api_keys(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -920,9 +754,8 @@ pub async fn setup(
             "/auth/keys/openrouter",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    get_openrouter_byok_api_key(auth_client, headers, persistent_cache, suppress_output)
+                    get_openrouter_byok_api_key(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -931,9 +764,8 @@ pub async fn setup(
             "/auth/credits",
             axum::routing::get({
                 let auth_client = auth_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 move |headers: axum::http::HeaderMap| {
-                    get_credits(auth_client, headers, persistent_cache, suppress_output)
+                    get_credits(auth_client, headers, suppress_output)
                 }
             }),
         )
@@ -943,12 +775,10 @@ pub async fn setup(
             axum::routing::any({
                 let error_client = Arc::new(crate::error::Client::new());
                 let agent_completions_client = agent_completions_client.clone();
-                let persistent_cache = persistent_cache.clone();
                 let reverse_attach = reverse_attach.clone();
                 move |transport: streaming_ws::Transport, req: axum::extract::Request| {
                     let error_client = error_client.clone();
                     let agent_completions_client = agent_completions_client.clone();
-                    let persistent_cache = persistent_cache.clone();
                     let reverse_attach = reverse_attach.clone();
                     async move {
                         use axum::extract::FromRequest;
@@ -959,13 +789,13 @@ pub async fn setup(
                             streaming_ws::Transport::Sse => {
                                 let req = axum::extract::Request::from_parts(parts, body);
                                 match Json::<objectiveai_sdk::error::request::ErrorCreateParams>::from_request(req, &()).await {
-                                    Ok(Json(body)) => create_error(error_client, headers, persistent_cache, suppress_output, body).await,
+                                    Ok(Json(body)) => create_error(error_client, headers, suppress_output, body).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
                             streaming_ws::Transport::WebSocket => {
                                 match WebSocketUpgrade::from_request_parts(&mut parts, &()).await {
-                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, reverse_attach, headers, persistent_cache, suppress_output, ws).await,
+                                    Ok(ws) => streaming_ws_handlers::create_error_ws(error_client, agent_completions_client, reverse_attach, headers, suppress_output, ws).await,
                                     Err(rej) => rej.into_response(),
                                 }
                             }
@@ -1036,10 +866,9 @@ pub async fn run(config: Config) -> std::io::Result<()> {
 
 // Create Context
 
-pub(crate) fn context(headers: &axum::http::HeaderMap, persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt, impl ctx::persistent_cache::PersistentCacheClient> {
+pub(crate) fn context(headers: &axum::http::HeaderMap, suppress_output: bool) -> ctx::Context<ctx::DefaultContextExt> {
     ctx::Context::new(
         Arc::new(ctx::DefaultContextExt),
-        persistent_cache,
         rust_decimal::Decimal::ONE,
         suppress_output,
         headers,
@@ -1092,11 +921,10 @@ async fn create_agent_completion(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(
@@ -1200,11 +1028,10 @@ async fn create_vector_completion(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(ctx, Arc::new(body))
@@ -1289,11 +1116,10 @@ async fn execute_function(
         >,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     request: objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if request.stream.unwrap_or(false) {
         match client
             .create_streaming_handle_usage(ctx, Arc::new(request))
@@ -1338,11 +1164,10 @@ async fn create_profile_computation(
     // using a concrete type for client instead
     client: Arc<functions::profiles::computations::ObjectiveAiClient>,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     request: objectiveai_sdk::functions::profiles::computations::request::FunctionProfileComputationCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if request.stream.unwrap_or(false) {
         match client.create_streaming(ctx, Arc::new(request)).await {
             Ok(stream) => Sse::new(
@@ -1380,11 +1205,10 @@ async fn create_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::CreateApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.create_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1396,11 +1220,10 @@ async fn create_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::CreateOpenRouterByokApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.create_openrouter_byok_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1412,11 +1235,10 @@ async fn disable_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::auth::request::DisableApiKeyRequest,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.disable_api_key(ctx, body).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1428,10 +1250,9 @@ async fn delete_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.delete_openrouter_byok_api_key(ctx).await {
         Ok(()) => axum::http::StatusCode::OK.into_response(),
         Err(e) => e.into_response(),
@@ -1443,10 +1264,9 @@ async fn list_api_keys(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.list_api_keys(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1458,10 +1278,9 @@ async fn get_openrouter_byok_api_key(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.get_openrouter_byok_api_key(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1473,10 +1292,9 @@ async fn get_credits(
         impl auth::Client<ctx::DefaultContextExt> + Send + Sync + 'static,
     >,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     match client.get_credits(ctx).await {
         Ok(r) => Json(r).into_response(),
         Err(e) => e.into_response(),
@@ -1488,11 +1306,10 @@ async fn get_credits(
 async fn create_error(
     client: Arc<crate::error::Client>,
     headers: axum::http::HeaderMap,
-    persistent_cache: Arc<impl ctx::persistent_cache::PersistentCacheClient + 'static>,
     suppress_output: bool,
     body: objectiveai_sdk::error::request::ErrorCreateParams,
 ) -> axum::response::Response {
-    let ctx = context(&headers, persistent_cache, suppress_output);
+    let ctx = context(&headers, suppress_output);
     if body.stream.unwrap_or(false) {
         match client.create_streaming(&ctx, &body) {
             Ok(stream) => Sse::new(

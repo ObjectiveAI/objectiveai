@@ -32,10 +32,10 @@ where
     M: super::Client<CTXEXT>,
     CTXEXT: Send + Sync + 'static,
 {
-    async fn dispatch_resolve_latest<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn dispatch_resolve_latest(
         &self,
         remote: Remote,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         kind: crate::retrieval::Kind,
         path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
@@ -46,10 +46,10 @@ where
         }
     }
 
-    async fn dispatch_get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn dispatch_get_agent(
         &self,
         remote: Remote,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks>, ResponseError> {
         match remote {
@@ -59,10 +59,10 @@ where
         }
     }
 
-    async fn dispatch_get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn dispatch_get_swarm(
         &self,
         remote: Remote,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         match remote {
@@ -72,10 +72,10 @@ where
         }
     }
 
-    async fn dispatch_get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn dispatch_get_function(
         &self,
         remote: Remote,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         match remote {
@@ -85,10 +85,10 @@ where
         }
     }
 
-    async fn dispatch_get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn dispatch_get_profile(
         &self,
         remote: Remote,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         path: &objectiveai_sdk::RemotePath,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         match remote {
@@ -99,9 +99,9 @@ where
     }
 
     /// Resolves a `RemotePathCommitOptional` to a `RemotePath`.
-    pub async fn resolve_path<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn resolve_path(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         kind: crate::retrieval::Kind,
         path: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::RemotePath>, ResponseError> {
@@ -123,9 +123,9 @@ where
     /// supplied a remote (in which case the resolved-latest path is
     /// surfaced for stamping on response chunks), and `None` for inline
     /// requests.
-    pub async fn get_agent<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_agent(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
     ) -> Result<(objectiveai_sdk::agent::AgentWithFallbacks, Option<objectiveai_sdk::RemotePath>), ResponseError> {
         match params {
@@ -146,9 +146,9 @@ where
     ///
     /// Returns `(base, resolved_path)` so callers can stamp the path
     /// onto downstream response shapes without re-resolving.
-    async fn fetch_agent_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn fetch_agent_base(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<(objectiveai_sdk::agent::RemoteAgentBaseWithFallbacks, objectiveai_sdk::RemotePath)>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Agents, params).await? else {
@@ -168,9 +168,9 @@ where
 
     /// Resolve a swarm: inline converts directly, remote fetches and converts.
     /// Remote agent references in the swarm's agents list are resolved automatically.
-    pub async fn get_swarm<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_swarm(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: objectiveai_sdk::swarm::InlineSwarmBaseOrRemoteCommitOptional,
     ) -> Result<objectiveai_sdk::swarm::Swarm, ResponseError> {
         match params {
@@ -192,9 +192,9 @@ where
 
     /// Resolve remote agent references in a swarm base and convert it.
     /// All remote agents are fetched concurrently.
-    async fn resolve_swarm_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn resolve_swarm_base(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         base: objectiveai_sdk::swarm::InlineSwarmBase,
     ) -> Result<objectiveai_sdk::swarm::InlineSwarm, ResponseError> {
         // Collect unique remote agent paths to fetch.
@@ -234,9 +234,9 @@ where
 
     /// Fetch a raw `RemoteSwarmBase` from a source, with per-request dedup caching.
     /// Falls back to swarm.json if profile.json is not found (for profile retrieval).
-    async fn fetch_swarm_base<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn fetch_swarm_base(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::swarm::RemoteSwarmBase>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Swarms, params).await? else {
@@ -254,9 +254,9 @@ where
     // ── Function ──────────────────────────────────────────────────
 
     /// Resolve a function: inline returns directly, remote fetches with caching.
-    pub async fn get_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_function(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: objectiveai_sdk::functions::FullInlineFunctionOrRemoteCommitOptional,
     ) -> Result<objectiveai_sdk::functions::FullFunction, ResponseError> {
         match params {
@@ -272,9 +272,9 @@ where
     }
 
     /// Fetch a raw `FullRemoteFunction` from a source, with per-request dedup caching.
-    async fn fetch_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn fetch_function(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await? else {
@@ -291,9 +291,9 @@ where
 
     /// Fetches all child functions referenced by a function's tasks.
     /// Returns a HashMap keyed by the path's key string.
-    pub async fn get_function_tasks<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_function_tasks(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         function: objectiveai_sdk::functions::FullFunction,
     ) -> Result<std::collections::HashMap<String, objectiveai_sdk::functions::FullRemoteFunction>, ResponseError> {
         let mut futs: Vec<(String, _)> = Vec::new();
@@ -327,9 +327,9 @@ where
     }
 
     /// Fetch a remote function and its resolved commit path (execution helper).
-    pub async fn get_remote_function<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_remote_function(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<(objectiveai_sdk::functions::FullRemoteFunction, objectiveai_sdk::RemotePath), ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Functions, params).await?
@@ -348,9 +348,9 @@ where
     // ── Profile ───────────────────────────────────────────────────
 
     /// Resolve a profile: inline returns directly, remote fetches with caching.
-    pub async fn get_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_profile(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: objectiveai_sdk::functions::InlineProfileOrRemoteCommitOptional,
     ) -> Result<objectiveai_sdk::functions::Profile, ResponseError> {
         match params {
@@ -367,9 +367,9 @@ where
 
     /// Fetch a raw `RemoteProfile` from a source, with per-request dedup caching.
     /// Falls back to swarm.json if profile.json is not found.
-    async fn fetch_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    async fn fetch_profile(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<Option<objectiveai_sdk::functions::RemoteProfile>, ResponseError> {
         let Some(path) = self.resolve_path(ctx, crate::retrieval::Kind::Profiles, params).await? else {
@@ -399,9 +399,9 @@ where
     }
 
     /// Fetch a remote profile and its resolved commit path (execution helper).
-    pub async fn get_remote_profile<PC: crate::ctx::persistent_cache::PersistentCacheClient>(
+    pub async fn get_remote_profile(
         self: &Arc<Self>,
-        ctx: &ctx::Context<CTXEXT, PC>,
+        ctx: &ctx::Context<CTXEXT>,
         params: &objectiveai_sdk::RemotePathCommitOptional,
     ) -> Result<(objectiveai_sdk::functions::RemoteProfile, objectiveai_sdk::RemotePath), ResponseError> {
         let path = self.resolve_path(ctx, crate::retrieval::Kind::Profiles, params).await?
