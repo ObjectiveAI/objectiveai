@@ -76,6 +76,42 @@ from claude_agent_sdk.types import (
     UserMessage,
 )
 
+def _resolve_claude_exe() -> Optional[str]:
+    """Resolve the NATIVE claude.exe, bypassing the npm `.cmd`/sh shim that the
+    SDK's ``shutil.which("claude")`` finds. On Windows the shim spawns but then
+    fails to locate its target binary in some launched environments ("The
+    system cannot find the file specified"); pointing ``cli_path`` straight at
+    the real exe avoids that entirely. Returns None if not found (the SDK then
+    falls back to its own discovery)."""
+    import shutil
+
+    direct = shutil.which("claude.exe")
+    if direct and os.path.isfile(direct):
+        return direct
+    cands = []
+    shim = shutil.which("claude")
+    if shim:
+        cands.append(
+            os.path.join(
+                os.path.dirname(shim),
+                "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe",
+            )
+        )
+    cands.append(
+        os.path.join(
+            os.path.expanduser("~"),
+            "AppData", "Roaming", "npm",
+            "node_modules", "@anthropic-ai", "claude-code", "bin", "claude.exe",
+        )
+    )
+    for c in cands:
+        if os.path.isfile(c):
+            return c
+    return None
+
+
+_CLAUDE_EXE = _resolve_claude_exe()
+
 
 # ---------------------------------------------------------------------------
 # Wire-format serialization
@@ -401,6 +437,16 @@ async def handle_run(
             tools=[],
             include_partial_messages=True,
             permission_mode="bypassPermissions",
+            cli_path=_CLAUDE_EXE,
+            # Isolate the headless agent from the operator's global ~/.claude
+            # config + account connectors. Without these the agent inherits the
+            # user's interactive connectors (Gmail/Calendar/Drive) ALONGSIDE the
+            # SDK-provided `oaip` MCP, and the SDK's MCP tools never register —
+            # the agent reports "no X tool". `strict_mcp_config` makes claude
+            # use ONLY the mcp_servers passed here (verified: drops the account
+            # connectors); `setting_sources=[]` drops settings-file tools.
+            setting_sources=[],
+            strict_mcp_config=True,
         )
 
         # Async generator yielding the single SDK user message.
