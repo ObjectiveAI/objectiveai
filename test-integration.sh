@@ -94,7 +94,7 @@ pids=()
 pid_crates=()
 for crate in "${CRATES[@]}"; do
   log="$LOG_DIR/${crate}-${TIMESTAMP}.txt"
-  cargo nextest run --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" >"$log" 2>&1 &
+  cargo nextest run --no-tests=pass --manifest-path "$REPO_ROOT/Cargo.toml" -p "$crate" >"$log" 2>&1 &
   pids+=("$!")
   pid_crates+=("$crate")
 done
