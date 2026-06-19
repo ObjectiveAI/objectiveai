@@ -1159,8 +1159,15 @@ where
         // prefix the drain message simply leads the new turn's content,
         // landing before the continuation items in the upstream request.
         let resuming = request_continuation.is_some() || !cont_items.is_empty();
+        // On resume, SKIP the personality merge (system_prompt / prefix /
+        // suffix are already in the prior turn's accumulated state, so re-
+        // merging would snowball a duplicate prefix every turn) — but KEEP
+        // `params.messages`. That field carries THIS turn's new user content;
+        // dropping it (the old `Vec::new()`) silently lost the user's message
+        // on every resume. `merged_messages` is the only thing that injects
+        // the personality, so omitting it is sufficient to avoid duplication.
         let mut messages = if resuming {
-            Vec::new()
+            params.messages.clone()
         } else {
             agent_base.merged_messages(params.messages.clone())
         };
