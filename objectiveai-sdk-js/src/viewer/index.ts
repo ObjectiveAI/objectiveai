@@ -1,7 +1,5 @@
 export * from "./generatedIndex";
-export * from "./cliStream";
 export * from "./invoke";
-export * from "./command/index";
 
 /**
  * @objectiveai/sdk/viewer
@@ -18,8 +16,8 @@ export * from "./command/index";
  *     `inbound` events forwarded by the host bridge.
  *   - `invokeCliRequest(request)` posts a `cli-execute` message with
  *     a typed `cli::command::Request` (serde JSON) to the host; the
- *     host lowers it to argv via `into_command()` and spawns the
- *     objectiveai cli binary, streaming each output line back as a
+ *     host hands the JSON to the objectiveai cli via its top-level
+ *     `--request` flag, streaming each output line back as a
  *     `cli_command` event. The returned AsyncIterable yields each
  *     line and terminates on the host's synthetic `{"type":"end"}`
  *     marker. There is deliberately no raw-argv entry point.
