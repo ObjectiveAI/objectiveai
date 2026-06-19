@@ -31,6 +31,8 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::plugins::Command,
     },
+    /// Run a Python snippet and return its output as JSON.
+    Python(super::python::Command),
     Swarms {
         #[command(subcommand)]
         command: super::swarms::Command,
@@ -72,6 +74,12 @@ pub enum Request {
     Mcp(super::mcp::Request),
     #[schemars(title = "Plugins")]
     Plugins(super::plugins::Request),
+    #[schemars(title = "Python")]
+    Python(super::python::Request),
+    #[schemars(title = "PythonRequestSchema")]
+    PythonRequestSchema(super::python::request_schema::Request),
+    #[schemars(title = "PythonResponseSchema")]
+    PythonResponseSchema(super::python::response_schema::Request),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
     #[schemars(title = "Tasks")]
@@ -116,6 +124,12 @@ pub enum ResponseItem {
     Mcp(super::mcp::Response),
     #[schemars(title = "Plugins")]
     Plugins(super::plugins::ResponseItem),
+    #[schemars(title = "Python")]
+    Python(serde_json::Value),
+    #[schemars(title = "PythonRequestSchema")]
+    PythonRequestSchema(super::python::request_schema::Response),
+    #[schemars(title = "PythonResponseSchema")]
+    PythonResponseSchema(super::python::response_schema::Response),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
     #[schemars(title = "Tasks")]
@@ -145,6 +159,9 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::KillAllResponseSchema(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
+            ResponseItem::Python(v) => v.into_mcp(),
+            ResponseItem::PythonRequestSchema(v) => v.into_mcp(),
+            ResponseItem::PythonResponseSchema(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
             ResponseItem::Tasks(v) => v.into_mcp(),
             ResponseItem::Tools(v) => v.into_mcp(),
@@ -179,6 +196,13 @@ impl TryFrom<Subcommand> for Request {
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
             Subcommand::Plugins { command } =>
                 Ok(Request::Plugins(super::plugins::Request::try_from(command)?)),
+            Subcommand::Python(cmd) => match cmd.schema {
+                None => Ok(Request::Python(super::python::Request::try_from(cmd.args)?)),
+                Some(super::python::Schema::RequestSchema(args)) =>
+                    Ok(Request::PythonRequestSchema(super::python::request_schema::Request::try_from(args)?)),
+                Some(super::python::Schema::ResponseSchema(args)) =>
+                    Ok(Request::PythonResponseSchema(super::python::response_schema::Request::try_from(args)?)),
+            },
             Subcommand::Swarms { command } =>
                 Ok(Request::Swarms(super::swarms::Request::try_from(command)?)),
             Subcommand::Tasks { command } =>
@@ -234,6 +258,9 @@ impl super::CommandRequest for Request {
             Request::KillAllResponseSchema(inner) => inner.request_base(),
             Request::Mcp(inner) => inner.request_base(),
             Request::Plugins(inner) => inner.request_base(),
+            Request::Python(inner) => inner.request_base(),
+            Request::PythonRequestSchema(inner) => inner.request_base(),
+            Request::PythonResponseSchema(inner) => inner.request_base(),
             Request::Swarms(inner) => inner.request_base(),
             Request::Tasks(inner) => inner.request_base(),
             Request::Tools(inner) => inner.request_base(),
@@ -255,6 +282,9 @@ impl super::CommandRequest for Request {
             Request::KillAllResponseSchema(inner) => inner.request_base_mut(),
             Request::Mcp(inner) => inner.request_base_mut(),
             Request::Plugins(inner) => inner.request_base_mut(),
+            Request::Python(inner) => inner.request_base_mut(),
+            Request::PythonRequestSchema(inner) => inner.request_base_mut(),
+            Request::PythonResponseSchema(inner) => inner.request_base_mut(),
             Request::Swarms(inner) => inner.request_base_mut(),
             Request::Tasks(inner) => inner.request_base_mut(),
             Request::Tools(inner) => inner.request_base_mut(),
@@ -314,6 +344,18 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Plugins(req) => {
                 let inner = super::plugins::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
+            }
+            Request::Python(req) => {
+                let value = super::python::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::Python(value))))
+            }
+            Request::PythonRequestSchema(req) => {
+                let value = super::python::request_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonRequestSchema(value))))
+            }
+            Request::PythonResponseSchema(req) => {
+                let value = super::python::response_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonResponseSchema(value))))
             }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute(executor, req, agent_arguments).await?;
@@ -395,6 +437,18 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             Request::Plugins(req) => {
                 let inner = super::plugins::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
+            }
+            Request::Python(req) => {
+                let value = super::python::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::PythonRequestSchema(req) => {
+                let value = super::python::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::PythonResponseSchema(req) => {
+                let value = super::python::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
             }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute_transform(executor, req, transform, agent_arguments).await?;

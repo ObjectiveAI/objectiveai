@@ -18,6 +18,7 @@ pub mod kill_all;
 pub mod kill_helpers;
 pub mod mcp;
 pub mod plugins;
+pub mod python;
 pub mod reexec;
 pub mod swarms;
 pub mod tasks;
