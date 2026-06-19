@@ -5,14 +5,14 @@ import { type CliCommandDbSpawnRequest } from "../../../cli/command/db/spawn/req
 import { type CliCommandDbSpawnRequestSchemaRequest } from "../../../cli/command/db/spawn/request_schema/request";
 import { CliCommandDbSpawnResponseSchema, type CliCommandDbSpawnResponse } from "../../../cli/command/db/spawn/response";
 import { type CliCommandDbSpawnResponseSchemaRequest } from "../../../cli/command/db/spawn/response_schema/request";
+import { type CommandExecutor } from "../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
-import { invokeCliRequest } from "../../invoke";
 
 /** `db spawn execute` — unary; first stream item, rest discarded. */
-export async function dbSpawnExecute(request: Omit<CliCommandDbSpawnRequest, "path_type">): Promise<CliError | CliCommandDbSpawnResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/spawn" }), z.union([CliErrorSchema, CliCommandDbSpawnResponseSchema]));
+export async function dbSpawnExecute(executor: CommandExecutor, request: Omit<CliCommandDbSpawnRequest, "path_type">): Promise<CliError | CliCommandDbSpawnResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/spawn" }), z.union([CliErrorSchema, CliCommandDbSpawnResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function dbSpawnExecute(request: Omit<CliCommandDbSpawnRequest, "pa
 }
 
 /** `db spawn execute_transform` — unary; first stream item, rest discarded. */
-export async function dbSpawnExecuteTransform(request: Omit<CliCommandDbSpawnRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbSpawnExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbSpawnRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function dbSpawnExecuteTransform(request: Omit<CliCommandDbSpawnReq
 }
 
 /** `db spawn request_schema execute` — unary; first stream item, rest discarded. */
-export async function dbSpawnRequestSchemaExecute(request: Omit<CliCommandDbSpawnRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/spawn/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbSpawnRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbSpawnRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/spawn/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function dbSpawnRequestSchemaExecute(request: Omit<CliCommandDbSpaw
 }
 
 /** `db spawn request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbSpawnRequestSchemaExecuteTransform(request: Omit<CliCommandDbSpawnRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbSpawnRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbSpawnRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function dbSpawnRequestSchemaExecuteTransform(request: Omit<CliComm
 }
 
 /** `db spawn response_schema execute` — unary; first stream item, rest discarded. */
-export async function dbSpawnResponseSchemaExecute(request: Omit<CliCommandDbSpawnResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/spawn/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbSpawnResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbSpawnResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/spawn/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function dbSpawnResponseSchemaExecute(request: Omit<CliCommandDbSpa
 }
 
 /** `db spawn response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbSpawnResponseSchemaExecuteTransform(request: Omit<CliCommandDbSpawnResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbSpawnResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbSpawnResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/spawn/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db spawn response_schema: cli produced no output before the end marker");

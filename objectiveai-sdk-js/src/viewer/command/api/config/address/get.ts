@@ -5,14 +5,14 @@ import { type CliCommandApiConfigAddressGetRequest } from "../../../../../cli/co
 import { type CliCommandApiConfigAddressGetRequestSchemaRequest } from "../../../../../cli/command/api/config/address/get/request_schema/request";
 import { CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponse } from "../../../../../cli/command/api/config/address/get/response";
 import { type CliCommandApiConfigAddressGetResponseSchemaRequest } from "../../../../../cli/command/api/config/address/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config address get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetExecute(request: Omit<CliCommandApiConfigAddressGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigAddressGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get" }), z.union([CliErrorSchema, CliCommandApiConfigAddressGetResponseSchema]));
+export async function apiConfigAddressGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigAddressGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get" }), z.union([CliErrorSchema, CliCommandApiConfigAddressGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigAddressGetExecute(request: Omit<CliCommandApiConf
 }
 
 /** `api config address get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetExecuteTransform(request: Omit<CliCommandApiConfigAddressGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigAddressGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigAddressGetExecuteTransform(request: Omit<CliComma
 }
 
 /** `api config address get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetRequestSchemaExecute(request: Omit<CliCommandApiConfigAddressGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigAddressGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigAddressGetRequestSchemaExecute(request: Omit<CliC
 }
 
 /** `api config address get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigAddressGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigAddressGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigAddressGetRequestSchemaExecuteTransform(request: 
 }
 
 /** `api config address get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetResponseSchemaExecute(request: Omit<CliCommandApiConfigAddressGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigAddressGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/address/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigAddressGetResponseSchemaExecute(request: Omit<Cli
 }
 
 /** `api config address get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigAddressGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigAddressGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigAddressGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigAddressGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/address/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config address get response_schema: cli produced no output before the end marker");

@@ -5,14 +5,14 @@ import { type CliCommandAgentsQueueDeleteRequest } from "../../../../cli/command
 import { type CliCommandAgentsQueueDeleteRequestSchemaRequest } from "../../../../cli/command/agents/queue/delete/request_schema/request";
 import { CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponse } from "../../../../cli/command/agents/queue/delete/response";
 import { type CliCommandAgentsQueueDeleteResponseSchemaRequest } from "../../../../cli/command/agents/queue/delete/response_schema/request";
+import { type CommandExecutor } from "../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
 import { CliStream } from "../../../cliStream";
-import { invokeCliRequest } from "../../../invoke";
 
 /** `agents queue delete execute` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteExecute(request: Omit<CliCommandAgentsQueueDeleteRequest, "path_type">): Promise<CliError | CliCommandAgentsQueueDeleteResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete" }), z.union([CliErrorSchema, CliCommandAgentsQueueDeleteResponseSchema]));
+export async function agentsQueueDeleteExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteRequest, "path_type">): Promise<CliError | CliCommandAgentsQueueDeleteResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete" }), z.union([CliErrorSchema, CliCommandAgentsQueueDeleteResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function agentsQueueDeleteExecute(request: Omit<CliCommandAgentsQue
 }
 
 /** `agents queue delete execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteExecuteTransform(request: Omit<CliCommandAgentsQueueDeleteRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsQueueDeleteExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function agentsQueueDeleteExecuteTransform(request: Omit<CliCommand
 }
 
 /** `agents queue delete request_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteRequestSchemaExecute(request: Omit<CliCommandAgentsQueueDeleteRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsQueueDeleteRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function agentsQueueDeleteRequestSchemaExecute(request: Omit<CliCom
 }
 
 /** `agents queue delete request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteRequestSchemaExecuteTransform(request: Omit<CliCommandAgentsQueueDeleteRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsQueueDeleteRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function agentsQueueDeleteRequestSchemaExecuteTransform(request: Om
 }
 
 /** `agents queue delete response_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteResponseSchemaExecute(request: Omit<CliCommandAgentsQueueDeleteResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsQueueDeleteResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/queue/delete/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function agentsQueueDeleteResponseSchemaExecute(request: Omit<CliCo
 }
 
 /** `agents queue delete response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsQueueDeleteResponseSchemaExecuteTransform(request: Omit<CliCommandAgentsQueueDeleteResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsQueueDeleteResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsQueueDeleteResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/queue/delete/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents queue delete response_schema: cli produced no output before the end marker");

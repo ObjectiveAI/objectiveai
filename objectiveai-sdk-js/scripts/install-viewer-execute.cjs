@@ -613,14 +613,19 @@ function main() {
           snakeToPascal(fn.name);
         // The caller never passes the discriminator — it's injected.
         const requestParamType = `Omit<${requestModule.pascal}, ${JSON.stringify(pathConst.field)}>`;
-        const jsParams = params
-          .map((p) => {
+        // Every generated execute fn requires an `executor` (one of the
+        // three executor classes) as its first parameter; the request +
+        // optional transform follow (mirroring the Rust fn, which also takes
+        // an executor first).
+        const jsParams = [
+          "executor: CommandExecutor",
+          ...params.map((p) => {
             if (p.name === "request") return `request: ${requestParamType}`;
             if (p.name === "transform")
               return "transform: { jq: string } | { python: string }";
             return "jq: string";
-          })
-          .join(", ");
+          }),
+        ].join(", ");
 
         // Wire value: mutations + injected discriminator.
         const fields = [`...request`];
@@ -658,14 +663,14 @@ function main() {
           fnsOut.push(
             `/** \`${docPath} ${fn.name}\` — streaming; mirror of the Rust fn of the same path. */\n` +
               `export function ${fnName}(${jsParams}): CliStream<${unionType}> {\n` +
-              `  return new CliStream(invokeCliRequest(${wire}), ${unionSchema});\n` +
+              `  return new CliStream(executor.execute(${wire}), ${unionSchema});\n` +
               `}\n`,
           );
         } else {
           fnsOut.push(
             `/** \`${docPath} ${fn.name}\` — unary; first stream item, rest discarded. */\n` +
               `export async function ${fnName}(${jsParams}): Promise<${unionType}> {\n` +
-              `  const stream = new CliStream(invokeCliRequest(${wire}), ${unionSchema});\n` +
+              `  const stream = new CliStream(executor.execute(${wire}), ${unionSchema});\n` +
               `  const first = await stream.first();\n` +
               `  if (first === undefined) {\n` +
               `    throw new Error("${docPath}: cli produced no output before the end marker");\n` +
@@ -681,7 +686,7 @@ function main() {
 
     // Assemble the leaf file.
     addImport("viewer/cliStream", "CliStream");
-    addImport("viewer/invoke", "invokeCliRequest");
+    addImport("cli/command/executor", "type CommandExecutor");
     const importLines = ['import { z } from "zod";'];
     for (const [target, names] of [...imports.entries()].sort()) {
       const rel = relativeImport(outFileSrcRel, target);

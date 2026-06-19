@@ -5,14 +5,14 @@ import { type CliCommandApiConfigUserAgentGetRequest } from "../../../../../cli/
 import { type CliCommandApiConfigUserAgentGetRequestSchemaRequest } from "../../../../../cli/command/api/config/user_agent/get/request_schema/request";
 import { CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponse } from "../../../../../cli/command/api/config/user_agent/get/response";
 import { type CliCommandApiConfigUserAgentGetResponseSchemaRequest } from "../../../../../cli/command/api/config/user_agent/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config user_agent get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetExecute(request: Omit<CliCommandApiConfigUserAgentGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigUserAgentGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get" }), z.union([CliErrorSchema, CliCommandApiConfigUserAgentGetResponseSchema]));
+export async function apiConfigUserAgentGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigUserAgentGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get" }), z.union([CliErrorSchema, CliCommandApiConfigUserAgentGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigUserAgentGetExecute(request: Omit<CliCommandApiCo
 }
 
 /** `api config user_agent get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetExecuteTransform(request: Omit<CliCommandApiConfigUserAgentGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigUserAgentGetExecuteTransform(request: Omit<CliCom
 }
 
 /** `api config user_agent get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetRequestSchemaExecute(request: Omit<CliCommandApiConfigUserAgentGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigUserAgentGetRequestSchemaExecute(request: Omit<Cl
 }
 
 /** `api config user_agent get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigUserAgentGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigUserAgentGetRequestSchemaExecuteTransform(request
 }
 
 /** `api config user_agent get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetResponseSchemaExecute(request: Omit<CliCommandApiConfigUserAgentGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigUserAgentGetResponseSchemaExecute(request: Omit<C
 }
 
 /** `api config user_agent get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigUserAgentGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent get response_schema: cli produced no output before the end marker");

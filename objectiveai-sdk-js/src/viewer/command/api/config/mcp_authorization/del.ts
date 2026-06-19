@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandApiConfigMcpAuthorizationDelRequest } from "../../../../../cli/command/api/config/mcp_authorization/del/request";
 import { type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest } from "../../../../../cli/command/api/config/mcp_authorization/del/request_schema/request";
 import { type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest } from "../../../../../cli/command/api/config/mcp_authorization/del/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config mcp_authorization del execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelExecute(request: Omit<CliCommandApiConfigMcpAuthorizationDelRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_authorization/del" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function apiConfigMcpAuthorizationDelExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/mcp_authorization/del" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigMcpAuthorizationDelExecute(request: Omit<CliComma
 }
 
 /** `api config mcp_authorization del execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationDelRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_authorization/del" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationDelExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/mcp_authorization/del" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigMcpAuthorizationDelExecuteTransform(request: Omit
 }
 
 /** `api config mcp_authorization del request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelRequestSchemaExecute(request: Omit<CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/del/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationDelRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/del/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigMcpAuthorizationDelRequestSchemaExecute(request: 
 }
 
 /** `api config mcp_authorization del request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/del/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/del/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform(
 }
 
 /** `api config mcp_authorization del response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelResponseSchemaExecute(request: Omit<CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/del/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationDelResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/del/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigMcpAuthorizationDelResponseSchemaExecute(request:
 }
 
 /** `api config mcp_authorization del response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/del/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/del/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization del response_schema: cli produced no output before the end marker");

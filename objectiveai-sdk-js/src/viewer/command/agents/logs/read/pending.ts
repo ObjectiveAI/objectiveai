@@ -5,24 +5,24 @@ import { CliCommandAgentsLogsReadAllResponseItemSchema, type CliCommandAgentsLog
 import { type CliCommandAgentsLogsReadPendingRequest } from "../../../../../cli/command/agents/logs/read/pending/request";
 import { type CliCommandAgentsLogsReadPendingRequestSchemaRequest } from "../../../../../cli/command/agents/logs/read/pending/request_schema/request";
 import { type CliCommandAgentsLogsReadPendingResponseSchemaRequest } from "../../../../../cli/command/agents/logs/read/pending/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `agents logs read pending execute` — streaming; mirror of the Rust fn of the same path. */
-export function agentsLogsReadPendingExecute(request: Omit<CliCommandAgentsLogsReadPendingRequest, "path_type">): CliStream<CliError | CliCommandAgentsLogsReadAllResponseItem> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending" }), z.union([CliErrorSchema, CliCommandAgentsLogsReadAllResponseItemSchema]));
+export function agentsLogsReadPendingExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingRequest, "path_type">): CliStream<CliError | CliCommandAgentsLogsReadAllResponseItem> {
+  return new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending" }), z.union([CliErrorSchema, CliCommandAgentsLogsReadAllResponseItemSchema]));
 }
 
 /** `agents logs read pending execute_transform` — streaming; mirror of the Rust fn of the same path. */
-export function agentsLogsReadPendingExecuteTransform(request: Omit<CliCommandAgentsLogsReadPendingRequest, "path_type">, transform: { jq: string } | { python: string }): CliStream<CliError | JsonValue> {
-  return new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending" }), z.union([CliErrorSchema, JsonValueSchema]));
+export function agentsLogsReadPendingExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingRequest, "path_type">, transform: { jq: string } | { python: string }): CliStream<CliError | JsonValue> {
+  return new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending" }), z.union([CliErrorSchema, JsonValueSchema]));
 }
 
 /** `agents logs read pending request_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsLogsReadPendingRequestSchemaExecute(request: Omit<CliCommandAgentsLogsReadPendingRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsLogsReadPendingRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents logs read pending request_schema: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function agentsLogsReadPendingRequestSchemaExecute(request: Omit<Cl
 }
 
 /** `agents logs read pending request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsLogsReadPendingRequestSchemaExecuteTransform(request: Omit<CliCommandAgentsLogsReadPendingRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsLogsReadPendingRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents logs read pending request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function agentsLogsReadPendingRequestSchemaExecuteTransform(request
 }
 
 /** `agents logs read pending response_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsLogsReadPendingResponseSchemaExecute(request: Omit<CliCommandAgentsLogsReadPendingResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsLogsReadPendingResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/logs/read/pending/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents logs read pending response_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function agentsLogsReadPendingResponseSchemaExecute(request: Omit<C
 }
 
 /** `agents logs read pending response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsLogsReadPendingResponseSchemaExecuteTransform(request: Omit<CliCommandAgentsLogsReadPendingResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsLogsReadPendingResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsLogsReadPendingResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/logs/read/pending/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents logs read pending response_schema: cli produced no output before the end marker");

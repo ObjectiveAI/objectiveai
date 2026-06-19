@@ -5,14 +5,14 @@ import { type CliCommandDbQueryRequest } from "../../../cli/command/db/query/req
 import { type CliCommandDbQueryRequestSchemaRequest } from "../../../cli/command/db/query/request_schema/request";
 import { CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponse } from "../../../cli/command/db/query/response";
 import { type CliCommandDbQueryResponseSchemaRequest } from "../../../cli/command/db/query/response_schema/request";
+import { type CommandExecutor } from "../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
-import { invokeCliRequest } from "../../invoke";
 
 /** `db query execute` — unary; first stream item, rest discarded. */
-export async function dbQueryExecute(request: Omit<CliCommandDbQueryRequest, "path_type">): Promise<CliError | CliCommandDbQueryResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/query" }), z.union([CliErrorSchema, CliCommandDbQueryResponseSchema]));
+export async function dbQueryExecute(executor: CommandExecutor, request: Omit<CliCommandDbQueryRequest, "path_type">): Promise<CliError | CliCommandDbQueryResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/query" }), z.union([CliErrorSchema, CliCommandDbQueryResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function dbQueryExecute(request: Omit<CliCommandDbQueryRequest, "pa
 }
 
 /** `db query execute_transform` — unary; first stream item, rest discarded. */
-export async function dbQueryExecuteTransform(request: Omit<CliCommandDbQueryRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbQueryExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbQueryRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function dbQueryExecuteTransform(request: Omit<CliCommandDbQueryReq
 }
 
 /** `db query request_schema execute` — unary; first stream item, rest discarded. */
-export async function dbQueryRequestSchemaExecute(request: Omit<CliCommandDbQueryRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/query/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbQueryRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbQueryRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/query/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function dbQueryRequestSchemaExecute(request: Omit<CliCommandDbQuer
 }
 
 /** `db query request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbQueryRequestSchemaExecuteTransform(request: Omit<CliCommandDbQueryRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbQueryRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbQueryRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function dbQueryRequestSchemaExecuteTransform(request: Omit<CliComm
 }
 
 /** `db query response_schema execute` — unary; first stream item, rest discarded. */
-export async function dbQueryResponseSchemaExecute(request: Omit<CliCommandDbQueryResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/query/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbQueryResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbQueryResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/query/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function dbQueryResponseSchemaExecute(request: Omit<CliCommandDbQue
 }
 
 /** `db query response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbQueryResponseSchemaExecuteTransform(request: Omit<CliCommandDbQueryResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbQueryResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbQueryResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/query/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db query response_schema: cli produced no output before the end marker");

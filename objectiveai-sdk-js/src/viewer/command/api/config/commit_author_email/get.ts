@@ -5,14 +5,14 @@ import { type CliCommandApiConfigCommitAuthorEmailGetRequest } from "../../../..
 import { type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest } from "../../../../../cli/command/api/config/commit_author_email/get/request_schema/request";
 import { CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse } from "../../../../../cli/command/api/config/commit_author_email/get/response";
 import { type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest } from "../../../../../cli/command/api/config/commit_author_email/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config commit_author_email get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetExecute(request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigCommitAuthorEmailGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get" }), z.union([CliErrorSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchema]));
+export async function apiConfigCommitAuthorEmailGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigCommitAuthorEmailGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get" }), z.union([CliErrorSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigCommitAuthorEmailGetExecute(request: Omit<CliComm
 }
 
 /** `api config commit_author_email get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetExecuteTransform(request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigCommitAuthorEmailGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigCommitAuthorEmailGetExecuteTransform(request: Omi
 }
 
 /** `api config commit_author_email get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetRequestSchemaExecute(request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigCommitAuthorEmailGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigCommitAuthorEmailGetRequestSchemaExecute(request:
 }
 
 /** `api config commit_author_email get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform
 }
 
 /** `api config commit_author_email get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetResponseSchemaExecute(request: Omit<CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigCommitAuthorEmailGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/commit_author_email/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigCommitAuthorEmailGetResponseSchemaExecute(request
 }
 
 /** `api config commit_author_email get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/commit_author_email/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config commit_author_email get response_schema: cli produced no output before the end marker");

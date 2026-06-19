@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandApiConfigUserAgentSetRequest } from "../../../../../cli/command/api/config/user_agent/set/request";
 import { type CliCommandApiConfigUserAgentSetRequestSchemaRequest } from "../../../../../cli/command/api/config/user_agent/set/request_schema/request";
 import { type CliCommandApiConfigUserAgentSetResponseSchemaRequest } from "../../../../../cli/command/api/config/user_agent/set/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config user_agent set execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetExecute(request: Omit<CliCommandApiConfigUserAgentSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/user_agent/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function apiConfigUserAgentSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/user_agent/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigUserAgentSetExecute(request: Omit<CliCommandApiCo
 }
 
 /** `api config user_agent set execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetExecuteTransform(request: Omit<CliCommandApiConfigUserAgentSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/user_agent/set" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/user_agent/set" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigUserAgentSetExecuteTransform(request: Omit<CliCom
 }
 
 /** `api config user_agent set request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetRequestSchemaExecute(request: Omit<CliCommandApiConfigUserAgentSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigUserAgentSetRequestSchemaExecute(request: Omit<Cl
 }
 
 /** `api config user_agent set request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigUserAgentSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigUserAgentSetRequestSchemaExecuteTransform(request
 }
 
 /** `api config user_agent set response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetResponseSchemaExecute(request: Omit<CliCommandApiConfigUserAgentSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/user_agent/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigUserAgentSetResponseSchemaExecute(request: Omit<C
 }
 
 /** `api config user_agent set response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigUserAgentSetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigUserAgentSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigUserAgentSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigUserAgentSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/user_agent/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config user_agent set response_schema: cli produced no output before the end marker");

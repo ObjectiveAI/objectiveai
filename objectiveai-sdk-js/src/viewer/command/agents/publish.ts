@@ -5,14 +5,14 @@ import { type CliCommandAgentsPublishRequest } from "../../../cli/command/agents
 import { type CliCommandAgentsPublishRequestSchemaRequest } from "../../../cli/command/agents/publish/request_schema/request";
 import { CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponse } from "../../../cli/command/agents/publish/response";
 import { type CliCommandAgentsPublishResponseSchemaRequest } from "../../../cli/command/agents/publish/response_schema/request";
+import { type CommandExecutor } from "../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
-import { invokeCliRequest } from "../../invoke";
 
 /** `agents publish execute` — unary; first stream item, rest discarded. */
-export async function agentsPublishExecute(request: Omit<CliCommandAgentsPublishRequest, "path_type">): Promise<CliError | CliCommandAgentsPublishResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/publish" }), z.union([CliErrorSchema, CliCommandAgentsPublishResponseSchema]));
+export async function agentsPublishExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishRequest, "path_type">): Promise<CliError | CliCommandAgentsPublishResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/publish" }), z.union([CliErrorSchema, CliCommandAgentsPublishResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function agentsPublishExecute(request: Omit<CliCommandAgentsPublish
 }
 
 /** `agents publish execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsPublishExecuteTransform(request: Omit<CliCommandAgentsPublishRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsPublishExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function agentsPublishExecuteTransform(request: Omit<CliCommandAgen
 }
 
 /** `agents publish request_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsPublishRequestSchemaExecute(request: Omit<CliCommandAgentsPublishRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/publish/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsPublishRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/publish/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function agentsPublishRequestSchemaExecute(request: Omit<CliCommand
 }
 
 /** `agents publish request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsPublishRequestSchemaExecuteTransform(request: Omit<CliCommandAgentsPublishRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsPublishRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function agentsPublishRequestSchemaExecuteTransform(request: Omit<C
 }
 
 /** `agents publish response_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsPublishResponseSchemaExecute(request: Omit<CliCommandAgentsPublishResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/publish/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsPublishResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/publish/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function agentsPublishResponseSchemaExecute(request: Omit<CliComman
 }
 
 /** `agents publish response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsPublishResponseSchemaExecuteTransform(request: Omit<CliCommandAgentsPublishResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsPublishResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsPublishResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/publish/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents publish response_schema: cli produced no output before the end marker");

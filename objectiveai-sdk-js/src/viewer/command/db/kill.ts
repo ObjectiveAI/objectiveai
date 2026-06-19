@@ -5,14 +5,14 @@ import { type CliCommandDbKillRequest } from "../../../cli/command/db/kill/reque
 import { type CliCommandDbKillRequestSchemaRequest } from "../../../cli/command/db/kill/request_schema/request";
 import { CliCommandDbKillResponseSchema, type CliCommandDbKillResponse } from "../../../cli/command/db/kill/response";
 import { type CliCommandDbKillResponseSchemaRequest } from "../../../cli/command/db/kill/response_schema/request";
+import { type CommandExecutor } from "../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
-import { invokeCliRequest } from "../../invoke";
 
 /** `db kill execute` — unary; first stream item, rest discarded. */
-export async function dbKillExecute(request: Omit<CliCommandDbKillRequest, "path_type">): Promise<CliError | CliCommandDbKillResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/kill" }), z.union([CliErrorSchema, CliCommandDbKillResponseSchema]));
+export async function dbKillExecute(executor: CommandExecutor, request: Omit<CliCommandDbKillRequest, "path_type">): Promise<CliError | CliCommandDbKillResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/kill" }), z.union([CliErrorSchema, CliCommandDbKillResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function dbKillExecute(request: Omit<CliCommandDbKillRequest, "path
 }
 
 /** `db kill execute_transform` — unary; first stream item, rest discarded. */
-export async function dbKillExecuteTransform(request: Omit<CliCommandDbKillRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbKillExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbKillRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function dbKillExecuteTransform(request: Omit<CliCommandDbKillReque
 }
 
 /** `db kill request_schema execute` — unary; first stream item, rest discarded. */
-export async function dbKillRequestSchemaExecute(request: Omit<CliCommandDbKillRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbKillRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbKillRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function dbKillRequestSchemaExecute(request: Omit<CliCommandDbKillR
 }
 
 /** `db kill request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbKillRequestSchemaExecuteTransform(request: Omit<CliCommandDbKillRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbKillRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbKillRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function dbKillRequestSchemaExecuteTransform(request: Omit<CliComma
 }
 
 /** `db kill response_schema execute` — unary; first stream item, rest discarded. */
-export async function dbKillResponseSchemaExecute(request: Omit<CliCommandDbKillResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbKillResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbKillResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function dbKillResponseSchemaExecute(request: Omit<CliCommandDbKill
 }
 
 /** `db kill response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbKillResponseSchemaExecuteTransform(request: Omit<CliCommandDbKillResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbKillResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbKillResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db kill response_schema: cli produced no output before the end marker");

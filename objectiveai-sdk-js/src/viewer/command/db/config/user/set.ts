@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandDbConfigUserSetRequest } from "../../../../../cli/command/db/config/user/set/request";
 import { type CliCommandDbConfigUserSetRequestSchemaRequest } from "../../../../../cli/command/db/config/user/set/request_schema/request";
 import { type CliCommandDbConfigUserSetResponseSchemaRequest } from "../../../../../cli/command/db/config/user/set/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `db config user set execute` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetExecute(request: Omit<CliCommandDbConfigUserSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "db/config/user/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function dbConfigUserSetExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "db/config/user/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function dbConfigUserSetExecute(request: Omit<CliCommandDbConfigUse
 }
 
 /** `db config user set execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetExecuteTransform(request: Omit<CliCommandDbConfigUserSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "db/config/user/set" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigUserSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "db/config/user/set" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function dbConfigUserSetExecuteTransform(request: Omit<CliCommandDb
 }
 
 /** `db config user set request_schema execute` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetRequestSchemaExecute(request: Omit<CliCommandDbConfigUserSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/config/user/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigUserSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/config/user/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function dbConfigUserSetRequestSchemaExecute(request: Omit<CliComma
 }
 
 /** `db config user set request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetRequestSchemaExecuteTransform(request: Omit<CliCommandDbConfigUserSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/user/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigUserSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/user/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function dbConfigUserSetRequestSchemaExecuteTransform(request: Omit
 }
 
 /** `db config user set response_schema execute` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetResponseSchemaExecute(request: Omit<CliCommandDbConfigUserSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/config/user/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigUserSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/config/user/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function dbConfigUserSetResponseSchemaExecute(request: Omit<CliComm
 }
 
 /** `db config user set response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigUserSetResponseSchemaExecuteTransform(request: Omit<CliCommandDbConfigUserSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/user/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigUserSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigUserSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/user/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config user set response_schema: cli produced no output before the end marker");

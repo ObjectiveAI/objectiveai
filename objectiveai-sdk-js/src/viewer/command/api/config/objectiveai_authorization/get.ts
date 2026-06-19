@@ -5,14 +5,14 @@ import { type CliCommandApiConfigObjectiveaiAuthorizationGetRequest } from "../.
 import { type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest } from "../../../../../cli/command/api/config/objectiveai_authorization/get/request_schema/request";
 import { CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse } from "../../../../../cli/command/api/config/objectiveai_authorization/get/response";
 import { type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest } from "../../../../../cli/command/api/config/objectiveai_authorization/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config objectiveai_authorization get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetExecute(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigObjectiveaiAuthorizationGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigObjectiveaiAuthorizationGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigObjectiveaiAuthorizationGetExecute(request: Omit<
 }
 
 /** `api config objectiveai_authorization get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetExecuteTransform(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigObjectiveaiAuthorizationGetExecuteTransform(reque
 }
 
 /** `api config objectiveai_authorization get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute(r
 }
 
 /** `api config objectiveai_authorization get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTr
 }
 
 /** `api config objectiveai_authorization get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/objectiveai_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute(
 }
 
 /** `api config objectiveai_authorization get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/objectiveai_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config objectiveai_authorization get response_schema: cli produced no output before the end marker");

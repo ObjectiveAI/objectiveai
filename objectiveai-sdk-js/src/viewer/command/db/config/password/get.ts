@@ -5,14 +5,14 @@ import { type CliCommandDbConfigPasswordGetRequest } from "../../../../../cli/co
 import { type CliCommandDbConfigPasswordGetRequestSchemaRequest } from "../../../../../cli/command/db/config/password/get/request_schema/request";
 import { CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponse } from "../../../../../cli/command/db/config/password/get/response";
 import { type CliCommandDbConfigPasswordGetResponseSchemaRequest } from "../../../../../cli/command/db/config/password/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `db config password get execute` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetExecute(request: Omit<CliCommandDbConfigPasswordGetRequest, "path_type">): Promise<CliError | CliCommandDbConfigPasswordGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get" }), z.union([CliErrorSchema, CliCommandDbConfigPasswordGetResponseSchema]));
+export async function dbConfigPasswordGetExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetRequest, "path_type">): Promise<CliError | CliCommandDbConfigPasswordGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get" }), z.union([CliErrorSchema, CliCommandDbConfigPasswordGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function dbConfigPasswordGetExecute(request: Omit<CliCommandDbConfi
 }
 
 /** `db config password get execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetExecuteTransform(request: Omit<CliCommandDbConfigPasswordGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigPasswordGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function dbConfigPasswordGetExecuteTransform(request: Omit<CliComma
 }
 
 /** `db config password get request_schema execute` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetRequestSchemaExecute(request: Omit<CliCommandDbConfigPasswordGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigPasswordGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function dbConfigPasswordGetRequestSchemaExecute(request: Omit<CliC
 }
 
 /** `db config password get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetRequestSchemaExecuteTransform(request: Omit<CliCommandDbConfigPasswordGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigPasswordGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function dbConfigPasswordGetRequestSchemaExecuteTransform(request: 
 }
 
 /** `db config password get response_schema execute` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetResponseSchemaExecute(request: Omit<CliCommandDbConfigPasswordGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigPasswordGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "db/config/password/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function dbConfigPasswordGetResponseSchemaExecute(request: Omit<Cli
 }
 
 /** `db config password get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function dbConfigPasswordGetResponseSchemaExecuteTransform(request: Omit<CliCommandDbConfigPasswordGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function dbConfigPasswordGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandDbConfigPasswordGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "db/config/password/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("db config password get response_schema: cli produced no output before the end marker");

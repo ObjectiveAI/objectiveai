@@ -5,14 +5,14 @@ import { type CliCommandApiConfigMcpTimeoutMsGetRequest } from "../../../../../c
 import { type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest } from "../../../../../cli/command/api/config/mcp_timeout_ms/get/request_schema/request";
 import { CliCommandApiConfigMcpTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpTimeoutMsGetResponse } from "../../../../../cli/command/api/config/mcp_timeout_ms/get/response";
 import { type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest } from "../../../../../cli/command/api/config/mcp_timeout_ms/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config mcp_timeout_ms get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetExecute(request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigMcpTimeoutMsGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get" }), z.union([CliErrorSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchema]));
+export async function apiConfigMcpTimeoutMsGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigMcpTimeoutMsGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get" }), z.union([CliErrorSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigMcpTimeoutMsGetExecute(request: Omit<CliCommandAp
 }
 
 /** `api config mcp_timeout_ms get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetExecuteTransform(request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpTimeoutMsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigMcpTimeoutMsGetExecuteTransform(request: Omit<Cli
 }
 
 /** `api config mcp_timeout_ms get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetRequestSchemaExecute(request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpTimeoutMsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigMcpTimeoutMsGetRequestSchemaExecute(request: Omit
 }
 
 /** `api config mcp_timeout_ms get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform(requ
 }
 
 /** `api config mcp_timeout_ms get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetResponseSchemaExecute(request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpTimeoutMsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigMcpTimeoutMsGetResponseSchemaExecute(request: Omi
 }
 
 /** `api config mcp_timeout_ms get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_timeout_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_timeout_ms get response_schema: cli produced no output before the end marker");

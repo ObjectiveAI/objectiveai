@@ -5,14 +5,14 @@ import { type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest } from "../..
 import { type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest } from "../../../../../cli/command/api/config/backoff_max_elapsed_time_ms/get/request_schema/request";
 import { CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse } from "../../../../../cli/command/api/config/backoff_max_elapsed_time_ms/get/response";
 import { type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest } from "../../../../../cli/command/api/config/backoff_max_elapsed_time_ms/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config backoff_max_elapsed_time_ms get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetExecute(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), z.union([CliErrorSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), z.union([CliErrorSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigBackoffMaxElapsedTimeMsGetExecute(request: Omit<C
 }
 
 /** `api config backoff_max_elapsed_time_ms get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform(reques
 }
 
 /** `api config backoff_max_elapsed_time_ms get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute(re
 }
 
 /** `api config backoff_max_elapsed_time_ms get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTra
 }
 
 /** `api config backoff_max_elapsed_time_ms get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute(r
 }
 
 /** `api config backoff_max_elapsed_time_ms get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/backoff_max_elapsed_time_ms/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config backoff_max_elapsed_time_ms get response_schema: cli produced no output before the end marker");

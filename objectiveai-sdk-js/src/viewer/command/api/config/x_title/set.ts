@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandApiConfigXTitleSetRequest } from "../../../../../cli/command/api/config/x_title/set/request";
 import { type CliCommandApiConfigXTitleSetRequestSchemaRequest } from "../../../../../cli/command/api/config/x_title/set/request_schema/request";
 import { type CliCommandApiConfigXTitleSetResponseSchemaRequest } from "../../../../../cli/command/api/config/x_title/set/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config x_title set execute` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetExecute(request: Omit<CliCommandApiConfigXTitleSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/x_title/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function apiConfigXTitleSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/x_title/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigXTitleSetExecute(request: Omit<CliCommandApiConfi
 }
 
 /** `api config x_title set execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetExecuteTransform(request: Omit<CliCommandApiConfigXTitleSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/x_title/set" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigXTitleSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/x_title/set" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigXTitleSetExecuteTransform(request: Omit<CliComman
 }
 
 /** `api config x_title set request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetRequestSchemaExecute(request: Omit<CliCommandApiConfigXTitleSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/x_title/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigXTitleSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/x_title/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigXTitleSetRequestSchemaExecute(request: Omit<CliCo
 }
 
 /** `api config x_title set request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigXTitleSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/x_title/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigXTitleSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/x_title/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigXTitleSetRequestSchemaExecuteTransform(request: O
 }
 
 /** `api config x_title set response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetResponseSchemaExecute(request: Omit<CliCommandApiConfigXTitleSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/x_title/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigXTitleSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/x_title/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigXTitleSetResponseSchemaExecute(request: Omit<CliC
 }
 
 /** `api config x_title set response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigXTitleSetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigXTitleSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/x_title/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigXTitleSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigXTitleSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/x_title/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config x_title set response_schema: cli produced no output before the end marker");

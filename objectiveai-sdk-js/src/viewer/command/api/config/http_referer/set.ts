@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandApiConfigHttpRefererSetRequest } from "../../../../../cli/command/api/config/http_referer/set/request";
 import { type CliCommandApiConfigHttpRefererSetRequestSchemaRequest } from "../../../../../cli/command/api/config/http_referer/set/request_schema/request";
 import { type CliCommandApiConfigHttpRefererSetResponseSchemaRequest } from "../../../../../cli/command/api/config/http_referer/set/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config http_referer set execute` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetExecute(request: Omit<CliCommandApiConfigHttpRefererSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/http_referer/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function apiConfigHttpRefererSetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/http_referer/set" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigHttpRefererSetExecute(request: Omit<CliCommandApi
 }
 
 /** `api config http_referer set execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetExecuteTransform(request: Omit<CliCommandApiConfigHttpRefererSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/http_referer/set" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigHttpRefererSetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/http_referer/set" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigHttpRefererSetExecuteTransform(request: Omit<CliC
 }
 
 /** `api config http_referer set request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetRequestSchemaExecute(request: Omit<CliCommandApiConfigHttpRefererSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/http_referer/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigHttpRefererSetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/http_referer/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigHttpRefererSetRequestSchemaExecute(request: Omit<
 }
 
 /** `api config http_referer set request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigHttpRefererSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/http_referer/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigHttpRefererSetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/http_referer/set/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigHttpRefererSetRequestSchemaExecuteTransform(reque
 }
 
 /** `api config http_referer set response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetResponseSchemaExecute(request: Omit<CliCommandApiConfigHttpRefererSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/http_referer/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigHttpRefererSetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/http_referer/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigHttpRefererSetResponseSchemaExecute(request: Omit
 }
 
 /** `api config http_referer set response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigHttpRefererSetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigHttpRefererSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/http_referer/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigHttpRefererSetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigHttpRefererSetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/http_referer/set/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config http_referer set response_schema: cli produced no output before the end marker");

@@ -5,14 +5,14 @@ import { type CliCommandApiConfigGithubAuthorizationGetRequest } from "../../../
 import { type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest } from "../../../../../cli/command/api/config/github_authorization/get/request_schema/request";
 import { CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponse } from "../../../../../cli/command/api/config/github_authorization/get/response";
 import { type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest } from "../../../../../cli/command/api/config/github_authorization/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config github_authorization get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetExecute(request: Omit<CliCommandApiConfigGithubAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigGithubAuthorizationGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchema]));
+export async function apiConfigGithubAuthorizationGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigGithubAuthorizationGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigGithubAuthorizationGetExecute(request: Omit<CliCo
 }
 
 /** `api config github_authorization get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetExecuteTransform(request: Omit<CliCommandApiConfigGithubAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigGithubAuthorizationGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigGithubAuthorizationGetExecuteTransform(request: O
 }
 
 /** `api config github_authorization get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetRequestSchemaExecute(request: Omit<CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigGithubAuthorizationGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigGithubAuthorizationGetRequestSchemaExecute(reques
 }
 
 /** `api config github_authorization get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigGithubAuthorizationGetRequestSchemaExecuteTransfo
 }
 
 /** `api config github_authorization get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetResponseSchemaExecute(request: Omit<CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigGithubAuthorizationGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/github_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigGithubAuthorizationGetResponseSchemaExecute(reque
 }
 
 /** `api config github_authorization get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/github_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config github_authorization get response_schema: cli produced no output before the end marker");

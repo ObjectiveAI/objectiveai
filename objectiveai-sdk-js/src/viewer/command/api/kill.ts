@@ -5,14 +5,14 @@ import { type CliCommandApiKillRequest } from "../../../cli/command/api/kill/req
 import { type CliCommandApiKillRequestSchemaRequest } from "../../../cli/command/api/kill/request_schema/request";
 import { CliCommandApiKillResponseSchema, type CliCommandApiKillResponse } from "../../../cli/command/api/kill/response";
 import { type CliCommandApiKillResponseSchemaRequest } from "../../../cli/command/api/kill/response_schema/request";
+import { type CommandExecutor } from "../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../jsonValue";
 import { CliStream } from "../../cliStream";
-import { invokeCliRequest } from "../../invoke";
 
 /** `api kill execute` — unary; first stream item, rest discarded. */
-export async function apiKillExecute(request: Omit<CliCommandApiKillRequest, "path_type">): Promise<CliError | CliCommandApiKillResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/kill" }), z.union([CliErrorSchema, CliCommandApiKillResponseSchema]));
+export async function apiKillExecute(executor: CommandExecutor, request: Omit<CliCommandApiKillRequest, "path_type">): Promise<CliError | CliCommandApiKillResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/kill" }), z.union([CliErrorSchema, CliCommandApiKillResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiKillExecute(request: Omit<CliCommandApiKillRequest, "pa
 }
 
 /** `api kill execute_transform` — unary; first stream item, rest discarded. */
-export async function apiKillExecuteTransform(request: Omit<CliCommandApiKillRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiKillExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiKillRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiKillExecuteTransform(request: Omit<CliCommandApiKillReq
 }
 
 /** `api kill request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiKillRequestSchemaExecute(request: Omit<CliCommandApiKillRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiKillRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiKillRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiKillRequestSchemaExecute(request: Omit<CliCommandApiKil
 }
 
 /** `api kill request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiKillRequestSchemaExecuteTransform(request: Omit<CliCommandApiKillRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiKillRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiKillRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiKillRequestSchemaExecuteTransform(request: Omit<CliComm
 }
 
 /** `api kill response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiKillResponseSchemaExecute(request: Omit<CliCommandApiKillResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiKillResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiKillResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiKillResponseSchemaExecute(request: Omit<CliCommandApiKi
 }
 
 /** `api kill response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiKillResponseSchemaExecuteTransform(request: Omit<CliCommandApiKillResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiKillResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiKillResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/kill/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api kill response_schema: cli produced no output before the end marker");

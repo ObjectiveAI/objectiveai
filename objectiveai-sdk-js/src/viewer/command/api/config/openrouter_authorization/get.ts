@@ -5,14 +5,14 @@ import { type CliCommandApiConfigOpenrouterAuthorizationGetRequest } from "../..
 import { type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest } from "../../../../../cli/command/api/config/openrouter_authorization/get/request_schema/request";
 import { CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse } from "../../../../../cli/command/api/config/openrouter_authorization/get/response";
 import { type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest } from "../../../../../cli/command/api/config/openrouter_authorization/get/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config openrouter_authorization get execute` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetExecute(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigOpenrouterAuthorizationGetResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema]));
+export async function apiConfigOpenrouterAuthorizationGetExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequest, "path_type">): Promise<CliError | CliCommandApiConfigOpenrouterAuthorizationGetResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get" }), z.union([CliErrorSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigOpenrouterAuthorizationGetExecute(request: Omit<C
 }
 
 /** `api config openrouter_authorization get execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetExecuteTransform(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigOpenrouterAuthorizationGetExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigOpenrouterAuthorizationGetExecuteTransform(reques
 }
 
 /** `api config openrouter_authorization get request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecute(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecute(re
 }
 
 /** `api config openrouter_authorization get request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTra
 }
 
 /** `api config openrouter_authorization get response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetResponseSchemaExecute(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigOpenrouterAuthorizationGetResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/openrouter_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigOpenrouterAuthorizationGetResponseSchemaExecute(r
 }
 
 /** `api config openrouter_authorization get response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/openrouter_authorization/get/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config openrouter_authorization get response_schema: cli produced no output before the end marker");

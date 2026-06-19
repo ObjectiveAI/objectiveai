@@ -4,15 +4,15 @@ import { z } from "zod";
 import { type CliCommandApiConfigMcpAuthorizationAddRequest } from "../../../../../cli/command/api/config/mcp_authorization/add/request";
 import { type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest } from "../../../../../cli/command/api/config/mcp_authorization/add/request_schema/request";
 import { type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest } from "../../../../../cli/command/api/config/mcp_authorization/add/response_schema/request";
+import { type CommandExecutor } from "../../../../../cli/command/executor";
 import { CliCommandOkSchema, type CliCommandOk } from "../../../../../cli/command/ok";
 import { CliErrorSchema, type CliError } from "../../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../../jsonValue";
 import { CliStream } from "../../../../cliStream";
-import { invokeCliRequest } from "../../../../invoke";
 
 /** `api config mcp_authorization add execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddExecute(request: Omit<CliCommandApiConfigMcpAuthorizationAddRequest, "path_type">): Promise<CliError | CliCommandOk> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_authorization/add" }), z.union([CliErrorSchema, CliCommandOkSchema]));
+export async function apiConfigMcpAuthorizationAddExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/mcp_authorization/add" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function apiConfigMcpAuthorizationAddExecute(request: Omit<CliComma
 }
 
 /** `api config mcp_authorization add execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationAddRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, path_type: "api/config/mcp_authorization/add" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationAddExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, path_type: "api/config/mcp_authorization/add" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function apiConfigMcpAuthorizationAddExecuteTransform(request: Omit
 }
 
 /** `api config mcp_authorization add request_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddRequestSchemaExecute(request: Omit<CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/add/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationAddRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/add/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function apiConfigMcpAuthorizationAddRequestSchemaExecute(request: 
 }
 
 /** `api config mcp_authorization add request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/add/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/add/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform(
 }
 
 /** `api config mcp_authorization add response_schema execute` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddResponseSchemaExecute(request: Omit<CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/add/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationAddResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "api/config/mcp_authorization/add/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function apiConfigMcpAuthorizationAddResponseSchemaExecute(request:
 }
 
 /** `api config mcp_authorization add response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform(request: Omit<CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/add/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "api/config/mcp_authorization/add/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("api config mcp_authorization add response_schema: cli produced no output before the end marker");

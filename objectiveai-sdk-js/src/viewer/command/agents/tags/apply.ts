@@ -5,14 +5,14 @@ import { type CliCommandAgentsTagsApplyRequest } from "../../../../cli/command/a
 import { type CliCommandAgentsTagsApplyRequestSchemaRequest } from "../../../../cli/command/agents/tags/apply/request_schema/request";
 import { CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponse } from "../../../../cli/command/agents/tags/apply/response";
 import { type CliCommandAgentsTagsApplyResponseSchemaRequest } from "../../../../cli/command/agents/tags/apply/response_schema/request";
+import { type CommandExecutor } from "../../../../cli/command/executor";
 import { CliErrorSchema, type CliError } from "../../../../cli/error";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
 import { CliStream } from "../../../cliStream";
-import { invokeCliRequest } from "../../../invoke";
 
 /** `agents tags apply execute` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyExecute(request: Omit<CliCommandAgentsTagsApplyRequest, "path_type">): Promise<CliError | CliCommandAgentsTagsApplyResponse> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply" }), z.union([CliErrorSchema, CliCommandAgentsTagsApplyResponseSchema]));
+export async function agentsTagsApplyExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyRequest, "path_type">): Promise<CliError | CliCommandAgentsTagsApplyResponse> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply" }), z.union([CliErrorSchema, CliCommandAgentsTagsApplyResponseSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply: cli produced no output before the end marker");
@@ -21,8 +21,8 @@ export async function agentsTagsApplyExecute(request: Omit<CliCommandAgentsTagsA
 }
 
 /** `agents tags apply execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyExecuteTransform(request: Omit<CliCommandAgentsTagsApplyRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsTagsApplyExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply: cli produced no output before the end marker");
@@ -31,8 +31,8 @@ export async function agentsTagsApplyExecuteTransform(request: Omit<CliCommandAg
 }
 
 /** `agents tags apply request_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyRequestSchemaExecute(request: Omit<CliCommandAgentsTagsApplyRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsTagsApplyRequestSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyRequestSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply request_schema: cli produced no output before the end marker");
@@ -41,8 +41,8 @@ export async function agentsTagsApplyRequestSchemaExecute(request: Omit<CliComma
 }
 
 /** `agents tags apply request_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyRequestSchemaExecuteTransform(request: Omit<CliCommandAgentsTagsApplyRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsTagsApplyRequestSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyRequestSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply/request_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply request_schema: cli produced no output before the end marker");
@@ -51,8 +51,8 @@ export async function agentsTagsApplyRequestSchemaExecuteTransform(request: Omit
 }
 
 /** `agents tags apply response_schema execute` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyResponseSchemaExecute(request: Omit<CliCommandAgentsTagsApplyResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsTagsApplyResponseSchemaExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyResponseSchemaRequest, "path_type">): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/tags/apply/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply response_schema: cli produced no output before the end marker");
@@ -61,8 +61,8 @@ export async function agentsTagsApplyResponseSchemaExecute(request: Omit<CliComm
 }
 
 /** `agents tags apply response_schema execute_transform` — unary; first stream item, rest discarded. */
-export async function agentsTagsApplyResponseSchemaExecuteTransform(request: Omit<CliCommandAgentsTagsApplyResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
-  const stream = new CliStream(invokeCliRequest({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
+export async function agentsTagsApplyResponseSchemaExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsTagsApplyResponseSchemaRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, ...transform, path_type: "agents/tags/apply/response_schema" }), z.union([CliErrorSchema, JsonValueSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("agents tags apply response_schema: cli produced no output before the end marker");
