@@ -312,6 +312,10 @@ pub fn run(
     // canonical bin name. (Matching on the literal `"objectiveai"`
     // inside `parse_request` is NOT enough: a full-path argv[0] like
     // `C:\...\objectiveai-cli.exe` would be parsed as a subcommand.)
+    // A top-level `--request <json>` (handled inside `parse_request` via
+    // `TryFrom<Command>`) executes a JSON `CliCommandRequest` directly,
+    // mutually exclusive with any command path (clap enforces it). Either
+    // front door converges here on the same typed `Request`.
     let request = parse_request(args.get(1..).unwrap_or_default()).map_err(|e| match e {
         objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),

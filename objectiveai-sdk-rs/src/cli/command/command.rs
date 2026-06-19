@@ -2,9 +2,8 @@
 //! `ResponseItem` aggregators and conversions, mirroring the same
 //! pattern every tier `mod.rs` follows for its own subcommands.
 
-#[derive(clap::Parser)]
-#[command(name = "objectiveai")]
-pub enum Command {
+#[derive(clap::Subcommand)]
+pub enum Subcommand {
     Agents {
         #[command(subcommand)]
         command: super::agents::Command,
@@ -157,44 +156,68 @@ impl super::CommandResponse for ResponseItem {
     }
 }
 
-impl TryFrom<Command> for Request {
+impl TryFrom<Subcommand> for Request {
     type Error = super::FromArgsError;
-    fn try_from(command: Command) -> Result<Self, Self::Error> {
+    fn try_from(command: Subcommand) -> Result<Self, Self::Error> {
         match command {
-            Command::Agents { command } =>
+            Subcommand::Agents { command } =>
                 Ok(Request::Agents(super::agents::Request::try_from(command)?)),
-            Command::Api { command } =>
+            Subcommand::Api { command } =>
                 Ok(Request::Api(super::api::Request::try_from(command)?)),
-            Command::Db { command } =>
+            Subcommand::Db { command } =>
                 Ok(Request::Db(super::db::Request::try_from(command)?)),
-            Command::Functions { command } =>
+            Subcommand::Functions { command } =>
                 Ok(Request::Functions(super::functions::Request::try_from(command)?)),
-            Command::KillAll(cmd) => match cmd.schema {
+            Subcommand::KillAll(cmd) => match cmd.schema {
                 None => Ok(Request::KillAll(super::kill_all::Request::try_from(cmd.args)?)),
                 Some(super::kill_all::Schema::RequestSchema(args)) =>
                     Ok(Request::KillAllRequestSchema(super::kill_all::request_schema::Request::try_from(args)?)),
                 Some(super::kill_all::Schema::ResponseSchema(args)) =>
                     Ok(Request::KillAllResponseSchema(super::kill_all::response_schema::Request::try_from(args)?)),
             },
-            Command::Mcp { command } =>
+            Subcommand::Mcp { command } =>
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
-            Command::Plugins { command } =>
+            Subcommand::Plugins { command } =>
                 Ok(Request::Plugins(super::plugins::Request::try_from(command)?)),
-            Command::Swarms { command } =>
+            Subcommand::Swarms { command } =>
                 Ok(Request::Swarms(super::swarms::Request::try_from(command)?)),
-            Command::Tasks { command } =>
+            Subcommand::Tasks { command } =>
                 Ok(Request::Tasks(super::tasks::Request::try_from(command)?)),
-            Command::Tools { command } =>
+            Subcommand::Tools { command } =>
                 Ok(Request::Tools(super::tools::Request::try_from(command)?)),
-            Command::Update(cmd) => match cmd.schema {
+            Subcommand::Update(cmd) => match cmd.schema {
                 None => Ok(Request::Update(super::update::Request::try_from(cmd.args)?)),
                 Some(super::update::Schema::RequestSchema(args)) =>
                     Ok(Request::UpdateRequestSchema(super::update::request_schema::Request::try_from(args)?)),
                 Some(super::update::Schema::ResponseSchema(args)) =>
                     Ok(Request::UpdateResponseSchema(super::update::response_schema::Request::try_from(args)?)),
             },
-            Command::Viewer { command } =>
+            Subcommand::Viewer { command } =>
                 Ok(Request::Viewer(super::viewer::Request::try_from(command)?)),
+        }
+    }
+}
+
+impl TryFrom<Command> for Request {
+    type Error = super::FromArgsError;
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match (command.request, command.command) {
+            // `--request <json>`: deserialize straight into the aggregate
+            // Request (serde-tagged on `path_type`) — the same wire shape the
+            // SDKs already serialize. Mutually exclusive with a subcommand
+            // (clap enforces it), so the `_` arm can't carry a command.
+            (Some(json), _) => {
+                let de = &mut serde_json::Deserializer::from_str(&json);
+                serde_path_to_error::deserialize(de)
+                    .map_err(|e| super::FromArgsError::json("request", e))
+            }
+            (None, Some(subcommand)) => Request::try_from(subcommand),
+            // Unreachable in practice: `arg_required_else_help` turns a bare
+            // invocation into a clap help error before conversion.
+            (None, None) => Err(super::FromArgsError::path_parse(
+                "command",
+                "a command path or --request is required".to_string(),
+            )),
         }
     }
 }
@@ -449,6 +472,26 @@ pub fn parse_request(args: &[String]) -> Result<Request, ParseError> {
         <Command as clap::Parser>::try_parse_from(argv)?
     };
     Ok(Request::try_from(command)?)
+}
+
+/// Top-level CLI parser: a command path, OR `--request <json>` to execute a
+/// JSON `CliCommandRequest` directly. The two are mutually exclusive
+/// (`args_conflicts_with_subcommands`, enforced natively by clap); a bare
+/// invocation prints help (`arg_required_else_help`). `--request` is a
+/// legitimate but unadvertised programmatic entry point.
+#[derive(clap::Parser)]
+#[command(
+    name = "objectiveai",
+    args_conflicts_with_subcommands = true,
+    arg_required_else_help = true
+)]
+pub struct Command {
+    /// Execute this JSON `CliCommandRequest` instead of a command path.
+    /// Mutually exclusive with any command.
+    #[arg(long, value_name = "JSON")]
+    pub request: Option<String>,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
 }
 
 /// Error from [`parse_request`]. Either clap rejected the argv
