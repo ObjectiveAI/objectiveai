@@ -296,7 +296,12 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 .map_err(|e| super::Error::Spawn(e.to_string()))?;
 
             let id_for_chunks = id.clone();
-            let agent_instance_hierarchy = agent.id.clone();
+            // NOTE: `agent_instance_hierarchy` is the real per-instance AIH
+            // passed in by the caller (e.g. `cli/<full_id>-<response_id>`).
+            // Do NOT overwrite it with `agent.id` / the full id here — the
+            // chunks (and therefore every downstream consumer: log keying,
+            // CLI identity capture, instance locks, continuation keying)
+            // depend on it being the true AIH, not the agent's content id.
             // Clones for the outer error-mapping closure, taken before
             // `internal_stream` moves the originals into its generator.
             let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();
