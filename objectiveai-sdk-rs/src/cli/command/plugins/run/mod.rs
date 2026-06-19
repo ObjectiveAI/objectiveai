@@ -22,22 +22,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["plugins".to_string(), "run".to_string()];
-        argv.push("--owner".to_string());
-        argv.push(self.owner.clone());
-        argv.push("--name".to_string());
-        argv.push(self.name.clone());
-        argv.push("--version".to_string());
-        argv.push(self.version.clone());
-        self.base.push_flags(&mut argv);
-        if !self.args.is_empty() {
-            argv.push("--args".to_string());
-            argv.push(serde_json::to_string(&self.args).expect("Vec<String> serializes"));
-        }
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

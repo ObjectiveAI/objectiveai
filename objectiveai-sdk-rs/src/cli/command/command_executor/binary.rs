@@ -224,10 +224,15 @@ impl CommandExecutor for BinaryExecutor {
         agent_arguments: Option<&AgentArguments>,
     ) -> Result<Self::Stream<T>, Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
-        let argv = request.into_command();
+        // Dispatch the typed request as JSON via the cli's top-level
+        // `--request` flag — request -> argv lowering no longer exists.
+        let argv = vec![
+            "--request".to_string(),
+            serde_json::to_string(&request).map_err(Error::Json)?,
+        ];
         let binary = self.binary_path()?;
 
         let mut command = Command::new(&binary);
@@ -332,7 +337,7 @@ impl CommandExecutor for BinaryExecutor {
         agent_arguments: Option<&AgentArguments>,
     ) -> Result<T, Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request, agent_arguments).await?;

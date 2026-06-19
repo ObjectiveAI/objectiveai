@@ -223,27 +223,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl super::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Agents(inner) => inner.into_command(),
-            Request::Api(inner) => inner.into_command(),
-            Request::Db(inner) => inner.into_command(),
-            Request::Functions(inner) => inner.into_command(),
-            Request::KillAll(inner) => inner.into_command(),
-            Request::KillAllRequestSchema(inner) => inner.into_command(),
-            Request::KillAllResponseSchema(inner) => inner.into_command(),
-            Request::Mcp(inner) => inner.into_command(),
-            Request::Plugins(inner) => inner.into_command(),
-            Request::Swarms(inner) => inner.into_command(),
-            Request::Tasks(inner) => inner.into_command(),
-            Request::Tools(inner) => inner.into_command(),
-            Request::Update(inner) => inner.into_command(),
-            Request::UpdateRequestSchema(inner) => inner.into_command(),
-            Request::UpdateResponseSchema(inner) => inner.into_command(),
-            Request::Viewer(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Agents(inner) => inner.request_base(),

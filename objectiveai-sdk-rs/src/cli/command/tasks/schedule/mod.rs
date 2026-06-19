@@ -58,39 +58,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "tasks".to_string(),
-            "schedule".to_string(),
-        ];
-        argv.push("--name".to_string());
-        argv.push(self.name.clone());
-        argv.push("--description".to_string());
-        argv.push(self.description.clone());
-        match self.interval_seconds {
-            Some(secs) => {
-                argv.push("--interval".to_string());
-                // Round-trip as humantime — `Duration::from_secs(N)`
-                // formats as e.g. `30s` / `1h30m` so the CLI
-                // re-parses cleanly.
-                argv.push(
-                    humantime::format_duration(std::time::Duration::from_secs(secs))
-                        .to_string(),
-                );
-            }
-            None => argv.push("--oneshot".to_string()),
-        }
-        if self.overwrite {
-            argv.push("--overwrite".to_string());
-        }
-        self.base.push_flags(&mut argv);
-        // `--` separator so command argv that itself contains flags
-        // round-trips cleanly through the trailing-var-arg parse.
-        argv.push("--".to_string());
-        argv.extend(self.command.iter().cloned());
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

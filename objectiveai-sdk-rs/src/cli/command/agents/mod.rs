@@ -269,36 +269,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl crate::cli::command::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Enqueue(inner) => inner.into_command(),
-            Request::EnqueueRequestSchema(inner) => inner.into_command(),
-            Request::EnqueueResponseSchema(inner) => inner.into_command(),
-            Request::Get(inner) => inner.into_command(),
-            Request::GetRequestSchema(inner) => inner.into_command(),
-            Request::GetResponseSchema(inner) => inner.into_command(),
-            Request::Instances(inner) => inner.into_command(),
-            Request::List(inner) => inner.into_command(),
-            Request::ListRequestSchema(inner) => inner.into_command(),
-            Request::ListResponseSchema(inner) => inner.into_command(),
-            Request::Logs(inner) => inner.into_command(),
-            Request::Message(inner) => inner.into_command(),
-            Request::MessageRequestSchema(inner) => inner.into_command(),
-            Request::MessageResponseSchema(inner) => inner.into_command(),
-            Request::Publish(inner) => inner.into_command(),
-            Request::PublishRequestSchema(inner) => inner.into_command(),
-            Request::PublishResponseSchema(inner) => inner.into_command(),
-            Request::Queue(inner) => inner.into_command(),
-            Request::Spawn(inner) => inner.into_command(),
-            Request::SpawnRequestSchema(inner) => inner.into_command(),
-            Request::SpawnResponseSchema(inner) => inner.into_command(),
-            Request::Tags(inner) => inner.into_command(),
-            Request::Wait(inner) => inner.into_command(),
-            Request::WaitRequestSchema(inner) => inner.into_command(),
-            Request::WaitResponseSchema(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Enqueue(inner) => inner.request_base(),

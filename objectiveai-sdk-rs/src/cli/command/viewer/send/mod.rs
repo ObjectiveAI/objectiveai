@@ -20,17 +20,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "viewer".to_string(),
-            "send".to_string(),
-            self.path.clone(),
-            serde_json::to_string(&self.body).expect("body serializes"),
-        ];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

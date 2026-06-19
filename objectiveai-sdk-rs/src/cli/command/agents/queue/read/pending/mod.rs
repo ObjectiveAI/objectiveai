@@ -33,29 +33,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "agents".to_string(),
-            "queue".to_string(),
-            "read".to_string(),
-            "pending".to_string(),
-        ];
-        for target in &self.targets {
-            argv.push("--target".to_string());
-            argv.push(target.into_arg_string());
-        }
-        if let Some(after_id) = self.after_id {
-            argv.push("--after-id".to_string());
-            argv.push(after_id.to_string());
-        }
-        if let Some(limit) = self.limit {
-            argv.push("--limit".to_string());
-            argv.push(limit.to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

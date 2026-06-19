@@ -19,13 +19,6 @@ pub enum Path {
     ApiKill,
 }
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["api".to_string(), "kill".to_string()];
-        argv.push("--global".to_string());
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

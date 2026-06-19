@@ -127,20 +127,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Schedule(inner) => inner.into_command(),
-            Request::ScheduleRequestSchema(inner) => inner.into_command(),
-            Request::ScheduleResponseSchema(inner) => inner.into_command(),
-            Request::List(inner) => inner.into_command(),
-            Request::ListRequestSchema(inner) => inner.into_command(),
-            Request::ListResponseSchema(inner) => inner.into_command(),
-            Request::Run(inner) => inner.into_command(),
-            Request::RunRequestSchema(inner) => inner.into_command(),
-            Request::RunResponseSchema(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Schedule(inner) => inner.request_base(),

@@ -203,26 +203,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl crate::cli::command::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Get(inner) => inner.into_command(),
-            Request::GetRequestSchema(inner) => inner.into_command(),
-            Request::GetResponseSchema(inner) => inner.into_command(),
-            Request::Address(inner) => inner.into_command(),
-            Request::ObjectiveaiAuthorization(inner) => inner.into_command(),
-            Request::OpenrouterAuthorization(inner) => inner.into_command(),
-            Request::GithubAuthorization(inner) => inner.into_command(),
-            Request::McpAuthorization(inner) => inner.into_command(),
-            Request::McpTimeoutMs(inner) => inner.into_command(),
-            Request::BackoffMaxElapsedTimeMs(inner) => inner.into_command(),
-            Request::UserAgent(inner) => inner.into_command(),
-            Request::HttpReferer(inner) => inner.into_command(),
-            Request::XTitle(inner) => inner.into_command(),
-            Request::CommitAuthorName(inner) => inner.into_command(),
-            Request::CommitAuthorEmail(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Get(inner) => inner.request_base(),

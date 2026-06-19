@@ -22,12 +22,6 @@ pub struct Args {
 
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv: Vec<String> = vec!["api", "config", "x-title", "get", "response-schema"].into_iter().map(String::from).collect();
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

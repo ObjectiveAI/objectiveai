@@ -18,9 +18,7 @@
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::{BinaryExecutor, Error as BinaryError};
-use objectiveai_sdk::cli::command::{
-    AgentArguments, CommandExecutor, CommandRequest, RequestBase,
-};
+use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor};
 use objectiveai_sdk::viewer::{Event, EventSender};
 
 /// Per-call identity stamped on every cli child the viewer spawns:
@@ -31,28 +29,6 @@ pub(crate) fn viewer_agent_arguments() -> AgentArguments {
     AgentArguments {
         agent_instance_hierarchy: Some("Viewer".to_string()),
         ..AgentArguments::default()
-    }
-}
-
-/// Verbatim argv passthrough. The cli strips its own argv[0] and its
-/// `parse_request` tolerates an optional leading literal
-/// `"objectiveai"`, so whatever shape the iframe sent works unchanged.
-/// Raw argv plus an (always-default) envelope — the flags ride inside
-/// the argv itself, so the structured `base` stays empty. It exists
-/// only to satisfy `CommandRequest::request_base`.
-struct RawArgs(Vec<String>, RequestBase);
-
-impl CommandRequest for RawArgs {
-    fn into_command(&self) -> Vec<String> {
-        self.0.clone()
-    }
-
-    fn request_base(&self) -> &RequestBase {
-        &self.1
-    }
-
-    fn request_base_mut(&mut self) -> Option<&mut RequestBase> {
-        Some(&mut self.1)
     }
 }
 
@@ -105,26 +81,29 @@ pub async fn cli_execute_impl(
                 return Ok(());
             }
         };
-    cli_run_impl(executor, events_tx, request.into_command(), origin).await
+    cli_run_impl(executor, events_tx, request, origin).await
 }
 
-/// Argv-level core shared by [`cli_execute`] (which lowers a typed
-/// request via `into_command()` first) and the integration tests
-/// (which pass a `BinaryExecutor::from_path(...)` aimed at a
-/// test-built cli). NOT exposed as a Tauri command — plugins cannot
-/// invoke the cli with raw argv.
+/// Run core shared by [`cli_execute`] (which deserializes the JSON
+/// request first) and the integration tests (which construct a
+/// `BinaryExecutor::from_path(...)` aimed at a test-built cli). The
+/// `BinaryExecutor` serializes the request and invokes the cli as
+/// `objectiveai --request <json>`. NOT exposed as a Tauri command.
 #[doc(hidden)]
 pub async fn cli_run_impl(
     executor: &BinaryExecutor,
     events_tx: EventSender,
-    args: Vec<String>,
+    request: objectiveai_sdk::cli::command::Request,
     origin: String,
 ) -> Result<(), String> {
     // Spawn the child before detaching the forwarder so the executor
     // borrow doesn't have to live inside the 'static task.
     let agent_arguments = viewer_agent_arguments();
     let stream = executor
-        .execute::<RawArgs, serde_json::Value>(RawArgs(args, RequestBase::default()), Some(&agent_arguments))
+        .execute::<objectiveai_sdk::cli::command::Request, serde_json::Value>(
+            request,
+            Some(&agent_arguments),
+        )
         .await;
     tokio::spawn(async move {
         match stream {

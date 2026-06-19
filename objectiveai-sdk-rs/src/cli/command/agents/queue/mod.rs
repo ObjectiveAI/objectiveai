@@ -131,18 +131,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Delete(inner) => inner.into_command(),
-            Request::DeleteRequestSchema(inner) => inner.into_command(),
-            Request::DeleteResponseSchema(inner) => inner.into_command(),
-            Request::Deliver(inner) => inner.into_command(),
-            Request::DeliverRequestSchema(inner) => inner.into_command(),
-            Request::DeliverResponseSchema(inner) => inner.into_command(),
-            Request::Read(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Delete(inner) => inner.request_base(),

@@ -21,21 +21,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "tools".to_string(),
-            "get".to_string(),
-            "--owner".to_string(),
-            self.owner.clone(),
-            "--name".to_string(),
-            self.name.clone(),
-            "--version".to_string(),
-            self.version.clone(),
-        ];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

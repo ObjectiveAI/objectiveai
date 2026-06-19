@@ -83,22 +83,6 @@ impl RequestPublishMessage {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "swarms".to_string(),
-            "publish".to_string(),
-            "--repository".to_string(),
-            self.repository.clone(),
-        ];
-        self.body.push_flags(&mut argv);
-        self.message.push_flags(&mut argv);
-        if self.overwrite {
-            argv.push("--overwrite".to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

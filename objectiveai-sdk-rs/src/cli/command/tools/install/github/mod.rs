@@ -22,27 +22,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "tools".to_string(),
-            "install".to_string(),
-            "github".to_string(),
-            "--owner".to_string(),
-            self.owner.clone(),
-            "--repository".to_string(),
-            self.repository.clone(),
-        ];
-        if let Some(sha) = &self.commit_sha {
-            argv.push("--commit-sha".to_string());
-            argv.push(sha.clone());
-        }
-        if self.allow_untrusted {
-            argv.push("--allow-untrusted".to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

@@ -65,39 +65,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "tasks".to_string(),
-            "list".to_string(),
-        ];
-        for target in &self.targets {
-            argv.push("--target".to_string());
-            argv.push(target.into_arg_string());
-        }
-        if self.oneshot {
-            argv.push("--oneshot".to_string());
-        }
-        if self.interval {
-            argv.push("--interval".to_string());
-        }
-        if self.pending {
-            argv.push("--pending".to_string());
-        }
-        if self.exhausted {
-            argv.push("--exhausted".to_string());
-        }
-        if let Some(after_id) = self.after_id {
-            argv.push("--after-id".to_string());
-            argv.push(after_id.to_string());
-        }
-        if let Some(c) = self.count {
-            argv.push("--count".to_string());
-            argv.push(c.to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

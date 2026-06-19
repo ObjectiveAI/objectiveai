@@ -34,7 +34,7 @@ pub trait CommandExecutor {
         agent_arguments: Option<&super::AgentArguments>,
     ) -> impl Future<Output = Result<Self::Stream<T>, Self::Error>> + Send
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static;
 
     /// Convenience for unary commands: run the request and resolve the
@@ -47,6 +47,6 @@ pub trait CommandExecutor {
         agent_arguments: Option<&super::AgentArguments>,
     ) -> impl Future<Output = Result<T, Self::Error>> + Send
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static;
 }
