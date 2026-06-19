@@ -6,7 +6,9 @@
 // objectiveai-sdk-rs/src/cli/command/** (`execute`, `execute_jq`,
 // `execute_streaming`, …, including the ones inside each leaf's
 // nested `request_schema` / `response_schema` modules), this script
-// emits a mirrored TypeScript function under src/cli/command/execute/**:
+// emits an `execute.ts` beside each scope's OWN request/response types
+// (e.g. src/cli/command/agents/get/execute.ts, and the nested
+// src/cli/command/agents/get/request_schema/execute.ts):
 //
 //   - first argument is an `executor: CommandExecutor` (one of the
 //     binary / plugin / viewer executors), then the leaf's own
@@ -46,7 +48,7 @@ const REPO_ROOT = path.resolve(__dirname, "../..");
 const RUST_SRC_DIR = path.join(REPO_ROOT, "objectiveai-sdk-rs/src");
 const RUST_COMMAND_DIR = path.join(RUST_SRC_DIR, "cli/command");
 const SRC_DIR = path.resolve(__dirname, "../src");
-const OUT_DIR = path.join(SRC_DIR, "cli/command/execute");
+const COMMAND_DIR = path.join(SRC_DIR, "cli/command");
 
 const GENERATED_HEADER =
   "// THIS FILE IS AUTO-GENERATED. DO NOT EDIT.\n" +
@@ -513,25 +515,25 @@ function main() {
 
   const skipped = [];
   const generated = [];
-  /** dir (posix, relative to OUT_DIR) → Set of child export names */
-  const dirChildren = new Map();
 
   for (const leaf of leaves) {
-    const relRust = leaf.key; // e.g. "agents/get"
-    const outFileSrcRel = path.posix.join(
-      "cli/command/execute",
-      `${relRust}.ts`,
-    );
-
-    const imports = new Map(); // importPath → Set of names
-    const addImport = (p, name) => {
-      if (!imports.has(p)) imports.set(p, new Set());
-      imports.get(p).add(name);
-    };
-    const fnsOut = [];
-
     for (const rawScope of leaf.scopes) {
       const scopeSegments = rawScope.segments;
+      // One `execute.ts` per scope, sibling to that scope's OWN request /
+      // response types (e.g. cli/command/agents/get/execute.ts and the
+      // nested cli/command/agents/get/request_schema/execute.ts).
+      const outFileSrcRel = path.posix.join(
+        "cli/command",
+        ...scopeSegments,
+        "execute.ts",
+      );
+
+      const imports = new Map(); // importPath → Set of names
+      const addImport = (p, name) => {
+        if (!imports.has(p)) imports.set(p, new Set());
+        imports.get(p).add(name);
+      };
+      const fnsOut = [];
       const modulePath = ["cli", "command", ...scopeSegments];
       const scope = {
         aliases: findTypeAliases(rawScope.source),
@@ -685,65 +687,50 @@ function main() {
           );
         }
       }
+
+      if (fnsOut.length === 0) continue;
+
+      // Assemble the scope's execute.ts, sibling to its request/response
+      // types. This script runs AFTER install-zod, whose cleanGenerated pass
+      // deletes header-stamped files (execute.ts included) and whose
+      // generatedIndex is therefore written without it — so we add the
+      // `export * from "./execute"` line to the scope's generatedIndex
+      // ourselves, below, after writing the file.
+      addImport("cli/command/cliStream", "CliStream");
+      addImport("cli/command/executor", "type CommandExecutor");
+      const importLines = ['import { z } from "zod";'];
+      for (const [target, names] of [...imports.entries()].sort()) {
+        const rel = relativeImport(outFileSrcRel, target);
+        importLines.push(
+          `import { ${[...names].sort().join(", ")} } from "${rel}";`,
+        );
+      }
+      const content =
+        GENERATED_HEADER + importLines.join("\n") + "\n\n" + fnsOut.join("\n");
+      const outAbs = path.join(SRC_DIR, outFileSrcRel);
+      fs.mkdirSync(path.dirname(outAbs), { recursive: true });
+      fs.writeFileSync(outAbs, content);
+      generated.push(outFileSrcRel);
+
+      // Surface it: add `export * from "./execute"` to the scope's
+      // generatedIndex (install-zod wrote that barrel without execute.ts —
+      // see above). Idempotent; the barrel always exists because every scope
+      // has at least a generated request.ts.
+      const genIndexAbs = path.join(path.dirname(outAbs), "generatedIndex.ts");
+      const exportLine = 'export * from "./execute";';
+      if (fs.existsSync(genIndexAbs)) {
+        const cur = fs.readFileSync(genIndexAbs, "utf-8");
+        if (!cur.split(/\r?\n/).includes(exportLine)) {
+          fs.writeFileSync(genIndexAbs, cur.replace(/\n*$/, "\n") + exportLine + "\n");
+        }
+      } else {
+        fs.writeFileSync(genIndexAbs, GENERATED_HEADER + exportLine + "\n");
+      }
     }
-
-    if (fnsOut.length === 0) continue;
-
-    // Assemble the leaf file.
-    addImport("cli/command/cliStream", "CliStream");
-    addImport("cli/command/executor", "type CommandExecutor");
-    const importLines = ['import { z } from "zod";'];
-    for (const [target, names] of [...imports.entries()].sort()) {
-      const rel = relativeImport(outFileSrcRel, target);
-      importLines.push(
-        `import { ${[...names].sort().join(", ")} } from "${rel}";`,
-      );
-    }
-    const content =
-      GENERATED_HEADER + importLines.join("\n") + "\n\n" + fnsOut.join("\n");
-    const outAbs = path.join(SRC_DIR, outFileSrcRel);
-    fs.mkdirSync(path.dirname(outAbs), { recursive: true });
-    fs.writeFileSync(outAbs, content);
-    generated.push(outFileSrcRel);
-
-    // Track barrel entries.
-    let rel = path.posix.dirname(relRust);
-    let childName = path.posix.basename(relRust);
-    for (;;) {
-      const dirKey = rel === "." ? "" : rel;
-      if (!dirChildren.has(dirKey)) dirChildren.set(dirKey, new Set());
-      dirChildren.get(dirKey).add(childName);
-      if (dirKey === "") break;
-      childName = path.posix.basename(dirKey);
-      rel = path.posix.dirname(dirKey);
-    }
-  }
-
-  // Barrels: one index.ts per generated dir; subdir entries re-export
-  // `<name>/index`, leaf entries `<name>`.
-  for (const [dirKey, children] of dirChildren) {
-    const lines = [...children].sort().map((name) => {
-      const isDir = dirChildren.has(
-        dirKey === "" ? name : path.posix.join(dirKey, name),
-      );
-      return `export * from "./${name}${isDir ? "/index" : ""}";`;
-    });
-    const indexAbs = path.join(OUT_DIR, dirKey, "index.ts");
-    fs.mkdirSync(path.dirname(indexAbs), { recursive: true });
-    fs.writeFileSync(indexAbs, GENERATED_HEADER + lines.join("\n") + "\n");
-  }
-  if (!dirChildren.has("")) {
-    // Nothing generated (schemas not registered yet) — keep the tree
-    // compiling with an empty barrel.
-    fs.mkdirSync(OUT_DIR, { recursive: true });
-    fs.writeFileSync(
-      path.join(OUT_DIR, "index.ts"),
-      GENERATED_HEADER + "export {};\n",
-    );
   }
 
   console.log(
-    `install-command-execute: generated ${generated.length} leaf module(s)`,
+    `install-command-execute: generated ${generated.length} execute module(s)`,
   );
   if (skipped.length > 0) {
     console.warn(
@@ -753,6 +740,26 @@ function main() {
   }
 }
 
-// Clean previous output before regenerating.
-fs.rmSync(OUT_DIR, { recursive: true, force: true });
+/**
+ * Remove previously-generated `execute.ts` files from the command type tree
+ * (anything we'd regenerate), so a scope that no longer emits one doesn't
+ * leave a stale file behind. Gated on the auto-generated header — never
+ * touches the hand-written type modules that live in the same dirs.
+ */
+function cleanGeneratedExecuteFiles(dir) {
+  if (!fs.existsSync(dir)) return;
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      cleanGeneratedExecuteFiles(full);
+    } else if (
+      entry.name === "execute.ts" &&
+      fs.readFileSync(full, "utf-8").startsWith("// THIS FILE IS AUTO-GENERATED")
+    ) {
+      fs.rmSync(full);
+    }
+  }
+}
+
+cleanGeneratedExecuteFiles(COMMAND_DIR);
 main();

@@ -6,3 +6,4 @@ export * from "./path";
 export * from "./request";
 export * from "./requestDangerousAdvanced";
 export * from "./responseItem";
+export * from "./execute";
