@@ -114,6 +114,20 @@ _CLAUDE_EXE = _resolve_claude_exe()
 
 
 # ---------------------------------------------------------------------------
+# Session cwd
+# ---------------------------------------------------------------------------
+# The claude CLI scopes saved conversations to a PROJECT derived from the
+# process cwd (`~/.claude/projects/<sanitized-cwd>/<session-id>.jsonl`).
+# `--resume <id>` only finds a session in the project matching the CURRENT
+# cwd. The runner is spawned by the API with whatever cwd the caller
+# happened to have, so a create at cwd A and a resume at cwd B looked in
+# different projects → "No conversation found with session ID". Pin every
+# run to a single stable cwd (home — where existing sessions were created)
+# so create and resume always share one project.
+_SESSION_CWD = os.path.expanduser("~")
+
+
+# ---------------------------------------------------------------------------
 # Wire-format serialization
 # ---------------------------------------------------------------------------
 # The Python SDK parses raw JSONL dicts from the CLI into typed dataclass
@@ -428,6 +442,9 @@ async def handle_run(
 
         opts = ClaudeAgentOptions(
             model=params["model"],
+            # Pin cwd so claude's per-project session store is stable across
+            # create + resume (else `--resume` can't find the session).
+            cwd=_SESSION_CWD,
             system_prompt=params.get("system_prompt"),
             effort=params.get("effort"),
             thinking=thinking,
