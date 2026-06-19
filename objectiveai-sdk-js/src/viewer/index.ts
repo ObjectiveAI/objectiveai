@@ -1,12 +1,10 @@
 export * from "./generatedIndex";
-export * from "./invoke";
 
 /**
  * @objectiveai/sdk/viewer
  *
  * TypeScript shim that lets a plugin's iframe-mounted UI bundle
- * subscribe to events from the host viewer AND invoke the
- * objectiveai CLI in-process on the host.
+ * subscribe to events from the host viewer.
  *
  * Production context (loaded inside the host viewer):
  *   - The plugin's `index.html` runs inside an `<iframe sandbox>`
@@ -14,20 +12,17 @@ export * from "./invoke";
  *   - `window.parent` is the host viewer's React app.
  *   - `listen(sub_type, handler)` registers a callback for incoming
  *     `inbound` events forwarded by the host bridge.
- *   - `invokeCliRequest(request)` posts a `cli-execute` message with
- *     a typed `cli::command::Request` (serde JSON) to the host; the
- *     host hands the JSON to the objectiveai cli via its top-level
- *     `--request` flag, streaming each output line back as a
- *     `cli_command` event. The returned AsyncIterable yields each
- *     line and terminates on the host's synthetic `{"type":"end"}`
- *     marker. There is deliberately no raw-argv entry point.
  *
  * Dev context (plugin author runs their own Tauri shell standalone):
  *   - `window.parent === window` (no host).
  *   - `listen()` falls through to `@tauri-apps/api`'s `listen`.
- *   - `invokeCliRequest()` warns and yields nothing.
  *
  * The plugin author writes the same code in both contexts.
+ *
+ * To invoke the objectiveai CLI on the host from an iframe, use
+ * `ViewerCommandExecutor` (from `@objectiveai/sdk`) with the generated
+ * command functions — that transport posts `cli-execute` messages to the
+ * host bridge and streams the `cli_command` responses back.
  */
 
 /** True when running inside an iframe in the host viewer. */

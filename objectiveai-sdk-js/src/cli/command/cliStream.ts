@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 /**
- * Async-iterable wrapper over the `cli_command` line stream produced
- * by `invokeCliRequest`. Used by the generated viewer execute
- * functions; plugin authors normally receive one rather than
- * constructing one.
+ * Async-iterable wrapper over the JSONL line stream produced by a
+ * command executor (binary / plugin / viewer). Used by the generated
+ * command execute functions; plugin authors normally receive one rather
+ * than constructing one.
  *
  * Each raw line is zod-parsed with `schema` — typically
  * `z.union([CliOutputErrorSchema, <ResponseSchema>])`, so error
