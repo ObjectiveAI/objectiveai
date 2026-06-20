@@ -795,8 +795,7 @@ async fn handle_tools_call(
                     }));
                     prefixed.extend(pending);
                     prefixed.push(ContentBlock::Text(TextContent {
-                        text: objectiveai_sdk::mcp::queue_notification::SUFFIX
-                            .to_string(),
+                        text: objectiveai_sdk::mcp::queue_notification::format_suffix(&token),
                         annotations: None,
                         _meta: None,
                     }));
