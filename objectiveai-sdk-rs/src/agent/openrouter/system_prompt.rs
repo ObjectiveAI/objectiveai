@@ -1,248 +1,125 @@
-//! Self-contained system-prompt message types for OpenRouter agents.
+//! The agent's system prompt: an ordered list of role-tagged text entries.
 //!
-//! Re-defines the system / developer message shapes (content is a plain
-//! `String` here — no rich content / parts) plus a [`prepare`] that merges
-//! consecutive same-role messages exactly the way
-//! [`crate::agent::completions::message::prompt::prepare`] does for the
-//! regular prompt: System+System and Developer+Developer collapse (gated by
-//! compatible names), their content concatenated with no separator. System
-//! and Developer never merge with each other.
-//!
-//! This is deliberately independent of `agent::completions::message` — it is
-//! groundwork for a larger refactor.
+//! Each [`SystemPrompt`] is a `role` (`system` or `developer`) plus plain
+//! `String` `content`. [`prepare`] collapses consecutive same-role entries by
+//! concatenating their content (no separator), keeping the list canonical for
+//! the agent's content-addressed id.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// A system message setting context or instructions.
+/// The role of a [`SystemPrompt`] entry.
 #[derive(
     Debug,
     Clone,
+    Copy,
     PartialEq,
+    Eq,
     Serialize,
     Deserialize,
     JsonSchema,
     arbitrary::Arbitrary,
 )]
-#[schemars(rename = "agent.openrouter.SystemMessage")]
-pub struct SystemMessage {
-    /// The message content.
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "agent.openrouter.SystemPromptRole")]
+pub enum SystemPromptRole {
+    System,
+    Developer,
+}
+
+/// One entry of an agent's system prompt — a role and its text content.
+#[derive(
+    Debug,
+    Clone,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    JsonSchema,
+    arbitrary::Arbitrary,
+)]
+#[schemars(rename = "agent.openrouter.SystemPrompt")]
+pub struct SystemPrompt {
+    /// Whether this entry is a system or developer message.
+    pub role: SystemPromptRole,
+    /// The entry's text content.
     pub content: String,
-    /// Optional name for the message author.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub name: Option<String>,
 }
 
-impl SystemMessage {
-    /// Merges `other` into this message (same-role merge): content is
-    /// concatenated with no separator, the first name wins.
-    pub fn push(&mut self, other: &SystemMessage) {
-        self.content.push_str(&other.content);
-        if self.name.is_none() {
-            self.name.clone_from(&other.name);
-        }
-    }
-
-    /// Whether this message carries a non-empty name.
-    pub fn has_name(&self) -> bool {
-        self.name.as_ref().is_some_and(|n| !n.is_empty())
-    }
-
-    /// Normalizes the message: an empty-string name becomes `None`.
-    pub fn prepare(&mut self) {
-        if self.name.as_ref().is_some_and(String::is_empty) {
-            self.name = None;
-        }
-    }
-}
-
-/// A developer message (like system, but from the developer).
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    arbitrary::Arbitrary,
-)]
-#[schemars(rename = "agent.openrouter.DeveloperMessage")]
-pub struct DeveloperMessage {
-    /// The message content.
-    pub content: String,
-    /// Optional name for the message author.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub name: Option<String>,
-}
-
-impl DeveloperMessage {
-    /// Merges `other` into this message (same-role merge): content is
-    /// concatenated with no separator, the first name wins.
-    pub fn push(&mut self, other: &DeveloperMessage) {
-        self.content.push_str(&other.content);
-        if self.name.is_none() {
-            self.name.clone_from(&other.name);
-        }
-    }
-
-    /// Whether this message carries a non-empty name.
-    pub fn has_name(&self) -> bool {
-        self.name.as_ref().is_some_and(|n| !n.is_empty())
-    }
-
-    /// Normalizes the message: an empty-string name becomes `None`.
-    pub fn prepare(&mut self) {
-        if self.name.as_ref().is_some_and(String::is_empty) {
-            self.name = None;
-        }
-    }
-}
-
-/// One message of an agent's system prompt — either a system or a developer
-/// message. Role-tagged on `role`, mirroring
-/// [`crate::agent::completions::message::Message`].
-#[derive(
-    Debug,
-    Clone,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    JsonSchema,
-    arbitrary::Arbitrary,
-)]
-#[serde(tag = "role")]
-#[schemars(rename = "agent.openrouter.SystemPromptMessage")]
-pub enum SystemPromptMessage {
-    /// A developer message.
-    #[schemars(title = "Developer")]
-    #[serde(rename = "developer")]
-    Developer(DeveloperMessage),
-    /// A system message.
-    #[schemars(title = "System")]
-    #[serde(rename = "system")]
-    System(SystemMessage),
-}
-
-impl SystemPromptMessage {
-    /// Normalizes the inner message.
-    pub fn prepare(&mut self) {
-        match self {
-            SystemPromptMessage::Developer(m) => m.prepare(),
-            SystemPromptMessage::System(m) => m.prepare(),
-        }
-    }
-}
-
-/// Whether two messages are the same chainable role (system or developer)
-/// with compatible names (at most one has a name, or both have the same name).
-fn is_chain(a: &SystemPromptMessage, b: &SystemPromptMessage) -> bool {
-    match (a, b) {
-        (
-            SystemPromptMessage::Developer(a),
-            SystemPromptMessage::Developer(b),
-        ) => !a.has_name() || !b.has_name() || a.name == b.name,
-        (SystemPromptMessage::System(a), SystemPromptMessage::System(b)) => {
-            !a.has_name() || !b.has_name() || a.name == b.name
-        }
-        _ => false,
-    }
-}
-
-/// Pushes `other` into `target` (same-role merge).
-fn push(target: &mut SystemPromptMessage, other: &SystemPromptMessage) {
-    match (target, other) {
-        (
-            SystemPromptMessage::Developer(t),
-            SystemPromptMessage::Developer(o),
-        ) => t.push(o),
-        (SystemPromptMessage::System(t), SystemPromptMessage::System(o)) => {
-            t.push(o)
-        }
-        _ => unreachable!(),
-    }
-}
-
-/// Prepares a system prompt by normalizing each message, then merging chains
-/// of consecutive same-role developer/system messages (only when at most one
-/// message in the chain has a name). Same algorithm as
-/// [`crate::agent::completions::message::prompt::prepare`].
-pub fn prepare(messages: &mut Vec<SystemPromptMessage>) {
-    messages.iter_mut().for_each(SystemPromptMessage::prepare);
-
-    // scan for any chain to avoid allocation if none exist
-    let has_chain = messages.windows(2).any(|w| is_chain(&w[0], &w[1]));
+/// Merges consecutive same-role entries, concatenating their content with no
+/// separator. One left-fold collapses every run — no recursion is needed since
+/// `content` is a plain `String` with nothing further to normalize.
+pub fn prepare(prompts: &mut Vec<SystemPrompt>) {
+    let has_chain = prompts.windows(2).any(|w| w[0].role == w[1].role);
     if !has_chain {
         return;
     }
-
-    let mut merged = Vec::with_capacity(messages.len());
-    for msg in messages.drain(..) {
+    let mut merged: Vec<SystemPrompt> = Vec::with_capacity(prompts.len());
+    for prompt in prompts.drain(..) {
         if let Some(last) = merged.last_mut() {
-            if is_chain(last, &msg) {
-                push(last, &msg);
+            if last.role == prompt.role {
+                last.content.push_str(&prompt.content);
                 continue;
             }
         }
-        merged.push(msg);
+        merged.push(prompt);
     }
-    *messages = merged;
-
-    // re-prepare after merging
-    prepare(messages);
+    *prompts = merged;
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn system(content: &str, name: Option<&str>) -> SystemPromptMessage {
-        SystemPromptMessage::System(SystemMessage {
+    fn sp(role: SystemPromptRole, content: &str) -> SystemPrompt {
+        SystemPrompt {
+            role,
             content: content.to_string(),
-            name: name.map(str::to_string),
-        })
-    }
-
-    fn developer(content: &str, name: Option<&str>) -> SystemPromptMessage {
-        SystemPromptMessage::Developer(DeveloperMessage {
-            content: content.to_string(),
-            name: name.map(str::to_string),
-        })
+        }
     }
 
     #[test]
     fn merges_consecutive_same_role_with_no_separator() {
-        let mut msgs = vec![system("a", None), system("b", None)];
-        prepare(&mut msgs);
-        assert_eq!(msgs, vec![system("ab", None)]);
+        let mut v = vec![
+            sp(SystemPromptRole::System, "a"),
+            sp(SystemPromptRole::System, "b"),
+        ];
+        prepare(&mut v);
+        assert_eq!(v, vec![sp(SystemPromptRole::System, "ab")]);
     }
 
     #[test]
     fn does_not_merge_across_roles() {
-        let mut msgs = vec![system("a", None), developer("b", None)];
-        prepare(&mut msgs);
-        assert_eq!(msgs, vec![system("a", None), developer("b", None)]);
+        let mut v = vec![
+            sp(SystemPromptRole::System, "a"),
+            sp(SystemPromptRole::Developer, "b"),
+        ];
+        prepare(&mut v);
+        assert_eq!(
+            v,
+            vec![
+                sp(SystemPromptRole::System, "a"),
+                sp(SystemPromptRole::Developer, "b"),
+            ]
+        );
     }
 
     #[test]
-    fn does_not_merge_incompatible_names() {
-        let mut msgs = vec![system("a", Some("x")), system("b", Some("y"))];
-        prepare(&mut msgs);
-        assert_eq!(msgs, vec![system("a", Some("x")), system("b", Some("y"))]);
-    }
-
-    #[test]
-    fn merges_compatible_names_first_name_wins() {
-        let mut msgs = vec![system("a", Some("x")), system("b", None)];
-        prepare(&mut msgs);
-        assert_eq!(msgs, vec![system("ab", Some("x"))]);
-    }
-
-    #[test]
-    fn empty_name_normalizes_to_none() {
-        let mut msgs = vec![system("a", Some(""))];
-        prepare(&mut msgs);
-        assert_eq!(msgs, vec![system("a", None)]);
+    fn merges_runs_and_preserves_role_boundaries() {
+        let mut v = vec![
+            sp(SystemPromptRole::System, "a"),
+            sp(SystemPromptRole::System, "b"),
+            sp(SystemPromptRole::Developer, "c"),
+            sp(SystemPromptRole::System, "d"),
+        ];
+        prepare(&mut v);
+        assert_eq!(
+            v,
+            vec![
+                sp(SystemPromptRole::System, "ab"),
+                sp(SystemPromptRole::Developer, "c"),
+                sp(SystemPromptRole::System, "d"),
+            ]
+        );
     }
 }
