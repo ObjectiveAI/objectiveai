@@ -772,19 +772,35 @@ async fn handle_tools_call(
             if let Some(crate::QueueRead { token, blocks }) =
                 maybe_read_blocks(queue_delegate, &agent_arguments, &session_id).await
             {
-                // Splice queue blocks (flattened across rows) ahead
-                // of the upstream's tool-result content, wrapped in
-                // the SDK-owned `<system-reminder>` text-block pair
-                // whose prefix carries the confirmation token. The
-                // API's run-loop regex-scans tool message text for
-                // this token and calls back via `confirm()` to
-                // finalize delivery — closing the "claimed delivered
-                // but never reached the agent" hole a naive ban list
-                // would leave open.
-                let pending: Vec<ContentBlock> =
-                    blocks.into_iter().flatten().collect();
+                // Splice the queued rows ahead of the upstream's
+                // tool-result content, wrapped in the SDK-owned
+                // `<system-reminder>` text-block pair whose prefix
+                // carries the confirmation token. The API's run-loop
+                // regex-scans tool message text for this token and calls
+                // back via `confirm()` to finalize delivery — closing the
+                // "claimed delivered but never reached the agent" hole a
+                // naive ban list would leave open. Each queued row's
+                // content is separated by a `\n\n` text part so distinct
+                // messages stay demarcated instead of running together.
+                // `count` (surfaced as `_meta.notifications`) counts the
+                // real content blocks, not the separators.
+                let mut pending: Vec<ContentBlock> = Vec::new();
+                let mut count: u64 = 0;
+                for row in blocks {
+                    if row.is_empty() {
+                        continue;
+                    }
+                    if !pending.is_empty() {
+                        pending.push(ContentBlock::Text(TextContent {
+                            text: "\n\n".to_string(),
+                            annotations: None,
+                            _meta: None,
+                        }));
+                    }
+                    count += row.len() as u64;
+                    pending.extend(row);
+                }
                 if !pending.is_empty() {
-                    let count = pending.len() as u64;
                     let mut prefixed = Vec::with_capacity(
                         2 + pending.len() + result.content.len(),
                     );
