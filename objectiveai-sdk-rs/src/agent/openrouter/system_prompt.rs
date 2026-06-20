@@ -1,14 +1,13 @@
-//! The agent's system prompt: an ordered list of role-tagged text entries.
+//! The agent's system prompt: a single role-tagged text entry.
 //!
-//! Each [`SystemPrompt`] is a `role` (`system` or `developer`) plus plain
-//! `String` `content`. [`prepare`] collapses consecutive same-role entries by
-//! concatenating their content (no separator), keeping the list canonical for
-//! the agent's content-addressed id.
+//! A [`SystemPrompt`] is a `role` (`system` or `developer`) plus plain `String`
+//! `content`. The OpenRouter client renders it (via [`SystemPrompt::to_message`])
+//! as the leading message of every request.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-/// The role of a [`SystemPrompt`] entry.
+/// The role of a [`SystemPrompt`].
 #[derive(
     Debug,
     Clone,
@@ -27,7 +26,7 @@ pub enum SystemPromptRole {
     Developer,
 }
 
-/// One entry of an agent's system prompt — a role and its text content.
+/// An agent's system prompt — a role and its text content.
 #[derive(
     Debug,
     Clone,
@@ -40,86 +39,91 @@ pub enum SystemPromptRole {
 )]
 #[schemars(rename = "agent.openrouter.SystemPrompt")]
 pub struct SystemPrompt {
-    /// Whether this entry is a system or developer message.
+    /// Whether this is a system or developer message.
     pub role: SystemPromptRole,
-    /// The entry's text content.
+    /// The prompt's text content.
     pub content: String,
 }
 
-/// Merges consecutive same-role entries, concatenating their content with no
-/// separator. One left-fold collapses every run — no recursion is needed since
-/// `content` is a plain `String` with nothing further to normalize.
-pub fn prepare(prompts: &mut Vec<SystemPrompt>) {
-    let has_chain = prompts.windows(2).any(|w| w[0].role == w[1].role);
-    if !has_chain {
-        return;
-    }
-    let mut merged: Vec<SystemPrompt> = Vec::with_capacity(prompts.len());
-    for prompt in prompts.drain(..) {
-        if let Some(last) = merged.last_mut() {
-            if last.role == prompt.role {
-                last.content.push_str(&prompt.content);
-                continue;
+impl SystemPrompt {
+    /// Render this prompt to a completions [`Message`] — a system or developer
+    /// message carrying the content as plain text.
+    ///
+    /// [`Message`]: crate::agent::completions::message::Message
+    pub fn to_message(&self) -> crate::agent::completions::message::Message {
+        use crate::agent::completions::message::{
+            DeveloperMessage, Message, SimpleContent, SystemMessage,
+        };
+        let content = SimpleContent::Text(self.content.clone());
+        match self.role {
+            SystemPromptRole::System => {
+                Message::System(SystemMessage { content, name: None })
+            }
+            SystemPromptRole::Developer => {
+                Message::Developer(DeveloperMessage { content, name: None })
             }
         }
-        merged.push(prompt);
     }
-    *prompts = merged;
+
+    /// Validates the prompt: `content` must be non-empty.
+    pub fn validate(&self) -> Result<(), String> {
+        if self.content.is_empty() {
+            return Err("system_prompt.content must not be empty".to_string());
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn sp(role: SystemPromptRole, content: &str) -> SystemPrompt {
-        SystemPrompt {
-            role,
-            content: content.to_string(),
-        }
-    }
-
     #[test]
-    fn merges_consecutive_same_role_with_no_separator() {
-        let mut v = vec![
-            sp(SystemPromptRole::System, "a"),
-            sp(SystemPromptRole::System, "b"),
-        ];
-        prepare(&mut v);
-        assert_eq!(v, vec![sp(SystemPromptRole::System, "ab")]);
-    }
-
-    #[test]
-    fn does_not_merge_across_roles() {
-        let mut v = vec![
-            sp(SystemPromptRole::System, "a"),
-            sp(SystemPromptRole::Developer, "b"),
-        ];
-        prepare(&mut v);
+    fn to_message_maps_role_to_message_variant() {
+        use crate::agent::completions::message::{
+            DeveloperMessage, Message, SimpleContent, SystemMessage,
+        };
         assert_eq!(
-            v,
-            vec![
-                sp(SystemPromptRole::System, "a"),
-                sp(SystemPromptRole::Developer, "b"),
-            ]
+            SystemPrompt {
+                role: SystemPromptRole::System,
+                content: "hi".to_string(),
+            }
+            .to_message(),
+            Message::System(SystemMessage {
+                content: SimpleContent::Text("hi".to_string()),
+                name: None,
+            })
+        );
+        assert_eq!(
+            SystemPrompt {
+                role: SystemPromptRole::Developer,
+                content: "yo".to_string(),
+            }
+            .to_message(),
+            Message::Developer(DeveloperMessage {
+                content: SimpleContent::Text("yo".to_string()),
+                name: None,
+            })
         );
     }
 
     #[test]
-    fn merges_runs_and_preserves_role_boundaries() {
-        let mut v = vec![
-            sp(SystemPromptRole::System, "a"),
-            sp(SystemPromptRole::System, "b"),
-            sp(SystemPromptRole::Developer, "c"),
-            sp(SystemPromptRole::System, "d"),
-        ];
-        prepare(&mut v);
-        assert_eq!(
-            v,
-            vec![
-                sp(SystemPromptRole::System, "ab"),
-                sp(SystemPromptRole::Developer, "c"),
-                sp(SystemPromptRole::System, "d"),
-            ]
+    fn validate_rejects_empty_content() {
+        assert!(
+            SystemPrompt {
+                role: SystemPromptRole::System,
+                content: String::new(),
+            }
+            .validate()
+            .is_err()
+        );
+        assert!(
+            SystemPrompt {
+                role: SystemPromptRole::System,
+                content: "non-empty".to_string(),
+            }
+            .validate()
+            .is_ok()
         );
     }
 }

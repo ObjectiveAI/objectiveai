@@ -43,10 +43,11 @@ pub struct AgentBase {
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
     pub top_logprobs: Option<u64>,
 
-    /// The agent's system prompt: an ordered list of role+content entries.
+    /// The agent's system prompt: a single role+content entry, rendered as the
+    /// leading message of every request.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
-    pub system_prompt: Option<Vec<super::system_prompt::SystemPrompt>>,
+    pub system_prompt: Option<super::system_prompt::SystemPrompt>,
 
     /// Messages prepended to the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -189,18 +190,6 @@ impl AgentBase {
                     None
                 } else {
                     Some(suffix_messages)
-                }
-            }
-            None => None,
-        };
-        self.system_prompt = match self.system_prompt.take() {
-            Some(system_prompt) if system_prompt.is_empty() => None,
-            Some(mut system_prompt) => {
-                super::system_prompt::prepare(&mut system_prompt);
-                if system_prompt.is_empty() {
-                    None
-                } else {
-                    Some(system_prompt)
                 }
             }
             None => None,
@@ -396,6 +385,9 @@ impl AgentBase {
         }
         if let Some(cc) = &self.context_compression {
             cc.validate()?;
+        }
+        if let Some(system_prompt) = &self.system_prompt {
+            system_prompt.validate()?;
         }
         Ok(())
     }

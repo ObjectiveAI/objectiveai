@@ -124,11 +124,21 @@ impl ChatCompletionCreateParams {
         use crate::agent::completions::ContinuationItem;
         use objectiveai_sdk::agent::completions::message::Message;
 
-        // --- Step 0: Build messages array (request_continuation + messages + continuation) ---
+        // --- Step 0: Build messages array (system_prompt + request_continuation + messages + continuation) ---
+        // The agent's system prompt always leads, sourced live from the agent
+        // on every turn (fresh or resumed). It is deliberately NOT part of the
+        // continuation (`response_continuation` never stores it), so resuming
+        // re-prepends the current agent's prompt exactly once with no
+        // duplication.
         let continuation = continuation.unwrap_or_default();
+        let sys_len = usize::from(agent.base.system_prompt.is_some());
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
-        let mut all_messages =
-            Vec::with_capacity(rc_len + messages.len() + continuation.len());
+        let mut all_messages = Vec::with_capacity(
+            sys_len + rc_len + messages.len() + continuation.len(),
+        );
+        if let Some(system_prompt) = &agent.base.system_prompt {
+            all_messages.push(system_prompt.to_message());
+        }
         if let Some(rc) = request_continuation {
             all_messages.extend_from_slice(&rc.messages);
         }
