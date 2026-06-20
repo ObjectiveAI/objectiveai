@@ -198,7 +198,7 @@ impl Prompt {
             is_synthetic: None,
             tool_use_result: None,
             uuid: None,
-            session_id,
+            session_id: Some(session_id),
         };
 
         Ok(Prompt {

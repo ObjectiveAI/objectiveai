@@ -263,7 +263,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             // Build the params object — borrows from locals in this
             // async block, valid for the duration of the await on
             // create_stream.
-            let session_id = prompt.message.session_id.as_str();
+            let session_id = prompt.message.session_id.as_deref().unwrap_or("");
             let resume_arg: Option<&str> =
                 if session_id.is_empty() { None } else { Some(session_id) };
             let user_agent_arg: Option<&str> =

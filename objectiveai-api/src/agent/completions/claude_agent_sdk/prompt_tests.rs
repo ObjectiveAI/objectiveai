@@ -30,7 +30,7 @@ fn expected(system_prompt: Option<&str>, session_id: &str, content: MessageParam
             is_synthetic: None,
             tool_use_result: None,
             uuid: None,
-            session_id: session_id.to_string(),
+            session_id: Some(session_id.to_string()),
         },
     }
 }

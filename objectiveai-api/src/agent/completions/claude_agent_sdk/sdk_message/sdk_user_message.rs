@@ -63,15 +63,24 @@ pub struct SDKUserMessage {
     pub tool_use_result: Option<serde_json::Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub uuid: Option<String>,
-    pub session_id: String,
+    // The SDK's `UserMessage` dataclass carries no `session_id`, so the Python
+    // runner never emits one for tool-result user messages. Optional, or those
+    // lines fail to deserialize and are silently dropped before logging.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub session_id: Option<String>,
 }
 
 impl SDKUserMessage {
     /// Transforms this upstream user message into a downstream
-    /// [`AgentCompletionChunk`], or `None` if not a tool response.
+    /// [`AgentCompletionChunk`] carrying one tool response per `tool_result`,
+    /// or `None` when the message is not a tool result.
     ///
-    /// Only produces a chunk when both `tool_use_result` and
-    /// `parent_tool_use_id` are present.
+    /// The tool-call id and content come from the `tool_result` block(s) in
+    /// `message.content` — the shape the runner actually emits for a direct
+    /// tool call (which carries NO `parent_tool_use_id`). As a fallback, a
+    /// structured top-level `tool_use_result` keyed by `parent_tool_use_id`
+    /// (sub-agent / Task results that arrive without an inline block) is still
+    /// honored.
     #[allow(clippy::too_many_arguments)]
     pub fn into_downstream(
         self,
@@ -84,27 +93,42 @@ impl SDKUserMessage {
         agent_full_id: String,
         agent_remote: Option<objectiveai_sdk::RemotePath>,
     ) -> Option<objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk> {
-        let (Some(tool_use_result), Some(tool_call_id)) =
-            (self.tool_use_result, self.parent_tool_use_id)
-        else {
-            return None;
-        };
+        let mut messages = Vec::new();
 
-        let content_str = serde_json::to_string(&tool_use_result).unwrap_or_default();
-        let message = objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
-            objectiveai_sdk::agent::completions::response::ToolResponse {
-                role: Default::default(),
-                index: message_index,
-                inner: objectiveai_sdk::agent::completions::message::ToolMessage {
-                    content: objectiveai_sdk::agent::completions::message::RichContent::Text(
-                        content_str,
-                    ),
-                    tool_call_id,
-                    metadata: None,
-                },
-                request_message_ids: None,
-            },
-        );
+        // Primary: inline `tool_result` blocks (direct tool calls). The
+        // tool-call id is the block's own `tool_use_id`.
+        if let MessageParamContent::Blocks(blocks) = &self.message.content {
+            for block in blocks {
+                if let super::super::content_block_param::ContentBlockParam::ToolResult(tr) =
+                    block
+                {
+                    messages.push(tool_response_chunk(
+                        message_index,
+                        tr.tool_use_id.clone(),
+                        render_tool_result_content(tr.content.as_ref()),
+                    ));
+                }
+            }
+        }
+
+        // Fallback: a structured `tool_use_result` keyed by
+        // `parent_tool_use_id` (sub-agent / Task results with no inline
+        // `tool_result` block).
+        if messages.is_empty() {
+            if let (Some(tool_use_result), Some(tool_call_id)) =
+                (&self.tool_use_result, &self.parent_tool_use_id)
+            {
+                messages.push(tool_response_chunk(
+                    message_index,
+                    tool_call_id.clone(),
+                    serde_json::to_string(tool_use_result).unwrap_or_default(),
+                ));
+            }
+        }
+
+        if messages.is_empty() {
+            return None;
+        }
 
         Some(
             objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
@@ -114,7 +138,7 @@ impl SDKUserMessage {
                 agent_full_id,
                 agent_remote,
                 created,
-                messages: vec![message],
+                messages,
                 object: Default::default(),
                 usage: None,
                 upstream,
@@ -123,5 +147,46 @@ impl SDKUserMessage {
                 messages_queued: None,
             },
         )
+    }
+}
+
+/// Builds one tool-response message chunk.
+fn tool_response_chunk(
+    index: u64,
+    tool_call_id: String,
+    content: String,
+) -> objectiveai_sdk::agent::completions::response::streaming::MessageChunk {
+    objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
+        objectiveai_sdk::agent::completions::response::ToolResponse {
+            role: Default::default(),
+            index,
+            inner: objectiveai_sdk::agent::completions::message::ToolMessage {
+                content: objectiveai_sdk::agent::completions::message::RichContent::Text(content),
+                tool_call_id,
+                metadata: None,
+            },
+            request_message_ids: None,
+        },
+    )
+}
+
+/// Renders a `tool_result` block's content to plain text — text blocks
+/// concatenated in order; non-text blocks are skipped. `None` → empty string.
+fn render_tool_result_content(
+    content: Option<&super::super::content_block_param::ToolResultBlockParamContent>,
+) -> String {
+    use super::super::content_block_param::{
+        ToolResultBlockParamContent, ToolResultContentBlockParam,
+    };
+    match content {
+        None => String::new(),
+        Some(ToolResultBlockParamContent::String(s)) => s.clone(),
+        Some(ToolResultBlockParamContent::Blocks(blocks)) => blocks
+            .iter()
+            .filter_map(|b| match b {
+                ToolResultContentBlockParam::Text(t) => Some(t.text.as_str()),
+                _ => None,
+            })
+            .collect::<String>(),
     }
 }
