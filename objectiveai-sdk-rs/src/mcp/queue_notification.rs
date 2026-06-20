@@ -25,9 +25,10 @@ pub fn format_prefix(token: &str) -> String {
 
 /// Format the matching closing tag. The token is embedded in the tag
 /// name too, so the closing tag pairs with [`format_prefix`]'s opening
-/// tag: `</system-reminder-<UUID>>`.
+/// tag: `</system-reminder-<UUID>>`. The trailing blank line demarcates
+/// the wrapper from the real tool-result content that follows it.
 pub fn format_suffix(token: &str) -> String {
-    format!("\n\n</system-reminder-{token}>")
+    format!("\n\n</system-reminder-{token}>\n\n")
 }
 
 /// Scan one text chunk for the prefix pattern; return every
