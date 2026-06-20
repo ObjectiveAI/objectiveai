@@ -61,6 +61,12 @@ pub struct AgentBase {
     pub suffix_messages:
         Option<Vec<super::super::completions::message::Message>>,
 
+    /// System/developer messages that form the agent's system prompt.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub system_prompt:
+        Option<Vec<super::system_prompt::SystemPromptMessage>>,
+
     /// MCP servers the agent can connect to.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -201,6 +207,18 @@ impl AgentBase {
                     None
                 } else {
                     Some(suffix_messages)
+                }
+            }
+            None => None,
+        };
+        self.system_prompt = match self.system_prompt.take() {
+            Some(system_prompt) if system_prompt.is_empty() => None,
+            Some(mut system_prompt) => {
+                super::system_prompt::prepare(&mut system_prompt);
+                if system_prompt.is_empty() {
+                    None
+                } else {
+                    Some(system_prompt)
                 }
             }
             None => None,
