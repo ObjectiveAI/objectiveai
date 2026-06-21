@@ -4297,6 +4297,7 @@ name = "objectiveai-cli-tests"
 version = "2.2.3"
 dependencies = [
  "axum",
+ "clap",
  "futures",
  "insta",
  "notify",
