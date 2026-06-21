@@ -11,7 +11,6 @@ use objectiveai_sdk::cli::command::plugins::{Request, ResponseItem};
 use crate::context::Context;
 use crate::error::Error;
 
-pub mod daemon;
 pub mod get;
 pub mod install;
 pub mod list;
@@ -27,10 +26,6 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::Daemon(req) => {
-            let inner = daemon::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
-        }
         Request::Get(req) => {
             let value = get::execute(ctx, req).await?;
             once(Ok(ResponseItem::Get(value)))

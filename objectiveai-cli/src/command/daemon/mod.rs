@@ -12,8 +12,14 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub mod kill;
-pub mod socket;
 pub mod spawn;
+
+/// Per-state daemon singleton lock key (under `state_dir/locks`).
+pub const DAEMON_LOCK_KEY: &str = "plugins-daemon";
+
+/// Init gate key — serializes daemon startup so the singleton lock is
+/// acquired without racing (mirrors `objectiveai-db`'s `db-init` gate).
+pub const DAEMON_INIT_LOCK_KEY: &str = "plugins-daemon-init";
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 

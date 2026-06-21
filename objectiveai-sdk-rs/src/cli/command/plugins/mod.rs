@@ -1,4 +1,3 @@
-pub mod daemon;
 pub mod get;
 pub mod install;
 pub mod list;
@@ -6,10 +5,6 @@ pub mod run;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    Daemon {
-        #[command(subcommand)]
-        command: daemon::Command,
-    },
     Get(get::Command),
     Install {
         #[command(subcommand)]
@@ -23,8 +18,6 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.plugins.Request")]
 pub enum Request {
-    #[schemars(title = "Daemon")]
-    Daemon(daemon::Request),
     #[schemars(title = "Get")]
     Get(get::Request),
     #[schemars(title = "GetRequestSchema")]
@@ -54,8 +47,6 @@ pub enum Request {
 #[schemars(rename = "cli.command.plugins.ResponseItem")]
 #[serde(untagged)]
 pub enum ResponseItem {
-    #[schemars(title = "Daemon")]
-    Daemon(daemon::Response),
     #[schemars(title = "Get")]
     Get(get::Response),
     #[schemars(title = "GetRequestSchema")]
@@ -82,7 +73,6 @@ pub enum ResponseItem {
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
-            ResponseItem::Daemon(v) => v.into_mcp(),
             ResponseItem::Get(v) => v.into_mcp(),
             ResponseItem::GetRequestSchema(v) => v.into_mcp(),
             ResponseItem::GetResponseSchema(v) => v.into_mcp(),
@@ -101,8 +91,6 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
-            Command::Daemon { command } =>
-                Ok(Request::Daemon(daemon::Request::try_from(command)?)),
             Command::Get(cmd) => match cmd.schema {
                 None => Ok(Request::Get(get::Request::try_from(cmd.args)?)),
                 Some(get::Schema::RequestSchema(args)) =>
@@ -133,7 +121,6 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
-            Request::Daemon(inner) => inner.request_base(),
             Request::Get(inner) => inner.request_base(),
             Request::GetRequestSchema(inner) => inner.request_base(),
             Request::GetResponseSchema(inner) => inner.request_base(),
@@ -149,7 +136,6 @@ impl crate::cli::command::CommandRequest for Request {
 
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
         match self {
-            Request::Daemon(inner) => inner.request_base_mut(),
             Request::Get(inner) => inner.request_base_mut(),
             Request::GetRequestSchema(inner) => inner.request_base_mut(),
             Request::GetResponseSchema(inner) => inner.request_base_mut(),
@@ -177,10 +163,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>> =
         match request {
-            Request::Daemon(req) => {
-                let inner = daemon::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
-            }
             Request::Get(req) => {
                 let value = get::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
@@ -252,10 +234,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
-            Request::Daemon(req) => {
-                let inner = daemon::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
             Request::Get(req) => {
                 let value = get::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))

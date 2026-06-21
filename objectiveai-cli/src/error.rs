@@ -52,14 +52,6 @@ pub enum Error {
     PluginExit(i32),
     #[error("plugins may not invoke `{0}` commands")]
     PluginCommandForbidden(&'static str),
-    #[error("a plugin may only `daemon notify` itself, not `{owner}/{name}/{version}`")]
-    DaemonNotifyNotSelf {
-        owner: String,
-        name: String,
-        version: String,
-    },
-    #[error("plugin daemon: {0}")]
-    Daemon(String),
     #[error("tool not found: {0}")]
     ToolNotFound(String),
     #[error("failed to spawn tool: {0}")]

@@ -1,9 +1,8 @@
-//! `daemon kill` — stop the per-state plugin daemon and clean up its
-//! sockets.
+//! `daemon kill` — stop the per-state plugin daemon. Its leashed
+//! `daemon: true` plugins die with it.
 
 use objectiveai_sdk::cli::command::daemon::kill::{Request, Response};
 
-use super::socket;
 use crate::context::Context;
 use crate::error::Error;
 
@@ -12,10 +11,10 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
 
     // Live owner PID(s) of the daemon lock → kill them. The daemon's
     // `daemon: true` plugins are leashed to it, so they die with it.
-    let pids = objectiveai_sdk::lockfile::owners(&lock_dir, socket::DAEMON_LOCK_KEY)
+    let pids = objectiveai_sdk::lockfile::owners(&lock_dir, super::DAEMON_LOCK_KEY)
         .await
         .map_err(|e| Error::Lockfile {
-            key: socket::DAEMON_LOCK_KEY.to_string(),
+            key: super::DAEMON_LOCK_KEY.to_string(),
             source: e,
         })?;
     let mut killed = 0usize;
@@ -23,9 +22,6 @@ pub async fn execute(ctx: &Context, _request: Request) -> Result<Response, Error
         killed += crate::spawn::kill_pid(pid);
     }
 
-    // Sockets are deliberately left in place — `socket::bind` reclaims a
-    // stale socket on the next daemon start, so there is nothing to
-    // clean up here.
     Ok(Response { killed })
 }
 
