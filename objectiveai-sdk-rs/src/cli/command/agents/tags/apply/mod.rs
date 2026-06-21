@@ -135,6 +135,7 @@ pub enum Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("name_required").required(true).args(["name"])))]
 #[command(group(
     clap::ArgGroup::new("apply_by")
         .required(true)
@@ -145,7 +146,7 @@ pub struct Args {
     /// Tag name (unique). Re-using an existing tag displaces the
     /// previous binding silently.
     #[arg(long)]
-    pub name: String,
+    pub name: Option<String>,
     /// Bind the tag immediately to `{parent}/{agent_instance}`.
     #[arg(long)]
     pub agent_instance: Option<String>,
@@ -239,7 +240,12 @@ impl TryFrom<Args> for Request {
         };
         Ok(Request {
             path_type: Path::AgentsTagsApply,
-            name: args.name,
+            name: args.name.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "name",
+                    "--name is required".to_string(),
+                )
+            })?,
             target,
             base: args.base.into(),
         })

@@ -32,6 +32,7 @@ impl CommandRequest for Request {
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("key_required").required(true).args(["key"])))]
 pub struct Args {
     /// Mutate the global config layer.
     #[arg(long)]
@@ -43,7 +44,7 @@ pub struct Args {
     pub base: crate::cli::command::RequestBaseArgs,
     /// Entry key (MCP server name).
     #[arg(long)]
-    pub key: String,
+    pub key: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -81,7 +82,12 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             base: args.base.into(), path_type: Path::ApiConfigMcpAuthorizationDel,
             scope,
-            key: args.key,
+            key: args.key.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "key",
+                    "--key is required".to_string(),
+                )
+            })?,
         })
     }
 }

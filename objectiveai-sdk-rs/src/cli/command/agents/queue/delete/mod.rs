@@ -61,11 +61,12 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("id_required").required(true).args(["id"])))]
 pub struct Args {
     /// Row id of the queued prompt to delete (as surfaced by
     /// `agents queue list`).
     #[arg(long)]
-    pub id: i64,
+    pub id: Option<i64>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -92,7 +93,12 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::AgentsQueueDelete,
-            id: args.id,
+            id: args.id.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "id",
+                    "--id is required".to_string(),
+                )
+            })?,
             base: args.base.into(),
         })
     }

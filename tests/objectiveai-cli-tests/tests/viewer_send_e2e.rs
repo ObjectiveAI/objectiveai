@@ -57,7 +57,7 @@ async fn viewer_send_remote_mode_posts_to_configured_address() {
     let output = Command::new(cli)
         .env("OBJECTIVEAI_DIR", cli_test_util::objectiveai_dir())
         .env("OBJECTIVEAI_STATE", cli_test_util::test_state_name())
-        .args(["viewer", "send", "/agent/completions", &body_arg])
+        .args(["viewer", "send", "--path", "/agent/completions", "--body", &body_arg])
         .output()
         .expect("failed to run cli");
 

@@ -51,10 +51,11 @@ impl crate::cli::command::CommandResponse for Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("path_required").required(true).args(["path"])))]
 pub struct Args {
     /// Path to the agent (remote path).
     #[arg(long)]
-    pub path: String,
+    pub path: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -81,6 +82,12 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         let path = args
             .path
+            .ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "path",
+                    "--path is required".to_string(),
+                )
+            })?
             .parse::<crate::RemotePathCommitOptional>()
             .map_err(|msg| crate::cli::command::FromArgsError::path_parse("path", msg))?;
         Ok(Self { path_type: Path::AgentsGet, path, base: args.base.into() })

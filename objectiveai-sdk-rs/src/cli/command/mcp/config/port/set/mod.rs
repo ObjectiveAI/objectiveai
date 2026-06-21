@@ -32,6 +32,7 @@ impl CommandRequest for Request {
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("value_required").required(true).args(["value"])))]
 pub struct Args {
     /// Mutate the global config layer.
     #[arg(long)]
@@ -43,7 +44,7 @@ pub struct Args {
     pub base: crate::cli::command::RequestBaseArgs,
     /// New port value.
     #[arg(long)]
-    pub value: u16,
+    pub value: Option<u16>,
 }
 
 #[derive(clap::Args)]
@@ -81,7 +82,12 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             base: args.base.into(), path_type: Path::McpConfigPortSet,
             scope,
-            value: args.value,
+            value: args.value.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "value",
+                    "--value is required".to_string(),
+                )
+            })?,
         })
     }
 }

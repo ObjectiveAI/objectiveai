@@ -43,10 +43,11 @@ impl CommandRequest for Request {
 pub type Response = serde_json::Value;
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("code_required").required(true).args(["code"])))]
 pub struct Args {
     /// Python source to execute.
     #[arg(long)]
-    pub code: String,
+    pub code: Option<String>,
     /// Optional JSON value exposed to the code as the global `input`.
     #[arg(long, value_parser = parse_json)]
     pub input: Option<serde_json::Value>,
@@ -81,7 +82,12 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::Python,
-            code: args.code,
+            code: args.code.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "code",
+                    "--code is required".to_string(),
+                )
+            })?,
             input: args.input,
             base: args.base.into(),
         })

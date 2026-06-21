@@ -91,10 +91,11 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("query_required").required(true).args(["query"])))]
 pub struct Args {
     /// SQL statement to execute. Single statement only.
     #[arg(long)]
-    pub query: String,
+    pub query: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -121,7 +122,12 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::DbQuery,
-            query: args.query,
+            query: args.query.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "query",
+                    "--query is required".to_string(),
+                )
+            })?,
             base: args.base.into(),
         })
     }

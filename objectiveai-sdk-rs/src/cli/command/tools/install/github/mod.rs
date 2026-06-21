@@ -38,13 +38,15 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
+#[command(group(clap::ArgGroup::new("repository_required").required(true).args(["repository"])))]
 pub struct Args {
     /// GitHub repository owner.
     #[arg(long)]
-    pub owner: String,
+    pub owner: Option<String>,
     /// GitHub repository name.
     #[arg(long)]
-    pub repository: String,
+    pub repository: Option<String>,
     /// Pin install to a specific commit.
     #[arg(long)]
     pub commit_sha: Option<String>,
@@ -76,8 +78,18 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self { path_type: Path::ToolsInstallGithub,
-            owner: args.owner,
-            repository: args.repository,
+            owner: args.owner.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "owner",
+                    "--owner is required".to_string(),
+                )
+            })?,
+            repository: args.repository.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "repository",
+                    "--repository is required".to_string(),
+                )
+            })?,
             commit_sha: args.commit_sha,
             allow_untrusted: args.allow_untrusted,
             base: args.base.into(),
