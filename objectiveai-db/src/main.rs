@@ -318,37 +318,85 @@ async fn extract_install(
 /// `<state_dir>/db/`. Runs inside the caller's `db-init` gate, so
 /// at most one initializer works at a time.
 ///
-/// Commit-gated against termination: initdb runs against a
-/// PID-suffixed staging dir, which a single `rename` then moves to
-/// `db/` — `db/` therefore exists ⇔ a COMPLETE initdb committed it.
-/// A supervisor killed mid-initdb leaves only a stale staging dir
-/// (swept best-effort on the next run; its owner is dead by the
-/// gate's exclusivity) instead of poisoning the state with a
-/// partial data dir that every later initdb refuses.
+/// Commit-gated against termination by a SEPARATE marker file
+/// (`<state_dir>/db.ready`), NOT by the data dir's mere existence:
+/// initdb runs DIRECTLY into `db/`, and the marker is written only
+/// after it fully succeeds. `db.ready` present ⇔ a COMPLETE cluster.
+/// A supervisor killed mid-initdb leaves a markerless (partial) `db/`,
+/// which the next run wipes and redoes rather than serving a broken
+/// cluster forever. This is the same marker contract `ensure_installed`
+/// uses for the pg-bin extract (`.objectiveai-complete`).
+///
+/// Why a marker instead of the old staging-dir + `rename` to commit:
+/// initdb writes hundreds of files, and on Windows a freshly-written
+/// tree is transiently held open by the real-time virus scanner and by
+/// the OS's lazy release of initdb's just-exited child processes.
+/// Renaming a directory while ANY handle into it is open fails with
+/// `Access is denied` (os error 5) — a window that 23-way-parallel
+/// initdb hits reliably. (`pg` itself holds no handle here: after
+/// `setup()` with no `start()` it is just a `Settings` struct, so the
+/// old `drop(pg)`-before-rename never actually helped.) Initializing in
+/// place removes the rename entirely; the only thing we create after
+/// the scan-sensitive window is our own marker, which we write and
+/// close ourselves.
 async fn ensure_initdb(env: &Args) -> Result<(), String> {
     let state_dir = env.state_dir();
     let data_dir = state_dir.join("db");
-    if tokio::fs::try_exists(&data_dir).await.unwrap_or(false) {
+    let ready_marker = state_dir.join("db.ready");
+
+    // Complete cluster already committed? Done.
+    if tokio::fs::try_exists(&ready_marker).await.unwrap_or(false) {
         return Ok(());
     }
 
-    // Sweep staging leftovers from initializers that died mid-initdb.
+    // Adopt a cluster that has actually been STARTED at least once —
+    // i.e. one that may hold user data — rather than wiping it on
+    // upgrade from a pre-marker build. `postmaster.opts` is written by
+    // `pg_ctl start` and survives shutdown, so it certifies "this
+    // cluster served, preserve it." Crucially it is NOT a signal that
+    // initdb merely *reached* some file: a fresh initdb (or one that
+    // crashed mid-bootstrap, the bulk of initdb's runtime) was never
+    // started and has none — so the wipe path below reclaims partial
+    // clusters without ever discarding real data.
+    if tokio::fs::try_exists(data_dir.join("postmaster.opts"))
+        .await
+        .unwrap_or(false)
+    {
+        return tokio::fs::write(&ready_marker, b"")
+            .await
+            .map_err(|e| format!("adopt initdb marker {ready_marker:?}: {e}"));
+    }
+
+    // A markerless `db/` is a partial initdb from a crashed predecessor
+    // (initdb refuses a non-empty target, so it must go). Rename-then-
+    // delete, NOT delete-in-place: Windows directory deletion is
+    // asynchronous, so a plain `remove_dir_all` returns while the tree
+    // is still pending-delete and initdb's recreate fails with
+    // ACCESS_DENIED. The rename frees the name instantly; the renamed
+    // tree is swept below.
+    if tokio::fs::try_exists(&data_dir).await.unwrap_or(false) {
+        let trash = state_dir.join(format!("db.trash-{}", std::process::id()));
+        tokio::fs::rename(&data_dir, &trash)
+            .await
+            .map_err(|e| format!("clear partial initdb {data_dir:?}: {e}"))?;
+    }
+
+    // Sweep trash from this and earlier runs, plus `db.init-*` staging
+    // dirs left by pre-marker builds. Best-effort: a pending-delete tree
+    // is harmless, and the gate guarantees no live sibling owns these.
     if let Ok(mut entries) = tokio::fs::read_dir(&state_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
-            if entry
-                .file_name()
-                .to_string_lossy()
-                .starts_with("db.init-")
-            {
+            let name = entry.file_name();
+            let name = name.to_string_lossy();
+            if name.starts_with("db.trash-") || name.starts_with("db.init-") {
                 let _ = tokio::fs::remove_dir_all(entry.path()).await;
             }
         }
     }
 
-    let init_dir = state_dir.join(format!("db.init-{}", std::process::id()));
     let mut settings = postgresql_embedded::Settings::default();
     settings.installation_dir = env.bin_dir().join("pg-bin");
-    settings.data_dir = init_dir.clone();
+    settings.data_dir = data_dir.clone();
     // `Settings::default()` puts the password file in
     // `tempfile::tempdir()` (OS temp root). Pin it next to the data
     // dir (NOT inside — initdb refuses a non-empty data directory)
@@ -360,22 +408,14 @@ async fn ensure_initdb(env: &Args) -> Result<(), String> {
     settings.timeout = Some(Duration::from_secs(180));
     let mut pg = postgresql_embedded::PostgreSQL::new(settings);
     pg.setup().await.map_err(|e| format!("initdb: {e}"))?;
-
-    // Drop `pg` BEFORE the commit rename. `pg` was constructed with
-    // `data_dir = init_dir`, so on Windows it can still hold handles
-    // into that directory tree (and its Drop stops any postmaster it
-    // launched — we launched none, but the drop must still complete).
-    // Renaming a directory with a live handle anywhere inside it fails
-    // with `Access is denied` (os error 5) on Windows, so the staging
-    // dir must be fully released first. We never use `pg` again — the
-    // resident postmaster is spawned separately.
     drop(pg);
 
-    // The commit gate: only a fully-initialized cluster ever becomes
-    // `db/`.
-    tokio::fs::rename(&init_dir, &data_dir)
+    // Commit: the marker is written ONLY after a fully-successful
+    // initdb, so its presence certifies a complete cluster. It lives
+    // OUTSIDE `db/` so it never lands in PGDATA.
+    tokio::fs::write(&ready_marker, b"")
         .await
-        .map_err(|e| format!("commit initdb {init_dir:?} -> {data_dir:?}: {e}"))
+        .map_err(|e| format!("commit initdb marker {ready_marker:?}: {e}"))
 }
 
 /// Locate `bin/postgres(.exe)` under the shared install.
