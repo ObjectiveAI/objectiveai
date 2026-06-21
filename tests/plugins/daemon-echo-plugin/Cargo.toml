@@ -1,0 +1,9 @@
+[package]
+name = "daemon-echo-plugin"
+version = "0.0.1"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "daemon-echo-plugin"
+path = "src/main.rs"
