@@ -360,8 +360,16 @@ async fn ensure_initdb(env: &Args) -> Result<(), String> {
     settings.timeout = Some(Duration::from_secs(180));
     let mut pg = postgresql_embedded::PostgreSQL::new(settings);
     pg.setup().await.map_err(|e| format!("initdb: {e}"))?;
-    // `pg` dropped without having STARTED anything — its Drop only
-    // stops postmasters it launched, and we launch ours directly.
+
+    // Drop `pg` BEFORE the commit rename. `pg` was constructed with
+    // `data_dir = init_dir`, so on Windows it can still hold handles
+    // into that directory tree (and its Drop stops any postmaster it
+    // launched — we launched none, but the drop must still complete).
+    // Renaming a directory with a live handle anywhere inside it fails
+    // with `Access is denied` (os error 5) on Windows, so the staging
+    // dir must be fully released first. We never use `pg` again — the
+    // resident postmaster is spawned separately.
+    drop(pg);
 
     // The commit gate: only a fully-initialized cluster ever becomes
     // `db/`.
