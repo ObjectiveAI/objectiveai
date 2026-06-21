@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.run.Path",
-  "type": "string",
-  "enum": [
-    "tasks/run"
-  ]
-}

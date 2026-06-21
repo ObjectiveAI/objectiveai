@@ -54,10 +54,6 @@
       "$ref": "cli.command.swarms.Request"
     },
     {
-      "title": "Tasks",
-      "$ref": "cli.command.tasks.Request"
-    },
-    {
       "title": "Tools",
       "$ref": "cli.command.tools.Request"
     },

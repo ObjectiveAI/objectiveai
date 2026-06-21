@@ -55,7 +55,6 @@ pub mod mcp;
 pub mod plugins;
 pub mod python;
 pub mod swarms;
-pub mod tasks;
 pub mod tools;
 pub mod update;
 pub mod viewer;

@@ -21,7 +21,6 @@ type CliCommandRequest struct {
 	PythonRequestSchema *CliCommandPythonRequestSchemaRequest 
 	PythonResponseSchema *CliCommandPythonResponseSchemaRequest 
 	Swarms *CliCommandSwarmsRequest 
-	Tasks *CliCommandTasksRequest 
 	Tools *CliCommandToolsRequest 
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
@@ -68,9 +67,6 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
-	}
-	if v.Tasks != nil {
-		return json.Marshal(v.Tasks)
 	}
 	if v.Tools != nil {
 		return json.Marshal(v.Tools)
@@ -235,17 +231,6 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandTasksRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandRequest{}
-			candidate.Tasks = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandToolsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -318,7 +303,6 @@ func (v CliCommandRequest) Validate() error {
 	if v.PythonRequestSchema != nil { count++ }
 	if v.PythonResponseSchema != nil { count++ }
 	if v.Swarms != nil { count++ }
-	if v.Tasks != nil { count++ }
 	if v.Tools != nil { count++ }
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }

@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.agents.instances.get.path import Path
-from objectiveai_sdk.cli.command.agents.logs.read.all.target import Target
+from objectiveai_sdk.cli.command.agents.logs.list.target import Target
 
 
 class Request(BaseModel):

@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::process::Command;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::logs::read::all::{
+use objectiveai_sdk::cli::command::agents::logs::list::{
     AssistantResponsePart, Request as ReadAllRequest, ResponseItem as ReadAllItem,
     Target as ReadAllTarget,
 };
@@ -164,7 +164,8 @@ async fn plugin_mcp_dispatch_round_trip() {
         .map(|(_, i)| i.to_string())
         .unwrap_or_else(|| full_aih.clone());
     let read_all = ReadAllRequest {
-        path_type: objectiveai_sdk::cli::command::agents::logs::read::all::Path::AgentsLogsReadAll,
+        path_type: objectiveai_sdk::cli::command::agents::logs::list::Path::AgentsLogsList,
+        pending: false,
         targets: vec![ReadAllTarget::Direct {
             parent_agent_instance_hierarchy: None,
             agent_instance: target_instance,

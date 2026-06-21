@@ -42,7 +42,7 @@ impl Kind {
 
 /// Serializes compartment provisioning across concurrent spawns —
 /// the same one-lock-for-the-step pattern as the schema-apply lock
-/// in [`super::init`] and `tasks::claim_pending`.
+/// in [`super::init`].
 const COMPARTMENT_LOCK_KEY: i64 = 0x0C0_3B_A87_AE_57_i64;
 
 /// Ensure the compartment role + schema exist with the expected

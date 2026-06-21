@@ -10,7 +10,6 @@ export * from "./mcp/index";
 export * from "./plugins/index";
 export * from "./python/index";
 export * from "./swarms/index";
-export * from "./tasks/index";
 export * from "./tools/index";
 export * from "./update/index";
 export * from "./viewer/index";

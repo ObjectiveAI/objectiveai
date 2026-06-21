@@ -1,0 +1,97 @@
+{
+  "title": "cli.command.agents.queue.list.ResponseItem",
+  "description": "One pending `message_queue` row, with its content rows\ngrouped as `parts`. Two variants — direct AIH target or tag\ntarget — both flat (no nested `LookupState`).",
+  "anyOf": [
+    {
+      "title": "AgentInstanceHierarchy",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "agent_instance_hierarchy"
+          ]
+        },
+        "delete_id": {
+          "description": "`message_queue.id` — the row-level id this block\nrepresents. Pass to `agents queue delete <id>` to\nsoft-flip the entire row (all parts) in one call.\nDistinct from each `QueuePart.id` (which is a\n`message_queue_contents.id` for drilling into one\ncontent slot via `agents queue read id`).",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "enqueued_at": {
+          "description": "`message_queue.enqueued_at`. One block = one parent\n`message_queue` row, so this is well-defined\nblock-level.",
+          "type": "string"
+        },
+        "key": {
+          "description": "Idempotency token, if the row was enqueued with `--key`.",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.queue.list.QueuePart"
+          }
+        },
+        "sender_agent_instance_hierarchy": {
+          "description": "AIH of the caller who enqueued — from\n`message_queue.sender_*`.",
+          "type": "string"
+        }
+      }
+    },
+    {
+      "title": "Tag",
+      "type": "object",
+      "properties": {
+        "agent_tag": {
+          "type": "string"
+        },
+        "by": {
+          "type": "string",
+          "enum": [
+            "tag"
+          ]
+        },
+        "delete_id": {
+          "description": "`message_queue.id`. Pass to `agents queue delete <id>`.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "enqueued_at": {
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.queue.list.QueuePart"
+          }
+        },
+        "sender_agent_instance_hierarchy": {
+          "type": "string"
+        }
+      }
+    }
+  ]
+}

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.schedule.Path",
-  "type": "string",
-  "enum": [
-    "tasks/schedule"
-  ]
-}

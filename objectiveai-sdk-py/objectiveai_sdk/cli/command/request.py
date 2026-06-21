@@ -16,7 +16,6 @@ from objectiveai_sdk.cli.command.python.request import Request as CliCommandPyth
 from objectiveai_sdk.cli.command.python.request_schema.request import Request as CliCommandPythonRequestSchemaRequest
 from objectiveai_sdk.cli.command.python.response_schema.request import Request as CliCommandPythonResponseSchemaRequest
 from objectiveai_sdk.cli.command.swarms.request import Request as CliCommandSwarmsRequest
-from objectiveai_sdk.cli.command.tasks.request import Request as CliCommandTasksRequest
 from objectiveai_sdk.cli.command.tools.request import Request as CliCommandToolsRequest
 from objectiveai_sdk.cli.command.update.request import Request as CliCommandUpdateRequest
 from objectiveai_sdk.cli.command.update.request_schema.request import Request as CliCommandUpdateRequestSchemaRequest
@@ -102,12 +101,6 @@ class RequestSwarms(RootModel):
     root: CliCommandSwarmsRequest
 
 
-class RequestTasks(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tasks'})
-
-    root: CliCommandTasksRequest
-
-
 class RequestTools(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tools'})
 
@@ -141,5 +134,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
 
