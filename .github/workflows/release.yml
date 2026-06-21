@@ -251,6 +251,10 @@ jobs:
           - { os: macos-14,         platform: macos-arm64,    target: aarch64-apple-darwin }
           - { os: macos-15-intel,   platform: macos-x86_64,   target: x86_64-apple-darwin }
           - { os: windows-latest,   platform: windows-x86_64, target: x86_64-pc-windows-msvc }
+          # win-arm64 wheel is fine (pyo3 is default-features=false: no
+          # postgres/openssl/crypto) — unlike the binary zip, which can't be
+          # built on win-arm64. Needs Python 3.13 (no CPython 3.10 on win-arm64).
+          - { os: windows-11-arm,   platform: windows-arm64,  target: aarch64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
