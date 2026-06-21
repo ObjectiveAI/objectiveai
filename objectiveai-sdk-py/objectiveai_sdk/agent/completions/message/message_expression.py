@@ -4,22 +4,8 @@ from __future__ import annotations
 from typing import Literal, Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.agent.completions.message.assistant_message_expression import AssistantMessageExpression
-from objectiveai_sdk.agent.completions.message.developer_message_expression import DeveloperMessageExpression
-from objectiveai_sdk.agent.completions.message.system_message_expression import SystemMessageExpression
 from objectiveai_sdk.agent.completions.message.tool_message_expression import ToolMessageExpression
 from objectiveai_sdk.agent.completions.message.user_message_expression import UserMessageExpression
-
-
-class MessageExpressionDeveloper(DeveloperMessageExpression):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Developer'})
-
-    role: Literal['developer']
-
-
-class MessageExpressionSystem(SystemMessageExpression):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'System'})
-
-    role: Literal['system']
 
 
 class MessageExpressionUser(UserMessageExpression):
@@ -48,5 +34,5 @@ where message content can be computed from the function input at runtime.
 Supports both JMESPath and Starlark expressions."""
     model_config = ConfigDict(title='agent.completions.message.MessageExpression')
 
-    root: Union[MessageExpressionDeveloper, MessageExpressionSystem, MessageExpressionUser, MessageExpressionAssistant, MessageExpressionTool]
+    root: Union[MessageExpressionUser, MessageExpressionAssistant, MessageExpressionTool]
 

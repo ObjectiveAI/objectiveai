@@ -280,6 +280,7 @@
                   "created": 0,
                   "model": "mock",
                   "upstream_id": "",
+                  "reasoning": " roVR3Cyl3CzzYvZtNzL7NzACCIHvRvWVrhVk2vk ri7uRs8s8a4s7OORqIviaOw16ZgEThqh4GbCgTtMoGVtasslgalbGAUKIzUv0S59766EYBXozSwzjFwUegfRPKcVNOPfPQkSBn4ai6hJwt3Q0LW8EMZyIU9u6EdPwxS3K531RosN5CrDdbTpALpfLzXZPE7pmYkPYWVXFRcs5UkiZBtoAFKWJDWTed1pES9RJw5bRj1Rni3jUVg0Z3rq1MWlk9crzd3NqBuDndkHup48TswdWUDLSQSFvP84qfAAHFFNOqe5pHZ6r8am7dYMHMUjDrdlbKqZL1BWrMYahCvNy6Y3CBSzNTMt2Gd0wygY8KtDC byxXfaY7t2KYng3Ggm5fp3iX0sbxOnDCBiNiyw2PkEnhssi1sZhterK755sk3jS0e3WK0UaIC3zaMgXBdkA5qk",
                   "tool_calls": null,
                   "content": "{\"response_key\":\"`S`\"}",
                   "refusal": null,
@@ -347,17 +348,49 @@
                         ]
                       },
                       {
-                        "token": "\"`",
+                        "token": "\"",
                         "bytes": [
-                          34,
+                          34
+                        ],
+                        "logprob": 2.22044604925e-16,
+                        "top_logprobs": [
+                          {
+                            "token": "\"",
+                            "bytes": [
+                              34
+                            ],
+                            "logprob": 2.22044604925e-16
+                          }
+                        ]
+                      },
+                      {
+                        "token": "`",
+                        "bytes": [
+                          96
+                        ],
+                        "logprob": 4.440892098501e-16,
+                        "top_logprobs": [
+                          {
+                            "token": "`",
+                            "bytes": [
+                              96
+                            ],
+                            "logprob": 4.440892098501e-16
+                          }
+                        ]
+                      },
+                      {
+                        "token": "S`",
+                        "bytes": [
+                          83,
                           96
                         ],
                         "logprob": 0.0,
                         "top_logprobs": [
                           {
-                            "token": "\"`",
+                            "token": "S`",
                             "bytes": [
-                              34,
+                              83,
                               96
                             ],
                             "logprob": 0.0
@@ -365,19 +398,15 @@
                         ]
                       },
                       {
-                        "token": "S`\"",
+                        "token": "\"",
                         "bytes": [
-                          83,
-                          96,
                           34
                         ],
                         "logprob": 0.0,
                         "top_logprobs": [
                           {
-                            "token": "S`\"",
+                            "token": "\"",
                             "bytes": [
-                              83,
-                              96,
                               34
                             ],
                             "logprob": 0.0
@@ -424,7 +453,7 @@
               },
               "upstream": "mock",
               "error": null,
-              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlN1YmplY3Q6IFByb2plY3QgdXBkYXRlQm9keTogSW1wb3J0YW50IHByb2plY3QgdXBkYXRlIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgU2BcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IkltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCIsXG4gICAgXCJgTWBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6Ik5vdCBpbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In1dfSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50Ijoie1wicmVzcG9uc2Vfa2V5XCI6XCJgU2BcIn0ifV0sIm1jcF9zZXNzaW9ucyI6e319"
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuU3ViamVjdDogUHJvamVjdCB1cGRhdGVCb2R5OiBJbXBvcnRhbnQgcHJvamVjdCB1cGRhdGUifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlxuXG5TZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBOYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiSW1wb3J0YW50In0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIixcbiAgICBcImBTYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiTm90IGltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCJcbn0ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJ7XCJyZXNwb25zZV9rZXlcIjpcImBTYFwifSIsInJlYXNvbmluZyI6IiByb1ZSM0N5bDNDenpZdlp0TnpMN056QUNDSUh2UnZXVnJoVmsydmsgcmk3dVJzOHM4YTRzN09PUnFJdmlhT3cxNlpnRVRocWg0R2JDZ1R0TW9HVnRhc3NsZ2FsYkdBVUtJelV2MFM1OTc2NkVZQlhvelN3empGd1VlZ2ZSUEtjVk5PUGZQUWtTQm40YWk2aEp3dDNRMExXOEVNWnlJVTl1NkVkUHd4UzNLNTMxUm9zTjVDckRkYlRwQUxwZkx6WFpQRTdwbVlrUFlXVlhGUmNzNVVraVpCdG9BRktXSkRXVGVkMXBFUzlSSnc1YlJqMVJuaTNqVVZnMFozcnExTVdsazljcnpkM05xQnVEbmRrSHVwNDhUc3dkV1VETFNRU0Z2UDg0cWZBQUhGRk5PcWU1cEhaNnI4YW03ZFlNSE1VakRyZGxiS3FaTDFCV3JNWWFoQ3ZOeTZZM0NCU3pOVE10MkdkMHd5Z1k4S3REQyBieXhYZmFZN3QyS1luZzNHZ201ZnAzaVgwc2J4T25EQ0JpTml5dzJQa0VuaHNzaTFzWmh0ZXJLNzU1c2szalMwZTNXSzBVYUlDM3phTWdYQmRrQTVxayJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
             }
           ],
           "votes": [
@@ -433,25 +462,25 @@
               "agent_id": "6l2dDV2SOJXgP5REPXndtU",
               "swarm_index": 0,
               "flat_swarm_index": 0,
-              "prompt_id": "0yKblFL0KMBPrAXWkdGWDK",
+              "prompt_id": "4MygxC8SkOXBKOUyKDQbyF",
               "responses_ids": [
                 "4wDQIM1j8s6zO7BMSsVpLb",
                 "2KpxKp0ntAQ3KFxia4Gbc2"
               ],
               "vote": [
-                1.0,
-                0.0
+                0.0,
+                1.0
               ],
               "weight": 1.0
             }
           ],
           "scores": [
-            1.0,
-            0.0
+            0.0,
+            1.0
           ],
           "weights": [
-            1.0,
-            0.0
+            0.0,
+            1.0
           ],
           "created": 0,
           "swarm": "0AYcgicUgrCdsTzzOdz4xD",
@@ -469,7 +498,7 @@
       "tasks_errors": false,
       "reasoning": null,
       "output": {
-        "output": 0.0
+        "output": 1.0
       },
       "error": null,
       "created": 0,
@@ -491,7 +520,7 @@
   "tasks_errors": false,
   "reasoning": null,
   "output": {
-    "output": 0.03498951682840093
+    "output": 0.534989516828401
   },
   "error": null,
   "created": 0,

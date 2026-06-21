@@ -83,84 +83,6 @@ func (v AgentCompletionsMessageUserMessageExpressionContent) Validate() error {
 	}
 	return variantValidator.Struct(v)
 }
-type AgentCompletionsMessageUserMessageExpressionNameValue string
-
-func (AgentCompletionsMessageUserMessageExpressionNameValue) SchemaVariantTitle() string { return "Value" }
-
-// A value that can be either a literal or an expression.
-//
-// This allows Function definitions to mix static values with dynamic
-// expressions. During compilation, expressions are evaluated while
-// literal values pass through unchanged.
-//
-// # Example
-//
-// Literal value:
-// ```json
-// "hello world"
-// ```
-//
-// JMESPath expression:
-// ```json
-// {"$jmespath": "input.greeting"}
-// ```
-//
-// Starlark expression:
-// ```json
-// {"$starlark": "input['greeting']"}
-// ```
-type AgentCompletionsMessageUserMessageExpressionName struct {
-	// An expression (JMESPath or Starlark) to evaluate.
-	Expression *FunctionsExpressionExpression 
-	// A literal value.
-	Value *AgentCompletionsMessageUserMessageExpressionNameValue 
-}
-
-func (v AgentCompletionsMessageUserMessageExpressionName) MarshalJSON() ([]byte, error) {
-	if v.Expression != nil {
-		return json.Marshal(v.Expression)
-	}
-	if v.Value != nil {
-		return json.Marshal(v.Value)
-	}
-	return []byte("null"), nil
-}
-
-func (v *AgentCompletionsMessageUserMessageExpressionName) UnmarshalJSON(data []byte) error {
-	{
-		var try FunctionsExpressionExpression
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageUserMessageExpressionName{}
-			candidate.Expression = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try AgentCompletionsMessageUserMessageExpressionNameValue
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageUserMessageExpressionName{}
-			candidate.Value = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	return fmt.Errorf("data did not match any variant of AgentCompletionsMessageUserMessageExpressionName")
-}
-
-func (v AgentCompletionsMessageUserMessageExpressionName) Validate() error {
-	count := 0
-	if v.Expression != nil { count++ }
-	if v.Value != nil { count++ }
-	if count != 1 {
-		return fmt.Errorf("AgentCompletionsMessageUserMessageExpressionName: exactly one variant must be set, got %d", count)
-	}
-	return variantValidator.Struct(v)
-}
 // Expression variant of [`UserMessage`] for dynamic content.
 type AgentCompletionsMessageUserMessageExpression struct {
 	// The message content expression.
@@ -188,8 +110,6 @@ type AgentCompletionsMessageUserMessageExpression struct {
 	// {"$starlark": "input['greeting']"}
 	// ```
 	Content AgentCompletionsMessageUserMessageExpressionContent `json:"content"`
-	// Optional name expression.
-	Name *AgentCompletionsMessageUserMessageExpressionName `json:"name,omitempty"`
 }
 
 func (AgentCompletionsMessageUserMessageExpression) SchemaTitle() string { return "agent.completions.message.UserMessageExpression" }

@@ -20,7 +20,7 @@
     {
       "type": "vector.completion",
       "messages": {
-        "$starlark": "[{'role': 'system', 'content': [{'type': 'text', 'text': 'You are an email classifier.'}]}, {'role': 'user', 'content': [{'type': 'text', 'text': 'Subject: ' + input['subject']}, {'type': 'text', 'text': 'Body: ' + input['body']}]}]"
+        "$starlark": "[{'role': 'user', 'content': [{'type': 'text', 'text': 'You are an email classifier.'}, {'type': 'text', 'text': 'Subject: ' + input['subject']}, {'type': 'text', 'text': 'Body: ' + input['body']}]}]"
       },
       "responses": [
         [

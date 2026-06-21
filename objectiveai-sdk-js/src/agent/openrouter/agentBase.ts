@@ -9,6 +9,7 @@ import { AgentOpenrouterOutputModeSchema } from "./outputMode";
 import { AgentOpenrouterProviderSchema } from "./provider";
 import { AgentOpenrouterReasoningSchema } from "./reasoning";
 import { AgentOpenrouterStopSchema } from "./stop";
+import { AgentOpenrouterSystemPromptSchema } from "./systemPrompt";
 import { AgentOpenrouterUpstreamSchema } from "./upstream";
 import { AgentOpenrouterVerbositySchema } from "./verbosity";
 
@@ -23,7 +24,6 @@ export const AgentOpenrouterAgentBaseSchema = z.object({
   min_p: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Minimum probability threshold for sampling (0.0 to 1.0).").meta({ omitempty: true }).optional(),
   model: z.string().describe("The upstream language model identifier (e.g., `\"gpt-4\"`, `\"claude-3-opus\"`)."),
   output_mode: AgentOpenrouterOutputModeSchema.default("instruction").describe("The output mode for vector completions. Ignored for agent completions."),
-  post_system_prefix_messages: z.array(AgentCompletionsMessageMessageSchema).nullable().describe("Messages inserted after the leading chain of system/developer messages.").meta({ omitempty: true }).optional(),
   prefix_messages: z.array(AgentCompletionsMessageMessageSchema).nullable().describe("Messages prepended to the user's prompt.").meta({ omitempty: true }).optional(),
   presence_penalty: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).").meta({ omitempty: true }).optional(),
   provider: AgentOpenrouterProviderSchema.nullable().describe("Provider routing preferences.").meta({ omitempty: true }).optional(),
@@ -32,6 +32,7 @@ export const AgentOpenrouterAgentBaseSchema = z.object({
   stop: AgentOpenrouterStopSchema.nullable().describe("Stop sequences that halt generation.").meta({ omitempty: true }).optional(),
   suffix_messages: z.array(AgentCompletionsMessageMessageSchema).nullable().describe("Messages appended after the user's prompt.").meta({ omitempty: true }).optional(),
   synthetic_reasoning: z.boolean().nullable().describe("Enable synthetic reasoning for non-reasoning LLMs.\n\n**Vector completions only.** Ignored for agent completions.").meta({ omitempty: true }).optional(),
+  system_prompt: AgentOpenrouterSystemPromptSchema.nullable().describe("The agent's system prompt: a single role+content entry, rendered as the\nleading message of every request.").meta({ omitempty: true }).optional(),
   temperature: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Sampling temperature (0.0 to 2.0). Higher = more random.").meta({ omitempty: true }).optional(),
   top_a: z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38).nullable().describe("Top-a sampling parameter (0.0 to 1.0).").meta({ omitempty: true }).optional(),
   top_k: z.number().int().min(0).max(18446744073709552000).nullable().describe("Top-k sampling: only consider the k most likely tokens.").meta({ omitempty: true }).optional(),

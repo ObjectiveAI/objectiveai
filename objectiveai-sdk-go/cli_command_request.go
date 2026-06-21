@@ -17,6 +17,9 @@ type CliCommandRequest struct {
 	KillAllResponseSchema *CliCommandKillAllResponseSchemaRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
+	Python *CliCommandPythonRequest 
+	PythonRequestSchema *CliCommandPythonRequestSchemaRequest 
+	PythonResponseSchema *CliCommandPythonResponseSchemaRequest 
 	Swarms *CliCommandSwarmsRequest 
 	Tasks *CliCommandTasksRequest 
 	Tools *CliCommandToolsRequest 
@@ -53,6 +56,15 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Plugins != nil {
 		return json.Marshal(v.Plugins)
+	}
+	if v.Python != nil {
+		return json.Marshal(v.Python)
+	}
+	if v.PythonRequestSchema != nil {
+		return json.Marshal(v.PythonRequestSchema)
+	}
+	if v.PythonResponseSchema != nil {
+		return json.Marshal(v.PythonResponseSchema)
 	}
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
@@ -179,6 +191,39 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandPythonRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Python = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandPythonRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.PythonRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandPythonResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.PythonResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandSwarmsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
@@ -269,6 +314,9 @@ func (v CliCommandRequest) Validate() error {
 	if v.KillAllResponseSchema != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
+	if v.Python != nil { count++ }
+	if v.PythonRequestSchema != nil { count++ }
+	if v.PythonResponseSchema != nil { count++ }
 	if v.Swarms != nil { count++ }
 	if v.Tasks != nil { count++ }
 	if v.Tools != nil { count++ }

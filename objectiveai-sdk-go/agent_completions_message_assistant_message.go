@@ -6,8 +6,6 @@ package objectiveai
 type AgentCompletionsMessageAssistantMessage struct {
 	// The message content, if any.
 	Content *AgentCompletionsMessageRichContent `json:"content,omitempty"`
-	// Optional name for the assistant.
-	Name *string `json:"name,omitempty"`
 	// Reasoning content from models that support chain-of-thought.
 	Reasoning *string `json:"reasoning,omitempty"`
 	// Refusal message if the model declined to respond.

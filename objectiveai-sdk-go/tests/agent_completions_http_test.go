@@ -36,10 +36,6 @@ func TestAgentCompletionsHTTP(t *testing.T) {
 			snapshot: "test_with_developer_and_user_messages",
 			params: AgentCompletionsRequestAgentCompletionCreateParams{
 				Messages: []AgentCompletionsMessageMessage{
-					{Developer: &AgentCompletionsMessageMessageDeveloper{
-						AgentCompletionsMessageDeveloperMessage: AgentCompletionsMessageDeveloperMessage{Content: AgentCompletionsMessageSimpleContent{Text: ptr(AgentCompletionsMessageSimpleContentText("You are a helpful assistant."))}},
-						Role: "developer",
-					}},
 					{User: &AgentCompletionsMessageMessageUser{
 						AgentCompletionsMessageUserMessage: AgentCompletionsMessageUserMessage{Content: AgentCompletionsMessageRichContent{Text: ptr(AgentCompletionsMessageRichContentText("What is 2+2?"))}},
 						Role: "user",

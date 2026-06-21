@@ -4,24 +4,8 @@ from __future__ import annotations
 from typing import Literal, Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.agent.completions.message.assistant_message import AssistantMessage
-from objectiveai_sdk.agent.completions.message.developer_message import DeveloperMessage
-from objectiveai_sdk.agent.completions.message.system_message import SystemMessage
 from objectiveai_sdk.agent.completions.message.tool_message import ToolMessage
 from objectiveai_sdk.agent.completions.message.user_message import UserMessage
-
-
-class MessageDeveloper(DeveloperMessage):
-    """A developer message (similar to system, but from the developer)."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Developer'})
-
-    role: Literal['developer']
-
-
-class MessageSystem(SystemMessage):
-    """A system message setting context or instructions."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'System'})
-
-    role: Literal['system']
 
 
 class MessageUser(UserMessage):
@@ -49,5 +33,5 @@ class Message(RootModel):
     """A message in the conversation."""
     model_config = ConfigDict(title='agent.completions.message.Message')
 
-    root: Union[MessageDeveloper, MessageSystem, MessageUser, MessageAssistant, MessageTool]
+    root: Union[MessageUser, MessageAssistant, MessageTool]
 

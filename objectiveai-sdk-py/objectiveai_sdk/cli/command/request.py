@@ -12,6 +12,9 @@ from objectiveai_sdk.cli.command.kill_all.request_schema.request import Request 
 from objectiveai_sdk.cli.command.kill_all.response_schema.request import Request as CliCommandKillAllResponseSchemaRequest
 from objectiveai_sdk.cli.command.mcp.request import Request as CliCommandMcpRequest
 from objectiveai_sdk.cli.command.plugins.request import Request as CliCommandPluginsRequest
+from objectiveai_sdk.cli.command.python.request import Request as CliCommandPythonRequest
+from objectiveai_sdk.cli.command.python.request_schema.request import Request as CliCommandPythonRequestSchemaRequest
+from objectiveai_sdk.cli.command.python.response_schema.request import Request as CliCommandPythonResponseSchemaRequest
 from objectiveai_sdk.cli.command.swarms.request import Request as CliCommandSwarmsRequest
 from objectiveai_sdk.cli.command.tasks.request import Request as CliCommandTasksRequest
 from objectiveai_sdk.cli.command.tools.request import Request as CliCommandToolsRequest
@@ -75,6 +78,24 @@ class RequestPlugins(RootModel):
     root: CliCommandPluginsRequest
 
 
+class RequestPython(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Python'})
+
+    root: CliCommandPythonRequest
+
+
+class RequestPythonRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'PythonRequestSchema'})
+
+    root: CliCommandPythonRequestSchemaRequest
+
+
+class RequestPythonResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'PythonResponseSchema'})
+
+    root: CliCommandPythonResponseSchemaRequest
+
+
 class RequestSwarms(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Swarms'})
 
@@ -120,5 +141,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTasks, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
 

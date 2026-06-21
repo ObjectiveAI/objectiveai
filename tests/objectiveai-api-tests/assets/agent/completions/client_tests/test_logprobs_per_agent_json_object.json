@@ -11,6 +11,7 @@
       "created": 0,
       "model": "mock",
       "upstream_id": "",
+      "reasoning": "j9YIGBmPSRQQNe0F2THINZ6VnHaPSXmA7TKuuggN6e4Oja1tIVtykGu CVW5eKVpGBrkqDl0p1ovbH0qvqVt i8SPKWGA1vOwsvkLU1lD193U5I9yHAnGr0Nxv3sOFTDyz9oAbrfjtoPbWxcwy3rQCvyEaJu7NX0EHxKwE8wfBLM9KR3bjWlcMe08eAB bs99Gt7UJxot1CRvwtmG4c7naIQdWm9NF0Cp92IKGhcH91pMxAmyKKUS r 45Gl4taveqYDMZHlQ75sCgd7YuS7 9IYcHS0ePbvqto5rWfcQ7oqY1OBBukp7gXWRXsfGRGKy7GtX9c1iLLOMPtr1FL75EbNtbwfWf lpR6AxD8te29DYhuQfNnAXX5cMiwG1OL4g7d3JYUewQzNB2b6mtcasHVRzwJVqOsYtyHugBhzt7jnC21 nlS68gwxUiwhWE9shWqnrXL32FGlkPV 2GpyWdgzMlMA7OSehFab CYnaBVBJK",
       "tool_calls": null,
       "content": "{}",
       "refusal": null,
@@ -18,17 +19,31 @@
       "logprobs": {
         "content": [
           {
-            "token": "{}",
+            "token": "{",
             "bytes": [
-              123,
+              123
+            ],
+            "logprob": 0.0,
+            "top_logprobs": [
+              {
+                "token": "{",
+                "bytes": [
+                  123
+                ],
+                "logprob": 0.0
+              }
+            ]
+          },
+          {
+            "token": "}",
+            "bytes": [
               125
             ],
             "logprob": 0.0,
             "top_logprobs": [
               {
-                "token": "{}",
+                "token": "}",
                 "bytes": [
-                  123,
                   125
                 ],
                 "logprob": 0.0
@@ -59,5 +74,5 @@
   },
   "upstream": "mock",
   "error": null,
-  "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6ImRldmVsb3BlciIsImNvbnRlbnQiOiJSZXNwb25kIHdpdGggSlNPTiJ9LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJ7fSJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
+  "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjoiUmVzcG9uZCB3aXRoIEpTT04ifSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50Ijoie30iLCJyZWFzb25pbmciOiJqOVlJR0JtUFNSUVFOZTBGMlRISU5aNlZuSGFQU1htQTdUS3V1Z2dONmU0T2phMXRJVnR5a0d1IENWVzVlS1ZwR0Jya3FEbDBwMW92YkgwcXZxVnQgaThTUEtXR0Exdk93c3ZrTFUxbEQxOTNVNUk5eUhBbkdyME54djNzT0ZURHl6OW9BYnJmanRvUGJXeGN3eTNyUUN2eUVhSnU3TlgwRUh4S3dFOHdmQkxNOUtSM2JqV2xjTWUwOGVBQiBiczk5R3Q3VUp4b3QxQ1J2d3RtRzRjN25hSVFkV205TkYwQ3A5MklLR2hjSDkxcE14QW15S0tVUyByIDQ1R2w0dGF2ZXFZRE1aSGxRNzVzQ2dkN1l1UzcgOUlZY0hTMGVQYnZxdG81cldmY1E3b3FZMU9CQnVrcDdnWFdSWHNmR1JHS3k3R3RYOWMxaUxMT01QdHIxRkw3NUViTnRid2ZXZiBscFI2QXhEOHRlMjlEWWh1UWZObkFYWDVjTWl3RzFPTDRnN2QzSllVZXdRek5CMmI2bXRjYXNIVlJ6d0pWcU9zWXR5SHVnQmh6dDdqbkMyMSBubFM2OGd3eFVpd2hXRTlzaFdxbnJYTDMyRkdsa1BWIDJHcHlXZGd6TWxNQTdPU2VoRmFiIENZbmFCVkJKSyJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
 }

@@ -7,74 +7,6 @@ import (
 	"fmt"
 )
 
-// A developer message (similar to system, but from the developer).
-type AgentCompletionsMessageMessageDeveloper struct {
-	AgentCompletionsMessageDeveloperMessage
-	Role string `json:"role" validate:"oneof=developer"`
-}
-
-func (v *AgentCompletionsMessageMessageDeveloper) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &v.AgentCompletionsMessageDeveloperMessage); err != nil {
-		return err
-	}
-	var local struct {
-		Role string `json:"role"`
-	}
-	if err := json.Unmarshal(data, &local); err != nil {
-		return err
-	}
-	v.Role = local.Role
-	return nil
-}
-
-func (v AgentCompletionsMessageMessageDeveloper) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(v.AgentCompletionsMessageDeveloperMessage)
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]json.RawMessage
-	json.Unmarshal(base, &merged)
-	if raw, err := json.Marshal(v.Role); err == nil {
-		merged["role"] = raw
-	}
-	return json.Marshal(merged)
-}
-func (AgentCompletionsMessageMessageDeveloper) SchemaVariantTitle() string { return "Developer" }
-
-// A system message setting context or instructions.
-type AgentCompletionsMessageMessageSystem struct {
-	AgentCompletionsMessageSystemMessage
-	Role string `json:"role" validate:"oneof=system"`
-}
-
-func (v *AgentCompletionsMessageMessageSystem) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &v.AgentCompletionsMessageSystemMessage); err != nil {
-		return err
-	}
-	var local struct {
-		Role string `json:"role"`
-	}
-	if err := json.Unmarshal(data, &local); err != nil {
-		return err
-	}
-	v.Role = local.Role
-	return nil
-}
-
-func (v AgentCompletionsMessageMessageSystem) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(v.AgentCompletionsMessageSystemMessage)
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]json.RawMessage
-	json.Unmarshal(base, &merged)
-	if raw, err := json.Marshal(v.Role); err == nil {
-		merged["role"] = raw
-	}
-	return json.Marshal(merged)
-}
-func (AgentCompletionsMessageMessageSystem) SchemaVariantTitle() string { return "System" }
-
 // A user message from the end user.
 type AgentCompletionsMessageMessageUser struct {
 	AgentCompletionsMessageUserMessage
@@ -179,10 +111,6 @@ func (AgentCompletionsMessageMessageTool) SchemaVariantTitle() string { return "
 
 // A message in the conversation.
 type AgentCompletionsMessageMessage struct {
-	// A developer message (similar to system, but from the developer).
-	Developer *AgentCompletionsMessageMessageDeveloper `outerObject:"true"`
-	// A system message setting context or instructions.
-	System *AgentCompletionsMessageMessageSystem `outerObject:"true"`
 	// A user message from the end user.
 	User *AgentCompletionsMessageMessageUser `outerObject:"true"`
 	// An assistant message (model's previous response).
@@ -192,12 +120,6 @@ type AgentCompletionsMessageMessage struct {
 }
 
 func (v AgentCompletionsMessageMessage) MarshalJSON() ([]byte, error) {
-	if v.Developer != nil {
-		return json.Marshal(v.Developer)
-	}
-	if v.System != nil {
-		return json.Marshal(v.System)
-	}
 	if v.User != nil {
 		return json.Marshal(v.User)
 	}
@@ -211,28 +133,6 @@ func (v AgentCompletionsMessageMessage) MarshalJSON() ([]byte, error) {
 }
 
 func (v *AgentCompletionsMessageMessage) UnmarshalJSON(data []byte) error {
-	{
-		var try AgentCompletionsMessageMessageDeveloper
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageMessage{}
-			candidate.Developer = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try AgentCompletionsMessageMessageSystem
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageMessage{}
-			candidate.System = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try AgentCompletionsMessageMessageUser
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -271,8 +171,6 @@ func (v *AgentCompletionsMessageMessage) UnmarshalJSON(data []byte) error {
 
 func (v AgentCompletionsMessageMessage) Validate() error {
 	count := 0
-	if v.Developer != nil { count++ }
-	if v.System != nil { count++ }
 	if v.User != nil { count++ }
 	if v.Assistant != nil { count++ }
 	if v.Tool != nil { count++ }

@@ -132,30 +132,42 @@ async fn function_swarm_writes_per_agent_files() {
         "function executor must emit at least one chunk"
     );
 
-    // Both agents called `invoke` once during turn 1 of their
-    // scripted `calls` override. After the script is exhausted, the
-    // vector-completion client sends a continuation; the mock then
-    // falls through to its RNG-driven dispatcher (~75% tool call,
-    // ~25% respond-as-is per `resolve_mock_response`). With test
-    // seed=42 and these specific per-agent continuation prompts, the
-    // mock's RNG deterministically rolls:
-    //   - agent A's continuation → respond-as-is (no extra invoke)
-    //   - agent B's continuation → invoke (+1 extra invoke)
-    // so `A.txt` ends up with one line and `B.txt` with two. The
-    // plugin's `Mcp-Session-Id` assert ensures each call landed on
-    // the matching plugin process; finding the file at all proves the
-    // per-agent argv arrived correctly.
+    // Each agent calls `invoke` once during turn 1 of its scripted
+    // `calls` override (writing one `<foo> - <foo>` line to its own
+    // file), then — since a mock never emits a valid vote key — the
+    // vector-completion client retries and the mock falls through to
+    // its RNG-driven dispatcher (`resolve_mock_response`), which may
+    // emit any number of additional parallel `invoke` calls.
+    //
+    // That extra count is a deterministic-but-incidental function of
+    // the mock's per-turn RNG seed, which derives from
+    // `prompt::id(messages)` — so it shifts whenever message
+    // serialization changes at all (it is the same reason the snapshot
+    // suites move). We therefore assert the ROUTING invariant this test
+    // exists to prove, not a brittle exact line count: each file exists,
+    // is non-empty (the scripted call landed), and EVERY line is
+    // `<foo> - <foo>` — i.e. agent A's calls only ever reached `A.txt`
+    // and agent B's only `B.txt`, proving the per-agent `foo` argv +
+    // `Mcp-Session-Id` routed every call to the matching plugin process.
     let plugin_state_dir = base
         .join("plugins")
         .join("testorg")
         .join("test-mcp-plugin-foo-headers")
         .join("1.0.0");
-    let a_path = plugin_state_dir.join("A.txt");
-    let b_path = plugin_state_dir.join("B.txt");
-    let a = std::fs::read_to_string(&a_path)
-        .unwrap_or_else(|e| panic!("missing {}: {e}", a_path.display()));
-    let b = std::fs::read_to_string(&b_path)
-        .unwrap_or_else(|e| panic!("missing {}: {e}", b_path.display()));
-    assert_eq!(a, "A - A\n");
-    assert_eq!(b, "B - B\nB - B\n");
+    for foo in ["A", "B"] {
+        let path = plugin_state_dir.join(format!("{foo}.txt"));
+        let content = std::fs::read_to_string(&path)
+            .unwrap_or_else(|e| panic!("missing {}: {e}", path.display()));
+        assert!(
+            !content.is_empty(),
+            "{foo}.txt is empty — the scripted invoke never landed"
+        );
+        let expected_line = format!("{foo} - {foo}");
+        for line in content.lines() {
+            assert_eq!(
+                line, expected_line,
+                "{foo}.txt has a misrouted line: {line:?} (whole file: {content:?})"
+            );
+        }
+    }
 }

@@ -6,7 +6,6 @@ import { AgentCompletionsMessageRichContentSchema } from "./richContent";
 
 export const AgentCompletionsMessageAssistantMessageSchema = z.object({
   content: AgentCompletionsMessageRichContentSchema.nullable().describe("The message content, if any.").meta({ omitempty: true }).optional(),
-  name: z.string().nullable().describe("Optional name for the assistant.").meta({ omitempty: true }).optional(),
   reasoning: z.string().nullable().describe("Reasoning content from models that support chain-of-thought.").meta({ omitempty: true }).optional(),
   refusal: z.string().nullable().describe("Refusal message if the model declined to respond.").meta({ omitempty: true }).optional(),
   tool_calls: z.array(AgentCompletionsMessageAssistantToolCallSchema).nullable().describe("Tool calls made by the assistant.").meta({ omitempty: true }).optional(),

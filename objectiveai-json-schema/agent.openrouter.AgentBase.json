@@ -124,21 +124,6 @@
       "$ref": "agent.openrouter.OutputMode",
       "default": "instruction"
     },
-    "post_system_prefix_messages": {
-      "description": "Messages inserted after the leading chain of system/developer messages.",
-      "anyOf": [
-        {
-          "type": "array",
-          "items": {
-            "$ref": "agent.completions.message.Message"
-          }
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "prefix_messages": {
       "description": "Messages prepended to the user's prompt.",
       "anyOf": [
@@ -238,6 +223,18 @@
       "anyOf": [
         {
           "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "system_prompt": {
+      "description": "The agent's system prompt: a single role+content entry, rendered as the\nleading message of every request.",
+      "anyOf": [
+        {
+          "$ref": "agent.openrouter.SystemPrompt"
         },
         {
           "type": "null"
