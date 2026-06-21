@@ -1,9 +1,7 @@
-//! `agents queue` — CLI-side dispatch for the queue subtree. `add`
-//! is gone — `agents message` now handles enqueue under the hood.
-//!
-//! NOTE: scheduled for an upcoming refactor — the internal leaves
-//! still reflect the prior shape and are intentionally left untouched
-//! by the current rename pass.
+//! `agents queue` — CLI-side dispatch for the queue subtree.
+//! `open` (fetch one content piece), `list` (stream pending prompts),
+//! `delete` (drop one row), `deliver` (wake pending descendants).
+//! Enqueue is gone — `agents message` handles it under the hood.
 
 use std::pin::Pin;
 
@@ -15,7 +13,8 @@ use crate::error::Error;
 
 pub mod delete;
 pub mod deliver;
-pub mod read;
+pub mod list;
+pub mod open;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -51,9 +50,29 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = deliver::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::DeliverResponseSchema(value)))
         }
-        Request::Read(req) => {
-            let inner = read::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
+        Request::List(req) => {
+            let inner = list::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value = list::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListRequestSchema(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value = list::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListResponseSchema(value)))
+        }
+        Request::Open(req) => {
+            let value = open::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Open(value)))
+        }
+        Request::OpenRequestSchema(req) => {
+            let value = open::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::OpenRequestSchema(value)))
+        }
+        Request::OpenResponseSchema(req) => {
+            let value = open::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::OpenResponseSchema(value)))
         }
     };
     Ok(stream)

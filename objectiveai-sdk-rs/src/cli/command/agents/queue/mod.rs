@@ -1,26 +1,24 @@
-//! `agents queue` — deferred prompts queue. Three top-level
-//! subcommands:
+//! `agents queue` — deferred prompts queue. Top-level subcommands:
 //!
-//! - `delete` — remove one queued prompt by id.
+//! - `open --id <id>` — fetch one piece of queued content by its
+//!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
+//!   (tagged by `type`).
+//! - `list --pending` — stream the queued prompts pending delivery
+//!   under the resolved targets.
+//! - `delete --id <id>` — remove one queued prompt by id.
 //! - `deliver` — wake every queue-pending strict descendant of the
 //!   caller (try-lock each AIH; spawn the idle ones with empty
 //!   messages so they drain their own queues).
-//! - `read` (nested) — sub-tier whose only leaf today is `id`,
-//!   which fetches one piece of queued content by its
-//!   `prompt_contents.id`. The wire shape mirrors `RichContentPart`
-//!   (tagged by `type`).
 //!
 //! Enqueue is no longer a CLI verb here — use `agents message`
-//! instead; it handles persistence under the hood. Drain is also
-//! gone — the API consumes queue rows directly via the WS reverse-
-//! attach `read_message_queue` / `clear_message_queue` server
-//! requests once a matching hierarchy comes online.
+//! instead; it handles persistence under the hood.
 
 use crate::cli::command::CommandRequest;
 
 pub mod delete;
 pub mod deliver;
-pub mod read;
+pub mod list;
+pub mod open;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -28,21 +26,10 @@ pub enum Command {
     Delete(delete::Command),
     /// Wake every queue-pending descendant agent of the caller.
     Deliver(deliver::Command),
-    /// Read queued content — `read id <id>` for a single content
-    /// piece, `read pending [parent]` for the list of queued
-    /// prompts under a parent.
-    Read(ReadCommand),
-}
-
-/// Intermediate clap level for the `read` sub-tier. Splitting it
-/// into its own wrapper (rather than a fattened `ReadId` variant on
-/// [`Command`]) gives the CLI surface `agents queue read id <num>`
-/// to match the user's invocation style and keeps the door open for
-/// additional `read <…>` leaves later.
-#[derive(clap::Args)]
-pub struct ReadCommand {
-    #[command(subcommand)]
-    pub sub: read::Command,
+    /// List queued prompts pending delivery under the targets.
+    List(list::Command),
+    /// Fetch one piece of queued content by `prompt_contents.id`.
+    Open(open::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -61,8 +48,18 @@ pub enum Request {
     DeliverRequestSchema(deliver::request_schema::Request),
     #[schemars(title = "DeliverResponseSchema")]
     DeliverResponseSchema(deliver::response_schema::Request),
-    #[schemars(title = "Read")]
-    Read(read::Request),
+    #[schemars(title = "List")]
+    List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Open")]
+    Open(open::Request),
+    #[schemars(title = "OpenRequestSchema")]
+    OpenRequestSchema(open::request_schema::Request),
+    #[schemars(title = "OpenResponseSchema")]
+    OpenResponseSchema(open::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -84,8 +81,18 @@ pub enum ResponseItem {
     DeliverRequestSchema(deliver::request_schema::Response),
     #[schemars(title = "DeliverResponseSchema")]
     DeliverResponseSchema(deliver::response_schema::Response),
-    #[schemars(title = "Read")]
-    Read(read::ResponseItem),
+    #[schemars(title = "List")]
+    List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Open")]
+    Open(open::Response),
+    #[schemars(title = "OpenRequestSchema")]
+    OpenRequestSchema(open::request_schema::Response),
+    #[schemars(title = "OpenResponseSchema")]
+    OpenResponseSchema(open::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -98,7 +105,12 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Deliver(v) => v.into_mcp(),
             ResponseItem::DeliverRequestSchema(v) => v.into_mcp(),
             ResponseItem::DeliverResponseSchema(v) => v.into_mcp(),
-            ResponseItem::Read(v) => v.into_mcp(),
+            ResponseItem::List(v) => v.into_mcp(),
+            ResponseItem::ListRequestSchema(v) => v.into_mcp(),
+            ResponseItem::ListResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Open(v) => v.into_mcp(),
+            ResponseItem::OpenRequestSchema(v) => v.into_mcp(),
+            ResponseItem::OpenResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -125,7 +137,24 @@ impl TryFrom<Command> for Request {
                     Request::DeliverResponseSchema(deliver::response_schema::Request::try_from(args)?),
                 ),
             },
-            Command::Read(rc) => Ok(Request::Read(read::Request::try_from(rc.sub)?)),
+            Command::List(cmd) => match cmd.schema {
+                None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
+                Some(list::Schema::RequestSchema(args)) => Ok(
+                    Request::ListRequestSchema(list::request_schema::Request::try_from(args)?),
+                ),
+                Some(list::Schema::ResponseSchema(args)) => Ok(
+                    Request::ListResponseSchema(list::response_schema::Request::try_from(args)?),
+                ),
+            },
+            Command::Open(cmd) => match cmd.schema {
+                None => Ok(Request::Open(open::Request::try_from(cmd.args)?)),
+                Some(open::Schema::RequestSchema(args)) => Ok(
+                    Request::OpenRequestSchema(open::request_schema::Request::try_from(args)?),
+                ),
+                Some(open::Schema::ResponseSchema(args)) => Ok(
+                    Request::OpenResponseSchema(open::response_schema::Request::try_from(args)?),
+                ),
+            },
         }
     }
 }
@@ -139,7 +168,12 @@ impl CommandRequest for Request {
             Request::Deliver(inner) => inner.request_base(),
             Request::DeliverRequestSchema(inner) => inner.request_base(),
             Request::DeliverResponseSchema(inner) => inner.request_base(),
-            Request::Read(inner) => inner.request_base(),
+            Request::List(inner) => inner.request_base(),
+            Request::ListRequestSchema(inner) => inner.request_base(),
+            Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Open(inner) => inner.request_base(),
+            Request::OpenRequestSchema(inner) => inner.request_base(),
+            Request::OpenResponseSchema(inner) => inner.request_base(),
         }
     }
 
@@ -151,7 +185,12 @@ impl CommandRequest for Request {
             Request::Deliver(inner) => inner.request_base_mut(),
             Request::DeliverRequestSchema(inner) => inner.request_base_mut(),
             Request::DeliverResponseSchema(inner) => inner.request_base_mut(),
-            Request::Read(inner) => inner.request_base_mut(),
+            Request::List(inner) => inner.request_base_mut(),
+            Request::ListRequestSchema(inner) => inner.request_base_mut(),
+            Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Open(inner) => inner.request_base_mut(),
+            Request::OpenRequestSchema(inner) => inner.request_base_mut(),
+            Request::OpenResponseSchema(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -207,9 +246,43 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::DeliverResponseSchema(value),
             )))
         }
-        Request::Read(req) => {
-            let inner = read::execute(executor, req, agent_arguments).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Read)))
+        Request::List(req) => {
+            let inner = list::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value =
+                list::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListRequestSchema(value),
+            )))
+        }
+        Request::ListResponseSchema(req) => {
+            let value =
+                list::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListResponseSchema(value),
+            )))
+        }
+        Request::Open(req) => {
+            let value = open::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Open(value),
+            )))
+        }
+        Request::OpenRequestSchema(req) => {
+            let value =
+                open::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::OpenRequestSchema(value),
+            )))
+        }
+        Request::OpenResponseSchema(req) => {
+            let value =
+                open::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::OpenResponseSchema(value),
+            )))
         }
     };
     Ok(stream)
@@ -256,9 +329,33 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 deliver::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
-        Request::Read(req) => {
-            let inner = read::execute_transform(executor, req, transform, agent_arguments).await?;
+        Request::List(req) => {
+            let inner = list::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(inner)
+        }
+        Request::ListRequestSchema(req) => {
+            let value =
+                list::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value =
+                list::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Open(req) => {
+            let value = open::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::OpenRequestSchema(req) => {
+            let value =
+                open::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::OpenResponseSchema(req) => {
+            let value =
+                open::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
         }
     };
     Ok(stream)

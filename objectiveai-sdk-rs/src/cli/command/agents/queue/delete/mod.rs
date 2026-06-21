@@ -64,6 +64,7 @@ pub struct Response {
 pub struct Args {
     /// Row id of the queued prompt to delete (as surfaced by
     /// `agents queue list`).
+    #[arg(long)]
     pub id: i64,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,

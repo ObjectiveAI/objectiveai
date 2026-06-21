@@ -36,8 +36,8 @@ pub enum Command {
     Message(message::Command),
     /// Publish an agent to the local filesystem.
     Publish(publish::Command),
-    /// Deferred-prompt queue — `delete`, `read`. (Add is gone — use
-    /// `agents message` instead.)
+    /// Deferred-prompt queue — `open`, `list`, `delete`, `deliver`.
+    /// (Add is gone — use `agents message` instead.)
     Queue {
         #[command(subcommand)]
         command: queue::Command,

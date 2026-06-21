@@ -13,7 +13,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.id.Request")]
+#[schemars(rename = "cli.command.agents.queue.open.Request")]
 pub struct Request {
     pub path_type: Path,
     pub id: i64,
@@ -22,10 +22,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.id.Path")]
+#[schemars(rename = "cli.command.agents.queue.open.Path")]
 pub enum Path {
-    #[serde(rename = "agents/queue/read/id")]
-    AgentsQueueReadId,
+    #[serde(rename = "agents/queue/open")]
+    AgentsQueueOpen,
 }
 
 impl CommandRequest for Request {
@@ -54,6 +54,7 @@ pub type Response = crate::agent::completions::message::RichContentPart;
 #[derive(clap::Args)]
 pub struct Args {
     /// `prompt_contents.id` of the content row to fetch.
+    #[arg(long)]
     pub id: i64,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
@@ -80,7 +81,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsQueueReadId,
+            path_type: Path::AgentsQueueOpen,
             id: args.id,
             base: args.base.into(),
         })

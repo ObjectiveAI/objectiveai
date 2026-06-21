@@ -1,7 +1,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.id.response_schema.Request")]
+#[schemars(rename = "cli.command.agents.queue.list.response_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,10 +9,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.id.response_schema.Path")]
+#[schemars(rename = "cli.command.agents.queue.list.response_schema.Path")]
 pub enum Path {
-    #[serde(rename = "agents/queue/read/id/response_schema")]
-    AgentsQueueReadIdResponseSchema,
+    #[serde(rename = "agents/queue/list/response_schema")]
+    AgentsQueueListResponseSchema,
 }
 
 #[derive(clap::Args)]
@@ -37,7 +37,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsQueueReadIdResponseSchema,
+            path_type: Path::AgentsQueueListResponseSchema,
             base: args.base.into(),
         })
     }

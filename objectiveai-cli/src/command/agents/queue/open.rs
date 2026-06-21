@@ -2,7 +2,7 @@
 //! typed payload via the per-kind content tables, returning a
 //! `RichContentPart` directly.
 
-use objectiveai_sdk::cli::command::agents::queue::read::id::{Request, Response};
+use objectiveai_sdk::cli::command::agents::queue::open::{Request, Response};
 
 use crate::context::Context;
 use crate::db;
@@ -23,8 +23,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::queue::read::id as sdk;
-    use objectiveai_sdk::cli::command::agents::queue::read::id::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::queue::open as sdk;
+    use objectiveai_sdk::cli::command::agents::queue::open::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -37,8 +37,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::queue::read::id as sdk;
-    use objectiveai_sdk::cli::command::agents::queue::read::id::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::queue::open as sdk;
+    use objectiveai_sdk::cli::command::agents::queue::open::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

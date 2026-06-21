@@ -8,7 +8,7 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
-use objectiveai_sdk::cli::command::agents::queue::read::pending::{
+use objectiveai_sdk::cli::command::agents::queue::list::{
     Request, ResponseItem, Target,
 };
 
@@ -90,8 +90,8 @@ async fn resolve_target(
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::queue::read::pending as sdk;
-    use objectiveai_sdk::cli::command::agents::queue::read::pending::request_schema::{
+    use objectiveai_sdk::cli::command::agents::queue::list as sdk;
+    use objectiveai_sdk::cli::command::agents::queue::list::request_schema::{
         Request, Response,
     };
 
@@ -106,8 +106,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::queue::read::pending as sdk;
-    use objectiveai_sdk::cli::command::agents::queue::read::pending::response_schema::{
+    use objectiveai_sdk::cli::command::agents::queue::list as sdk;
+    use objectiveai_sdk::cli::command::agents::queue::list::response_schema::{
         Request, Response,
     };
 

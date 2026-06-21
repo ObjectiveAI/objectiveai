@@ -8,7 +8,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.pending.Request")]
+#[schemars(rename = "cli.command.agents.queue.list.Request")]
 pub struct Request {
     pub path_type: Path,
     pub targets: Vec<Target>,
@@ -26,10 +26,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.pending.Path")]
+#[schemars(rename = "cli.command.agents.queue.list.Path")]
 pub enum Path {
-    #[serde(rename = "agents/queue/read/pending")]
-    AgentsQueueReadPending,
+    #[serde(rename = "agents/queue/list")]
+    AgentsQueueList,
 }
 
 impl CommandRequest for Request {
@@ -47,7 +47,7 @@ impl CommandRequest for Request {
 // per-part 5-variant kind discriminator. `agents queue read pending`
 // is the pre-execution mirror of logs read all's
 // `ClientNotification` block.
-pub use super::super::super::logs::read::all::{
+pub use super::super::logs::read::all::{
     ClientNotificationPartType as QueuePartType, Target,
 };
 
@@ -59,7 +59,7 @@ pub use super::super::super::logs::read::all::{
 /// (one block = one `message_queue` parent row, sharing one
 /// `enqueued_at`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.queue.read.pending.QueuePart")]
+#[schemars(rename = "cli.command.agents.queue.list.QueuePart")]
 pub struct QueuePart {
     pub id: i64,
     pub r#type: QueuePartType,
@@ -70,7 +70,7 @@ pub struct QueuePart {
 /// target — both flat (no nested `LookupState`).
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.queue.read.pending.ResponseItem")]
+#[schemars(rename = "cli.command.agents.queue.list.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "AgentInstanceHierarchy")]
     AgentInstanceHierarchy {
@@ -111,6 +111,11 @@ pub enum ResponseItem {
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// List pending (undelivered) queued prompts. Required: today
+    /// `list` only supports the pending view, so the flag must be
+    /// given explicitly (leaves room for future list modes).
+    #[arg(long, required = true)]
+    pub pending: bool,
     /// One or more `--target instance=L[,parent=P]` entries.
     /// `parent` defaults to the cli's own
     /// `Config.agent_instance_hierarchy` when omitted on an
@@ -158,7 +163,7 @@ impl TryFrom<Args> for Request {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
-            path_type: Path::AgentsQueueReadPending,
+            path_type: Path::AgentsQueueList,
             targets,
             after_id: args.after_id,
             limit: args.limit,
