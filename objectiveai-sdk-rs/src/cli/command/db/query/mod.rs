@@ -42,17 +42,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "db".to_string(),
-            "query".to_string(),
-            "--query".to_string(),
-            self.query.clone(),
-        ];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -102,10 +91,11 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("query_required").required(true).args(["query"])))]
 pub struct Args {
     /// SQL statement to execute. Single statement only.
     #[arg(long)]
-    pub query: String,
+    pub query: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -132,7 +122,12 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::DbQuery,
-            query: args.query,
+            query: args.query.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "query",
+                    "--query is required".to_string(),
+                )
+            })?,
             base: args.base.into(),
         })
     }

@@ -1159,8 +1159,15 @@ where
         // prefix the drain message simply leads the new turn's content,
         // landing before the continuation items in the upstream request.
         let resuming = request_continuation.is_some() || !cont_items.is_empty();
+        // On resume, SKIP the personality merge (system_prompt / prefix /
+        // suffix are already in the prior turn's accumulated state, so re-
+        // merging would snowball a duplicate prefix every turn) — but KEEP
+        // `params.messages`. That field carries THIS turn's new user content;
+        // dropping it (the old `Vec::new()`) silently lost the user's message
+        // on every resume. `merged_messages` is the only thing that injects
+        // the personality, so omitting it is sufficient to avoid duplication.
         let mut messages = if resuming {
-            Vec::new()
+            params.messages.clone()
         } else {
             agent_base.merged_messages(params.messages.clone())
         };
@@ -1229,23 +1236,14 @@ where
                 } else {
                     RichContent::Parts(all_parts)
                 };
-                // Insert AFTER the leading system/developer chain so
-                // the agent sees its personality prefix first, then
-                // the queued content arrives as one user turn, then
-                // any caller-supplied content follows. On resumption
-                // `messages` is empty so `insert_idx == 0` and the
-                // queued message simply leads the new turn.
-                let insert_idx = messages
-                    .iter()
-                    .position(|m| {
-                        !matches!(m, Message::System(_) | Message::Developer(_))
-                    })
-                    .unwrap_or(messages.len());
+                // The queued content leads as one user turn, then any
+                // caller-supplied content follows. The agent's system prompt
+                // is no longer carried as a conversation message, so the
+                // queued message simply goes at the front.
                 messages.insert(
-                    insert_idx,
+                    0,
                     Message::User(UserMessage {
                         content: rich_content,
-                        name: None,
                     }),
                 );
             }

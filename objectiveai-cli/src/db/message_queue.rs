@@ -10,7 +10,7 @@
 use objectiveai_sdk::agent::completions::message::{
     File, ImageUrl, InputAudio, RichContent, RichContentPart, VideoUrl,
 };
-use objectiveai_sdk::cli::command::agents::queue::read::pending::{
+use objectiveai_sdk::cli::command::agents::queue::list::{
     QueuePart, QueuePartType, ResponseItem,
 };
 use objectiveai_sdk::client_objectiveai_mcp::server_response::{

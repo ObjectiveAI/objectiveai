@@ -23,10 +23,13 @@ pub fn format_prefix(token: &str) -> String {
     format!("<system-reminder-{token}>\nThe user sent a new message while you were working:\n")
 }
 
-/// The matching suffix. Token-independent; mirrors the historic
-/// proxy wrapper shape so agents trained on the old format
-/// recognize the closing tag.
-pub const SUFFIX: &str = "\n\n</system-reminder>";
+/// Format the matching closing tag. The token is embedded in the tag
+/// name too, so the closing tag pairs with [`format_prefix`]'s opening
+/// tag: `</system-reminder-<UUID>>`. The trailing blank line demarcates
+/// the wrapper from the real tool-result content that follows it.
+pub fn format_suffix(token: &str) -> String {
+    format!("\n\n</system-reminder-{token}>\n\n")
+}
 
 /// Scan one text chunk for the prefix pattern; return every
 /// captured token in document order. Typical case is zero or one
@@ -48,8 +51,10 @@ pub fn extract_tokens(text: &str) -> Vec<String> {
         // may reflow whitespace around the tag), but the token keeps
         // the strict UUID v4 shape (lowercase hex, 8-4-4-4-12) so
         // arbitrary tool output can't be mistaken for a token. The
-        // leading `<` (with no `/`) means the `</system-reminder>`
-        // closing tag is never captured.
+        // pattern needs `<` immediately followed by `system-reminder-`,
+        // so the `</system-reminder-{token}>` closing tag (a `/` follows
+        // its `<`) is never captured — even though both tags now carry
+        // the token, only the opening one is extracted.
         regex::Regex::new(
             r"<system-reminder-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})>",
         )
@@ -81,20 +86,27 @@ mod tests {
 
     #[test]
     fn extracts_multiple_tokens() {
+        let t1 = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+        let t2 = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
         let body = format!(
-            "{p1}block one{s}{p2}block two{s}",
-            p1 = format_prefix("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"),
-            p2 = format_prefix("bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"),
-            s = SUFFIX,
+            "{p1}block one{s1}{p2}block two{s2}",
+            p1 = format_prefix(t1),
+            p2 = format_prefix(t2),
+            s1 = format_suffix(t1),
+            s2 = format_suffix(t2),
         );
         let tokens = extract_tokens(&body);
-        assert_eq!(
-            tokens,
-            vec![
-                "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa".to_string(),
-                "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb".to_string(),
-            ]
-        );
+        assert_eq!(tokens, vec![t1.to_string(), t2.to_string()]);
+    }
+
+    #[test]
+    fn closing_tag_token_is_not_extracted() {
+        // A full open+close round-trip yields exactly the opening tag's
+        // token — the token-bearing closing tag must not be captured too.
+        let token = "12345678-1234-1234-1234-1234567890ab";
+        let body =
+            format!("{}body{}", format_prefix(token), format_suffix(token));
+        assert_eq!(extract_tokens(&body), vec![token.to_string()]);
     }
 
     #[test]

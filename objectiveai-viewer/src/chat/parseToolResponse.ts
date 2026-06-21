@@ -14,8 +14,13 @@ export interface ParsedToolResponse {
   extractedUserMessages: AgentCompletionsMessageMessage[];
 }
 
+// The MCP proxy wraps queued user messages in a
+// `<system-reminder-{uuid}>…</system-reminder-{uuid}>` block (both tags carry
+// the confirmation token). The token is optional here so already-stored
+// conversations — which used a token-less `</system-reminder>` closing tag —
+// still match. Group 1 captures the message body.
 const NOTIFICATION_RE =
-  /<system-reminder>\nThe user sent a new message while you were working:\n([\s\S]*?)\n\n<\/system-reminder>/g;
+  /<system-reminder(?:-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?>\nThe user sent a new message while you were working:\n([\s\S]*?)\n\n<\/system-reminder(?:-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?>/g;
 
 interface ExtractionResult {
   cleaned: string;

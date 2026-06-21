@@ -40,18 +40,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["agents".to_string(), "enqueue".to_string()];
-        self.agent.push_flags(&mut argv);
-        self.message.push_flags(&mut argv);
-        if let Some(key) = &self.key {
-            argv.push("--key".to_string());
-            argv.push(key.clone());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

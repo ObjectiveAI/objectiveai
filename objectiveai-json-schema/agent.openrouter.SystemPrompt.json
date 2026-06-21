@@ -1,0 +1,15 @@
+{
+  "title": "agent.openrouter.SystemPrompt",
+  "description": "An agent's system prompt — a role and its text content.",
+  "type": "object",
+  "properties": {
+    "content": {
+      "description": "The prompt's text content.",
+      "type": "string"
+    },
+    "role": {
+      "description": "Whether this is a system or developer message.",
+      "$ref": "agent.openrouter.SystemPromptRole"
+    }
+  }
+}

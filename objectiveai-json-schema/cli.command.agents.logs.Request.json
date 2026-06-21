@@ -1,0 +1,41 @@
+{
+  "title": "cli.command.agents.logs.Request",
+  "anyOf": [
+    {
+      "title": "Open",
+      "$ref": "cli.command.agents.logs.open.Request"
+    },
+    {
+      "title": "OpenRequestSchema",
+      "$ref": "cli.command.agents.logs.open.request_schema.Request"
+    },
+    {
+      "title": "OpenResponseSchema",
+      "$ref": "cli.command.agents.logs.open.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.logs.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.logs.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.logs.list.response_schema.Request"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.agents.logs.subscribe.Request"
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "$ref": "cli.command.agents.logs.subscribe.request_schema.Request"
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "$ref": "cli.command.agents.logs.subscribe.response_schema.Request"
+    }
+  ]
+}

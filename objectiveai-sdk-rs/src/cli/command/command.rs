@@ -2,9 +2,8 @@
 //! `ResponseItem` aggregators and conversions, mirroring the same
 //! pattern every tier `mod.rs` follows for its own subcommands.
 
-#[derive(clap::Parser)]
-#[command(name = "objectiveai")]
-pub enum Command {
+#[derive(clap::Subcommand)]
+pub enum Subcommand {
     Agents {
         #[command(subcommand)]
         command: super::agents::Command,
@@ -12,6 +11,10 @@ pub enum Command {
     Api {
         #[command(subcommand)]
         command: super::api::Command,
+    },
+    Daemon {
+        #[command(subcommand)]
+        command: super::daemon::Command,
     },
     Db {
         #[command(subcommand)]
@@ -32,13 +35,11 @@ pub enum Command {
         #[command(subcommand)]
         command: super::plugins::Command,
     },
+    /// Run a Python snippet and return its output as JSON.
+    Python(super::python::Command),
     Swarms {
         #[command(subcommand)]
         command: super::swarms::Command,
-    },
-    Tasks {
-        #[command(subcommand)]
-        command: super::tasks::Command,
     },
     Tools {
         #[command(subcommand)]
@@ -59,6 +60,8 @@ pub enum Request {
     Agents(super::agents::Request),
     #[schemars(title = "Api")]
     Api(super::api::Request),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::Request),
     #[schemars(title = "Db")]
     Db(super::db::Request),
     #[schemars(title = "Functions")]
@@ -73,10 +76,14 @@ pub enum Request {
     Mcp(super::mcp::Request),
     #[schemars(title = "Plugins")]
     Plugins(super::plugins::Request),
+    #[schemars(title = "Python")]
+    Python(super::python::Request),
+    #[schemars(title = "PythonRequestSchema")]
+    PythonRequestSchema(super::python::request_schema::Request),
+    #[schemars(title = "PythonResponseSchema")]
+    PythonResponseSchema(super::python::response_schema::Request),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::Request),
-    #[schemars(title = "Tasks")]
-    Tasks(super::tasks::Request),
     #[schemars(title = "Tools")]
     Tools(super::tools::Request),
     #[schemars(title = "Update")]
@@ -103,6 +110,8 @@ pub enum ResponseItem {
     Agents(super::agents::ResponseItem),
     #[schemars(title = "Api")]
     Api(super::api::Response),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::ResponseItem),
     #[schemars(title = "Db")]
     Db(super::db::ResponseItem),
     #[schemars(title = "Functions")]
@@ -117,10 +126,14 @@ pub enum ResponseItem {
     Mcp(super::mcp::Response),
     #[schemars(title = "Plugins")]
     Plugins(super::plugins::ResponseItem),
+    #[schemars(title = "Python")]
+    Python(serde_json::Value),
+    #[schemars(title = "PythonRequestSchema")]
+    PythonRequestSchema(super::python::request_schema::Response),
+    #[schemars(title = "PythonResponseSchema")]
+    PythonResponseSchema(super::python::response_schema::Response),
     #[schemars(title = "Swarms")]
     Swarms(super::swarms::ResponseItem),
-    #[schemars(title = "Tasks")]
-    Tasks(super::tasks::ResponseItem),
     #[schemars(title = "Tools")]
     Tools(super::tools::ResponseItem),
     #[schemars(title = "Update")]
@@ -139,6 +152,7 @@ impl super::CommandResponse for ResponseItem {
         match self {
             ResponseItem::Agents(v) => v.into_mcp(),
             ResponseItem::Api(v) => v.into_mcp(),
+            ResponseItem::Daemon(v) => v.into_mcp(),
             ResponseItem::Db(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
             ResponseItem::KillAll(v) => v.into_mcp(),
@@ -146,8 +160,10 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::KillAllResponseSchema(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
+            ResponseItem::Python(v) => v.into_mcp(),
+            ResponseItem::PythonRequestSchema(v) => v.into_mcp(),
+            ResponseItem::PythonResponseSchema(v) => v.into_mcp(),
             ResponseItem::Swarms(v) => v.into_mcp(),
-            ResponseItem::Tasks(v) => v.into_mcp(),
             ResponseItem::Tools(v) => v.into_mcp(),
             ResponseItem::Update(v) => v.into_mcp(),
             ResponseItem::UpdateRequestSchema(v) => v.into_mcp(),
@@ -157,74 +173,85 @@ impl super::CommandResponse for ResponseItem {
     }
 }
 
-impl TryFrom<Command> for Request {
+impl TryFrom<Subcommand> for Request {
     type Error = super::FromArgsError;
-    fn try_from(command: Command) -> Result<Self, Self::Error> {
+    fn try_from(command: Subcommand) -> Result<Self, Self::Error> {
         match command {
-            Command::Agents { command } =>
+            Subcommand::Agents { command } =>
                 Ok(Request::Agents(super::agents::Request::try_from(command)?)),
-            Command::Api { command } =>
+            Subcommand::Api { command } =>
                 Ok(Request::Api(super::api::Request::try_from(command)?)),
-            Command::Db { command } =>
+            Subcommand::Daemon { command } =>
+                Ok(Request::Daemon(super::daemon::Request::try_from(command)?)),
+            Subcommand::Db { command } =>
                 Ok(Request::Db(super::db::Request::try_from(command)?)),
-            Command::Functions { command } =>
+            Subcommand::Functions { command } =>
                 Ok(Request::Functions(super::functions::Request::try_from(command)?)),
-            Command::KillAll(cmd) => match cmd.schema {
+            Subcommand::KillAll(cmd) => match cmd.schema {
                 None => Ok(Request::KillAll(super::kill_all::Request::try_from(cmd.args)?)),
                 Some(super::kill_all::Schema::RequestSchema(args)) =>
                     Ok(Request::KillAllRequestSchema(super::kill_all::request_schema::Request::try_from(args)?)),
                 Some(super::kill_all::Schema::ResponseSchema(args)) =>
                     Ok(Request::KillAllResponseSchema(super::kill_all::response_schema::Request::try_from(args)?)),
             },
-            Command::Mcp { command } =>
+            Subcommand::Mcp { command } =>
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
-            Command::Plugins { command } =>
+            Subcommand::Plugins { command } =>
                 Ok(Request::Plugins(super::plugins::Request::try_from(command)?)),
-            Command::Swarms { command } =>
+            Subcommand::Python(cmd) => match cmd.schema {
+                None => Ok(Request::Python(super::python::Request::try_from(cmd.args)?)),
+                Some(super::python::Schema::RequestSchema(args)) =>
+                    Ok(Request::PythonRequestSchema(super::python::request_schema::Request::try_from(args)?)),
+                Some(super::python::Schema::ResponseSchema(args)) =>
+                    Ok(Request::PythonResponseSchema(super::python::response_schema::Request::try_from(args)?)),
+            },
+            Subcommand::Swarms { command } =>
                 Ok(Request::Swarms(super::swarms::Request::try_from(command)?)),
-            Command::Tasks { command } =>
-                Ok(Request::Tasks(super::tasks::Request::try_from(command)?)),
-            Command::Tools { command } =>
+            Subcommand::Tools { command } =>
                 Ok(Request::Tools(super::tools::Request::try_from(command)?)),
-            Command::Update(cmd) => match cmd.schema {
+            Subcommand::Update(cmd) => match cmd.schema {
                 None => Ok(Request::Update(super::update::Request::try_from(cmd.args)?)),
                 Some(super::update::Schema::RequestSchema(args)) =>
                     Ok(Request::UpdateRequestSchema(super::update::request_schema::Request::try_from(args)?)),
                 Some(super::update::Schema::ResponseSchema(args)) =>
                     Ok(Request::UpdateResponseSchema(super::update::response_schema::Request::try_from(args)?)),
             },
-            Command::Viewer { command } =>
+            Subcommand::Viewer { command } =>
                 Ok(Request::Viewer(super::viewer::Request::try_from(command)?)),
         }
     }
 }
 
-impl super::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Agents(inner) => inner.into_command(),
-            Request::Api(inner) => inner.into_command(),
-            Request::Db(inner) => inner.into_command(),
-            Request::Functions(inner) => inner.into_command(),
-            Request::KillAll(inner) => inner.into_command(),
-            Request::KillAllRequestSchema(inner) => inner.into_command(),
-            Request::KillAllResponseSchema(inner) => inner.into_command(),
-            Request::Mcp(inner) => inner.into_command(),
-            Request::Plugins(inner) => inner.into_command(),
-            Request::Swarms(inner) => inner.into_command(),
-            Request::Tasks(inner) => inner.into_command(),
-            Request::Tools(inner) => inner.into_command(),
-            Request::Update(inner) => inner.into_command(),
-            Request::UpdateRequestSchema(inner) => inner.into_command(),
-            Request::UpdateResponseSchema(inner) => inner.into_command(),
-            Request::Viewer(inner) => inner.into_command(),
+impl TryFrom<Command> for Request {
+    type Error = super::FromArgsError;
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match (command.request, command.command) {
+            // `--request <json>`: deserialize straight into the aggregate
+            // Request (serde-tagged on `path_type`) — the same wire shape the
+            // SDKs already serialize. Mutually exclusive with a subcommand
+            // (clap enforces it), so the `_` arm can't carry a command.
+            (Some(json), _) => {
+                let de = &mut serde_json::Deserializer::from_str(&json);
+                serde_path_to_error::deserialize(de)
+                    .map_err(|e| super::FromArgsError::json("request", e))
+            }
+            (None, Some(subcommand)) => Request::try_from(subcommand),
+            // Unreachable in practice: `arg_required_else_help` turns a bare
+            // invocation into a clap help error before conversion.
+            (None, None) => Err(super::FromArgsError::path_parse(
+                "command",
+                "a command path or --request is required".to_string(),
+            )),
         }
     }
+}
 
+impl super::CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Agents(inner) => inner.request_base(),
             Request::Api(inner) => inner.request_base(),
+            Request::Daemon(inner) => inner.request_base(),
             Request::Db(inner) => inner.request_base(),
             Request::Functions(inner) => inner.request_base(),
             Request::KillAll(inner) => inner.request_base(),
@@ -232,8 +259,10 @@ impl super::CommandRequest for Request {
             Request::KillAllResponseSchema(inner) => inner.request_base(),
             Request::Mcp(inner) => inner.request_base(),
             Request::Plugins(inner) => inner.request_base(),
+            Request::Python(inner) => inner.request_base(),
+            Request::PythonRequestSchema(inner) => inner.request_base(),
+            Request::PythonResponseSchema(inner) => inner.request_base(),
             Request::Swarms(inner) => inner.request_base(),
-            Request::Tasks(inner) => inner.request_base(),
             Request::Tools(inner) => inner.request_base(),
             Request::Update(inner) => inner.request_base(),
             Request::UpdateRequestSchema(inner) => inner.request_base(),
@@ -246,6 +275,7 @@ impl super::CommandRequest for Request {
         match self {
             Request::Agents(inner) => inner.request_base_mut(),
             Request::Api(inner) => inner.request_base_mut(),
+            Request::Daemon(inner) => inner.request_base_mut(),
             Request::Db(inner) => inner.request_base_mut(),
             Request::Functions(inner) => inner.request_base_mut(),
             Request::KillAll(inner) => inner.request_base_mut(),
@@ -253,8 +283,10 @@ impl super::CommandRequest for Request {
             Request::KillAllResponseSchema(inner) => inner.request_base_mut(),
             Request::Mcp(inner) => inner.request_base_mut(),
             Request::Plugins(inner) => inner.request_base_mut(),
+            Request::Python(inner) => inner.request_base_mut(),
+            Request::PythonRequestSchema(inner) => inner.request_base_mut(),
+            Request::PythonResponseSchema(inner) => inner.request_base_mut(),
             Request::Swarms(inner) => inner.request_base_mut(),
-            Request::Tasks(inner) => inner.request_base_mut(),
             Request::Tools(inner) => inner.request_base_mut(),
             Request::Update(inner) => inner.request_base_mut(),
             Request::UpdateRequestSchema(inner) => inner.request_base_mut(),
@@ -285,6 +317,10 @@ pub async fn execute<E: super::CommandExecutor>(
                 let inner = super::api::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
             }
+            Request::Daemon(req) => {
+                let inner = super::daemon::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
+            }
             Request::Db(req) => {
                 let inner = super::db::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Db)))
@@ -313,13 +349,21 @@ pub async fn execute<E: super::CommandExecutor>(
                 let inner = super::plugins::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
             }
+            Request::Python(req) => {
+                let value = super::python::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::Python(value))))
+            }
+            Request::PythonRequestSchema(req) => {
+                let value = super::python::request_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonRequestSchema(value))))
+            }
+            Request::PythonResponseSchema(req) => {
+                let value = super::python::response_schema::execute(executor, req, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(ResponseItem::PythonResponseSchema(value))))
+            }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
-            }
-            Request::Tasks(req) => {
-                let inner = super::tasks::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
             }
             Request::Tools(req) => {
                 let inner = super::tools::execute(executor, req, agent_arguments).await?;
@@ -366,6 +410,10 @@ pub async fn execute_transform<E: super::CommandExecutor>(
                 let inner = super::api::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
+            Request::Daemon(req) => {
+                let inner = super::daemon::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
             Request::Db(req) => {
                 let inner = super::db::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
@@ -394,12 +442,20 @@ pub async fn execute_transform<E: super::CommandExecutor>(
                 let inner = super::plugins::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
+            Request::Python(req) => {
+                let value = super::python::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::PythonRequestSchema(req) => {
+                let value = super::python::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::PythonResponseSchema(req) => {
+                let value = super::python::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(super::StreamOnce::new(Ok(value)))
+            }
             Request::Swarms(req) => {
                 let inner = super::swarms::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
-            Request::Tasks(req) => {
-                let inner = super::tasks::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Tools(req) => {
@@ -449,6 +505,26 @@ pub fn parse_request(args: &[String]) -> Result<Request, ParseError> {
         <Command as clap::Parser>::try_parse_from(argv)?
     };
     Ok(Request::try_from(command)?)
+}
+
+/// Top-level CLI parser: a command path, OR `--request <json>` to execute a
+/// JSON `CliCommandRequest` directly. The two are mutually exclusive
+/// (`args_conflicts_with_subcommands`, enforced natively by clap); a bare
+/// invocation prints help (`arg_required_else_help`). `--request` is a
+/// legitimate but unadvertised programmatic entry point.
+#[derive(clap::Parser)]
+#[command(
+    name = "objectiveai",
+    args_conflicts_with_subcommands = true,
+    arg_required_else_help = true
+)]
+pub struct Command {
+    /// Execute this JSON `CliCommandRequest` instead of a command path.
+    /// Mutually exclusive with any command.
+    #[arg(long, value_name = "JSON")]
+    pub request: Option<String>,
+    #[command(subcommand)]
+    pub command: Option<Subcommand>,
 }
 
 /// Error from [`parse_request`]. Either clap rejected the argv

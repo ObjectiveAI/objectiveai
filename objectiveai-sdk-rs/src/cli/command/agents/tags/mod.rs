@@ -110,17 +110,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Lookup(inner) => inner.into_command(),
-            Request::LookupRequestSchema(inner) => inner.into_command(),
-            Request::LookupResponseSchema(inner) => inner.into_command(),
-            Request::Apply(inner) => inner.into_command(),
-            Request::ApplyRequestSchema(inner) => inner.into_command(),
-            Request::ApplyResponseSchema(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Lookup(inner) => inner.request_base(),

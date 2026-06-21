@@ -7,7 +7,7 @@ use crate::cli::command::CommandRequest;
 /// Reuse the shared `--target` enum (`instance=L[,parent=P]`, `tag=T`,
 /// `me`) from `agents logs read all`. Each target resolves to an AIH
 /// whose direct children this command lists.
-pub use super::super::logs::read::all::Target;
+pub use super::super::logs::list::Target;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.instances.list.Request")]
@@ -26,20 +26,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "agents".to_string(),
-            "instances".to_string(),
-            "list".to_string(),
-        ];
-        for target in &self.targets {
-            argv.push("--target".to_string());
-            argv.push(target.into_arg_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

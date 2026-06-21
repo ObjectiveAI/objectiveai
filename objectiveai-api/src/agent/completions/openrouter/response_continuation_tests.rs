@@ -36,7 +36,6 @@ fn test_messages_only() {
     let messages = vec![
         Message::User(UserMessage {
             content: RichContent::Text("Hello".into()),
-            name: None,
         }),
     ];
     let result = client.response_continuation(
@@ -52,7 +51,6 @@ fn test_messages_only() {
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
-                name: None,
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
@@ -65,17 +63,15 @@ fn test_messages_with_continuation() {
     let messages = vec![
         Message::User(UserMessage {
             content: RichContent::Text("Hello".into()),
-            name: None,
         }),
     ];
     let continuation = vec![
         ContinuationItem::State(AssistantMessage {
             content: Some(RichContent::Text("Hi there".into())),
-            name: None, refusal: None, tool_calls: None, reasoning: None,
+            refusal: None, tool_calls: None, reasoning: None,
         }),
         ContinuationItem::UserMessage(UserMessage {
             content: RichContent::Text("Follow up".into()),
-            name: None,
         }),
     ];
     let result = client.response_continuation(
@@ -91,15 +87,13 @@ fn test_messages_with_continuation() {
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
-                name: None,
             }),
             Message::Assistant(AssistantMessage {
                 content: Some(RichContent::Text("Hi there".into())),
-                name: None, refusal: None, tool_calls: None, reasoning: None,
+                refusal: None, tool_calls: None, reasoning: None,
             }),
             Message::User(UserMessage {
                 content: RichContent::Text("Follow up".into()),
-                name: None,
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
@@ -112,7 +106,6 @@ fn test_request_continuation_messages_come_first() {
     let messages = vec![
         Message::User(UserMessage {
             content: RichContent::Text("Current turn".into()),
-            name: None,
         }),
     ];
     let rc = objectiveai_sdk::agent::openrouter::Continuation {
@@ -121,11 +114,10 @@ fn test_request_continuation_messages_come_first() {
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
-                name: None,
             }),
             Message::Assistant(AssistantMessage {
                 content: Some(RichContent::Text("Previous response".into())),
-                name: None, refusal: None, tool_calls: None, reasoning: None,
+                refusal: None, tool_calls: None, reasoning: None,
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),
@@ -143,15 +135,13 @@ fn test_request_continuation_messages_come_first() {
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
-                name: None,
             }),
             Message::Assistant(AssistantMessage {
                 content: Some(RichContent::Text("Previous response".into())),
-                name: None, refusal: None, tool_calls: None, reasoning: None,
+                refusal: None, tool_calls: None, reasoning: None,
             }),
             Message::User(UserMessage {
                 content: RichContent::Text("Current turn".into()),
-                name: None,
             }),
         ],
         mcp_sessions: indexmap::IndexMap::new(),

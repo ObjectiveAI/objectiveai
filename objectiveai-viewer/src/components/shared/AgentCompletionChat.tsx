@@ -6,7 +6,7 @@ import type {
   AgentCompletionsMessageMessage,
 } from "@objectiveai/sdk";
 import * as Tooltip from "@radix-ui/react-tooltip";
-import { SystemBanner, UserBubble, AssistantBubble, ToolResultBubble } from "./MessageBubble";
+import { UserBubble, AssistantBubble, ToolResultBubble } from "./MessageBubble";
 import { UsageFooter } from "./UsageFooter";
 import { isAssistantMessage, isLastAssistantDone, hasContent } from "../../lib/typeGuards";
 
@@ -68,15 +68,6 @@ export const AgentCompletionChat = memo(function AgentCompletionChat({
 
       <div className={cn("p-4", "flex", "flex-col", "gap-3")}>
         {requestMessages?.map((msg, i) => {
-          if (msg.role === "developer" || msg.role === "system") {
-            return (
-              <SystemBanner
-                key={`req-${i}`}
-                role={msg.role}
-                content={hasContent(msg) ? msg.content : ""}
-              />
-            );
-          }
           if (msg.role === "user") {
             return <UserBubble key={`req-${i}`} content={hasContent(msg) ? msg.content : ""} />;
           }

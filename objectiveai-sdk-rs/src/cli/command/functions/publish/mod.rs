@@ -83,22 +83,6 @@ impl RequestPublishMessage {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "functions".to_string(),
-            "publish".to_string(),
-            "--repository".to_string(),
-            self.repository.clone(),
-        ];
-        self.body.push_flags(&mut argv);
-        self.message.push_flags(&mut argv);
-        if self.overwrite {
-            argv.push("--overwrite".to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -115,12 +99,13 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("repository_required").required(true).args(["repository"])))]
 #[group(id = "body", required = true, multiple = false)]
 #[group(id = "message", required = true, multiple = false)]
 pub struct Args {
     /// Repository name.
     #[arg(long)]
-    pub repository: String,
+    pub repository: Option<String>,
     /// Inline JSON body.
     #[arg(long, group = "body")]
     pub body_inline: Option<String>,
@@ -188,7 +173,12 @@ impl TryFrom<Args> for Request {
             RequestPublishMessage::File(args.message_file.unwrap())
         };
         Ok(Self { path_type: Path::FunctionsPublish,
-            repository: args.repository,
+            repository: args.repository.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "repository",
+                    "--repository is required".to_string(),
+                )
+            })?,
             body,
             message,
             overwrite: args.overwrite,

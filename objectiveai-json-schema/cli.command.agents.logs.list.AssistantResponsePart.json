@@ -1,0 +1,181 @@
+{
+  "title": "cli.command.agents.logs.list.AssistantResponsePart",
+  "description": "One row inside an `AssistantResponse` block, tagged by the\ntable-kind of the underlying `assistant_response_*` row.\n\nThe `ToolCall` variant inlines the call's metadata\n(`function_name` / `tool_call_id` / `tool_call_index`) so callers\ncan dedupe and correlate without a per-row round-trip; its `id`\naddresses the same `assistant_response_tool_calls` row, which\n`agents logs read id <id>` returns as the call's `arguments`\n(text). Every other variant carries only `id` (the\n`logs.messages.\"index\"` to pass to `agents logs read id`) and the\ndelivery timestamp.",
+  "anyOf": [
+    {
+      "title": "ToolCall",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "function_name": {
+          "description": "`objectiveai.assistant_response_tool_calls.function_name`.",
+          "type": "string"
+        },
+        "id": {
+          "description": "`logs.messages.\"index\"` for the tool-call row. Pass to\n`agents logs read id <n>` to read the call's `arguments`\nas text.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this row carries.",
+          "type": "string"
+        },
+        "tool_call_index": {
+          "description": "The tool call's wire index within the assistant message's\n`tool_calls[]`.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_call"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Refusal",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "refusal"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Reasoning",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "reasoning"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Text",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Image",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "image"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Audio",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "audio"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Video",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "video"
+          ]
+        }
+      }
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "id": {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        }
+      }
+    }
+  ]
+}

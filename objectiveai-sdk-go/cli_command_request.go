@@ -10,6 +10,7 @@ import (
 type CliCommandRequest struct {
 	Agents *CliCommandAgentsRequest 
 	API *CliCommandApiRequest `variantTitle:"Api"`
+	Daemon *CliCommandDaemonRequest 
 	Db *CliCommandDbRequest 
 	Functions *CliCommandFunctionsRequest 
 	KillAll *CliCommandKillAllRequest 
@@ -17,8 +18,10 @@ type CliCommandRequest struct {
 	KillAllResponseSchema *CliCommandKillAllResponseSchemaRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
+	Python *CliCommandPythonRequest 
+	PythonRequestSchema *CliCommandPythonRequestSchemaRequest 
+	PythonResponseSchema *CliCommandPythonResponseSchemaRequest 
 	Swarms *CliCommandSwarmsRequest 
-	Tasks *CliCommandTasksRequest 
 	Tools *CliCommandToolsRequest 
 	Update *CliCommandUpdateRequest 
 	UpdateRequestSchema *CliCommandUpdateRequestSchemaRequest 
@@ -32,6 +35,9 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.API != nil {
 		return json.Marshal(v.API)
+	}
+	if v.Daemon != nil {
+		return json.Marshal(v.Daemon)
 	}
 	if v.Db != nil {
 		return json.Marshal(v.Db)
@@ -54,11 +60,17 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	if v.Plugins != nil {
 		return json.Marshal(v.Plugins)
 	}
+	if v.Python != nil {
+		return json.Marshal(v.Python)
+	}
+	if v.PythonRequestSchema != nil {
+		return json.Marshal(v.PythonRequestSchema)
+	}
+	if v.PythonResponseSchema != nil {
+		return json.Marshal(v.PythonResponseSchema)
+	}
 	if v.Swarms != nil {
 		return json.Marshal(v.Swarms)
-	}
-	if v.Tasks != nil {
-		return json.Marshal(v.Tasks)
 	}
 	if v.Tools != nil {
 		return json.Marshal(v.Tools)
@@ -95,6 +107,17 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.API = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandDaemonRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Daemon = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -179,10 +202,10 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandSwarmsRequest
+		var try CliCommandPythonRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.Swarms = &try
+			candidate.Python = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -190,10 +213,32 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandTasksRequest
+		var try CliCommandPythonRequestSchemaRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
-			candidate.Tasks = &try
+			candidate.PythonRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandPythonResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.PythonResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandSwarmsRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Swarms = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -262,6 +307,7 @@ func (v CliCommandRequest) Validate() error {
 	count := 0
 	if v.Agents != nil { count++ }
 	if v.API != nil { count++ }
+	if v.Daemon != nil { count++ }
 	if v.Db != nil { count++ }
 	if v.Functions != nil { count++ }
 	if v.KillAll != nil { count++ }
@@ -269,8 +315,10 @@ func (v CliCommandRequest) Validate() error {
 	if v.KillAllResponseSchema != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
+	if v.Python != nil { count++ }
+	if v.PythonRequestSchema != nil { count++ }
+	if v.PythonResponseSchema != nil { count++ }
 	if v.Swarms != nil { count++ }
-	if v.Tasks != nil { count++ }
 	if v.Tools != nil { count++ }
 	if v.Update != nil { count++ }
 	if v.UpdateRequestSchema != nil { count++ }

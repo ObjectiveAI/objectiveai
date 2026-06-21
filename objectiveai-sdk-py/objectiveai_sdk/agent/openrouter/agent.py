@@ -11,6 +11,7 @@ from objectiveai_sdk.agent.openrouter.output_mode import OutputMode
 from objectiveai_sdk.agent.openrouter.provider import Provider
 from objectiveai_sdk.agent.openrouter.reasoning import Reasoning
 from objectiveai_sdk.agent.openrouter.stop import Stop
+from objectiveai_sdk.agent.openrouter.system_prompt import SystemPrompt
 from objectiveai_sdk.agent.openrouter.upstream import Upstream
 from objectiveai_sdk.agent.openrouter.verbosity import Verbosity
 
@@ -30,7 +31,6 @@ class Agent(BaseModel):
     min_p: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Minimum probability threshold for sampling (0.0 to 1.0).', json_schema_extra={'omitempty': True})
     model: str = Field(..., description='The upstream language model identifier (e.g., `"gpt-4"`, `"claude-3-opus"`).')
     output_mode: OutputMode = Field('instruction', description='The output mode for vector completions. Ignored for agent completions.')
-    post_system_prefix_messages: Optional[list[Message]] = Field(None, description='Messages inserted after the leading chain of system/developer messages.', json_schema_extra={'omitempty': True})
     prefix_messages: Optional[list[Message]] = Field(None, description="Messages prepended to the user's prompt.", json_schema_extra={'omitempty': True})
     presence_penalty: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).', json_schema_extra={'omitempty': True})
     provider: Optional[Provider] = Field(None, description='Provider routing preferences.', json_schema_extra={'omitempty': True})
@@ -39,6 +39,7 @@ class Agent(BaseModel):
     stop: Optional[Stop] = Field(None, description='Stop sequences that halt generation.', json_schema_extra={'omitempty': True})
     suffix_messages: Optional[list[Message]] = Field(None, description="Messages appended after the user's prompt.", json_schema_extra={'omitempty': True})
     synthetic_reasoning: Optional[bool] = Field(None, description='Enable synthetic reasoning for non-reasoning LLMs.\n\n**Vector completions only.** Ignored for agent completions.', json_schema_extra={'omitempty': True})
+    system_prompt: Optional[SystemPrompt] = Field(None, description="The agent's system prompt: a single role+content entry, rendered as the\nleading message of every request.", json_schema_extra={'omitempty': True})
     temperature: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Sampling temperature (0.0 to 2.0). Higher = more random.', json_schema_extra={'omitempty': True})
     top_a: Optional[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(None, description='Top-a sampling parameter (0.0 to 1.0).', json_schema_extra={'omitempty': True})
     top_k: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Top-k sampling: only consider the k most likely tokens.', json_schema_extra={'omitempty': True})

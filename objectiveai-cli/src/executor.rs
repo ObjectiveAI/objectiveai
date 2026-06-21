@@ -107,7 +107,7 @@ impl CommandExecutor for CliCommandExecutor {
         agent_arguments: Option<&AgentArguments>,
     ) -> Result<Self::Stream<T>, Self::Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         // Pull the envelope controls off the request up front, before
@@ -119,7 +119,13 @@ impl CommandExecutor for CliCommandExecutor {
         let timeout = base.timeout_seconds;
         let max_tokens = base.max_tokens;
 
-        let argv = request.into_command();
+        // Round-trip the typed request through the cli's `--request` JSON
+        // entry — request -> argv lowering no longer exists. `parse_request`
+        // deserializes the JSON straight back into the aggregate `Request`.
+        let argv = vec![
+            "--request".to_string(),
+            serde_json::to_string(&request).map_err(Error::InlineJson)?,
+        ];
         let sdk_request = parse_request(&argv).map_err(|e| match e {
             objectiveai_sdk::cli::command::ParseError::Clap(e) => Error::ClapParse(e),
             objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
@@ -195,7 +201,7 @@ impl CommandExecutor for CliCommandExecutor {
         agent_arguments: Option<&AgentArguments>,
     ) -> Result<T, Self::Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream: Self::Stream<T> =

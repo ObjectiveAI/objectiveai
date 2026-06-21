@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.queue.read.pending.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "agents/queue/read/pending/response_schema"
-  ]
-}

@@ -12,15 +12,16 @@
 pub mod agents;
 pub mod api;
 pub mod command;
+pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod kill_all;
 pub mod kill_helpers;
 pub mod mcp;
 pub mod plugins;
+pub mod python;
 pub mod reexec;
 pub mod swarms;
-pub mod tasks;
 pub mod tools;
 pub mod update;
 pub mod viewer;

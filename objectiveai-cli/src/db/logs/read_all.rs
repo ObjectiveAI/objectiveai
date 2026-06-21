@@ -27,7 +27,7 @@
 //! `objectiveai.messages_queue.read_index` to `GREATEST(current,
 //! max_returned)` — never downgraded.
 
-use objectiveai_sdk::cli::command::agents::logs::read::all::{
+use objectiveai_sdk::cli::command::agents::logs::list::{
     AssistantResponsePart, ClientNotificationPart, ClientNotificationPartType, ResponseItem,
     ToolResponsePart, ToolResponsePartType,
 };

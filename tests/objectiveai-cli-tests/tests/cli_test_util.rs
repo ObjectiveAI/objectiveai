@@ -138,7 +138,7 @@ pub async fn collect_stream<E, R, T>(executor: &E, request: R) -> Vec<T>
 where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
-    R: CommandRequest + Send,
+    R: CommandRequest + Send + serde::Serialize,
     T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
 {
     let stream = executor
@@ -159,7 +159,7 @@ pub async fn execute_one<E, R, T>(executor: &E, request: R) -> T
 where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
-    R: CommandRequest + Send,
+    R: CommandRequest + Send + serde::Serialize,
     T: CommandResponse + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
 {
     executor

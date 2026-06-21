@@ -10,6 +10,10 @@
       "$ref": "cli.command.api.Request"
     },
     {
+      "title": "Daemon",
+      "$ref": "cli.command.daemon.Request"
+    },
+    {
       "title": "Db",
       "$ref": "cli.command.db.Request"
     },
@@ -38,12 +42,20 @@
       "$ref": "cli.command.plugins.Request"
     },
     {
-      "title": "Swarms",
-      "$ref": "cli.command.swarms.Request"
+      "title": "Python",
+      "$ref": "cli.command.python.Request"
     },
     {
-      "title": "Tasks",
-      "$ref": "cli.command.tasks.Request"
+      "title": "PythonRequestSchema",
+      "$ref": "cli.command.python.request_schema.Request"
+    },
+    {
+      "title": "PythonResponseSchema",
+      "$ref": "cli.command.python.response_schema.Request"
+    },
+    {
+      "title": "Swarms",
+      "$ref": "cli.command.swarms.Request"
     },
     {
       "title": "Tools",

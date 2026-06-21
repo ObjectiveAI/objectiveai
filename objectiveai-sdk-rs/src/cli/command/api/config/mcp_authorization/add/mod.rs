@@ -21,16 +21,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["api".to_string(), "config".to_string(), "mcp-authorization".to_string(), "add".to_string(), self.key.clone(), self.value.clone()];
-        argv.push(match self.scope {
-            crate::cli::command::SetScope::Global => "--global".to_string(),
-            crate::cli::command::SetScope::State => "--state".to_string(),
-        });
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -43,6 +33,8 @@ impl CommandRequest for Request {
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("key_required").required(true).args(["key"])))]
+#[command(group(clap::ArgGroup::new("value_required").required(true).args(["value"])))]
 pub struct Args {
     /// Mutate the global config layer.
     #[arg(long)]
@@ -53,9 +45,11 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// Entry key (MCP server name).
-    pub key: String,
+    #[arg(long)]
+    pub key: Option<String>,
     /// Entry value (authorization token).
-    pub value: String,
+    #[arg(long)]
+    pub value: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -93,8 +87,18 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             base: args.base.into(), path_type: Path::ApiConfigMcpAuthorizationAdd,
             scope,
-            key: args.key,
-            value: args.value,
+            key: args.key.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "key",
+                    "--key is required".to_string(),
+                )
+            })?,
+            value: args.value.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "value",
+                    "--value is required".to_string(),
+                )
+            })?,
         })
     }
 }

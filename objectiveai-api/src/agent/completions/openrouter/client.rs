@@ -208,7 +208,6 @@ impl Client {
                 let state = match accumulated {
                     Some(acc) => AssistantMessage {
                         content: acc.content,
-                        name: None,
                         refusal: acc.refusal,
                         tool_calls: acc.tool_calls.map(|tcs| {
                             tcs.into_iter().map(Into::into).collect()
@@ -217,7 +216,6 @@ impl Client {
                     },
                     None => AssistantMessage {
                         content: None,
-                        name: None,
                         refusal: None,
                         tool_calls: None,
                         reasoning: None,

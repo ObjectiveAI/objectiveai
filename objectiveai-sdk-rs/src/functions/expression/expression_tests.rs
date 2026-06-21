@@ -2,8 +2,7 @@ use super::*;
 use crate::agent::completions::message::{
     AssistantToolCallExpression, AssistantToolCallFunctionExpression, File,
     ImageUrl, InputAudio, MessageExpression, RichContentExpression,
-    RichContentPartExpression, SimpleContentExpression,
-    SimpleContentPartExpression, VideoUrl,
+    RichContentPartExpression, VideoUrl,
 };
 use crate::functions::expression::{
     ExpressionError, InputValue, InputValueExpression, Params, ParamsOwned,
@@ -232,17 +231,8 @@ fn expression_outputs_input_expression() {
 fn expression_outputs_content_expression_types() {
     let params = empty_params();
 
-    let sc: SimpleContentExpression = starlark_one("\"hello\"", &params);
-    assert!(matches!(sc, SimpleContentExpression::Text(t) if t == "hello"));
-
     let rc: RichContentExpression = starlark_one("\"hello\"", &params);
     assert!(matches!(rc, RichContentExpression::Text(t) if t == "hello"));
-
-    let scp: SimpleContentPartExpression =
-        starlark_one("{\"type\": \"text\", \"text\": \"hi\"}", &params);
-    match scp {
-        SimpleContentPartExpression::Text { .. } => {}
-    }
 
     let rcp: RichContentPartExpression =
         starlark_one("{\"type\": \"text\", \"text\": \"hi\"}", &params);
@@ -288,7 +278,7 @@ fn expression_outputs_message_types() {
     }
 
     let messages: Vec<WithExpression<MessageExpression>> = starlark_one(
-        "[{\"role\": \"user\", \"content\": \"hi\"}, {\"role\": \"system\", \"content\": \"s\"}]",
+        "[{\"role\": \"user\", \"content\": \"hi\"}, {\"role\": \"assistant\", \"content\": \"s\"}]",
         &params,
     );
     assert_eq!(messages.len(), 2);

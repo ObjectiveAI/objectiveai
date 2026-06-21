@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.agents.logs.list.ClientNotificationPartType",
+  "description": "Type tag for one `ClientNotification` part — the table-kind of\nthe underlying `message_queue_*` content row.",
+  "type": "string",
+  "enum": [
+    "text",
+    "image",
+    "audio",
+    "video",
+    "file"
+  ]
+}

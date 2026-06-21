@@ -10,22 +10,20 @@
 //!   "content": "string" | [
 //!     {"type": "text",        "text": "..."},
 //!     {"type": "local_image", "path": "..."}
-//!   ],
-//!   "name": "optional-author-name"
+//!   ]
 //! }
 //! ```
 //!
-//! Codex has no native system role; system / developer messages are
-//! concatenated into the leading text part of `content`. Continuation
-//! `UserMessage` items are appended as additional content parts after
-//! the original user message.
+//! Codex has no native system role and no system-prompt field. Continuation
+//! `UserMessage` items are appended as additional content parts after the
+//! original user message.
 
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 
 use objectiveai_sdk::agent::completions::message::{
-    Message, RichContent, RichContentPart, SimpleContent, SimpleContentPart,
+    Message, RichContent, RichContentPart,
 };
 
 use super::super::ContinuationItem;
@@ -55,19 +53,6 @@ pub struct Prompt {
     /// `--resume` value: latest `thread_id` seen in continuation, or
     /// from `request_continuation`. Empty string means "fresh thread".
     pub thread_id: String,
-}
-
-fn simple_content_to_text(content: &SimpleContent) -> String {
-    match content {
-        SimpleContent::Text(s) => s.clone(),
-        SimpleContent::Parts(parts) => parts
-            .iter()
-            .map(|p| match p {
-                SimpleContentPart::Text { text } => text.as_str(),
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n"),
-    }
 }
 
 fn mime_to_ext(mime: &str) -> &'static str {
@@ -256,34 +241,15 @@ impl Prompt {
         continuation: Option<&[ContinuationItem<super::State>]>,
         request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
     ) -> Result<Self, super::Error> {
-        let mut system_parts: Vec<String> = Vec::new();
         let mut user_msg: Option<&objectiveai_sdk::agent::completions::message::UserMessage> =
             None;
         let mut saw_user = false;
 
         for msg in messages {
             match msg {
-                Message::System(sys) if !saw_user => {
-                    let text = simple_content_to_text(&sys.content);
-                    if !text.is_empty() {
-                        system_parts.push(text);
-                    }
-                }
-                Message::Developer(dev) if !saw_user => {
-                    let text = simple_content_to_text(&dev.content);
-                    if !text.is_empty() {
-                        system_parts.push(text);
-                    }
-                }
                 Message::User(u) if !saw_user => {
                     saw_user = true;
                     user_msg = Some(u);
-                }
-                Message::System(_) | Message::Developer(_) => {
-                    return Err(super::Error::InvalidMessages(
-                        "system/developer messages must precede the user message"
-                            .to_string(),
-                    ));
                 }
                 Message::User(_) => {
                     return Err(super::Error::InvalidMessages(
@@ -306,24 +272,7 @@ impl Prompt {
         let mut content: Vec<RunnerContentPart> = Vec::new();
         let mut image_idx: usize = 0;
 
-        // Codex has no system role — fold system/developer text into a
-        // leading text part.
-        if !system_parts.is_empty() {
-            content.push(RunnerContentPart::Text {
-                text: system_parts.join("\n\n"),
-            });
-        }
-
-        // The user message's `name` field becomes the runner-message
-        // top-level `name`, and is also validated against any
-        // continuation user-message name (as claude does).
-        let mut author_name: Option<String> = None;
         if let Some(u) = user_msg {
-            author_name = u
-                .name
-                .as_deref()
-                .filter(|n| !n.is_empty())
-                .map(str::to_owned);
             push_rich_content(
                 cwd,
                 http_client,
@@ -362,21 +311,6 @@ impl Prompt {
                         // — handled by an earlier turn.
                     }
                     ContinuationItem::UserMessage(u) => {
-                        let cont_name =
-                            u.name.as_deref().filter(|n| !n.is_empty());
-                        if let Some(name) = cont_name {
-                            match &author_name {
-                                Some(expected) if expected != name => {
-                                    return Err(super::Error::InvalidMessages(
-                                        format!(
-                                            "continuation user message name '{name}' does not match expected '{expected}'"
-                                        ),
-                                    ));
-                                }
-                                None => author_name = Some(name.to_string()),
-                                _ => {}
-                            }
-                        }
                         push_rich_content(
                             cwd,
                             http_client,
@@ -412,7 +346,7 @@ impl Prompt {
         Ok(Prompt {
             input: RunnerUserMessage {
                 content,
-                name: author_name,
+                name: None,
             },
             thread_id,
         })

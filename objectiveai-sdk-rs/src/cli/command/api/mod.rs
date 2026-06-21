@@ -95,18 +95,6 @@ impl TryFrom<Command> for Request {
 }
 
 impl crate::cli::command::CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        match self {
-            Request::Config(inner) => inner.into_command(),
-            Request::Kill(inner) => inner.into_command(),
-            Request::KillRequestSchema(inner) => inner.into_command(),
-            Request::KillResponseSchema(inner) => inner.into_command(),
-            Request::Spawn(inner) => inner.into_command(),
-            Request::SpawnRequestSchema(inner) => inner.into_command(),
-            Request::SpawnResponseSchema(inner) => inner.into_command(),
-        }
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::Config(inner) => inner.request_base(),

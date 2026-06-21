@@ -9,7 +9,12 @@ from objectiveai_sdk.cli.command.agents.queue.delete.response_schema.request imp
 from objectiveai_sdk.cli.command.agents.queue.deliver.request import Request as CliCommandAgentsQueueDeliverRequest
 from objectiveai_sdk.cli.command.agents.queue.deliver.request_schema.request import Request as CliCommandAgentsQueueDeliverRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.queue.deliver.response_schema.request import Request as CliCommandAgentsQueueDeliverResponseSchemaRequest
-from objectiveai_sdk.cli.command.agents.queue.read.request import Request as CliCommandAgentsQueueReadRequest
+from objectiveai_sdk.cli.command.agents.queue.list.request import Request as CliCommandAgentsQueueListRequest
+from objectiveai_sdk.cli.command.agents.queue.list.request_schema.request import Request as CliCommandAgentsQueueListRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.queue.list.response_schema.request import Request as CliCommandAgentsQueueListResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.queue.open.request import Request as CliCommandAgentsQueueOpenRequest
+from objectiveai_sdk.cli.command.agents.queue.open.request_schema.request import Request as CliCommandAgentsQueueOpenRequestSchemaRequest
+from objectiveai_sdk.cli.command.agents.queue.open.response_schema.request import Request as CliCommandAgentsQueueOpenResponseSchemaRequest
 
 
 class RequestDelete(RootModel):
@@ -48,14 +53,44 @@ class RequestDeliverResponseSchema(RootModel):
     root: CliCommandAgentsQueueDeliverResponseSchemaRequest
 
 
-class RequestRead(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Read'})
+class RequestList(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'List'})
 
-    root: CliCommandAgentsQueueReadRequest
+    root: CliCommandAgentsQueueListRequest
+
+
+class RequestListRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ListRequestSchema'})
+
+    root: CliCommandAgentsQueueListRequestSchemaRequest
+
+
+class RequestListResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'ListResponseSchema'})
+
+    root: CliCommandAgentsQueueListResponseSchemaRequest
+
+
+class RequestOpen(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Open'})
+
+    root: CliCommandAgentsQueueOpenRequest
+
+
+class RequestOpenRequestSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'OpenRequestSchema'})
+
+    root: CliCommandAgentsQueueOpenRequestSchemaRequest
+
+
+class RequestOpenResponseSchema(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'OpenResponseSchema'})
+
+    root: CliCommandAgentsQueueOpenResponseSchemaRequest
 
 
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.queue.Request')
 
-    root: Union[RequestDelete, RequestDeleteRequestSchema, RequestDeleteResponseSchema, RequestDeliver, RequestDeliverRequestSchema, RequestDeliverResponseSchema, RequestRead]
+    root: Union[RequestDelete, RequestDeleteRequestSchema, RequestDeleteResponseSchema, RequestDeliver, RequestDeliverRequestSchema, RequestDeliverResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestOpen, RequestOpenRequestSchema, RequestOpenResponseSchema]
 

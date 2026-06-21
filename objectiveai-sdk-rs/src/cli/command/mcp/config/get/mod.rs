@@ -19,17 +19,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["mcp".to_string(), "config".to_string(), "get".to_string()];
-        argv.push(match self.scope {
-            crate::cli::command::GetScope::Global => "--global".to_string(),
-            crate::cli::command::GetScope::State => "--state".to_string(),
-            crate::cli::command::GetScope::Final => "--final".to_string(),
-        });
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

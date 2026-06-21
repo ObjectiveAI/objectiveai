@@ -37,6 +37,7 @@ fn minimal_manifest(owner: &str, name: &str, version: &str) -> Manifest {
         viewer_url: None,
         viewer_routes: vec![],
         mcp_servers: Vec::new(),
+        daemon: false,
     }
 }
 
@@ -71,6 +72,7 @@ fn exec_manifest(owner: &str, name: &str, version: &str) -> Manifest {
         viewer_url: None,
         viewer_routes: vec![],
         mcp_servers: Vec::new(),
+        daemon: false,
     }
 }
 

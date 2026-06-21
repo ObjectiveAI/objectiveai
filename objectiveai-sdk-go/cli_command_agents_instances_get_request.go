@@ -19,7 +19,7 @@ type CliCommandAgentsInstancesGetRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
-	Targets []CliCommandAgentsLogsReadAllTarget `json:"targets"`
+	Targets []CliCommandAgentsLogsListTarget `json:"targets"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`
 	// enforced at parse time. `db query` threads it to postgres

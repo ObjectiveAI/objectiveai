@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.tasks.schedule.request_schema.Path",
-  "type": "string",
-  "enum": [
-    "tasks/schedule/request_schema"
-  ]
-}

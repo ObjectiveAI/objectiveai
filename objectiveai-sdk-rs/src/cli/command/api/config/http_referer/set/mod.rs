@@ -20,16 +20,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["api".to_string(), "config".to_string(), "http-referer".to_string(), "set".to_string(), self.value.clone()];
-        argv.push(match self.scope {
-            crate::cli::command::SetScope::Global => "--global".to_string(),
-            crate::cli::command::SetScope::State => "--state".to_string(),
-        });
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -42,6 +32,7 @@ impl CommandRequest for Request {
 pub type Response = crate::cli::command::Ok;
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("value_required").required(true).args(["value"])))]
 pub struct Args {
     /// Mutate the global config layer.
     #[arg(long)]
@@ -52,7 +43,8 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// New value.
-    pub value: String,
+    #[arg(long)]
+    pub value: Option<String>,
 }
 
 #[derive(clap::Args)]
@@ -90,7 +82,12 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             base: args.base.into(), path_type: Path::ApiConfigHttpRefererSet,
             scope,
-            value: args.value,
+            value: args.value.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "value",
+                    "--value is required".to_string(),
+                )
+            })?,
         })
     }
 }

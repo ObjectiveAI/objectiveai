@@ -18,7 +18,7 @@ type CliCommandAgentsRequest struct {
 	List *CliCommandAgentsListRequest 
 	ListRequestSchema *CliCommandAgentsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandAgentsListResponseSchemaRequest 
-	Logs *CliCommandAgentsLogsReadRequest 
+	Logs *CliCommandAgentsLogsRequest 
 	Message *CliCommandAgentsMessageRequest 
 	MessageRequestSchema *CliCommandAgentsMessageRequestSchemaRequest 
 	MessageResponseSchema *CliCommandAgentsMessageResponseSchemaRequest 
@@ -226,7 +226,7 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsLogsReadRequest
+		var try CliCommandAgentsLogsRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
 			candidate.Logs = &try

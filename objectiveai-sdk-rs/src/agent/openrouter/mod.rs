@@ -5,6 +5,7 @@ mod output_mode;
 mod provider;
 mod reasoning;
 mod stop;
+pub mod system_prompt;
 pub mod upstream;
 mod verbosity;
 

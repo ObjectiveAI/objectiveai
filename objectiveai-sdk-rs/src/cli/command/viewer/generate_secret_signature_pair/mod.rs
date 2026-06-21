@@ -17,12 +17,6 @@ pub enum Path {
     ViewerGenerateSecretSignaturePair,
 }
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["viewer".to_string(), "generate-secret-signature-pair".to_string()];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

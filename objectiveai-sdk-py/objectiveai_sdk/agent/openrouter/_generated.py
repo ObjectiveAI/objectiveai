@@ -11,5 +11,7 @@ from .reasoning import Reasoning  # noqa: F401
 from .reasoning_effort import ReasoningEffort, ReasoningEffortHigh, ReasoningEffortLow, ReasoningEffortMedium, ReasoningEffortMinimal, ReasoningEffortNone, ReasoningEffortXhigh  # noqa: F401
 from .reasoning_summary_verbosity import ReasoningSummaryVerbosity, ReasoningSummaryVerbosityAuto, ReasoningSummaryVerbosityConcise, ReasoningSummaryVerbosityDetailed  # noqa: F401
 from .stop import Stop, StopString, StopStrings  # noqa: F401
+from .system_prompt import SystemPrompt  # noqa: F401
+from .system_prompt_role import SystemPromptRole  # noqa: F401
 from .upstream import Upstream  # noqa: F401
 from .verbosity import Verbosity, VerbosityHigh, VerbosityLow, VerbosityMax, VerbosityMedium  # noqa: F401

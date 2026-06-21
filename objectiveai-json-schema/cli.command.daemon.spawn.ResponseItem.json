@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.daemon.spawn.ResponseItem",
+  "description": "One daemon-spawn stream item. The foreground daemon emits this once\nit is ready (readiness handshake) and the launcher emits it once the\ndaemon is confirmed up.",
+  "type": "object",
+  "properties": {
+    "ok": {
+      "type": "boolean"
+    }
+  }
+}

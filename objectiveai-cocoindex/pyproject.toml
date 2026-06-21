@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "objectiveai-cocoindex"
-version = "2.2.4"
+version = "2.2.5"
 description = "ObjectiveAI integration for CocoIndex"
 readme = "README.md"
 license = "MIT"
@@ -27,7 +27,7 @@ classifiers = [
   "Topic :: Software Development :: Libraries :: Python Modules",
 ]
 dependencies = [
-  "objectiveai-sdk==2.2.4",
+  "objectiveai-sdk==2.2.5",
   "cocoindex",
 ]
 

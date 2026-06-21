@@ -20,20 +20,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["plugins".to_string(), "list".to_string()];
-        if let Some(offset) = self.offset {
-            argv.push("--offset".to_string());
-            argv.push(offset.to_string());
-        }
-        if let Some(limit) = self.limit {
-            argv.push("--limit".to_string());
-            argv.push(limit.to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

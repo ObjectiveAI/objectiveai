@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.agents.logs.subscribe.ResponseItem",
+  "description": "Subscribe's wire shape. Either a real parts-grouped block\n(the EXACT same enum `read all` / `read pending` emit) OR\nthe literal string `\"agents_inactive\"`. `#[serde(untagged)]`\nso the `Item` arm passes through transparently — JSONL\nconsumers see either a block JSON object or a bare string.",
+  "anyOf": [
+    {
+      "title": "Item",
+      "$ref": "cli.command.agents.logs.list.ResponseItem"
+    },
+    {
+      "title": "AgentsInactive",
+      "$ref": "cli.command.agents.logs.subscribe.AgentsInactiveTag"
+    }
+  ]
+}

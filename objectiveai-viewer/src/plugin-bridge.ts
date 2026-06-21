@@ -14,9 +14,9 @@
  *     `sub_type` discriminator.
  *
  *   - `cli_command` — one stdout JSONL line from an objectiveai cli
- *     binary the host spawned for an `invokeCliRequest` this iframe
- *     started, terminated by a synthetic `{"type":"end"}` line. No
- *     sub_type.
+ *     binary the host spawned for a `ViewerCommandExecutor` invocation
+ *     this iframe started, terminated by a synthetic `{"type":"end"}`
+ *     line. No sub_type.
  *
  *   - `api_call` — one envelope (begin / chunk / error / end) from a
  *     viewer-mode `ObjectiveAI` client call that this iframe started
@@ -177,8 +177,8 @@ function onIframeMessage(event: MessageEvent): void {
 
   if (msg.kind === "cli-execute") {
     // Typed request: serde JSON of the SDK's `cli::command::Request`.
-    // The Rust side deserializes it and lowers it to argv via
-    // `into_command()`, then streams cli_command events back via the
+    // The Rust side hands the JSON to the cli via its top-level
+    // `--request` flag, then streams cli_command events back via the
     // events bus — fire-and-forget. There is deliberately no raw-argv
     // invocation path.
     if (msg.request === undefined || msg.request === null) return;

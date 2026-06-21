@@ -146,29 +146,15 @@ impl AgentBase {
         let suffix_len = if self.suffix_content.is_some() { 1 } else { 0 };
         let mut merged =
             Vec::with_capacity(prefix_len + messages.len() + suffix_len);
-        let mut prefix_inserted = self.prefix_content.is_none();
-        for msg in messages {
-            if !prefix_inserted {
-                if !matches!(msg, Message::System(_) | Message::Developer(_)) {
-                    merged.push(Message::User(UserMessage {
-                        content: self.prefix_content.clone().unwrap(),
-                        name: None,
-                    }));
-                    prefix_inserted = true;
-                }
-            }
-            merged.push(msg);
-        }
-        if !prefix_inserted {
+        if let Some(prefix_content) = &self.prefix_content {
             merged.push(Message::User(UserMessage {
-                content: self.prefix_content.clone().unwrap(),
-                name: None,
+                content: prefix_content.clone(),
             }));
         }
+        merged.extend(messages);
         if let Some(suffix_content) = &self.suffix_content {
             merged.push(Message::User(UserMessage {
                 content: suffix_content.clone(),
-                name: None,
             }));
         }
         merged

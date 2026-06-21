@@ -44,7 +44,7 @@
     "targets": {
       "type": "array",
       "items": {
-        "$ref": "cli.command.agents.logs.read.all.Target"
+        "$ref": "cli.command.agents.logs.list.Target"
       }
     },
     "timeout_seconds": {

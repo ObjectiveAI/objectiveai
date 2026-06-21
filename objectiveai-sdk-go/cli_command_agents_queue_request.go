@@ -14,7 +14,12 @@ type CliCommandAgentsQueueRequest struct {
 	Deliver *CliCommandAgentsQueueDeliverRequest 
 	DeliverRequestSchema *CliCommandAgentsQueueDeliverRequestSchemaRequest 
 	DeliverResponseSchema *CliCommandAgentsQueueDeliverResponseSchemaRequest 
-	Read *CliCommandAgentsQueueReadRequest 
+	List *CliCommandAgentsQueueListRequest 
+	ListRequestSchema *CliCommandAgentsQueueListRequestSchemaRequest 
+	ListResponseSchema *CliCommandAgentsQueueListResponseSchemaRequest 
+	Open *CliCommandAgentsQueueOpenRequest 
+	OpenRequestSchema *CliCommandAgentsQueueOpenRequestSchemaRequest 
+	OpenResponseSchema *CliCommandAgentsQueueOpenResponseSchemaRequest 
 }
 
 func (v CliCommandAgentsQueueRequest) MarshalJSON() ([]byte, error) {
@@ -36,8 +41,23 @@ func (v CliCommandAgentsQueueRequest) MarshalJSON() ([]byte, error) {
 	if v.DeliverResponseSchema != nil {
 		return json.Marshal(v.DeliverResponseSchema)
 	}
-	if v.Read != nil {
-		return json.Marshal(v.Read)
+	if v.List != nil {
+		return json.Marshal(v.List)
+	}
+	if v.ListRequestSchema != nil {
+		return json.Marshal(v.ListRequestSchema)
+	}
+	if v.ListResponseSchema != nil {
+		return json.Marshal(v.ListResponseSchema)
+	}
+	if v.Open != nil {
+		return json.Marshal(v.Open)
+	}
+	if v.OpenRequestSchema != nil {
+		return json.Marshal(v.OpenRequestSchema)
+	}
+	if v.OpenResponseSchema != nil {
+		return json.Marshal(v.OpenResponseSchema)
 	}
 	return []byte("null"), nil
 }
@@ -110,10 +130,65 @@ func (v *CliCommandAgentsQueueRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsQueueReadRequest
+		var try CliCommandAgentsQueueListRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsQueueRequest{}
-			candidate.Read = &try
+			candidate.List = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueListRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.ListRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueListResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.ListResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueOpenRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.Open = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueOpenRequestSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.OpenRequestSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsQueueOpenResponseSchemaRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsQueueRequest{}
+			candidate.OpenResponseSchema = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -131,7 +206,12 @@ func (v CliCommandAgentsQueueRequest) Validate() error {
 	if v.Deliver != nil { count++ }
 	if v.DeliverRequestSchema != nil { count++ }
 	if v.DeliverResponseSchema != nil { count++ }
-	if v.Read != nil { count++ }
+	if v.List != nil { count++ }
+	if v.ListRequestSchema != nil { count++ }
+	if v.ListResponseSchema != nil { count++ }
+	if v.Open != nil { count++ }
+	if v.OpenRequestSchema != nil { count++ }
+	if v.OpenResponseSchema != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsQueueRequest: exactly one variant must be set, got %d", count)
 	}

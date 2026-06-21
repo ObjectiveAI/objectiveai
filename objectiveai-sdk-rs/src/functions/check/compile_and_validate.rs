@@ -1,6 +1,6 @@
 //! Per-input validation of compiled tasks and output expressions.
 
-use crate::agent::completions::message::{Message, RichContent, SimpleContent};
+use crate::agent::completions::message::{Message, RichContent};
 use crate::functions::expression::{
     Params, ParamsRef, TaskOutput, TaskOutputOwned,
 };
@@ -657,24 +657,6 @@ fn check_compiled_message_content(
     msg: &Message,
 ) -> Result<(), String> {
     match msg {
-        Message::Developer(dev) => {
-            if matches!(dev.content, SimpleContent::Text(_)) {
-                return Err(format!(
-                    "CV37: {}, message [{}] (developer): compiled content must be an array of \
-                     content parts, not a plain string",
-                    location, msg_index
-                ));
-            }
-        }
-        Message::System(sys) => {
-            if matches!(sys.content, SimpleContent::Text(_)) {
-                return Err(format!(
-                    "CV38: {}, message [{}] (system): compiled content must be an array of \
-                     content parts, not a plain string",
-                    location, msg_index
-                ));
-            }
-        }
         Message::User(user) => {
             if matches!(user.content, RichContent::Text(_)) {
                 return Err(format!(

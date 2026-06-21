@@ -13,7 +13,7 @@ from objectiveai_sdk.cli.command.agents.instances.request import Request as CliC
 from objectiveai_sdk.cli.command.agents.list.request import Request as CliCommandAgentsListRequest
 from objectiveai_sdk.cli.command.agents.list.request_schema.request import Request as CliCommandAgentsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.list.response_schema.request import Request as CliCommandAgentsListResponseSchemaRequest
-from objectiveai_sdk.cli.command.agents.logs.read.request import Request as CliCommandAgentsLogsReadRequest
+from objectiveai_sdk.cli.command.agents.logs.request import Request as CliCommandAgentsLogsRequest
 from objectiveai_sdk.cli.command.agents.message.request import Request as CliCommandAgentsMessageRequest
 from objectiveai_sdk.cli.command.agents.message.request_schema.request import Request as CliCommandAgentsMessageRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.message.response_schema.request import Request as CliCommandAgentsMessageResponseSchemaRequest
@@ -93,7 +93,7 @@ class RequestListResponseSchema(RootModel):
 class RequestLogs(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Logs'})
 
-    root: CliCommandAgentsLogsReadRequest
+    root: CliCommandAgentsLogsRequest
 
 
 class RequestMessage(RootModel):

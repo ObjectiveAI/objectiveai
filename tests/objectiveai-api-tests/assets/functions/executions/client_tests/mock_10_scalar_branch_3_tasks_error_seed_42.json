@@ -799,9 +799,9 @@
                   "created": 0,
                   "model": "mock",
                   "upstream_id": "",
-                  "reasoning": "4C3WDOsbmp0MLgEhxvp10ovRQs97hQNVCVTcqR22GkNbtbeBm90PDDSABjDneB2MvRcHb 15VvM0ykNzKZBcc3I159J52lgheik3YOV9yPfrBXwW 1A6Ko8TDPOMgzubTyoMHqwYhHGXJeQN2cYWFpwSJL7MrHKf5hGg9fwissTbWzA5AZv5YZ3LBLZJytclMf1aEvbJS0vjIsUWk kv3sXs8dmgJJRCjUlPPEKSIlLyudcqrottTcU QjkJ9cpoYt NVG2mLzIPGzfVki2mf69CFamf1 qoB6 Yd0TbXvT",
+                  "reasoning": "VcqOZJ0ofB0hyCRKc7UpFivM3Q6LRApvYSenOiGTJR4P3vT69DMyRWJU40nFaKkatFZQEY fCdEbkiKk KEq7TVkkL7c4WrHelcjpKofV lUWkU6TFc68v7g0KY79NXs7LDOrestFCza3Ha9ZOwxD01JgC2nr0Q9J0AxeEmiqKHaohohJP12CHGuEk4DBhlatuA4U7vtUfAvOtNwBxrwaG3R4hOHCQkW75xCoUcKjhrQHKKiCLdrTJgLo5EypQ4vvrDHbkcKqZxnqvo iloTrnFCOBXnlHznUUCENRLmSt7z6hckwZmdAaoH3SSeTIphiN",
                   "tool_calls": null,
-                  "content": "{\"response_key\":\"`O`\"}",
+                  "content": "{\"response_key\":\"`E`\"}",
                   "refusal": null,
                   "finish_reason": "stop",
                   "logprobs": {
@@ -883,46 +883,47 @@
                         ]
                       },
                       {
-                        "token": "`O",
+                        "token": "`",
                         "bytes": [
-                          96,
-                          79
+                          96
                         ],
-                        "logprob": -0.452453766345656,
+                        "logprob": 0.0,
                         "top_logprobs": [
                           {
-                            "token": "`O",
+                            "token": "`",
                             "bytes": [
-                              96,
-                              79
+                              96
                             ],
-                            "logprob": -0.452453766345656
-                          },
-                          {
-                            "token": "`B",
-                            "bytes": [
-                              96,
-                              66
-                            ],
-                            "logprob": -1.010781315227517
+                            "logprob": 0.0
                           }
                         ]
                       },
                       {
-                        "token": "`\"",
+                        "token": "E`\"",
                         "bytes": [
+                          69,
                           96,
                           34
                         ],
-                        "logprob": 2.22044604925e-16,
+                        "logprob": -0.2727783215261006,
                         "top_logprobs": [
                           {
-                            "token": "`\"",
+                            "token": "E`\"",
                             "bytes": [
+                              69,
                               96,
                               34
                             ],
-                            "logprob": 2.22044604925e-16
+                            "logprob": -0.2727783215261006
+                          },
+                          {
+                            "token": "H`\"",
+                            "bytes": [
+                              72,
+                              96,
+                              34
+                            ],
+                            "logprob": -1.432386569764441
                           }
                         ]
                       },
@@ -966,7 +967,7 @@
               },
               "upstream": "mock",
               "error": null,
-              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlN1YmplY3Q6IEdyZWF0IHNlcnZpY2UhQm9keTogR3JlYXQgc2VydmljZSEifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlxuXG5TZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBPYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiTm90IGltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCIsXG4gICAgXCJgQmBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IkltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCJcbn0ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJ7XCJyZXNwb25zZV9rZXlcIjpcImBPYFwifSIsInJlYXNvbmluZyI6IjRDM1dET3NibXAwTUxnRWh4dnAxMG92UlFzOTdoUU5WQ1ZUY3FSMjJHa05idGJlQm05MFBERFNBQmpEbmVCMk12UmNIYiAxNVZ2TTB5a056S1pCY2MzSTE1OUo1MmxnaGVpazNZT1Y5eVBmckJYd1cgMUE2S284VERQT01nenViVHlvTUhxd1loSEdYSmVRTjJjWVdGcHdTSkw3TXJIS2Y1aEdnOWZ3aXNzVGJXekE1QVp2NVlaM0xCTFpKeXRjbE1mMWFFdmJKUzB2aklzVVdrIGt2M3NYczhkbWdKSlJDalVsUFBFS1NJbEx5dWRjcXJvdHRUY1UgUWprSjljcG9ZdCBOVkcybUx6SVBHemZWa2kybWY2OUNGYW1mMSBxb0I2IFlkMFRiWHZUIn1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuU3ViamVjdDogR3JlYXQgc2VydmljZSFCb2R5OiBHcmVhdCBzZXJ2aWNlISJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXG5cblNlbGVjdCB0aGUgcmVzcG9uc2U6XG5cbiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0Ijoie1xuICAgIFwiYEVgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJJbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYEhgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJOb3QgaW1wb3J0YW50In0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIlxufSJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcInJlc3BvbnNlX2tleVwiOlwiYEVgXCJ9IiwicmVhc29uaW5nIjoiVmNxT1pKMG9mQjBoeUNSS2M3VXBGaXZNM1E2TFJBcHZZU2VuT2lHVEpSNFAzdlQ2OURNeVJXSlU0MG5GYUtrYXRGWlFFWSBmQ2RFYmtpS2sgS0VxN1RWa2tMN2M0V3JIZWxjanBLb2ZWIGxVV2tVNlRGYzY4djdnMEtZNzlOWHM3TERPcmVzdEZDemEzSGE5Wk93eEQwMUpnQzJucjBROUowQXhlRW1pcUtIYW9ob2hKUDEyQ0hHdUVrNERCaGxhdHVBNFU3dnRVZkF2T3ROd0J4cndhRzNSNGhPSENRa1c3NXhDb1VjS2poclFIS0tpQ0xkclRKZ0xvNUV5cFE0dnZyREhia2NLcVp4bnF2byBpbG9Ucm5GQ09CWG5sSHpuVVVDRU5STG1TdDd6Nmhja3dabWRBYW9IM1NTZVRJcGhpTiJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
             },
             {
               "index": 2,
@@ -982,9 +983,9 @@
                   "created": 0,
                   "model": "mock",
                   "upstream_id": "",
-                  "reasoning": "DLyvpd43Yycz1NoqyzjdQsArJwT8KKIovuLxfbm6GsMbcRg7XyMr7E5ofvtuKR3pPNowsvhSwdPe8xKuzIFPBUW955quDnnb5npoTi",
+                  "reasoning": "HlwFrpMTkjfl1asoauZFV0SDzo1dn8woLRL6LF yH0vYqq2sxLa1lEDJRxfBgbiQA1UzB0TYFR18SzNd9lunbRWDzW9iAr7TRVTYBoT61j3b1wiMTgt7aqd3lifbIaK8CNSZCgIy2yhVfQ93CaD0p4HiyjXoEDhP2eUNFgiGLZnFjQHrDwnyrSO7nV8PmusxVW8dXTn3rGpfS6TZ8wzceNGnkZ dZudz6T8P 5uqqHR3TodgwCt19HsFMULdzkF6vh60Q4foEBeIwVXgNbIfYkry4CWANyhjf VRqOxtWeU9SJUYbNUaEovp2YNi6pzdW9E1bYm 98dHY30XYNxsQxv6CDhwdXhAURLuU7YAOm3 Lp5ghcJpmy1 JJp3O0VUyOHBgJKQ1E7O7mJ2tTICGchSu6yptOpOBCKxhFPOnU7EGtuRqpkp1oud6CpwCOUPhVMKICVNzZc1b8Pr 6YoThwkRJRcEsYj27gFX34 g4mTLeJYI sdJ2rsT",
                   "tool_calls": null,
-                  "content": "{\"response_key\":\"`J`\"}",
+                  "content": "{\"response_key\":\"`S`\"}",
                   "refusal": null,
                   "finish_reason": "stop",
                   "logprobs": null,
@@ -1009,7 +1010,7 @@
               },
               "upstream": "mock",
               "error": null,
-              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InN5c3RlbSIsImNvbnRlbnQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOlt7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlN1YmplY3Q6IEdyZWF0IHNlcnZpY2UhQm9keTogR3JlYXQgc2VydmljZSEifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlxuXG5TZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBTYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiTm90IGltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCIsXG4gICAgXCJgSmBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IkltcG9ydGFudCJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCJcbn0ifV19LHsicm9sZSI6ImFzc2lzdGFudCIsImNvbnRlbnQiOiJ7XCJyZXNwb25zZV9rZXlcIjpcImBKYFwifSIsInJlYXNvbmluZyI6IkRMeXZwZDQzWXljejFOb3F5empkUXNBckp3VDhLS0lvdnVMeGZibTZHc01iY1JnN1h5TXI3RTVvZnZ0dUtSM3BQTm93c3ZoU3dkUGU4eEt1eklGUEJVVzk1NXF1RG5uYjVucG9UaSJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJZb3UgYXJlIGFuIGVtYWlsIGNsYXNzaWZpZXIuU3ViamVjdDogR3JlYXQgc2VydmljZSFCb2R5OiBHcmVhdCBzZXJ2aWNlISJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXG5cblNlbGVjdCB0aGUgcmVzcG9uc2U6XG5cbiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0Ijoie1xuICAgIFwiYFNgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJJbXBvcnRhbnQifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYEtgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJOb3QgaW1wb3J0YW50In0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIlxufSJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcInJlc3BvbnNlX2tleVwiOlwiYFNgXCJ9IiwicmVhc29uaW5nIjoiSGx3RnJwTVRramZsMWFzb2F1WkZWMFNEem8xZG44d29MUkw2TEYgeUgwdllxcTJzeExhMWxFREpSeGZCZ2JpUUExVXpCMFRZRlIxOFN6TmQ5bHVuYlJXRHpXOWlBcjdUUlZUWUJvVDYxajNiMXdpTVRndDdhcWQzbGlmYklhSzhDTlNaQ2dJeTJ5aFZmUTkzQ2FEMHA0SGl5alhvRURoUDJlVU5GZ2lHTFpuRmpRSHJEd255clNPN25WOFBtdXN4Vlc4ZFhUbjNyR3BmUzZUWjh3emNlTkdua1ogZFp1ZHo2VDhQIDV1cXFIUjNUb2Rnd0N0MTlIc0ZNVUxkemtGNnZoNjBRNGZvRUJlSXdWWGdOYklmWWtyeTRDV0FOeWhqZiBWUnFPeHRXZVU5U0pVWWJOVWFFb3ZwMllOaTZwemRXOUUxYlltIDk4ZEhZMzBYWU54c1F4djZDRGh3ZFhoQVVSTHVVN1lBT20zIExwNWdoY0pwbXkxIEpKcDNPMFZVeU9IQmdKS1ExRTdPN21KMnRUSUNHY2hTdTZ5cHRPcE9CQ0t4aEZQT25VN0VHdHVScXBrcDFvdWQ2Q3B3Q09VUGhWTUtJQ1ZOelpjMWI4UHIgNllvVGh3a1JKUmNFc1lqMjdnRlgzNCBnNG1UTGVKWUkgc2RKMnJzVCJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
             }
           ],
           "votes": [
@@ -1018,14 +1019,14 @@
               "agent_id": "0LWQ3vG2qso9vT0XZEIa1X",
               "swarm_index": 1,
               "flat_swarm_index": 1,
-              "prompt_id": "6xf8EfHmf19ikzYuUS35fR",
+              "prompt_id": "1hManLhAShEFfy9ZCjVF3q",
               "responses_ids": [
                 "4wDQIM1j8s6zO7BMSsVpLb",
                 "2KpxKp0ntAQ3KFxia4Gbc2"
               ],
               "vote": [
-                0.3639345207562076,
-                0.636065479243793
+                0.761261523498307,
+                0.2387384765016927
               ],
               "weight": 0.3
             },
@@ -1034,7 +1035,7 @@
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
               "swarm_index": 2,
               "flat_swarm_index": 2,
-              "prompt_id": "6xf8EfHmf19ikzYuUS35fR",
+              "prompt_id": "1hManLhAShEFfy9ZCjVF3q",
               "responses_ids": [
                 "4wDQIM1j8s6zO7BMSsVpLb",
                 "2KpxKp0ntAQ3KFxia4Gbc2"
@@ -1047,12 +1048,12 @@
             }
           ],
           "scores": [
-            0.761475445283578,
-            0.2385245547164222
+            0.910473071311865,
+            0.0895269286881348
           ],
           "weights": [
-            0.609180356226862,
-            0.1908196437731377
+            0.728378457049492,
+            0.0716215429505078
           ],
           "created": 0,
           "swarm": "0mlRzgAf1WBXhEO1783HYt",
@@ -1070,7 +1071,7 @@
       "tasks_errors": true,
       "reasoning": null,
       "output": {
-        "output": 0.2385245547164222
+        "output": 0.0895269286881348
       },
       "error": null,
       "created": 0,
@@ -1092,7 +1093,7 @@
   "tasks_errors": true,
   "reasoning": null,
   "output": {
-    "output": 0.1392024723103459
+    "output": 0.0895365969675835
   },
   "error": null,
   "created": 0,

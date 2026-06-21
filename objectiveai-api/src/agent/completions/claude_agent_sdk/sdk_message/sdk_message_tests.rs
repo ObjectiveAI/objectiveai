@@ -384,7 +384,7 @@ fn test_user_message_tool_result() {
         is_synthetic: Some(true),
         tool_use_result: Some(serde_json::json!({"output": "file contents"})),
         uuid: Some("uuid-7".to_string()),
-        session_id: "sess-7".to_string(),
+        session_id: Some("sess-7".to_string()),
     });
 
     assert_eq!(
@@ -440,7 +440,7 @@ fn test_user_message_without_tool_result_ignored() {
         is_synthetic: None,
         tool_use_result: None,
         uuid: Some("uuid-8".to_string()),
-        session_id: "sess-8".to_string(),
+        session_id: Some("sess-8".to_string()),
     });
 
     assert_eq!(
@@ -569,5 +569,115 @@ fn test_result_success_byok() {
             continuation: None,
             messages_queued: None,
         }))
+    );
+}
+
+// ──────────────────────────────────────────────────────────────────────
+// Regression: a claude_agent_sdk tool result must survive the runner → API
+// boundary and become a logged tool response.
+//
+// `RUNNER_TOOL_RESULT_LINE` is a faithful, content-censored copy of exactly
+// what the Python runner (`serialize_message`) emits for the FIRST tool
+// result of the real `light-yagami` session (claude-code transcript
+// b79a3c0a…). Two properties of the real shape drove the bug:
+//   * there is NO `session_id` (the SDK `UserMessage` dataclass has none), and
+//   * the `tool_call_id` lives in the `tool_result` content block's
+//     `tool_use_id` — there is NO `parent_tool_use_id` on a direct tool call.
+// Only the tool-output text is redacted; the structure / ids / uuid are real.
+
+const RUNNER_TOOL_RESULT_LINE: &str = r#"{"type":"user","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_01MewgCC9yjnJDnmPeYmktcv","content":[{"type":"text","text":"[redacted tool output A]"},{"type":"text","text":"[redacted tool output B]"}]}]},"uuid":"3b7c9340-8f88-4bc4-a187-4178d83e078a","tool_use_result":[{"type":"text","text":"[redacted tool output A]"},{"type":"text","text":"[redacted tool output B]"}]}"#;
+
+/// The runner's tool-result line — with no `session_id` — must deserialize as
+/// a `UserMessage` (so `dispatch_stdout` no longer silently drops it).
+#[test]
+fn runner_tool_result_deserializes_as_user_message() {
+    let parsed = serde_json::from_str::<SDKMessage>(RUNNER_TOOL_RESULT_LINE)
+        .expect("the runner's session_id-less tool-result line must deserialize");
+    assert!(
+        matches!(parsed, SDKMessage::UserMessage(_)),
+        "expected SDKMessage::UserMessage, got {parsed:?}",
+    );
+}
+
+/// `into_downstream` must surface it as a tool response, taking the
+/// `tool_call_id` from the `tool_result` content block (NOT from
+/// `parent_tool_use_id`, which a direct tool call doesn't carry) and using the
+/// `message_index` it was handed.
+#[test]
+fn runner_tool_result_becomes_tool_chunk_with_id_from_content_block() {
+    use objectiveai_sdk::agent::completions::message::{RichContent, ToolMessage};
+    use objectiveai_sdk::agent::completions::response::ToolResponse;
+    use objectiveai_sdk::agent::completions::response::streaming::MessageChunk;
+
+    let parsed = serde_json::from_str::<SDKMessage>(RUNNER_TOOL_RESULT_LINE).unwrap();
+    let chunk = parsed
+        .into_downstream(
+            "id".to_string(),
+            0,
+            7,
+            false,
+            Decimal::from(1),
+            objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+            String::new(),
+            String::new(),
+            String::new(),
+            None,
+        )
+        .expect("should produce a chunk")
+        .expect("non-error chunk");
+
+    assert_eq!(
+        chunk.messages.len(),
+        1,
+        "expected exactly one tool response, got {:?}",
+        chunk.messages,
+    );
+    match &chunk.messages[0] {
+        MessageChunk::Tool(ToolResponse {
+            index,
+            inner: ToolMessage { content, tool_call_id, .. },
+            ..
+        }) => {
+            assert_eq!(
+                tool_call_id, "toolu_01MewgCC9yjnJDnmPeYmktcv",
+                "tool_call_id must come from the tool_result block's tool_use_id",
+            );
+            assert_eq!(*index, 7, "must use the handed message_index");
+            match content {
+                RichContent::Text(text) => assert!(
+                    text.contains("[redacted tool output A]")
+                        && text.contains("[redacted tool output B]"),
+                    "tool content should carry the result text, got {text:?}",
+                ),
+                other => panic!("expected Text content, got {other:?}"),
+            }
+        }
+        other => panic!("expected a Tool message, got {other:?}"),
+    }
+}
+
+/// A plain user text message (no `tool_result` block) is NOT a tool response —
+/// `into_downstream` returns `None` so ordinary continuation turns aren't
+/// mistaken for tool output.
+#[test]
+fn plain_user_text_message_is_not_a_tool_response() {
+    const PLAIN: &str = r#"{"type":"user","message":{"role":"user","content":"continue please"},"uuid":"00000000-0000-0000-0000-000000000000"}"#;
+    let parsed = serde_json::from_str::<SDKMessage>(PLAIN)
+        .expect("a plain user message must deserialize");
+    let out = parsed.into_downstream(
+        "id".to_string(),
+        0,
+        0,
+        false,
+        Decimal::from(1),
+        objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
+        String::new(),
+        String::new(),
+        String::new(),
+        None,
+    );
+    assert!(
+        out.is_none(),
+        "a plain user text message must not become a tool response, got {out:?}",
     );
 }

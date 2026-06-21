@@ -2763,7 +2763,6 @@ where
                                     objectiveai_sdk::agent::completions::message::RichContent::Parts(
                                         parts,
                                     ),
-                                name: None,
                             },
                         )],
                         provider: request.provider.clone(),

@@ -18,16 +18,6 @@ pub enum Path {
     ViewerKill,
 }
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["viewer".to_string(), "kill".to_string()];
-        argv.push(match self.scope {
-            crate::cli::command::SetScope::Global => "--global".to_string(),
-            crate::cli::command::SetScope::State => "--state".to_string(),
-        });
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

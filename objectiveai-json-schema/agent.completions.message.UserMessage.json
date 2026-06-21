@@ -6,18 +6,6 @@
     "content": {
       "description": "The message content (supports text, images, audio, video, files).",
       "$ref": "agent.completions.message.RichContent"
-    },
-    "name": {
-      "description": "Optional name for the user.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
     }
   }
 }

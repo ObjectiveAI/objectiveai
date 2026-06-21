@@ -159,7 +159,6 @@ async fn execute_streaming(
     } else {
         vec![Message::User(UserMessage {
             content,
-            name: None,
         })]
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);

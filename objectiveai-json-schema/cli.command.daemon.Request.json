@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.daemon.Request",
+  "anyOf": [
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.daemon.spawn.Request"
+    },
+    {
+      "title": "SpawnRequestSchema",
+      "$ref": "cli.command.daemon.spawn.request_schema.Request"
+    },
+    {
+      "title": "SpawnResponseSchema",
+      "$ref": "cli.command.daemon.spawn.response_schema.Request"
+    },
+    {
+      "title": "Kill",
+      "$ref": "cli.command.daemon.kill.Request"
+    },
+    {
+      "title": "KillRequestSchema",
+      "$ref": "cli.command.daemon.kill.request_schema.Request"
+    },
+    {
+      "title": "KillResponseSchema",
+      "$ref": "cli.command.daemon.kill.response_schema.Request"
+    }
+  ]
+}

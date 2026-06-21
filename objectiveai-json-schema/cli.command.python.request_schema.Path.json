@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.python.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "python/request_schema"
+  ]
+}

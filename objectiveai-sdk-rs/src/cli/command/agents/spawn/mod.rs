@@ -35,23 +35,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["agents".to_string(), "spawn".to_string()];
-        // `RequestMessage` lives in `agents::message`
-        // and emits the same five flags spawn accepts.
-        self.message.push_flags(&mut argv);
-        self.agent.push_flags(&mut argv);
-        if let Some(advanced) = &self.dangerous_advanced {
-            argv.push("--dangerous-advanced".to_string());
-            argv.push(
-                serde_json::to_string(advanced)
-                    .expect("RequestDangerousAdvanced serializes"),
-            );
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

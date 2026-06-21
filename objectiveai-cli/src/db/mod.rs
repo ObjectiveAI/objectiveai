@@ -5,7 +5,7 @@
 //! published in the `db` spawn lock (or a remote postgres pointed at
 //! via `db config address`), lazily initialized by
 //! `Context::db_client()`; every tier ([`tags`], [`message_queue`],
-//! [`tasks`], [`logs`]) takes `&Pool` and runs natively async.
+//! [`logs`]) takes `&Pool` and runs natively async.
 
 mod error;
 pub use error::*;
@@ -25,4 +25,3 @@ pub mod tags;
 pub mod time;
 pub mod tag_groups;
 pub mod message_queue;
-pub mod tasks;

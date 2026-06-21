@@ -313,14 +313,13 @@
                   "created": 0,
                   "model": "mock",
                   "upstream_id": "",
-                  "reasoning": "Mx4dqkSGO0dLqEo0nNLcVc3CehS4bMU rzOeKUOyiML2vYi",
                   "tool_calls": [
                     {
                       "type": "function",
-                      "id": "call_mock_5213550728962047278",
+                      "id": "call_mock_6729800204743189726",
                       "function": {
                         "name": "response_key",
-                        "arguments": "{\"response_key\":\"`J`\"}"
+                        "arguments": "{\"response_key\":\"`A`\"}"
                       }
                     }
                   ],
@@ -349,7 +348,7 @@
               },
               "upstream": "mock",
               "error": null,
-              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJTZWxlY3QgdGhlIHJlc3BvbnNlOlxuXG4ifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IntcbiAgICBcImBKYFwiOiBcIiJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiWSJ9LHsidHlwZSI6InRleHQiLCJ0ZXh0IjoiXCIsXG4gICAgXCJgQWBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlgifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiXG59In1dfSx7InJvbGUiOiJhc3Npc3RhbnQiLCJjb250ZW50Ijoie1wicmVzcG9uc2Vfa2V5XCI6XCJgSmBcIn0iLCJyZWFzb25pbmciOiIxVnE4MTdSZlQzNWtJRVlPZGJLRkFPRk1FTiAgbU9obTZBZEp0TVRlM3BvSnJOTnJZNDhwT3NBMnVzN3RPWExFRms3bUpoejRRc015djRSYlRDc1JhaG9TWFdTcld3NmdhSHRndEZlUm1Ub1pTejEgRzVkTUlLbHpwY2VVVnE5d3h6S0V0dXFkWnJ4RE96dGFSdGNBUGxBS1o4dnBDNTNUSmxKbzlYTTliMVZHV1A3ZW9iZ1BJV0NSWkpEaUhrZEw4eGVqUnE3aUVQU3VvaFU4ZnpLb0UwTjAzZnY3QWEybnAwVDNocTR5YlVPR3NjaVJpVXE3VnBFd0xOTGhwWmxPVFJLdjlzUHEwNWMwYzNuT1ZiZ2w5T2NESFJpRkFKYXNiZEZ3RGxlSmJjVEpGSXltQkp3c3h6bmV4SVRKM2Y5UkV4UmpoSmRqZkRJaUZMZUQySVY3ekNSQndqMm43NSAyMUpVczdETCBqTlo2WGQ5ZWhuIn0seyJyb2xlIjoidXNlciIsImNvbnRlbnQiOiJVc2UgdGhlIHJlc3BvbnNlX2tleSB0b29sIHRvIHNlbGVjdCBhIHJlc3BvbnNlLiJ9LHsicm9sZSI6ImFzc2lzdGFudCIsInRvb2xfY2FsbHMiOlt7InR5cGUiOiJmdW5jdGlvbiIsImlkIjoiY2FsbF9tb2NrXzUyMTM1NTA3Mjg5NjIwNDcyNzgiLCJmdW5jdGlvbiI6eyJuYW1lIjoicmVzcG9uc2Vfa2V5IiwiYXJndW1lbnRzIjoie1wicmVzcG9uc2Vfa2V5XCI6XCJgSmBcIn0ifX1dLCJyZWFzb25pbmciOiJNeDRkcWtTR08wZExxRW8wbk5MY1ZjM0NlaFM0Yk1VIHJ6T2VLVU95aU1MMnZZaSJ9XSwibWNwX3Nlc3Npb25zIjp7fX0="
+              "continuation": "eyJ1cHN0cmVhbSI6Im1vY2siLCJhZ2VudF9pbnN0YW5jZV9oaWVyYXJjaHkiOiIiLCJtZXNzYWdlcyI6W3sicm9sZSI6InVzZXIiLCJjb250ZW50IjpbeyJ0eXBlIjoidGV4dCIsInRleHQiOiJRdWVyeTogcmFuayB0aGVzZS4gUmFuayBieSByZWxldmFuY2UuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcblxuU2VsZWN0IHRoZSByZXNwb25zZTpcblxuIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJ7XG4gICAgXCJgSmBcIjogXCIifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlkifSx7InR5cGUiOiJ0ZXh0IiwidGV4dCI6IlwiLFxuICAgIFwiYEFgXCI6IFwiIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJYIn0seyJ0eXBlIjoidGV4dCIsInRleHQiOiJcIlxufSJ9XX0seyJyb2xlIjoiYXNzaXN0YW50IiwiY29udGVudCI6IntcInJlc3BvbnNlX2tleVwiOlwiYEpgXCJ9IiwicmVhc29uaW5nIjoiMVZxODE3UmZUMzVrSUVZT2RiS0ZBT0ZNRU4gIG1PaG02QWRKdE1UZTNwb0pyTk5yWTQ4cE9zQTJ1czd0T1hMRUZrN21KaHo0UXNNeXY0UmJUQ3NSYWhvU1hXU3JXdzZnYUh0Z3RGZVJtVG9aU3oxIEc1ZE1JS2x6cGNlVVZxOXd4ektFdHVxZFpyeERPenRhUnRjQVBsQUtaOHZwQzUzVEpsSm85WE05YjFWR1dQN2VvYmdQSVdDUlpKRGlIa2RMOHhlalJxN2lFUFN1b2hVOGZ6S29FME4wM2Z2N0FhMm5wMFQzaHE0eWJVT0dzY2lSaVVxN1ZwRXdMTkxocFpsT1RSS3Y5c1BxMDVjMGMzbk9WYmdsOU9jREhSaUZBSmFzYmRGd0RsZUpiY1RKRkl5bUJKd3N4em5leElUSjNmOVJFeFJqaEpkamZESWlGTGVEMklWN3pDUkJ3ajJuNzUgMjFKVXM3REwgak5aNlhkOWVobiJ9LHsicm9sZSI6InVzZXIiLCJjb250ZW50IjoiVXNlIHRoZSByZXNwb25zZV9rZXkgdG9vbCB0byBzZWxlY3QgYSByZXNwb25zZS4ifSx7InJvbGUiOiJhc3Npc3RhbnQiLCJ0b29sX2NhbGxzIjpbeyJ0eXBlIjoiZnVuY3Rpb24iLCJpZCI6ImNhbGxfbW9ja182NzI5ODAwMjA0NzQzMTg5NzI2IiwiZnVuY3Rpb24iOnsibmFtZSI6InJlc3BvbnNlX2tleSIsImFyZ3VtZW50cyI6IntcInJlc3BvbnNlX2tleVwiOlwiYEFgXCJ9In19XX1dLCJtY3Bfc2Vzc2lvbnMiOnt9fQ=="
             },
             {
               "index": 3,
@@ -407,8 +406,8 @@
                 "31D48sjBgVKX8jtSEmQOQO"
               ],
               "vote": [
-                0.0,
-                1.0
+                1.0,
+                0.0
               ],
               "weight": 0.3
             },
@@ -430,12 +429,12 @@
             }
           ],
           "scores": [
-            0.0,
-            1.0
+            0.375,
+            0.625
           ],
           "weights": [
-            0.0,
-            0.8
+            0.3,
+            0.5
           ],
           "created": 0,
           "swarm": "5B9bysAEqHrhrs7IUCe6Kp",
@@ -636,8 +635,8 @@
       "reasoning": null,
       "output": {
         "output": [
-          0.5,
-          0.5
+          0.6875,
+          0.3125
         ]
       },
       "error": null,
@@ -661,8 +660,8 @@
   "reasoning": null,
   "output": {
     "output": [
-      0.25,
-      0.75
+      0.34375,
+      0.65625
     ]
   },
   "error": null,

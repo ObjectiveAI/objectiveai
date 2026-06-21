@@ -95,31 +95,6 @@ pub enum LookupState {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["agents".to_string(), "tags".to_string(), "lookup".to_string()];
-        match self {
-            Request::AgentInstanceHierarchy {
-                parent_agent_instance_hierarchy,
-                agent_instance,
-                base,
-                ..
-            } => {
-                argv.push(agent_instance.clone());
-                if let Some(parent) = parent_agent_instance_hierarchy {
-                    argv.push("--parent-agent-instance-hierarchy".to_string());
-                    argv.push(parent.clone());
-                }
-                base.push_flags(&mut argv);
-            }
-            Request::Tag { tag, base, .. } => {
-                argv.push("--tag".to_string());
-                argv.push(tag.clone());
-                base.push_flags(&mut argv);
-            }
-        }
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
             Request::AgentInstanceHierarchy { base, .. } => base,
@@ -143,6 +118,7 @@ pub struct Args {
     /// Leaf id of the target agent. Combined with `--parent` (or
     /// the cli's own `Config.agent_instance_hierarchy` when omitted)
     /// to form the full lineage. Mutually exclusive with `--tag`.
+    #[arg(long)]
     pub agent_instance: Option<String>,
     /// Optional lineage prefix to prepend to `agent_instance`.
     /// When omitted, the cli substitutes its own

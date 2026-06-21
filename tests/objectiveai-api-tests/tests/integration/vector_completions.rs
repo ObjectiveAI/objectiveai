@@ -150,14 +150,12 @@ async fn post_expect_error_msg(params: VectorCompletionCreateParams) -> String {
 fn user_text(text: &str) -> Vec<Message> {
     vec![Message::User(UserMessage {
         content: RichContent::Text(text.to_string()),
-        name: None,
     })]
 }
 
 fn user_parts(parts: Vec<RichContentPart>) -> Vec<Message> {
     vec![Message::User(UserMessage {
         content: RichContent::Parts(parts),
-        name: None,
     })]
 }
 

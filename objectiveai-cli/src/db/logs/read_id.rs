@@ -1,6 +1,6 @@
 //! `agents logs read id` backend: take a `objectiveai.messages."index"`
 //! BIGSERIAL, dispatch to the per-tier target table, and build the
-//! SDK `agents::logs::read::id::Response` variant with a typed
+//! SDK `agents::logs::open::Response` variant with a typed
 //! payload.
 //!
 //! Lookup is two round-trips: one to resolve the message row
@@ -11,7 +11,7 @@
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
-use objectiveai_sdk::cli::command::agents::logs::read::id::Response;
+use objectiveai_sdk::cli::command::agents::logs::open::Response;
 use objectiveai_sdk::functions::executions::request::FunctionExecutionCreateParams;
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use sqlx::Row as _;

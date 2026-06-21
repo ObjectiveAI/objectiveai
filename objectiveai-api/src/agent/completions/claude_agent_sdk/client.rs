@@ -231,7 +231,13 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             validate_response_format(&agent.id, &params.response_format)?;
 
             // Build prompt from messages + continuation (handles continuation validation).
-            let prompt = Prompt::new(&messages, continuation.as_deref(), request_continuation.as_ref())?;
+            // The system prompt is sourced directly from the agent.
+            let prompt = Prompt::new(
+                agent.base.system_prompt.as_deref(),
+                &messages,
+                continuation.as_deref(),
+                request_continuation.as_ref(),
+            )?;
 
             // When tools are disabled for this iteration, give the SDK
             // an empty MCP server map so it never tries to connect.
@@ -263,7 +269,7 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             // Build the params object — borrows from locals in this
             // async block, valid for the duration of the await on
             // create_stream.
-            let session_id = prompt.message.session_id.as_str();
+            let session_id = prompt.message.session_id.as_deref().unwrap_or("");
             let resume_arg: Option<&str> =
                 if session_id.is_empty() { None } else { Some(session_id) };
             let user_agent_arg: Option<&str> =
@@ -296,7 +302,12 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
                 .map_err(|e| super::Error::Spawn(e.to_string()))?;
 
             let id_for_chunks = id.clone();
-            let agent_instance_hierarchy = agent.id.clone();
+            // NOTE: `agent_instance_hierarchy` is the real per-instance AIH
+            // passed in by the caller (e.g. `cli/<full_id>-<response_id>`).
+            // Do NOT overwrite it with `agent.id` / the full id here — the
+            // chunks (and therefore every downstream consumer: log keying,
+            // CLI identity capture, instance locks, continuation keying)
+            // depend on it being the true AIH, not the agent's content id.
             // Clones for the outer error-mapping closure, taken before
             // `internal_stream` moves the originals into its generator.
             let agent_instance_hierarchy_for_stream = agent_instance_hierarchy.clone();

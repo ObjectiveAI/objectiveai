@@ -44,7 +44,7 @@ use objectiveai_sdk::cli::command::CommandExecutor;
 use objectiveai_sdk::cli::command::agents::instances::list::{
     Path as InstancesPath, Request as InstancesRequest, ResponseItem as InstancesItem,
 };
-use objectiveai_sdk::cli::command::agents::logs::read::all::{
+use objectiveai_sdk::cli::command::agents::logs::list::{
     AssistantResponsePart, Path as ReadAllPath, Request as ReadAllRequest,
     ResponseItem as ReadAllItem, Target as ReadAllTarget,
 };
@@ -245,7 +245,8 @@ async fn spawn_and_count_tool_io(
     let blocks: Vec<ReadAllItem> = cli_test_util::collect_stream(
         executor,
         ReadAllRequest {
-            path_type: ReadAllPath::AgentsLogsReadAll,
+            path_type: ReadAllPath::AgentsLogsList,
+            pending: false,
             targets: vec![ReadAllTarget::Direct {
                 parent_agent_instance_hierarchy: parent,
                 agent_instance: instance,

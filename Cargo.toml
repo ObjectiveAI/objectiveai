@@ -20,6 +20,7 @@ members = [
     "tests/plugins/test-mcp-plugin",
     "tests/plugins/test-mcp-plugin-failing",
     "tests/plugins/test-mcp-plugin-foo-headers",
+    "tests/plugins/daemon-echo-plugin",
     "tests/tools/count-tool",
     "tests/tools/hello-tool",
     "tests/tools/error-tool",

@@ -7,72 +7,6 @@ import (
 	"fmt"
 )
 
-type AgentCompletionsMessageMessageExpressionDeveloper struct {
-	AgentCompletionsMessageDeveloperMessageExpression
-	Role string `json:"role" validate:"oneof=developer"`
-}
-
-func (v *AgentCompletionsMessageMessageExpressionDeveloper) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &v.AgentCompletionsMessageDeveloperMessageExpression); err != nil {
-		return err
-	}
-	var local struct {
-		Role string `json:"role"`
-	}
-	if err := json.Unmarshal(data, &local); err != nil {
-		return err
-	}
-	v.Role = local.Role
-	return nil
-}
-
-func (v AgentCompletionsMessageMessageExpressionDeveloper) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(v.AgentCompletionsMessageDeveloperMessageExpression)
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]json.RawMessage
-	json.Unmarshal(base, &merged)
-	if raw, err := json.Marshal(v.Role); err == nil {
-		merged["role"] = raw
-	}
-	return json.Marshal(merged)
-}
-func (AgentCompletionsMessageMessageExpressionDeveloper) SchemaVariantTitle() string { return "Developer" }
-
-type AgentCompletionsMessageMessageExpressionSystem struct {
-	AgentCompletionsMessageSystemMessageExpression
-	Role string `json:"role" validate:"oneof=system"`
-}
-
-func (v *AgentCompletionsMessageMessageExpressionSystem) UnmarshalJSON(data []byte) error {
-	if err := json.Unmarshal(data, &v.AgentCompletionsMessageSystemMessageExpression); err != nil {
-		return err
-	}
-	var local struct {
-		Role string `json:"role"`
-	}
-	if err := json.Unmarshal(data, &local); err != nil {
-		return err
-	}
-	v.Role = local.Role
-	return nil
-}
-
-func (v AgentCompletionsMessageMessageExpressionSystem) MarshalJSON() ([]byte, error) {
-	base, err := json.Marshal(v.AgentCompletionsMessageSystemMessageExpression)
-	if err != nil {
-		return nil, err
-	}
-	var merged map[string]json.RawMessage
-	json.Unmarshal(base, &merged)
-	if raw, err := json.Marshal(v.Role); err == nil {
-		merged["role"] = raw
-	}
-	return json.Marshal(merged)
-}
-func (AgentCompletionsMessageMessageExpressionSystem) SchemaVariantTitle() string { return "System" }
-
 type AgentCompletionsMessageMessageExpressionUser struct {
 	AgentCompletionsMessageUserMessageExpression
 	Role string `json:"role" validate:"oneof=user"`
@@ -178,20 +112,12 @@ func (AgentCompletionsMessageMessageExpressionTool) SchemaVariantTitle() string 
 // where message content can be computed from the function input at runtime.
 // Supports both JMESPath and Starlark expressions.
 type AgentCompletionsMessageMessageExpression struct {
-	Developer *AgentCompletionsMessageMessageExpressionDeveloper `outerObject:"true"`
-	System *AgentCompletionsMessageMessageExpressionSystem `outerObject:"true"`
 	User *AgentCompletionsMessageMessageExpressionUser `outerObject:"true"`
 	Assistant *AgentCompletionsMessageMessageExpressionAssistant `outerObject:"true"`
 	Tool *AgentCompletionsMessageMessageExpressionTool `outerObject:"true"`
 }
 
 func (v AgentCompletionsMessageMessageExpression) MarshalJSON() ([]byte, error) {
-	if v.Developer != nil {
-		return json.Marshal(v.Developer)
-	}
-	if v.System != nil {
-		return json.Marshal(v.System)
-	}
 	if v.User != nil {
 		return json.Marshal(v.User)
 	}
@@ -205,28 +131,6 @@ func (v AgentCompletionsMessageMessageExpression) MarshalJSON() ([]byte, error) 
 }
 
 func (v *AgentCompletionsMessageMessageExpression) UnmarshalJSON(data []byte) error {
-	{
-		var try AgentCompletionsMessageMessageExpressionDeveloper
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageMessageExpression{}
-			candidate.Developer = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try AgentCompletionsMessageMessageExpressionSystem
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := AgentCompletionsMessageMessageExpression{}
-			candidate.System = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try AgentCompletionsMessageMessageExpressionUser
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -265,8 +169,6 @@ func (v *AgentCompletionsMessageMessageExpression) UnmarshalJSON(data []byte) er
 
 func (v AgentCompletionsMessageMessageExpression) Validate() error {
 	count := 0
-	if v.Developer != nil { count++ }
-	if v.System != nil { count++ }
 	if v.User != nil { count++ }
 	if v.Assistant != nil { count++ }
 	if v.Tool != nil { count++ }

@@ -3,34 +3,6 @@
   "description": "A message in the conversation.",
   "anyOf": [
     {
-      "title": "Developer",
-      "description": "A developer message (similar to system, but from the developer).",
-      "type": "object",
-      "$ref": "agent.completions.message.DeveloperMessage",
-      "properties": {
-        "role": {
-          "type": "string",
-          "enum": [
-            "developer"
-          ]
-        }
-      }
-    },
-    {
-      "title": "System",
-      "description": "A system message setting context or instructions.",
-      "type": "object",
-      "$ref": "agent.completions.message.SystemMessage",
-      "properties": {
-        "role": {
-          "type": "string",
-          "enum": [
-            "system"
-          ]
-        }
-      }
-    },
-    {
       "title": "User",
       "description": "A user message from the end user.",
       "type": "object",

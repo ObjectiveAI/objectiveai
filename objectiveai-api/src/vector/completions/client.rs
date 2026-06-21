@@ -888,7 +888,6 @@ where
                             cont.push_user_message(
                                 UserMessage {
                                     content: RichContent::Text(retry_message),
-                                    name: None,
                                 },
                             );
 
@@ -1007,7 +1006,6 @@ where
                                     content: RichContent::Text(
                                         "Use the response_key tool to select a response.".to_string(),
                                     ),
-                                    name: None,
                                 },
                             );
 
@@ -1339,7 +1337,6 @@ fn transform_messages_for_vector(
         }
         messages.push(Message::User(UserMessage {
             content: RichContent::Parts(parts),
-            name: None,
         }));
     }
 

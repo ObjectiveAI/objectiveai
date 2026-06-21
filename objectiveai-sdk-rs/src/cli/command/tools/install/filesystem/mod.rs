@@ -17,12 +17,6 @@ pub enum Path {
     ToolsInstallFilesystem,
 }
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["tools".to_string(), "install".to_string(), "filesystem".to_string()];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

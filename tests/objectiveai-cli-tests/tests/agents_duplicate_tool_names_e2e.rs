@@ -23,7 +23,7 @@ mod cli_test_util;
 use std::time::Duration;
 
 use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
-use objectiveai_sdk::cli::command::agents::logs::read::all::{
+use objectiveai_sdk::cli::command::agents::logs::list::{
     AssistantResponsePart, Request as ReadAllRequest, ResponseItem as ReadAllItem,
     Target as ReadAllTarget,
 };
@@ -148,7 +148,8 @@ async fn duplicate_tool_names_routed_across_turns() {
     // Walk every assistant block from `agents logs read all`,
     // filter to `ToolCall` parts, collect `function_name`.
     let read_all = ReadAllRequest {
-        path_type: objectiveai_sdk::cli::command::agents::logs::read::all::Path::AgentsLogsReadAll,
+        path_type: objectiveai_sdk::cli::command::agents::logs::list::Path::AgentsLogsList,
+        pending: false,
         targets: vec![ReadAllTarget::Direct {
             parent_agent_instance_hierarchy: None,
             agent_instance: target_instance.clone(),

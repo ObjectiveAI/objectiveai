@@ -26,10 +26,6 @@ pub struct AssistantMessage {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub content: Option<RichContent>,
-    /// Optional name for the assistant.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub name: Option<String>,
     /// Refusal message if the model declined to respond.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
@@ -52,9 +48,6 @@ impl AssistantMessage {
             if content.is_empty() {
                 self.content = None;
             }
-        }
-        if self.name.as_ref().is_some_and(String::is_empty) {
-            self.name = None;
         }
         if self.refusal.as_ref().is_some_and(String::is_empty) {
             self.refusal = None;
@@ -82,7 +75,6 @@ impl FromStarlarkValue for AssistantMessage {
             )
         })?;
         let mut content = None;
-        let mut name = None;
         let mut refusal = None;
         let mut tool_calls = None;
         let mut reasoning = None;
@@ -100,7 +92,6 @@ impl FromStarlarkValue for AssistantMessage {
                 "content" => {
                     content = Option::<RichContent>::from_starlark_value(&v)?
                 }
-                "name" => name = Option::<String>::from_starlark_value(&v)?,
                 "refusal" => {
                     refusal = Option::<String>::from_starlark_value(&v)?
                 }
@@ -118,7 +109,6 @@ impl FromStarlarkValue for AssistantMessage {
         }
         Ok(AssistantMessage {
             content,
-            name,
             refusal,
             tool_calls,
             reasoning,
@@ -146,12 +136,6 @@ pub struct AssistantMessageExpression {
     #[schemars(with = "Option<functions::expression::WithExpression<RichContentExpression>>", extend("omitempty" = true))]
     pub content:
         functions::expression::WithExpression<Option<RichContentExpression>>,
-    #[serde(
-        default,
-        skip_serializing_if = "functions::expression::WithExpression::is_none"
-    )]
-    #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
-    pub name: functions::expression::WithExpression<Option<String>>,
     #[serde(
         default,
         skip_serializing_if = "functions::expression::WithExpression::is_none"
@@ -191,7 +175,6 @@ impl AssistantMessageExpression {
             .compile_one(params)?
             .map(|content| content.compile(params))
             .transpose()?;
-        let name = self.name.compile_one(params)?;
         let refusal = self.refusal.compile_one(params)?;
         let tool_calls = self
             .tool_calls
@@ -225,7 +208,6 @@ impl AssistantMessageExpression {
         let reasoning = self.reasoning.compile_one(params)?;
         Ok(AssistantMessage {
             content,
-            name,
             refusal,
             tool_calls,
             reasoning,
@@ -243,7 +225,6 @@ impl FromStarlarkValue for AssistantMessageExpression {
             )
         })?;
         let mut content = WithExpression::Value(None);
-        let mut name = WithExpression::Value(None);
         let mut refusal = WithExpression::Value(None);
         let mut tool_calls = WithExpression::Value(None);
         let mut reasoning = WithExpression::Value(None);
@@ -264,13 +245,6 @@ impl FromStarlarkValue for AssistantMessageExpression {
                         None
                     } else {
                         Some(RichContentExpression::from_starlark_value(&v)?)
-                    });
-                }
-                "name" => {
-                    name = WithExpression::Value(if v.is_none() {
-                        None
-                    } else {
-                        Some(String::from_starlark_value(&v)?)
                     });
                 }
                 "refusal" => {
@@ -299,7 +273,6 @@ impl FromStarlarkValue for AssistantMessageExpression {
         }
         Ok(AssistantMessageExpression {
             content,
-            name,
             refusal,
             tool_calls,
             reasoning,

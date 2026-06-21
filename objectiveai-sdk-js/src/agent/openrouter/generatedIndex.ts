@@ -11,5 +11,7 @@ export * from "./reasoning";
 export * from "./reasoningEffort";
 export * from "./reasoningSummaryVerbosity";
 export * from "./stop";
+export * from "./systemPrompt";
+export * from "./systemPromptRole";
 export * from "./upstream";
 export * from "./verbosity";

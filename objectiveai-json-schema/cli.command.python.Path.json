@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.python.Path",
+  "type": "string",
+  "enum": [
+    "python"
+  ]
+}

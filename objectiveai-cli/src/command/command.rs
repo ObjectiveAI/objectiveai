@@ -38,6 +38,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = super::api::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
         }
+        Request::Daemon(req) => {
+            let inner = super::daemon::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
+        }
         Request::Db(req) => {
             let inner = super::db::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Db)))
@@ -66,13 +70,21 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = super::plugins::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Plugins)))
         }
+        Request::Python(req) => {
+            let value = super::python::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Python(value)))
+        }
+        Request::PythonRequestSchema(req) => {
+            let value = super::python::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::PythonRequestSchema(value)))
+        }
+        Request::PythonResponseSchema(req) => {
+            let value = super::python::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::PythonResponseSchema(value)))
+        }
         Request::Swarms(req) => {
             let inner = super::swarms::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Swarms)))
-        }
-        Request::Tasks(req) => {
-            let inner = super::tasks::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(ResponseItem::Tasks)))
         }
         Request::Tools(req) => {
             let inner = super::tools::execute(ctx, req).await?;

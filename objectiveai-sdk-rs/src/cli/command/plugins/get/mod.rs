@@ -21,21 +21,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "plugins".to_string(),
-            "get".to_string(),
-            "--owner".to_string(),
-            self.owner.clone(),
-            "--name".to_string(),
-            self.name.clone(),
-            "--version".to_string(),
-            self.version.clone(),
-        ];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -111,16 +96,19 @@ pub struct ResponseMcpServer {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
+#[command(group(clap::ArgGroup::new("name_required").required(true).args(["name"])))]
+#[command(group(clap::ArgGroup::new("version_required").required(true).args(["version"])))]
 pub struct Args {
     /// Plugin owner (GitHub `<owner>` segment). Required.
     #[arg(long)]
-    pub owner: String,
+    pub owner: Option<String>,
     /// Plugin name (repository segment). Required.
     #[arg(long)]
-    pub name: String,
+    pub name: Option<String>,
     /// Plugin version. Required.
     #[arg(long)]
-    pub version: String,
+    pub version: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -147,9 +135,24 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::PluginsGet,
-            owner: args.owner,
-            name: args.name,
-            version: args.version,
+            owner: args.owner.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "owner",
+                    "--owner is required".to_string(),
+                )
+            })?,
+            name: args.name.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "name",
+                    "--name is required".to_string(),
+                )
+            })?,
+            version: args.version.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "version",
+                    "--version is required".to_string(),
+                )
+            })?,
             base: args.base.into(),
         })
     }

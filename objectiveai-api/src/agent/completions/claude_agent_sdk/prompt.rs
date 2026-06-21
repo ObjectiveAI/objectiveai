@@ -3,25 +3,12 @@ use super::content_block_param::ContentBlockParam;
 use super::sdk_message::{
     MessageParam, MessageParamContent, MessageParamRole, SDKUserMessage, SDKUserMessageType,
 };
-use objectiveai_sdk::agent::completions::message::{Message, RichContent, SimpleContent, SimpleContentPart};
+use objectiveai_sdk::agent::completions::message::{Message, RichContent};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Prompt {
     pub system_prompt: Option<String>,
     pub message: SDKUserMessage,
-}
-
-fn simple_content_to_text(content: &SimpleContent) -> String {
-    match content {
-        SimpleContent::Text(s) => s.clone(),
-        SimpleContent::Parts(parts) => parts
-            .iter()
-            .map(|p| match p {
-                SimpleContentPart::Text { text } => text.as_str(),
-            })
-            .collect::<Vec<_>>()
-            .join("\n\n"),
-    }
 }
 
 fn push_rich_content(
@@ -53,36 +40,19 @@ fn push_rich_content(
 
 impl Prompt {
     pub fn new(
+        system_prompt: Option<&str>,
         messages: &[Message],
         continuation: Option<&[ContinuationItem<super::State>]>,
         request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
     ) -> Result<Self, super::Error> {
-        let mut system_parts: Vec<String> = Vec::new();
         let mut user_msg: Option<&objectiveai_sdk::agent::completions::message::UserMessage> = None;
         let mut saw_user = false;
 
         for msg in messages {
             match msg {
-                Message::System(sys) if !saw_user => {
-                    let text = simple_content_to_text(&sys.content);
-                    if !text.is_empty() {
-                        system_parts.push(text);
-                    }
-                }
-                Message::Developer(dev) if !saw_user => {
-                    let text = simple_content_to_text(&dev.content);
-                    if !text.is_empty() {
-                        system_parts.push(text);
-                    }
-                }
                 Message::User(u) if !saw_user => {
                     saw_user = true;
                     user_msg = Some(u);
-                }
-                Message::System(_) | Message::Developer(_) => {
-                    return Err(super::Error::InvalidMessages(
-                        "system/developer messages must precede the user message".to_string(),
-                    ));
                 }
                 Message::User(_) => {
                     return Err(super::Error::InvalidMessages(
@@ -102,31 +72,15 @@ impl Prompt {
             }
         }
 
-        let system_prompt = if system_parts.is_empty() {
-            None
-        } else {
-            Some(system_parts.join("\n\n"))
-        };
+        // The agent supplies the system prompt directly.
+        let system_prompt = system_prompt
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string());
 
         // Build the SDK user message
         let mut content = MessageParamContent::Blocks(vec![]);
 
-        // Track the name from the original user message for validation
-        let mut expected_name: Option<&str> = None;
-
         if let Some(u) = user_msg {
-            if u.has_name() {
-                let name = u.name.as_deref().unwrap();
-                expected_name = Some(name);
-                content.push(ContentBlockParam::Text(
-                    super::content_block_param::TextBlockParam {
-                        text: format!("[{name}] :"),
-                        r#type: super::content_block_param::TextBlockParamType::Text,
-                        cache_control: None,
-                        citations: None,
-                    },
-                ));
-            }
             push_rich_content(&mut content, &u.content)?;
         }
 
@@ -156,19 +110,6 @@ impl Prompt {
                         // Tool message before state — skip (handled by earlier turns)
                     }
                     ContinuationItem::UserMessage(u) => {
-                        // Validate name consistency
-                        let cont_name = u.name.as_deref().filter(|n| !n.is_empty());
-                        if let Some(name) = cont_name {
-                            if let Some(expected) = expected_name {
-                                if name != expected {
-                                    return Err(super::Error::InvalidMessages(format!(
-                                        "continuation user message name '{name}' does not match expected '{expected}'"
-                                    )));
-                                }
-                            } else {
-                                expected_name = Some(name);
-                            }
-                        }
                         push_rich_content(&mut content, &u.content)?;
                     }
                 }
@@ -198,7 +139,7 @@ impl Prompt {
             is_synthetic: None,
             tool_use_result: None,
             uuid: None,
-            session_id,
+            session_id: Some(session_id),
         };
 
         Ok(Prompt {

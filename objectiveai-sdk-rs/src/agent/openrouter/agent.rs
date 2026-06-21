@@ -43,16 +43,16 @@ pub struct AgentBase {
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
     pub top_logprobs: Option<u64>,
 
+    /// The agent's system prompt: a single role+content entry, rendered as the
+    /// leading message of every request.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub system_prompt: Option<super::system_prompt::SystemPrompt>,
+
     /// Messages prepended to the user's prompt.
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub prefix_messages:
-        Option<Vec<super::super::completions::message::Message>>,
-
-    /// Messages inserted after the leading chain of system/developer messages.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub post_system_prefix_messages:
         Option<Vec<super::super::completions::message::Message>>,
 
     /// Messages appended after the user's prompt.
@@ -177,17 +177,6 @@ impl AgentBase {
                 } else {
                     Some(prefix_messages)
                 }
-            }
-            None => None,
-        };
-        self.post_system_prefix_messages = match self
-            .post_system_prefix_messages
-            .take()
-        {
-            Some(msgs) if msgs.is_empty() => None,
-            Some(mut msgs) => {
-                super::super::completions::message::prompt::prepare(&mut msgs);
-                if msgs.is_empty() { None } else { Some(msgs) }
             }
             None => None,
         };
@@ -397,6 +386,9 @@ impl AgentBase {
         if let Some(cc) = &self.context_compression {
             cc.validate()?;
         }
+        if let Some(system_prompt) = &self.system_prompt {
+            system_prompt.validate()?;
+        }
         Ok(())
     }
 
@@ -405,44 +397,14 @@ impl AgentBase {
         &self,
         messages: Vec<super::super::completions::message::Message>,
     ) -> Vec<super::super::completions::message::Message> {
-        use super::super::completions::message::Message;
         let prefix_len = self.prefix_messages.as_ref().map_or(0, |m| m.len());
-        let post_sys_len = self
-            .post_system_prefix_messages
-            .as_ref()
-            .map_or(0, |m| m.len());
         let suffix_len = self.suffix_messages.as_ref().map_or(0, |m| m.len());
-        let mut merged = Vec::with_capacity(
-            prefix_len + post_sys_len + messages.len() + suffix_len,
-        );
+        let mut merged =
+            Vec::with_capacity(prefix_len + messages.len() + suffix_len);
         if let Some(prefix) = &self.prefix_messages {
             merged.extend(prefix.iter().cloned());
         }
-        let mut post_sys_inserted = self.post_system_prefix_messages.is_none();
-        for msg in messages {
-            if !post_sys_inserted {
-                if !matches!(msg, Message::System(_) | Message::Developer(_)) {
-                    merged.extend(
-                        self.post_system_prefix_messages
-                            .as_ref()
-                            .unwrap()
-                            .iter()
-                            .cloned(),
-                    );
-                    post_sys_inserted = true;
-                }
-            }
-            merged.push(msg);
-        }
-        if !post_sys_inserted {
-            merged.extend(
-                self.post_system_prefix_messages
-                    .as_ref()
-                    .unwrap()
-                    .iter()
-                    .cloned(),
-            );
-        }
+        merged.extend(messages);
         if let Some(suffix) = &self.suffix_messages {
             merged.extend(suffix.iter().cloned());
         }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { listen, invokeCliRequest, __resetForTests } from "./index";
+import { listen, __resetForTests } from "./index";
 
 /**
  * Simulate the iframe context by mocking `window.parent` to be a
@@ -61,7 +61,7 @@ describe("listen in iframe context", () => {
     expect(calls).toEqual([]);
   });
 
-  it("ignores cli_command events (they go through invokeCliRequest, not listen)", () => {
+  it("ignores cli_command events (they go through ViewerCommandExecutor, not listen)", () => {
     const calls: unknown[] = [];
     listen("my_event", (v) => calls.push(v));
     ctx.deliver({
@@ -89,96 +89,5 @@ describe("listen in iframe context", () => {
       value: 2,
     });
     expect(calls).toEqual([1]);
-  });
-});
-
-describe("invokeCliRequest in iframe context", () => {
-  let ctx: ReturnType<typeof setupIframeContext>;
-  beforeEach(() => {
-    ctx = setupIframeContext();
-  });
-  afterEach(teardownIframeContext);
-
-  it("posts a cli-execute message to window.parent with the typed request", () => {
-    const request = { path: "agents", command: { path: "spawn" } };
-    const iter = invokeCliRequest(request)[Symbol.asyncIterator]();
-    // Trigger the postMessage path by entering the iterator.
-    void iter.next();
-    expect(ctx.parentMessages).toEqual([{ kind: "cli-execute", request }]);
-  });
-
-  it("yields each cli_command line and terminates on `{type: end}`", async () => {
-    const iterable = invokeCliRequest({ path: "test" });
-    const collected: unknown[] = [];
-
-    const run = (async () => {
-      for await (const line of iterable) {
-        collected.push(line);
-      }
-    })();
-
-    // Let the iterator subscribe before delivering lines.
-    await new Promise((r) => setTimeout(r, 0));
-
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "cli_command",
-      value: { type: "begin" },
-    });
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "cli_command",
-      value: { type: "notification", value: { hello: "world" } },
-    });
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "cli_command",
-      value: { type: "end" },
-    });
-
-    await run;
-
-    expect(collected).toEqual([
-      { type: "begin" },
-      { type: "notification", value: { hello: "world" } },
-      { type: "end" },
-    ]);
-  });
-
-  it("ignores inbound events while collecting cli output", async () => {
-    const iterable = invokeCliRequest({ path: "test" });
-    const collected: unknown[] = [];
-
-    const run = (async () => {
-      for await (const line of iterable) {
-        collected.push(line);
-      }
-    })();
-
-    await new Promise((r) => setTimeout(r, 0));
-
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "inbound",
-      sub_type: "unrelated",
-      value: { ignored: true },
-    });
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "cli_command",
-      value: { type: "notification", value: 1 },
-    });
-    ctx.deliver({
-      kind: "plugin-event",
-      type: "cli_command",
-      value: { type: "end" },
-    });
-
-    await run;
-
-    expect(collected).toEqual([
-      { type: "notification", value: 1 },
-      { type: "end" },
-    ]);
   });
 });

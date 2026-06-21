@@ -15,18 +15,6 @@
       ],
       "omitempty": true
     },
-    "name": {
-      "description": "Optional name for the assistant.",
-      "anyOf": [
-        {
-          "type": "string"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "reasoning": {
       "description": "Reasoning content from models that support chain-of-thought.",
       "anyOf": [

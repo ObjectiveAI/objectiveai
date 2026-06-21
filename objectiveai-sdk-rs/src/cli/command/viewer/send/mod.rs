@@ -20,17 +20,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "viewer".to_string(),
-            "send".to_string(),
-            self.path.clone(),
-            serde_json::to_string(&self.body).expect("body serializes"),
-        ];
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -52,12 +41,15 @@ fn parse_json_value(s: &str) -> Result<serde_json::Value, serde_json::Error> {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("path_required").required(true).args(["path"])))]
+#[command(group(clap::ArgGroup::new("body_required").required(true).args(["body"])))]
 pub struct Args {
     /// HTTP path on the viewer to POST to.
-    pub path: String,
+    #[arg(long)]
+    pub path: Option<String>,
     /// Request body as JSON.
-    #[arg(value_parser = parse_json_value)]
-    pub body: serde_json::Value,
+    #[arg(long, value_parser = parse_json_value)]
+    pub body: Option<serde_json::Value>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -84,8 +76,18 @@ impl TryFrom<Args> for Request {
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
             path_type: Path::ViewerSend,
-            path: args.path,
-            body: args.body,
+            path: args.path.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "path",
+                    "--path is required".to_string(),
+                )
+            })?,
+            body: args.body.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "body",
+                    "--body is required".to_string(),
+                )
+            })?,
             base: args.base.into(),
         })
     }

@@ -93,48 +93,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "agents".to_string(),
-            "tags".to_string(),
-            "apply".to_string(),
-            "--name".to_string(),
-            self.name.clone(),
-        ];
-        match &self.target {
-            Target::AgentInstance {
-                agent_instance,
-                parent_agent_instance_hierarchy,
-            } => {
-                argv.push("--agent-instance".to_string());
-                argv.push(agent_instance.clone());
-                if let Some(parent) = parent_agent_instance_hierarchy {
-                    argv.push("--parent-agent-instance-hierarchy".to_string());
-                    argv.push(parent.clone());
-                }
-            }
-            Target::Agent {
-                agent_spec,
-                parent_agent_instance_hierarchy,
-            } => {
-                argv.push("--agent-inline".to_string());
-                argv.push(
-                    serde_json::to_string(agent_spec).expect("agent spec serializes"),
-                );
-                if let Some(parent) = parent_agent_instance_hierarchy {
-                    argv.push("--parent-agent-instance-hierarchy".to_string());
-                    argv.push(parent.clone());
-                }
-            }
-            Target::AgentTag { agent_tag } => {
-                argv.push("--agent-tag".to_string());
-                argv.push(agent_tag.clone());
-            }
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -177,6 +135,7 @@ pub enum Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("name_required").required(true).args(["name"])))]
 #[command(group(
     clap::ArgGroup::new("apply_by")
         .required(true)
@@ -187,7 +146,7 @@ pub struct Args {
     /// Tag name (unique). Re-using an existing tag displaces the
     /// previous binding silently.
     #[arg(long)]
-    pub name: String,
+    pub name: Option<String>,
     /// Bind the tag immediately to `{parent}/{agent_instance}`.
     #[arg(long)]
     pub agent_instance: Option<String>,
@@ -281,7 +240,12 @@ impl TryFrom<Args> for Request {
         };
         Ok(Request {
             path_type: Path::AgentsTagsApply,
-            name: args.name,
+            name: args.name.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "name",
+                    "--name is required".to_string(),
+                )
+            })?,
             target,
             base: args.base.into(),
         })

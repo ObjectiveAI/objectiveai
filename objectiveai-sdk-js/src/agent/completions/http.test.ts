@@ -22,7 +22,6 @@ httpTestSuite<AgentCompletionsResponseStreamingAgentCompletionChunk, AgentComple
       snapshot: "test_with_developer_and_user_messages",
       body: {
         messages: [
-          { role: "developer", content: "You are a helpful assistant." },
           { role: "user", content: "What is 2+2?" },
         ],
         agent: { upstream: "mock", output_mode: "instruction" },

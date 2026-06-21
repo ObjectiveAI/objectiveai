@@ -1,0 +1,9 @@
+{
+  "title": "agent.openrouter.SystemPromptRole",
+  "description": "The role of a [`SystemPrompt`].",
+  "type": "string",
+  "enum": [
+    "system",
+    "developer"
+  ]
+}

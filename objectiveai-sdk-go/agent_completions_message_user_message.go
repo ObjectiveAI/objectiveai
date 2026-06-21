@@ -11,8 +11,6 @@ import (
 type AgentCompletionsMessageUserMessage struct {
 	// The message content (supports text, images, audio, video, files).
 	Content AgentCompletionsMessageRichContent `json:"content"`
-	// Optional name for the user.
-	Name *string `json:"name,omitempty"`
 }
 
 func (AgentCompletionsMessageUserMessage) SchemaTitle() string { return "agent.completions.message.UserMessage" }

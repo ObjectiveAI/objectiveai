@@ -35,8 +35,6 @@ type AgentOpenrouterAgent struct {
 	Model string `json:"model"`
 	// The output mode for vector completions. Ignored for agent completions.
 	OutputMode AgentOpenrouterOutputMode `json:"output_mode" default:"instruction"`
-	// Messages inserted after the leading chain of system/developer messages.
-	PostSystemPrefixMessages *[]AgentCompletionsMessageMessage `json:"post_system_prefix_messages,omitempty"`
 	// Messages prepended to the user's prompt.
 	PrefixMessages *[]AgentCompletionsMessageMessage `json:"prefix_messages,omitempty"`
 	// Penalizes tokens based on their presence in the output so far (-2.0 to 2.0).
@@ -55,6 +53,9 @@ type AgentOpenrouterAgent struct {
 	//
 	// **Vector completions only.** Ignored for agent completions.
 	SyntheticReasoning *bool `json:"synthetic_reasoning,omitempty"`
+	// The agent's system prompt: a single role+content entry, rendered as the
+	// leading message of every request.
+	SystemPrompt *AgentOpenrouterSystemPrompt `json:"system_prompt,omitempty"`
 	// Sampling temperature (0.0 to 2.0). Higher = more random.
 	Temperature *float64 `json:"temperature,omitempty" validate:"omitempty,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// Top-a sampling parameter (0.0 to 1.0).

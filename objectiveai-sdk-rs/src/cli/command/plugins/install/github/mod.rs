@@ -22,27 +22,6 @@ pub enum Path {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "plugins".to_string(),
-            "install".to_string(),
-            "github".to_string(),
-            "--owner".to_string(),
-            self.owner.clone(),
-            "--repository".to_string(),
-            self.repository.clone(),
-        ];
-        if let Some(sha) = &self.commit_sha {
-            argv.push("--commit-sha".to_string());
-            argv.push(sha.clone());
-        }
-        if self.allow_untrusted {
-            argv.push("--allow-untrusted".to_string());
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }
@@ -59,13 +38,15 @@ pub struct Response {
 }
 
 #[derive(clap::Args)]
+#[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
+#[command(group(clap::ArgGroup::new("repository_required").required(true).args(["repository"])))]
 pub struct Args {
     /// GitHub repository owner.
     #[arg(long)]
-    pub owner: String,
+    pub owner: Option<String>,
     /// GitHub repository name.
     #[arg(long)]
-    pub repository: String,
+    pub repository: Option<String>,
     /// Pin install to a specific commit.
     #[arg(long)]
     pub commit_sha: Option<String>,
@@ -97,8 +78,18 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self { path_type: Path::PluginsInstallGithub,
-            owner: args.owner,
-            repository: args.repository,
+            owner: args.owner.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "owner",
+                    "--owner is required".to_string(),
+                )
+            })?,
+            repository: args.repository.ok_or_else(|| {
+                crate::cli::command::FromArgsError::path_parse(
+                    "repository",
+                    "--repository is required".to_string(),
+                )
+            })?,
             commit_sha: args.commit_sha,
             allow_untrusted: args.allow_untrusted,
             base: args.base.into(),

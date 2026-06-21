@@ -90,6 +90,20 @@ pub struct Manifest {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     #[schemars(extend("omitempty" = true))]
     pub mcp_servers: Vec<McpServer>,
+
+    /// When `true`, the plugin participates in the per-state plugin
+    /// daemon (`daemon spawn`): the daemon launches it as
+    /// `<exec> daemon begin` (via the shared plugin executor) and keeps
+    /// it resident. Host-internal — not surfaced on the `plugins get`
+    /// wire projection. Skipped on serialization when `false` so
+    /// non-daemon manifests stay lean.
+    #[serde(default, skip_serializing_if = "is_false")]
+    #[schemars(extend("omitempty" = true))]
+    pub daemon: bool,
+}
+
+fn is_false(value: &bool) -> bool {
+    !*value
 }
 
 impl Manifest {

@@ -105,21 +105,6 @@ pub struct RequestDangerousAdvanced {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec!["agents".to_string(), "message".to_string()];
-        self.agent.push_flags(&mut argv);
-        self.message.push_flags(&mut argv);
-        if let Some(advanced) = &self.dangerous_advanced {
-            argv.push("--dangerous-advanced".to_string());
-            argv.push(
-                serde_json::to_string(advanced)
-                    .expect("RequestDangerousAdvanced serializes"),
-            );
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

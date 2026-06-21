@@ -48,13 +48,14 @@ pub use response_schema::*;
 
 pub mod agents;
 pub mod api;
+pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod kill_all;
 pub mod mcp;
 pub mod plugins;
+pub mod python;
 pub mod swarms;
-pub mod tasks;
 pub mod tools;
 pub mod update;
 pub mod viewer;

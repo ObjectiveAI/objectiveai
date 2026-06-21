@@ -48,46 +48,6 @@ Starlark expression:
     root: Union[AssistantMessageExpressionContentExpression, AssistantMessageExpressionContentValue]
 
 
-class AssistantMessageExpressionNameExpression(RootModel):
-    """An expression (JMESPath or Starlark) to evaluate."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Expression'})
-
-    root: Expression
-
-
-class AssistantMessageExpressionNameValue(RootModel):
-    """A literal value."""
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Value'})
-
-    root: str
-
-
-class AssistantMessageExpressionName(RootModel):
-    """A value that can be either a literal or an expression.
-
-This allows Function definitions to mix static values with dynamic
-expressions. During compilation, expressions are evaluated while
-literal values pass through unchanged.
-
-# Example
-
-Literal value:
-```json
-"hello world"
-```
-
-JMESPath expression:
-```json
-{"$jmespath": "input.greeting"}
-```
-
-Starlark expression:
-```json
-{"$starlark": "input['greeting']"}
-```"""
-    root: Union[AssistantMessageExpressionNameExpression, AssistantMessageExpressionNameValue]
-
-
 class AssistantMessageExpressionReasoningExpression(RootModel):
     """An expression (JMESPath or Starlark) to evaluate."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Expression'})
@@ -253,7 +213,6 @@ class AssistantMessageExpression(BaseModel):
     model_config = ConfigDict(title='agent.completions.message.AssistantMessageExpression')
 
     content: Optional[AssistantMessageExpressionContent] = Field(None, description='The content expression.', json_schema_extra={'omitempty': True})
-    name: Optional[AssistantMessageExpressionName] = Field(None, json_schema_extra={'omitempty': True})
     reasoning: Optional[AssistantMessageExpressionReasoning] = Field(None, json_schema_extra={'omitempty': True})
     refusal: Optional[AssistantMessageExpressionRefusal] = Field(None, json_schema_extra={'omitempty': True})
     tool_calls: Optional[AssistantMessageExpressionTool_calls] = Field(None, json_schema_extra={'omitempty': True})

@@ -10,6 +10,9 @@ publish = false
 [dev-dependencies]
 objectiveai-sdk = { path = "../../objectiveai-sdk-rs", features = ["lockfile", "subprocess-reaper"] }
 objectiveai-cli = { path = "../../objectiveai-cli" }
+# Used by schema_commands_e2e to walk the cli's clap command tree
+# (CommandFactory) and enumerate request-schema / response-schema commands.
+clap = { version = "4.6.0", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 thiserror = "2.0.18"

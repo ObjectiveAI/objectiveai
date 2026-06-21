@@ -24,32 +24,17 @@ use starlark::values::{UnpackValue, Value as StarlarkValue};
 pub struct UserMessage {
     /// The message content (supports text, images, audio, video, files).
     pub content: RichContent,
-    /// Optional name for the user.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub name: Option<String>,
 }
 
 impl UserMessage {
     pub fn push(&mut self, other: &UserMessage) {
         self.content.push(&other.content);
-        if self.name.is_none() {
-            self.name.clone_from(&other.name);
-        }
     }
 
-    pub fn has_name(&self) -> bool {
-        self.name.as_ref().is_some_and(|n| !n.is_empty())
-    }
-
-    /// Prepares the message by normalizing content and optional fields.
+    /// Prepares the message by normalizing content.
     pub fn prepare(&mut self) {
         self.content.prepare();
-        if self.name.as_ref().is_some_and(String::is_empty) {
-            self.name = None;
-        }
     }
-
 }
 
 impl FromStarlarkValue for UserMessage {
@@ -62,7 +47,6 @@ impl FromStarlarkValue for UserMessage {
             )
         })?;
         let mut content = None;
-        let mut name = None;
         for (k, v) in dict.iter() {
             let key = <&str as UnpackValue>::unpack_value(k)
                 .map_err(|e| {
@@ -77,7 +61,6 @@ impl FromStarlarkValue for UserMessage {
                 "content" => {
                     content = Some(RichContent::from_starlark_value(&v)?)
                 }
-                "name" => name = Option::<String>::from_starlark_value(&v)?,
                 _ => {}
             }
         }
@@ -87,7 +70,6 @@ impl FromStarlarkValue for UserMessage {
                     "UserMessage: missing content".into(),
                 )
             })?,
-            name,
         })
     }
 }
@@ -106,13 +88,6 @@ impl FromStarlarkValue for UserMessage {
 pub struct UserMessageExpression {
     /// The message content expression.
     pub content: functions::expression::WithExpression<RichContentExpression>,
-    /// Optional name expression.
-    #[serde(
-        default,
-        skip_serializing_if = "functions::expression::WithExpression::is_none"
-    )]
-    #[schemars(with = "Option<functions::expression::WithExpression<String>>", extend("omitempty" = true))]
-    pub name: functions::expression::WithExpression<Option<String>>,
 }
 
 impl UserMessageExpression {
@@ -122,8 +97,7 @@ impl UserMessageExpression {
         params: &functions::expression::Params,
     ) -> Result<UserMessage, functions::expression::ExpressionError> {
         let content = self.content.compile_one(params)?.compile(params)?;
-        let name = self.name.compile_one(params)?;
-        Ok(UserMessage { content, name })
+        Ok(UserMessage { content })
     }
 }
 
@@ -137,7 +111,6 @@ impl FromStarlarkValue for UserMessageExpression {
             )
         })?;
         let mut content = None;
-        let mut name = WithExpression::Value(None);
         for (k, v) in dict.iter() {
             let key = <&str as UnpackValue>::unpack_value(k)
                 .map_err(|e| {
@@ -154,13 +127,6 @@ impl FromStarlarkValue for UserMessageExpression {
                         RichContentExpression::from_starlark_value(&v)?,
                     ))
                 }
-                "name" => {
-                    name = WithExpression::Value(if v.is_none() {
-                        None
-                    } else {
-                        Some(String::from_starlark_value(&v)?)
-                    });
-                }
                 _ => {}
             }
         }
@@ -170,7 +136,6 @@ impl FromStarlarkValue for UserMessageExpression {
                     "UserMessageExpression: missing content".into(),
                 )
             })?,
-            name,
         })
     }
 }

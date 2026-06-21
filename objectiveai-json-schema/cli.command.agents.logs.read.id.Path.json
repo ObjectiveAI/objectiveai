@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.logs.read.id.Path",
-  "type": "string",
-  "enum": [
-    "agents/logs/read/id"
-  ]
-}

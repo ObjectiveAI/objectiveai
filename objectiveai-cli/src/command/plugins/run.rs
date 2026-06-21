@@ -246,7 +246,7 @@ fn run_nested_command(
 
         // A plugin may not invoke `plugins` or `tools` commands — no
         // running another plugin, no running a tool. Forward the same
-        // error line the cli would emit and stop here.
+        // error line the cli would emit for the forbidden cases.
         let forbidden = match tokens.first().map(String::as_str) {
             Some("plugins") => Some("plugins"),
             Some("tools") => Some("tools"),

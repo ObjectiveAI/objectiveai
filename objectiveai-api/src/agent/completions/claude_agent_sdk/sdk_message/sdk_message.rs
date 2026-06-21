@@ -29,7 +29,7 @@ impl SDKMessage {
         match self {
             Self::PartialAssistantMessage(msg) => Some(&msg.session_id),
             Self::ResultMessage(msg) => Some(msg.session_id()),
-            Self::UserMessage(msg) => Some(&msg.session_id),
+            Self::UserMessage(msg) => msg.session_id.as_deref(),
             Self::AssistantMessage(msg) => Some(&msg.session_id),
             _ => None,
         }

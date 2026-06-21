@@ -137,14 +137,11 @@ fn handle_cancelled_notification(
     headers: &HeaderMap,
     notification: &JsonRpcNotification,
 ) {
-    let session_id = match headers
-        .get(SESSION_ID_HEADER)
-        .and_then(|v| v.to_str().ok())
-    {
+    let session_id = match header_session_id(headers) {
         Some(s) => s,
         None => return,
     };
-    let session = match state.sessions.get(session_id) {
+    let session = match state.sessions.get(&session_id) {
         Some(s) => s,
         None => return,
     };
@@ -346,10 +343,8 @@ async fn handle_initialize(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_in = headers
-        .get(SESSION_ID_HEADER)
-        .and_then(|v| v.to_str().ok())
-        .unwrap_or("");
+    let session_in = header_session_id(headers).unwrap_or_default();
+    let session_in = session_in.as_str();
     let rpc_id_str = format!("{}", request.id);
     // Validate the client's requested protocolVersion. We don't care
     // about anything else in `params` (clientInfo / capabilities) — they
@@ -408,10 +403,7 @@ async fn handle_initialize(
     //      build the spec list, every URL connects from scratch, the
     //      resulting `(Connection, headers)` set encodes into a
     //      brand-new id.
-    let provided_session_id = headers
-        .get(SESSION_ID_HEADER)
-        .and_then(|v| v.to_str().ok())
-        .map(str::to_owned);
+    let provided_session_id = header_session_id(headers);
 
     if let Some(sid) = &provided_session_id {
         if let Some(session) = state.sessions.get(sid) {
@@ -780,19 +772,35 @@ async fn handle_tools_call(
             if let Some(crate::QueueRead { token, blocks }) =
                 maybe_read_blocks(queue_delegate, &agent_arguments, &session_id).await
             {
-                // Splice queue blocks (flattened across rows) ahead
-                // of the upstream's tool-result content, wrapped in
-                // the SDK-owned `<system-reminder>` text-block pair
-                // whose prefix carries the confirmation token. The
-                // API's run-loop regex-scans tool message text for
-                // this token and calls back via `confirm()` to
-                // finalize delivery — closing the "claimed delivered
-                // but never reached the agent" hole a naive ban list
-                // would leave open.
-                let pending: Vec<ContentBlock> =
-                    blocks.into_iter().flatten().collect();
+                // Splice the queued rows ahead of the upstream's
+                // tool-result content, wrapped in the SDK-owned
+                // `<system-reminder>` text-block pair whose prefix
+                // carries the confirmation token. The API's run-loop
+                // regex-scans tool message text for this token and calls
+                // back via `confirm()` to finalize delivery — closing the
+                // "claimed delivered but never reached the agent" hole a
+                // naive ban list would leave open. Each queued row's
+                // content is separated by a `\n\n` text part so distinct
+                // messages stay demarcated instead of running together.
+                // `count` (surfaced as `_meta.notifications`) counts the
+                // real content blocks, not the separators.
+                let mut pending: Vec<ContentBlock> = Vec::new();
+                let mut count: u64 = 0;
+                for row in blocks {
+                    if row.is_empty() {
+                        continue;
+                    }
+                    if !pending.is_empty() {
+                        pending.push(ContentBlock::Text(TextContent {
+                            text: "\n\n".to_string(),
+                            annotations: None,
+                            _meta: None,
+                        }));
+                    }
+                    count += row.len() as u64;
+                    pending.extend(row);
+                }
                 if !pending.is_empty() {
-                    let count = pending.len() as u64;
                     let mut prefixed = Vec::with_capacity(
                         2 + pending.len() + result.content.len(),
                     );
@@ -803,8 +811,7 @@ async fn handle_tools_call(
                     }));
                     prefixed.extend(pending);
                     prefixed.push(ContentBlock::Text(TextContent {
-                        text: objectiveai_sdk::mcp::queue_notification::SUFFIX
-                            .to_string(),
+                        text: objectiveai_sdk::mcp::queue_notification::format_suffix(&token),
                         annotations: None,
                         _meta: None,
                     }));
@@ -946,15 +953,42 @@ async fn handle_resources_read(
 
 // ---- Helpers --------------------------------------------------------------
 
+/// Read the session id from the `Mcp-Session-Id` header, tolerating a
+/// comma-joined value.
+///
+/// When an agent's MCP config pre-seeds `Mcp-Session-Id` (so the SDK
+/// resumes the parent's proxy session — see the API's
+/// `claude_agent_sdk::mcp_server_config`), some SDK HTTP transports
+/// (notably claude-code's StreamableHTTP client) ALSO append their own
+/// post-initialize tracked session id on subsequent requests. The two
+/// land in a single header as `"<configured>, <tracked>"`, which an
+/// exact-match `state.sessions.get` never finds → spurious "unknown
+/// session" 404s on every `tools/list` / `tools/call` after a
+/// successful `initialize`.
+///
+/// Normalize by taking the LAST non-empty comma-separated token: that's
+/// the SDK's freshly-tracked id, which is authoritative when the upstream
+/// reassigned its session on reconnect (the configured token may be
+/// stale). When the SDK didn't append anything, there's a single token
+/// and this is a no-op.
+fn header_session_id(headers: &HeaderMap) -> Option<String> {
+    let raw = headers.get(SESSION_ID_HEADER)?.to_str().ok()?;
+    raw.split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .next_back()
+        .map(str::to_string)
+}
+
 fn extract_session_id(headers: &HeaderMap) -> Result<String, Response> {
     match headers.get(SESSION_ID_HEADER) {
-        Some(v) => match v.to_str() {
-            Ok(s) => Ok(s.to_string()),
-            // Per spec, missing / unparseable session id maps to HTTP 404
-            // — this isn't a JSON-RPC envelope concern, it's transport.
-            Err(_) => Err((
+        Some(_) => match header_session_id(headers) {
+            Some(s) => Ok(s),
+            // Present but unparseable (not UTF-8, or empty after split).
+            // Per spec, maps to HTTP 404 — transport, not JSON-RPC.
+            None => Err((
                 StatusCode::NOT_FOUND,
-                format!("{SESSION_ID_HEADER} is not valid UTF-8"),
+                format!("{SESSION_ID_HEADER} is not a valid session id"),
             )
                 .into_response()),
         },
@@ -1107,5 +1141,48 @@ fn method_not_found_response(id: serde_json::Value, method: &str) -> Response {
         METHOD_NOT_FOUND,
         format!("method not found: {method}"),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn hm(value: &str) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        h.insert(SESSION_ID_HEADER, HeaderValue::from_str(value).unwrap());
+        h
+    }
+
+    #[test]
+    fn single_session_id_passes_through() {
+        assert_eq!(header_session_id(&hm("abc123")), Some("abc123".to_string()));
+    }
+
+    #[test]
+    fn comma_joined_duplicate_takes_one() {
+        // claude-code's StreamableHTTP client appends its tracked id on
+        // top of the config-injected one → "<id>, <id>". Both equal here.
+        assert_eq!(
+            header_session_id(&hm("abc123, abc123")),
+            Some("abc123".to_string()),
+        );
+    }
+
+    #[test]
+    fn comma_joined_distinct_takes_last() {
+        // On reconnect the upstream may reassign; the SDK-tracked (last)
+        // id is authoritative, the config-injected (first) one is stale.
+        assert_eq!(
+            header_session_id(&hm("stale, fresh")),
+            Some("fresh".to_string()),
+        );
+    }
+
+    #[test]
+    fn empty_and_missing() {
+        assert_eq!(header_session_id(&HeaderMap::new()), None);
+        assert_eq!(header_session_id(&hm("")), None);
+        assert_eq!(header_session_id(&hm("  ,  ")), None);
+    }
 }
 

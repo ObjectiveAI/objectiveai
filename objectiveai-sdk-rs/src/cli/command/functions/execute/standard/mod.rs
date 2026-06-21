@@ -67,36 +67,6 @@ impl RequestInput {
 }
 
 impl CommandRequest for Request {
-    fn into_command(&self) -> Vec<String> {
-        let mut argv = vec![
-            "functions".to_string(),
-            "execute".to_string(),
-            "standard".to_string(),
-        ];
-        self.function.push_flags(&mut argv);
-        self.profile.push_flags(&mut argv);
-        self.input.push_flags(&mut argv);
-        if let Some(c) = &self.continuation {
-            argv.push("--continuation".to_string());
-            argv.push(c.clone());
-        }
-        if self.split {
-            argv.push("--split".to_string());
-        }
-        if self.invert {
-            argv.push("--invert".to_string());
-        }
-        if let Some(advanced) = &self.dangerous_advanced {
-            argv.push("--dangerous-advanced".to_string());
-            argv.push(
-                serde_json::to_string(advanced)
-                    .expect("RequestDangerousAdvanced serializes"),
-            );
-        }
-        self.base.push_flags(&mut argv);
-        argv
-    }
-
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         &self.base
     }

@@ -177,7 +177,7 @@ impl CommandExecutor for PluginExecutor {
         _agent_arguments: Option<&AgentArguments>,
     ) -> Result<Self::Stream<T>, Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponseTrait + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let id = self.counter.fetch_add(1, Ordering::Relaxed).to_string();
@@ -199,7 +199,13 @@ impl CommandExecutor for PluginExecutor {
             return Err(Error::Closed);
         }
 
-        let argv = request.into_command();
+        // Carry the typed request as JSON via the cli's `--request` flag;
+        // the host re-enters `run` with this argv. (request -> argv lowering
+        // no longer exists.)
+        let argv = vec![
+            "--request".to_string(),
+            serde_json::to_string(&request).map_err(Error::Json)?,
+        ];
         let envelope = Output::Command(Command {
             r#type: CommandType::Command,
             id: id.clone(),
@@ -256,7 +262,7 @@ impl CommandExecutor for PluginExecutor {
         agent_arguments: Option<&AgentArguments>,
     ) -> Result<T, Error>
     where
-        R: CommandRequest + Send,
+        R: CommandRequest + Send + serde::Serialize,
         T: CommandResponseTrait + serde::Serialize + serde::de::DeserializeOwned + Send + 'static,
     {
         let mut stream = self.execute::<R, T>(request, agent_arguments).await?;
