@@ -48,6 +48,7 @@ pub use response_schema::*;
 
 pub mod agents;
 pub mod api;
+pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod kill_all;

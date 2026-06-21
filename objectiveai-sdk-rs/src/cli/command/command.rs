@@ -12,6 +12,10 @@ pub enum Subcommand {
         #[command(subcommand)]
         command: super::api::Command,
     },
+    Daemon {
+        #[command(subcommand)]
+        command: super::daemon::Command,
+    },
     Db {
         #[command(subcommand)]
         command: super::db::Command,
@@ -56,6 +60,8 @@ pub enum Request {
     Agents(super::agents::Request),
     #[schemars(title = "Api")]
     Api(super::api::Request),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::Request),
     #[schemars(title = "Db")]
     Db(super::db::Request),
     #[schemars(title = "Functions")]
@@ -104,6 +110,8 @@ pub enum ResponseItem {
     Agents(super::agents::ResponseItem),
     #[schemars(title = "Api")]
     Api(super::api::Response),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::ResponseItem),
     #[schemars(title = "Db")]
     Db(super::db::ResponseItem),
     #[schemars(title = "Functions")]
@@ -144,6 +152,7 @@ impl super::CommandResponse for ResponseItem {
         match self {
             ResponseItem::Agents(v) => v.into_mcp(),
             ResponseItem::Api(v) => v.into_mcp(),
+            ResponseItem::Daemon(v) => v.into_mcp(),
             ResponseItem::Db(v) => v.into_mcp(),
             ResponseItem::Functions(v) => v.into_mcp(),
             ResponseItem::KillAll(v) => v.into_mcp(),
@@ -172,6 +181,8 @@ impl TryFrom<Subcommand> for Request {
                 Ok(Request::Agents(super::agents::Request::try_from(command)?)),
             Subcommand::Api { command } =>
                 Ok(Request::Api(super::api::Request::try_from(command)?)),
+            Subcommand::Daemon { command } =>
+                Ok(Request::Daemon(super::daemon::Request::try_from(command)?)),
             Subcommand::Db { command } =>
                 Ok(Request::Db(super::db::Request::try_from(command)?)),
             Subcommand::Functions { command } =>
@@ -240,6 +251,7 @@ impl super::CommandRequest for Request {
         match self {
             Request::Agents(inner) => inner.request_base(),
             Request::Api(inner) => inner.request_base(),
+            Request::Daemon(inner) => inner.request_base(),
             Request::Db(inner) => inner.request_base(),
             Request::Functions(inner) => inner.request_base(),
             Request::KillAll(inner) => inner.request_base(),
@@ -263,6 +275,7 @@ impl super::CommandRequest for Request {
         match self {
             Request::Agents(inner) => inner.request_base_mut(),
             Request::Api(inner) => inner.request_base_mut(),
+            Request::Daemon(inner) => inner.request_base_mut(),
             Request::Db(inner) => inner.request_base_mut(),
             Request::Functions(inner) => inner.request_base_mut(),
             Request::KillAll(inner) => inner.request_base_mut(),
@@ -303,6 +316,10 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::Api(req) => {
                 let inner = super::api::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Api)))
+            }
+            Request::Daemon(req) => {
+                let inner = super::daemon::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Daemon)))
             }
             Request::Db(req) => {
                 let inner = super::db::execute(executor, req, agent_arguments).await?;
@@ -391,6 +408,10 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             }
             Request::Api(req) => {
                 let inner = super::api::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Daemon(req) => {
+                let inner = super::daemon::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Db(req) => {

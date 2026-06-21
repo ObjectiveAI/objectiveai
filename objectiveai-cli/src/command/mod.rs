@@ -12,6 +12,7 @@
 pub mod agents;
 pub mod api;
 pub mod command;
+pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod kill_all;
