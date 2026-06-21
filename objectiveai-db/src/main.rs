@@ -349,24 +349,6 @@ async fn ensure_initdb(env: &Args) -> Result<(), String> {
         return Ok(());
     }
 
-    // Adopt a cluster that has actually been STARTED at least once —
-    // i.e. one that may hold user data — rather than wiping it on
-    // upgrade from a pre-marker build. `postmaster.opts` is written by
-    // `pg_ctl start` and survives shutdown, so it certifies "this
-    // cluster served, preserve it." Crucially it is NOT a signal that
-    // initdb merely *reached* some file: a fresh initdb (or one that
-    // crashed mid-bootstrap, the bulk of initdb's runtime) was never
-    // started and has none — so the wipe path below reclaims partial
-    // clusters without ever discarding real data.
-    if tokio::fs::try_exists(data_dir.join("postmaster.opts"))
-        .await
-        .unwrap_or(false)
-    {
-        return tokio::fs::write(&ready_marker, b"")
-            .await
-            .map_err(|e| format!("adopt initdb marker {ready_marker:?}: {e}"));
-    }
-
     // A markerless `db/` is a partial initdb from a crashed predecessor
     // (initdb refuses a non-empty target, so it must go). Rename-then-
     // delete, NOT delete-in-place: Windows directory deletion is
@@ -381,14 +363,14 @@ async fn ensure_initdb(env: &Args) -> Result<(), String> {
             .map_err(|e| format!("clear partial initdb {data_dir:?}: {e}"))?;
     }
 
-    // Sweep trash from this and earlier runs, plus `db.init-*` staging
-    // dirs left by pre-marker builds. Best-effort: a pending-delete tree
-    // is harmless, and the gate guarantees no live sibling owns these.
+    // Sweep trash dirs left by this and earlier wipe passes. Best-effort:
+    // a pending-delete tree is harmless, and the gate guarantees no live
+    // sibling owns these.
     if let Ok(mut entries) = tokio::fs::read_dir(&state_dir).await {
         while let Ok(Some(entry)) = entries.next_entry().await {
             let name = entry.file_name();
             let name = name.to_string_lossy();
-            if name.starts_with("db.trash-") || name.starts_with("db.init-") {
+            if name.starts_with("db.trash-") {
                 let _ = tokio::fs::remove_dir_all(entry.path()).await;
             }
         }
