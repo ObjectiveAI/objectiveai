@@ -1,9 +1,0 @@
-{
-  "title": "cli.command.plugins.daemon.notify.Response",
-  "type": "object",
-  "properties": {
-    "ok": {
-      "type": "boolean"
-    }
-  }
-}

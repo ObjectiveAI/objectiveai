@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.plugins.daemon.notify.Path",
-  "type": "string",
-  "enum": [
-    "plugins/daemon/notify"
-  ]
-}

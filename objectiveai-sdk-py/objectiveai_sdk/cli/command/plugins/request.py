@@ -3,7 +3,6 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
-from objectiveai_sdk.cli.command.plugins.daemon.request import Request as CliCommandPluginsDaemonRequest
 from objectiveai_sdk.cli.command.plugins.get.request import Request as CliCommandPluginsGetRequest
 from objectiveai_sdk.cli.command.plugins.get.request_schema.request import Request as CliCommandPluginsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.plugins.get.response_schema.request import Request as CliCommandPluginsGetResponseSchemaRequest
@@ -14,12 +13,6 @@ from objectiveai_sdk.cli.command.plugins.list.response_schema.request import Req
 from objectiveai_sdk.cli.command.plugins.run.request import Request as CliCommandPluginsRunRequest
 from objectiveai_sdk.cli.command.plugins.run.request_schema.request import Request as CliCommandPluginsRunRequestSchemaRequest
 from objectiveai_sdk.cli.command.plugins.run.response_schema.request import Request as CliCommandPluginsRunResponseSchemaRequest
-
-
-class RequestDaemon(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Daemon'})
-
-    root: CliCommandPluginsDaemonRequest
 
 
 class RequestGet(RootModel):
@@ -85,5 +78,5 @@ class RequestRunResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.plugins.Request')
 
-    root: Union[RequestDaemon, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
 

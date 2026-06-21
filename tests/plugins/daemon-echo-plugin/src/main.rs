@@ -36,13 +36,19 @@ fn main() {
         let _ = handle.flush();
     }
 
-    // 2. Wait for the host's command_complete before recording.
+    // 2. Wait for the host's RESULT line for our command. The host
+    //    writes `{"id":"1","value":<apply result>}` while the nested
+    //    command runs; the terminal `command_complete` only arrives at
+    //    plugin exit, so keying off it would deadlock (we never exit
+    //    until the daemon kills us). Key off the result instead.
     let stdin = std::io::stdin();
     let mut lines = stdin.lock().lines();
     for line in lines.by_ref() {
         let Ok(line) = line else { break };
         let Ok(value) = serde_json::from_str::<serde_json::Value>(&line) else { continue };
-        if value["value"]["type"] == "command_complete" {
+        if value.get("id").and_then(|i| i.as_str()) == Some("1")
+            && value["value"]["type"] != "command_complete"
+        {
             break;
         }
     }

@@ -8,7 +8,6 @@ import (
 )
 
 type CliCommandPluginsRequest struct {
-	Daemon *CliCommandPluginsDaemonRequest 
 	Get *CliCommandPluginsGetRequest 
 	GetRequestSchema *CliCommandPluginsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandPluginsGetResponseSchemaRequest 
@@ -22,9 +21,6 @@ type CliCommandPluginsRequest struct {
 }
 
 func (v CliCommandPluginsRequest) MarshalJSON() ([]byte, error) {
-	if v.Daemon != nil {
-		return json.Marshal(v.Daemon)
-	}
 	if v.Get != nil {
 		return json.Marshal(v.Get)
 	}
@@ -59,17 +55,6 @@ func (v CliCommandPluginsRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandPluginsRequest) UnmarshalJSON(data []byte) error {
-	{
-		var try CliCommandPluginsDaemonRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandPluginsRequest{}
-			candidate.Daemon = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try CliCommandPluginsGetRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -185,7 +170,6 @@ func (v *CliCommandPluginsRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandPluginsRequest) Validate() error {
 	count := 0
-	if v.Daemon != nil { count++ }
 	if v.Get != nil { count++ }
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
