@@ -2,7 +2,7 @@
 //! to its typed [`Response`] variant. The dispatch logic lives in
 //! [`crate::db::logs::read_by_id`]; this handler is a thin wrapper.
 
-use objectiveai_sdk::cli::command::agents::logs::read::id::{Request, Response};
+use objectiveai_sdk::cli::command::agents::logs::open::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
@@ -19,8 +19,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::id as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::id::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::open as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::open::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -31,8 +31,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::id as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::id::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::open as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::open::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

@@ -22,7 +22,7 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
-use objectiveai_sdk::cli::command::agents::logs::read::subscribe::{
+use objectiveai_sdk::cli::command::agents::logs::subscribe::{
     AgentsInactiveTag, KindFilter, Request, ResponseItem, Target,
 };
 
@@ -250,8 +250,8 @@ fn build_kind_filter(filter: Option<KindFilter>) -> Option<Vec<MessageTable>> {
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::subscribe as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::subscribe::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::subscribe as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::subscribe::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -262,8 +262,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::subscribe as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::subscribe::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::subscribe as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::subscribe::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

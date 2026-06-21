@@ -26,7 +26,7 @@ pub enum Command {
     },
     /// List remote agents available from a given source.
     List(list::Command),
-    /// Persisted log tier — `read` and friends.
+    /// Persisted log tier — `open`, `list`, `subscribe`.
     Logs {
         #[command(subcommand)]
         command: logs::Command,

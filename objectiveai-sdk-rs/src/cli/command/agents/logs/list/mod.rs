@@ -34,7 +34,7 @@ use crate::cli::command::path_ref::tokenize;
 ///   `--target me`                   (the caller's own AIH; bare valueless key)
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "by", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.Target")]
+#[schemars(rename = "cli.command.agents.logs.list.Target")]
 pub enum Target {
     #[schemars(title = "Direct")]
     Direct {
@@ -111,9 +111,12 @@ impl Target {
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.Request")]
+#[schemars(rename = "cli.command.agents.logs.list.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// `true` = list only pending (unfinalized) rows; `false` = list
+    /// every logged row. Selected on the CLI by `--pending` / `--all`.
+    pub pending: bool,
     pub targets: Vec<Target>,
     /// Skip rows with `logs.messages."index" <= after_id`. Use the
     /// highest `id` from a previous page to paginate forward.
@@ -129,10 +132,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.Path")]
+#[schemars(rename = "cli.command.agents.logs.list.Path")]
 pub enum Path {
-    #[serde(rename = "agents/logs/read/all")]
-    AgentsLogsReadAll,
+    #[serde(rename = "agents/logs/list")]
+    AgentsLogsList,
 }
 
 impl CommandRequest for Request {
@@ -149,7 +152,7 @@ impl CommandRequest for Request {
 /// the underlying `message_queue_*` content row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.ClientNotificationPartType")]
+#[schemars(rename = "cli.command.agents.logs.list.ClientNotificationPartType")]
 pub enum ClientNotificationPartType {
     Text,
     Image,
@@ -163,7 +166,7 @@ pub enum ClientNotificationPartType {
 /// enclosing block (it lives on `message_queue.enqueued_at`, not
 /// per-content); only the per-row consumption timestamp is here.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.ClientNotificationPart")]
+#[schemars(rename = "cli.command.agents.logs.list.ClientNotificationPart")]
 pub struct ClientNotificationPart {
     /// `logs.messages."index"` for this row. Pass to
     /// `agents logs read id <n>` to fetch the consumed
@@ -189,7 +192,7 @@ pub struct ClientNotificationPart {
 /// delivery timestamp.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.AssistantResponsePart")]
+#[schemars(rename = "cli.command.agents.logs.list.AssistantResponsePart")]
 pub enum AssistantResponsePart {
     #[schemars(title = "ToolCall")]
     ToolCall {
@@ -228,7 +231,7 @@ pub enum AssistantResponsePart {
 /// block, not on the parts.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.ToolResponsePartType")]
+#[schemars(rename = "cli.command.agents.logs.list.ToolResponsePartType")]
 pub enum ToolResponsePartType {
     Text,
     Image,
@@ -239,7 +242,7 @@ pub enum ToolResponsePartType {
 
 /// One row inside a `ToolResponse` block.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.ToolResponsePart")]
+#[schemars(rename = "cli.command.agents.logs.list.ToolResponsePart")]
 pub struct ToolResponsePart {
     /// `logs.messages."index"` for this row. Pass to
     /// `agents logs read id <n>` for the typed body.
@@ -269,7 +272,7 @@ pub struct ToolResponsePart {
 /// block-level.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.all.ResponseItem")]
+#[schemars(rename = "cli.command.agents.logs.list.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "AgentCompletionRequest")]
     AgentCompletionRequest {
@@ -343,7 +346,21 @@ pub enum ResponseItem {
 }
 
 #[derive(clap::Args)]
+#[command(group(
+    clap::ArgGroup::new("logs_list_mode")
+        .required(true)
+        .multiple(false)
+        .args(["all", "pending"])
+))]
 pub struct Args {
+    /// List every logged row. Mutually exclusive with `--pending`;
+    /// exactly one of the two is required.
+    #[arg(long)]
+    pub all: bool,
+    /// List only pending (unfinalized) rows. Mutually exclusive with
+    /// `--all`; exactly one of the two is required.
+    #[arg(long)]
+    pub pending: bool,
     /// One or more `--target instance=L[,parent=P]` entries. `parent`
     /// defaults to the cli's own `Config.agent_instance_hierarchy`
     /// when omitted on an individual target. Also accepts
@@ -390,7 +407,10 @@ impl TryFrom<Args> for Request {
             })
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
-            path_type: Path::AgentsLogsReadAll,
+            path_type: Path::AgentsLogsList,
+            // The `logs_list_mode` group guarantees exactly one of
+            // `--all` / `--pending`, so `pending` is the full mode.
+            pending: args.pending,
             targets,
             after_id: args.after_id,
             limit: args.limit,

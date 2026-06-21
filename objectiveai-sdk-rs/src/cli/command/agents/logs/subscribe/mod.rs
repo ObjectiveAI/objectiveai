@@ -15,7 +15,7 @@
 use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.Request")]
+#[schemars(rename = "cli.command.agents.logs.subscribe.Request")]
 pub struct Request {
     pub path_type: Path,
     pub targets: Vec<Target>,
@@ -40,7 +40,7 @@ pub struct Request {
 /// optional. If all 3 are false, the request's `kinds` field is
 /// serialized as `None` (no filter — wait for any kind).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.KindFilter")]
+#[schemars(rename = "cli.command.agents.logs.subscribe.KindFilter")]
 pub struct KindFilter {
     /// `--request`: covers all 3 request blob kinds
     /// (`agent_completion_request` / `vector_completion_request`
@@ -71,10 +71,10 @@ impl KindFilter {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.Path")]
+#[schemars(rename = "cli.command.agents.logs.subscribe.Path")]
 pub enum Path {
-    #[serde(rename = "agents/logs/read/subscribe")]
-    AgentsLogsReadSubscribe,
+    #[serde(rename = "agents/logs/subscribe")]
+    AgentsLogsSubscribe,
 }
 
 impl CommandRequest for Request {
@@ -87,10 +87,10 @@ impl CommandRequest for Request {
     }
 }
 
-// Re-export `Target` from `logs::read::all` — single source of
+// Re-export `Target` from `logs::list` — single source of
 // truth for the docker-style `--target` parser. Same shape on
 // the wire as `agents logs read all` / `read pending`.
-pub use super::all::Target;
+pub use super::list::Target;
 
 /// Subscribe's wire shape. Either a real parts-grouped block
 /// (the EXACT same enum `read all` / `read pending` emit) OR
@@ -99,10 +99,10 @@ pub use super::all::Target;
 /// consumers see either a block JSON object or a bare string.
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.ResponseItem")]
+#[schemars(rename = "cli.command.agents.logs.subscribe.ResponseItem")]
 pub enum ResponseItem {
     #[schemars(title = "Item")]
-    Item(super::all::ResponseItem),
+    Item(super::list::ResponseItem),
     #[schemars(title = "AgentsInactive")]
     AgentsInactive(AgentsInactiveTag),
 }
@@ -112,7 +112,7 @@ pub enum ResponseItem {
 /// `AgentsInactiveTag::AgentsInactive`; the surrounding
 /// `ResponseItem::AgentsInactive(_)` carries it.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.subscribe.AgentsInactiveTag")]
+#[schemars(rename = "cli.command.agents.logs.subscribe.AgentsInactiveTag")]
 pub enum AgentsInactiveTag {
     #[serde(rename = "agents_inactive")]
     AgentsInactive,
@@ -178,7 +178,7 @@ impl TryFrom<Args> for Request {
             .collect::<Result<Vec<_>, _>>()?;
         let kinds = KindFilter::from_flags(args.request, args.assistant, args.tool);
         Ok(Self {
-            path_type: Path::AgentsLogsReadSubscribe,
+            path_type: Path::AgentsLogsSubscribe,
             targets,
             kinds,
             after_id: args.after_id,

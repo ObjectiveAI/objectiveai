@@ -1,7 +1,7 @@
 ﻿use crate::cli::command::CommandRequest;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.request_schema.Request")]
+#[schemars(rename = "cli.command.agents.logs.list.request_schema.Request")]
 pub struct Request {
     pub path_type: Path,
     #[serde(flatten)]
@@ -9,10 +9,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.all.request_schema.Path")]
+#[schemars(rename = "cli.command.agents.logs.list.request_schema.Path")]
 pub enum Path {
-    #[serde(rename = "agents/logs/read/all/request_schema")]
-    AgentsLogsReadAllRequestSchema,
+    #[serde(rename = "agents/logs/list/request_schema")]
+    AgentsLogsListRequestSchema,
 }
 
 #[derive(clap::Args)]
@@ -36,7 +36,7 @@ pub type Response = crate::cli::command::ResponseSchema;
 impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
-        Ok(Self { path_type: Path::AgentsLogsReadAllRequestSchema, base: args.base.into() })
+        Ok(Self { path_type: Path::AgentsLogsListRequestSchema, base: args.base.into() })
     }
 }
 

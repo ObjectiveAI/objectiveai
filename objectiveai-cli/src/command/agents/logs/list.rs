@@ -5,7 +5,7 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use futures::stream::FuturesUnordered;
-use objectiveai_sdk::cli::command::agents::logs::read::all::{Request, ResponseItem, Target};
+use objectiveai_sdk::cli::command::agents::logs::list::{Request, ResponseItem, Target};
 
 use crate::context::Context;
 use crate::db::tags;
@@ -18,6 +18,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let db = ctx.db_client().await?.clone();
     let after_id = request.after_id;
     let limit = request.limit;
+    // `--pending` lists only unfinalized rows under the target (read
+    // from `messages_queue`); `--all` lists every logged row for the
+    // resolved hierarchy.
+    let pending = request.pending;
     let stream = async_stream::stream! {
         let mut inflight = FuturesUnordered::new();
         for target in request.targets {
@@ -26,9 +30,15 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             inflight.push(async move {
                 let (_parent, spawned, _leaf) =
                     resolve_target(&db, target, &default_parent).await?;
-                let items = crate::db::logs::read_all_for_hierarchy(
-                    &db, &spawned, after_id, limit,
-                ).await.map_err(Error::from)?;
+                let items = if pending {
+                    crate::db::logs::read_pending_for_parent(
+                        &db, &spawned, after_id, limit,
+                    ).await.map_err(Error::from)?
+                } else {
+                    crate::db::logs::read_all_for_hierarchy(
+                        &db, &spawned, after_id, limit,
+                    ).await.map_err(Error::from)?
+                };
                 Ok::<Vec<ResponseItem>, Error>(items)
             });
         }
@@ -92,8 +102,8 @@ async fn resolve_target(
 }
 
 pub mod request_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::all as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::all::request_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::list as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::list::request_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;
@@ -104,8 +114,8 @@ pub mod request_schema {
 }
 
 pub mod response_schema {
-    use objectiveai_sdk::cli::command::agents::logs::read::all as sdk;
-    use objectiveai_sdk::cli::command::agents::logs::read::all::response_schema::{Request, Response};
+    use objectiveai_sdk::cli::command::agents::logs::list as sdk;
+    use objectiveai_sdk::cli::command::agents::logs::list::response_schema::{Request, Response};
 
     use crate::context::Context;
     use crate::error::Error;

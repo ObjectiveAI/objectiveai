@@ -30,7 +30,7 @@ use crate::functions::executions::request::FunctionExecutionCreateParams;
 use crate::vector::completions::request::VectorCompletionCreateParams;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.id.Request")]
+#[schemars(rename = "cli.command.agents.logs.open.Request")]
 pub struct Request {
     pub path_type: Path,
     pub id: i64,
@@ -39,10 +39,10 @@ pub struct Request {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.agents.logs.read.id.Path")]
+#[schemars(rename = "cli.command.agents.logs.open.Path")]
 pub enum Path {
-    #[serde(rename = "agents/logs/read/id")]
-    AgentsLogsReadId,
+    #[serde(rename = "agents/logs/open")]
+    AgentsLogsOpen,
 }
 
 impl CommandRequest for Request {
@@ -67,7 +67,7 @@ impl CommandRequest for Request {
 /// [`ContentBlock`]: crate::mcp::tool::ContentBlock
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.command.agents.logs.read.id.Response")]
+#[schemars(rename = "cli.command.agents.logs.open.Response")]
 pub enum Response {
     #[schemars(title = "AgentCompletionRequest")]
     AgentCompletionRequest {
@@ -106,6 +106,7 @@ pub enum Response {
 pub struct Args {
     /// `logs.messages."index"` — the BIGSERIAL position of the
     /// event in the cross-agent history.
+    #[arg(long)]
     pub id: i64,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
@@ -132,7 +133,7 @@ impl TryFrom<Args> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(args: Args) -> Result<Self, Self::Error> {
         Ok(Self {
-            path_type: Path::AgentsLogsReadId,
+            path_type: Path::AgentsLogsOpen,
             id: args.id,
             base: args.base.into(),
         })

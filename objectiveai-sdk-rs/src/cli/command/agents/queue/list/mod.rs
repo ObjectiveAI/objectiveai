@@ -47,7 +47,7 @@ impl CommandRequest for Request {
 // per-part 5-variant kind discriminator. `agents queue read pending`
 // is the pre-execution mirror of logs read all's
 // `ClientNotification` block.
-pub use super::super::logs::read::all::{
+pub use super::super::logs::list::{
     ClientNotificationPartType as QueuePartType, Target,
 };
 

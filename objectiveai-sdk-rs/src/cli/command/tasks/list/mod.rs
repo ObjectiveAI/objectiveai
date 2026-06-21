@@ -15,7 +15,7 @@ use crate::cli::command::CommandRequest;
 
 /// The same `Target` every hierarchy-scoped read command uses
 /// (`agents instances list`, `agents logs read all`, …).
-pub use crate::cli::command::agents::logs::read::all::Target;
+pub use crate::cli::command::agents::logs::list::Target;
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.tasks.list.Request")]
