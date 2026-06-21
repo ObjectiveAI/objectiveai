@@ -2,6 +2,10 @@
   "title": "cli.command.plugins.Request",
   "anyOf": [
     {
+      "title": "Daemon",
+      "$ref": "cli.command.plugins.daemon.Request"
+    },
+    {
       "title": "Get",
       "$ref": "cli.command.plugins.get.Request"
     },

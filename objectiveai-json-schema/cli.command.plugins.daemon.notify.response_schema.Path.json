@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.plugins.daemon.notify.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "plugins/daemon/notify/response_schema"
+  ]
+}

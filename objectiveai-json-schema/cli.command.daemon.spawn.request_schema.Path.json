@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.daemon.spawn.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "daemon/spawn/request_schema"
+  ]
+}

@@ -10,6 +10,10 @@
       "$ref": "cli.command.api.Request"
     },
     {
+      "title": "Daemon",
+      "$ref": "cli.command.daemon.Request"
+    },
+    {
       "title": "Db",
       "$ref": "cli.command.db.Request"
     },

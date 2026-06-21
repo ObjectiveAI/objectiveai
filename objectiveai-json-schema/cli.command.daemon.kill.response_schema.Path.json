@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.daemon.kill.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "daemon/kill/response_schema"
+  ]
+}

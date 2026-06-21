@@ -5,6 +5,7 @@ from typing import Union
 from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.agents.request import Request as CliCommandAgentsRequest
 from objectiveai_sdk.cli.command.api.request import Request as CliCommandApiRequest
+from objectiveai_sdk.cli.command.daemon.request import Request as CliCommandDaemonRequest
 from objectiveai_sdk.cli.command.db.request import Request as CliCommandDbRequest
 from objectiveai_sdk.cli.command.functions.request import Request as CliCommandFunctionsRequest
 from objectiveai_sdk.cli.command.kill_all.request import Request as CliCommandKillAllRequest
@@ -33,6 +34,12 @@ class RequestApi(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Api'})
 
     root: CliCommandApiRequest
+
+
+class RequestDaemon(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Daemon'})
+
+    root: CliCommandDaemonRequest
 
 
 class RequestDb(RootModel):
@@ -134,5 +141,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
 
