@@ -5,7 +5,7 @@ name: Release
 # the GitHub Release `v<version>` does not yet exist, this workflow rolls
 # out (all-or-nothing, keyed off that one version):
 #
-#   • the six per-platform binary zips (objectiveai-<version>-<os>-<arch>.zip), each
+#   • the five per-platform binary zips (objectiveai-<version>-<os>-<arch>.zip), each
 #     produced by `bash build.sh --release --no-sdk --no-test-integration`
 #     and uploaded to the release; and
 #   • the language SDKs, published sequentially so each resolves before the
@@ -19,14 +19,22 @@ name: Release
 # fresh generated artifacts first (via build.sh).
 #
 # Re-runs: the GitHub-release-exists gate makes a new version publish once.
-# To resume after a partial failure, delete the release and re-run — the
-# per-package "skip if already published" guards make completed publishes
-# no-ops.
+# To resume after a partial failure WITHOUT deleting the release, dispatch
+# this workflow manually with `force=true` (Actions UI or
+# `gh workflow run release.yml --ref main -f force=true`). The per-package
+# "skip if already published" guards make completed publishes no-ops, so only
+# the previously-failed pieces are produced. (Deleting the release and
+# re-running also works, but force avoids the delete.)
 
 on:
   push:
     branches: [main]
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Re-run even if v<version> already exists (idempotent guards skip what is already published)'
+        type: boolean
+        default: false
 
 permissions:
   contents: write   # create the release, upload zips, push the go tag
@@ -53,7 +61,10 @@ jobs:
           VERSION=$(cargo metadata --format-version 1 --no-deps --manifest-path objectiveai-cli/Cargo.toml | jq -r '.packages[] | select(.name == "objectiveai-cli") | .version')
           echo "CLI version: $VERSION"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          if gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then
+            echo "force=true — releasing even though v$VERSION may exist (idempotent guards skip published artifacts)"
+            echo "should-release=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "v$VERSION" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             echo "Release v$VERSION already exists — skipping"
             echo "should-release=false" >> "$GITHUB_OUTPUT"
           else
@@ -93,7 +104,10 @@ jobs:
             --title "v$VERSION" \
             --notes-file release-notes.md
 
-  # ── Binary zips (6 platforms; build.sh --release --no-sdk --no-test-integration) ──
+  # ── Binary zips (5 platforms; build.sh --release --no-sdk --no-test-integration) ──
+  # No windows-arm64: objectiveai-db's bundled embedded-postgres has no
+  # aarch64-pc-windows-msvc binary upstream (theseus-rs/postgresql-binaries),
+  # so the zip can't be built (or would ship a non-functional db).
 
   binaries:
     name: zip (${{ matrix.os }}-${{ matrix.arch }})
@@ -111,7 +125,6 @@ jobs:
           - { os: macos,   arch: x86_64,  runs-on: macos-15-intel }
           - { os: macos,   arch: aarch64, runs-on: macos-14 }
           - { os: windows, arch: x86_64,  runs-on: windows-latest }
-          - { os: windows, arch: aarch64, runs-on: windows-11-arm }
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -238,12 +251,12 @@ jobs:
           - { os: macos-14,         platform: macos-arm64,    target: aarch64-apple-darwin }
           - { os: macos-15-intel,   platform: macos-x86_64,   target: x86_64-apple-darwin }
           - { os: windows-latest,   platform: windows-x86_64, target: x86_64-pc-windows-msvc }
-          - { os: windows-11-arm,   platform: windows-arm64,  target: aarch64-pc-windows-msvc }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          # 3.13 everywhere — the whole pipeline standardizes on one Python.
+          python-version: '3.13'
       - name: Stage README + LICENSE
         shell: bash
         run: |
@@ -272,7 +285,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       - name: Stage README + LICENSE
         run: |
           cp README.md objectiveai-sdk-py/README.md
@@ -298,7 +311,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.13'
       - name: Download sdk-py artifacts
         uses: actions/download-artifact@v4
         with:

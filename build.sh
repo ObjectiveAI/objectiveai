@@ -214,7 +214,11 @@ if [ "$NO_ZIP" != "1" ]; then
   (
     cd "$REPO_ROOT"
     ws_failed=0
-    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp "${FIXTURE_CRATES[@]}"; do
+    # `${ARR[@]+"${ARR[@]}"}` expands to the elements when set and to
+    # nothing when empty/unset — bash 3.2 (macOS) errors on a bare
+    # `"${ARR[@]}"` of an empty array under `set -u`, which is exactly the
+    # `--no-test-integration` case (FIXTURE_CRATES left empty).
+    for crate in objectiveai-cli objectiveai-api objectiveai-db objectiveai-mcp ${FIXTURE_CRATES[@]+"${FIXTURE_CRATES[@]}"}; do
       if cargo build $PROFILE_FLAG -p "$crate" > "$LOG_DIR/${crate}-${BUILD_TS}.txt" 2>&1; then
         echo "$crate: SUCCESS"
       else
