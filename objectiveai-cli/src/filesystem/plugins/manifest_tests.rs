@@ -16,6 +16,7 @@ fn base_manifest() -> Manifest {
         viewer_url: None,
         viewer_routes: vec![],
         mcp_servers: Vec::new(),
+        daemon: false,
     }
 }
 
@@ -504,6 +505,7 @@ fn manifest_converts_to_sdk_response_manifest() {
             name: "search".to_string(),
             authorization: true,
         }],
+        daemon: false,
     };
     let exec = m.exec.clone();
     let r: ResponseManifest = m.into();
