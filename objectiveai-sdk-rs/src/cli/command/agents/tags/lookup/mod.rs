@@ -118,6 +118,7 @@ pub struct Args {
     /// Leaf id of the target agent. Combined with `--parent` (or
     /// the cli's own `Config.agent_instance_hierarchy` when omitted)
     /// to form the full lineage. Mutually exclusive with `--tag`.
+    #[arg(long)]
     pub agent_instance: Option<String>,
     /// Optional lineage prefix to prepend to `agent_instance`.
     /// When omitted, the cli substitutes its own
