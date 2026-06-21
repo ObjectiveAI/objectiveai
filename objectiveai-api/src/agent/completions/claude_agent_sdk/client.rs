@@ -231,7 +231,13 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             validate_response_format(&agent.id, &params.response_format)?;
 
             // Build prompt from messages + continuation (handles continuation validation).
-            let prompt = Prompt::new(&messages, continuation.as_deref(), request_continuation.as_ref())?;
+            // The system prompt is sourced directly from the agent.
+            let prompt = Prompt::new(
+                agent.base.system_prompt.as_deref(),
+                &messages,
+                continuation.as_deref(),
+                request_continuation.as_ref(),
+            )?;
 
             // When tools are disabled for this iteration, give the SDK
             // an empty MCP server map so it never tries to connect.

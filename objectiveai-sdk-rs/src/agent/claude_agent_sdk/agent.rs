@@ -144,51 +144,29 @@ impl AgentBase {
         Ok(())
     }
 
-    /// Returns system prompt (if set) as a system message, then prefix content
-    /// (if set) as a user message, then the provided messages, then suffix
-    /// content (if set) as a user message.
+    /// Returns prefix content (if set) as a user message, then the provided
+    /// messages, then suffix content (if set) as a user message.
+    ///
+    /// The agent's `system_prompt` is **not** rendered here — it is consumed
+    /// directly by the Claude prompt builder.
     pub fn merged_messages(
         &self,
         messages: Vec<super::super::completions::message::Message>,
     ) -> Vec<super::super::completions::message::Message> {
-        use super::super::completions::message::{
-            Message, SimpleContent, SystemMessage, UserMessage,
-        };
-        let system_len = if self.system_prompt.is_some() { 1 } else { 0 };
+        use super::super::completions::message::{Message, UserMessage};
         let prefix_len = if self.prefix_content.is_some() { 1 } else { 0 };
         let suffix_len = if self.suffix_content.is_some() { 1 } else { 0 };
-        let mut merged = Vec::with_capacity(
-            system_len + prefix_len + messages.len() + suffix_len,
-        );
-        if let Some(system_prompt) = &self.system_prompt {
-            merged.push(Message::System(SystemMessage {
-                content: SimpleContent::Text(system_prompt.clone()),
-                name: None,
-            }));
-        }
-        let mut prefix_inserted = self.prefix_content.is_none();
-        for msg in messages {
-            if !prefix_inserted {
-                if !matches!(msg, Message::System(_) | Message::Developer(_)) {
-                    merged.push(Message::User(UserMessage {
-                        content: self.prefix_content.clone().unwrap(),
-                        name: None,
-                    }));
-                    prefix_inserted = true;
-                }
-            }
-            merged.push(msg);
-        }
-        if !prefix_inserted {
+        let mut merged =
+            Vec::with_capacity(prefix_len + messages.len() + suffix_len);
+        if let Some(prefix_content) = &self.prefix_content {
             merged.push(Message::User(UserMessage {
-                content: self.prefix_content.clone().unwrap(),
-                name: None,
+                content: prefix_content.clone(),
             }));
         }
+        merged.extend(messages);
         if let Some(suffix_content) = &self.suffix_content {
             merged.push(Message::User(UserMessage {
                 content: suffix_content.clone(),
-                name: None,
             }));
         }
         merged

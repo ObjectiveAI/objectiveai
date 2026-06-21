@@ -98,8 +98,6 @@ fn message_rich_content(msg: &Message) -> Option<&RichContent> {
         Message::User(u) => Some(&u.content),
         Message::Tool(t) => Some(&t.content),
         Message::Assistant(a) => a.content.as_ref(),
-        // Developer and System use SimpleContent, which cannot contain multimodal.
-        Message::Developer(_) | Message::System(_) => None,
     }
 }
 

@@ -389,14 +389,12 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                 match &mock_response {
                     MockResponse::Content { text, .. } => AssistantMessage {
                         content: Some(RichContent::Text(text.clone())),
-                        name: None,
                         refusal: None,
                         tool_calls: None,
                         reasoning,
                     },
                     MockResponse::ToolCalls(calls) => AssistantMessage {
                         content: None,
-                        name: None,
                         refusal: None,
                         tool_calls: Some(calls.iter().map(|c| {
                             AssistantToolCall::Function {
@@ -419,7 +417,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                         } else {
                             Some(RichContent::Text(content.clone()))
                         },
-                        name: None,
                         refusal: None,
                         tool_calls: Some(tool_calls.iter().map(|c| {
                             AssistantToolCall::Function {

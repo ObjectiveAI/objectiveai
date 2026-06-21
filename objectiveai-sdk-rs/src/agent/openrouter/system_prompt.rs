@@ -1,8 +1,9 @@
 //! The agent's system prompt: a single role-tagged text entry.
 //!
 //! A [`SystemPrompt`] is a `role` (`system` or `developer`) plus plain `String`
-//! `content`. The OpenRouter client renders it (via [`SystemPrompt::to_message`])
-//! as the leading message of every request.
+//! `content`. It serializes to the OpenRouter wire shape
+//! (`{"role": "system"|"developer", "content": ...}`) and the OpenRouter client
+//! prepends it as the leading message of every request.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -46,25 +47,6 @@ pub struct SystemPrompt {
 }
 
 impl SystemPrompt {
-    /// Render this prompt to a completions [`Message`] — a system or developer
-    /// message carrying the content as plain text.
-    ///
-    /// [`Message`]: crate::agent::completions::message::Message
-    pub fn to_message(&self) -> crate::agent::completions::message::Message {
-        use crate::agent::completions::message::{
-            DeveloperMessage, Message, SimpleContent, SystemMessage,
-        };
-        let content = SimpleContent::Text(self.content.clone());
-        match self.role {
-            SystemPromptRole::System => {
-                Message::System(SystemMessage { content, name: None })
-            }
-            SystemPromptRole::Developer => {
-                Message::Developer(DeveloperMessage { content, name: None })
-            }
-        }
-    }
-
     /// Validates the prompt: `content` must be non-empty.
     pub fn validate(&self) -> Result<(), String> {
         if self.content.is_empty() {
@@ -79,31 +61,22 @@ mod tests {
     use super::*;
 
     #[test]
-    fn to_message_maps_role_to_message_variant() {
-        use crate::agent::completions::message::{
-            DeveloperMessage, Message, SimpleContent, SystemMessage,
-        };
+    fn serializes_to_role_tagged_wire_shape() {
         assert_eq!(
-            SystemPrompt {
+            serde_json::to_value(SystemPrompt {
                 role: SystemPromptRole::System,
                 content: "hi".to_string(),
-            }
-            .to_message(),
-            Message::System(SystemMessage {
-                content: SimpleContent::Text("hi".to_string()),
-                name: None,
             })
+            .unwrap(),
+            serde_json::json!({"role": "system", "content": "hi"})
         );
         assert_eq!(
-            SystemPrompt {
+            serde_json::to_value(SystemPrompt {
                 role: SystemPromptRole::Developer,
                 content: "yo".to_string(),
-            }
-            .to_message(),
-            Message::Developer(DeveloperMessage {
-                content: SimpleContent::Text("yo".to_string()),
-                name: None,
             })
+            .unwrap(),
+            serde_json::json!({"role": "developer", "content": "yo"})
         );
     }
 

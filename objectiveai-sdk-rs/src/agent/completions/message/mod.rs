@@ -1,25 +1,19 @@
 //! Message types for agent completions.
 //!
 //! Messages represent the conversation history sent to the model. Each message
-//! has a role (system, user, assistant, tool, or developer) and content.
+//! has a role (user, assistant, or tool) and content.
 
 mod assistant_message;
-mod developer_message;
 mod file_content;
 mod pipe_ack;
 mod rich_content;
-mod simple_content;
-mod system_message;
 mod tool_message;
 mod user_message;
 
 pub use assistant_message::*;
-pub use developer_message::*;
 pub use file_content::*;
 pub use pipe_ack::*;
 pub use rich_content::*;
-pub use simple_content::*;
-pub use system_message::*;
 pub use tool_message::*;
 pub use user_message::*;
 
@@ -40,37 +34,22 @@ pub mod prompt {
     use super::Message;
     use schemars::JsonSchema;
 
-    /// Returns whether two messages are the same chainable role
-    /// (developer, user, or system) and have compatible names
-    /// (at most one has a name, or both have the same name).
+    /// Returns whether two messages are a chainable pair — i.e. both
+    /// user messages (the only mergeable role).
     fn is_chain(a: &Message, b: &Message) -> bool {
-        match (a, b) {
-            (Message::Developer(a), Message::Developer(b)) => {
-                !a.has_name() || !b.has_name() || a.name == b.name
-            }
-            (Message::System(a), Message::System(b)) => {
-                !a.has_name() || !b.has_name() || a.name == b.name
-            }
-            (Message::User(a), Message::User(b)) => {
-                !a.has_name() || !b.has_name() || a.name == b.name
-            }
-            _ => false,
-        }
+        matches!((a, b), (Message::User(_), Message::User(_)))
     }
 
     /// Pushes `other` into `target` (same-role merge).
     fn push(target: &mut Message, other: &Message) {
         match (target, other) {
-            (Message::Developer(t), Message::Developer(o)) => t.push(o),
-            (Message::System(t), Message::System(o)) => t.push(o),
             (Message::User(t), Message::User(o)) => t.push(o),
             _ => unreachable!(),
         }
     }
 
     /// Prepares a list of messages by normalizing each one, then
-    /// merging chains of consecutive same-role developer/user/system
-    /// messages (only when at most one message in the chain has a name).
+    /// merging chains of consecutive user messages.
     pub fn prepare(messages: &mut Vec<Message>) {
         messages.iter_mut().for_each(Message::prepare);
 
@@ -117,14 +96,6 @@ pub mod prompt {
 #[serde(tag = "role")]
 #[schemars(rename = "agent.completions.message.Message")]
 pub enum Message {
-    /// A developer message (similar to system, but from the developer).
-    #[schemars(title = "Developer")]
-    #[serde(rename = "developer")]
-    Developer(DeveloperMessage),
-    /// A system message setting context or instructions.
-    #[schemars(title = "System")]
-    #[serde(rename = "system")]
-    System(SystemMessage),
     /// A user message from the end user.
     #[schemars(title = "User")]
     #[serde(rename = "user")]
@@ -146,8 +117,6 @@ impl Message {
     /// and normalizes optional fields (setting empty strings to `None`).
     pub fn prepare(&mut self) {
         match self {
-            Message::Developer(msg) => msg.prepare(),
-            Message::System(msg) => msg.prepare(),
             Message::User(msg) => msg.prepare(),
             Message::Assistant(msg) => msg.prepare(),
             Message::Tool(msg) => msg.prepare(),
@@ -191,11 +160,6 @@ impl FromStarlarkValue for Message {
             )
         })?;
         match role {
-            "developer" => DeveloperMessage::from_starlark_value(value)
-                .map(Message::Developer),
-            "system" => {
-                SystemMessage::from_starlark_value(value).map(Message::System)
-            }
             "user" => {
                 UserMessage::from_starlark_value(value).map(Message::User)
             }
@@ -229,12 +193,6 @@ impl FromStarlarkValue for Message {
 #[serde(tag = "role")]
 #[schemars(rename = "agent.completions.message.MessageExpression")]
 pub enum MessageExpression {
-    #[schemars(title = "Developer")]
-    #[serde(rename = "developer")]
-    Developer(DeveloperMessageExpression),
-    #[schemars(title = "System")]
-    #[serde(rename = "system")]
-    System(SystemMessageExpression),
     #[schemars(title = "User")]
     #[serde(rename = "user")]
     User(UserMessageExpression),
@@ -260,12 +218,6 @@ impl MessageExpression {
         params: &functions::expression::Params,
     ) -> Result<Message, functions::expression::ExpressionError> {
         match self {
-            MessageExpression::Developer(msg) => {
-                msg.compile(params).map(Message::Developer)
-            }
-            MessageExpression::System(msg) => {
-                msg.compile(params).map(Message::System)
-            }
             MessageExpression::User(msg) => {
                 msg.compile(params).map(Message::User)
             }
@@ -315,12 +267,6 @@ impl FromStarlarkValue for MessageExpression {
             )
         })?;
         match role {
-            "developer" => {
-                DeveloperMessageExpression::from_starlark_value(value)
-                    .map(MessageExpression::Developer)
-            }
-            "system" => SystemMessageExpression::from_starlark_value(value)
-                .map(MessageExpression::System),
             "user" => UserMessageExpression::from_starlark_value(value)
                 .map(MessageExpression::User),
             "assistant" => {

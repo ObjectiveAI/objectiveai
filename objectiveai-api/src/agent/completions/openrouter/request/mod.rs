@@ -4,6 +4,7 @@
 //! by the OpenRouter API, applying Agent configurations.
 
 mod chat_completion_create_params;
+mod message;
 mod prediction;
 mod provider;
 mod response_format;
@@ -13,6 +14,7 @@ mod tool_choice;
 mod usage;
 
 pub use chat_completion_create_params::*;
+pub use message::*;
 pub use prediction::*;
 pub use provider::*;
 pub use response_format::*;

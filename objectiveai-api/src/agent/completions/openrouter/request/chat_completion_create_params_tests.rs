@@ -2,6 +2,17 @@
 
 use super::*;
 
+/// Wrap conversation messages as request messages (no leading system prompt).
+fn conv(
+    messages: &[objectiveai_sdk::agent::completions::message::Message],
+) -> Vec<RequestMessage> {
+    messages
+        .iter()
+        .cloned()
+        .map(RequestMessage::Conversation)
+        .collect()
+}
+
 /// Helper to resolve tools and build params via the per-agent proxy
 /// connection. Pass `None` when the test needs no tools.
 async fn build_params(
@@ -73,7 +84,6 @@ async fn test_no_tools_empty_params() {
                 content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hello".into(),
                 ),
-                name: None,
             },
         ),
     ];
@@ -102,7 +112,7 @@ async fn test_no_tools_empty_params() {
     ).await;
 
     let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
+        messages: conv(&messages),
         provider: None,
         model: "test-model".into(),
         frequency_penalty: None,
@@ -244,7 +254,6 @@ async fn test_multiple_mcp_tools_no_conflicts() {
             content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "Hello".into(),
             ),
-            name: None,
         },
     )];
 
@@ -318,7 +327,7 @@ async fn test_multiple_mcp_tools_no_conflicts() {
     }
 
     let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
+        messages: conv(&messages),
         provider: None,
         model: "openai/gpt-4o".into(),
         frequency_penalty: None,
@@ -498,7 +507,6 @@ async fn test_mcp_tool_parameters_preserved() {
                 content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hello".into(),
                 ),
-                name: None,
             },
         ),
     ];
@@ -560,7 +568,7 @@ async fn test_mcp_tool_parameters_preserved() {
     ).await;
 
     let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
+        messages: conv(&messages),
         provider: None,
         model: "test-model".into(),
         frequency_penalty: None,
@@ -655,7 +663,6 @@ async fn test_agent_base_fields_passthrough() {
                     objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Hello".to_string(),
                     ),
-                name: None,
             },
         ),
     ];
@@ -671,7 +678,7 @@ async fn test_agent_base_fields_passthrough() {
     assert_eq!(
         result,
         ChatCompletionCreateParams {
-            messages: messages.clone(),
+            messages: conv(&messages),
             provider: None,
             model: "openai/gpt-4o".to_string(),
             frequency_penalty: Some(0.5),
@@ -1062,26 +1069,16 @@ async fn test_seed_passthrough() {
     };
 
     let messages = vec![
-        objectiveai_sdk::agent::completions::message::Message::System(
-            objectiveai_sdk::agent::completions::message::SystemMessage {
-                content: objectiveai_sdk::agent::completions::message::SimpleContent::Text(
-                    "You are a helpful assistant".into(),
-                ),
-                name: None,
-            },
-        ),
         objectiveai_sdk::agent::completions::message::Message::User(
             objectiveai_sdk::agent::completions::message::UserMessage {
                 content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "What's the weather?".into(),
                 ),
-                name: None,
             },
         ),
         objectiveai_sdk::agent::completions::message::Message::Assistant(
             objectiveai_sdk::agent::completions::message::AssistantMessage {
                 content: None,
-                name: None,
                 refusal: None,
                 tool_calls: Some(vec![
                     objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
@@ -1117,7 +1114,7 @@ async fn test_seed_passthrough() {
     assert_eq!(
         result,
         ChatCompletionCreateParams {
-            messages: messages.clone(),
+            messages: conv(&messages),
             provider: None,
             model: "openai/gpt-4o".into(),
             frequency_penalty: None,
@@ -1280,7 +1277,6 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
                 content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Use the tools".into(),
                 ),
-                name: None,
             },
         ),
     ];
@@ -1624,7 +1620,7 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
     }
 
     let expected = ChatCompletionCreateParams {
-        messages: messages.clone(),
+        messages: conv(&messages),
         provider: None,
         model: "anthropic/claude-sonnet-4".into(),
         frequency_penalty: None,
@@ -1884,7 +1880,6 @@ async fn test_continuation_assistant_message_appended() {
             content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "Hello".to_string(),
             ),
-            name: None,
         },
     )];
 
@@ -1894,7 +1889,6 @@ async fn test_continuation_assistant_message_appended() {
                 content: Some(objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Hi there!".to_string(),
                 )),
-                name: None,
                 refusal: None,
                 tool_calls: None,
                 reasoning: None,
@@ -1911,13 +1905,12 @@ async fn test_continuation_assistant_message_appended() {
     ).await;
 
     let expected = ChatCompletionCreateParams {
-        messages: vec![
+        messages: conv(&[
             objectiveai_sdk::agent::completions::message::Message::User(
                 objectiveai_sdk::agent::completions::message::UserMessage {
                     content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Hello".to_string(),
                     ),
-                    name: None,
                 },
             ),
             objectiveai_sdk::agent::completions::message::Message::Assistant(
@@ -1927,13 +1920,12 @@ async fn test_continuation_assistant_message_appended() {
                             "Hi there!".to_string(),
                         ),
                     ),
-                    name: None,
                     refusal: None,
                     tool_calls: None,
                     reasoning: None,
                 },
             ),
-        ],
+        ]),
         provider: None,
         model: "test-model".to_string(),
         frequency_penalty: None,
@@ -2000,7 +1992,6 @@ async fn test_continuation_mixed_items() {
             content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                 "What is the weather?".to_string(),
             ),
-            name: None,
         },
     )];
 
@@ -2009,7 +2000,6 @@ async fn test_continuation_mixed_items() {
         crate::agent::completions::ContinuationItem::State(
             objectiveai_sdk::agent::completions::message::AssistantMessage {
                 content: None,
-                name: None,
                 refusal: None,
                 tool_calls: Some(vec![
                     objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
@@ -2040,7 +2030,6 @@ async fn test_continuation_mixed_items() {
                 content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                     "Thanks! What about tomorrow?".to_string(),
                 ),
-                name: None,
             },
         ),
     ];
@@ -2054,19 +2043,17 @@ async fn test_continuation_mixed_items() {
     ).await;
 
     let expected = ChatCompletionCreateParams {
-        messages: vec![
+        messages: conv(&[
             objectiveai_sdk::agent::completions::message::Message::User(
                 objectiveai_sdk::agent::completions::message::UserMessage {
                     content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "What is the weather?".to_string(),
                     ),
-                    name: None,
                 },
             ),
             objectiveai_sdk::agent::completions::message::Message::Assistant(
                 objectiveai_sdk::agent::completions::message::AssistantMessage {
                     content: None,
-                    name: None,
                     refusal: None,
                     tool_calls: Some(vec![
                         objectiveai_sdk::agent::completions::message::AssistantToolCall::Function {
@@ -2095,10 +2082,9 @@ async fn test_continuation_mixed_items() {
                     content: objectiveai_sdk::agent::completions::message::RichContent::Text(
                         "Thanks! What about tomorrow?".to_string(),
                     ),
-                    name: None,
                 },
             ),
-        ],
+        ]),
         provider: None,
         model: "test-model".to_string(),
         frequency_penalty: None,
@@ -2239,7 +2225,6 @@ async fn test_request_continuation_messages_come_first() {
 
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Current turn".into()),
-        name: None,
     })];
 
     let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
@@ -2263,11 +2248,9 @@ async fn test_request_continuation_messages_come_first() {
         messages: vec![
             Message::User(UserMessage {
                 content: RichContent::Text("Previous turn".into()),
-                name: None,
             }),
             Message::Assistant(AssistantMessage {
                 content: Some(RichContent::Text("Previous response".into())),
-                name: None,
                 refusal: None,
                 tool_calls: None,
                 reasoning: None,
@@ -2380,7 +2363,7 @@ async fn test_context_compression_none_omits_plugins_field() {
 async fn test_system_prompt_leads_messages_fresh() {
     let _permit = crate::test_clients::acquire_test_permit().await;
     use objectiveai_sdk::agent::completions::message::{
-        Message, RichContent, SimpleContent, SystemMessage, UserMessage,
+        Message, RichContent, UserMessage,
     };
     use objectiveai_sdk::agent::openrouter::system_prompt::{
         SystemPrompt, SystemPromptRole,
@@ -2400,7 +2383,6 @@ async fn test_system_prompt_leads_messages_fresh() {
 
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Hello".into()),
-        name: None,
     })];
 
     let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
@@ -2425,14 +2407,13 @@ async fn test_system_prompt_leads_messages_fresh() {
     assert_eq!(
         result.messages,
         vec![
-            Message::System(SystemMessage {
-                content: SimpleContent::Text("you are helpful".into()),
-                name: None,
+            RequestMessage::System(SystemPrompt {
+                role: SystemPromptRole::System,
+                content: "you are helpful".into(),
             }),
-            Message::User(UserMessage {
+            RequestMessage::Conversation(Message::User(UserMessage {
                 content: RichContent::Text("Hello".into()),
-                name: None,
-            }),
+            })),
         ]
     );
 }
@@ -2441,7 +2422,7 @@ async fn test_system_prompt_leads_messages_fresh() {
 async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
     let _permit = crate::test_clients::acquire_test_permit().await;
     use objectiveai_sdk::agent::completions::message::{
-        Message, RichContent, SimpleContent, SystemMessage, UserMessage,
+        Message, RichContent, UserMessage,
     };
     use objectiveai_sdk::agent::openrouter::system_prompt::{
         SystemPrompt, SystemPromptRole,
@@ -2461,7 +2442,6 @@ async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
 
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Newest".into()),
-        name: None,
     })];
 
     let params = objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams {
@@ -2486,7 +2466,6 @@ async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
         agent_instance_hierarchy: String::new(),
         messages: vec![Message::User(UserMessage {
             content: RichContent::Text("Earlier".into()),
-            name: None,
         })],
         mcp_sessions: indexmap::IndexMap::new(),
     };
@@ -2507,18 +2486,16 @@ async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
     assert_eq!(
         result.messages,
         vec![
-            Message::System(SystemMessage {
-                content: SimpleContent::Text("you are helpful".into()),
-                name: None,
+            RequestMessage::System(SystemPrompt {
+                role: SystemPromptRole::System,
+                content: "you are helpful".into(),
             }),
-            Message::User(UserMessage {
+            RequestMessage::Conversation(Message::User(UserMessage {
                 content: RichContent::Text("Earlier".into()),
-                name: None,
-            }),
-            Message::User(UserMessage {
+            })),
+            RequestMessage::Conversation(Message::User(UserMessage {
                 content: RichContent::Text("Newest".into()),
-                name: None,
-            }),
+            })),
         ]
     );
 }

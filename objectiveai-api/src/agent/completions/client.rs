@@ -1236,23 +1236,14 @@ where
                 } else {
                     RichContent::Parts(all_parts)
                 };
-                // Insert AFTER the leading system/developer chain so
-                // the agent sees its personality prefix first, then
-                // the queued content arrives as one user turn, then
-                // any caller-supplied content follows. On resumption
-                // `messages` is empty so `insert_idx == 0` and the
-                // queued message simply leads the new turn.
-                let insert_idx = messages
-                    .iter()
-                    .position(|m| {
-                        !matches!(m, Message::System(_) | Message::Developer(_))
-                    })
-                    .unwrap_or(messages.len());
+                // The queued content leads as one user turn, then any
+                // caller-supplied content follows. The agent's system prompt
+                // is no longer carried as a conversation message, so the
+                // queued message simply goes at the front.
                 messages.insert(
-                    insert_idx,
+                    0,
                     Message::User(UserMessage {
                         content: rich_content,
-                        name: None,
                     }),
                 );
             }

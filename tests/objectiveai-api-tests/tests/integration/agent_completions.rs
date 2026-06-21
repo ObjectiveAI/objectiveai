@@ -7,8 +7,8 @@
 
 use futures::StreamExt;
 use objectiveai_sdk::agent::completions::message::{
-    AssistantMessage, AssistantToolCall, AssistantToolCallFunction, DeveloperMessage, Message,
-    RichContent, SimpleContent, UserMessage,
+    AssistantMessage, AssistantToolCall, AssistantToolCallFunction, Message,
+    RichContent, UserMessage,
 };
 use objectiveai_sdk::agent::completions::request::{
     AgentCompletionCreateParams, ResponseFormat, ResponseFormatParam,
@@ -264,7 +264,6 @@ async fn test_mock_agent_with_error() {
 async fn test_with_single_user_message() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Hello, world!".into()),
-        name: None,
     })];
     let stream = post_streaming(params_with(42, messages, None, default_mock())).await;
     let completion = normalize(run_and_check(stream).await);
@@ -276,17 +275,12 @@ async fn test_with_single_user_message() {
     );
 }
 
-/// Messages: developer + user messages.
+/// Messages: a single user message.
 #[tokio::test]
 async fn test_with_developer_and_user_messages() {
     let messages = vec![
-        Message::Developer(DeveloperMessage {
-            content: SimpleContent::Text("You are a helpful assistant.".into()),
-            name: None,
-        }),
         Message::User(UserMessage {
             content: RichContent::Text("What is 2+2?".into()),
-            name: None,
         }),
     ];
     let stream = post_streaming(params_with(99, messages, None, default_mock())).await;
@@ -420,11 +414,9 @@ async fn test_multiple_user_messages() {
     let messages = vec![
         Message::User(UserMessage {
             content: RichContent::Text("First message".into()),
-            name: None,
         }),
         Message::User(UserMessage {
             content: RichContent::Text("Second message".into()),
-            name: Some("alice".into()),
         }),
     ];
     let stream = post_streaming(params_with(55, messages, None, default_mock())).await;
@@ -509,7 +501,6 @@ async fn test_per_agent_response_format_unknown_id() {
 async fn test_json_schema_nested_object() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Generate a person".into()),
-        name: None,
     })];
     let rf = Some(ResponseFormatParam::Single(ResponseFormat::JsonSchema {
         schema: indexmap::indexmap! {
@@ -609,7 +600,7 @@ fn encoded_mock_continuation(messages: Vec<Message>) -> String {
 #[tokio::test]
 async fn test_with_mock_continuation() {
     let cont = encoded_mock_continuation(vec![Message::Assistant(AssistantMessage {
-        content: None, name: None, refusal: None, tool_calls: None, reasoning: None,
+        content: None, refusal: None, tool_calls: None, reasoning: None,
     })]);
 
     let mut params = params_with(42, vec![], None, default_mock());
@@ -705,7 +696,6 @@ fn assert_completion_logprobs(completion: &AgentCompletion) {
 async fn test_logprobs_basic_seed_42() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Tell me something".into()),
-        name: None,
     })];
     let agent = mock_agent(
         MockAgentBase { top_logprobs: Some(5), ..Default::default() },
@@ -777,7 +767,6 @@ async fn test_logprobs_with_continuation() {
     );
     let cont = encoded_mock_continuation(vec![Message::Assistant(AssistantMessage {
         content: None,
-        name: None,
         refusal: None,
         reasoning: None,
         tool_calls: Some(vec![
@@ -844,9 +833,8 @@ async fn test_logprobs_per_agent_json_object() {
     let mut per_agent = indexmap::IndexMap::new();
     per_agent.insert(agent_id, ResponseFormat::JsonObject);
 
-    let messages = vec![Message::Developer(DeveloperMessage {
-        content: SimpleContent::Text("Respond with JSON".into()),
-        name: None,
+    let messages = vec![Message::User(UserMessage {
+        content: RichContent::Text("Respond with JSON".into()),
     })];
     let rf = Some(ResponseFormatParam::PerAgent(per_agent));
     let agent = mock_agent(mock_base, None);

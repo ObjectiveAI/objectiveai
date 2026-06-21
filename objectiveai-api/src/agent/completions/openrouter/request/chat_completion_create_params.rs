@@ -21,8 +21,10 @@ pub struct Plugin {
 /// incoming request to create a complete request for OpenRouter.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatCompletionCreateParams {
-    /// Messages for the conversation, including any prefix/suffix from the Agent.
-    pub messages: Vec<objectiveai_sdk::agent::completions::message::Message>,
+    /// Messages for the conversation: the agent's system prompt (if any) as the
+    /// leading entry, followed by the conversation (including any prefix/suffix
+    /// from the Agent).
+    pub messages: Vec<super::RequestMessage>,
     /// Provider preferences merged from request and Agent.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<super::Provider>,
@@ -123,6 +125,7 @@ impl ChatCompletionCreateParams {
     ) -> Self {
         use crate::agent::completions::ContinuationItem;
         use objectiveai_sdk::agent::completions::message::Message;
+        use super::RequestMessage;
 
         // --- Step 0: Build messages array (system_prompt + request_continuation + messages + continuation) ---
         // The agent's system prompt always leads, sourced live from the agent
@@ -137,22 +140,31 @@ impl ChatCompletionCreateParams {
             sys_len + rc_len + messages.len() + continuation.len(),
         );
         if let Some(system_prompt) = &agent.base.system_prompt {
-            all_messages.push(system_prompt.to_message());
+            all_messages.push(RequestMessage::System(system_prompt.clone()));
         }
         if let Some(rc) = request_continuation {
-            all_messages.extend_from_slice(&rc.messages);
+            all_messages.extend(
+                rc.messages
+                    .iter()
+                    .cloned()
+                    .map(RequestMessage::Conversation),
+            );
         }
-        all_messages.extend_from_slice(messages);
-        all_messages.extend(continuation.iter().map(|item| match item {
-            ContinuationItem::State(assistant) => {
-                Message::Assistant(assistant.clone())
-            }
-            ContinuationItem::ToolMessage(tool) => {
-                Message::Tool(tool.clone())
-            }
-            ContinuationItem::UserMessage(user) => {
-                Message::User(user.clone())
-            }
+        all_messages.extend(
+            messages.iter().cloned().map(RequestMessage::Conversation),
+        );
+        all_messages.extend(continuation.iter().map(|item| {
+            RequestMessage::Conversation(match item {
+                ContinuationItem::State(assistant) => {
+                    Message::Assistant(assistant.clone())
+                }
+                ContinuationItem::ToolMessage(tool) => {
+                    Message::Tool(tool.clone())
+                }
+                ContinuationItem::UserMessage(user) => {
+                    Message::User(user.clone())
+                }
+            })
         }));
 
         // --- Step 1: Resolve response_format for this agent ---

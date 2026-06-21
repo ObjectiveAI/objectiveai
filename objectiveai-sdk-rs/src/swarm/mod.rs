@@ -18,7 +18,7 @@
 //! use objectiveai_sdk::swarm::{InlineSwarmBase, InlineSwarm};
 //! use objectiveai_sdk::agent::{InlineAgentBase, InlineAgentBaseWithFallbacks, InlineAgentBaseWithFallbacksOrRemote, InlineAgentBaseWithFallbacksOrRemoteWithCount};
 //! use objectiveai_sdk::agent::openrouter;
-//! use objectiveai_sdk::agent::completions::message::{Message, SystemMessage, SimpleContent};
+//! use objectiveai_sdk::agent::openrouter::system_prompt::{SystemPrompt, SystemPromptRole};
 //!
 //! let swarm_base = InlineSwarmBase {
 //!     agents: vec![
@@ -40,12 +40,10 @@
 //!                 inner: InlineAgentBase::Openrouter(openrouter::AgentBase {
 //!                     model: "anthropic/claude-3.5-sonnet".to_string(),
 //!                     output_mode: openrouter::OutputMode::JsonSchema,
-//!                     prefix_messages: Some(vec![
-//!                         Message::System(SystemMessage {
-//!                             content: SimpleContent::Text("You are a careful evaluator.".to_string()),
-//!                             name: None,
-//!                         }),
-//!                     ]),
+//!                     system_prompt: Some(SystemPrompt {
+//!                         role: SystemPromptRole::System,
+//!                         content: "You are a careful evaluator.".to_string(),
+//!                     }),
 //!                     ..Default::default()
 //!                 }),
 //!                 fallbacks: None,

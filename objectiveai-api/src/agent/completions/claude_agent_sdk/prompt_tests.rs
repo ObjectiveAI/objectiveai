@@ -40,52 +40,33 @@ fn expected(system_prompt: Option<&str>, session_id: &str, content: MessageParam
 // ============================================================
 
 #[test]
-fn test_system_only() {
-    let messages = vec![
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("Hello".to_string()),
-            name: None,
-        }),
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("World".to_string()),
-            name: None,
-        }),
-    ];
+fn test_system_prompt_only() {
+    let messages: Vec<Message> = vec![];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
-        expected(Some("Hello\n\nWorld"), "", blocks(vec![])),
+        Prompt::new(Some("You are helpful"), &messages, None, None).unwrap(),
+        expected(Some("You are helpful"), "", blocks(vec![])),
     );
 }
 
 #[test]
-fn test_developer_only() {
-    let messages = vec![Message::Developer(DeveloperMessage {
-        content: SimpleContent::Text("Be helpful".to_string()),
-        name: None,
+fn test_empty_system_prompt_is_none() {
+    let messages: Vec<Message> = vec![];
+
+    assert_eq!(
+        Prompt::new(Some(""), &messages, None, None).unwrap(),
+        expected(None, "", blocks(vec![])),
+    );
+}
+
+#[test]
+fn test_system_prompt_and_user_text() {
+    let messages = vec![Message::User(UserMessage {
+        content: RichContent::Text("What is 2+2?".to_string()),
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
-        expected(Some("Be helpful"), "", blocks(vec![])),
-    );
-}
-
-#[test]
-fn test_system_and_user_text() {
-    let messages = vec![
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("You are helpful".to_string()),
-            name: None,
-        }),
-        Message::User(UserMessage {
-            content: RichContent::Text("What is 2+2?".to_string()),
-            name: None,
-        }),
-    ];
-
-    assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(Some("You are helpful"), &messages, None, None).unwrap(),
         expected(
             Some("You are helpful"),
             "",
@@ -95,33 +76,14 @@ fn test_system_and_user_text() {
 }
 
 #[test]
-fn test_multiple_system_developer_user() {
-    let messages = vec![
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("Rule 1".to_string()),
-            name: None,
-        }),
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("Rule 2".to_string()),
-            name: None,
-        }),
-        Message::Developer(DeveloperMessage {
-            content: SimpleContent::Text("Dev instruction".to_string()),
-            name: None,
-        }),
-        Message::User(UserMessage {
-            content: RichContent::Text("Hello".to_string()),
-            name: None,
-        }),
-    ];
+fn test_user_text_no_system_prompt() {
+    let messages = vec![Message::User(UserMessage {
+        content: RichContent::Text("Hello".to_string()),
+    })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
-        expected(
-            Some("Rule 1\n\nRule 2\n\nDev instruction"),
-            "",
-            blocks(vec![text_block("Hello")])
-        ),
+        Prompt::new(None, &messages, None, None).unwrap(),
+        expected(None, "", blocks(vec![text_block("Hello")])),
     );
 }
 
@@ -139,11 +101,10 @@ fn test_user_with_image_url() {
                 },
             },
         ]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(
             None,
             "",
@@ -171,11 +132,10 @@ fn test_user_with_base64_image() {
                 detail: None,
             },
         }]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(
             None,
             "",
@@ -203,11 +163,10 @@ fn test_user_with_file_url() {
                 file_url: Some("https://example.com/doc.pdf".to_string()),
             },
         }]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(
             None,
             "",
@@ -242,11 +201,10 @@ fn test_user_with_base64_pdf() {
                 },
             },
         ]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(
             None,
             "",
@@ -270,34 +228,10 @@ fn test_user_with_base64_pdf() {
 }
 
 #[test]
-fn test_user_with_name() {
-    let messages = vec![Message::User(UserMessage {
-        content: RichContent::Text("Hi there".to_string()),
-        name: Some("Alice".to_string()),
-    })];
-
-    assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
-        expected(
-            None,
-            "",
-            blocks(vec![text_block("[Alice] :"), text_block("Hi there")])
-        ),
-    );
-}
-
-#[test]
 fn test_continuation_with_state_and_user() {
-    let messages = vec![
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("Context".to_string()),
-            name: None,
-        }),
-        Message::User(UserMessage {
-            content: RichContent::Text("Original question".to_string()),
-            name: None,
-        }),
-    ];
+    let messages = vec![Message::User(UserMessage {
+        content: RichContent::Text("Original question".to_string()),
+    })];
 
     let continuation = vec![
         ContinuationItem::State(super::State {
@@ -306,12 +240,11 @@ fn test_continuation_with_state_and_user() {
         }),
         ContinuationItem::UserMessage(UserMessage {
             content: RichContent::Text("Follow up".to_string()),
-            name: None,
         }),
     ];
 
     assert_eq!(
-        Prompt::new(&messages, Some(&continuation), None).unwrap(),
+        Prompt::new(Some("Context"), &messages, Some(&continuation), None).unwrap(),
         expected(
             Some("Context"),
             "sess-abc",
@@ -334,11 +267,10 @@ fn test_user_with_plain_text_file() {
                 file_id: None,
             },
         }]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(
             None,
             "",
@@ -363,7 +295,7 @@ fn test_empty_messages() {
     let messages: Vec<Message> = vec![];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap(),
+        Prompt::new(None, &messages, None, None).unwrap(),
         expected(None, "", blocks(vec![])),
     );
 }
@@ -376,14 +308,13 @@ fn test_empty_messages() {
 fn test_error_assistant_message() {
     let messages = vec![Message::Assistant(AssistantMessage {
         content: Some(RichContent::Text("hi".to_string())),
-        name: None,
         tool_calls: None,
         refusal: None,
         reasoning: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
+        Prompt::new(None, &messages, None, None).unwrap_err(),
         super::Error::InvalidMessages("assistant messages are not allowed".to_string()),
     );
 }
@@ -397,29 +328,8 @@ fn test_error_tool_message() {
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
+        Prompt::new(None, &messages, None, None).unwrap_err(),
         super::Error::InvalidMessages("tool messages are not allowed".to_string()),
-    );
-}
-
-#[test]
-fn test_error_system_after_user() {
-    let messages = vec![
-        Message::User(UserMessage {
-            content: RichContent::Text("Hello".to_string()),
-            name: None,
-        }),
-        Message::System(SystemMessage {
-            content: SimpleContent::Text("Late system".to_string()),
-            name: None,
-        }),
-    ];
-
-    assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
-        super::Error::InvalidMessages(
-            "system/developer messages must precede the user message".to_string()
-        ),
     );
 }
 
@@ -428,16 +338,14 @@ fn test_error_two_user_messages() {
     let messages = vec![
         Message::User(UserMessage {
             content: RichContent::Text("First".to_string()),
-            name: None,
         }),
         Message::User(UserMessage {
             content: RichContent::Text("Second".to_string()),
-            name: None,
         }),
     ];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
+        Prompt::new(None, &messages, None, None).unwrap_err(),
         super::Error::InvalidMessages("only one user message is allowed".to_string()),
     );
 }
@@ -446,7 +354,6 @@ fn test_error_two_user_messages() {
 fn test_error_tool_after_state_in_continuation() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Q".to_string()),
-        name: None,
     })];
 
     let continuation = vec![
@@ -462,35 +369,9 @@ fn test_error_tool_after_state_in_continuation() {
     ];
 
     assert_eq!(
-        Prompt::new(&messages, Some(&continuation), None).unwrap_err(),
+        Prompt::new(None, &messages, Some(&continuation), None).unwrap_err(),
         super::Error::InvalidContinuation(
             "tool messages must precede a state item".to_string()
-        ),
-    );
-}
-
-#[test]
-fn test_error_continuation_name_mismatch() {
-    let messages = vec![Message::User(UserMessage {
-        content: RichContent::Text("Hi".to_string()),
-        name: Some("Alice".to_string()),
-    })];
-
-    let continuation = vec![
-        ContinuationItem::State(super::State {
-            message_count: 1,
-            session_id: "s1".to_string(),
-        }),
-        ContinuationItem::UserMessage(UserMessage {
-            content: RichContent::Text("Follow up".to_string()),
-            name: Some("Bob".to_string()),
-        }),
-    ];
-
-    assert_eq!(
-        Prompt::new(&messages, Some(&continuation), None).unwrap_err(),
-        super::Error::InvalidMessages(
-            "continuation user message name 'Bob' does not match expected 'Alice'".to_string()
         ),
     );
 }
@@ -504,11 +385,10 @@ fn test_error_audio_content() {
                 format: "mp3".to_string(),
             },
         }]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
+        Prompt::new(None, &messages, None, None).unwrap_err(),
         super::Error::InvalidMessages(
             "unsupported content type: audio (mp3 format, 10 base64 chars)".to_string()
         ),
@@ -523,11 +403,10 @@ fn test_error_video_content() {
                 url: "https://example.com/vid.mp4".to_string(),
             },
         }]),
-        name: None,
     })];
 
     assert_eq!(
-        Prompt::new(&messages, None, None).unwrap_err(),
+        Prompt::new(None, &messages, None, None).unwrap_err(),
         super::Error::InvalidMessages("unsupported content type: video".to_string()),
     );
 }
@@ -536,7 +415,6 @@ fn test_error_video_content() {
 fn test_request_continuation_session_id_fallback() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Hello".to_string()),
-        name: None,
     })];
 
     let rc = objectiveai_sdk::agent::claude_agent_sdk::Continuation {
@@ -548,7 +426,7 @@ fn test_request_continuation_session_id_fallback() {
 
     // No internal continuation — should fall back to request continuation session_id.
     assert_eq!(
-        Prompt::new(&messages, None, Some(&rc)).unwrap(),
+        Prompt::new(None, &messages, None, Some(&rc)).unwrap(),
         expected(None, "req-sess-123", blocks(vec![text_block("Hello")])),
     );
 }
@@ -557,7 +435,6 @@ fn test_request_continuation_session_id_fallback() {
 fn test_internal_session_id_takes_precedence_over_request() {
     let messages = vec![Message::User(UserMessage {
         content: RichContent::Text("Hello".to_string()),
-        name: None,
     })];
 
     let continuation = vec![
@@ -567,7 +444,6 @@ fn test_internal_session_id_takes_precedence_over_request() {
         }),
         ContinuationItem::UserMessage(UserMessage {
             content: RichContent::Text("Follow up".to_string()),
-            name: None,
         }),
     ];
 
@@ -580,7 +456,7 @@ fn test_internal_session_id_takes_precedence_over_request() {
 
     // Internal continuation has session_id — should use it, not request continuation's.
     assert_eq!(
-        Prompt::new(&messages, Some(&continuation), Some(&rc)).unwrap(),
+        Prompt::new(None, &messages, Some(&continuation), Some(&rc)).unwrap(),
         expected(None, "internal-sess", blocks(vec![
             text_block("Hello"),
             text_block("Follow up"),
