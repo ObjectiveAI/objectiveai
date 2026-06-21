@@ -8,9 +8,10 @@ name: Release
 #   • the five per-platform binary zips (objectiveai-<version>-<os>-<arch>.zip), each
 #     produced by `bash build.sh --release --no-sdk --no-test-integration`
 #     and uploaded to the release; and
-#   • the language SDKs, published sequentially so each resolves before the
-#     next: rust (crates.io) → python (PyPI) → javascript (npm) → golang
-#     (git tag).
+#   • the language SDKs: rust (crates.io) → python (PyPI) → javascript (npm)
+#     run sequentially so each resolves before the next; golang (git tag)
+#     runs independently (it ships committed artifacts and pulls from no
+#     registry, so nothing gates on it and it gates on nothing but the version).
 #
 # The SDK jobs DO NOT run code generation or build wasm — they ship the
 # artifacts already committed to the repo (committed dist/ for js, committed
@@ -369,7 +370,12 @@ jobs:
 
   publish-golang:
     name: SDK · golang (git tag)
-    needs: [check-version, publish-javascript]
+    # Independent of the rust→python→js chain: the Go SDK is just a git tag
+    # over committed Go types + committed lib/objectiveai_cffi.wasm — it pulls
+    # nothing from crates.io/PyPI/npm, so there's nothing to "resolve before"
+    # it. Gating it behind the npm publish only let an unrelated npm failure
+    # block the go tag for no reason.
+    needs: [check-version]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ubuntu-latest
     steps:
