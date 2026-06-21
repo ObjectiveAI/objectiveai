@@ -43,9 +43,10 @@ fn parse_json_value(s: &str) -> Result<serde_json::Value, serde_json::Error> {
 #[derive(clap::Args)]
 pub struct Args {
     /// HTTP path on the viewer to POST to.
+    #[arg(long)]
     pub path: String,
     /// Request body as JSON.
-    #[arg(value_parser = parse_json_value)]
+    #[arg(long, value_parser = parse_json_value)]
     pub body: serde_json::Value,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,

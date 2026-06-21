@@ -42,6 +42,7 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// New value.
+    #[arg(long)]
     pub value: String,
 }
 

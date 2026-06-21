@@ -42,6 +42,7 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// New port value.
+    #[arg(long)]
     pub value: u16,
 }
 

@@ -44,6 +44,7 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// New MCP timeout in milliseconds (a decimal integer).
+    #[arg(long)]
     pub value: String,
 }
 

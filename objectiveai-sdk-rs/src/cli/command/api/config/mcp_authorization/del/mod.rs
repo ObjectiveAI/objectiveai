@@ -42,6 +42,7 @@ pub struct Args {
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
     /// Entry key (MCP server name).
+    #[arg(long)]
     pub key: String,
 }
 
