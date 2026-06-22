@@ -11,13 +11,6 @@ return.
 """
 import asyncio
 import sys
-import warnings
-
-# Importing the SDK emits pydantic UserWarnings (a generated `schema` field
-# shadows BaseModel.schema). The plugin host turns ANY plugin stderr line into
-# an error item (objectiveai-cli/src/command/plugins/run.rs), which would fail
-# the run — so silence warnings before the import to keep stderr clean.
-warnings.filterwarnings("ignore")
 
 from objectiveai_sdk.cli.command.executor import PluginCommandExecutor
 from objectiveai_sdk.cli.command.agents.tags.apply import execute

@@ -24,7 +24,7 @@ class ResponseFormatJsonSchema(BaseModel):
     """Response must conform to a JSON schema."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'JsonSchema'})
 
-    schema: dict[str, JsonValue] = Field(..., description='The JSON Schema definition.', json_schema_extra={'additionalProperties': True})
+    schema_: dict[str, JsonValue] = Field(..., alias='schema', description='The JSON Schema definition.', json_schema_extra={'additionalProperties': True})
     type_: Literal['json_schema'] = Field(..., alias='type')
 
 
@@ -50,7 +50,7 @@ class ResponseFormatToolCall(BaseModel):
     description: str = Field(..., description='A description of the tool.')
     name: str = Field(..., description='The name of the tool.')
     required: Optional[bool] = Field(None, description='Whether the tool MUST be called.', json_schema_extra={'omitempty': True})
-    schema: dict[str, JsonValue] = Field(..., description='The JSON Schema definition.', json_schema_extra={'additionalProperties': True})
+    schema_: dict[str, JsonValue] = Field(..., alias='schema', description='The JSON Schema definition.', json_schema_extra={'additionalProperties': True})
     type_: Literal['tool_call'] = Field(..., alias='type')
 
 
