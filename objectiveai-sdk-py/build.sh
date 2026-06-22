@@ -90,6 +90,13 @@ run() {
 
   "$PYTHON" "$SCRIPT_DIR/scripts/install_pydantic.py"
 
+  # ── cli/command execute functions (the "CLI running" layer) ─────────────────────
+  # Mirrors the JS order (install-zod → install-command-execute): runs AFTER
+  # install_pydantic (it consumes the types tree + the per-leaf `_generated.py`
+  # barrels) and emits one `_execute.py` per command leaf, surfaced through each
+  # barrel. Pure-Python codegen — no Rust dependency, so it runs before maturin.
+  "$PYTHON" "$SCRIPT_DIR/scripts/install_command_execute.py"
+
   # ── stage README + LICENSE (pyproject.toml references them; sdists can't
   # include `../`, so we copy the canonical files from repo root). Gitignored,
   # never committed.

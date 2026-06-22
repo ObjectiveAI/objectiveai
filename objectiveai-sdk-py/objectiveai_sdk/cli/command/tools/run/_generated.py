@@ -3,3 +3,4 @@
 from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
 from .response_item import ResponseItem, ResponseItemStderr, ResponseItemStdout  # noqa: F401
+from ._execute import execute, execute_transform  # noqa: F401
