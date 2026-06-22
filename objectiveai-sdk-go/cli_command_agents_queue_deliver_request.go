@@ -12,6 +12,10 @@ type CliCommandAgentsQueueDeliverRequest struct {
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
+	// Only deliver to targets with a pending deliverable carrying one
+	// of these keys. `None` (the default) delivers to every pending
+	// target.
+	Keys *[]string `json:"keys,omitempty"`
 	// Response token budget, `>= 1` (`0` is rejected at parse
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.

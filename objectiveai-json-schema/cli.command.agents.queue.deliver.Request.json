@@ -23,6 +23,21 @@
         }
       ]
     },
+    "keys": {
+      "description": "Only deliver to targets with a pending deliverable carrying one\nof these keys. `None` (the default) delivers to every pending\ntarget.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "max_tokens": {
       "description": "Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.",
       "anyOf": [

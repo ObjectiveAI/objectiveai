@@ -7,6 +7,7 @@ import { CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema } from "./re
 export const CliCommandAgentsQueueDeliverRequestSchema = z.object({
   dangerous_advanced: CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema.nullable().optional(),
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
+  keys: z.array(z.string()).nullable().describe("Only deliver to targets with a pending deliverable carrying one\nof these keys. `None` (the default) delivers to every pending\ntarget.").meta({ omitempty: true }).optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandAgentsQueueDeliverPathSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
