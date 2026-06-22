@@ -365,7 +365,7 @@ fn add_objectiveai_host(linker: &mut Linker<PyHostState>) -> Result<(), Error> {
                 };
                 let ctx = caller.data().ctx.clone();
                 let handle = caller.data().handle.clone();
-                match run_argv(&ctx, &handle, &req) {
+                match run_request(ctx, handle, &req) {
                     Ok(bytes) => {
                         let len = bytes.len() as u32;
                         caller.data_mut().result = bytes;
@@ -400,31 +400,90 @@ fn stash_error(caller: &mut Caller<'_, PyHostState>, msg: &str) -> u32 {
     len | ERR_BIT
 }
 
-/// Parse `req` (a JSON `list[str]` argv) and run it through the CLI's in-process
-/// dispatcher with `ctx`, collecting the streamed `ResponseItem`s into a JSON
-/// array. Recursion is allowed: a command run here may itself run Python, which
-/// may call `objectiveai.execute` again (a fresh wasm Store + a nested
-/// `block_on` on its own blocking thread). `Ok(json_bytes)` / `Err(message)`.
-fn run_argv(ctx: &Context, handle: &Handle, req: &[u8]) -> Result<Vec<u8>, String> {
-    let argv: Vec<String> = serde_json::from_slice(req)
-        .map_err(|e| format!("objectiveai.execute: invalid argv: {e}"))?;
+/// Service an `objectiveai.execute` request from the (synchronous, blocking)
+/// wasm thread. The dispatch is `spawn`ed onto the runtime's workers and the
+/// result is awaited over a std channel — NOT driven with `Handle::block_on` on
+/// this `spawn_blocking` thread, which deadlocks. `Ok(json_bytes)` / `Err(msg)`.
+fn run_request(ctx: Context, handle: Handle, req: &[u8]) -> Result<Vec<u8>, String> {
+    let req = req.to_vec();
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    handle.spawn(async move {
+        let _ = tx.send(run_request_async(ctx, req).await);
+    });
+    rx.recv()
+        .map_err(|e| format!("objectiveai.execute: dispatch worker dropped: {e}"))?
+}
+
+/// The async half of [`run_request`], run on the runtime's workers. `req` is a
+/// JSON value that is either a single argv (`list[str]`) → run it and return a
+/// JSON array of the streamed items; or a batch (`list[list[str]]`) → run each
+/// argv IN PARALLEL and return a JSON array of those arrays. An empty list is an
+/// empty batch (`[]`). A batch is all-or-nothing: any command's failure becomes
+/// the call's error (after all commands have run). Recursion is allowed: a
+/// command run here may itself run Python, which may call `execute` again.
+async fn run_request_async(ctx: Context, req: Vec<u8>) -> Result<Vec<u8>, String> {
+    let arr = match serde_json::from_slice::<serde_json::Value>(&req) {
+        Ok(serde_json::Value::Array(arr)) => arr,
+        Ok(_) => {
+            return Err(
+                "objectiveai.execute: expected a list[str] (argv) or list[list[str]] (batch)"
+                    .to_string(),
+            );
+        }
+        Err(e) => return Err(format!("objectiveai.execute: invalid request: {e}")),
+    };
+    // Batch ⇔ empty, or the first element is itself a list. A single argv is a
+    // non-empty list of strings.
+    let is_batch = arr.first().map_or(true, serde_json::Value::is_array);
+    if is_batch {
+        let argvs: Vec<Vec<String>> = serde_json::from_value(serde_json::Value::Array(arr))
+            .map_err(|e| {
+                format!("objectiveai.execute: invalid batch (expected list[list[str]]): {e}")
+            })?;
+        // Run the argvs in parallel on the runtime's workers; await all.
+        let tasks: Vec<_> = argvs
+            .into_iter()
+            .map(|argv| {
+                let ctx = ctx.clone();
+                tokio::spawn(async move { run_one_argv(&ctx, argv).await })
+            })
+            .collect();
+        let results = futures::future::join_all(tasks).await;
+        let mut out: Vec<Vec<objectiveai_sdk::cli::command::ResponseItem>> =
+            Vec::with_capacity(results.len());
+        for result in results {
+            // Outer: JoinError (the task panicked). Inner: the command's error.
+            out.push(result.map_err(|e| format!("objectiveai.execute: task panicked: {e}"))??);
+        }
+        serde_json::to_vec(&out).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
+    } else {
+        let argv: Vec<String> = serde_json::from_value(serde_json::Value::Array(arr))
+            .map_err(|e| format!("objectiveai.execute: invalid argv (expected list[str]): {e}"))?;
+        let items = run_one_argv(&ctx, argv).await?;
+        serde_json::to_vec(&items).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
+    }
+}
+
+/// Parse + dispatch a single argv against `ctx`, collecting the streamed
+/// `ResponseItem`s. `Err(message)` on a parse or dispatch error.
+async fn run_one_argv(
+    ctx: &Context,
+    argv: Vec<String>,
+) -> Result<Vec<objectiveai_sdk::cli::command::ResponseItem>, String> {
     let request = objectiveai_sdk::cli::command::parse_request(&argv).map_err(|e| match e {
         objectiveai_sdk::cli::command::ParseError::Clap(e) => format!("objectiveai.execute: {e}"),
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => {
             format!("objectiveai.execute: {e:?}")
         }
     })?;
-    let items: Vec<objectiveai_sdk::cli::command::ResponseItem> = handle
-        .block_on(async move {
-            let mut stream = crate::command::command::execute(ctx, request).await?;
-            let mut items = Vec::new();
-            while let Some(item) = stream.next().await {
-                items.push(item?);
-            }
-            Ok::<_, Error>(items)
-        })
+    let mut stream = crate::command::command::execute(ctx, request)
+        .await
         .map_err(|e| format!("objectiveai.execute: {e}"))?;
-    serde_json::to_vec(&items).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
+    let mut items = Vec::new();
+    while let Some(item) = stream.next().await {
+        items.push(item.map_err(|e| format!("objectiveai.execute: {e}"))?);
+    }
+    Ok(items)
 }
 
 fn wasm_err(e: wasmtime::Error) -> Error {
@@ -480,16 +539,20 @@ fn wrap_code(code: &str, input: &serde_json::Value) -> String {
     let encoded_input = base64::engine::general_purpose::STANDARD.encode(input_json);
     // `input` is exposed to user code as a global, decoded from JSON at
     // runtime (JSON literals aren't Python literals — `true`/`null`).
+    // `objectiveai` (the native host module) is also injected as a global so
+    // user code can call `objectiveai.execute(argv)` WITHOUT an explicit
+    // `import objectiveai` — the same builtin-like posture as `input`.
     format!(
         r#"
 import ast as __oai_ast, json as __oai_json, sys as __oai_sys, io as __oai_io, base64 as __oai_b64, os as __oai_os
+import objectiveai as __oai_objectiveai
 __oai_real_stdout = __oai_sys.stdout
 __oai_tree = __oai_ast.parse(__oai_b64.b64decode("{encoded}").decode())
 __oai_input = __oai_json.loads(__oai_b64.b64decode("{encoded_input}").decode())
 __oai_capture = __oai_io.StringIO()
 __oai_sys.stdout = __oai_capture
 __oai_eval = None
-__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__, "input": __oai_input}}
+__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__, "input": __oai_input, "objectiveai": __oai_objectiveai}}
 if __oai_tree.body and isinstance(__oai_tree.body[-1], __oai_ast.Expr):
     __oai_last = __oai_tree.body.pop()
     exec(compile(__oai_tree, "<inline>", "exec"), __oai_globals)

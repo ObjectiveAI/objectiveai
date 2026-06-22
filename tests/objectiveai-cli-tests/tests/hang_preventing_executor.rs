@@ -45,7 +45,15 @@ use tokio::time::Instant;
 /// filesystem activity for this duration, the wrapped cli child is
 /// terminated. Bumped to a constant rather than a constructor
 /// parameter for v1 — the value rarely needs to change per call.
-pub const HANG_TIMEOUT: Duration = Duration::from_secs(60);
+///
+/// Set to 180s (not 60s) to tolerate the embedded-Python `python`
+/// command's first-use cost: it JIT-compiles the ~60 MB RustPython wasm
+/// into `<bin>/cache/*.cwasm`, a ~1 min cold compile that writes ONLY
+/// under `<bin>/cache` — never a test's state dir — so the watchdog sees
+/// no activity throughout. Parallel `python` tests racing that cold
+/// compile under CPU contention can each exceed 60s; 180s clears it
+/// while still bounding a genuine hang.
+pub const HANG_TIMEOUT: Duration = Duration::from_secs(180);
 
 /// Errors surfaced by [`HangPreventingBinaryCommandExecutor`]. Either
 /// the wrapped [`BinaryExecutor`]'s own error pass-through, or our

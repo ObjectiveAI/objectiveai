@@ -4,12 +4,14 @@
 //! `_start`, exit codes, frozen stdlib via `init_stdlib`) plus one native
 //! module — `objectiveai` — exposing:
 //!
-//!   objectiveai.execute(argv: list[str]) -> list
+//!   objectiveai.execute(argv: list[str])        -> list           # one command
+//!   objectiveai.execute(argvs: list[list[str]]) -> list[list]     # parallel batch
 //!
-//! `execute` runs a CLI command **in-process on the host** and returns its
-//! streamed output as a list of native Python objects (always a list; one
-//! element for unary commands). It is implemented by calling a wasm import
-//! `host_execute`/`host_result` that the wasmtime host (the embedder,
+//! `execute` runs CLI command(s) **in-process on the host**, with the output
+//! shape mirroring the input: a single argv returns that command's streamed
+//! output as a list of native Python objects; a batch returns a list of those
+//! lists, running the argvs in parallel. It is implemented by calling a wasm
+//! import `host_execute`/`host_result` that the wasmtime host (the embedder,
 //! `objectiveai-cli/src/python.rs`) provides via the "objectiveai" linker
 //! module. Recursion is allowed: a command run this way may itself run Python,
 //! which may call `objectiveai.execute` again.
@@ -61,23 +63,31 @@ fn main() -> std::process::ExitCode {
 mod objectiveai {
     use rustpython_vm::{PyObjectRef, PyResult, VirtualMachine};
 
-    /// Run a CLI command in-process on the host and return its streamed output
-    /// as a list of native objects (always a list). Raises `RuntimeError` if the
-    /// argv fails to parse or the command errors.
+    /// Run CLI command(s) in-process on the host. Polymorphic, with the output
+    /// shape mirroring the input:
+    ///   - a single argv (`list[str]`)  → a list of native objects (the items);
+    ///   - a batch (`list[list[str]]`) → a list of those lists, the argvs run
+    ///     IN PARALLEL.
+    /// An empty list is an empty batch (returns `[]`). Raises `RuntimeError` on a
+    /// parse or command error (a batch is all-or-nothing). Recursion is allowed
+    /// (a command run here may itself run Python that calls `execute` again).
     #[pyfunction]
-    fn execute(argv: Vec<String>, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
-        let req = serde_json::to_vec(&argv).map_err(|e| {
-            vm.new_runtime_error(format!("objectiveai.execute: failed to encode argv: {e}"))
-        })?;
-        match super::call_host(&req) {
+    fn execute(request: PyObjectRef, vm: &VirtualMachine) -> PyResult<PyObjectRef> {
+        // Serialize the request (list[str] OR list[list[str]]) to JSON via the
+        // frozen `json` module, so one fn handles both shapes; the host detects
+        // which and returns the matching shape. Parse the reply with `json` too,
+        // so it comes back as native objects.
+        let json = vm.import("json", 0)?;
+        let request: String = json
+            .get_attr("dumps", vm)?
+            .call((request,), vm)?
+            .try_into_value(vm)?;
+        match super::call_host(request.as_bytes()) {
             Ok(bytes) => {
-                let json_text = String::from_utf8(bytes).map_err(|e| {
+                let resp = String::from_utf8(bytes).map_err(|e| {
                     vm.new_runtime_error(format!("objectiveai.execute: result was not UTF-8: {e}"))
                 })?;
-                // Parse via the frozen `json` module so the result is native
-                // Python objects (list of dicts/scalars).
-                let json = vm.import("json", 0)?;
-                json.get_attr("loads", vm)?.call((json_text,), vm)
+                json.get_attr("loads", vm)?.call((resp,), vm)
             }
             Err(bytes) => Err(vm.new_runtime_error(String::from_utf8_lossy(&bytes).into_owned())),
         }

@@ -24,4 +24,3 @@ path = "src/main.rs"
 # compiles for wasm32-wasip1 on a current toolchain).
 rustpython = { version = "=0.5.0", default-features = false, features = ["freeze-stdlib", "stdio", "host_env"] }
 rustpython-vm = { version = "=0.5.0", default-features = false }
-serde_json = "1"

@@ -35,7 +35,11 @@ const RUSTPYTHON_VERSION: &str = "0.5.0";
 /// 0.5.0 + the `objectiveai` native module exposing `objectiveai.execute`)
 /// instead of `cargo install rustpython`. The feature set is unchanged
 /// (freeze-stdlib, stdio, host_env — now declared in that crate's Cargo.toml).
-const RECIPE: &str = "v4";
+/// v5: `objectiveai.execute` is polymorphic — a single argv (`list[str]`) or a
+/// parallel batch (`list[list[str]]`), output shape mirroring the input. The
+/// wasm source changed, so the cache filename must roll (the blob is cached by
+/// name, not content).
+const RECIPE: &str = "v5";
 
 fn main() {
     set_stack_size();
