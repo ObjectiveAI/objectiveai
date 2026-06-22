@@ -141,12 +141,19 @@ async fn execute_detached(request: Request) -> Result<ItemStream, Error> {
 }
 
 /// `stream_spawns = true`: run the full delivery in-process.
-async fn execute_streaming(ctx: &Context, _request: Request) -> Result<ItemStream, Error> {
+async fn execute_streaming(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     // Queue-pending targets in the caller's subtree: AIHs (caller
     // excluded — deliver targets only strict descendants; the query
-    // is parent-inclusive) and un-upgraded tags.
+    // is parent-inclusive) and un-upgraded tags. `request.keys`, when
+    // non-empty, restricts the set to targets with a pending
+    // deliverable carrying one of those keys.
     let caller = ctx.config.agent_instance_hierarchy.clone();
-    let targets = db::message_queue::list_delivery_targets(ctx.db_client().await?, &caller).await?;
+    let targets = db::message_queue::list_delivery_targets(
+        ctx.db_client().await?,
+        &caller,
+        request.keys.as_deref().unwrap_or(&[]),
+    )
+    .await?;
     let mut hierarchies: Vec<String> = Vec::new();
     let mut tags: Vec<String> = Vec::new();
     for target in targets {

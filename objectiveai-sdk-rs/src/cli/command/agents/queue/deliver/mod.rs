@@ -1,6 +1,11 @@
 //! `agents queue deliver` — wake every queue-pending descendant
 //! agent of the caller.
 //!
+//! An optional repeatable `--key` filters the targets: when one or
+//! more keys are given, only targets that have an active pending
+//! deliverable carrying one of those keys are woken; with no keys
+//! (the default), every pending target is woken.
+//!
 //! The handler enumerates two kinds of targets with active queued
 //! prompts in the caller's subtree: unique AIHs that are STRICT
 //! descendants of the caller (direct rows + rows against BOUND
@@ -31,6 +36,12 @@ use crate::cli::command::CommandRequest;
 #[schemars(rename = "cli.command.agents.queue.deliver.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// Only deliver to targets with a pending deliverable carrying one
+    /// of these keys. `None` (the default) delivers to every pending
+    /// target.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub keys: Option<Vec<String>>,
     pub dangerous_advanced: Option<RequestDangerousAdvanced>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
@@ -190,6 +201,11 @@ pub enum AllAgentsActive {
 
 #[derive(clap::Args)]
 pub struct Args {
+    /// Only deliver to targets with a pending deliverable carrying one
+    /// of these keys (repeatable). Empty = deliver to all pending
+    /// targets.
+    #[arg(long = "key")]
+    pub keys: Vec<String>,
     /// Raw JSON for `RequestDangerousAdvanced` (e.g.
     /// `{"stream_spawns":true}`).
     #[arg(long)]
@@ -233,6 +249,11 @@ impl TryFrom<Args> for Request {
             };
         Ok(Self {
             path_type: Path::AgentsQueueDeliver,
+            keys: if args.keys.is_empty() {
+                None
+            } else {
+                Some(args.keys)
+            },
             dangerous_advanced,
             base: args.base.into(),
         })
