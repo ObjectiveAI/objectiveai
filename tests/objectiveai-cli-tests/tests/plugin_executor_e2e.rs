@@ -1,15 +1,14 @@
 //! End-to-end tests for the SDK in-process plugin executor, exercised against
-//! the real CLI. A plugin written in JavaScript and one written in Python each
-//! use their language's `PluginCommandExecutor` + the generated
+//! the real CLI. A plugin written in JavaScript, one in Python, and one in Go
+//! each use their language's `PluginCommandExecutor` + the generated
 //! `agents tags apply` execute fn to apply a tag to a mock agent over the NDJSON
 //! command protocol. We run each via `plugins run` and assert (a) the plugin
 //! emitted its notification (so it actually ran through the executor) and (b)
 //! the tag now resolves via `agents tags lookup` (so the mutation is real).
 //!
-//! Both tests are identical except for the plugin coordinate + the tag it
-//! applies. They are the first interpreter-based (non-Rust) plugin fixtures, and
-//! the only end-to-end coverage of the JS/Python plugin executors against a live
-//! host.
+//! The tests are identical except for the plugin coordinate + the tag it
+//! applies. They are the only end-to-end coverage of the JS/Python/Go plugin
+//! executors against a live host.
 
 mod cli_test_util;
 
@@ -75,4 +74,9 @@ async fn plugin_executor_js_applies_tag() {
 #[tokio::test(flavor = "multi_thread")]
 async fn plugin_executor_py_applies_tag() {
     assert_plugin_applies_tag("tags-apply-py", "py-plugin-applied-tag").await;
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn plugin_executor_go_applies_tag() {
+    assert_plugin_applies_tag("tags-apply-go", "go-plugin-applied-tag").await;
 }
