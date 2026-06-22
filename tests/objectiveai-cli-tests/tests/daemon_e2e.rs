@@ -106,10 +106,13 @@ async fn daemon_runs_command_applies_tag() {
     let spawn_items: Vec<SpawnItem> = cli_test_util::collect_stream(&executor, spawn_request()).await;
     assert!(spawn_items.iter().any(|i| i.ok), "daemon should spawn");
 
-    // The echo file appears only after the nested apply completes — poll.
+    // The echo file appears only after the daemon spawns daemon-echo and its
+    // nested postgres-backed apply completes. Under the full integration suite
+    // (many tests each running their own postgres cluster in parallel) that can
+    // take well over 10s, so poll generously (30s) to tolerate contention.
     let path = echo_input_path("daemon-echo");
     let mut recorded: Option<String> = None;
-    for _ in 0..100 {
+    for _ in 0..300 {
         if let Ok(contents) = std::fs::read_to_string(&path)
             && let Ok(serde_json::Value::String(tag)) =
                 serde_json::from_str::<serde_json::Value>(&contents)
