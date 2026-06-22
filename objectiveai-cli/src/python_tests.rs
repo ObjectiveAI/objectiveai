@@ -8,6 +8,7 @@
 //! JIT artifact under the OS temp dir (one compile per machine, never
 //! the user's real layout root).
 
+use crate::context::Context;
 use crate::python::Python;
 
 #[derive(Debug, PartialEq, serde::Deserialize)]
@@ -36,10 +37,17 @@ async fn py() -> &'static Python {
 /// expression and nothing printed); `Ok(Some(v))` ⇒ a value (including
 /// `Some(serde_json::Value::Null)` when the script explicitly emits JSON
 /// `null` on stdout). Callers that require a value `.unwrap()` the option.
+/// A throwaway `Context` for the ctx-aware `exec_code`/`exec_file` API. These
+/// harness tests never call `objectiveai.execute`, so the ctx is only along for
+/// the signature — a default (no real layout root) is fine.
+fn ctx() -> Context {
+    Context::new(crate::run::ConfigBuilder::default().build())
+}
+
 async fn exec<T: serde::de::DeserializeOwned>(
     code: &str,
 ) -> Result<Option<T>, crate::error::Error> {
-    py().await.exec_code::<(), T>(code, None).await
+    py().await.exec_code::<(), T>(&ctx(), code, None).await
 }
 
 // -- Bare expressions and prints --
@@ -927,7 +935,7 @@ async fn error_deser_bare_tuple() {
 async fn error_file_not_found() {
     let err = py()
         .await
-        .exec_file::<(), Foo>(std::path::Path::new("/nonexistent/path/script.py"), None)
+        .exec_file::<(), Foo>(&ctx(), std::path::Path::new("/nonexistent/path/script.py"), None)
         .await
         .unwrap_err();
     assert!(matches!(err, crate::error::Error::PythonFileRead(_, _)));

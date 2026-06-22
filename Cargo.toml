@@ -30,6 +30,10 @@ members = [
     "tests/objectiveai-cli-tests",
 ]
 
+# Built only for wasm32-wasip1 by objectiveai-cli/build.rs — excluded so the
+# host-target workspace build never tries to compile its wasm-only host import.
+exclude = ["objectiveai-rustpython-wasm"]
+
 [workspace.metadata.tools]
 wasm-pack = "0.14.0"
 maturin = "1.12.6"

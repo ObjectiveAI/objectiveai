@@ -1,0 +1,27 @@
+# Custom WASI RustPython interpreter for the CLI's embedded Python.
+#
+# Identical to the stock `rustpython` bin (same 0.5.0 + freeze-stdlib,stdio,host_env
+# feature set, same `-c <code>` / `_start` / exit-code behavior via
+# `rustpython::run`) PLUS one native module — `objectiveai` — exposing
+# `objectiveai.execute(argv: list[str]) -> list`, which calls a wasm import the
+# host (objectiveai-cli/src/python.rs) satisfies to run a CLI command in-process.
+#
+# Built ONLY for wasm32-wasip1 by objectiveai-cli/build.rs. It is deliberately
+# NOT a workspace member (the `#[link(wasm_import_module = ...)]` import does not
+# resolve for the host target) — see the root Cargo.toml `[workspace] exclude`.
+[package]
+name = "objectiveai-rustpython-wasm"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "rustpython"
+path = "src/main.rs"
+
+[dependencies]
+# Pinned to 0.5.0 to match objectiveai-cli/build.rs (the oldest release that
+# compiles for wasm32-wasip1 on a current toolchain).
+rustpython = { version = "=0.5.0", default-features = false, features = ["freeze-stdlib", "stdio", "host_env"] }
+rustpython-vm = { version = "=0.5.0", default-features = false }
+serde_json = "1"
