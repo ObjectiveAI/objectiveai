@@ -16,7 +16,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let output: Option<serde_json::Value> = ctx
         .python()
         .await?
-        .exec_code(&request.code, request.input)
+        .exec_code(ctx, &request.code, request.input)
         .await?;
     Ok(output.unwrap_or(serde_json::Value::Null))
 }

@@ -64,7 +64,7 @@ where
         return ctx
             .python()
             .await?
-            .exec_code(&code, None::<()>)
+            .exec_code(ctx, &code, None::<()>)
             .await?
             .ok_or(crate::error::Error::PythonNoOutput);
     }
@@ -72,7 +72,7 @@ where
         return ctx
             .python()
             .await?
-            .exec_file(&path, None::<()>)
+            .exec_file(ctx, &path, None::<()>)
             .await?
             .ok_or(crate::error::Error::PythonNoOutput);
     }

@@ -364,7 +364,7 @@ async fn transform_item<I: serde::Serialize>(
     code: &str,
     item: I,
 ) -> Result<Option<serde_json::Value>, Error> {
-    ctx.python().await?.exec_code(code, Some(item)).await
+    ctx.python().await?.exec_code(ctx, code, Some(item)).await
 }
 
 /// Stream adapter: a jq output transform with null-skip.

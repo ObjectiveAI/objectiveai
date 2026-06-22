@@ -42,7 +42,7 @@
 set -euo pipefail
 
 # Release version this installer pulls. Kept in lockstep by version.sh.
-VERSION="2.2.5"
+VERSION="2.2.6"
 REPO="ObjectiveAI/objectiveai"
 
 # ── Parse arguments ───────────────────────────────────────────────────

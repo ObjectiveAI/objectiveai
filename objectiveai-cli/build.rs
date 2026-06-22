@@ -30,7 +30,16 @@ const RUSTPYTHON_VERSION: &str = "0.5.0";
 /// Build-recipe tag. Bump whenever the wasm build flags change: the
 /// cache filename rolls over and the old blob is simply orphaned —
 /// the final path is never rebuilt in place.
-const RECIPE: &str = "v3";
+///
+/// v4: build the custom `objectiveai-rustpython-wasm` crate (stock rustpython
+/// 0.5.0 + the `objectiveai` native module exposing `objectiveai.execute`)
+/// instead of `cargo install rustpython`. The feature set is unchanged
+/// (freeze-stdlib, stdio, host_env — now declared in that crate's Cargo.toml).
+/// v5: `objectiveai.execute` is polymorphic — a single argv (`list[str]`) or a
+/// parallel batch (`list[list[str]]`), output shape mirroring the input. The
+/// wasm source changed, so the cache filename must roll (the blob is cached by
+/// name, not content).
+const RECIPE: &str = "v5";
 
 fn main() {
     set_stack_size();
@@ -140,26 +149,19 @@ fn emit_blob_hash(blob: &Path) -> std::io::Result<()> {
 fn build_and_publish(cache: &Path, blob: &Path) -> std::io::Result<()> {
     clean_stale_tmp(cache);
     ensure_wasip1_target();
-    run_cargo_install(cache)?;
+    run_cargo_build(cache)?;
 
-    // `cargo install --target wasm32-wasip1` is expected to copy the
-    // bin into `<root>/bin/`; the explicit CARGO_TARGET_DIR gives us a
-    // deterministic fallback location if it doesn't.
-    let candidates = [
-        cache.join("install/bin/rustpython.wasm"),
-        cache.join("target/wasm32-wasip1/release/rustpython.wasm"),
-    ];
-    let wasm_path = candidates
-        .iter()
-        .find(|p| p.exists())
-        .ok_or_else(|| {
-            std::io::Error::other(format!(
-                "cargo install succeeded but rustpython.wasm was not found at {} or {}",
-                candidates[0].display(),
-                candidates[1].display(),
-            ))
-        })?;
-    let wasm = std::fs::read(wasm_path)?;
+    // `cargo build --target wasm32-wasip1 --release` with our explicit
+    // CARGO_TARGET_DIR=<cache>/target writes the bin here. The crate's bin is
+    // named `rustpython`, so the artifact keeps the name the runtime invokes.
+    let wasm_path = cache.join("target/wasm32-wasip1/release/rustpython.wasm");
+    if !wasm_path.exists() {
+        return Err(std::io::Error::other(format!(
+            "cargo build succeeded but rustpython.wasm was not found at {}",
+            wasm_path.display(),
+        )));
+    }
+    let wasm = std::fs::read(&wasm_path)?;
     if !wasm.starts_with(b"\0asm") {
         return Err(std::io::Error::other(format!(
             "{} does not start with the wasm magic bytes",
@@ -179,7 +181,7 @@ fn build_and_publish(cache: &Path, blob: &Path) -> std::io::Result<()> {
     rename_with_retry(&tmp, blob)?;
 
     // Reclaim the ~GB build tree; best-effort.
-    for dir in ["install", "target"] {
+    for dir in ["target"] {
         let _ = std::fs::remove_dir_all(cache.join(dir));
     }
     Ok(())
@@ -241,95 +243,55 @@ fn ensure_wasip1_target() {
     }
 }
 
-/// Build the pinned rustpython bin for wasm32-wasip1 via a nested
-/// `cargo install`.
+/// Build the custom `objectiveai-rustpython-wasm` crate for wasm32-wasip1 via a
+/// nested `cargo build`, with strict env hygiene. Caller holds the cache lock.
 ///
-/// The feature recipe is FIXED at `--no-default-features --features
-/// freeze-stdlib,stdio,host_env`, for these reasons:
+/// That crate is the stock rustpython 0.5.0 bin plus the `objectiveai` native
+/// module (`objectiveai.execute`); its feature set is FIXED at
+/// `freeze-stdlib,stdio,host_env` (declared in its own Cargo.toml). Each is
+/// mandatory:
 ///
-/// - **Determinism**: one blob filename ⇔ one feature set on every
-///   machine. An adaptive ladder would let the same cache name carry
-///   different contents depending on the host.
-/// - **No host C toolchain**: default features pull `ssl-rustls` and
-///   `libz-sys`, whose C build for a wasm target requires clang; this
-///   recipe builds with nothing beyond rustc + the wasip1 target.
-///   (Cost: no `ssl` / `zlib` modules inside the sandbox.)
-/// - **`stdio` is mandatory**: without it RustPython's `set_stdio`
-///   takes the `#[cfg(not(feature = "stdio"))]` path and sets
-///   `sys.stdout`/`sys.stderr` to `None`, so every write is silently
-///   discarded and the shutdown flush trips "Exception ignored in:
-///   None: 'NoneType' object has no attribute 'flush'".
-/// - **`host_env` is mandatory too**: the frozen `io.py` does
-///   `from _io import FileIO` at import time, but `_io.FileIO` is
-///   `#[cfg(feature = "host_env")]` — so without it `import io` (which
-///   the harness, and almost all stdlib, needs) fails with
-///   `ImportError: cannot import name 'FileIO' from '_io'`. With it on,
-///   `stdio` builds sys.stdout/stderr as real `io.TextIOWrapper`s over
-///   fd 1/2 (→ the wasmtime `MemoryOutputPipe`). This does NOT widen the
-///   sandbox: the security boundary is wasmtime's capability model —
-///   the `WasiCtxBuilder` grants no preopened dirs, env vars, or
-///   sockets, so `host_env`'s file/env code paths hit an empty WASI and
-///   still cannot reach the host.
+/// - **No host C toolchain**: default features pull `ssl-rustls` and `libz-sys`,
+///   whose C build for a wasm target requires clang; this recipe builds with
+///   nothing beyond rustc + the wasip1 target. (Cost: no `ssl`/`zlib` in the
+///   sandbox.)
+/// - **`stdio` is mandatory**: without it RustPython's `set_stdio` takes the
+///   `#[cfg(not(feature = "stdio"))]` path and sets `sys.stdout`/`sys.stderr` to
+///   `None`, so every write is silently discarded and the shutdown flush trips
+///   "Exception ignored in: None: 'NoneType' object has no attribute 'flush'".
+/// - **`host_env` is mandatory too**: the frozen `io.py` does `from _io import
+///   FileIO` at import time, but `_io.FileIO` is `#[cfg(feature = "host_env")]`
+///   — so without it `import io` fails. With it on, `stdio` builds
+///   `sys.stdout`/`sys.stderr` as real `io.TextIOWrapper`s over fd 1/2 (→ the
+///   wasmtime `MemoryOutputPipe`). This does NOT widen the sandbox: the boundary
+///   is wasmtime's capability model — the `WasiCtxBuilder` grants no preopened
+///   dirs, env vars, or sockets; the only host reach is the single
+///   `objectiveai::host_execute` import the embedder wires in for
+///   `objectiveai.execute`.
 ///
-/// The attempt ladder varies ONLY `--locked` (first success wins):
-/// the crate's bundled lockfile is preferred for reproducibility but
-/// may be absent or stale against a newer toolchain.
-fn run_cargo_install(cache: &Path) -> std::io::Result<()> {
-    let attempts: [&[&str]; 2] = [
-        &["--locked", "--no-default-features", "--features", "freeze-stdlib,stdio,host_env"],
-        &["--no-default-features", "--features", "freeze-stdlib,stdio,host_env"],
-    ];
-    let mut failures = String::new();
-    for extra in attempts {
-        let status = cargo_install_once(cache, extra)?;
-        if status.success() {
-            return Ok(());
-        }
-        failures.push_str(&format!("\n  cargo install {extra:?} -> {status}"));
-    }
-    Err(std::io::Error::other(format!(
-        "all cargo install attempts for rustpython {RUSTPYTHON_VERSION} \
-         (wasm32-wasip1) failed:{failures}\nsee the build output above for details",
-    )))
-}
+/// Env hygiene (each rule guards a real failure mode):
+/// - Strip every inherited `CARGO_*`/`RUST*` except `CARGO`, `CARGO_HOME`,
+///   `RUSTUP_HOME`, `RUSTUP_TOOLCHAIN` — kills `RUSTC(_WRAPPER)`,
+///   `CARGO_BUILD_*`, `CARGO_PROFILE_*`, incremental flags, target overrides.
+/// - Strip `CARGO_MAKEFLAGS`/`MAKEFLAGS`/`MFLAGS` — the parent's jobserver fds
+///   are not usable from the grandchild on Unix.
+/// - SET `CARGO_TARGET_DIR=<cache>/target` and `RUSTFLAGS=""` (env beats config
+///   files, so a user `~/.cargo/config.toml` can't redirect the target dir into
+///   the parent's locked one or leak rustflags into the wasm build).
+/// - Child stdout is piped and re-emitted on OUR stderr (cargo treats build
+///   script stdout as directives).
+fn run_cargo_build(cache: &Path) -> std::io::Result<()> {
+    let manifest = PathBuf::from(
+        std::env::var_os("CARGO_MANIFEST_DIR").expect("cargo sets CARGO_MANIFEST_DIR"),
+    )
+    .join("..")
+    .join("objectiveai-rustpython-wasm")
+    .join("Cargo.toml");
 
-/// One nested `cargo install` invocation with strict env hygiene.
-///
-/// Rules (each guards against a real failure mode):
-///
-/// - Strip every inherited `CARGO_*`/`RUST*` var except `CARGO`,
-///   `CARGO_HOME`, `RUSTUP_HOME`, `RUSTUP_TOOLCHAIN` — kills
-///   `RUSTC(_WRAPPER)`, `CARGO_BUILD_*`, `CARGO_PROFILE_*`,
-///   incremental flags, and target-specific overrides meant for the
-///   parent build, while keeping the registry cache and toolchain
-///   selection.
-/// - Strip `CARGO_MAKEFLAGS`/`MAKEFLAGS`/`MFLAGS` — the parent's
-///   jobserver fds are not usable from the grandchild on Unix.
-/// - SET `CARGO_TARGET_DIR=<cache>/target` and `RUSTFLAGS=""` rather
-///   than merely removing them: env beats config files, so a user
-///   `~/.cargo/config.toml` with `build.target-dir` can't point the
-///   child at the parent's locked target dir (deadlock) and config
-///   rustflags can't leak into the wasm build.
-/// - Child stdout is piped and re-emitted on OUR stderr: anything a
-///   build script prints to stdout is interpreted by cargo as
-///   directives.
-fn cargo_install_once(
-    cache: &Path,
-    extra_args: &[&str],
-) -> std::io::Result<std::process::ExitStatus> {
     let cargo = std::env::var_os("CARGO").expect("cargo sets CARGO");
     let mut cmd = std::process::Command::new(cargo);
-    cmd.args([
-        "install",
-        "rustpython",
-        "--version",
-        RUSTPYTHON_VERSION,
-        "--target",
-        "wasm32-wasip1",
-        "--force",
-    ]);
-    cmd.arg("--root").arg(cache.join("install"));
-    cmd.args(extra_args);
+    cmd.args(["build", "--release", "--target", "wasm32-wasip1", "--manifest-path"]);
+    cmd.arg(&manifest);
     cmd.current_dir(cache);
 
     for (key, _) in std::env::vars_os() {
@@ -355,7 +317,15 @@ fn cargo_install_once(
         use std::io::Write;
         let _ = std::io::stderr().write_all(&output.stdout);
     }
-    Ok(output.status)
+    if output.status.success() {
+        Ok(())
+    } else {
+        Err(std::io::Error::other(format!(
+            "cargo build of objectiveai-rustpython-wasm (wasm32-wasip1) failed: {}\n\
+             see the build output above for details",
+            output.status,
+        )))
+    }
 }
 
 /// Set the main thread stack size to 16 MB for all supported platforms.

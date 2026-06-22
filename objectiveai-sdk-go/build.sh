@@ -16,10 +16,12 @@ LOG_FILE="$LOG_DIR/$MODULE.txt"
 mkdir -p "$LOG_DIR"
 
 run() {
-  # Generate types from JSON schemas, then install CFFI WASM binary.
-  # Chained with && so a failure in the first command aborts the second
-  # (set -e is disabled inside `if` conditions, so rely on exit status).
+  # Generate types from JSON schemas, then the typed cli/command execute
+  # functions (from the Rust cli command tree), then install the CFFI WASM
+  # binary. Chained with && so a failure aborts the rest (set -e is disabled
+  # inside `if` conditions, so rely on exit status).
   go run "$SCRIPT_DIR/scripts/install_go.go" && \
+    go run "$SCRIPT_DIR/scripts/install_command_execute.go" && \
     go run "$SCRIPT_DIR/scripts/install_cffi.go"
 }
 

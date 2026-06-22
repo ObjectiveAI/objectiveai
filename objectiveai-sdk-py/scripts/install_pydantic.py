@@ -65,6 +65,26 @@ _PY_STDLIB_TOP = {
 }
 
 
+# Field names that must be aliased to `<name>_` (with the wire name preserved
+# via Field(alias=...)). Two groups:
+#   - keyword/builtin identifiers that appear in the wire schemas and would be
+#     invalid or shadow a builtin as a bare attribute name (`from`, `type`, …);
+#   - pydantic `BaseModel` public attributes/methods (the v1-era API still
+#     present on v2). A field whose name matches one of these shadows it, which
+#     pydantic v2 warns about at class-definition time ("Field name … shadows an
+#     attribute in parent BaseModel") — printed to stderr on import (e.g. a
+#     `schema` field shadows BaseModel.schema). Aliasing removes the warning
+#     while keeping the wire format identical.
+_RESERVED_FIELD_NAMES = frozenset(
+    {
+        "from", "type", "class", "import", "in", "is", "not", "and", "or",
+        "schema", "schema_json", "dict", "json", "copy", "construct",
+        "validate", "fields", "parse_obj", "parse_raw", "parse_file",
+        "from_orm", "update_forward_refs",
+    }
+)
+
+
 def _escape_py_keyword(segment: str) -> str:
     """If `segment` is a Python keyword, suffix it with `_` so it works as
     a module-name component (e.g. `del` → `del_`)."""
@@ -876,7 +896,7 @@ def _generate_field_line(
     needs_underscore_alias = field_name.startswith("_")
     if needs_underscore_alias:
         field_name = field_name.lstrip("_") or "field"
-    if field_name in ("from", "type", "class", "import", "in", "is", "not", "and", "or"):
+    if field_name in _RESERVED_FIELD_NAMES:
         alias = prop_name
         field_name = field_name + "_"
     elif needs_underscore_alias:

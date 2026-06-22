@@ -15,10 +15,17 @@
 //!
 //! Execution runs `rustpython -c <wrapped code>` per call in a fresh
 //! wasmtime instance with NO preopened directories, environment
-//! variables, or sockets — Python code cannot reach the host.
-//! stdout/stderr are captured in-memory; `--python-file` sources are
-//! read host-side and passed in as code, so the sandbox never needs
-//! filesystem access.
+//! variables, or sockets. stdout/stderr are captured in-memory;
+//! `--python-file` sources are read host-side and passed in as code, so
+//! the sandbox never needs filesystem access.
+//!
+//! The ONE host reach is the `objectiveai` native module's
+//! `objectiveai.execute(argv) -> list`, wired in by [`add_objectiveai_host`]:
+//! Python cannot touch the host directly, but it can ASK the host to run a
+//! CLI command in-process (the host runs the CLI's own dispatcher against the
+//! call's [`Context`] and returns the streamed output) — the same mediated
+//! posture as a plugin's nested command. Recursion is allowed: a command run
+//! this way may itself run Python.
 //!
 //! User code is wrapped in a harness that uses `ast` to detect a bare
 //! trailing expression. The harness prints a JSON envelope with `eval`
@@ -35,12 +42,34 @@
 
 use std::path::{Path, PathBuf};
 
-use wasmtime::{Engine, Linker, Module, Store};
+use futures::StreamExt;
+use tokio::runtime::Handle;
+use wasmtime::{Caller, Engine, Linker, Module, Store};
 use wasmtime_wasi::p1::WasiP1Ctx;
 use wasmtime_wasi::p2::pipe::MemoryOutputPipe;
 use wasmtime_wasi::{I32Exit, WasiCtxBuilder};
 
+use crate::context::Context;
 use crate::error::Error;
+
+/// Store data for a Python run: the WASI ctx plus what the `objectiveai.execute`
+/// host import needs — the CLI [`Context`] to dispatch against and a tokio
+/// runtime [`Handle`] to drive the async dispatch from the (synchronous,
+/// `spawn_blocking`) wasm thread. `result` stashes the bytes a `host_execute`
+/// call produced so the paired `host_result` call can copy them into a
+/// right-sized guest buffer WITHOUT re-running the (possibly side-effecting)
+/// command.
+struct PyHostState {
+    wasi: WasiP1Ctx,
+    ctx: Context,
+    handle: Handle,
+    result: Vec<u8>,
+}
+
+/// Top bit of `host_execute`'s return value: set ⇒ the stashed bytes are an
+/// error message (the guest raises), clear ⇒ they're the JSON result. `usize`
+/// is 32-bit on wasm32, matching the guest-side constant.
+const ERR_BIT: u32 = 1 << 31;
 
 /// Cap on captured stdout/stderr per execution.
 const MAX_OUTPUT_BYTES: usize = 256 * 1024 * 1024;
@@ -105,7 +134,12 @@ impl Python {
     /// (no trailing expression and nothing printed) — callers that
     /// require a value treat that as an error; output transforms treat
     /// it as "skip".
-    pub async fn exec_code<I, T>(&self, code: &str, input: Option<I>) -> Result<Option<T>, Error>
+    pub async fn exec_code<I, T>(
+        &self,
+        ctx: &Context,
+        code: &str,
+        input: Option<I>,
+    ) -> Result<Option<T>, Error>
     where
         I: serde::Serialize,
         T: serde::de::DeserializeOwned,
@@ -117,17 +151,30 @@ impl Python {
         let wrapped = wrap_code(code, &input);
         let engine = self.engine.clone();
         let module = self.module.clone();
+        // The `objectiveai.execute` host import dispatches CLI commands in
+        // process; it needs the ctx + a runtime handle to drive async dispatch
+        // from the (blocking) wasm thread. Capture the handle here, where we are
+        // on the runtime, and clone the cheap (Arc-backed) ctx.
+        let ctx = ctx.clone();
+        let handle = Handle::current();
         // Wasm execution is blocking CPU work.
-        let raw = tokio::task::spawn_blocking(move || run_blocking(&engine, &module, &wrapped))
-            .await
-            .map_err(|e| Error::PythonWasm(format!("python task join: {e}")))??;
+        let raw = tokio::task::spawn_blocking(move || {
+            run_blocking(&engine, &module, &wrapped, ctx, handle)
+        })
+        .await
+        .map_err(|e| Error::PythonWasm(format!("python task join: {e}")))??;
         parse_envelope(&raw)
     }
 
     /// Execute a Python script file (read host-side) and deserialize
     /// its output as JSON into `T`. See [`Self::exec_code`] for the
     /// `input` and `Ok(None)` semantics.
-    pub async fn exec_file<I, T>(&self, path: &Path, input: Option<I>) -> Result<Option<T>, Error>
+    pub async fn exec_file<I, T>(
+        &self,
+        ctx: &Context,
+        path: &Path,
+        input: Option<I>,
+    ) -> Result<Option<T>, Error>
     where
         I: serde::Serialize,
         T: serde::de::DeserializeOwned,
@@ -135,7 +182,7 @@ impl Python {
         let code = tokio::fs::read_to_string(path)
             .await
             .map_err(|e| Error::PythonFileRead(path.to_path_buf(), e))?;
-        self.exec_code(&code, input).await
+        self.exec_code(ctx, &code, input).await
     }
 }
 
@@ -228,19 +275,37 @@ async fn prune_stale(cache_dir: &Path, current: &Path) {
 ///   traceback), matching Python's CLI behavior
 /// - any other trap (stack exhaustion, runtime bug) →
 ///   [`Error::PythonWasm`]
-fn run_blocking(engine: &Engine, module: &Module, code: &str) -> Result<String, Error> {
-    let mut linker: Linker<WasiP1Ctx> = Linker::new(engine);
-    wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |t| t).map_err(wasm_err)?;
+fn run_blocking(
+    engine: &Engine,
+    module: &Module,
+    code: &str,
+    ctx: Context,
+    handle: Handle,
+) -> Result<String, Error> {
+    let mut linker: Linker<PyHostState> = Linker::new(engine);
+    wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s: &mut PyHostState| &mut s.wasi)
+        .map_err(wasm_err)?;
+    add_objectiveai_host(&mut linker)?;
 
     let stdout = MemoryOutputPipe::new(MAX_OUTPUT_BYTES);
     let stderr = MemoryOutputPipe::new(MAX_OUTPUT_BYTES);
-    // No preopened dirs, no env, no inherited stdio — the sandbox.
+    // No preopened dirs, no env, no inherited stdio — the sandbox. The ONLY
+    // host reach is the `objectiveai.execute` import wired in above, which the
+    // host fully mediates: it runs the CLI's own dispatcher against `ctx`.
     let wasi = WasiCtxBuilder::new()
         .args(&["rustpython", "-c", code])
         .stdout(stdout.clone())
         .stderr(stderr.clone())
         .build_p1();
-    let mut store = Store::new(engine, wasi);
+    let mut store = Store::new(
+        engine,
+        PyHostState {
+            wasi,
+            ctx,
+            handle,
+            result: Vec::new(),
+        },
+    );
 
     let outcome = linker
         .instantiate(&mut store, module)
@@ -264,6 +329,161 @@ fn run_blocking(engine: &Engine, module: &Module, code: &str) -> Result<String, 
     };
     debug_assert!(exited_clean);
     Ok(String::from_utf8_lossy(&stdout.contents()).into_owned())
+}
+
+/// Wire the `objectiveai` host module into the linker. Two imports, so a
+/// (possibly side-effecting) command runs exactly once even when the guest has
+/// to resize its output buffer:
+///   `host_execute(argv_ptr, argv_len) -> len|ERR_BIT` — run argv (a JSON
+///       `list[str]`) through the CLI dispatcher, stash the result (JSON array,
+///       or an error message with [`ERR_BIT`] set), and return its byte length.
+///   `host_result(out_ptr)` — copy the stash into the guest buffer and clear it.
+fn add_objectiveai_host(linker: &mut Linker<PyHostState>) -> Result<(), Error> {
+    linker
+        .func_wrap(
+            "objectiveai",
+            "host_execute",
+            |mut caller: Caller<'_, PyHostState>, argv_ptr: u32, argv_len: u32| -> u32 {
+                let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
+                    return stash_error(&mut caller, "objectiveai.execute: guest exports no memory");
+                };
+                // Copy the argv JSON out; scope the immutable memory borrow so
+                // the later `data_mut()` is free.
+                let req = {
+                    let data = memory.data(&caller);
+                    let start = argv_ptr as usize;
+                    let end = start.saturating_add(argv_len as usize);
+                    match data.get(start..end) {
+                        Some(bytes) => bytes.to_vec(),
+                        None => {
+                            return stash_error(
+                                &mut caller,
+                                "objectiveai.execute: argv pointer/length out of bounds",
+                            );
+                        }
+                    }
+                };
+                let ctx = caller.data().ctx.clone();
+                let handle = caller.data().handle.clone();
+                match run_request(ctx, handle, &req) {
+                    Ok(bytes) => {
+                        let len = bytes.len() as u32;
+                        caller.data_mut().result = bytes;
+                        len
+                    }
+                    Err(msg) => stash_error(&mut caller, &msg),
+                }
+            },
+        )
+        .map_err(wasm_err)?;
+    linker
+        .func_wrap(
+            "objectiveai",
+            "host_result",
+            |mut caller: Caller<'_, PyHostState>, out_ptr: u32| {
+                let result = std::mem::take(&mut caller.data_mut().result);
+                if let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) {
+                    let _ = memory.write(&mut caller, out_ptr as usize, &result);
+                }
+            },
+        )
+        .map_err(wasm_err)?;
+    Ok(())
+}
+
+/// Stash `msg` as the call result and return its length with [`ERR_BIT`] set so
+/// the guest raises it as an exception.
+fn stash_error(caller: &mut Caller<'_, PyHostState>, msg: &str) -> u32 {
+    let bytes = msg.as_bytes().to_vec();
+    let len = bytes.len() as u32;
+    caller.data_mut().result = bytes;
+    len | ERR_BIT
+}
+
+/// Service an `objectiveai.execute` request from the (synchronous, blocking)
+/// wasm thread. The dispatch is `spawn`ed onto the runtime's workers and the
+/// result is awaited over a std channel — NOT driven with `Handle::block_on` on
+/// this `spawn_blocking` thread, which deadlocks. `Ok(json_bytes)` / `Err(msg)`.
+fn run_request(ctx: Context, handle: Handle, req: &[u8]) -> Result<Vec<u8>, String> {
+    let req = req.to_vec();
+    let (tx, rx) = std::sync::mpsc::sync_channel(1);
+    handle.spawn(async move {
+        let _ = tx.send(run_request_async(ctx, req).await);
+    });
+    rx.recv()
+        .map_err(|e| format!("objectiveai.execute: dispatch worker dropped: {e}"))?
+}
+
+/// The async half of [`run_request`], run on the runtime's workers. `req` is a
+/// JSON value that is either a single argv (`list[str]`) → run it and return a
+/// JSON array of the streamed items; or a batch (`list[list[str]]`) → run each
+/// argv IN PARALLEL and return a JSON array of those arrays. An empty list is an
+/// empty batch (`[]`). A batch is all-or-nothing: any command's failure becomes
+/// the call's error (after all commands have run). Recursion is allowed: a
+/// command run here may itself run Python, which may call `execute` again.
+async fn run_request_async(ctx: Context, req: Vec<u8>) -> Result<Vec<u8>, String> {
+    let arr = match serde_json::from_slice::<serde_json::Value>(&req) {
+        Ok(serde_json::Value::Array(arr)) => arr,
+        Ok(_) => {
+            return Err(
+                "objectiveai.execute: expected a list[str] (argv) or list[list[str]] (batch)"
+                    .to_string(),
+            );
+        }
+        Err(e) => return Err(format!("objectiveai.execute: invalid request: {e}")),
+    };
+    // Batch ⇔ empty, or the first element is itself a list. A single argv is a
+    // non-empty list of strings.
+    let is_batch = arr.first().map_or(true, serde_json::Value::is_array);
+    if is_batch {
+        let argvs: Vec<Vec<String>> = serde_json::from_value(serde_json::Value::Array(arr))
+            .map_err(|e| {
+                format!("objectiveai.execute: invalid batch (expected list[list[str]]): {e}")
+            })?;
+        // Run the argvs in parallel on the runtime's workers; await all.
+        let tasks: Vec<_> = argvs
+            .into_iter()
+            .map(|argv| {
+                let ctx = ctx.clone();
+                tokio::spawn(async move { run_one_argv(&ctx, argv).await })
+            })
+            .collect();
+        let results = futures::future::join_all(tasks).await;
+        let mut out: Vec<Vec<objectiveai_sdk::cli::command::ResponseItem>> =
+            Vec::with_capacity(results.len());
+        for result in results {
+            // Outer: JoinError (the task panicked). Inner: the command's error.
+            out.push(result.map_err(|e| format!("objectiveai.execute: task panicked: {e}"))??);
+        }
+        serde_json::to_vec(&out).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
+    } else {
+        let argv: Vec<String> = serde_json::from_value(serde_json::Value::Array(arr))
+            .map_err(|e| format!("objectiveai.execute: invalid argv (expected list[str]): {e}"))?;
+        let items = run_one_argv(&ctx, argv).await?;
+        serde_json::to_vec(&items).map_err(|e| format!("objectiveai.execute: serialize: {e}"))
+    }
+}
+
+/// Parse + dispatch a single argv against `ctx`, collecting the streamed
+/// `ResponseItem`s. `Err(message)` on a parse or dispatch error.
+async fn run_one_argv(
+    ctx: &Context,
+    argv: Vec<String>,
+) -> Result<Vec<objectiveai_sdk::cli::command::ResponseItem>, String> {
+    let request = objectiveai_sdk::cli::command::parse_request(&argv).map_err(|e| match e {
+        objectiveai_sdk::cli::command::ParseError::Clap(e) => format!("objectiveai.execute: {e}"),
+        objectiveai_sdk::cli::command::ParseError::FromArgs(e) => {
+            format!("objectiveai.execute: {e:?}")
+        }
+    })?;
+    let mut stream = crate::command::command::execute(ctx, request)
+        .await
+        .map_err(|e| format!("objectiveai.execute: {e}"))?;
+    let mut items = Vec::new();
+    while let Some(item) = stream.next().await {
+        items.push(item.map_err(|e| format!("objectiveai.execute: {e}"))?);
+    }
+    Ok(items)
 }
 
 fn wasm_err(e: wasmtime::Error) -> Error {
@@ -319,16 +539,20 @@ fn wrap_code(code: &str, input: &serde_json::Value) -> String {
     let encoded_input = base64::engine::general_purpose::STANDARD.encode(input_json);
     // `input` is exposed to user code as a global, decoded from JSON at
     // runtime (JSON literals aren't Python literals — `true`/`null`).
+    // `objectiveai` (the native host module) is also injected as a global so
+    // user code can call `objectiveai.execute(argv)` WITHOUT an explicit
+    // `import objectiveai` — the same builtin-like posture as `input`.
     format!(
         r#"
 import ast as __oai_ast, json as __oai_json, sys as __oai_sys, io as __oai_io, base64 as __oai_b64, os as __oai_os
+import objectiveai as __oai_objectiveai
 __oai_real_stdout = __oai_sys.stdout
 __oai_tree = __oai_ast.parse(__oai_b64.b64decode("{encoded}").decode())
 __oai_input = __oai_json.loads(__oai_b64.b64decode("{encoded_input}").decode())
 __oai_capture = __oai_io.StringIO()
 __oai_sys.stdout = __oai_capture
 __oai_eval = None
-__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__, "input": __oai_input}}
+__oai_globals = {{"__name__": "__main__", "__builtins__": __builtins__, "input": __oai_input, "objectiveai": __oai_objectiveai}}
 if __oai_tree.body and isinstance(__oai_tree.body[-1], __oai_ast.Expr):
     __oai_last = __oai_tree.body.pop()
     exec(compile(__oai_tree, "<inline>", "exec"), __oai_globals)
