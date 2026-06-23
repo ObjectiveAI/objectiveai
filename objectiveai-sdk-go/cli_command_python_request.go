@@ -19,6 +19,9 @@ type CliCommandPythonRequest struct {
 	// time — omit entirely for unlimited). Forward-compatible
 	// envelope data — no leaf enforces it yet.
 	MaxTokens *uint64 `json:"max_tokens,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
+	// When set, `objectiveai.execute(...)` inside the embedded python
+	// raises instead of dispatching a CLI command.
+	NoObjectiveai *bool `json:"no_objectiveai,omitempty"`
 	PathType CliCommandPythonPath `json:"path_type"`
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.

@@ -39294,6 +39294,7 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     input: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    no_objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     path_type: z.ZodLiteral<"python">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -102464,6 +102465,7 @@ declare const CliCommandPythonRequestSchema: z.ZodObject<{
     input: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
+    no_objectiveai: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     path_type: z.ZodLiteral<"python">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;

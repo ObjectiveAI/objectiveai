@@ -9770,6 +9770,7 @@ var CliCommandPythonRequestSchema = z1361.z.object({
   input: JsonValueSchema.describe("Optional JSON value exposed to the code as the global `input`.").meta({ omitempty: true }),
   jq: z1361.z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set \u2014 python overrides jq.").optional(),
   max_tokens: z1361.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime \u2014 omit entirely for unlimited). Forward-compatible\nenvelope data \u2014 no leaf enforces it yet.").meta({ omitempty: true }).optional(),
+  no_objectiveai: z1361.z.boolean().nullable().describe("When set, `objectiveai.execute(...)` inside the embedded python\nraises instead of dispatching a CLI command.").meta({ omitempty: true }).optional(),
   path_type: CliCommandPythonPathSchema,
   python: z1361.z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   timeout_seconds: z1361.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
