@@ -22,7 +22,7 @@ glob = "0.3"
 indexmap = { version = "2.13.0", features = ["serde"] }
 pathdiff = "0.2"
 regex = "1"
-rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }

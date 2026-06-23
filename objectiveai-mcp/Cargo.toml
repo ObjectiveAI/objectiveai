@@ -27,7 +27,7 @@ json-escape = { version = "0.3.1" }
 objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.6", features = ["lockfile"] }
 dirs = { version = "6.0.0" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 schemars = "1.2.1"
 serde = { version = "1.0.228", features = ["derive"] }
 tokio = { version = "1.50.0", features = ["full"] }

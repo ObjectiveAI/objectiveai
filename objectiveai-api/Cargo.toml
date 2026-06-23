@@ -57,7 +57,7 @@ dirs = "6.0.0"
 twox-hash = { version = "2.1.2" }
 base62 = { version = "2.2.4" }
 tokio-util = { version = "0.7.18", features = ["io"] }
-rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 futures-util = { version = "0.3.32" }
 base64 = { version = "0.22.1" }
 tempfile = { version = "3.27.0" }

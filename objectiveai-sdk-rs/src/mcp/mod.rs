@@ -5,6 +5,9 @@ pub mod initialize_result;
 mod json_rpc;
 pub mod queue_notification;
 pub mod resource;
+/// `objectiveai mcp` <-> `rmcp` conversions. The mcp type is always the
+/// middle-man: objectiveai -> mcp -> rmcp and rmcp -> mcp -> objectiveai.
+mod rmcp_bridge;
 mod session;
 pub mod shared;
 pub mod tool;
