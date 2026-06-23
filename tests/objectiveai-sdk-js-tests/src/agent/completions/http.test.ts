@@ -1,18 +1,18 @@
 import * as path from "path";
 import { httpTestSuite } from "../../httpTestUtil";
-import { agentCompletionsCreateAgentCompletion } from "./http";
-import { agentCompletionsResponseStreamingAgentCompletionChunkMerged } from "./response/streaming/agentCompletionChunkMerged";
 import {
+  agentCompletionsCreateAgentCompletion,
+  agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary,
   wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests as normalize,
-} from "./response/streaming/wasm";
-import type { AgentCompletionsResponseStreamingAgentCompletionChunk } from "./response/streaming/agentCompletionChunk";
-import type { AgentCompletionsResponseUnaryAgentCompletion } from "./response/unary/agentCompletion";
+  type AgentCompletionsResponseStreamingAgentCompletionChunk,
+  type AgentCompletionsResponseUnaryAgentCompletion,
+} from "@objectiveai/sdk";
 
 httpTestSuite<AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseUnaryAgentCompletion>({
   name: "agent completions http",
   fn: agentCompletionsCreateAgentCompletion,
-  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/agent/completions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api-tests/assets/agent/completions/client_tests"),
   merge: agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   chunkToUnary: wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary,
   normalize,

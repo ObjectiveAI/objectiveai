@@ -15,7 +15,10 @@ import pytest
 
 from tests.push_test_utils import rounded
 
-ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "tests" / "objectiveai-api-tests" / "assets"
+# Shared snapshot corpus owned by the sibling objectiveai-api-tests project
+# under tests/. This file lives at tests/objectiveai-sdk-py-tests/tests/, so
+# three parents up is the repo's tests/ dir.
+ASSETS_DIR = Path(__file__).resolve().parent.parent.parent / "objectiveai-api-tests" / "assets"
 
 _address = os.environ.get("OBJECTIVEAI_ADDRESS")
 

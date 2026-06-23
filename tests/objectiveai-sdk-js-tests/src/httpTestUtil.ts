@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { ObjectiveAI } from "./client";
+import { ObjectiveAI, type Stream } from "@objectiveai/sdk";
 import { rounded } from "./mergeTestUtil";
-import type { Stream } from "./stream";
 import * as fs from "fs";
 import * as path from "path";
 

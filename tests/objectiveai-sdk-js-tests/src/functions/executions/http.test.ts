@@ -1,18 +1,18 @@
 import * as path from "path";
 import { httpTestSuite } from "../../httpTestUtil";
-import { functionsExecutionsCreateFunctionExecution } from "./http";
-import { functionsExecutionsResponseStreamingFunctionExecutionChunkMerged } from "./response/streaming/functionExecutionChunkMerged";
 import {
+  functionsExecutionsCreateFunctionExecution,
+  functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
   wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary,
   wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests as normalize,
-} from "./response/streaming/wasm";
-import type { FunctionsExecutionsResponseStreamingFunctionExecutionChunk } from "./response/streaming/functionExecutionChunk";
-import type { FunctionsExecutionsResponseUnaryFunctionExecution } from "./response/unary/functionExecution";
+  type FunctionsExecutionsResponseStreamingFunctionExecutionChunk,
+  type FunctionsExecutionsResponseUnaryFunctionExecution,
+} from "@objectiveai/sdk";
 
 httpTestSuite<FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseUnaryFunctionExecution>({
   name: "functions executions http",
   fn: functionsExecutionsCreateFunctionExecution,
-  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/functions/executions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api-tests/assets/functions/executions/client_tests"),
   merge: functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
   chunkToUnary: wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary,
   normalize,

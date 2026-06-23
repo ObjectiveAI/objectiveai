@@ -1,0 +1,18 @@
+{
+  "name": "@objectiveai/sdk-tests",
+  "version": "2.2.6",
+  "description": "Standalone HTTP/snapshot integration tests that import the built @objectiveai/sdk.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@objectiveai/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
+  }
+}

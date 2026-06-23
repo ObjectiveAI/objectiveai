@@ -21,6 +21,11 @@
 #                     (objectiveai-sdk-py builds its bundled Rust extension via maturin)
 #                     (objectiveai-dotnet is disconnected from the root build for now;
 #                     run `bash objectiveai-dotnet/build.sh` directly if you need it.)
+# Integration prep (after phases 2-4): prepare the SDK importer test projects
+#   under tests/objectiveai-sdk-{go,py,js}-tests, which consume the built SDK
+#   artifacts (pnpm workspace link for js, module graph for go, the py venv for
+#   py). Ordered after the SDK build; under --no-sdk it runs against the
+#   existing artifacts. Skipped by --no-test-integration.
 # Final: wait for phase 1, then package the HOST platform's 7 binaries into
 #        the same per-platform zip the release ships
 #        (objectiveai-<version>-<os>-<arch>.zip) and drop it in <OBJECTIVEAI_DIR>/bin
@@ -297,6 +302,40 @@ if [ "$NO_SDK" != "1" ]; then
   fi
 
   run_phase objectiveai-sdk-py/build.sh objectiveai-sdk-go/build.sh
+fi
+
+# ── Integration-test importer prep (ordered AFTER the SDK build) ─────────
+# The SDK importer test projects under tests/objectiveai-sdk-{go,py,js}-tests
+# are *consumers* of the built SDK: the go importer's go.mod replaces the SDK
+# module with the in-repo source, the js importer links @objectiveai/sdk's
+# dist via the pnpm workspace, and the py importer runs under
+# objectiveai-sdk-py's venv (built in phase 4). So they can only be prepared
+# once the SDK build (phases 2-4) is done — hence this runs after that block.
+# Under --no-sdk those phases are skipped and this prep runs against whatever
+# SDK artifacts already exist (the "use the existing as-is" contract).
+# Skipped by --no-test-integration (the release passes it, since it ships
+# zips, not tests).
+if [ "$NO_TEST_INTEGRATION" != "1" ]; then
+  if (
+    set -e
+    # JS importer: pnpm workspace link to the freshly-built @objectiveai/sdk
+    # dist (pnpm install is idempotent and picks up the new workspace package
+    # the first time it runs). --no-frozen-lockfile so adding the importer as
+    # a workspace member can update pnpm-lock.yaml even when pnpm would
+    # otherwise auto-freeze (e.g. under CI).
+    pnpm install --no-frozen-lockfile
+    # Go importer: materialize its module graph. The transitive deps are
+    # already in the module cache from the SDK build; the replace directive
+    # points at the in-repo SDK source.
+    ( cd "$REPO_ROOT/tests/objectiveai-sdk-go-tests" && go mod download )
+    # Py importer: nothing to prep — it runs under objectiveai-sdk-py/venv,
+    # which phase 4 already built with the SDK installed.
+  ) > "$LOG_DIR/integration-prep.txt" 2>&1; then
+    echo "integration-prep: SUCCESS"
+  else
+    echo "integration-prep: ERROR (see .logs/build/integration-prep.txt)"
+    exit 1
+  fi
 fi
 
 # Wait for the background phase-1 jobs (cargo bins + viewer + runners).

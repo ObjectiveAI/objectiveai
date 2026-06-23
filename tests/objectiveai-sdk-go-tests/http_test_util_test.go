@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"testing"
 
 	. "github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go"
@@ -15,8 +16,13 @@ import (
 
 var testAddress = os.Getenv("OBJECTIVEAI_ADDRESS")
 
+// assetsDir resolves the shared snapshot corpus owned by
+// objectiveai-api-tests, a sibling project under tests/. Computed from
+// this file's location (this project is its own Go module, so the SDK's
+// RepoRoot() harness is not in scope here).
 func assetsDir() string {
-	return filepath.Join(RepoRoot(), "tests", "objectiveai-api-tests", "assets")
+	_, filename, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(filename), "..", "objectiveai-api-tests", "assets")
 }
 
 func getTestClient(t *testing.T) *Client {

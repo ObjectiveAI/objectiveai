@@ -1,20 +1,20 @@
 import * as path from "path";
 import { httpTestSuite } from "../../httpTestUtil";
-import { vectorCompletionsCreateVectorCompletion } from "./http";
-import { vectorCompletionsResponseStreamingVectorCompletionChunkMerged } from "./response/streaming/vectorCompletionChunkMerged";
 import {
+  vectorCompletionsCreateVectorCompletion,
+  vectorCompletionsResponseStreamingVectorCompletionChunkMerged,
   wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary,
   wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests as normalize,
-} from "./response/streaming/wasm";
-import type { VectorCompletionsResponseStreamingVectorCompletionChunk } from "./response/streaming/vectorCompletionChunk";
-import type { VectorCompletionsResponseUnaryVectorCompletion } from "./response/unary/vectorCompletion";
+  type VectorCompletionsResponseStreamingVectorCompletionChunk,
+  type VectorCompletionsResponseUnaryVectorCompletion,
+} from "@objectiveai/sdk";
 
 const mockAgent = { upstream: "mock", output_mode: "instruction" };
 
 httpTestSuite<VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseUnaryVectorCompletion>({
   name: "vector completions http",
   fn: vectorCompletionsCreateVectorCompletion,
-  snapshotsDir: path.resolve(__dirname, "../../../../tests/objectiveai-api-tests/assets/vector/completions/client_tests"),
+  snapshotsDir: path.resolve(__dirname, "../../../../objectiveai-api-tests/assets/vector/completions/client_tests"),
   merge: vectorCompletionsResponseStreamingVectorCompletionChunkMerged,
   chunkToUnary: wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary,
   normalize,
