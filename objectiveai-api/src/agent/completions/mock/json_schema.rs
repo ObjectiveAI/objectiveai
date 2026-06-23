@@ -16,6 +16,43 @@ pub enum JsonSchema {
     AnyOf(AnyOfJsonSchema),
 }
 
+/// Collapse JSON-Schema-2020-12 nullable type arrays into the scalar base
+/// type this module's `#[serde(untagged)]` parser understands.
+///
+/// rmcp 1.7 dropped the `AddNullable` schema transform, so an `Option<T>`
+/// tool/response parameter now serialises as `{"type":["string","null"]}`
+/// (2020-12 nullable) instead of the pre-1.7 `{"type":"string","nullable":true}`.
+/// The leaf variants here key off a *scalar* `type`, so a `type` array matches
+/// no variant and the whole parse fails (yielding empty `"{}"` output).
+///
+/// Rule: for any object with an array-valued `"type"`, replace it with the
+/// first non-`"null"` entry — i.e. treat a nullable field as its (non-null)
+/// base type, exactly as the pre-1.7 `nullable:true` form behaved here (the
+/// mock ignored `nullable` and always generated the value). Recurses through
+/// `properties`, `items`, `anyOf`, and every other nested value.
+pub(super) fn normalize_nullable_types(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Object(map) => {
+            if let Some(serde_json::Value::Array(types)) = map.get_mut("type") {
+                if let Some(base) =
+                    types.iter().find(|t| t.as_str() != Some("null")).cloned()
+                {
+                    map.insert("type".into(), base);
+                }
+            }
+            for v in map.values_mut() {
+                normalize_nullable_types(v);
+            }
+        }
+        serde_json::Value::Array(arr) => {
+            for v in arr.iter_mut() {
+                normalize_nullable_types(v);
+            }
+        }
+        _ => {}
+    }
+}
+
 impl JsonSchema {
     pub fn generate_content(&self, permutations: usize) -> (String, Vec<Logprob>) {
         self.generate_content_from_rng(&mut rand::rng(), permutations)

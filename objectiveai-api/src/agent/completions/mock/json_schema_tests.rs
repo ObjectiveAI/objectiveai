@@ -12,6 +12,38 @@ fn test_boolean_roundtrip() {
 }
 
 #[test]
+fn normalize_collapses_2020_12_nullable_type_arrays() {
+    // rmcp 1.7 (no AddNullable) emits Option<T> params as 2020-12 nullable
+    // type-arrays. Without normalization the untagged parser rejects them;
+    // after normalization they parse as the base type (and an object schema
+    // with such a property samples a populated value, not "{}").
+    let mut v = serde_json::json!({
+        "type": "object",
+        "properties": {
+            "jq": { "type": ["string", "null"] },
+            "n": { "type": ["null", "integer"], "minimum": 1, "maximum": 1 },
+            "items": { "type": "array", "items": { "type": ["string", "null"] } }
+        }
+    });
+    // Pre-normalization: the nullable arrays make the parse fail.
+    assert!(serde_json::from_value::<JsonSchema>(v.clone()).is_err());
+
+    normalize_nullable_types(&mut v);
+    let schema: JsonSchema = serde_json::from_value(v)
+        .expect("normalized nullable schema must parse");
+
+    let mut rng = rand::rngs::SmallRng::seed_from_u64(7);
+    let (content, _) = schema.generate_content_from_rng(&mut rng, 1);
+    let parsed: serde_json::Value =
+        serde_json::from_str(&content).expect("generated content is valid JSON");
+    let obj = parsed.as_object().expect("object output");
+    // The nullable string/array/integer properties are populated, not dropped.
+    assert!(obj.get("jq").and_then(|x| x.as_str()).is_some());
+    assert!(obj.get("items").and_then(|x| x.as_array()).is_some());
+    assert_eq!(obj.get("n").and_then(|x| x.as_i64()), Some(1));
+}
+
+#[test]
 fn generate_content_returns_valid_json_string() {
     let schema = StringJsonSchema {
         r#type: StringJsonSchemaType::String,

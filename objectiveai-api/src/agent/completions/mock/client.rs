@@ -919,11 +919,11 @@ fn generate_from_schema(
     yield_logprobs: bool,
     rng: &mut impl Rng,
 ) -> (String, Option<Vec<Logprob>>) {
-    match serde_json::from_value::<super::json_schema::JsonSchema>(
-        serde_json::Value::Object(
-            schema.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
-        ),
-    ) {
+    let mut schema_value = serde_json::Value::Object(
+        schema.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
+    );
+    super::json_schema::normalize_nullable_types(&mut schema_value);
+    match serde_json::from_value::<super::json_schema::JsonSchema>(schema_value) {
         Ok(js) => {
             let (text, logprobs) = js.generate_content_from_rng(rng, permutations);
             (text, if yield_logprobs { Some(logprobs) } else { None })
@@ -974,7 +974,8 @@ pub(super) fn generate_tool_arguments(
     };
 
     match schema_value {
-        Some(sv) => {
+        Some(mut sv) => {
+            super::json_schema::normalize_nullable_types(&mut sv);
             match serde_json::from_value::<super::json_schema::JsonSchema>(sv) {
                 Ok(js) => js.generate_content_from_rng(rng, 1).0,
                 Err(_) => "{}".into(),
