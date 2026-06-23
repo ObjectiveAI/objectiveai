@@ -118,14 +118,16 @@ pub fn test_base_dir() -> PathBuf {
 /// read naturally alongside the awaits that follow.)
 pub async fn executor() -> HangPreventingBinaryCommandExecutor {
     let state = test_state_name();
-    let state_dir = test_base_dir();
+    // Create this test's state dir + sync the snapshot env (side effects).
+    // The hang watchdog watches the whole objectiveai dir, not just this.
+    let _ = test_base_dir();
     let exec = BinaryExecutor::from_path(cli_binary())
         .env(
             "OBJECTIVEAI_DIR",
             objectiveai_dir().to_string_lossy().into_owned(),
         )
         .env("OBJECTIVEAI_STATE", state);
-    HangPreventingBinaryCommandExecutor::new(exec, state_dir)
+    HangPreventingBinaryCommandExecutor::new(exec, objectiveai_dir())
 }
 
 /// Run the leaf's streaming `execute` and collect every `ResponseItem`
