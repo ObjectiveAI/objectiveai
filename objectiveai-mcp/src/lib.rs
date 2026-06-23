@@ -5,7 +5,6 @@
 //! that reads `Config` from the environment and calls [`run`].
 
 pub mod agent_args_registry;
-mod bridge;
 mod format;
 mod header_session_manager;
 pub mod objectiveai;

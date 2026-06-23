@@ -162,16 +162,14 @@ where
     let ct = CancellationToken::new();
 
     let service: StreamableHttpService<ObjectiveAiMcpCli<E>, HeaderSessionManager<E>> =
-        StreamableHttpService::new(
-            move || Ok(server.clone()),
-            session_manager,
-            StreamableHttpServerConfig {
-                stateful_mode: true,
-                sse_keep_alive: None,
-                cancellation_token: ct.child_token(),
-                ..Default::default()
-            },
-        );
+        StreamableHttpService::new(move || Ok(server.clone()), session_manager, {
+            // rmcp 1.7 marks `StreamableHttpServerConfig` `#[non_exhaustive]`.
+            let mut cfg = StreamableHttpServerConfig::default();
+            cfg.stateful_mode = true;
+            cfg.sse_keep_alive = None;
+            cfg.cancellation_token = ct.child_token();
+            cfg
+        });
 
     let router = axum::Router::new().fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;

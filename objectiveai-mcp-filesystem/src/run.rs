@@ -88,16 +88,14 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     let ct = CancellationToken::new();
 
     let service: StreamableHttpService<FilesystemMcp, LocalSessionManager> =
-        StreamableHttpService::new(
-            move || Ok(server.clone()),
-            Default::default(),
-            StreamableHttpServerConfig {
-                stateful_mode: true,
-                sse_keep_alive: None,
-                cancellation_token: ct.child_token(),
-                ..Default::default()
-            },
-        );
+        StreamableHttpService::new(move || Ok(server.clone()), Default::default(), {
+            // rmcp 1.7 marks `StreamableHttpServerConfig` `#[non_exhaustive]`.
+            let mut cfg = StreamableHttpServerConfig::default();
+            cfg.stateful_mode = true;
+            cfg.sse_keep_alive = None;
+            cfg.cancellation_token = ct.child_token();
+            cfg
+        });
 
     // axum 0.8 removed nest_service at "/"; fallback_service mounts the
     // service at the root catch-all without the path-prefix-stripping

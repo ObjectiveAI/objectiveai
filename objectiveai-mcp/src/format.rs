@@ -23,8 +23,6 @@ use objectiveai_sdk::mcp::tool::ContentBlock;
 use rmcp::model::Content;
 use serde_json::Value;
 
-use crate::bridge::into_rmcp_content;
-
 /// Format `items` into the MCP tool response `Vec<Content>`. See
 /// module-level docs for the three output modes.
 pub fn format_items(items: Vec<McpResponseItem>) -> Vec<Content> {
@@ -38,7 +36,7 @@ pub fn format_items(items: Vec<McpResponseItem>) -> Vec<Content> {
                 McpResponseItem::Media(ContentBlock::Text(t)) => {
                     vec![Content::text(t.text)]
                 }
-                McpResponseItem::Media(other) => vec![into_rmcp_content(other)],
+                McpResponseItem::Media(other) => vec![Content::from(other)],
                 McpResponseItem::JSONL(Value::String(s)) => vec![Content::text(s)],
                 McpResponseItem::JSONL(other) => {
                     let body = serde_json::to_string(&other)
@@ -73,7 +71,7 @@ pub fn format_items(items: Vec<McpResponseItem>) -> Vec<Content> {
                     // Vec<Value>.
                     McpResponseItem::Media(other) => {
                         blocks.push(Content::text("\""));
-                        blocks.push(into_rmcp_content(other));
+                        blocks.push(Content::from(other));
                         blocks.push(Content::text("\""));
                     }
                     // Raw JSON string — `"`, json-escaped body, `"`.
