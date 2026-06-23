@@ -724,7 +724,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
 
     fn response_continuation(
         &self,
-        mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&objectiveai_sdk::agent::mock::Continuation>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
@@ -749,7 +748,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
             upstream: objectiveai_sdk::agent::mock::Upstream::default(),
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
-            mcp_sessions,
         }
     }
 }

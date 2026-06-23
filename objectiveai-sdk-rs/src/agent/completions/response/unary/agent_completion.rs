@@ -57,34 +57,15 @@ impl AgentCompletion {
             }
         }
 
-        // The continuation is base64-encoded JSON whose payload
-        // includes both an `mcp_sessions` map (keyed by proxy URL
-        // with freshly-minted session UUIDs as values; the URL's
-        // port and the UUIDs are random per run) and the agent's
-        // lineage `agent_instance_hierarchy` (minted at first-spawn from a UUID +
-        // creation timestamp). Both vary run-to-run and would break
-        // every snapshot otherwise. Decode, clear them, re-encode.
+        // The continuation is base64-encoded JSON whose payload includes
+        // the agent's lineage `agent_instance_hierarchy` (minted at
+        // first-spawn from a UUID + creation timestamp), which varies
+        // run-to-run and would break every snapshot otherwise. Decode,
+        // clear it, re-encode.
         if let Some(s) = &mut self.continuation {
             if let Some(mut c) = crate::agent::Continuation::try_from_string(s)
             {
-                match &mut c {
-                    crate::agent::Continuation::Openrouter(x) => {
-                        x.mcp_sessions.clear();
-                        x.agent_instance_hierarchy.clear();
-                    }
-                    crate::agent::Continuation::ClaudeAgentSdk(x) => {
-                        x.mcp_sessions.clear();
-                        x.agent_instance_hierarchy.clear();
-                    }
-                    crate::agent::Continuation::CodexSdk(x) => {
-                        x.mcp_sessions.clear();
-                        x.agent_instance_hierarchy.clear();
-                    }
-                    crate::agent::Continuation::Mock(x) => {
-                        x.mcp_sessions.clear();
-                        x.agent_instance_hierarchy.clear();
-                    }
-                }
+                c.set_agent_instance_hierarchy(String::new());
                 *s = c.to_string();
             }
         }

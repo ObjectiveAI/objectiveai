@@ -405,7 +405,6 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
 
     fn response_continuation(
         &self,
-        mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&objectiveai_sdk::agent::openrouter::Continuation>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
@@ -430,7 +429,6 @@ impl UpstreamClient<objectiveai_sdk::agent::openrouter::Agent, objectiveai_sdk::
             upstream: objectiveai_sdk::agent::openrouter::Upstream::default(),
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             messages: all_messages,
-            mcp_sessions,
         }
     }
 }

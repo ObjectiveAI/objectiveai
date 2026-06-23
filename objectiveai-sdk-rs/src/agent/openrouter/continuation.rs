@@ -12,5 +12,4 @@ pub struct Continuation {
     /// regardless of who resumes the conversation.
     pub agent_instance_hierarchy: String,
     pub messages: Vec<super::super::completions::message::Message>,
-    pub mcp_sessions: indexmap::IndexMap<String, String>,
 }
