@@ -76,7 +76,14 @@ impl PluginExecutor {
                 };
                 match env {
                     CommandResponse::Value { id, value } => {
-                        if let Some(sender) = pending.get(&id) {
+                        // Host-form stream terminator:
+                        // `{id, value:{type:"command_complete",…}}`. Swallow
+                        // it — end this id's stream, never forward it on.
+                        if value.get("type").and_then(serde_json::Value::as_str)
+                            == Some("command_complete")
+                        {
+                            pending.remove(&id);
+                        } else if let Some(sender) = pending.get(&id) {
                             if sender.send(value).is_err() {
                                 drop(sender);
                                 pending.remove(&id);
@@ -107,8 +114,11 @@ impl PluginExecutor {
 /// - Value: `{"id":"42","value":<JSON>}`
 /// - Done:  `{"id":"42","done":true}`
 ///
-/// `Done` signals end-of-stream for that id from the receiver's
-/// perspective — the request's stream ends right after.
+/// Two end-of-stream markers are recognized for an id, after which the
+/// request's stream ends: the `Done` form above, and the host's
+/// `command_complete` form — a `Value` whose JSON is
+/// `{"type":"command_complete","exit_code":N}` (handled in the listener,
+/// swallowed, never surfaced to the consumer).
 #[derive(serde::Deserialize, Debug, Clone)]
 #[serde(untagged)]
 enum CommandResponse {

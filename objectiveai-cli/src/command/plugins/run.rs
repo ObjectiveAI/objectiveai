@@ -186,20 +186,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             }
         }
 
-        // Drain any in-flight Command tasks the plugin queued before
-        // its stdout EOF. Each task gets a terminal `CommandComplete`
-        // written to plugin stdin so the plugin sees the run boundary
-        // even when it didn't mint a correlation id.
-        for (id, task) in command_tasks {
-            let exit_code = task.await.unwrap_or(-1);
-            let envelope = PluginCommandResponse {
-                id: id.as_deref(),
-                value: CommandComplete {
-                    kind: "command_complete",
-                    exit_code,
-                },
-            };
-            let _ = write_envelope(&plugin_stdin, &envelope).await;
+        // Await any in-flight Command tasks the plugin queued before its
+        // stdout EOF. Each task writes its OWN terminal `CommandComplete`
+        // when its stream ends (see `run_nested_command`), so here we just
+        // let them finish before dropping plugin stdin.
+        for (_id, task) in command_tasks {
+            let _ = task.await;
         }
 
         // Drop our reference to plugin stdin so the kernel pipe closes
@@ -239,64 +231,94 @@ fn run_nested_command(
 ) -> JoinHandle<i32> {
     tokio::spawn(async move {
         let id = id.as_deref();
-        // Argv is already tokenized by the plugin executor — one
-        // element per argument. No `split_whitespace`, so a value like
-        // `--simple "a b c"` is not re-split into separate tokens.
-        let tokens: Vec<String> = command;
-
-        // A plugin may not invoke `plugins` or `tools` commands — no
-        // running another plugin, no running a tool. Forward the same
-        // error line the cli would emit for the forbidden cases.
-        let forbidden = match tokens.first().map(String::as_str) {
-            Some("plugins") => Some("plugins"),
-            Some("tools") => Some("tools"),
-            _ => None,
-        };
-        if let Some(kind) = forbidden {
-            let _ = forward_error(
-                &plugin_stdin,
+        let exit_code = run_nested_inner(ctx, command, plugin_stdin.clone(), id).await;
+        // Per-command stream terminator: tell the plugin THIS command's
+        // response stream is exhausted (carries the id) so its executor
+        // ends the right stream. Written promptly when the stream ends —
+        // not deferred to plugin-stdout EOF — and swallowed by the executor.
+        let _ = write_envelope(
+            &plugin_stdin,
+            &PluginCommandResponse {
                 id,
-                &Error::PluginCommandForbidden(kind),
-                Some(true),
-            )
-            .await;
-            return 1;
-        }
-
-        // `args[0]` is the program name, which `crate::run` strips
-        // unconditionally; the plugin's command is just the subcommand
-        // tokens, so prepend a placeholder.
-        let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
-        args.extend(tokens);
-
-        // A mirror of `main.rs::run_command`: drive the same `crate::run`
-        // stream, but forward each line into the plugin's stdin (wrapped
-        // in a `PluginCommandResponse`) instead of writing it to stdout.
-        let run_stream = match crate::run(args, Some(ctx)).await {
-            Ok(s) => s,
-            Err(e) => {
-                if let Error::ClapParse(ref clap_err) = e {
-                    if crate::is_informational(clap_err) {
-                        let _ = forward_help(&plugin_stdin, id, &clap_err.to_string()).await;
-                        return 0;
-                    }
-                }
-                let _ = forward_error(&plugin_stdin, id, &e, Some(true)).await;
-                return match e {
-                    Error::ToolExit(code) => code,
-                    _ => 1,
-                };
-            }
-        };
-        // Both arms forward each item to the plugin's stdin as a line;
-        // `drain` is generic over the item type (typed root items vs
-        // post-transform JSON).
-        let last_tool_exit = match run_stream {
-            crate::RunStream::Execute(stream) => drain(&plugin_stdin, id, stream).await,
-            crate::RunStream::ExecuteTransform(stream) => drain(&plugin_stdin, id, stream).await,
-        };
-        last_tool_exit.unwrap_or(0)
+                value: CommandComplete {
+                    kind: "command_complete",
+                    exit_code,
+                },
+            },
+        )
+        .await;
+        exit_code
     })
+}
+
+/// Run one plugin-originated command in-process, forwarding each output
+/// line into `plugin_stdin` as a [`PluginCommandResponse`]. Returns the
+/// exit code (the tool's code on a `ToolExit`, else 0/1); the caller
+/// ([`run_nested_command`]) writes the terminal [`CommandComplete`] once
+/// this returns.
+async fn run_nested_inner(
+    ctx: Context,
+    command: Vec<String>,
+    plugin_stdin: Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+) -> i32 {
+    // Argv is already tokenized by the plugin executor — one
+    // element per argument. No `split_whitespace`, so a value like
+    // `--simple "a b c"` is not re-split into separate tokens.
+    let tokens: Vec<String> = command;
+
+    // A plugin may not invoke `plugins` or `tools` commands — no
+    // running another plugin, no running a tool. Forward the same
+    // error line the cli would emit for the forbidden cases.
+    let forbidden = match tokens.first().map(String::as_str) {
+        Some("plugins") => Some("plugins"),
+        Some("tools") => Some("tools"),
+        _ => None,
+    };
+    if let Some(kind) = forbidden {
+        let _ = forward_error(
+            &plugin_stdin,
+            id,
+            &Error::PluginCommandForbidden(kind),
+            Some(true),
+        )
+        .await;
+        return 1;
+    }
+
+    // `args[0]` is the program name, which `crate::run` strips
+    // unconditionally; the plugin's command is just the subcommand
+    // tokens, so prepend a placeholder.
+    let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
+    args.extend(tokens);
+
+    // A mirror of `main.rs::run_command`: drive the same `crate::run`
+    // stream, but forward each line into the plugin's stdin (wrapped
+    // in a `PluginCommandResponse`) instead of writing it to stdout.
+    let run_stream = match crate::run(args, Some(ctx)).await {
+        Ok(s) => s,
+        Err(e) => {
+            if let Error::ClapParse(ref clap_err) = e {
+                if crate::is_informational(clap_err) {
+                    let _ = forward_help(&plugin_stdin, id, &clap_err.to_string()).await;
+                    return 0;
+                }
+            }
+            let _ = forward_error(&plugin_stdin, id, &e, Some(true)).await;
+            return match e {
+                Error::ToolExit(code) => code,
+                _ => 1,
+            };
+        }
+    };
+    // Both arms forward each item to the plugin's stdin as a line;
+    // `drain` is generic over the item type (typed root items vs
+    // post-transform JSON).
+    let last_tool_exit = match run_stream {
+        crate::RunStream::Execute(stream) => drain(&plugin_stdin, id, stream).await,
+        crate::RunStream::ExecuteTransform(stream) => drain(&plugin_stdin, id, stream).await,
+    };
+    last_tool_exit.unwrap_or(0)
 }
 
 /// Drain a run stream into the plugin's stdin — one
