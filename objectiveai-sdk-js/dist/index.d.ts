@@ -28561,6 +28561,7 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
         stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    keys: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/queue/deliver">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -52259,6 +52260,7 @@ declare const CliCommandAgentsQueueDeliverRequestSchema: z.ZodObject<{
         stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    keys: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/queue/deliver">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -52534,6 +52536,7 @@ declare const CliCommandAgentsQueueRequestSchema: z.ZodUnion<readonly [z.ZodObje
         stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    keys: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/queue/deliver">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -70271,6 +70274,7 @@ declare const CliCommandAgentsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
         stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     }, z.core.$strip>>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    keys: z.ZodOptional<z.ZodNullable<z.ZodArray<z.ZodString>>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/queue/deliver">;
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
