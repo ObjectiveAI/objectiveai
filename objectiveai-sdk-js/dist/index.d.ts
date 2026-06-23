@@ -205,7 +205,6 @@ type AgentClaudeAgentSdkAgentBase = z.infer<typeof AgentClaudeAgentSdkAgentBaseS
 
 declare const AgentClaudeAgentSdkContinuationSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     session_id: z.ZodString;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>;
@@ -421,7 +420,6 @@ type AgentCodexSdkAgentBase = z.infer<typeof AgentCodexSdkAgentBaseSchema>;
 
 declare const AgentCodexSdkContinuationSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     thread_id: z.ZodString;
     upstream: z.ZodLiteral<"codex_sdk">;
 }, z.core.$strip>;
@@ -6972,7 +6970,6 @@ type AgentMockCallToolCall = z.infer<typeof AgentMockCallToolCallSchema>;
 
 declare const AgentMockContinuationSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
             text: z.ZodString;
@@ -7751,7 +7748,6 @@ type AgentOpenrouterContextCompression = z.infer<typeof AgentOpenrouterContextCo
 
 declare const AgentOpenrouterContinuationSchema: z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
             text: z.ZodString;
@@ -14584,7 +14580,6 @@ type AgentClientObjectiveaiMcpPluginMcpServer = z.infer<typeof AgentClientObject
 
 declare const AgentContinuationSchema: z.ZodUnion<readonly [z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
             text: z.ZodString;
@@ -14714,17 +14709,14 @@ declare const AgentContinuationSchema: z.ZodUnion<readonly [z.ZodObject<{
     upstream: z.ZodLiteral<"openrouter">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     session_id: z.ZodString;
     upstream: z.ZodLiteral<"claude_agent_sdk">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     thread_id: z.ZodString;
     upstream: z.ZodLiteral<"codex_sdk">;
 }, z.core.$strip>, z.ZodObject<{
     agent_instance_hierarchy: z.ZodString;
-    mcp_sessions: z.ZodRecord<z.ZodString, z.ZodString>;
     messages: z.ZodArray<z.ZodUnion<readonly [z.ZodIntersection<z.ZodObject<{
         content: z.ZodUnion<readonly [z.ZodString, z.ZodArray<z.ZodUnion<readonly [z.ZodObject<{
             text: z.ZodString;

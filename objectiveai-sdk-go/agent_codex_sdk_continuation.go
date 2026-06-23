@@ -14,7 +14,6 @@ type AgentCodexSdkContinuation struct {
 	// continuation round so the agent's identity stays stable
 	// regardless of who resumes the conversation.
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	MCPSessions OrderedMap[string, string] `json:"mcp_sessions"`
 	ThreadID string `json:"thread_id"`
 	Upstream AgentCodexSdkUpstream `json:"upstream"`
 }
@@ -29,7 +28,7 @@ func (v *AgentCodexSdkContinuation) UnmarshalJSON(data []byte) error {
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "mcp_sessions", "thread_id", "upstream"} {
+	for _, key := range []string{"agent_instance_hierarchy", "thread_id", "upstream"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("AgentCodexSdkContinuation: missing required field %q", key)
 		}
