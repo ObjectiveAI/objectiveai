@@ -169,7 +169,11 @@ impl CommandExecutor for CliCommandExecutor {
         if let Some(transform) = transform {
             match transform {
                 Transform::Python(code) => {
-                    let ctx = transform_ctx.expect("cloned whenever a python transform is present");
+                    // A per-stream-item transform must not make nested host
+                    // calls — disable `objectiveai.execute` for it automatically.
+                    let ctx = transform_ctx
+                        .expect("cloned whenever a python transform is present")
+                        .with_no_objectiveai(true);
                     stream = Box::pin(PythonTransformStream::new(stream, ctx, code));
                 }
                 Transform::Jq(filter) => {

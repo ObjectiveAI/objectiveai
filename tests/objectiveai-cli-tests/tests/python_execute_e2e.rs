@@ -25,6 +25,7 @@ fn py_request(code: impl Into<String>) -> PyRequest {
         path_type: PyPath::Python,
         code: code.into(),
         input: None,
+        no_objectiveai: None,
         base: Default::default(),
     }
 }
