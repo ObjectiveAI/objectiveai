@@ -57,6 +57,29 @@ struct ConduitState {
     /// dialed this upstream. Carried for wire-shape parity and
     /// diagnostic readability.
     agent_instance_hierarchy: String,
+    /// For plugin upstreams (`McpKind::Other`): the abort handle of the
+    /// stdout-drain task spawned in [`dial_plugin_upstream`]. `None` for
+    /// `McpKind::ObjectiveAi`, which has no subprocess.
+    ///
+    /// Dropping this `ConduitState` aborts that task (see [`Drop`]),
+    /// which drops the `execute` stream it owns, which drops the
+    /// `tokio::process::Child` — spawned with `kill_on_drop(true)` via
+    /// `objectiveai_sdk::subprocess_reaper::spawn` in
+    /// `command::plugins::run::execute` — killing the plugin subprocess.
+    /// This kill path depends on that `kill_on_drop(true)` staying set.
+    plugin_drain: Option<tokio::task::AbortHandle>,
+}
+
+impl Drop for ConduitState {
+    /// Kill the plugin subprocess tied to this state, if any. Aborting
+    /// the drain task drops the stream that owns the plugin's
+    /// `tokio::process::Child`; its `kill_on_drop(true)` then kills the
+    /// subprocess. No-op for `McpKind::ObjectiveAi` (no subprocess).
+    fn drop(&mut self) {
+        if let Some(handle) = &self.plugin_drain {
+            handle.abort();
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -325,10 +348,12 @@ async fn dispatch_initialize(
             let connect_headers = sanitize_connect_headers(headers);
             // No session-id resume hint: the conduit keys by
             // (response_id, McpKind) and is naive to Mcp-Session-Id.
+            // ObjectiveAi has no subprocess, so no drain handle.
             inner
                 .client
                 .connect(mcp_url, None, Some(connect_headers))
                 .await
+                .map(|c| (c, None))
                 .map_err(|e| format!("connect: {e}"))
         }
         McpKind::Other { owner, name, version, mcp } => {
@@ -345,11 +370,12 @@ async fn dispatch_initialize(
                 None,
             )
             .await
+            .map(|(c, drain)| (c, Some(drain)))
             .map_err(|e| format!("{e}"))
         }
     };
 
-    let connection = match dial {
+    let (connection, plugin_drain) = match dial {
         Ok(c) => c,
         Err(message) => {
             return initialize_err(-32603, format!("conduit: {message}"));
@@ -371,6 +397,7 @@ async fn dispatch_initialize(
             connection,
             mcp_kind: mcp_kind.clone(),
             agent_instance_hierarchy: transient.agent_instance_hierarchy,
+            plugin_drain,
         }),
     );
 
@@ -812,7 +839,7 @@ async fn dial_plugin_upstream(
     transient: &TransientHeaders,
     connect_headers: IndexMap<String, String>,
     stored_session_id: Option<String>,
-) -> Result<objectiveai_sdk::mcp::Connection, ConduitError> {
+) -> Result<(objectiveai_sdk::mcp::Connection, tokio::task::AbortHandle), ConduitError> {
     let fail = |reason: String| ConduitError::PluginDialFailed {
         plugin_owner: plugin_owner.clone(),
         plugin_name: plugin_name.clone(),
@@ -869,7 +896,11 @@ async fn dial_plugin_upstream(
 
     let (mcp_tx, mcp_rx) = tokio::sync::oneshot::channel::<PluginMcp>();
 
-    tokio::spawn(async move {
+    // The drain task OWNS the `execute` stream, which owns the plugin's
+    // `tokio::process::Child` (kill_on_drop=true). Keeping its abort
+    // handle is what lets us kill the subprocess later: aborting the
+    // task drops the stream → drops the Child → kill_on_drop fires.
+    let drain = tokio::spawn(async move {
         use futures::StreamExt;
         use objectiveai_sdk::cli::command::plugins::run::ResponseItem;
         let mut stream = stream;
@@ -889,23 +920,38 @@ async fn dial_plugin_upstream(
         // Stream EOF: if we never saw an Mcp, `mcp_tx` is dropped
         // here, waking `mcp_rx.await` with `Err(Canceled)`.
     });
+    let drain_handle = drain.abort_handle();
 
-    // Wait forever — the API layer above owns the timeout.
-    let mcp = mcp_rx
-        .await
-        .map_err(|_| fail("plugin exited without emitting mcp{url}".into()))?;
+    // Wait forever — the API layer above owns the timeout. On any
+    // post-spawn failure, abort the drain task so the just-spawned
+    // subprocess isn't orphaned (it would otherwise linger until plugin
+    // EOF or CLI exit, since the success path is the only one that hands
+    // the abort handle to a `ConduitState`).
+    let mcp = match mcp_rx.await {
+        Ok(mcp) => mcp,
+        Err(_) => {
+            drain_handle.abort();
+            return Err(fail("plugin exited without emitting mcp{url}".into()));
+        }
+    };
 
     // Forward the sanitized inbound headers on the handshake so the
     // plugin's MCP server gets the six X-OBJECTIVEAI-* transient
     // headers (incl. AGENT-INSTANCE-HIERARCHY) on initialize + every
     // later RPC — parity with the McpKind::ObjectiveAi dial.
-    let connection = inner
+    let connection = match inner
         .client
         .connect(mcp.url, stored_session_id, Some(connect_headers))
         .await
-        .map_err(|e| fail(format!("connect: {e}")))?;
+    {
+        Ok(connection) => connection,
+        Err(e) => {
+            drain_handle.abort();
+            return Err(fail(format!("connect: {e}")));
+        }
+    };
 
-    Ok(connection)
+    Ok((connection, drain_handle))
 }
 
 /// Wire `set_on_{tools,resources}_list_changed` to fire-and-forget
