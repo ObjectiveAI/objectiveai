@@ -1,6 +1,7 @@
 pub mod get;
 pub mod install;
 pub mod list;
+pub mod logs;
 pub mod run;
 
 #[derive(clap::Subcommand)]
@@ -11,6 +12,10 @@ pub enum Command {
         command: install::Command,
     },
     List(list::Command),
+    Logs {
+        #[command(subcommand)]
+        command: logs::Command,
+    },
     Run(run::Command),
 }
 
@@ -32,6 +37,8 @@ pub enum Request {
     ListRequestSchema(list::request_schema::Request),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Request),
+    #[schemars(title = "Logs")]
+    Logs(logs::Request),
     #[schemars(title = "Run")]
     Run(run::Request),
     #[schemars(title = "RunRequestSchema")]
@@ -61,6 +68,8 @@ pub enum ResponseItem {
     ListRequestSchema(list::request_schema::Response),
     #[schemars(title = "ListResponseSchema")]
     ListResponseSchema(list::response_schema::Response),
+    #[schemars(title = "Logs")]
+    Logs(logs::ResponseItem),
     #[schemars(title = "Run")]
     Run(run::ResponseItem),
     #[schemars(title = "RunRequestSchema")]
@@ -80,6 +89,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::List(v) => v.into_mcp(),
             ResponseItem::ListRequestSchema(v) => v.into_mcp(),
             ResponseItem::ListResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Logs(v) => v.into_mcp(),
             ResponseItem::Run(v) => v.into_mcp(),
             ResponseItem::RunRequestSchema(v) => v.into_mcp(),
             ResponseItem::RunResponseSchema(v) => v.into_mcp(),
@@ -100,6 +110,8 @@ impl TryFrom<Command> for Request {
             },
             Command::Install { command } =>
                 Ok(Request::Install(install::Request::try_from(command)?)),
+            Command::Logs { command } =>
+                Ok(Request::Logs(logs::Request::try_from(command)?)),
             Command::List(cmd) => match cmd.schema {
                 None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
                 Some(list::Schema::RequestSchema(args)) =>
@@ -128,6 +140,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::List(inner) => inner.request_base(),
             Request::ListRequestSchema(inner) => inner.request_base(),
             Request::ListResponseSchema(inner) => inner.request_base(),
+            Request::Logs(inner) => inner.request_base(),
             Request::Run(inner) => inner.request_base(),
             Request::RunRequestSchema(inner) => inner.request_base(),
             Request::RunResponseSchema(inner) => inner.request_base(),
@@ -143,6 +156,7 @@ impl crate::cli::command::CommandRequest for Request {
             Request::List(inner) => inner.request_base_mut(),
             Request::ListRequestSchema(inner) => inner.request_base_mut(),
             Request::ListResponseSchema(inner) => inner.request_base_mut(),
+            Request::Logs(inner) => inner.request_base_mut(),
             Request::Run(inner) => inner.request_base_mut(),
             Request::RunRequestSchema(inner) => inner.request_base_mut(),
             Request::RunResponseSchema(inner) => inner.request_base_mut(),
@@ -200,6 +214,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     ResponseItem::ListResponseSchema(value),
                 )))
+            }
+            Request::Logs(req) => {
+                let inner = logs::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
             }
             Request::Run(req) => {
                 let inner = run::execute(executor, req, agent_arguments).await?;
@@ -261,6 +279,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             Request::ListResponseSchema(req) => {
                 let value = list::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+            }
+            Request::Logs(req) => {
+                let inner = logs::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
             }
             Request::Run(req) => {
                 let inner = run::execute_transform(executor, req, transform, agent_arguments).await?;

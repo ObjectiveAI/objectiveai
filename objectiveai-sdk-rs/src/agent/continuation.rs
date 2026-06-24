@@ -46,16 +46,6 @@ impl From<super::mock::Continuation> for Continuation {
 }
 
 impl Continuation {
-    /// Returns the MCP sessions map for this continuation.
-    pub fn mcp_sessions(&self) -> &indexmap::IndexMap<String, String> {
-        match self {
-            Self::Openrouter(c) => &c.mcp_sessions,
-            Self::ClaudeAgentSdk(c) => &c.mcp_sessions,
-            Self::CodexSdk(c) => &c.mcp_sessions,
-            Self::Mock(c) => &c.mcp_sessions,
-        }
-    }
-
     /// Full slash-separated lineage of the agent this continuation
     /// belongs to. See per-upstream struct docs for the semantic.
     /// Empty string if the continuation was minted before this field

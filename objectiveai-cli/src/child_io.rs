@@ -70,6 +70,29 @@ where
     rx
 }
 
+/// Spawn a single reader task for `stdout` only and return an mpsc
+/// receiver yielding [`PipeEvent`]s (`Stdout` / `StdoutEof` /
+/// `StdoutErr`). Mirrors [`spawn_pipe_reader`] but without the stderr
+/// pipe — used by `plugins run`, where stderr is handed to a dedicated
+/// DB log-writer task instead of being merged into this channel.
+pub fn spawn_stdout_reader<O>(stdout: O) -> mpsc::UnboundedReceiver<PipeEvent>
+where
+    O: AsyncRead + Unpin + Send + 'static,
+{
+    let (tx, rx) = mpsc::unbounded_channel();
+    tokio::spawn(async move {
+        read_lines(
+            stdout,
+            tx,
+            PipeEvent::Stdout,
+            PipeEvent::StdoutEof,
+            PipeEvent::StdoutErr,
+        )
+        .await;
+    });
+    rx
+}
+
 /// Read lines off `reader` and send each as a [`PipeEvent`] until
 /// EOF or read error. `line_event` builds a per-line event from the
 /// trimmed line text; `eof_event` and `err_event_ctor` mint the

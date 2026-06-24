@@ -21,7 +21,7 @@
 //! [`Connection`] or a [`WsUpstream`] — exposing the slice of the
 //! `Connection` interface the [`crate::session::Session`] depends on.
 
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use dashmap::DashMap;
@@ -42,6 +42,9 @@ use objectiveai_sdk::mcp::tool::{
 use objectiveai_sdk::mcp::{Connection, Error as McpError};
 use tokio::sync::{RwLock, mpsc, oneshot};
 
+use crate::session::Session;
+use crate::session_manager::SessionManager;
+
 /// A list-changed callback (mirrors `Connection::set_on_*_list_changed`).
 type ListChangedCb = Arc<dyn Fn() + Send + Sync>;
 
@@ -56,6 +59,12 @@ struct Inner {
     /// list-changed callbacks per upstream `McpKind`: `(tools, resources)`.
     /// Fired when a matching `client_request::McpListChanged` arrives.
     list_changed: DashMap<McpKind, (Option<ListChangedCb>, Option<ListChangedCb>)>,
+    /// Session registry, late-bound by [`ReverseChannel::wire_sessions`]
+    /// in `setup` (the channel is built before the proxy's
+    /// `SessionManager` exists). Lets inbound `client_request`s
+    /// (`ListTools`/`CallTool`/`ListResources`/`ReadResource`) run the
+    /// proxy's aggregated MCP ops by `response_id`.
+    sessions: OnceLock<Arc<SessionManager>>,
 }
 
 /// Cheaply-cloneable handle the proxy uses to speak over the WS.
@@ -78,8 +87,30 @@ impl ReverseChannel {
             pending: DashMap::new(),
             timeout,
             list_changed: DashMap::new(),
+            sessions: OnceLock::new(),
         };
         (Self(Arc::new(inner)), rx)
+    }
+
+    /// Late-bind the proxy's session registry so inbound MCP-op
+    /// `client_request`s can resolve a session by `response_id`. Called
+    /// once by `setup` (idempotent — first write wins).
+    pub(crate) fn wire_sessions(&self, sessions: Arc<SessionManager>) {
+        let _ = self.0.sessions.set(sessions);
+    }
+
+    /// Resolve a session for an inbound MCP-op `client_request`. Returns
+    /// a `(code, message)` error suitable for a `JsonRpcResult::Err` when
+    /// sessions aren't wired or no session exists for `response_id`.
+    fn lookup_session(&self, response_id: &str) -> Result<Arc<Session>, (i64, String)> {
+        let sessions = self
+            .0
+            .sessions
+            .get()
+            .ok_or((-32603i64, "proxy sessions not wired".to_string()))?;
+        sessions
+            .get(response_id)
+            .ok_or_else(|| (-32001i64, format!("unknown session for response id {response_id:?}")))
     }
 
     /// Emit a `server_request` and await its matching `server_response`,
@@ -115,6 +146,19 @@ impl ReverseChannel {
         }
     }
 
+    /// Best-effort `Drop` server-request for `response_id`: tells the CLI
+    /// to tear down the whole response-id bucket (connections + plugin
+    /// subprocesses). The reply (`DropResult`) is discarded; transport
+    /// errors / timeouts are ignored — teardown is fire-and-forget.
+    pub(crate) async fn drop_response(&self, response_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::Drop(server_request::DropRequest { response_id }),
+                IndexMap::new(),
+            )
+            .await;
+    }
+
     /// Hand a proxy-bound `server_response` (one of the 6 MCP variants)
     /// back to the waiter that issued the matching request. Called by the
     /// API's recv loop. Unknown id → dropped.
@@ -124,10 +168,18 @@ impl ReverseChannel {
         }
     }
 
-    /// Hand a proxy-bound `client_request` (today only `McpListChanged`)
-    /// to the proxy. Fires the registered list-changed callback for the
-    /// upstream, and returns the ack the API writes back over the WS.
-    pub fn deliver_client_request(
+    /// Hand a proxy-bound `client_request` to the proxy.
+    ///
+    /// `McpListChanged` fires the registered list-changed callback for the
+    /// upstream. The MCP-op variants (`ListTools`/`CallTool`/
+    /// `ListResources`/`ReadResource`) resolve the session by
+    /// `response_id` and run the SAME shared [`crate::session::Session`]
+    /// code the HTTP endpoints use — fanning out / routing exactly as
+    /// `mcp::handle_tools_list` etc. — returning the normal MCP result.
+    /// NOTE: the `CallTool` path deliberately does NOT consult the queue
+    /// delegate (that splice is only for the regular HTTP `tools/call`).
+    /// Returns the ack/result the API writes back over the WS.
+    pub async fn deliver_client_request(
         &self,
         request: client_request::Request,
     ) -> client_response::Response {
@@ -145,6 +197,60 @@ impl ReverseChannel {
                     }
                 }
                 client_response::Response::Ok { id }
+            }
+            // List params (cursor) are ignored, matching the HTTP
+            // `handle_tools_list` which fans out to every upstream.
+            client_request::Payload::ListTools { response_id, .. } => {
+                let result = match self.lookup_session(&response_id) {
+                    Ok(session) => match session.list_tools_filtered(None).await {
+                        Ok(result) => JsonRpcResult::Ok { result },
+                        Err(e) => rpc_err_result(-32603, format!("list_tools: {e}")),
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::ListTools { id, result }
+            }
+            client_request::Payload::ListResources { response_id, .. } => {
+                let result = match self.lookup_session(&response_id) {
+                    Ok(session) => match session.list_resources_filtered(None).await {
+                        Ok(result) => JsonRpcResult::Ok { result },
+                        Err(e) => rpc_err_result(-32603, format!("list_resources: {e}")),
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::ListResources { id, result }
+            }
+            client_request::Payload::CallTool { response_id, params } => {
+                let result = match self.lookup_session(&response_id) {
+                    // No queue delegate here — unlike the HTTP path, this
+                    // returns the upstream tool result verbatim.
+                    Ok(session) => match session.call_tool(&params).await {
+                        Ok(result) => JsonRpcResult::Ok { result },
+                        Err(crate::session::CallToolError::ToolNotFound(name)) => {
+                            rpc_err_result(-32601, format!("tool not found: {name}"))
+                        }
+                        Err(crate::session::CallToolError::Upstream(e)) => {
+                            rpc_err_result(-32603, format!("upstream call_tool: {e}"))
+                        }
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::CallTool { id, result }
+            }
+            client_request::Payload::ReadResource { response_id, params } => {
+                let result = match self.lookup_session(&response_id) {
+                    Ok(session) => match session.read_resource(&params.uri).await {
+                        Ok(result) => JsonRpcResult::Ok { result },
+                        Err(crate::session::ReadResourceError::ResourceNotFound(uri)) => {
+                            rpc_err_result(-32602, format!("resource not found: {uri}"))
+                        }
+                        Err(crate::session::ReadResourceError::Upstream(e)) => {
+                            rpc_err_result(-32603, format!("upstream read_resource: {e}"))
+                        }
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::ReadResource { id, result }
             }
         }
     }
@@ -371,6 +477,12 @@ pub enum Upstream {
 }
 
 impl Upstream {
+    /// Whether this upstream is reached over the `client_objectiveai_mcp`
+    /// reverse channel (a `ws://` upstream) rather than plain HTTP.
+    pub fn is_ws(&self) -> bool {
+        matches!(self, Upstream::Ws(_))
+    }
+
     pub fn url(&self) -> &str {
         match self {
             Upstream::Http(c) => &c.url,
@@ -568,6 +680,17 @@ fn transport_error(message: &str) -> McpError {
     }
 }
 
+/// Build a `JsonRpcResult::Err` for an inbound MCP-op `client_request`
+/// (`deliver_client_request`). Generic over the result type so each
+/// op's reply variant infers `R`.
+fn rpc_err_result<R>(code: i64, message: String) -> JsonRpcResult<R> {
+    JsonRpcResult::Err {
+        code,
+        message,
+        data: None,
+    }
+}
+
 fn variant_mismatch(url: &str, expected: &str, got: &server_response::Payload) -> McpError {
     McpError::MalformedResponse {
         url: url.to_string(),
@@ -589,5 +712,6 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::SessionTerminate { .. } => "session_terminate",
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
+        P::Drop(_) => "drop",
     }
 }

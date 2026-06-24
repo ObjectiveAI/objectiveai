@@ -482,7 +482,6 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
 
     fn response_continuation(
         &self,
-        mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&objectiveai_sdk::agent::claude_agent_sdk::Continuation>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
@@ -505,7 +504,6 @@ impl UpstreamClient<objectiveai_sdk::agent::claude_agent_sdk::Agent, objectiveai
             upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::default(),
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             session_id,
-            mcp_sessions,
         }
     }
 }

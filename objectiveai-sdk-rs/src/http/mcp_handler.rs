@@ -88,6 +88,11 @@ impl McpHandler for RejectHandler {
             server_request::Payload::Retrieve(_) => {
                 Payload::Retrieve(reject_err())
             }
+            // `Drop` is infallible (no error channel). A reject handler
+            // hosts nothing, so nothing was dropped.
+            server_request::Payload::Drop(_) => {
+                Payload::Drop(server_response::DropResult { dropped: false })
+            }
         };
         server_response::Response {
             id: request.id,

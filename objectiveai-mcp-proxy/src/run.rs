@@ -182,6 +182,7 @@ pub async fn setup(
     config: Config,
     queue_delegate: Option<std::sync::Arc<dyn crate::QueueDelegate>>,
     reverse_channel: Option<crate::ReverseChannel>,
+    dropper: Option<crate::Dropper>,
 ) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
     let Config {
         address,
@@ -192,7 +193,12 @@ pub async fn setup(
         mcp_connect_timeout,
         mcp_call_timeout,
         mcp_backoff_max_elapsed_time,
-        mcp_encryption_key,
+        // Vestigial: the proxy no longer encrypts session ids (they're
+        // plain UUIDs keyed by objectiveai response id). The field is
+        // kept on Config so the API/CLI env plumbing compiles unchanged;
+        // it's ignored here. Removal is deferred to a later step of the
+        // session-id refactor.
+        mcp_encryption_key: _,
         suppress_output: _,
         logs_dir,
     } = config;
@@ -212,15 +218,23 @@ pub async fn setup(
         Duration::from_millis(mcp_call_timeout),
     );
 
-    let sessions = match mcp_encryption_key {
-        Some(key) => SessionManager::new(key),
-        None => SessionManager::with_ephemeral_key(),
-    };
+    let sessions = Arc::new(SessionManager::new());
+    // Late-bind the dropper's teardown context now that sessions + the
+    // reverse channel exist (the caller already holds the dropper handle).
+    if let Some(dropper) = &dropper {
+        dropper.wire(sessions.clone(), reverse_channel.clone());
+    }
+    // Late-bind the session registry into the reverse channel so inbound
+    // MCP-op client_requests can resolve a session by response id.
+    if let Some(rc) = &reverse_channel {
+        rc.wire_sessions(sessions.clone());
+    }
     let state = AppState {
-        sessions: Arc::new(sessions),
+        sessions,
         client: Arc::new(client),
         queue_delegate,
         reverse_channel,
+        dropper,
     };
 
     let router = axum::Router::new()
@@ -254,8 +268,8 @@ pub async fn serve(listener: tokio::net::TcpListener, app: axum::Router) -> std:
 
 pub async fn run(config: Config) -> std::io::Result<()> {
     let suppress_output = config.suppress_output;
-    // Bin entry — standalone proxy with no queue delegate.
-    let (listener, app) = setup(config, None, None).await?;
+    // Bin entry — standalone proxy with no queue delegate / dropper.
+    let (listener, app) = setup(config, None, None, None).await?;
     if !suppress_output {
         let addr = listener.local_addr()?;
         eprintln!("listening on {addr}");

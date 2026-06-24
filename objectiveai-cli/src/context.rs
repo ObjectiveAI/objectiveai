@@ -49,6 +49,13 @@ pub struct Context {
     /// [`Context::python`]. No per-request identity; always shared
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
+    /// When true, the embedded python's `objectiveai.execute(...)` host
+    /// call raises instead of dispatching a CLI command. Read by
+    /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
+    /// Set by the `python --no-objectiveai` flag and automatically for
+    /// the per-stream-item python output transform. Copy field, carried
+    /// per-clone — see [`Context::with_no_objectiveai`].
+    pub no_objectiveai: bool,
 }
 
 impl Context {
@@ -72,7 +79,19 @@ impl Context {
             viewer: Arc::new(OnceCell::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
+            no_objectiveai: false,
         }
+    }
+
+    /// Derive a clone with `objectiveai.execute` inside the embedded
+    /// python gated to raise instead of dispatch. Used by the `python`
+    /// command's `--no-objectiveai` flag and automatically by the
+    /// per-stream-item python output transform. No `reset_api_client`
+    /// needed — this flag doesn't affect any client's identity headers.
+    pub fn with_no_objectiveai(&self, no_objectiveai: bool) -> Self {
+        let mut clone = self.clone();
+        clone.no_objectiveai = no_objectiveai;
+        clone
     }
 
     /// The WASI python runtime, initialized on first use and

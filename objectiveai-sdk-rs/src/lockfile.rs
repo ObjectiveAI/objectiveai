@@ -59,27 +59,129 @@
 //! return `io::Result`.
 
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
-/// One held claim (gate + announce). Dropping the value does NOT
-/// release it — the handles/fds are deliberately leaked
-/// (`ManuallyDrop`), so the claim outlives the value and ends only
-/// at process death, [`Self::release`], or [`Self::transfer`].
+use dashmap::DashMap;
+
+/// Process-global registry of locks this process currently holds, keyed
+/// by `(dir, key)`. Makes acquisition REENTRANT within an ownership
+/// lineage:
+///
+/// - **In-process**: a 2nd `try_acquire`/`wait_acquire` for a key this
+///   process already owns succeeds instantly (refcounted) rather than
+///   conflicting with our own OS lock — both platforms deny a
+///   same-process re-acquire at the OS level (Unix flock on a fresh fd;
+///   Windows `CREATE_NEW`).
+/// - **Inherited**: a child whose parent transferred a lock in adopts it
+///   lazily on its first acquisition (see `ensure_inherited_adopted`) and
+///   then acquires instantly.
+///
+/// The OS files live HERE (not on the [`LockClaim`]) so they outlive every
+/// outstanding claim for the key and are released only when the last
+/// `Owned` claim is `release`d.
+///
+/// A [`DashMap`] (sharded locking, per-key `entry` atomicity) — never hold
+/// one of its guards across an `.await`.
+static HELD: LazyLock<DashMap<(PathBuf, String), Entry>> = LazyLock::new(DashMap::new);
+
+enum Entry {
+    /// This process acquired the OS lock itself. The registry owns the
+    /// gate + announce files; `refs` counts outstanding claims; the OS
+    /// lock is released only when `refs` reaches 0.
+    Owned {
+        gate: std::mem::ManuallyDrop<std::fs::File>,
+        announce: std::mem::ManuallyDrop<std::fs::File>,
+        refs: usize,
+    },
+    /// Adopted from a parent via transfer. The OS lock is held by the
+    /// anonymous inherited fd/HANDLE (CLOEXEC-cleared on Unix,
+    /// `DuplicateHandle`d on Windows) and is freed only when this process
+    /// exits — exactly as before this process re-acquires it. A marker
+    /// only: acquisition is instant, and `release` is a no-op.
+    Inherited,
+}
+
+/// Register an adopted (inherited-from-parent) lock so subsequent
+/// `try_acquire`/`wait_acquire` for `(dir, key)` succeed instantly.
+/// Idempotent; never downgrades an existing `Owned` entry.
+fn adopt(dir: &Path, key: &str) {
+    HELD.entry((dir.to_path_buf(), key.to_string()))
+        .or_insert(Entry::Inherited);
+}
+
+/// Env var carrying the `(dir, key)` list of locks transferred into a
+/// spawned child, as JSON `[[dir, key], ...]`. Set by
+/// [`LockClaim::prepare_transfer`] on the child's command; consumed by
+/// [`adopt_inherited_from_env`] (lazily, on the child's first acquisition).
+const INHERITED_LOCKS_ENV: &str = "OBJECTIVEAI_INHERITED_LOCKS";
+
+/// Adopt every lock our parent transferred into us (named in
+/// [`INHERITED_LOCKS_ENV`]). Run exactly once, lazily, by
+/// [`ensure_inherited_adopted`] on the first acquisition.
+fn adopt_inherited_from_env() {
+    let Ok(value) = std::env::var(INHERITED_LOCKS_ENV) else {
+        return;
+    };
+    let Ok(list) = serde_json::from_str::<Vec<(String, String)>>(&value) else {
+        return;
+    };
+    for (dir, key) in list {
+        adopt(Path::new(&dir), &key);
+    }
+}
+
+/// Populate the inherited-lock markers from the environment exactly once,
+/// the first time any lock is acquired in this process. Self-triggered
+/// from [`try_acquire`]/[`wait_acquire`] so the markers are present before
+/// the registry is consulted — no caller need invoke adoption explicitly.
+fn ensure_inherited_adopted() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(adopt_inherited_from_env);
+}
+
+/// Re-insert an `Owned` entry (used to hand a claim back on a transfer
+/// error). `refs` resets to 1 — a failed transfer means the caller still
+/// solely holds it.
+fn reinsert_owned(dir: PathBuf, key: String, gate: std::fs::File, announce: std::fs::File) {
+    HELD.insert(
+        (dir, key),
+        Entry::Owned {
+            gate: std::mem::ManuallyDrop::new(gate),
+            announce: std::mem::ManuallyDrop::new(announce),
+            refs: 1,
+        },
+    );
+}
+
+/// A handle to a held claim, identified by `(dir, key)`. The OS files
+/// live in the process-global [`HELD`] registry; this value is just a key
+/// into it. Dropping the value does NOT release the claim — release is
+/// explicit ([`Self::release`]) or hand-off ([`Self::transfer`]),
+/// preserving the original "leak until process death unless ended"
+/// contract.
 pub struct LockClaim {
-    gate: std::mem::ManuallyDrop<std::fs::File>,
-    announce: std::mem::ManuallyDrop<std::fs::File>,
+    dir: PathBuf,
+    key: String,
 }
 
 impl LockClaim {
-    fn new(gate: std::fs::File, announce: std::fs::File) -> Self {
-        Self {
-            gate: std::mem::ManuallyDrop::new(gate),
-            announce: std::mem::ManuallyDrop::new(announce),
-        }
+    /// The directory this claim was acquired under.
+    pub fn dir(&self) -> &Path {
+        &self.dir
+    }
+
+    /// The key this claim was acquired under.
+    pub fn key(&self) -> &str {
+        &self.key
+    }
+
+    fn map_key(&self) -> (PathBuf, String) {
+        (self.dir.clone(), self.key.clone())
     }
 
     /// Transfer step 1 of 2 — call BEFORE spawning, with the
     /// [`tokio::process::Command`] of the one child that is to own
-    /// this claim.
+    /// this claim. (No-op unless this is a registry-`Owned` claim.)
     ///
     /// - **Unix**: attaches a `pre_exec` hook that clears
     ///   `FD_CLOEXEC` on both lock fds *inside the forked child
@@ -92,13 +194,46 @@ impl LockClaim {
     /// - **Windows**: no-op. The handles are never inheritable;
     ///   step 2 injects them post-spawn via `DuplicateHandle`.
     ///
-    /// The claim must stay alive until [`Self::transfer`].
+    /// The claim must stay alive until [`Self::transfer`]. Pair with
+    /// [`add_inherited_env`] so the child registers an adopted marker.
     pub fn prepare_transfer(&self, cmd: &mut tokio::process::Command) {
+        // Append this claim's (dir, key) to the child's inherited-lock env
+        // so it adopts the claim and re-acquires it instantly on its first
+        // acquisition (instead of conflicting with the inherited handles).
+        // Accumulates rather than overwrites: reading the value already on
+        // the command and pushing onto it lets several `prepare_transfer`
+        // calls hand multiple locks to one child — mirroring how the unix
+        // CLOEXEC `pre_exec` hooks stack.
+        let mut locks: Vec<(String, String)> = cmd
+            .as_std()
+            .get_envs()
+            .find_map(|(k, v)| {
+                if k == std::ffi::OsStr::new(INHERITED_LOCKS_ENV) {
+                    v
+                } else {
+                    None
+                }
+            })
+            .and_then(|v| serde_json::from_str::<Vec<(String, String)>>(&v.to_string_lossy()).ok())
+            .unwrap_or_default();
+        locks.push((self.dir.to_string_lossy().into_owned(), self.key.clone()));
+        if let Ok(value) = serde_json::to_string(&locks) {
+            cmd.env(INHERITED_LOCKS_ENV, value);
+        }
         #[cfg(unix)]
         {
             use std::os::unix::io::AsRawFd;
-            let gate_fd = self.gate.as_raw_fd();
-            let announce_fd = self.announce.as_raw_fd();
+            let (gate_fd, announce_fd) = {
+                let Some(entry) = HELD.get(&self.map_key()) else {
+                    return;
+                };
+                match entry.value() {
+                    Entry::Owned { gate, announce, .. } => {
+                        (gate.as_raw_fd(), announce.as_raw_fd())
+                    }
+                    Entry::Inherited => return,
+                }
+            };
             // SAFETY: the hook runs post-fork pre-exec in the child;
             // `fcntl(F_SETFD)` is async-signal-safe and both fds are
             // plain integers valid in the child's inherited fd table.
@@ -115,58 +250,76 @@ impl LockClaim {
                 });
             }
         }
-        #[cfg(windows)]
-        {
-            let _ = cmd;
-        }
+        // Windows: nothing further here — the env above plus the
+        // `DuplicateHandle` in `transfer` (step 2) complete the handoff.
     }
 
-    /// Release the claim NOW, on purpose. Consumes it — and is the
-    /// ONLY in-process way to end it (dropping leaks the handles by
-    /// design; the claim would persist until process death).
+    /// Release the claim NOW, on purpose. Consumes it. For an `Owned`
+    /// claim, decrements the registry refcount and, when it reaches 0,
+    /// closes the OS files (announce first — the claim stops being "held"
+    /// at that single kernel event — then the gate). For an `Inherited`
+    /// (adopted) claim this is a no-op: the OS lock rides the anonymous
+    /// inherited fd and frees on process exit. Idempotent if the entry is
+    /// already gone.
     ///
-    /// Order: announce first (the claim stops being "held" at that
-    /// single kernel event), then the gate. On Unix the claim FILES
-    /// deliberately stay on disk — deleting flock files is racy (a
-    /// waiter holding the old inode plus a fresh creator at the same
-    /// path would yield two "owners"), and [`try_held`] probes lock
-    /// state, not existence.
-    pub fn release(mut self) -> std::io::Result<()> {
-        // SAFETY: sole take — `self` is consumed and its (no-op)
-        // drop glue never touches the fields again.
-        let announce = unsafe { std::mem::ManuallyDrop::take(&mut self.announce) };
-        let gate = unsafe { std::mem::ManuallyDrop::take(&mut self.gate) };
-        release_file(announce)?;
-        release_file(gate)
+    /// On Unix the claim FILES deliberately stay on disk — deleting flock
+    /// files is racy ([`try_held`] probes lock state, not existence).
+    pub fn release(self) -> std::io::Result<()> {
+        use dashmap::mapref::entry::Entry as DmEntry;
+        // Decrement + remove under the per-key shard lock (atomic). An
+        // absent entry (already released) is a no-op.
+        if let DmEntry::Occupied(mut occupied) = HELD.entry(self.map_key()) {
+            let remove = match occupied.get_mut() {
+                Entry::Owned { refs, .. } => {
+                    *refs -= 1;
+                    *refs == 0
+                }
+                // Inherited: no-op (freed on process exit).
+                Entry::Inherited => false,
+            };
+            if remove {
+                if let Entry::Owned { gate, announce, .. } = occupied.remove() {
+                    let announce = std::mem::ManuallyDrop::into_inner(announce);
+                    let gate = std::mem::ManuallyDrop::into_inner(gate);
+                    release_file(announce)?;
+                    release_file(gate)?;
+                }
+            }
+        }
+        Ok(())
     }
 
     /// Transfer step 2 of 2 — call AFTER a successful spawn, with
-    /// the child from step 1's command. Consumes the claim.
-    ///
-    /// On `Ok(())` the child is the *sole* owner: the claim lives
-    /// exactly as long as the child (kernel cleanup on exit or
-    /// crash), the parent retains no handles and no control, and no
-    /// other process the parent spawns ever held it. The parent may
-    /// die before or after the child without affecting the claim.
+    /// the child from step 1's command. Consumes the claim, removing it
+    /// from this process's registry (the child becomes the sole owner via
+    /// the inherited OS handles).
     ///
     /// - **Windows**: `DuplicateHandle`s both lock handles directly
     ///   into the child's handle table (surgical — no inheritance),
     ///   then closes the parent's. `FILE_FLAG_DELETE_ON_CLOSE` fires
-    ///   when the child's last handles close. Note the
-    ///   spawn→transfer window: until this call returns, only the
-    ///   parent holds the claim, so a parent crash inside the window
-    ///   releases it while the child lives (fail-open,
-    ///   microseconds). On `Err` the claim is handed back; if the
-    ///   failure was partway through injection, the child co-holds
-    ///   the already-injected handle until it exits.
+    ///   when the child's last handles close. On `Err` the entry is
+    ///   re-registered and the claim handed back.
     /// - **Unix**: nothing left to inject — the child already shares
-    ///   both locks via the inherited fds (step 1); this call closes
-    ///   the parent's fds (a close is NOT an unlock), leaving the
-    ///   child sole owner. No fail-open window exists on Unix.
+    ///   both locks via the inherited fds (step 1); this closes the
+    ///   parent's fds (a close is NOT an unlock), leaving the child sole
+    ///   owner.
+    ///
+    /// A non-`Owned` claim (e.g. an adopted/inherited marker) has nothing
+    /// of ours to hand off and returns `Ok(())`.
     pub fn transfer(
-        mut self,
+        self,
         child: &tokio::process::Child,
     ) -> Result<(), (Self, std::io::Error)> {
+        let entry = HELD.remove(&self.map_key());
+        let (gate, announce) = match entry {
+            Some((_, Entry::Owned { gate, announce, .. })) => (
+                std::mem::ManuallyDrop::into_inner(gate),
+                std::mem::ManuallyDrop::into_inner(announce),
+            ),
+            // Inherited or absent: nothing of ours to hand off (the OS
+            // lock, if any, rides the anonymous inherited fd).
+            _ => return Ok(()),
+        };
         #[cfg(windows)]
         {
             use std::os::windows::io::AsRawHandle;
@@ -176,18 +329,17 @@ impl LockClaim {
             use windows_sys::Win32::System::Threading::GetCurrentProcess;
 
             let Some(child_handle) = child.raw_handle() else {
+                reinsert_owned(self.dir.clone(), self.key.clone(), gate, announce);
                 return Err((
                     self,
-                    std::io::Error::other(
-                        "child has no process handle (already reaped)",
-                    ),
+                    std::io::Error::other("child has no process handle (already reaped)"),
                 ));
             };
-            for source in [self.gate.as_raw_handle(), self.announce.as_raw_handle()] {
+            for source in [gate.as_raw_handle(), announce.as_raw_handle()] {
                 let mut injected: HANDLE = std::ptr::null_mut();
-                // SAFETY: all handles are live for the duration of
-                // the call — ours via `self`, the child's via the
-                // `&Child` borrow. `injected` is a valid out-pointer.
+                // SAFETY: all handles are live for the call — ours via the
+                // owned `gate`/`announce`, the child's via the `&Child`
+                // borrow. `injected` is a valid out-pointer.
                 let ok = unsafe {
                     DuplicateHandle(
                         GetCurrentProcess(),
@@ -200,32 +352,26 @@ impl LockClaim {
                     )
                 };
                 if ok == 0 {
-                    return Err((self, std::io::Error::last_os_error()));
+                    let err = std::io::Error::last_os_error();
+                    reinsert_owned(self.dir.clone(), self.key.clone(), gate, announce);
+                    return Err((self, err));
                 }
             }
-            // The child's handle table now keeps both file objects
-            // (and the claim) alive; explicitly closing our handles
-            // (drop is a leak under ManuallyDrop, not a close) leaves
-            // the child sole owner.
-            // SAFETY: sole take — `self` is consumed on this path.
-            unsafe {
-                drop(std::mem::ManuallyDrop::take(&mut self.announce));
-                drop(std::mem::ManuallyDrop::take(&mut self.gate));
-            }
+            // The child's handle table now keeps both file objects alive;
+            // closing our handles (plain `File` drop = `CloseHandle`)
+            // leaves the child sole owner.
+            drop(gate);
+            drop(announce);
             Ok(())
         }
         #[cfg(unix)]
         {
             let _ = child;
-            // The child shares both open file descriptions since
-            // spawn (step 1 cleared CLOEXEC). Explicitly closing our
-            // fds (drop is a leak under ManuallyDrop; and a close is
-            // NOT an unlock) makes the child sole owner.
-            // SAFETY: sole take — `self` is consumed on this path.
-            unsafe {
-                drop(std::mem::ManuallyDrop::take(&mut self.announce));
-                drop(std::mem::ManuallyDrop::take(&mut self.gate));
-            }
+            // The child shares both open file descriptions since spawn
+            // (step 1 cleared CLOEXEC). Closing our fds (a close is NOT an
+            // unlock) makes the child sole owner.
+            drop(gate);
+            drop(announce);
             Ok(())
         }
     }
@@ -264,12 +410,41 @@ fn release_file(file: std::fs::File) -> std::io::Result<()> {
 /// files are not yet wrapped in `ManuallyDrop`, so dropping them
 /// genuinely releases).
 pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockClaim> {
+    use dashmap::mapref::entry::Entry as DmEntry;
+    ensure_inherited_adopted();
+    // Create the dir before touching the registry — never hold a DashMap
+    // guard across an `.await`.
     tokio::fs::create_dir_all(dir).await.ok()?;
-    let mut gate = open_claim_file(&gate_path(dir, key))?;
-    write_contents(&mut gate, contents).ok()?;
-    let mut announce = open_claim_file(&announce_path(dir, key))?;
-    write_beacon(&mut announce).ok()?;
-    Some(LockClaim::new(gate, announce))
+    let map_key = (dir.to_path_buf(), key.to_string());
+    // The per-key `entry` makes check-or-acquire-and-insert atomic: a
+    // concurrent same-key acquire blocks on the shard then sees our entry
+    // instead of conflicting at the OS level.
+    match HELD.entry(map_key.clone()) {
+        DmEntry::Occupied(mut occupied) => {
+            // Reentrant: this process already owns it (in-process or
+            // adopted) → succeed instantly.
+            if let Entry::Owned { refs, .. } = occupied.get_mut() {
+                *refs += 1;
+            }
+            Some(LockClaim { dir: map_key.0, key: map_key.1 })
+        }
+        DmEntry::Vacant(vacant) => {
+            // Not held in-process: real OS acquire. `open_claim_file` is
+            // non-blocking (try) and synchronous, so running it under the
+            // shard lock is fine. A failed step drops `vacant`, releasing
+            // the shard lock.
+            let mut gate = open_claim_file(&gate_path(dir, key))?;
+            write_contents(&mut gate, contents).ok()?;
+            let mut announce = open_claim_file(&announce_path(dir, key))?;
+            write_beacon(&mut announce).ok()?;
+            vacant.insert(Entry::Owned {
+                gate: std::mem::ManuallyDrop::new(gate),
+                announce: std::mem::ManuallyDrop::new(announce),
+                refs: 1,
+            });
+            Some(LockClaim { dir: map_key.0, key: map_key.1 })
+        }
+    }
 }
 
 /// Acquire `(dir, key)`, blocking until we own it, then publish
@@ -286,6 +461,15 @@ pub async fn wait_acquire(
     key: &str,
     contents: &str,
 ) -> std::io::Result<LockClaim> {
+    ensure_inherited_adopted();
+    let map_key = (dir.to_path_buf(), key.to_string());
+    // Reentrant: this process already owns it → instant (no blocking wait).
+    if let Some(mut entry) = HELD.get_mut(&map_key) {
+        if let Entry::Owned { refs, .. } = entry.value_mut() {
+            *refs += 1;
+        }
+        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+    }
     tokio::fs::create_dir_all(dir).await?;
     let gate_path = gate_path(dir, key);
     let announce_path = announce_path(dir, key);
@@ -299,7 +483,29 @@ pub async fn wait_acquire(
         match open_claim_file(&announce_path) {
             Some(mut announce) => {
                 write_beacon(&mut announce)?;
-                return Ok(LockClaim::new(gate, announce));
+                use dashmap::mapref::entry::Entry as DmEntry;
+                match HELD.entry(map_key.clone()) {
+                    // Dedup: a concurrent in-process acquire registered the
+                    // key while we blocked — our freshly-won OS lock is
+                    // redundant; refcount the existing entry and release it.
+                    DmEntry::Occupied(mut occupied) => {
+                        if let Entry::Owned { refs, .. } = occupied.get_mut() {
+                            *refs += 1;
+                        }
+                        drop(occupied);
+                        let _ = release_file(announce);
+                        let _ = release_file(gate);
+                        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+                    }
+                    DmEntry::Vacant(vacant) => {
+                        vacant.insert(Entry::Owned {
+                            gate: std::mem::ManuallyDrop::new(gate),
+                            announce: std::mem::ManuallyDrop::new(announce),
+                            refs: 1,
+                        });
+                        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+                    }
+                }
             }
             None => {
                 // Foreign announce holder — abandon the gate and

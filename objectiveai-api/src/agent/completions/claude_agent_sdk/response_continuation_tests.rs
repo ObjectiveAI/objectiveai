@@ -11,7 +11,6 @@ fn make_client() -> super::Client {
 fn test_no_continuation_no_request_continuation() {
     let client = make_client();
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         None,
         &[],
         None,
@@ -21,7 +20,6 @@ fn test_no_continuation_no_request_continuation() {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         agent_instance_hierarchy: String::new(),
         session_id: String::new(),
-        mcp_sessions: indexmap::IndexMap::new(),
     });
 }
 
@@ -35,7 +33,6 @@ fn test_session_id_from_continuation_state() {
         }),
     ];
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         None,
         &[],
         Some(&continuation),
@@ -51,10 +48,8 @@ fn test_session_id_falls_back_to_request_continuation() {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         agent_instance_hierarchy: String::new(),
         session_id: "req-sess-123".into(),
-        mcp_sessions: indexmap::IndexMap::new(),
     };
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         Some(&rc),
         &[],
         None,
@@ -76,10 +71,8 @@ fn test_internal_session_id_takes_precedence() {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         agent_instance_hierarchy: String::new(),
         session_id: "req-sess-456".into(),
-        mcp_sessions: indexmap::IndexMap::new(),
     };
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         Some(&rc),
         &[],
         Some(&continuation),
@@ -101,29 +94,12 @@ fn test_empty_internal_session_falls_back_to_request() {
         upstream: objectiveai_sdk::agent::claude_agent_sdk::Upstream::ClaudeAgentSdk,
         agent_instance_hierarchy: String::new(),
         session_id: "req-sess-fallback".into(),
-        mcp_sessions: indexmap::IndexMap::new(),
     };
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         Some(&rc),
         &[],
         Some(&continuation),
         ""
     );
     assert_eq!(result.session_id, "req-sess-fallback");
-}
-
-#[test]
-fn test_mcp_sessions_preserved() {
-    let client = make_client();
-    let mut mcp_sessions = indexmap::IndexMap::new();
-    mcp_sessions.insert("http://mcp.example.com".into(), "sess-abc".into());
-    let result = client.response_continuation(
-        mcp_sessions.clone(),
-        None,
-        &[],
-        None,
-        ""
-    );
-    assert_eq!(result.mcp_sessions, mcp_sessions);
 }

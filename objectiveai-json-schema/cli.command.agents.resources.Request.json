@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.resources.Request",
+  "anyOf": [
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.resources.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.resources.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.resources.list.response_schema.Request"
+    },
+    {
+      "title": "Read",
+      "$ref": "cli.command.agents.resources.read.Request"
+    },
+    {
+      "title": "ReadRequestSchema",
+      "$ref": "cli.command.agents.resources.read.request_schema.Request"
+    },
+    {
+      "title": "ReadResponseSchema",
+      "$ref": "cli.command.agents.resources.read.response_schema.Request"
+    }
+  ]
+}

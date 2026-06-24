@@ -59,19 +59,16 @@ impl FailMcp {
 
 impl ServerHandler for FailMcp {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2025_06_18,
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: "failsvr".into(),
-                title: None,
-                version: env!("CARGO_PKG_VERSION").into(),
-                description: None,
-                icons: None,
-                website_url: None,
-            },
-            instructions: None,
-        }
+        // rmcp 1.7 marks `ServerInfo`/`Implementation` `#[non_exhaustive]`.
+        let mut server_info = Implementation::default();
+        server_info.name = "failsvr".into();
+        server_info.version = env!("CARGO_PKG_VERSION").into();
+        let mut info = ServerInfo::default();
+        info.protocol_version = ProtocolVersion::V_2025_06_18;
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.server_info = server_info;
+        info.instructions = None;
+        info
     }
 
     async fn initialize(
@@ -155,16 +152,14 @@ async fn main() -> std::io::Result<()> {
     }
 
     let service: StreamableHttpService<FailMcp, LocalSessionManager> =
-        StreamableHttpService::new(
-            move || Ok(FailMcp::new(fail)),
-            Default::default(),
-            StreamableHttpServerConfig {
-                stateful_mode: true,
-                sse_keep_alive: None,
-                cancellation_token: CancellationToken::new().child_token(),
-                ..Default::default()
-            },
-        );
+        StreamableHttpService::new(move || Ok(FailMcp::new(fail)), Default::default(), {
+            // rmcp 1.7 marks `StreamableHttpServerConfig` `#[non_exhaustive]`.
+            let mut cfg = StreamableHttpServerConfig::default();
+            cfg.stateful_mode = true;
+            cfg.sse_keep_alive = None;
+            cfg.cancellation_token = CancellationToken::new().child_token();
+            cfg
+        });
     let router = axum::Router::new().fallback_service(service);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
     let addr = listener.local_addr()?;

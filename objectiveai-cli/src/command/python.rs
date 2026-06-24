@@ -13,10 +13,12 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
+    // `--no-objectiveai` gates the in-process `objectiveai.execute` host call.
+    let ctx = ctx.with_no_objectiveai(request.no_objectiveai.unwrap_or(false));
     let output: Option<serde_json::Value> = ctx
         .python()
         .await?
-        .exec_code(ctx, &request.code, request.input)
+        .exec_code(&ctx, &request.code, request.input)
         .await?;
     Ok(output.unwrap_or(serde_json::Value::Null))
 }

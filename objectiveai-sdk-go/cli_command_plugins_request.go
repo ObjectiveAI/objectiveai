@@ -15,6 +15,7 @@ type CliCommandPluginsRequest struct {
 	List *CliCommandPluginsListRequest 
 	ListRequestSchema *CliCommandPluginsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandPluginsListResponseSchemaRequest 
+	Logs *CliCommandPluginsLogsRequest 
 	Run *CliCommandPluginsRunRequest 
 	RunRequestSchema *CliCommandPluginsRunRequestSchemaRequest 
 	RunResponseSchema *CliCommandPluginsRunResponseSchemaRequest 
@@ -41,6 +42,9 @@ func (v CliCommandPluginsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.ListResponseSchema != nil {
 		return json.Marshal(v.ListResponseSchema)
+	}
+	if v.Logs != nil {
+		return json.Marshal(v.Logs)
 	}
 	if v.Run != nil {
 		return json.Marshal(v.Run)
@@ -133,6 +137,17 @@ func (v *CliCommandPluginsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandPluginsLogsRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandPluginsRequest{}
+			candidate.Logs = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandPluginsRunRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandPluginsRequest{}
@@ -177,6 +192,7 @@ func (v CliCommandPluginsRequest) Validate() error {
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }
+	if v.Logs != nil { count++ }
 	if v.Run != nil { count++ }
 	if v.RunRequestSchema != nil { count++ }
 	if v.RunResponseSchema != nil { count++ }

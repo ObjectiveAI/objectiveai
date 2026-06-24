@@ -344,6 +344,14 @@ fn add_objectiveai_host(linker: &mut Linker<PyHostState>) -> Result<(), Error> {
             "objectiveai",
             "host_execute",
             |mut caller: Caller<'_, PyHostState>, argv_ptr: u32, argv_len: u32| -> u32 {
+                // `--no-objectiveai`: the host call raises in the guest instead
+                // of dispatching. Checked first — don't even read guest memory.
+                if caller.data().ctx.no_objectiveai {
+                    return stash_error(
+                        &mut caller,
+                        "objectiveai.execute is disabled (--no-objectiveai)",
+                    );
+                }
                 let Some(memory) = caller.get_export("memory").and_then(|e| e.into_memory()) else {
                     return stash_error(&mut caller, "objectiveai.execute: guest exports no memory");
                 };

@@ -1,10 +1,7 @@
-use objectiveai_sdk::mcp;
-
 #[derive(Debug, Clone)]
 pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     Openrouter {
         items: Vec<ContinuationItem<OPENROUTER>>,
-        mcp_connection: Option<mcp::Connection>,
         /// Full slash-separated lineage of the agent this continuation
         /// belongs to (e.g. `A/B/<11-char-rand-b62><base62-created>`). Minted on
         /// the agent's first spawn and preserved verbatim across every
@@ -16,17 +13,14 @@ pub enum Continuation<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK> {
     },
     ClaudeAgentSdk {
         items: Vec<ContinuationItem<CLAUDEAGENTSDK>>,
-        mcp_connection: Option<mcp::Connection>,
         agent_instance_hierarchy: String,
     },
     CodexSdk {
         items: Vec<ContinuationItem<CODEXSDK>>,
-        mcp_connection: Option<mcp::Connection>,
         agent_instance_hierarchy: String,
     },
     Mock {
         items: Vec<ContinuationItem<MOCK>>,
-        mcp_connection: Option<mcp::Connection>,
         agent_instance_hierarchy: String,
     },
 }
@@ -58,17 +52,6 @@ impl<OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK>
             Self::ClaudeAgentSdk { .. } => objectiveai_sdk::agent::Upstream::ClaudeAgentSdk,
             Self::CodexSdk { .. } => objectiveai_sdk::agent::Upstream::CodexSdk,
             Self::Mock { .. } => objectiveai_sdk::agent::Upstream::Mock,
-        }
-    }
-
-    /// The single MCP proxy connection for this agent (or `None` if the
-    /// agent had no MCP servers).
-    pub fn mcp_connection(&self) -> Option<&mcp::Connection> {
-        match self {
-            Self::Openrouter { mcp_connection, .. }
-            | Self::ClaudeAgentSdk { mcp_connection, .. }
-            | Self::CodexSdk { mcp_connection, .. }
-            | Self::Mock { mcp_connection, .. } => mcp_connection.as_ref(),
         }
     }
 

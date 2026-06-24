@@ -30,6 +30,10 @@
       "$ref": "cli.command.plugins.list.response_schema.Request"
     },
     {
+      "title": "Logs",
+      "$ref": "cli.command.plugins.logs.Request"
+    },
+    {
       "title": "Run",
       "$ref": "cli.command.plugins.run.Request"
     },

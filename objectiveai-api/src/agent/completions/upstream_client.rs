@@ -85,16 +85,14 @@ pub trait UpstreamClient<AGENT, CONTINUATION> {
     > + Send
     + 'static;
 
-    /// Builds a response continuation from the proxy session info
-    /// (proxy URL → agent's session id, max one entry), the request
-    /// continuation, the messages, and internal continuation items.
+    /// Builds a response continuation from the request continuation, the
+    /// messages, and internal continuation items.
     ///
     /// The upstream MUST stamp `agent_instance_hierarchy` on the
     /// returned continuation so it survives the round-trip. The
     /// orchestrator no longer post-stamps it.
     fn response_continuation(
         &self,
-        mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&CONTINUATION>,
         messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[super::ContinuationItem<Self::State>]>,
@@ -144,7 +142,6 @@ impl<AGENT, CONTINUATION> UpstreamClient<AGENT, CONTINUATION> for UnimplementedU
 
     fn response_continuation(
         &self,
-        _mcp_sessions: indexmap::IndexMap<String, String>,
         _request_continuation: Option<&CONTINUATION>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         _continuation: Option<&[super::ContinuationItem<Self::State>]>,

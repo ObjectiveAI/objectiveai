@@ -1,0 +1,13 @@
+# Standalone Python SDK HTTP/snapshot integration tests.
+#
+# This project is an *importer* of the built Python SDK: it does not build or
+# install anything itself. The tests run under objectiveai-sdk-py's venv
+# (see test.sh), which already has the freshly-built `objectiveai_sdk`
+# package and pytest installed. Snapshots come from the sibling
+# objectiveai-api-tests project; the non-network SDK unit tests stay in
+# objectiveai-sdk-py.
+[tool.pytest.ini_options]
+# importlib mode prevents pytest from prepending each test subdirectory to
+# sys.path as a top-level package (matches objectiveai-sdk-py); the
+# `from tests.* import` statements resolve via the project root on sys.path.
+addopts = "--import-mode=importlib"

@@ -591,7 +591,6 @@ fn encoded_mock_continuation(messages: Vec<Message>) -> String {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         agent_instance_hierarchy: String::new(),
         messages,
-        mcp_sessions: indexmap::IndexMap::new(),
     });
     cont.to_string()
 }

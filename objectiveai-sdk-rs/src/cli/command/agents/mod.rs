@@ -6,9 +6,11 @@ pub mod logs;
 pub mod message;
 pub mod publish;
 pub mod queue;
+pub mod resources;
 pub mod selector;
 pub mod spawn;
 pub mod tags;
+pub mod tools;
 pub mod wait;
 
 #[derive(clap::Subcommand)]
@@ -42,6 +44,12 @@ pub enum Command {
         #[command(subcommand)]
         command: queue::Command,
     },
+    /// Query a live agent's MCP resources — `list`, `read` — over its
+    /// per-`response_id` listener socket.
+    Resources {
+        #[command(subcommand)]
+        command: resources::Command,
+    },
     /// Spawn an agent completion (open a streaming run as a child of
     /// this caller).
     Spawn(spawn::Command),
@@ -49,6 +57,12 @@ pub enum Command {
     Tags {
         #[command(subcommand)]
         command: tags::Command,
+    },
+    /// Query a live agent's MCP tools — `call`, `list` — over its
+    /// per-`response_id` listener socket.
+    Tools {
+        #[command(subcommand)]
+        command: tools::Command,
     },
     /// Block until an agent (instance or tag) is done — its lock
     /// chain fully released — or the timeout elapses.
@@ -95,6 +109,8 @@ pub enum Request {
     PublishResponseSchema(publish::response_schema::Request),
     #[schemars(title = "Queue")]
     Queue(queue::Request),
+    #[schemars(title = "Resources")]
+    Resources(resources::Request),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
     #[schemars(title = "SpawnRequestSchema")]
@@ -103,6 +119,8 @@ pub enum Request {
     SpawnResponseSchema(spawn::response_schema::Request),
     #[schemars(title = "Tags")]
     Tags(tags::Request),
+    #[schemars(title = "Tools")]
+    Tools(tools::Request),
     #[schemars(title = "Wait")]
     Wait(wait::Request),
     #[schemars(title = "WaitRequestSchema")]
@@ -154,6 +172,8 @@ pub enum ResponseItem {
     PublishResponseSchema(publish::response_schema::Response),
     #[schemars(title = "Queue")]
     Queue(queue::ResponseItem),
+    #[schemars(title = "Resources")]
+    Resources(resources::ResponseItem),
     #[schemars(title = "Spawn")]
     Spawn(spawn::ResponseItem),
     #[schemars(title = "SpawnRequestSchema")]
@@ -162,6 +182,8 @@ pub enum ResponseItem {
     SpawnResponseSchema(spawn::response_schema::Response),
     #[schemars(title = "Tags")]
     Tags(tags::ResponseItem),
+    #[schemars(title = "Tools")]
+    Tools(tools::ResponseItem),
     #[schemars(title = "Wait")]
     Wait(wait::Response),
     #[schemars(title = "WaitRequestSchema")]
@@ -192,10 +214,12 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::PublishRequestSchema(v) => v.into_mcp(),
             ResponseItem::PublishResponseSchema(v) => v.into_mcp(),
             ResponseItem::Queue(v) => v.into_mcp(),
+            ResponseItem::Resources(v) => v.into_mcp(),
             ResponseItem::Spawn(v) => v.into_mcp(),
             ResponseItem::SpawnRequestSchema(v) => v.into_mcp(),
             ResponseItem::SpawnResponseSchema(v) => v.into_mcp(),
             ResponseItem::Tags(v) => v.into_mcp(),
+            ResponseItem::Tools(v) => v.into_mcp(),
             ResponseItem::Wait(v) => v.into_mcp(),
             ResponseItem::WaitRequestSchema(v) => v.into_mcp(),
             ResponseItem::WaitResponseSchema(v) => v.into_mcp(),
@@ -248,6 +272,8 @@ impl TryFrom<Command> for Request {
             },
             Command::Queue { command } =>
                 Ok(Request::Queue(queue::Request::try_from(command)?)),
+            Command::Resources { command } =>
+                Ok(Request::Resources(resources::Request::try_from(command)?)),
             Command::Spawn(cmd) => match cmd.schema {
                 None => Ok(Request::Spawn(spawn::Request::try_from(cmd.args)?)),
                 Some(spawn::Schema::RequestSchema(args)) =>
@@ -257,6 +283,8 @@ impl TryFrom<Command> for Request {
             },
             Command::Tags { command } =>
                 Ok(Request::Tags(tags::Request::try_from(command)?)),
+            Command::Tools { command } =>
+                Ok(Request::Tools(tools::Request::try_from(command)?)),
             Command::Wait(cmd) => match cmd.schema {
                 None => Ok(Request::Wait(wait::Request::try_from(cmd.args)?)),
                 Some(wait::Schema::RequestSchema(args)) =>
@@ -289,10 +317,12 @@ impl crate::cli::command::CommandRequest for Request {
             Request::PublishRequestSchema(inner) => inner.request_base(),
             Request::PublishResponseSchema(inner) => inner.request_base(),
             Request::Queue(inner) => inner.request_base(),
+            Request::Resources(inner) => inner.request_base(),
             Request::Spawn(inner) => inner.request_base(),
             Request::SpawnRequestSchema(inner) => inner.request_base(),
             Request::SpawnResponseSchema(inner) => inner.request_base(),
             Request::Tags(inner) => inner.request_base(),
+            Request::Tools(inner) => inner.request_base(),
             Request::Wait(inner) => inner.request_base(),
             Request::WaitRequestSchema(inner) => inner.request_base(),
             Request::WaitResponseSchema(inner) => inner.request_base(),
@@ -319,10 +349,12 @@ impl crate::cli::command::CommandRequest for Request {
             Request::PublishRequestSchema(inner) => inner.request_base_mut(),
             Request::PublishResponseSchema(inner) => inner.request_base_mut(),
             Request::Queue(inner) => inner.request_base_mut(),
+            Request::Resources(inner) => inner.request_base_mut(),
             Request::Spawn(inner) => inner.request_base_mut(),
             Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
             Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
             Request::Tags(inner) => inner.request_base_mut(),
+            Request::Tools(inner) => inner.request_base_mut(),
             Request::Wait(inner) => inner.request_base_mut(),
             Request::WaitRequestSchema(inner) => inner.request_base_mut(),
             Request::WaitResponseSchema(inner) => inner.request_base_mut(),
@@ -443,6 +475,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let inner = queue::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Queue)))
             }
+            Request::Resources(req) => {
+                let inner = resources::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Resources)))
+            }
             Request::Spawn(req) => {
                 let want_streaming = req
                     .dangerous_advanced
@@ -474,6 +510,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             Request::Tags(req) => {
                 let inner = tags::execute(executor, req, agent_arguments).await?;
                 Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+            }
+            Request::Tools(req) => {
+                let inner = tools::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
             }
             Request::Wait(req) => {
                 let value = wait::execute(executor, req, agent_arguments).await?;
@@ -586,6 +626,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 let inner = queue::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
+            Request::Resources(req) => {
+                let inner = resources::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
             Request::Spawn(req) => {
                 let want_streaming = req
                     .dangerous_advanced
@@ -612,6 +656,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             }
             Request::Tags(req) => {
                 let inner = tags::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
+            }
+            Request::Tools(req) => {
+                let inner = tools::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(inner)
             }
             Request::Wait(req) => {

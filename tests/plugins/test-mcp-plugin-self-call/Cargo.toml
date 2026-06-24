@@ -1,0 +1,20 @@
+[package]
+name = "test-mcp-plugin-self-call"
+version = "0.1.0"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "test-mcp-plugin-self-call"
+path = "src/main.rs"
+
+[dependencies]
+objectiveai-sdk = { path = "../../../objectiveai-sdk-rs", version = "2.2.6", default-features = false, features = ["cli-executor"] }
+axum = "0.8.8"
+http = "1"
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
+schemars = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread", "net", "io-util", "signal"] }
+tokio-util = "0.7"

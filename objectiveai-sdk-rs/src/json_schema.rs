@@ -410,6 +410,19 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::queue::list::ResponseItem),
         schemars::schema_for!(crate::cli::command::agents::queue::Request),
         schemars::schema_for!(crate::cli::command::agents::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::resources::read::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::resources::Request),
         schemars::schema_for!(crate::cli::command::agents::selector::AgentRef),
         schemars::schema_for!(crate::cli::command::agents::selector::AgentSelector),        schemars::schema_for!(crate::cli::command::agents::spawn::Path),
         schemars::schema_for!(crate::cli::command::agents::spawn::Request),
@@ -437,6 +450,19 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::tags::lookup::response_schema::Path),
         schemars::schema_for!(crate::cli::command::agents::tags::lookup::response_schema::Request),
         schemars::schema_for!(crate::cli::command::agents::tags::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::call::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::agents::tools::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::agents::tools::Request),
         schemars::schema_for!(crate::cli::command::agents::wait::Path),
         schemars::schema_for!(crate::cli::command::agents::wait::Request),
         schemars::schema_for!(crate::cli::command::agents::wait::request_schema::Path),
@@ -953,6 +979,14 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::plugins::list::request_schema::Request),
         schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Path),
         schemars::schema_for!(crate::cli::command::plugins::list::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::logs::Request),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::Path),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::Request),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::plugins::logs::list::response_schema::Request),
         schemars::schema_for!(crate::cli::command::plugins::Request),
         schemars::schema_for!(crate::cli::command::plugins::run::Mcp),
         schemars::schema_for!(crate::cli::command::plugins::run::McpType),
@@ -1089,6 +1123,19 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
         schemars::schema_for!(crate::http::viewer::Request),
         schemars::schema_for!(crate::http::viewer::ResponseError),
+    ]);
+
+    // MCP request-param types embedded by the `agents tools|resources`
+    // command leaves (their typed `params` field). Their result
+    // counterparts stay unregistered — only these inputs surface in the
+    // generated command request types.
+    #[cfg(feature = "mcp")]
+    schemas.extend([
+        schemars::schema_for!(crate::mcp::resource::ListResourcesRequest),
+        schemars::schema_for!(crate::mcp::resource::ReadResourceRequestParams),
+        schemars::schema_for!(crate::mcp::tool::CallToolRequestParams),
+        schemars::schema_for!(crate::mcp::tool::ListToolsRequest),
+        schemars::schema_for!(crate::mcp::tool::TaskMetadata),
     ]);
 
     schemas

@@ -9,6 +9,5 @@ class RequestDangerousAdvanced(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.spawn.RequestDangerousAdvanced')
 
     seed: Optional[Annotated[int, Field(ge=-9223372036854775808, le=9223372036854775807)]] = Field(None, description="Deterministic seed for the upstream model's RNG (mock\nagents in particular). Plumbed onto\n`AgentCompletionCreateParams.seed`. `None` here ⇒ the\napi picks; tests should always pin a value.", json_schema_extra={'omitempty': True})
-    skip_lock: Optional[bool] = Field(None, description='`Some(true)` → skip the INITIAL agent/tag lock acquisition\nat stream start. Set by `agents message` after transferring\nits own claim into this process (re-acquiring would fail\nagainst the very handles this process inherited; the lock\nlives until this process exits). Mid-stream best-effort AIH\nclaims are unaffected by this flag.', json_schema_extra={'omitempty': True})
     stream: Optional[bool] = Field(None, json_schema_extra={'omitempty': True})
 

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.resources.list.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/resources/list/response_schema"
+  ]
+}

@@ -8,11 +8,12 @@
 //!
 //! Stream-true (`dangerous_advanced.stream = Some(true)`): resolve
 //! + lock + drive the SDK streaming WS connection inside this cli
-//! process. The INITIAL lock (try_acquire, failure = error; skipped
-//! when `dangerous_advanced.skip_lock` says a parent already
-//! transferred the claim into this process): historic case → the
-//! AIH lock, un-upgraded tag case → the tag lock, plain ref → no
-//! initial lock. Historic spawns load their agent params +
+//! process. The INITIAL lock (try_acquire, failure = error): historic
+//! case → the AIH lock, un-upgraded tag case → the tag lock, plain ref
+//! → no initial lock. When a parent `agents message` transferred a
+//! claim into this process, the lockfile adopts it lazily on this first
+//! `try_acquire`, so the acquisition succeeds instantly. Historic spawns
+//! load their agent params +
 //! continuation from the stored session. Mid-stream, every newly
 //! revealed hierarchy gets a best-effort AIH claim
 //! ([`AgentInstanceRegistry::observe`]); the first success releases
@@ -162,11 +163,6 @@ async fn execute_streaming(
         })]
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
-    let skip_lock = request
-        .dangerous_advanced
-        .as_ref()
-        .and_then(|a| a.skip_lock)
-        .unwrap_or(false);
 
     let mode = match request.agent {
         AgentSelector::Ref { agent } => Mode::Fresh {
@@ -207,36 +203,32 @@ async fn execute_streaming(
 
     // Initial lock + params assembly. try_acquire only — a held lock
     // means the agent (or another spawn of the tag) is already live,
-    // and this spawn errors out. `skip_lock` skips exactly this step:
-    // the parent `agents message` already holds the lock through the
-    // handles it transferred into this process (re-acquiring would
-    // fail against ourselves). Mid-stream best-effort AIH claims in
-    // `run_multi_pass` are unaffected.
+    // and this spawn errors out. When the parent `agents message`
+    // transferred a lock into this process, the lockfile adopts the
+    // matching claim lazily on this first `try_acquire`, so it re-acquires
+    // INSTANTLY rather than conflicting with the inherited handles.
+    // Mid-stream best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
     let mut registry = AgentInstanceRegistry::new(state_dir.clone());
     let (agent, agent_tag, continuation) = match mode {
         Mode::Fresh { agent, tag } => {
-            if !skip_lock {
-                if let Some(tag) = &tag {
-                    let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
-                    match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                        Some(claim) => registry.hold_tag_claim(claim),
-                        None => return Err(Error::AgentTagActive { tag: tag.clone() }),
-                    }
+            if let Some(tag) = &tag {
+                let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
+                match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                    Some(claim) => registry.hold_tag_claim(claim),
+                    None => return Err(Error::AgentTagActive { tag: tag.clone() }),
                 }
             }
             (agent, tag, None)
         }
         Mode::Historic { hierarchy } => {
-            if !skip_lock {
-                let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-                match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                    Some(claim) => registry.preseed(hierarchy.clone(), claim),
-                    None => {
-                        return Err(Error::AgentInstanceActive {
-                            agent_instance_hierarchy: hierarchy,
-                        });
-                    }
+            let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
+            match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                Some(claim) => registry.preseed(hierarchy.clone(), claim),
+                None => {
+                    return Err(Error::AgentInstanceActive {
+                        agent_instance_hierarchy: hierarchy,
+                    });
                 }
             }
             let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)

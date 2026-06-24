@@ -91,6 +91,13 @@ pub enum Payload {
     /// client's local storage error. Non-MCP — no `mcp_kind`.
     #[schemars(title = "Retrieve")]
     Retrieve(JsonRpcResult<super::super::retrieve::Response>),
+
+    /// Acknowledges
+    /// [`super::super::server_request::Payload::Drop`]. Infallible — no
+    /// `JsonRpcResult` wrapper; carries `dropped`: whether a bucket for
+    /// the response id was present and removed. Non-MCP — no `mcp_kind`.
+    #[schemars(title = "Drop")]
+    Drop(DropResult),
 }
 
 impl Payload {
@@ -105,7 +112,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) => None,
+            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) | Payload::Drop(_) => None,
         }
     }
 }
@@ -137,6 +144,15 @@ impl Payload {
 #[schemars(rename = "client_objectiveai_mcp.server_response.ReadMessageQueueResult")]
 pub struct ReadMessageQueueResult {
     pub rows: Vec<ReadMessageQueueRow>,
+}
+
+/// Result of [`Payload::Drop`]. `dropped` is `true` if a connection
+/// bucket for the response id was present and removed, `false` if no
+/// bucket existed (the drop is idempotent either way).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.DropResult")]
+pub struct DropResult {
+    pub dropped: bool,
 }
 
 /// One queued row's payload + its content-slot ids.

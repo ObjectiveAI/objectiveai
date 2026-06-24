@@ -12,6 +12,7 @@ class Request(BaseModel):
 
     dangerous_advanced: Optional[RequestDangerousAdvanced] = None
     jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
+    keys: Optional[list[str]] = Field(None, description='Only deliver to targets with a pending deliverable carrying one\nof these keys. `None` (the default) delivers to every pending\ntarget.', json_schema_extra={'omitempty': True})
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')

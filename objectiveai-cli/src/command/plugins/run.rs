@@ -21,12 +21,12 @@ use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
 use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::cli::{Error as CliError, ErrorType as CliErrorType};
 use serde::Serialize;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::child_io::{PipeEvent, spawn_pipe_reader};
+use crate::child_io::{PipeEvent, spawn_stdout_reader};
 use crate::context::Context;
 use crate::error::Error;
 
@@ -123,22 +123,32 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let stdin = child.stdin.take().expect("stdin was piped");
     let plugin_stdin: Arc<Mutex<ChildStdin>> = Arc::new(Mutex::new(stdin));
 
-    let mut events = spawn_pipe_reader(stdout, stderr);
+    // Capture the plugin's stderr (stdout is the protocol channel) into
+    // `objectiveai.plugin_messages` on a dedicated task that OWNS the
+    // pipe and reads it line-by-line — the OS pipe is the buffer, so a
+    // slow DB just backpressures the plugin's stderr writes. Joined at
+    // the end of the stream so every line is flushed before `plugins
+    // run` completes.
+    let stderr_writer = spawn_stderr_log_writer(
+        ctx.db_client().await?.clone(),
+        request.owner.clone(),
+        request.name.clone(),
+        request.version.clone(),
+        ctx.config.agent_instance_hierarchy.clone(),
+        ctx.config.response_id.clone(),
+        stderr,
+    );
+
+    let mut events = spawn_stdout_reader(stdout);
 
     let stream = async_stream::stream! {
         let mut command_tasks: Vec<(Option<String>, JoinHandle<i32>)> = Vec::new();
         while let Some(event) = events.recv().await {
             match event {
                 PipeEvent::Stderr(_) => {
-                    // Bare anonymous error — no level, no fatal, no
-                    // message. Stops at "something went wrong on
-                    // stderr" by deliberate host policy.
-                    yield Ok(ResponseItem::Error(CliError {
-                        r#type: CliErrorType::Error,
-                        level: None,
-                        fatal: None,
-                        message: serde_json::Value::Null,
-                    }));
+                    // stderr is owned by the DB log-writer task, not this
+                    // reader (stdout-only), so this never fires — kept for
+                    // match exhaustiveness over `PipeEvent`.
                 }
                 PipeEvent::Stdout(trimmed) => {
                     match serde_json::from_str::<PluginOutput>(&trimmed) {
@@ -186,20 +196,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             }
         }
 
-        // Drain any in-flight Command tasks the plugin queued before
-        // its stdout EOF. Each task gets a terminal `CommandComplete`
-        // written to plugin stdin so the plugin sees the run boundary
-        // even when it didn't mint a correlation id.
-        for (id, task) in command_tasks {
-            let exit_code = task.await.unwrap_or(-1);
-            let envelope = PluginCommandResponse {
-                id: id.as_deref(),
-                value: CommandComplete {
-                    kind: "command_complete",
-                    exit_code,
-                },
-            };
-            let _ = write_envelope(&plugin_stdin, &envelope).await;
+        // Await any in-flight Command tasks the plugin queued before its
+        // stdout EOF. Each task writes its OWN terminal `CommandComplete`
+        // when its stream ends (see `run_nested_command`), so here we just
+        // let them finish before dropping plugin stdin.
+        for (_id, task) in command_tasks {
+            let _ = task.await;
         }
 
         // Drop our reference to plugin stdin so the kernel pipe closes
@@ -215,9 +217,63 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 yield Err(Error::PluginRead(e));
             }
         }
+
+        // The child has exited, so its stderr pipe is closed; join the
+        // log-writer task so every captured line is committed before the
+        // run stream ends. Surface the first DB/read error if any.
+        match stderr_writer.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                yield Err(e);
+            }
+            Err(_join) => {}
+        }
     };
 
     Ok(Box::pin(stream))
+}
+
+/// Spawn the task that owns the plugin's stderr pipe and appends every
+/// line to `objectiveai.plugin_messages`. Reads one line at a time, so
+/// the OS pipe backpressures a slow DB rather than buffering unbounded.
+/// The returned handle is awaited before the run stream completes; the
+/// first insert/read error is surfaced through it.
+fn spawn_stderr_log_writer(
+    pool: crate::db::Pool,
+    owner: String,
+    name: String,
+    version: String,
+    agent_instance_hierarchy: String,
+    response_id: Option<String>,
+    stderr: tokio::process::ChildStderr,
+) -> JoinHandle<Result<(), Error>> {
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        loop {
+            match lines.next_line().await {
+                Ok(Some(line)) => {
+                    let created_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0);
+                    crate::db::logs::insert_plugin_message(
+                        &pool,
+                        &owner,
+                        &name,
+                        &version,
+                        &agent_instance_hierarchy,
+                        response_id.as_deref(),
+                        created_at,
+                        &line,
+                    )
+                    .await
+                    .map_err(Error::from)?;
+                }
+                Ok(None) => return Ok(()),
+                Err(e) => return Err(Error::PluginRead(e)),
+            }
+        }
+    })
 }
 
 /// Dispatch a plugin-originated command IN-PROCESS — no subprocess, no
@@ -239,64 +295,94 @@ fn run_nested_command(
 ) -> JoinHandle<i32> {
     tokio::spawn(async move {
         let id = id.as_deref();
-        // Argv is already tokenized by the plugin executor — one
-        // element per argument. No `split_whitespace`, so a value like
-        // `--simple "a b c"` is not re-split into separate tokens.
-        let tokens: Vec<String> = command;
-
-        // A plugin may not invoke `plugins` or `tools` commands — no
-        // running another plugin, no running a tool. Forward the same
-        // error line the cli would emit for the forbidden cases.
-        let forbidden = match tokens.first().map(String::as_str) {
-            Some("plugins") => Some("plugins"),
-            Some("tools") => Some("tools"),
-            _ => None,
-        };
-        if let Some(kind) = forbidden {
-            let _ = forward_error(
-                &plugin_stdin,
+        let exit_code = run_nested_inner(ctx, command, plugin_stdin.clone(), id).await;
+        // Per-command stream terminator: tell the plugin THIS command's
+        // response stream is exhausted (carries the id) so its executor
+        // ends the right stream. Written promptly when the stream ends —
+        // not deferred to plugin-stdout EOF — and swallowed by the executor.
+        let _ = write_envelope(
+            &plugin_stdin,
+            &PluginCommandResponse {
                 id,
-                &Error::PluginCommandForbidden(kind),
-                Some(true),
-            )
-            .await;
-            return 1;
-        }
-
-        // `args[0]` is the program name, which `crate::run` strips
-        // unconditionally; the plugin's command is just the subcommand
-        // tokens, so prepend a placeholder.
-        let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
-        args.extend(tokens);
-
-        // A mirror of `main.rs::run_command`: drive the same `crate::run`
-        // stream, but forward each line into the plugin's stdin (wrapped
-        // in a `PluginCommandResponse`) instead of writing it to stdout.
-        let run_stream = match crate::run(args, Some(ctx)).await {
-            Ok(s) => s,
-            Err(e) => {
-                if let Error::ClapParse(ref clap_err) = e {
-                    if crate::is_informational(clap_err) {
-                        let _ = forward_help(&plugin_stdin, id, &clap_err.to_string()).await;
-                        return 0;
-                    }
-                }
-                let _ = forward_error(&plugin_stdin, id, &e, Some(true)).await;
-                return match e {
-                    Error::ToolExit(code) => code,
-                    _ => 1,
-                };
-            }
-        };
-        // Both arms forward each item to the plugin's stdin as a line;
-        // `drain` is generic over the item type (typed root items vs
-        // post-transform JSON).
-        let last_tool_exit = match run_stream {
-            crate::RunStream::Execute(stream) => drain(&plugin_stdin, id, stream).await,
-            crate::RunStream::ExecuteTransform(stream) => drain(&plugin_stdin, id, stream).await,
-        };
-        last_tool_exit.unwrap_or(0)
+                value: CommandComplete {
+                    kind: "command_complete",
+                    exit_code,
+                },
+            },
+        )
+        .await;
+        exit_code
     })
+}
+
+/// Run one plugin-originated command in-process, forwarding each output
+/// line into `plugin_stdin` as a [`PluginCommandResponse`]. Returns the
+/// exit code (the tool's code on a `ToolExit`, else 0/1); the caller
+/// ([`run_nested_command`]) writes the terminal [`CommandComplete`] once
+/// this returns.
+async fn run_nested_inner(
+    ctx: Context,
+    command: Vec<String>,
+    plugin_stdin: Arc<Mutex<ChildStdin>>,
+    id: Option<&str>,
+) -> i32 {
+    // Argv is already tokenized by the plugin executor — one
+    // element per argument. No `split_whitespace`, so a value like
+    // `--simple "a b c"` is not re-split into separate tokens.
+    let tokens: Vec<String> = command;
+
+    // A plugin may not invoke `plugins` or `tools` commands — no
+    // running another plugin, no running a tool. Forward the same
+    // error line the cli would emit for the forbidden cases.
+    let forbidden = match tokens.first().map(String::as_str) {
+        Some("plugins") => Some("plugins"),
+        Some("tools") => Some("tools"),
+        _ => None,
+    };
+    if let Some(kind) = forbidden {
+        let _ = forward_error(
+            &plugin_stdin,
+            id,
+            &Error::PluginCommandForbidden(kind),
+            Some(true),
+        )
+        .await;
+        return 1;
+    }
+
+    // `args[0]` is the program name, which `crate::run` strips
+    // unconditionally; the plugin's command is just the subcommand
+    // tokens, so prepend a placeholder.
+    let mut args: Vec<String> = vec!["objectiveai-cli".to_string()];
+    args.extend(tokens);
+
+    // A mirror of `main.rs::run_command`: drive the same `crate::run`
+    // stream, but forward each line into the plugin's stdin (wrapped
+    // in a `PluginCommandResponse`) instead of writing it to stdout.
+    let run_stream = match crate::run(args, Some(ctx)).await {
+        Ok(s) => s,
+        Err(e) => {
+            if let Error::ClapParse(ref clap_err) = e {
+                if crate::is_informational(clap_err) {
+                    let _ = forward_help(&plugin_stdin, id, &clap_err.to_string()).await;
+                    return 0;
+                }
+            }
+            let _ = forward_error(&plugin_stdin, id, &e, Some(true)).await;
+            return match e {
+                Error::ToolExit(code) => code,
+                _ => 1,
+            };
+        }
+    };
+    // Both arms forward each item to the plugin's stdin as a line;
+    // `drain` is generic over the item type (typed root items vs
+    // post-transform JSON).
+    let last_tool_exit = match run_stream {
+        crate::RunStream::Execute(stream) => drain(&plugin_stdin, id, stream).await,
+        crate::RunStream::ExecuteTransform(stream) => drain(&plugin_stdin, id, stream).await,
+    };
+    last_tool_exit.unwrap_or(0)
 }
 
 /// Drain a run stream into the plugin's stdin — one

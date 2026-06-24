@@ -5,6 +5,10 @@
 //! and returns the script's output (its trailing expression value,
 //! else captured stdout) as a `serde_json::Value`. No output → JSON
 //! `null`.
+//!
+//! With `--no-objectiveai`, the in-process `objectiveai.execute(...)`
+//! host call is disabled: it raises inside the script instead of
+//! dispatching a CLI command.
 
 use crate::cli::command::CommandRequest;
 
@@ -18,6 +22,11 @@ pub struct Request {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub input: Option<serde_json::Value>,
+    /// When set, `objectiveai.execute(...)` inside the embedded python
+    /// raises instead of dispatching a CLI command.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub no_objectiveai: Option<bool>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -51,6 +60,10 @@ pub struct Args {
     /// Optional JSON value exposed to the code as the global `input`.
     #[arg(long, value_parser = parse_json)]
     pub input: Option<serde_json::Value>,
+    /// Disable `objectiveai.execute(...)` inside the script: the host
+    /// call raises instead of dispatching a CLI command.
+    #[arg(long)]
+    pub no_objectiveai: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -89,6 +102,7 @@ impl TryFrom<Args> for Request {
                 )
             })?,
             input: args.input,
+            no_objectiveai: args.no_objectiveai.then_some(true),
             base: args.base.into(),
         })
     }

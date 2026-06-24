@@ -7,7 +7,9 @@
 //! both the Notifier and the Stream are dropped, the demux task
 //! exits and the WS closes cleanly.
 
-use crate::client_objectiveai_mcp::{client_request, client_response};
+use crate::client_objectiveai_mcp::{
+    client_request, client_response, server_response,
+};
 use futures::SinkExt;
 use futures::stream::SplitSink;
 use std::sync::Arc;
@@ -68,15 +70,167 @@ impl Notifier {
         &self,
         change: client_request::McpListChanged,
     ) -> Result<(), super::HttpError> {
-        self.send(client_request::Payload::McpListChanged(change))
-            .await
+        match self
+            .send_raw(client_request::Payload::McpListChanged(change))
+            .await?
+        {
+            client_response::Response::Ok { .. } => Ok(()),
+            client_response::Response::Error { code, message, .. } => {
+                Err(super::HttpError::NotifyRejected { code, message })
+            }
+            // This call only sends `McpListChanged`, whose reply is
+            // `Ok`/`Error`. The MCP-op result variants
+            // (`ListTools`/`CallTool`/...) are replies to other requests
+            // and shouldn't arrive here (responses correlate by id).
+            _ => Err(super::HttpError::NotifyRejected {
+                code: 0,
+                message: serde_json::Value::String(
+                    "unexpected reply variant for notify".to_string(),
+                ),
+            }),
+        }
     }
 
-    /// Common send-and-await-ack body shared by every `notify_*` method.
-    async fn send(
+    /// Run the proxy's aggregated `tools/list` for `response_id` over
+    /// this WS and return the proxy's verbatim
+    /// [`JsonRpcResult`](crate::client_objectiveai_mcp::server_response::JsonRpcResult).
+    /// A server-level rejection (unknown / banned `response_id`) is
+    /// folded into `JsonRpcResult::Err` so callers see a single
+    /// MCP-shaped outcome; only transport failures surface as `Err`.
+    pub async fn list_tools(
+        &self,
+        response_id: String,
+        params: crate::mcp::tool::ListToolsRequest,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::ListTools {
+                response_id,
+                params,
+            })
+            .await?
+        {
+            client_response::Response::ListTools { result, .. } => Ok(result),
+            other => Self::fold_unexpected(other),
+        }
+    }
+
+    /// Run the proxy's aggregated `tools/call` for `response_id` over
+    /// this WS (routes by tool-name prefix to the owning upstream;
+    /// does NOT consult the queue delegate). See [`Self::list_tools`]
+    /// for the error-folding contract.
+    pub async fn call_tool(
+        &self,
+        response_id: String,
+        params: crate::mcp::tool::CallToolRequestParams,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::tool::CallToolResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::CallTool {
+                response_id,
+                params,
+            })
+            .await?
+        {
+            client_response::Response::CallTool { result, .. } => Ok(result),
+            other => Self::fold_unexpected(other),
+        }
+    }
+
+    /// Run the proxy's aggregated `resources/list` for `response_id`
+    /// over this WS. See [`Self::list_tools`] for the error contract.
+    pub async fn list_resources(
+        &self,
+        response_id: String,
+        params: crate::mcp::resource::ListResourcesRequest,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::ListResources {
+                response_id,
+                params,
+            })
+            .await?
+        {
+            client_response::Response::ListResources { result, .. } => {
+                Ok(result)
+            }
+            other => Self::fold_unexpected(other),
+        }
+    }
+
+    /// Run the proxy's `resources/read` for `response_id` over this WS
+    /// (routes by URI prefix). See [`Self::list_tools`] for the error
+    /// contract.
+    pub async fn read_resource(
+        &self,
+        response_id: String,
+        params: crate::mcp::resource::ReadResourceRequestParams,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::resource::ReadResourceResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::ReadResource {
+                response_id,
+                params,
+            })
+            .await?
+        {
+            client_response::Response::ReadResource { result, .. } => {
+                Ok(result)
+            }
+            other => Self::fold_unexpected(other),
+        }
+    }
+
+    /// Map a non-matching reply for an MCP-op request into the
+    /// `JsonRpcResult<R>` the caller expects:
+    ///
+    /// - generic `Error { code, message }` — a server-level rejection
+    ///   (e.g. unknown / banned `response_id`) — folds into
+    ///   `JsonRpcResult::Err` so every server-originated outcome is one
+    ///   MCP-shaped value.
+    /// - any other variant is a correlation/protocol bug (a reply for a
+    ///   different request kind reached this oneshot) → `NotifyRejected`.
+    fn fold_unexpected<R>(
+        other: client_response::Response,
+    ) -> Result<server_response::JsonRpcResult<R>, super::HttpError> {
+        match other {
+            client_response::Response::Error { code, message, .. } => {
+                let message = match message {
+                    serde_json::Value::String(s) => s,
+                    other => other.to_string(),
+                };
+                Ok(server_response::JsonRpcResult::Err {
+                    code: code as i64,
+                    message,
+                    data: None,
+                })
+            }
+            _ => Err(super::HttpError::NotifyRejected {
+                code: 0,
+                message: serde_json::Value::String(
+                    "unexpected reply variant for mcp request".to_string(),
+                ),
+            }),
+        }
+    }
+
+    /// Common send-and-await body: assign a correlation id, park a
+    /// oneshot in `pending`, write the framed request, and return the
+    /// raw [`client_response::Response`] the demux task routes back by
+    /// id. Callers interpret the variant.
+    async fn send_raw(
         &self,
         payload: client_request::Payload,
-    ) -> Result<(), super::HttpError> {
+    ) -> Result<client_response::Response, super::HttpError> {
         let id = uuid::Uuid::new_v4().to_string();
         let (tx, rx) = oneshot::channel();
         self.pending.insert(id.clone(), tx);
@@ -104,16 +258,9 @@ impl Notifier {
             }
         }
 
-        let response = match rx.await {
-            Ok(r) => r,
-            Err(_) => return Err(super::HttpError::NotifyChannelClosed),
-        };
-
-        match response {
-            client_response::Response::Ok { .. } => Ok(()),
-            client_response::Response::Error { code, message, .. } => {
-                Err(super::HttpError::NotifyRejected { code, message })
-            }
+        match rx.await {
+            Ok(r) => Ok(r),
+            Err(_) => Err(super::HttpError::NotifyChannelClosed),
         }
     }
 }

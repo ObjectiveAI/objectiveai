@@ -128,7 +128,6 @@ async fn plugin_mcp_dispatch_round_trip() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(1),
-            skip_lock: None,
         }),
         base: Default::default(),
     };

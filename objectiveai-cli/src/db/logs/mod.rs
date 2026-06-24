@@ -23,6 +23,7 @@
 
 mod listen;
 mod lookup;
+mod plugin_messages;
 mod read_all;
 mod read_id;
 mod row;
@@ -33,6 +34,7 @@ mod writer;
 
 pub use listen::*;
 pub use lookup::*;
+pub use plugin_messages::*;
 pub use read_all::*;
 pub use read_id::*;
 pub use row::*;

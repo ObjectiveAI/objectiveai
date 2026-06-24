@@ -25,6 +25,44 @@ pub enum Payload {
     /// notification frame.
     #[schemars(title = "McpListChanged")]
     McpListChanged(McpListChanged),
+
+    /// Run the proxy's aggregated `tools/list` for `response_id` — the
+    /// same operation the proxy's HTTP `tools/list` endpoint performs
+    /// (fan out to every upstream in that session). Session-scoped, so
+    /// no `mcp_kind`; carries the normal MCP `tools/list` params.
+    #[schemars(title = "ListTools")]
+    ListTools {
+        response_id: String,
+        #[serde(flatten)]
+        params: crate::mcp::tool::ListToolsRequest,
+    },
+
+    /// Run the proxy's aggregated `tools/call` for `response_id` (routes
+    /// by tool-name prefix to the owning upstream). Unlike the HTTP
+    /// `tools/call`, this path does NOT consult the queue delegate.
+    #[schemars(title = "CallTool")]
+    CallTool {
+        response_id: String,
+        #[serde(flatten)]
+        params: crate::mcp::tool::CallToolRequestParams,
+    },
+
+    /// Run the proxy's aggregated `resources/list` for `response_id`.
+    #[schemars(title = "ListResources")]
+    ListResources {
+        response_id: String,
+        #[serde(flatten)]
+        params: crate::mcp::resource::ListResourcesRequest,
+    },
+
+    /// Run the proxy's `resources/read` for `response_id` (routes by URI
+    /// prefix to the owning upstream).
+    #[schemars(title = "ReadResource")]
+    ReadResource {
+        response_id: String,
+        #[serde(flatten)]
+        params: crate::mcp::resource::ReadResourceRequestParams,
+    },
 }
 
 /// Payload for [`Payload::McpListChanged`].

@@ -74,6 +74,10 @@
       "$ref": "cli.command.agents.queue.Request"
     },
     {
+      "title": "Resources",
+      "$ref": "cli.command.agents.resources.Request"
+    },
+    {
       "title": "Spawn",
       "$ref": "cli.command.agents.spawn.Request"
     },
@@ -88,6 +92,10 @@
     {
       "title": "Tags",
       "$ref": "cli.command.agents.tags.Request"
+    },
+    {
+      "title": "Tools",
+      "$ref": "cli.command.agents.tools.Request"
     },
     {
       "title": "Wait",

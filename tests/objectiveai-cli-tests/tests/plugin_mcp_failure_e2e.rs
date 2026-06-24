@@ -148,7 +148,6 @@ fn spawn_request(agent: AgentSelector) -> SpawnRequest {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(1),
-            skip_lock: None,
         }),
         base: Default::default(),
     }

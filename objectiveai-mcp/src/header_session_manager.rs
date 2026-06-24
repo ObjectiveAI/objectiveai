@@ -278,11 +278,10 @@ where
                 .await
                 .map_err(|e| error_invalid_input(format!("resume initialize: {e}")))?;
             self.inner.sessions.write().await.insert(id.clone(), handle);
-            let item = ServerSseMessage {
-                event_id: None,
-                message: Some(std::sync::Arc::new(response)),
-                retry: None,
-            };
+            // rmcp 1.7 marks `ServerSseMessage` `#[non_exhaustive]`;
+            // `from_message` builds the exact `{event_id: None, message:
+            // Some(Arc::new(response)), retry: None}` shape.
+            let item = ServerSseMessage::from_message(response);
             let stream: std::pin::Pin<
                 Box<dyn Stream<Item = ServerSseMessage> + Send + Sync + 'static>,
             > = Box::pin(futures::stream::iter(vec![item]));
@@ -378,23 +377,15 @@ fn extract_agent_args(message: &ClientJsonRpcMessage) -> AgentArguments {
 /// (`set_peer_info` overwrites on the next call), so the real
 /// client's subsequent initialize — if any — wins.
 fn synthetic_initialize_message() -> ClientJsonRpcMessage {
-    let request = Request {
-        method: Default::default(),
-        params: InitializeRequestParams {
-            meta: None,
-            protocol_version: ProtocolVersion::V_2025_06_18,
-            capabilities: ClientCapabilities::default(),
-            client_info: Implementation {
-                name: "objectiveai-mcp-restore-stub".into(),
-                title: None,
-                version: "0".into(),
-                description: None,
-                icons: None,
-                website_url: None,
-            },
-        },
-        extensions: Default::default(),
-    };
+    // rmcp 1.7 marks `Request` / `InitializeRequestParams` /
+    // `Implementation` `#[non_exhaustive]`; build via their constructors +
+    // explicit field assignment (preserving the explicit `version`).
+    let mut client_info = Implementation::default();
+    client_info.name = "objectiveai-mcp-restore-stub".into();
+    client_info.version = "0".into();
+    let params = InitializeRequestParams::new(ClientCapabilities::default(), client_info)
+        .with_protocol_version(ProtocolVersion::V_2025_06_18);
+    let request = Request::new(params);
     ClientJsonRpcMessage::Request(JsonRpcRequest {
         jsonrpc: JsonRpcVersion2_0,
         id: NumberOrString::Number(0),

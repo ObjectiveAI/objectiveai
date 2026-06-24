@@ -14,6 +14,7 @@ use crate::error::Error;
 pub mod get;
 pub mod install;
 pub mod list;
+pub mod logs;
 pub mod run;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -53,6 +54,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::ListResponseSchema(req) => {
             let value = list::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::ListResponseSchema(value)))
+        }
+        Request::Logs(req) => {
+            let inner = logs::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Logs)))
         }
         Request::Run(req) => {
             let inner = run::execute(ctx, req).await?;

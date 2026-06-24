@@ -89,7 +89,6 @@ async fn spawn_agent(executor: &HangPreventingBinaryCommandExecutor, seed: i64) 
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(seed),
-            skip_lock: None,
         }),
         base: Default::default(),
     };

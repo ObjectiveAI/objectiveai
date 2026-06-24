@@ -12,7 +12,6 @@ fn make_client() -> super::Client {
 fn test_empty_messages_no_continuation() {
     let client = make_client();
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         None,
         &[],
         None,
@@ -22,7 +21,6 @@ fn test_empty_messages_no_continuation() {
         upstream: objectiveai_sdk::agent::mock::Upstream::Mock,
         agent_instance_hierarchy: String::new(),
         messages: vec![],
-        mcp_sessions: indexmap::IndexMap::new(),
     });
 }
 
@@ -35,7 +33,6 @@ fn test_messages_only() {
         }),
     ];
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         None,
         &messages,
         None,
@@ -49,7 +46,6 @@ fn test_messages_only() {
                 content: RichContent::Text("Hello".into()),
             }),
         ],
-        mcp_sessions: indexmap::IndexMap::new(),
     });
 }
 
@@ -71,7 +67,6 @@ fn test_messages_with_continuation() {
         }),
     ];
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         None,
         &messages,
         Some(&continuation),
@@ -92,7 +87,6 @@ fn test_messages_with_continuation() {
                 content: RichContent::Text("Follow up".into()),
             }),
         ],
-        mcp_sessions: indexmap::IndexMap::new(),
     });
 }
 
@@ -116,10 +110,8 @@ fn test_request_continuation_messages_come_first() {
                 refusal: None, tool_calls: None, reasoning: None,
             }),
         ],
-        mcp_sessions: indexmap::IndexMap::new(),
     };
     let result = client.response_continuation(
-        indexmap::IndexMap::new(),
         Some(&rc),
         &messages,
         None,
@@ -140,21 +132,5 @@ fn test_request_continuation_messages_come_first() {
                 content: RichContent::Text("Current turn".into()),
             }),
         ],
-        mcp_sessions: indexmap::IndexMap::new(),
     });
-}
-
-#[test]
-fn test_mcp_sessions_preserved() {
-    let client = make_client();
-    let mut mcp_sessions = indexmap::IndexMap::new();
-    mcp_sessions.insert("http://mcp.example.com".into(), "sess-abc".into());
-    let result = client.response_continuation(
-        mcp_sessions.clone(),
-        None,
-        &[],
-        None,
-        ""
-    );
-    assert_eq!(result.mcp_sessions, mcp_sessions);
 }

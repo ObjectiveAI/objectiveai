@@ -471,7 +471,6 @@ impl
 
     fn response_continuation(
         &self,
-        mcp_sessions: indexmap::IndexMap<String, String>,
         request_continuation: Option<&objectiveai_sdk::agent::codex_sdk::Continuation>,
         _messages: &[objectiveai_sdk::agent::completions::message::Message],
         continuation: Option<&[ContinuationItem<Self::State>]>,
@@ -497,7 +496,6 @@ impl
             upstream: objectiveai_sdk::agent::codex_sdk::Upstream::default(),
             agent_instance_hierarchy: agent_instance_hierarchy.to_string(),
             thread_id,
-            mcp_sessions,
         }
     }
 }

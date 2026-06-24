@@ -89,7 +89,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(child, content, seed, None, false).await,
+        Route::Ref { child } => spawn_child(child, content, seed, None).await,
         Route::Locked {
             dir,
             key,
@@ -97,11 +97,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             tag,
             child,
         } => {
-            let is_tag = tag.is_some();
             // Fast path: nobody holds the lock — exec the spawn child
             // under the fresh claim.
             if let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                return spawn_locked(child, content, seed, claim, is_tag).await;
+                return spawn_locked(child, content, seed, claim).await;
             }
 
             // Slow path: live owner. Park the message, then wait for
@@ -137,7 +136,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         &ctx.config.agent_instance_hierarchy,
                     )
                     .await;
-                    spawn_locked(child, content, seed, claim, is_tag).await
+                    spawn_locked(child, content, seed, claim).await
                 }
             }
         }
@@ -182,46 +181,37 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
     }
 }
 
-/// Exec the spawn child for a freshly won lock. AIH claims TRANSFER
-/// into the child (the lock then lives exactly as long as the
-/// child); TAG claims never transfer — this process keeps holding
-/// the claim while the child runs with `skip_lock`, and since
-/// dropping a claim does not release it, the tag lock persists until
-/// this process exits. That's deliberate: nothing else may
-/// materialize the tag while the child is still pre-first-chunk; by
-/// the time the child's first item (`Id`) arrives it already holds
-/// its minted AIH lock, and the GROUPED→BOUND upgrade has landed.
+/// Exec the spawn child for a freshly won lock. The claim — AIH or
+/// TAG — is TRANSFERRED into the child: the child adopts the inherited
+/// lock at startup and re-acquires it instantly, becoming the sole
+/// owner, and the lock lives exactly as long as the child. (Continuous
+/// hold through the child's pre-first-chunk window is preserved — the
+/// transfer hands off the same OS handles with no gap; a BOUND tag
+/// routes by AIH and never re-acquires the tag lock, so holding it for
+/// the child's lifetime is safe.)
 async fn spawn_locked(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
     claim: LockClaim,
-    is_tag: bool,
 ) -> Result<Response, Error> {
-    if is_tag {
-        let _tag_claim = claim;
-        spawn_child(agent, content, seed, None, true).await
-    } else {
-        spawn_child(agent, content, seed, Some(claim), true).await
-    }
+    spawn_child(agent, content, seed, Some(claim)).await
 }
 
 /// Exec a detached `agents spawn` child (stream=true) and return its
-/// first item as the unary response. When `transfer` is `Some`, the
-/// lock is transferred into the child — the child becomes the sole
-/// owner and the lock lives until it exits. `skip_lock` tells the
-/// child to skip its own initial acquisition (set whenever a lock is
-/// held for it, transferred or not). The child's first item is
-/// always its `Id` (chunks are gated behind it); the rest of the
-/// stream is dropped and the orphan keeps running.
+/// first item as the unary response. When `transfer` is `Some`, the lock
+/// claim is transferred into the child — the child adopts + re-acquires
+/// it instantly and becomes the sole owner; the lock lives until it
+/// exits. When `None` (a plain agent ref), the child acquires its own
+/// lock fresh. The child's first item is always its `Id` (chunks are
+/// gated behind it); the rest of the stream is dropped and the orphan
+/// keeps running.
 async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
     transfer: Option<LockClaim>,
-    skip_lock: bool,
 ) -> Result<Response, Error> {
-    let skip_lock = skip_lock.then_some(true);
     let child_request = spawn_sdk::Request {
         path_type: spawn_sdk::Path::AgentsSpawn,
         message: RequestMessage::Inline(content),
@@ -229,7 +219,6 @@ async fn spawn_child(
         dangerous_advanced: Some(spawn_sdk::RequestDangerousAdvanced {
             stream: Some(true),
             seed,
-            skip_lock,
         }),
         base: Default::default(),
     };

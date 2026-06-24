@@ -53,7 +53,6 @@ async fn spawn_then_message_propagates_response_continuation() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(42),
-            skip_lock: None,
         }),
         base: Default::default(),
     };
@@ -110,7 +109,6 @@ async fn spawn_then_message_propagates_response_continuation() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(42),
-            skip_lock: None,
         }),
         base: Default::default(),
     };

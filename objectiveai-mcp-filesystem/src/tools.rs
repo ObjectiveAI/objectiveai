@@ -231,18 +231,16 @@ impl FilesystemMcp {
 #[tool_handler]
 impl ServerHandler for FilesystemMcp {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            protocol_version: ProtocolVersion::V_2025_06_18,
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: Implementation {
-                name: "oaifs".into(),
-                title: None,
-                version: env!("CARGO_PKG_VERSION").into(),
-                description: None,
-                icons: None,
-                website_url: None,
-            },
-            instructions: None,
-        }
+        // rmcp 1.7 marks `ServerInfo`/`Implementation` `#[non_exhaustive]`,
+        // so build via `Default` + explicit field assignment.
+        let mut server_info = Implementation::default();
+        server_info.name = "oaifs".into();
+        server_info.version = env!("CARGO_PKG_VERSION").into();
+        let mut info = ServerInfo::default();
+        info.protocol_version = ProtocolVersion::V_2025_06_18;
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.server_info = server_info;
+        info.instructions = None;
+        info
     }
 }

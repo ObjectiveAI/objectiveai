@@ -21,8 +21,10 @@ pub mod logs;
 pub mod message;
 pub mod publish;
 pub mod queue;
+pub mod resources;
 pub mod spawn;
 pub mod tags;
+pub mod tools;
 pub mod wait;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
@@ -107,6 +109,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let inner = queue::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Queue)))
         }
+        Request::Resources(req) => {
+            let inner = resources::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Resources)))
+        }
         Request::Spawn(req) => {
             let inner = spawn::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Spawn)))
@@ -122,6 +128,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::Tags(req) => {
             let inner = tags::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Tags)))
+        }
+        Request::Tools(req) => {
+            let inner = tools::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Tools)))
         }
         Request::Wait(req) => {
             let value = wait::execute(ctx, req).await?;

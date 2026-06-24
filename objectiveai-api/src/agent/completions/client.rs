@@ -2,7 +2,6 @@ use std::{collections::HashMap, pin::Pin, sync::Arc, time::Duration};
 
 use crate::ctx;
 use futures::StreamExt;
-use indexmap::IndexMap;
 
 /// A function that transforms messages before they are sent to an upstream.
 /// Keyed by agent ID so each agent in an swarm can receive different messages.
@@ -49,6 +48,26 @@ fn filter_agents(
             true
         })
         .collect()
+}
+
+/// On agent lock-in, fire a best-effort proxy `drop` for every candidate
+/// `response_id` except the winner's. Each candidate's MCP connect was
+/// spawned up front, so a non-winner slot may hold a live proxy session
+/// (and CLI plugin subprocesses); banning + tearing it down reclaims those
+/// as soon as the option is abandoned. Orphan spawns — results discarded.
+fn spawn_drop_losers(
+    dropper: &objectiveai_mcp_proxy::Dropper,
+    response_ids: &[String],
+    winner: usize,
+) {
+    for (j, id) in response_ids.iter().enumerate() {
+        if j == winner {
+            continue;
+        }
+        let dropper = dropper.clone();
+        let id = id.clone();
+        tokio::spawn(async move { dropper.drop(id).await });
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -372,28 +391,30 @@ where
             );
         }
 
-        // 2. Extract continuation items, MCP connection, and upstream type.
+        // 2. Extract continuation items and upstream type. (The MCP
+        // connection is never carried across turns — every turn opens a
+        // fresh proxy connection — so there is nothing connection-related
+        // to extract here.)
         let cont_upstream = continuation.as_ref().map(|c| c.upstream());
         let (
             mut cont_items_or,
             mut cont_items_cas,
             mut cont_items_cdx,
             mut cont_items_mock,
-            internal_conn,
         ) = match continuation {
-            Some(super::Continuation::Openrouter { items, mcp_connection, .. }) => {
-                (items, vec![], vec![], vec![], mcp_connection)
+            Some(super::Continuation::Openrouter { items, .. }) => {
+                (items, vec![], vec![], vec![])
             }
-            Some(super::Continuation::ClaudeAgentSdk { items, mcp_connection, .. }) => {
-                (vec![], items, vec![], vec![], mcp_connection)
+            Some(super::Continuation::ClaudeAgentSdk { items, .. }) => {
+                (vec![], items, vec![], vec![])
             }
-            Some(super::Continuation::CodexSdk { items, mcp_connection, .. }) => {
-                (vec![], vec![], items, vec![], mcp_connection)
+            Some(super::Continuation::CodexSdk { items, .. }) => {
+                (vec![], vec![], items, vec![])
             }
-            Some(super::Continuation::Mock { items, mcp_connection, .. }) => {
-                (vec![], vec![], vec![], items, mcp_connection)
+            Some(super::Continuation::Mock { items, .. }) => {
+                (vec![], vec![], vec![], items)
             }
-            None => (vec![], vec![], vec![], vec![], None),
+            None => (vec![], vec![], vec![], vec![]),
         };
 
         // 3. Always resolve agents from params.agent.
@@ -485,22 +506,17 @@ where
                 .map_err(|e: std::io::Error| super::Error::McpProxyBootstrap(e.to_string()))?
         };
         let proxy_url = proxy_handle.url.clone();
+        // This request's dropper: invoked at lock-in (drop the non-selected
+        // agent options) and after the winner's final chunk (drop its own
+        // response id). See `spawn_drop_losers` + the terminal block in
+        // `run_agent_loop`.
+        let dropper = proxy_handle.dropper.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
         let default_mcp_auth_owned = self.mcp_authorization.clone();
-        let internal_conn_for_resume = internal_conn.clone();
-        // Client-side resume path: the wire continuation carries the
-        // proxy session id (≤1 — one proxy per request). The proxy is now
-        // per-request on an ephemeral port, so we no longer key by
-        // `proxy_url` (it changes every turn); take the single recorded
-        // session id and hand it to the fresh proxy, whose decrypt+
-        // reconnect path re-dials every upstream (the `ws://…` URLs in the
-        // AEAD payload are stable) over this turn's reverse channel —
-        // keeping upstream MCP sessions (and tool subprocess
-        // `MCP_SESSION_ID`s) stable across continuation turns.
-        let wire_proxy_session_id: Option<String> = request_continuation
-            .as_ref()
-            .and_then(|rc| rc.mcp_sessions().values().next().cloned());
+        // Every turn opens a FRESH proxy connection — no MCP session id is
+        // resumed (it's no longer carried in the continuation), so the proxy
+        // mints a new session and re-dials its upstreams each turn.
 
         // Per-agent reverse-attach registration. For every surviving
         // agent that declares `client_objectiveai_mcp`, register that
@@ -524,15 +540,10 @@ where
         //   `ReverseAttachGuard::drop` removes every registered id
         //   when the WS closes.
         // - **Continuations.** Each turn mints a fresh response_id and
-        //   re-registers. Cross-turn upstream-session stability is
-        //   handled by the proxy's own `Mcp-Session-Id` + the
-        //   continuation's `mcp_sessions[proxy_url]` map (the proxy
-        //   reuses its in-memory `Session` and overwrites cached
-        //   transient headers with the new turn's response_id via
-        //   `apply_transient_headers` before any reused-connection
-        //   request goes out). The api-side registry key is
-        //   deliberately a per-turn value because that's what
-        //   `apply_transient_headers` keeps fresh.
+        //   opens a FRESH proxy connection — no MCP session id is carried
+        //   across turns, so the proxy mints a new session and re-dials its
+        //   upstreams every turn. Nothing cross-turn keys off the MCP
+        //   session id anymore.
         // A CLI-hosted MCP (`client_objectiveai_mcp`) needs this request's
         // reverse channel (the WS). No per-agent registration: the
         // per-request proxy holds the channel directly — there's no
@@ -638,11 +649,8 @@ where
                 };
                 urls.extend(client_mcp_synthetic_urls.iter().map(|(u, _)| u.clone()));
 
-                // No MCP servers → no proxy
-                // connection needed for this agent. Skipping the spawn
-                // also keeps the per-agent proxy session out of the
-                // response continuation's `mcp_sessions` map for
-                // requests that don't use MCP at all.
+                // No MCP servers → no proxy connection needed for this
+                // agent; skip the spawn.
                 if urls.is_empty() {
                     return None;
                 }
@@ -775,23 +783,16 @@ where
                 // Resume the proxy session if we're continuing — the
                 // upstream sessions already live behind it. Prefer the
                 // internal continuation (server-side retry; in-memory
-                // Connection still warm) over the wire continuation
-                // (client-side resume; only the encoded session id is
-                // available — proxy reconstructs upstreams via its
-                // AEAD payload).
-                let session_id = internal_conn_for_resume
-                    .as_ref()
-                    .map(|c| c.session_id.clone())
-                    .or_else(|| wire_proxy_session_id.clone());
                 // Per-agent spawn: connect to the proxy. Every agent's
                 // task runs concurrently with every other agent's, so
                 // the proxy `initialize` round-trips fan out in
                 // parallel.
                 //
                 // Plugin MCP upstreams are NOT dialed here — the CLI
-                // dials them inside its `initialize` handler so each
-                // upstream gets the proxy-supplied aggregate session
-                // id for resume on continuation.
+                // dials them inside its `initialize` handler.
+                //
+                // `session_id` is `None`: we never resume a prior proxy
+                // session, so the proxy mints a fresh one every turn.
                 //
                 // No `list_tools` round-trip: presence of the agent's
                 // declared `client_objectiveai_mcp` tools/plugins is
@@ -807,7 +808,7 @@ where
                 // shared-ref error shape uniformly.
                 Some(tokio::spawn(async move {
                     let conn = mcp_client
-                        .connect(proxy_url, session_id, Some(proxy_request_headers))
+                        .connect(proxy_url, None, Some(proxy_request_headers))
                         .await
                         .map_err(std::sync::Arc::new)?;
                     Ok::<_, std::sync::Arc<objectiveai_sdk::mcp::Error>>(conn)
@@ -855,6 +856,10 @@ where
                 id,
             })
             .collect();
+        // Every candidate's response id, captured before the loop borrows
+        // `attempts` mutably — used to drop the non-winner options at
+        // lock-in (`response_ids` itself was moved into `attempts` above).
+        let all_response_ids: Vec<String> = attempts.iter().map(|a| a.id.clone()).collect();
         // Slot of resolved-or-None per attempt — populated lazily on
         // first awaited iteration of the retry loop, reused across
         // backoff retries so we don't re-issue the connect.
@@ -939,7 +944,6 @@ where
                 for byok_attempt in &byok_attempts {
                     let err = match &attempt.agent {
                         objectiveai_sdk::agent::InlineAgent::Openrouter(or_agent) => {
-                            let c = mcp_connection.clone();
                             let rc = match &request_continuation {
                                 Some(objectiveai_sdk::agent::Continuation::Openrouter(c)) => Some(c),
                                 _ => None,
@@ -953,7 +957,7 @@ where
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Openrouter {
-                                        items, mcp_connection: c, agent_instance_hierarchy,
+                                        items, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamOpenrouter(Box::new(e)),
@@ -966,12 +970,16 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
                         objectiveai_sdk::agent::InlineAgent::ClaudeAgentSdk(cas_agent) => {
-                            let c = mcp_connection.clone();
                             let rc = match &request_continuation {
                                 Some(objectiveai_sdk::agent::Continuation::ClaudeAgentSdk(c)) => Some(c),
                                 _ => None,
@@ -985,7 +993,7 @@ where
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::ClaudeAgentSdk {
-                                        items, mcp_connection: c, agent_instance_hierarchy,
+                                        items, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamClaudeAgentSdk(Box::new(e)),
@@ -998,12 +1006,16 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
                         objectiveai_sdk::agent::InlineAgent::CodexSdk(cdx_agent) => {
-                            let c = mcp_connection.clone();
                             let rc = match &request_continuation {
                                 Some(objectiveai_sdk::agent::Continuation::CodexSdk(c)) => Some(c),
                                 _ => None,
@@ -1017,7 +1029,7 @@ where
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::CodexSdk {
-                                        items, mcp_connection: c, agent_instance_hierarchy,
+                                        items, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamCodexSdk(Box::new(e)),
@@ -1030,12 +1042,16 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
                         objectiveai_sdk::agent::InlineAgent::Mock(mock_agent) => {
-                            let c = mcp_connection.clone();
                             let rc = match &request_continuation {
                                 Some(objectiveai_sdk::agent::Continuation::Mock(c)) => Some(c),
                                 _ => None,
@@ -1049,7 +1065,7 @@ where
                                 {
                                     let agent_instance_hierarchy = attempt.agent_instance_hierarchy.clone();
                                     move |items| super::Continuation::Mock {
-                                        items, mcp_connection: c, agent_instance_hierarchy,
+                                        items, agent_instance_hierarchy,
                                     }
                                 },
                                 |e| super::Error::UpstreamMock(Box::new(e)),
@@ -1062,7 +1078,12 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
@@ -1658,22 +1679,11 @@ where
                 }
             }
 
-            // Build MCP sessions map. With the per-agent proxy connection,
-            // this is at most one entry: `proxy_url → agent_session_id`.
-            let mcp_sessions: IndexMap<String, String> = mcp_connection
-                .as_ref()
-                .map(|c| {
-                    let mut m = IndexMap::new();
-                    m.insert(c.url.clone(), c.session_id.clone());
-                    m
-                })
-                .unwrap_or_default();
-
             // Build response continuation token. The upstream stamps
             // `agent_instance_hierarchy` on the returned continuation
-            // itself — no post-stamp from the orchestrator.
+            // itself — no post-stamp from the orchestrator. No MCP session
+            // id is carried across turns (every turn connects fresh).
             let response_cont = upstream.response_continuation(
-                mcp_sessions,
                 request_continuation.as_ref(),
                 &messages,
                 Some(&continuation_items),

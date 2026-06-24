@@ -6,12 +6,13 @@
 # .logs/tests/<sdk>-tests-<timestamp>.txt, waits for them, and
 # aggregates exit codes: 0 iff all passed, 1 if any failed.
 #
-# The SDK test.sh scripts require OBJECTIVEAI_ADDRESS (a running API
-# server's base URL); this wrapper passes the environment through
-# unchanged.
+# These are the SDKs' offline UNIT tests (merge/push, schema roundtrip,
+# coverage) — they need no server. The HTTP/snapshot tests that required a
+# running server moved to the integration suite as standalone importer
+# projects under tests/objectiveai-sdk-*-tests (run by test-integration.sh).
 #
 # Usage:
-#   OBJECTIVEAI_ADDRESS=http://127.0.0.1:8080 bash test-sdk.sh
+#   bash test-sdk.sh
 
 set -uo pipefail
 

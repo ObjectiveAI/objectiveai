@@ -2256,7 +2256,6 @@ async fn test_request_continuation_messages_come_first() {
                 reasoning: None,
             }),
         ],
-        mcp_sessions: indexmap::IndexMap::new(),
     };
 
     let result = ChatCompletionCreateParams::new(
@@ -2467,7 +2466,6 @@ async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
         messages: vec![Message::User(UserMessage {
             content: RichContent::Text("Earlier".into()),
         })],
-        mcp_sessions: indexmap::IndexMap::new(),
     };
 
     let result = ChatCompletionCreateParams::new(

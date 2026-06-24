@@ -97,7 +97,6 @@ async fn duplicate_server_names_routed_across_turns() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(SEED),
-            skip_lock: None,
         }),
         base: Default::default(),
     };

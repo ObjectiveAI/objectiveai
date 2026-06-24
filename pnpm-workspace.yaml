@@ -2,3 +2,4 @@ packages:
   - objectiveai-sdk-js
   - objectiveai-web
   - objectiveai-viewer
+  - tests/objectiveai-sdk-js-tests

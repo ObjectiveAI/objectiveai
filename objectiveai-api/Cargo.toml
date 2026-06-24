@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-api"
-version = "2.2.6"
+version = "2.2.7"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
@@ -24,8 +24,8 @@ include = [
 ]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.6", default-features = false, features = ["http", "mcp", "lockfile", "subprocess-reaper"] }
-objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.2.6" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.7", default-features = false, features = ["http", "mcp", "lockfile", "subprocess-reaper"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.2.7" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
@@ -56,8 +56,8 @@ git2 = { version = "0.20.4", default-features = false, features = ["vendored-lib
 dirs = "6.0.0"
 twox-hash = { version = "2.1.2" }
 base62 = { version = "2.2.4" }
-tokio-util = { version = "0.7.18", features = ["io"] }
-rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+tokio-util = { version = "0.7.18", features = ["io", "rt"] }
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 futures-util = { version = "0.3.32" }
 base64 = { version = "0.22.1" }
 tempfile = { version = "3.27.0" }

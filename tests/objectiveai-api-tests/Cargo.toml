@@ -16,7 +16,7 @@ tokio = { version = "1.50.0", features = ["full"] }
 futures = "0.3.32"
 reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json"] }
 regex = "1.12.3"
-rmcp = { version = "0.16.0", features = ["server", "transport-streamable-http-server"] }
+rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 dunce = "1.0.5"
 walkdir = "2.5.0"
 axum = "0.8.8"

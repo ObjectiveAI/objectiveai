@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.plugins.logs.list.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "plugins/logs/list/response_schema"
+  ]
+}

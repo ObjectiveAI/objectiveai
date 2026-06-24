@@ -1,13 +1,14 @@
 //! `HangPreventingBinaryCommandExecutor` — a wrapping
-//! [`CommandExecutor`] that aborts the wrapped cli child when its
-//! `the test's state dir` goes quiet for [`HANG_TIMEOUT`]. Drop-in for
+//! [`CommandExecutor`] that aborts the wrapped cli child when the
+//! `objectiveai dir` goes quiet for [`HANG_TIMEOUT`]. Drop-in for
 //! integration tests so a stuck cli child doesn't wedge nextest's
 //! per-binary slot indefinitely.
 //!
 //! ## Activity definition
 //!
-//! "Activity" is any `notify` event on `the test's state dir` (recursive).
-//! Recursive on Windows + Linux + macOS via `notify::recommended_watcher`.
+//! "Activity" is any `notify` event on the whole `objectiveai dir`
+//! (recursive) — state, on-disk logs, AND `<bin>/cache`. Recursive on
+//! Windows + Linux + macOS via `notify::recommended_watcher`.
 //!
 //! ## Timeout shape
 //!
@@ -16,7 +17,7 @@
 //! stream. Every event resets the sleep clock; a fired sleep aborts
 //! the work. We replace the per-agent unix-socket event stream with a
 //! `notify` watcher that produces generic filesystem events on the
-//! whole `the test's state dir`.
+//! whole `objectiveai dir`.
 //!
 //! ## Kill semantics
 //!
@@ -41,19 +42,19 @@ use objectiveai_sdk::cli::command::{
 use tokio::sync::mpsc;
 use tokio::time::Instant;
 
-/// Hardcoded inactivity threshold. If `the test's state dir` sees no
+/// Hardcoded inactivity threshold. If the `objectiveai dir` sees no
 /// filesystem activity for this duration, the wrapped cli child is
 /// terminated. Bumped to a constant rather than a constructor
 /// parameter for v1 — the value rarely needs to change per call.
 ///
-/// Set to 180s (not 60s) to tolerate the embedded-Python `python`
-/// command's first-use cost: it JIT-compiles the ~60 MB RustPython wasm
-/// into `<bin>/cache/*.cwasm`, a ~1 min cold compile that writes ONLY
-/// under `<bin>/cache` — never a test's state dir — so the watchdog sees
-/// no activity throughout. Parallel `python` tests racing that cold
-/// compile under CPU contention can each exceed 60s; 180s clears it
-/// while still bounding a genuine hang.
-pub const HANG_TIMEOUT: Duration = Duration::from_secs(180);
+/// 120s tolerates the embedded-Python `python` command's first-use cost:
+/// it JIT-compiles the ~60 MB RustPython wasm into `<bin>/cache/*.cwasm`,
+/// a ~1 min cold compile. Because the watchdog watches the whole
+/// `objectiveai dir` (not just a test's state dir), those `<bin>/cache`
+/// writes DO count as activity and keep resetting the clock during the
+/// compile — so 120s comfortably clears it while still bounding a genuine
+/// hang.
+pub const HANG_TIMEOUT: Duration = Duration::from_secs(120);
 
 /// Errors surfaced by [`HangPreventingBinaryCommandExecutor`]. Either
 /// the wrapped [`BinaryExecutor`]'s own error pass-through, or our
@@ -63,40 +64,40 @@ pub enum Error {
     #[error("{0}")]
     Inner(#[from] objectiveai_sdk::cli::command::binary::Error),
     #[error(
-        "cli child went silent on the test's state dir ({state_dir}) for {elapsed:?} — \
+        "cli child went silent on the objectiveai dir ({watch_dir}) for {elapsed:?} — \
          hang-preventing watchdog killed the child"
     )]
     HangTimeout {
         elapsed: Duration,
-        state_dir: PathBuf,
+        watch_dir: PathBuf,
     },
     /// Failed to construct or attach the `notify` filesystem watcher.
     /// Surfaces as a test-side error rather than panicking so the
     /// test reports cleanly.
-    #[error("hang-prevention fs watcher setup failed for {state_dir}: {source}")]
+    #[error("hang-prevention fs watcher setup failed for {watch_dir}: {source}")]
     WatcherSetup {
-        state_dir: PathBuf,
+        watch_dir: PathBuf,
         #[source]
         source: notify::Error,
     },
 }
 
-/// Wraps a [`BinaryExecutor`] with a `the test's state dir` inactivity
+/// Wraps a [`BinaryExecutor`] with an `objectiveai dir` inactivity
 /// watchdog. Construct via [`Self::new`]; the wrapped executor is
 /// internally forced to `kill_on_drop(true)`.
 pub struct HangPreventingBinaryCommandExecutor {
     inner: BinaryExecutor,
-    state_dir: PathBuf,
+    watch_dir: PathBuf,
 }
 
 impl HangPreventingBinaryCommandExecutor {
     /// Wrap an inner [`BinaryExecutor`]. The inner is forced to
     /// `kill_on_drop(true)` so dropping the inner stream tears the
     /// cli child down when the watchdog fires.
-    pub fn new(inner: BinaryExecutor, state_dir: PathBuf) -> Self {
+    pub fn new(inner: BinaryExecutor, watch_dir: PathBuf) -> Self {
         Self {
             inner: inner.kill_on_drop(true),
-            state_dir,
+            watch_dir,
         }
     }
 
@@ -140,7 +141,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             >,
         > = self.inner.execute::<R, T>(request, agent_arguments).await?;
 
-        let state_dir = self.state_dir.clone();
+        let watch_dir = self.watch_dir.clone();
         let (out_tx, out_rx) = mpsc::channel::<Result<T, Error>>(16);
         let (notify_tx, notify_rx) =
             mpsc::unbounded_channel::<notify::Result<notify::Event>>();
@@ -151,13 +152,13 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             },
         )
         .map_err(|e| Error::WatcherSetup {
-            state_dir: state_dir.clone(),
+            watch_dir: watch_dir.clone(),
             source: e,
         })?;
         watcher
-            .watch(&state_dir, RecursiveMode::Recursive)
+            .watch(&watch_dir, RecursiveMode::Recursive)
             .map_err(|e| Error::WatcherSetup {
-                state_dir: state_dir.clone(),
+                watch_dir: watch_dir.clone(),
                 source: e,
             })?;
 
@@ -165,7 +166,7 @@ impl CommandExecutor for HangPreventingBinaryCommandExecutor {
             inner_stream,
             out_tx,
             notify_rx,
-            state_dir,
+            watch_dir,
             watcher,
         ));
 
@@ -204,7 +205,7 @@ async fn watchdog_task<T>(
     >,
     out_tx: mpsc::Sender<Result<T, Error>>,
     mut notify_rx: mpsc::UnboundedReceiver<notify::Result<notify::Event>>,
-    state_dir: PathBuf,
+    watch_dir: PathBuf,
     _watcher: notify::RecommendedWatcher,
 ) where
     T: Send + 'static,
@@ -221,7 +222,7 @@ async fn watchdog_task<T>(
                 let _ = out_tx
                     .send(Err(Error::HangTimeout {
                         elapsed: started.elapsed(),
-                        state_dir,
+                        watch_dir,
                     }))
                     .await;
                 return;

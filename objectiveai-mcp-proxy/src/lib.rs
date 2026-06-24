@@ -4,6 +4,7 @@
 //! spawn the proxy in-process; the binary at `main.rs` is a thin wrapper
 //! that reads `Config` from the environment and calls [`run`].
 
+mod dropper;
 mod logging;
 mod mcp;
 mod queue_delegate;
@@ -34,8 +35,13 @@ pub struct AppState {
     /// WS at [`setup`] time; `None` for the standalone proxy, which then
     /// serves HTTP upstreams only (a `ws://` upstream errors at connect).
     pub reverse_channel: Option<ReverseChannel>,
+    /// Optional dropper. `Some` when an embedder wires one in at
+    /// [`setup`] time; `handle_initialize` then checks its banned set so
+    /// a dropped response id is never (re)admitted. `None` → no banning.
+    pub dropper: Option<Dropper>,
 }
 
+pub use dropper::Dropper;
 pub use queue_delegate::{QueueDelegate, QueueRead};
 pub use reverse_channel::ReverseChannel;
 pub use run::*;

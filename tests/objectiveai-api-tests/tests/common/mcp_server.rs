@@ -13,12 +13,14 @@ use std::sync::Arc;
 
 use futures::FutureExt;
 use rmcp::{
-    ServerHandler,
+    RoleServer, ServerHandler,
     handler::server::router::tool::{ToolRoute, ToolRouter},
     handler::server::tool::ToolCallContext,
     model::{
-        CallToolResult, Content, ServerCapabilities, ServerInfo, Tool as RmcpTool,
+        CallToolRequestParams, CallToolResult, Content, ListToolsResult,
+        PaginatedRequestParams, ServerCapabilities, ServerInfo, Tool as RmcpTool,
     },
+    service::RequestContext,
     transport::streamable_http_server::{
         StreamableHttpServerConfig, StreamableHttpService,
         session::local::LocalSessionManager,
@@ -91,17 +93,14 @@ impl TestMcp {
                 m
             };
 
-            let tool_def = RmcpTool {
-                name: Cow::Owned(t.tool.name),
-                title: t.tool.title,
-                description: t.tool.description.map(Cow::Owned),
-                input_schema: Arc::new(input_schema),
-                output_schema: None,
-                annotations: None,
-                execution: None,
-                icons: None,
-                meta: None,
-            };
+            // rmcp 1.7 marks `Tool` `#[non_exhaustive]` — build via Default
+            // + field assignment. (output_schema/annotations/execution/
+            // icons/meta default to None.)
+            let mut tool_def = RmcpTool::default();
+            tool_def.name = Cow::Owned(t.tool.name);
+            tool_def.title = t.tool.title;
+            tool_def.description = t.tool.description.map(Cow::Owned);
+            tool_def.input_schema = Arc::new(input_schema);
 
             let call_fn = t.call.clone();
             tool_router.add_route(ToolRoute::new_dyn(
@@ -129,22 +128,38 @@ impl TestMcp {
     }
 }
 
-#[rmcp::tool_handler]
+// Manual `ServerHandler` (not `#[tool_handler]`): the router is built
+// dynamically at runtime via `ToolRouter::new()` + `add_route`, so there is
+// no `#[tool_router]`-generated `Self::tool_router()` for the macro to call.
+// list_tools/call_tool delegate to the field directly.
 impl ServerHandler for TestMcp {
     fn get_info(&self) -> ServerInfo {
-        ServerInfo {
-            instructions: Some("ObjectiveAI test MCP server".into()),
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
-            server_info: rmcp::model::Implementation {
-                name: self.name.clone(),
-                title: None,
-                version: "0.0.0".into(),
-                description: None,
-                icons: None,
-                website_url: None,
-            },
-            ..Default::default()
-        }
+        // rmcp 1.7 marks `ServerInfo`/`Implementation` `#[non_exhaustive]`.
+        let mut server_info = rmcp::model::Implementation::default();
+        server_info.name = self.name.clone();
+        server_info.version = "0.0.0".into();
+        let mut info = ServerInfo::default();
+        info.instructions = Some("ObjectiveAI test MCP server".into());
+        info.capabilities = ServerCapabilities::builder().enable_tools().build();
+        info.server_info = server_info;
+        info
+    }
+
+    async fn list_tools(
+        &self,
+        _request: Option<PaginatedRequestParams>,
+        _context: RequestContext<RoleServer>,
+    ) -> Result<ListToolsResult, rmcp::ErrorData> {
+        Ok(ListToolsResult::with_all_items(self.tool_router.list_all()))
+    }
+
+    async fn call_tool(
+        &self,
+        request: CallToolRequestParams,
+        context: RequestContext<RoleServer>,
+    ) -> Result<CallToolResult, rmcp::ErrorData> {
+        let tcc = ToolCallContext::new(self, request, context);
+        self.tool_router.call(tcc).await
     }
 }
 
@@ -174,11 +189,14 @@ pub async fn spawn(name: impl Into<String>, tools: Vec<TestTool>) -> TestMcpServ
             StreamableHttpService::new(
                 move || Ok(mcp.clone()),
                 Default::default(),
-                StreamableHttpServerConfig {
-                    stateful_mode: true,
-                    sse_keep_alive: None,
-                    cancellation_token: ct_child,
-                    ..Default::default()
+                {
+                    // rmcp 1.7 marks `StreamableHttpServerConfig`
+                    // `#[non_exhaustive]`.
+                    let mut cfg = StreamableHttpServerConfig::default();
+                    cfg.stateful_mode = true;
+                    cfg.sse_keep_alive = None;
+                    cfg.cancellation_token = ct_child;
+                    cfg
                 },
             );
 

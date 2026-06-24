@@ -876,9 +876,15 @@ async fn fetch_content_parts_for_queue_id(
 ///
 /// ABSENT tag rows (no `tags` row at all) are filtered out at the
 /// SQL level — there is nothing to wake or materialize for them.
+///
+/// `keys`, when non-empty, restricts the result to targets that have
+/// an active pending row whose `key` is one of `keys`. Empty `keys`
+/// applies no key filter (every pending target is returned). A row
+/// with a NULL `key` only matches when `keys` is empty.
 pub async fn list_delivery_targets(
     pool: &Pool,
     parent: &str,
+    keys: &[String],
 ) -> Result<Vec<DeliveryTarget>, Error> {
     let pattern = format!("{parent}/%");
     let hier_rows = sqlx::query(
@@ -888,7 +894,9 @@ pub async fn list_delivery_targets(
          LEFT JOIN objectiveai.tags t \
              ON p.agent_tag = t.name \
              AND t.agent_instance_hierarchy IS NOT NULL \
-         WHERE p.active = TRUE AND ( \
+         WHERE p.active = TRUE \
+         AND (cardinality($3::text[]) = 0 OR p.key = ANY($3::text[])) \
+         AND ( \
              /* Direct row: target hierarchy in subtree (inclusive). */ \
              ( \
                  p.agent_instance_hierarchy IS NOT NULL \
@@ -911,6 +919,7 @@ pub async fn list_delivery_targets(
     )
     .bind(parent)
     .bind(&pattern)
+    .bind(keys)
     .fetch_all(&**pool)
     .await?;
     let tag_rows = sqlx::query(
@@ -921,7 +930,9 @@ pub async fn list_delivery_targets(
              AND t.tag_group IS NOT NULL \
          JOIN objectiveai.tag_groups g \
              ON g.id = t.tag_group \
-         WHERE p.active = TRUE AND ( \
+         WHERE p.active = TRUE \
+         AND (cardinality($3::text[]) = 0 OR p.key = ANY($3::text[])) \
+         AND ( \
              g.parent_agent_instance_hierarchy = $1 \
              OR g.parent_agent_instance_hierarchy LIKE $2 \
          ) \
@@ -929,6 +940,7 @@ pub async fn list_delivery_targets(
     )
     .bind(parent)
     .bind(&pattern)
+    .bind(keys)
     .fetch_all(&**pool)
     .await?;
     let mut out = Vec::with_capacity(hier_rows.len() + tag_rows.len());
