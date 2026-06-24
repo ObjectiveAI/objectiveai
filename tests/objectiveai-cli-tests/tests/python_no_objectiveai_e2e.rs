@@ -98,7 +98,6 @@ async fn no_objectiveai_auto_for_python_transform() {
         dangerous_advanced: Some(RequestDangerousAdvanced {
             stream: Some(true),
             seed: Some(1),
-            skip_lock: None,
         }),
         // A per-item python transform — the cli auto-applies
         // `--no-objectiveai` to it, so this `objectiveai.execute` raises.

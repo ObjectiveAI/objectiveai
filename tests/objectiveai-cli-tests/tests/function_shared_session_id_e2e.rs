@@ -203,7 +203,6 @@ async fn shared_mcp_session_preserves_per_agent_identity_with_resumption() {
                 dangerous_advanced: Some(SpawnDangerousAdvanced {
                     stream: Some(true),
                     seed: Some(seed),
-                    skip_lock: None,
                 }),
                 base: Default::default(),
             };
