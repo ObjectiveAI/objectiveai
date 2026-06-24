@@ -44,7 +44,7 @@ const SOCKET_ERR_CODE: i64 = -32099;
 /// `resources/list`, `resources/read`); the op's params are flattened
 /// alongside (newtype-of-struct flatten). The `response_id` is NOT on
 /// the wire — the listener supplies it from the socket's filename.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "path")]
 pub enum SocketRequest {
     #[serde(rename = "tools/list")]
@@ -61,7 +61,7 @@ pub enum SocketRequest {
 /// `value` is the embedded MCP result as-is (one of the four result
 /// types); on failure `value` is `{code, message}`. No transport
 /// envelope, no JSON-RPC `data`.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 #[serde(tag = "type", content = "value", rename_all = "snake_case")]
 pub enum SocketResponse<R> {
     Ok(R),
@@ -69,7 +69,7 @@ pub enum SocketResponse<R> {
 }
 
 /// MCP error object embedded in [`SocketResponse::Err`].
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct McpError {
     pub code: i64,
     pub message: String,
@@ -80,6 +80,35 @@ pub struct McpError {
 /// the `<state>/locks` layout in [`crate::command::agents::locks`].
 pub fn socks_dir(state_dir: &Path) -> PathBuf {
     state_dir.join("socks")
+}
+
+/// Client side of the protocol: connect to `<state>/socks/<response_id>.sock`,
+/// send one [`SocketRequest`] line, read one [`SocketResponse`] line back.
+/// The inverse of [`handle_conn`]; same `\n`-delimited, one-shot protocol.
+///
+/// A connect failure (the spawning process isn't running, or no listener
+/// for this `response_id`) or a malformed reply surfaces as `io::Error`.
+pub async fn call_socket<R: serde::de::DeserializeOwned>(
+    state_dir: &Path,
+    response_id: &str,
+    request: &SocketRequest,
+) -> std::io::Result<SocketResponse<R>> {
+    let path = socks_dir(state_dir).join(format!("{response_id}.sock"));
+    let name = path.to_fs_name::<GenericFilePath>()?;
+    let conn = LocalSocketStream::connect(name).await?;
+    let (read_half, mut write_half) = tokio::io::split(conn);
+
+    let line = serde_json::to_string(request)
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+    write_half.write_all(line.as_bytes()).await?;
+    write_half.write_all(b"\n").await?;
+    write_half.flush().await?;
+
+    let mut reader = BufReader::new(read_half);
+    let mut reply = String::new();
+    reader.read_line(&mut reply).await?;
+    serde_json::from_str::<SocketResponse<R>>(reply.trim())
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))
 }
 
 /// Bind `<state>/socks/<response_id>.sock` and forward every request
