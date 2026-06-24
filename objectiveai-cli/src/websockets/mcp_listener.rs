@@ -108,11 +108,14 @@ fn socket_name(
 ) -> std::io::Result<Name<'static>> {
     use std::hash::{Hash, Hasher};
     // Named pipes are machine-global (no per-state filesystem dir), so
-    // fold the per-state dir into the name to preserve the same
-    // isolation the Unix `<state>/socks/` path gives. `DefaultHasher` is
-    // deterministic, so the listener and client derive the same name.
+    // fold the state NAME into the pipe name to preserve the per-state
+    // isolation the Unix `<state>/socks/` path gives. Hash the state
+    // name only (the final path component), not the absolute path, so
+    // the same state maps to the same pipe across machines.
+    // `DefaultHasher` is deterministic, so the listener and client
+    // derive the same name.
     let mut hasher = std::collections::hash_map::DefaultHasher::new();
-    state_dir.hash(&mut hasher);
+    state_dir.file_name().hash(&mut hasher);
     let state = hasher.finish();
     format!("objectiveai-{state:016x}-{response_id}.sock")
         .to_ns_name::<GenericNamespaced>()
