@@ -57,15 +57,6 @@ pub struct RequestDangerousAdvanced {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub seed: Option<i64>,
-    /// `Some(true)` → skip the INITIAL agent/tag lock acquisition
-    /// at stream start. Set by `agents message` after transferring
-    /// its own claim into this process (re-acquiring would fail
-    /// against the very handles this process inherited; the lock
-    /// lives until this process exits). Mid-stream best-effort AIH
-    /// claims are unaffected by this flag.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub skip_lock: Option<bool>,
 }
 
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
