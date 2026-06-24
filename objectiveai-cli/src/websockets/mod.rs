@@ -17,8 +17,12 @@
 //! - [`agent_hierarchies`] — recursive iterator trait that yields
 //!   every `agent_instance_hierarchy` referenced by a chunk; used
 //!   by the per-chunk claim hook.
+//! - [`mcp_listener`] — per-`response_id` local-socket MCP endpoint
+//!   that forwards ops to the API over the chunk-stream WS; spawned
+//!   the first time a chunk surfaces a given agent-completion id.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
+pub mod mcp_listener;
 pub mod mcp_server;
