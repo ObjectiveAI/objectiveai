@@ -237,6 +237,7 @@ impl McpHandler for ConduitMcpHandler {
             server_request::Payload::Retrieve(req) => {
                 dispatch_retrieve(&self.inner, req).await
             }
+            server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
         };
 
         server_response::Response { id, payload }
@@ -459,6 +460,23 @@ async fn dispatch_session_terminate(
             },
         },
     }
+}
+
+/// `Drop`: forceful bulk teardown of every upstream connection for one
+/// objectiveai response id. Removes the whole response-id bucket from the
+/// registry; dropping it drops every `Arc<ConduitState>` under it, which
+/// tears down each MCP connection and kills each plugin subprocess (see
+/// `ConduitState`'s `Drop`). Idempotent — `dropped` reports whether a
+/// bucket was actually present. The id comes from the payload, not the
+/// headers, and no transient headers are required. Infallible.
+fn dispatch_drop(
+    inner: &Arc<Inner>,
+    req: server_request::DropRequest,
+) -> server_response::Payload {
+    // The removed inner map (if any) drops here, dropping every
+    // `Arc<ConduitState>` under this response id.
+    let dropped = inner.connections.remove(&req.response_id).is_some();
+    server_response::Payload::Drop(server_response::DropResult { dropped })
 }
 
 async fn dispatch_tools_list(

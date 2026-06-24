@@ -79,6 +79,16 @@ pub enum Payload {
     /// (agent / swarm / function / profile). Non-MCP — no `mcp_kind`.
     #[schemars(title = "Retrieve")]
     Retrieve(super::super::retrieve::Request),
+
+    /// Forceful bulk teardown of every upstream connection for one
+    /// objectiveai response id. Non-MCP — no `mcp_kind` (it spans all
+    /// kinds for that response id). The CLI removes the whole
+    /// response-id bucket from its connection registry, which drops
+    /// every connection and kills every plugin subprocess under it.
+    /// Distinct from `SessionTerminate` (graceful per-`mcp_kind` MCP
+    /// `DELETE`); `Drop` is drop = kill.
+    #[schemars(title = "Drop")]
+    Drop(DropRequest),
 }
 
 impl Payload {
@@ -93,7 +103,7 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) => None,
+            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) | Payload::Drop(_) => None,
         }
     }
 }
@@ -121,6 +131,16 @@ impl Payload {
 #[schemars(rename = "client_objectiveai_mcp.server_request.ReadMessageQueueRequest")]
 pub struct ReadMessageQueueRequest {
     pub agent_instance_hierarchy: String,
+}
+
+/// Parameters for [`Payload::Drop`]. The objectiveai response id whose
+/// entire upstream-connection bucket the CLI should tear down. The id
+/// rides in the payload (not a header) because `Drop` is a control
+/// message identified solely by its argument.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.DropRequest")]
+pub struct DropRequest {
+    pub response_id: String,
 }
 
 /// Parameters for [`Payload::Initialize`].

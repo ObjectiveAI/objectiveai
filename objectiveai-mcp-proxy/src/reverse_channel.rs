@@ -589,5 +589,6 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::SessionTerminate { .. } => "session_terminate",
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
+        P::Drop(_) => "drop",
     }
 }
