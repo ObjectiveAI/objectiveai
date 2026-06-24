@@ -10,6 +10,7 @@ from objectiveai_sdk.cli.command.plugins.install.request import Request as CliCo
 from objectiveai_sdk.cli.command.plugins.list.request import Request as CliCommandPluginsListRequest
 from objectiveai_sdk.cli.command.plugins.list.request_schema.request import Request as CliCommandPluginsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.plugins.list.response_schema.request import Request as CliCommandPluginsListResponseSchemaRequest
+from objectiveai_sdk.cli.command.plugins.logs.request import Request as CliCommandPluginsLogsRequest
 from objectiveai_sdk.cli.command.plugins.run.request import Request as CliCommandPluginsRunRequest
 from objectiveai_sdk.cli.command.plugins.run.request_schema.request import Request as CliCommandPluginsRunRequestSchemaRequest
 from objectiveai_sdk.cli.command.plugins.run.response_schema.request import Request as CliCommandPluginsRunResponseSchemaRequest
@@ -57,6 +58,12 @@ class RequestListResponseSchema(RootModel):
     root: CliCommandPluginsListResponseSchemaRequest
 
 
+class RequestLogs(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Logs'})
+
+    root: CliCommandPluginsLogsRequest
+
+
 class RequestRun(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Run'})
 
@@ -78,5 +85,5 @@ class RequestRunResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.plugins.Request')
 
-    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
+    root: Union[RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstall, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestRun, RequestRunRequestSchema, RequestRunResponseSchema]
 
