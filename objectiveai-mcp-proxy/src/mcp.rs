@@ -350,6 +350,15 @@ async fn handle_initialize(
         Ok(id) => id,
         Err(resp) => return resp,
     };
+
+    // A dropped (banned) response id is never (re)admitted — skip the
+    // reuse/connect entirely. A banned id's session was already torn
+    // down, so the reuse path below wouldn't find it anyway; this also
+    // avoids a wasted upstream connect.
+    if state.dropper.as_ref().is_some_and(|d| d.is_banned(&response_id)) {
+        return invalid_request_response(request.id, "response id has been dropped".to_string());
+    }
+
     let mcp_session_id = uuid::Uuid::new_v4().to_string();
 
     if let Some(session) = state.sessions.get(&response_id) {
@@ -385,6 +394,14 @@ async fn handle_initialize(
         }
     };
     state.sessions.add(response_id.clone(), connections);
+    // Race guard: a `drop` may have banned this id while we were
+    // connecting. We ban-then-check on the drop side and insert-then-
+    // check here, so one side always tears the session down. Teardown is
+    // idempotent.
+    if state.dropper.as_ref().is_some_and(|d| d.is_banned(&response_id)) {
+        crate::dropper::teardown(&response_id, &state.sessions, state.reverse_channel.as_ref()).await;
+        return invalid_request_response(request.id, "response id has been dropped".to_string());
+    }
     // Stamp the session-global transient headers extracted from the
     // inbound HeaderMap.
     if let Some(session) = state.sessions.get(&response_id) {

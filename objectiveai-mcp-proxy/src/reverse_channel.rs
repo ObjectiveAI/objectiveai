@@ -115,6 +115,19 @@ impl ReverseChannel {
         }
     }
 
+    /// Best-effort `Drop` server-request for `response_id`: tells the CLI
+    /// to tear down the whole response-id bucket (connections + plugin
+    /// subprocesses). The reply (`DropResult`) is discarded; transport
+    /// errors / timeouts are ignored — teardown is fire-and-forget.
+    pub(crate) async fn drop_response(&self, response_id: String) {
+        let _ = self
+            .request(
+                server_request::Payload::Drop(server_request::DropRequest { response_id }),
+                IndexMap::new(),
+            )
+            .await;
+    }
+
     /// Hand a proxy-bound `server_response` (one of the 6 MCP variants)
     /// back to the waiter that issued the matching request. Called by the
     /// API's recv loop. Unknown id → dropped.
@@ -371,6 +384,12 @@ pub enum Upstream {
 }
 
 impl Upstream {
+    /// Whether this upstream is reached over the `client_objectiveai_mcp`
+    /// reverse channel (a `ws://` upstream) rather than plain HTTP.
+    pub fn is_ws(&self) -> bool {
+        matches!(self, Upstream::Ws(_))
+    }
+
     pub fn url(&self) -> &str {
         match self {
             Upstream::Http(c) => &c.url,
