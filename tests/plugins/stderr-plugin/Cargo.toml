@@ -1,0 +1,9 @@
+[package]
+name = "stderr-plugin"
+version = "0.0.1"
+edition = "2024"
+publish = false
+
+[[bin]]
+name = "stderr-plugin"
+path = "src/main.rs"
