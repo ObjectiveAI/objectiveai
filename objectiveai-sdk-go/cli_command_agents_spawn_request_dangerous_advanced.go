@@ -8,13 +8,6 @@ type CliCommandAgentsSpawnRequestDangerousAdvanced struct {
 	// `AgentCompletionCreateParams.seed`. `None` here ⇒ the
 	// api picks; tests should always pin a value.
 	Seed *int64 `json:"seed,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
-	// `Some(true)` → skip the INITIAL agent/tag lock acquisition
-	// at stream start. Set by `agents message` after transferring
-	// its own claim into this process (re-acquiring would fail
-	// against the very handles this process inherited; the lock
-	// lives until this process exits). Mid-stream best-effort AIH
-	// claims are unaffected by this flag.
-	SkipLock *bool `json:"skip_lock,omitempty"`
 	Stream *bool `json:"stream,omitempty"`
 }
 
