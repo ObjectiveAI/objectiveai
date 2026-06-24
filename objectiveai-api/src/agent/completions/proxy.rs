@@ -18,6 +18,12 @@ use tokio_util::sync::{CancellationToken, DropGuard};
 /// owning context's last clone drops).
 pub struct ProxyHandle {
     pub url: String,
+    /// This request's dropper. The agent-completions client invokes it to
+    /// ban + tear down a `response_id`'s upstream connections (and CLI
+    /// plugin subprocesses) the moment they become unneeded — non-selected
+    /// agent options at lock-in, and the selected agent after its final
+    /// chunk. Wired into the proxy in [`objectiveai_mcp_proxy::setup`].
+    pub dropper: objectiveai_mcp_proxy::Dropper,
     _shutdown: DropGuard,
 }
 
@@ -89,8 +95,20 @@ impl ProxyFactory {
             tokio::sync::oneshot::channel::<std::io::Result<std::net::SocketAddr>>();
 
         let delegate: Arc<dyn objectiveai_mcp_proxy::QueueDelegate> = queue_delegate;
+        // This request's dropper. A clone is wired into the proxy via
+        // `setup`; the original is stashed on the returned handle so the
+        // agent-completions client can invoke it.
+        let dropper = objectiveai_mcp_proxy::Dropper::new();
+        let dropper_for_task = dropper.clone();
         let task = async move {
-            match objectiveai_mcp_proxy::setup(config, Some(delegate), reverse_channel).await {
+            match objectiveai_mcp_proxy::setup(
+                config,
+                Some(delegate),
+                reverse_channel,
+                Some(dropper_for_task),
+            )
+            .await
+            {
                 Ok((listener, router)) => {
                     let addr = listener.local_addr();
                     let send_result = match addr {
@@ -129,6 +147,7 @@ impl ProxyFactory {
 
         Ok(Arc::new(ProxyHandle {
             url: format!("http://{addr}"),
+            dropper,
             _shutdown: cancel.drop_guard(),
         }))
     }

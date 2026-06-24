@@ -50,6 +50,26 @@ fn filter_agents(
         .collect()
 }
 
+/// On agent lock-in, fire a best-effort proxy `drop` for every candidate
+/// `response_id` except the winner's. Each candidate's MCP connect was
+/// spawned up front, so a non-winner slot may hold a live proxy session
+/// (and CLI plugin subprocesses); banning + tearing it down reclaims those
+/// as soon as the option is abandoned. Orphan spawns — results discarded.
+fn spawn_drop_losers(
+    dropper: &objectiveai_mcp_proxy::Dropper,
+    response_ids: &[String],
+    winner: usize,
+) {
+    for (j, id) in response_ids.iter().enumerate() {
+        if j == winner {
+            continue;
+        }
+        let dropper = dropper.clone();
+        let id = id.clone();
+        tokio::spawn(async move { dropper.drop(id).await });
+    }
+}
+
 // ---------------------------------------------------------------------------
 
 pub struct Client<CTXEXT, OPENROUTER, CLAUDEAGENTSDK, CODEXSDK, MOCK, RETRG, RETRF, RETRM, CUSG> {
@@ -486,6 +506,11 @@ where
                 .map_err(|e: std::io::Error| super::Error::McpProxyBootstrap(e.to_string()))?
         };
         let proxy_url = proxy_handle.url.clone();
+        // This request's dropper: invoked at lock-in (drop the non-selected
+        // agent options) and after the winner's final chunk (drop its own
+        // response id). See `spawn_drop_losers` + the terminal block in
+        // `run_agent_loop`.
+        let dropper = proxy_handle.dropper.clone();
 
         let request_mcp_auth_owned = request_mcp_auth.clone();
         let default_mcp_auth_owned = self.mcp_authorization.clone();
@@ -831,6 +856,10 @@ where
                 id,
             })
             .collect();
+        // Every candidate's response id, captured before the loop borrows
+        // `attempts` mutably — used to drop the non-winner options at
+        // lock-in (`response_ids` itself was moved into `attempts` above).
+        let all_response_ids: Vec<String> = attempts.iter().map(|a| a.id.clone()).collect();
         // Slot of resolved-or-None per attempt — populated lazily on
         // first awaited iteration of the retry loop, reused across
         // backoff retries so we don't re-issue the connect.
@@ -923,6 +952,7 @@ where
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
+                                dropper.clone(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -941,7 +971,12 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
@@ -954,6 +989,7 @@ where
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
+                                dropper.clone(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -972,7 +1008,12 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
@@ -985,6 +1026,7 @@ where
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
+                                dropper.clone(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1003,7 +1045,12 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
@@ -1016,6 +1063,7 @@ where
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
+                                dropper.clone(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1034,7 +1082,12 @@ where
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
                             ).await {
-                                Ok(stream) => return Ok(stream),
+                                Ok(stream) => {
+                                    // Lock-in: this agent yielded its first
+                                    // chunk; drop every other candidate.
+                                    spawn_drop_losers(&dropper, &all_response_ids, idx);
+                                    return Ok(stream);
+                                }
                                 Err(e) => e,
                             }
                         }
@@ -1080,6 +1133,7 @@ where
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         reverse_attach: Option<Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         queue_delegate: Arc<super::queue_delegate::ApiQueueDelegate>,
+        dropper: objectiveai_mcp_proxy::Dropper,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -1648,6 +1702,16 @@ where
                 final_error = Some(objectiveai_sdk::error::ResponseError::from(
                     &super::Error::StreamCancelled,
                 ));
+            }
+
+            // The winning agent is fully done (the tool-calling loop has
+            // completed). Drop its own response id — banning it and tearing
+            // down its proxy-side connections + CLI subprocesses — before
+            // emitting the final chunk. Orphan spawn; best-effort.
+            {
+                let dropper = dropper.clone();
+                let response_id = id.clone();
+                tokio::spawn(async move { dropper.drop(response_id).await });
             }
 
             // Single site for usage, continuation, and error (if a continuation call failed).
