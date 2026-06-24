@@ -952,7 +952,6 @@ where
                                 self.openrouter.clone(), or_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
-                                dropper.clone(),
                                 &mut cont_items_or, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -989,7 +988,6 @@ where
                                 self.claude_agent_sdk.clone(), cas_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
-                                dropper.clone(),
                                 &mut cont_items_cas, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1026,7 +1024,6 @@ where
                                 self.codex_sdk.clone(), cdx_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
-                                dropper.clone(),
                                 &mut cont_items_cdx, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1063,7 +1060,6 @@ where
                                 self.mock.clone(), mock_agent, rc, &params, mcp_connection.clone(),
                                 ctx.reverse_attach().cloned(),
                                 ctx.queue_delegate(),
-                                dropper.clone(),
                                 &mut cont_items_mock, &attempt.id, created,
                                 *byok_attempt, ctx.cost_multiplier,
                                 {
@@ -1133,7 +1129,6 @@ where
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         reverse_attach: Option<Arc<crate::objectiveai_mcp::ReverseAttachHandle>>,
         queue_delegate: Arc<super::queue_delegate::ApiQueueDelegate>,
-        dropper: objectiveai_mcp_proxy::Dropper,
         cont_items: &mut Vec<super::ContinuationItem<U::State>>,
         id: &str,
         created: u64,
@@ -1702,16 +1697,6 @@ where
                 final_error = Some(objectiveai_sdk::error::ResponseError::from(
                     &super::Error::StreamCancelled,
                 ));
-            }
-
-            // The winning agent is fully done (the tool-calling loop has
-            // completed). Drop its own response id — banning it and tearing
-            // down its proxy-side connections + CLI subprocesses — before
-            // emitting the final chunk. Orphan spawn; best-effort.
-            {
-                let dropper = dropper.clone();
-                let response_id = id.clone();
-                tokio::spawn(async move { dropper.drop(response_id).await });
             }
 
             // Single site for usage, continuation, and error (if a continuation call failed).
