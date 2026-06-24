@@ -28,7 +28,11 @@
 use std::path::{Path, PathBuf};
 
 use interprocess::local_socket::tokio::prelude::*;
-use interprocess::local_socket::{GenericFilePath, ListenerOptions};
+use interprocess::local_socket::{ListenerOptions, Name};
+#[cfg(unix)]
+use interprocess::local_socket::GenericFilePath;
+#[cfg(windows)]
+use interprocess::local_socket::GenericNamespaced;
 use objectiveai_sdk::Notifier;
 use objectiveai_sdk::client_objectiveai_mcp::server_response::JsonRpcResult;
 use objectiveai_sdk::mcp;
@@ -82,6 +86,38 @@ pub fn socks_dir(state_dir: &Path) -> PathBuf {
     state_dir.join("socks")
 }
 
+/// The local-socket name for a `response_id`, identical on the listener
+/// and client sides. Unix uses a filesystem socket under
+/// `<state>/socks/<response_id>.sock`; Windows local sockets are named
+/// pipes (no filesystem home), so it uses a namespaced pipe name keyed
+/// by the response id.
+#[cfg(unix)]
+fn socket_name(
+    state_dir: &Path,
+    response_id: &str,
+) -> std::io::Result<Name<'static>> {
+    socks_dir(state_dir)
+        .join(format!("{response_id}.sock"))
+        .to_fs_name::<GenericFilePath>()
+}
+
+#[cfg(windows)]
+fn socket_name(
+    state_dir: &Path,
+    response_id: &str,
+) -> std::io::Result<Name<'static>> {
+    use std::hash::{Hash, Hasher};
+    // Named pipes are machine-global (no per-state filesystem dir), so
+    // fold the per-state dir into the name to preserve the same
+    // isolation the Unix `<state>/socks/` path gives. `DefaultHasher` is
+    // deterministic, so the listener and client derive the same name.
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    state_dir.hash(&mut hasher);
+    let state = hasher.finish();
+    format!("objectiveai-{state:016x}-{response_id}.sock")
+        .to_ns_name::<GenericNamespaced>()
+}
+
 /// Client side of the protocol: connect to `<state>/socks/<response_id>.sock`,
 /// send one [`SocketRequest`] line, read one [`SocketResponse`] line back.
 /// The inverse of [`handle_conn`]; same `\n`-delimited, one-shot protocol.
@@ -93,8 +129,7 @@ pub async fn call_socket<R: serde::de::DeserializeOwned>(
     response_id: &str,
     request: &SocketRequest,
 ) -> std::io::Result<SocketResponse<R>> {
-    let path = socks_dir(state_dir).join(format!("{response_id}.sock"));
-    let name = path.to_fs_name::<GenericFilePath>()?;
+    let name = socket_name(state_dir, response_id)?;
     let conn = LocalSocketStream::connect(name).await?;
     let (read_half, mut write_half) = tokio::io::split(conn);
 
@@ -124,12 +159,10 @@ pub fn spawn_mcp_listener(
     state_dir: PathBuf,
 ) {
     tokio::spawn(async move {
-        let dir = socks_dir(&state_dir);
-        if tokio::fs::create_dir_all(&dir).await.is_err() {
-            return;
-        }
-        let path = dir.join(format!("{response_id}.sock"));
-        let Ok(name) = path.to_fs_name::<GenericFilePath>() else {
+        // Ensure the socks dir exists for the Unix filesystem socket;
+        // harmless on Windows (which uses a namespaced pipe name).
+        let _ = tokio::fs::create_dir_all(socks_dir(&state_dir)).await;
+        let Ok(name) = socket_name(&state_dir, &response_id) else {
             return;
         };
         // `reclaim_name` (on by default) removes the socket on drop;
