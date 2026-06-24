@@ -29,7 +29,7 @@
 //! install are dropped (the window is bounded by a few statements
 //! at stream startup).
 
-use dashmap::DashMap;
+use dashmap::{DashMap, DashSet};
 use indexmap::IndexMap;
 use objectiveai_sdk::Notifier;
 use objectiveai_sdk::cli::command::plugins::run::Mcp as PluginMcp;
@@ -45,6 +45,8 @@ use objectiveai_sdk::mcp::tool::{
     CallToolRequestParams, CallToolResult, ListToolsRequest, ListToolsResult,
 };
 use std::sync::{Arc, OnceLock};
+
+use crate::websockets::mcp_listener::spawn_mcp_listener;
 use std::time::Duration;
 
 struct ConduitState {
@@ -123,6 +125,12 @@ struct Inner {
     /// selection. `None` for the Direct spawn path (no upgrade
     /// to fire).
     agent_tag: Option<String>,
+    /// Objectiveai `response_id`s we've already spawned a per-response
+    /// MCP listener for (see [`spawn_mcp_listener`]). Spawn-once for the
+    /// process lifetime — deliberately decoupled from `connections`
+    /// (created on initialize, reaped on terminate/`Drop`) so a listener
+    /// is never re-bound or torn down mid-process.
+    listener_ids: DashSet<String>,
 }
 
 impl ConduitMcpHandler {
@@ -170,6 +178,7 @@ impl ConduitMcpHandler {
                 notifier: OnceLock::new(),
                 ctx,
                 agent_tag,
+                listener_ids: DashSet::new(),
             }),
         }
     }
@@ -182,10 +191,52 @@ impl ConduitMcpHandler {
     pub fn install_notifier(&self, notifier: Notifier) {
         let _ = self.inner.notifier.set(notifier);
     }
+
+    /// Spawn a per-response MCP listener the first time an inbound
+    /// server request reveals a `response_id`. The id comes from the
+    /// `X-OBJECTIVEAI-RESPONSE-ID` header for the MCP-routed variants,
+    /// or the `Drop` body. No-op for requests without one (e.g.
+    /// `ReadMessageQueue` / `Retrieve` carry none).
+    ///
+    /// The notifier is checked BEFORE the id is recorded in
+    /// `listener_ids`, so a request that lands in the brief window
+    /// before [`Self::install_notifier`] doesn't mark the id "seen"
+    /// without a listener — a later request for the same id spawns it.
+    fn spawn_listener_if_new(&self, request: &server_request::Request) {
+        let Some(response_id) =
+            response_id_from_headers(&request.headers).or_else(|| {
+                match &request.payload {
+                    server_request::Payload::Drop(req) => {
+                        Some(req.response_id.clone())
+                    }
+                    _ => None,
+                }
+            })
+        else {
+            return;
+        };
+        let Some(notifier) = self.inner.notifier.get().cloned() else {
+            return;
+        };
+        if self.inner.listener_ids.insert(response_id.clone()) {
+            spawn_mcp_listener(
+                response_id,
+                notifier,
+                self.inner.ctx.filesystem.state_dir(),
+            );
+        }
+    }
 }
 
 impl McpHandler for ConduitMcpHandler {
     async fn handle(&self, request: server_request::Request) -> server_response::Response {
+        // First server request carrying a response id (header for the
+        // MCP-routed variants, body for `Drop`) spins up that response's
+        // MCP listener socket. Server requests precede the first chunk,
+        // so the socket is ready early. Borrow `&request` here — before
+        // the `match` below moves `request.payload`.
+        self.spawn_listener_if_new(&request);
+
         let id = request.id.clone();
 
         let payload = match request.payload {
