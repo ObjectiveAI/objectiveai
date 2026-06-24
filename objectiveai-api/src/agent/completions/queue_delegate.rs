@@ -157,7 +157,6 @@ impl QueueDelegate for ApiQueueDelegate {
     fn read_pending_blocks<'a>(
         &'a self,
         agent_arguments: &'a IndexMap<String, String>,
-        _mcp_session_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<QueueRead>> + Send + 'a>> {
         Box::pin(async move {
             // Locate the per-loop state by AIH header. Lookup is

@@ -3,9 +3,9 @@
 //! content blocks on tool responses without HTTP round-trips.
 //!
 //! The proxy is **fully naive** about ban lists, content-row ids, and
-//! confirmation state. It hands the trait two things on each call
-//! (the per-session agent arguments + the objectiveai response id) and
-//! either gets back a [`QueueRead`] (token + blocks) to splice into the next
+//! confirmation state. It hands the trait the per-session agent
+//! arguments on each call and either gets back a [`QueueRead`] (token +
+//! blocks) to splice into the next
 //! tool response, or `None` for "nothing to surface right now"
 //! (including errors — the proxy never sees a `Result`).
 //!
@@ -64,14 +64,11 @@ pub trait QueueDelegate: Send + Sync {
     ///
     /// `agent_arguments` is the proxy's per-session transient
     /// header map (the agent-routing keys like
-    /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`); the delegate
-    /// parses out whatever it needs to look up the right per-loop
-    /// state. `response_id` is the objectiveai response id the proxy
-    /// keys the session on (the API impl currently ignores it, keying
-    /// off `agent_arguments`).
+    /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` and
+    /// `X-OBJECTIVEAI-RESPONSE-ID`); the delegate parses out whatever
+    /// it needs to look up the right per-loop state.
     fn read_pending_blocks<'a>(
         &'a self,
         agent_arguments: &'a IndexMap<String, String>,
-        response_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<QueueRead>> + Send + 'a>>;
 }

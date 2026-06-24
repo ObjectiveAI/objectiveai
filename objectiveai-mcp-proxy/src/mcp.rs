@@ -643,7 +643,7 @@ async fn handle_tools_call(
             // row gets surfaced.
             let agent_arguments = session.transient_headers.read().await.clone();
             if let Some(crate::QueueRead { token, blocks }) =
-                maybe_read_blocks(queue_delegate, &agent_arguments, &response_id).await
+                maybe_read_blocks(queue_delegate, &agent_arguments).await
             {
                 // Splice the queued rows ahead of the upstream's
                 // tool-result content, wrapped in the SDK-owned
@@ -722,11 +722,8 @@ async fn handle_tools_call(
 async fn maybe_read_blocks(
     delegate: Option<&Arc<dyn crate::QueueDelegate>>,
     agent_arguments: &indexmap::IndexMap<String, String>,
-    response_id: &str,
 ) -> Option<crate::QueueRead> {
-    delegate?
-        .read_pending_blocks(agent_arguments, response_id)
-        .await
+    delegate?.read_pending_blocks(agent_arguments).await
 }
 
 async fn handle_resources_list(
