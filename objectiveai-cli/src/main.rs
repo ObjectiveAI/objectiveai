@@ -26,13 +26,6 @@ async fn main() {
         });
     let _ = dotenv::from_path(dir.join(".env"));
 
-    // Adopt any lockfile claims our parent transferred into us (named in
-    // OBJECTIVEAI_INHERITED_LOCKS). Must run BEFORE any command's
-    // `try_acquire`, so the adopted markers are present when it looks —
-    // the child then re-acquires the inherited lock instantly instead of
-    // conflicting with the handles it inherited.
-    objectiveai_sdk::lockfile::adopt_inherited_from_env();
-
     // Windows-only: clear `HANDLE_FLAG_INHERIT` on this process's
     // stdio handles before any child spawns. See
     // `objectiveai_cli::clear_stdio_inheritance` for the

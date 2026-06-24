@@ -72,8 +72,9 @@ use dashmap::DashMap;
 ///   conflicting with our own OS lock — both platforms deny a
 ///   same-process re-acquire at the OS level (Unix flock on a fresh fd;
 ///   Windows `CREATE_NEW`).
-/// - **Inherited**: a child that adopted a lock its parent transferred in
-///   ([`adopt`] / [`adopt_inherited_from_env`]) acquires instantly.
+/// - **Inherited**: a child whose parent transferred a lock in adopts it
+///   lazily on its first acquisition (see `ensure_inherited_adopted`) and
+///   then acquires instantly.
 ///
 /// The OS files live HERE (not on the [`LockClaim`]) so they outlive every
 /// outstanding claim for the key and are released only when the last
@@ -103,31 +104,21 @@ enum Entry {
 /// Register an adopted (inherited-from-parent) lock so subsequent
 /// `try_acquire`/`wait_acquire` for `(dir, key)` succeed instantly.
 /// Idempotent; never downgrades an existing `Owned` entry.
-pub fn adopt(dir: &Path, key: &str) {
+fn adopt(dir: &Path, key: &str) {
     HELD.entry((dir.to_path_buf(), key.to_string()))
         .or_insert(Entry::Inherited);
 }
 
 /// Env var carrying the `(dir, key)` list of locks transferred into a
 /// spawned child, as JSON `[[dir, key], ...]`. Set by
-/// [`add_inherited_env`] on the child's command; consumed by
-/// [`adopt_inherited_from_env`] at child startup.
-pub const INHERITED_LOCKS_ENV: &str = "OBJECTIVEAI_INHERITED_LOCKS";
+/// [`LockClaim::prepare_transfer`] on the child's command; consumed by
+/// [`adopt_inherited_from_env`] (lazily, on the child's first acquisition).
+const INHERITED_LOCKS_ENV: &str = "OBJECTIVEAI_INHERITED_LOCKS";
 
-/// Record `claim`'s `(dir, key)` on `cmd`'s environment so the spawned
-/// child adopts it at startup. Call alongside [`LockClaim::prepare_transfer`]
-/// when transferring a lock into a child.
-pub fn add_inherited_env(cmd: &mut tokio::process::Command, claim: &LockClaim) {
-    let entry = vec![(claim.dir.to_string_lossy().into_owned(), claim.key.clone())];
-    if let Ok(value) = serde_json::to_string(&entry) {
-        cmd.env(INHERITED_LOCKS_ENV, value);
-    }
-}
-
-/// At process startup, adopt every lock our parent transferred into us
-/// (named in [`INHERITED_LOCKS_ENV`]). Must run BEFORE any command's
-/// `try_acquire`, so the adopted markers are present when it looks.
-pub fn adopt_inherited_from_env() {
+/// Adopt every lock our parent transferred into us (named in
+/// [`INHERITED_LOCKS_ENV`]). Run exactly once, lazily, by
+/// [`ensure_inherited_adopted`] on the first acquisition.
+fn adopt_inherited_from_env() {
     let Ok(value) = std::env::var(INHERITED_LOCKS_ENV) else {
         return;
     };
@@ -137,6 +128,15 @@ pub fn adopt_inherited_from_env() {
     for (dir, key) in list {
         adopt(Path::new(&dir), &key);
     }
+}
+
+/// Populate the inherited-lock markers from the environment exactly once,
+/// the first time any lock is acquired in this process. Self-triggered
+/// from [`try_acquire`]/[`wait_acquire`] so the markers are present before
+/// the registry is consulted — no caller need invoke adoption explicitly.
+fn ensure_inherited_adopted() {
+    static ONCE: std::sync::Once = std::sync::Once::new();
+    ONCE.call_once(adopt_inherited_from_env);
 }
 
 /// Re-insert an `Owned` entry (used to hand a claim back on a transfer
@@ -197,6 +197,29 @@ impl LockClaim {
     /// The claim must stay alive until [`Self::transfer`]. Pair with
     /// [`add_inherited_env`] so the child registers an adopted marker.
     pub fn prepare_transfer(&self, cmd: &mut tokio::process::Command) {
+        // Append this claim's (dir, key) to the child's inherited-lock env
+        // so it adopts the claim and re-acquires it instantly on its first
+        // acquisition (instead of conflicting with the inherited handles).
+        // Accumulates rather than overwrites: reading the value already on
+        // the command and pushing onto it lets several `prepare_transfer`
+        // calls hand multiple locks to one child — mirroring how the unix
+        // CLOEXEC `pre_exec` hooks stack.
+        let mut locks: Vec<(String, String)> = cmd
+            .as_std()
+            .get_envs()
+            .find_map(|(k, v)| {
+                if k == std::ffi::OsStr::new(INHERITED_LOCKS_ENV) {
+                    v
+                } else {
+                    None
+                }
+            })
+            .and_then(|v| serde_json::from_str::<Vec<(String, String)>>(&v.to_string_lossy()).ok())
+            .unwrap_or_default();
+        locks.push((self.dir.to_string_lossy().into_owned(), self.key.clone()));
+        if let Ok(value) = serde_json::to_string(&locks) {
+            cmd.env(INHERITED_LOCKS_ENV, value);
+        }
         #[cfg(unix)]
         {
             use std::os::unix::io::AsRawFd;
@@ -227,10 +250,8 @@ impl LockClaim {
                 });
             }
         }
-        #[cfg(windows)]
-        {
-            let _ = cmd;
-        }
+        // Windows: nothing further here — the env above plus the
+        // `DuplicateHandle` in `transfer` (step 2) complete the handoff.
     }
 
     /// Release the claim NOW, on purpose. Consumes it. For an `Owned`
@@ -390,6 +411,7 @@ fn release_file(file: std::fs::File) -> std::io::Result<()> {
 /// genuinely releases).
 pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockClaim> {
     use dashmap::mapref::entry::Entry as DmEntry;
+    ensure_inherited_adopted();
     // Create the dir before touching the registry — never hold a DashMap
     // guard across an `.await`.
     tokio::fs::create_dir_all(dir).await.ok()?;
@@ -439,6 +461,7 @@ pub async fn wait_acquire(
     key: &str,
     contents: &str,
 ) -> std::io::Result<LockClaim> {
+    ensure_inherited_adopted();
     let map_key = (dir.to_path_buf(), key.to_string());
     // Reentrant: this process already owns it → instant (no blocking wait).
     if let Some(mut entry) = HELD.get_mut(&map_key) {

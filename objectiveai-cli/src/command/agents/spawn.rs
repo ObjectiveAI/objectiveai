@@ -11,9 +11,9 @@
 //! process. The INITIAL lock (try_acquire, failure = error): historic
 //! case → the AIH lock, un-upgraded tag case → the tag lock, plain ref
 //! → no initial lock. When a parent `agents message` transferred a
-//! claim into this process, it was adopted at startup
-//! (`lockfile::adopt_inherited_from_env`), so this `try_acquire`
-//! re-acquires it instantly. Historic spawns load their agent params +
+//! claim into this process, the lockfile adopts it lazily on this first
+//! `try_acquire`, so the acquisition succeeds instantly. Historic spawns
+//! load their agent params +
 //! continuation from the stored session. Mid-stream, every newly
 //! revealed hierarchy gets a best-effort AIH claim
 //! ([`AgentInstanceRegistry::observe`]); the first success releases
@@ -204,11 +204,10 @@ async fn execute_streaming(
     // Initial lock + params assembly. try_acquire only — a held lock
     // means the agent (or another spawn of the tag) is already live,
     // and this spawn errors out. When the parent `agents message`
-    // transferred a lock into this process, the matching claim was
-    // adopted at startup (`lockfile::adopt_inherited_from_env`), so this
-    // `try_acquire` re-acquires it INSTANTLY rather than conflicting with
-    // the inherited handles. Mid-stream best-effort AIH claims in
-    // `run_multi_pass` are unaffected.
+    // transferred a lock into this process, the lockfile adopts the
+    // matching claim lazily on this first `try_acquire`, so it re-acquires
+    // INSTANTLY rather than conflicting with the inherited handles.
+    // Mid-stream best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
     let mut registry = AgentInstanceRegistry::new(state_dir.clone());
     let (agent, agent_tag, continuation) = match mode {

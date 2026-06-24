@@ -276,11 +276,9 @@ impl CommandExecutor for BinaryExecutor {
             .take();
         #[cfg(feature = "lockfile")]
         if let Some(claim) = transfer_claim.as_ref() {
+            // Arms the command: CLOEXEC-clear (unix) + the inherited-lock
+            // env so the child adopts + re-acquires the claim instantly.
             claim.prepare_transfer(&mut command);
-            // Tell the child which lock it inherited so it adopts the
-            // claim at startup and re-acquires it instantly (instead of
-            // skipping its own acquire).
-            crate::lockfile::add_inherited_env(&mut command, claim);
         }
         let spawned = command.spawn();
         // Step 2 of 2: complete (or unwind) the handoff. Dropping a
