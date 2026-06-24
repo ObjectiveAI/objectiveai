@@ -3,5 +3,6 @@
 export * from "./get/index";
 export * from "./install/index";
 export * from "./list/index";
+export * from "./logs/index";
 export * from "./run/index";
 export * from "./request";
