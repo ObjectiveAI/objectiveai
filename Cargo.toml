@@ -18,6 +18,7 @@ members = [
     "tests/plugins/test-mcp-plugin-named",
     "tests/plugins/hello-plugin",
     "tests/plugins/test-mcp-plugin",
+    "tests/plugins/test-mcp-plugin-self-call",
     "tests/plugins/test-mcp-plugin-failing",
     "tests/plugins/test-mcp-plugin-foo-headers",
     "tests/plugins/daemon-echo-plugin",

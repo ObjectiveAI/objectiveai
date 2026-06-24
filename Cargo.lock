@@ -7318,6 +7318,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "test-mcp-plugin-self-call"
+version = "0.1.0"
+dependencies = [
+ "axum",
+ "http",
+ "objectiveai-sdk",
+ "rmcp",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
 name = "textwrap"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
