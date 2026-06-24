@@ -15,10 +15,10 @@
 //! request frame (`mcp_kind` on the payload, `X-OBJECTIVEAI-RESPONSE-ID`
 //! in the envelope headers). Each response id owns its own upstream
 //! connection set (no cross-response_id sharing); within a response id,
-//! each distinct `McpKind` is one connection. Cache miss for the
-//! primary upstream reconstructs by re-dialing fresh; plugin cache miss
-//! returns `-32001` and lets the proxy retry with a fresh `initialize`
-//! — the plugin's disk state covers server-side resume.
+//! each distinct `McpKind` is one connection. Connections are created
+//! only by `initialize`; the conduit never re-dials out of band, so any
+//! cache miss returns `-32001` and lets the proxy retry with a fresh
+//! `initialize`.
 //!
 //! `Notifier` is late-bound: the pump needs one, but the `Notifier`
 //! is output of `send_streaming_ws(handler, ...)` and the handler is
@@ -76,10 +76,9 @@ struct Inner {
     /// `X-OBJECTIVEAI-RESPONSE-ID`; the inner key is the request's
     /// `McpKind` (the primary `objectiveai-mcp`, or a specific plugin
     /// owner/name/version/mcp). The conduit never reads the upstream's
-    /// `Mcp-Session-Id` for indexing. Cache miss for
-    /// [`McpKind::ObjectiveAi`] re-dials fresh, cache miss for
-    /// [`McpKind::Other`] returns `-32001`. Inner maps are reaped on
-    /// terminate so the outer map doesn't grow unbounded.
+    /// `Mcp-Session-Id` for indexing. Connections are created only by
+    /// `initialize`; any cache miss returns `-32001`. Inner maps are
+    /// reaped on terminate so the outer map doesn't grow unbounded.
     connections: DashMap<String, DashMap<McpKind, Arc<ConduitState>>>,
     /// Late-bound: filled by [`ConduitMcpHandler::install_notifier`]
     /// after the WS-creating call returns the notifier. Pump
@@ -174,7 +173,7 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_session_terminate(&self.inner, mcp_kind, &request.headers).await
             }
             server_request::Payload::ToolsList { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers).await {
+                match resolve_connection(self, &mcp_kind, &request.headers) {
                     Ok(state) => dispatch_tools_list(&state, &request.headers, params).await,
                     Err((code, message)) => server_response::Payload::ToolsList {
                         mcp_kind,
@@ -183,7 +182,7 @@ impl McpHandler for ConduitMcpHandler {
                 }
             }
             server_request::Payload::ToolsCall { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers).await {
+                match resolve_connection(self, &mcp_kind, &request.headers) {
                     Ok(state) => dispatch_tools_call(&state, &request.headers, params).await,
                     Err((code, message)) => server_response::Payload::ToolsCall {
                         mcp_kind,
@@ -192,7 +191,7 @@ impl McpHandler for ConduitMcpHandler {
                 }
             }
             server_request::Payload::ResourcesList { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers).await {
+                match resolve_connection(self, &mcp_kind, &request.headers) {
                     Ok(state) => dispatch_resources_list(&state, &request.headers, params).await,
                     Err((code, message)) => server_response::Payload::ResourcesList {
                         mcp_kind,
@@ -201,7 +200,7 @@ impl McpHandler for ConduitMcpHandler {
                 }
             }
             server_request::Payload::ResourcesRead { mcp_kind, params } => {
-                match resolve_connection(self, &mcp_kind, &request.headers).await {
+                match resolve_connection(self, &mcp_kind, &request.headers) {
                     Ok(state) => dispatch_resources_read(&state, &request.headers, params).await,
                     Err((code, message)) => server_response::Payload::ResourcesRead {
                         mcp_kind,
@@ -222,17 +221,19 @@ impl McpHandler for ConduitMcpHandler {
 }
 
 /// Resolve the cached upstream for this request by `(response id,
-/// McpKind)`. On miss for [`McpKind::ObjectiveAi`], re-dial the primary
-/// upstream fresh — the local `objectiveai-mcp` HTTP server is
-/// persistent and the conduit no longer tracks a session id to resume
-/// with. On miss for [`McpKind::Other`], return `-32001`: the plugin
-/// subprocess died with the CLI restart so a fresh `initialize` is the
-/// only path forward. The proxy's standard retry logic handles it.
+/// McpKind)`. A connection is only ever created by `dispatch_initialize`;
+/// the conduit never re-dials out of band. A miss here means the proxy
+/// issued a non-initialize request for a connection the conduit doesn't
+/// hold (no prior `initialize`, or it was already terminated) — return
+/// `-32001` so the proxy re-initializes. (This can't reconstruct a
+/// plugin's `initialize` args anyway, and the primary should always have
+/// been initialized first, so re-dialing would only ever paper over a
+/// terminate/call race.)
 ///
 /// On failure returns a bare `(code, message)` — the caller builds the
 /// `JsonRpcResult::Err` in the response variant matching its request
 /// (see [`rpc_err`]).
-async fn resolve_connection(
+fn resolve_connection(
     handler: &ConduitMcpHandler,
     mcp_kind: &McpKind,
     headers: &IndexMap<String, String>,
@@ -240,47 +241,12 @@ async fn resolve_connection(
     let Some(response_id) = response_id_from_headers(headers) else {
         return Err((-32600, "missing X-OBJECTIVEAI-RESPONSE-ID header".to_string()));
     };
-    if let Some(existing) = get_connection(&handler.inner, &response_id, mcp_kind) {
-        return Ok(existing);
-    }
-    // Cache miss. Only the primary can be re-dialed; a plugin's
-    // subprocess died with the CLI, so a fresh `initialize` is required.
-    if !matches!(mcp_kind, McpKind::ObjectiveAi) {
-        return Err((
+    get_connection(&handler.inner, &response_id, mcp_kind).ok_or_else(|| {
+        (
             -32001,
             format!("no cached connection for response id {response_id:?}"),
-        ));
-    }
-    let mcp_url = match objectiveai_mcp_url(&handler.inner).await {
-        Ok(u) => u,
-        Err(message) => return Err((-32603, message)),
-    };
-    let transient = match require_transient(headers) {
-        Ok(t) => t,
-        Err(message) => {
-            return Err((-32600, format!("conduit: {message}")));
-        }
-    };
-    let connect_headers = sanitize_connect_headers(headers);
-    let connection = match handler
-        .inner
-        .client
-        .connect(mcp_url, None, Some(connect_headers))
-        .await
-    {
-        Ok(c) => c,
-        Err(e) => {
-            return Err((-32603, format!("conduit: connect (re-dial): {e}")));
-        }
-    };
-    install_list_changed_pump(&connection, handler.inner.clone(), mcp_kind.clone());
-    let state = Arc::new(ConduitState {
-        connection,
-        mcp_kind: mcp_kind.clone(),
-        agent_instance_hierarchy: transient.agent_instance_hierarchy,
-    });
-    insert_connection(&handler.inner, response_id, mcp_kind.clone(), state.clone());
-    Ok(state)
+        )
+    })
 }
 
 /// Await the in-process `objectiveai-mcp` server's bound port and
