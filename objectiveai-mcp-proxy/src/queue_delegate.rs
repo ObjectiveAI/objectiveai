@@ -4,8 +4,8 @@
 //!
 //! The proxy is **fully naive** about ban lists, content-row ids, and
 //! confirmation state. It hands the trait two things on each call
-//! (the per-session agent arguments + the MCP session id) and either
-//! gets back a [`QueueRead`] (token + blocks) to splice into the next
+//! (the per-session agent arguments + the objectiveai response id) and
+//! either gets back a [`QueueRead`] (token + blocks) to splice into the next
 //! tool response, or `None` for "nothing to surface right now"
 //! (including errors — the proxy never sees a `Result`).
 //!
@@ -58,7 +58,7 @@ pub struct QueueRead {
 /// `Arc<dyn QueueDelegate>`. Implementations can still write the
 /// body as an `async move { ... }` block wrapped in `Box::pin`.
 pub trait QueueDelegate: Send + Sync {
-    /// Read pending content blocks for one MCP session. Returns
+    /// Read pending content blocks for one session. Returns
     /// `Some(QueueRead { token, blocks })` on success, `None` on
     /// error / empty / "nothing right now."
     ///
@@ -66,11 +66,12 @@ pub trait QueueDelegate: Send + Sync {
     /// header map (the agent-routing keys like
     /// `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY`); the delegate
     /// parses out whatever it needs to look up the right per-loop
-    /// state. `mcp_session_id` is the base62-encoded session
-    /// envelope.
+    /// state. `response_id` is the objectiveai response id the proxy
+    /// keys the session on (the API impl currently ignores it, keying
+    /// off `agent_arguments`).
     fn read_pending_blocks<'a>(
         &'a self,
         agent_arguments: &'a IndexMap<String, String>,
-        mcp_session_id: &'a str,
+        response_id: &'a str,
     ) -> Pin<Box<dyn Future<Output = Option<QueueRead>> + Send + 'a>>;
 }

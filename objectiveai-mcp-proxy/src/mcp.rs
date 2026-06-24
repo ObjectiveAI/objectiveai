@@ -53,8 +53,17 @@ const INTERNAL_ERROR: i64 = -32603;
 const REQUEST_CANCELLED: i64 = -32800;
 
 /// Header the client sends to identify its session on every request after
-/// `initialize`.
+/// `initialize`. The proxy mints a plain random UUID for this on
+/// `initialize` purely for MCP-spec compliance — it never routes on it
+/// (see [`RESPONSE_ID_HEADER`]).
 const SESSION_ID_HEADER: &str = "Mcp-Session-Id";
+
+/// The header the proxy actually keys sessions on. Every objectiveai MCP
+/// client (the API's own client, and the agent subprocess clients it
+/// configures) re-stamps the response id on every request, so the proxy
+/// resolves the owning [`Session`] from this header on every endpoint —
+/// `initialize` included — and ignores the inbound `Mcp-Session-Id`.
+const RESPONSE_ID_HEADER: &str = "X-OBJECTIVEAI-RESPONSE-ID";
 
 /// SSE keepalive cadence — picks something well under typical proxy /
 /// load balancer idle timeouts.
@@ -107,8 +116,6 @@ pub async fn handle_post(
         Err(e) => return parse_error_response(format!("invalid JSON-RPC envelope: {e}")),
     };
 
-    let method = request.method.clone();
-    let rpc_id_str = format!("{}", request.id);
     let response = match request.method.as_str() {
         "initialize" => handle_initialize(&state, &headers, request).await,
         "ping" => handle_ping(request),
@@ -137,11 +144,11 @@ fn handle_cancelled_notification(
     headers: &HeaderMap,
     notification: &JsonRpcNotification,
 ) {
-    let session_id = match header_session_id(headers) {
+    let response_id = match header_response_id(headers) {
         Some(s) => s,
         None => return,
     };
-    let session = match state.sessions.get(&session_id) {
+    let session = match state.sessions.get(&response_id) {
         Some(s) => s,
         None => return,
     };
@@ -155,7 +162,7 @@ fn handle_cancelled_notification(
     };
     let cancelled = session.cancel_in_flight(request_id);
     tracing::debug!(
-        session = %session_id,
+        response_id = %response_id,
         request_id = %request_id,
         cancelled,
         "notifications/cancelled received",
@@ -164,98 +171,45 @@ fn handle_cancelled_notification(
 
 // ---- DELETE handler (explicit session termination) ------------------------
 
-/// DELETE `/`: end the session named by `Mcp-Session-Id`.
+/// DELETE `/`: end the session for this request's objectiveai response
+/// id (`X-OBJECTIVEAI-RESPONSE-ID`). The inbound `Mcp-Session-Id` is
+/// ignored, like every other non-`initialize` endpoint.
 ///
 /// Per 2025-06-18/basic/transports#session-management the client uses
 /// this to explicitly terminate its session. The proxy doesn't just
-/// drop its own state — it fans the deletion out to every upstream
-/// MCP session embedded inside the (AEAD-encrypted) session id so the
-/// upstreams stop accruing per-session state on our behalf.
+/// drop its own state — it pops the in-memory [`Session`] and fans
+/// [`objectiveai_sdk::mcp::Connection::delete`] over every held
+/// connection so the upstreams stop accruing per-session state on our
+/// behalf. Each connection's `delete()` cancels its own listener task
+/// before issuing the upstream DELETE and treats upstream
+/// `404 / 401 / 403` as success.
 ///
-/// Resolution branches:
+/// No response id, or no session for it → `404`. (There is no longer a
+/// stateless reconnect-from-id path: session ids are plain UUIDs that
+/// encode nothing, so a session the proxy doesn't hold in memory can't
+/// be reconstructed.)
 ///
-/// - **Decode fails** (bad base62, AEAD failure, unknown version,
-///   malformed JSON): return `404 unknown session`. Same shape as the
-///   pre-refactor handler.
-/// - **Cached** (the session is currently in the in-memory registry):
-///   pop it from the registry, then fan
-///   [`objectiveai_sdk::mcp::Connection::delete`] over every held
-///   connection concurrently. Each connection's `delete()` cancels its
-///   own listener task before issuing the upstream DELETE and treats
-///   upstream `404 / 401 / 403` as success.
-/// - **Uncached** (the session decrypted cleanly but isn't held in
-///   memory — e.g. the proxy restarted, or this is a stateless caller
-///   that never opened a `Connection`): fan
-///   [`objectiveai_sdk::mcp::Client::delete`] over every `(url,
-///   upstream-sid, headers)` triple parsed from the payload. The
-///   per-URL header map is taken straight from the payload — each
-///   upstream gets the same `Authorization` / custom-header set the
-///   connection was originally opened with. Stateless `Client::delete`
-///   does NOT absorb `404 / 401 / 403`; an uncached request whose
-///   upstream is gone will surface as a `500`.
-///
-/// **Both branches run every per-upstream DELETE to completion.** No
-/// short-circuit on first error: `join_all` collects every result,
-/// and the handler only returns an error if *any* per-upstream call
-/// failed.
+/// Every per-upstream DELETE runs to completion — no short-circuit on
+/// first error: `join_all` collects every result, and the handler only
+/// returns an error if *any* per-upstream call failed.
 pub async fn handle_delete(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Response {
-    let session_id = match extract_session_id(&headers) {
+    let response_id = match extract_response_id(&headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    // Decrypt the wire id. We need the URL → header_map list even
-    // when the session isn't in the in-memory registry. AEAD failure
-    // / malformed payload → same shape as today's "unknown session".
-    let payload = match state.sessions.decode_session_id(&session_id) {
-        Some(p) => p,
-        None => {
-            return (StatusCode::NOT_FOUND, "unknown session").into_response();
-        }
+    let session = match state.sessions.remove(&response_id) {
+        Some(s) => s,
+        None => return unknown_session_response(),
     };
 
-    // Cached path: pop the in-memory entry and fan `Connection::delete`
-    // out concurrently to every held connection. The connections carry
-    // their own listener-cancel guards that `delete()` releases before
-    // the upstream DELETE goes out.
-    if let Some(session) = state.sessions.remove(&session_id) {
-        let results = futures::future::join_all(
-            session.connections.values().map(|c| c.delete()),
-        )
-        .await;
-        return finalize_delete_results(&results);
-    }
-
-    // Uncached path: fan stateless `Client::delete` over every
-    // `(url, upstream-sid, headers)` triple parsed straight from the
-    // encrypted id. Each upstream gets its own per-URL header set
-    // (`Authorization`, custom `X-*`, etc.) from the payload — those
-    // are the credentials that opened the upstream session in the
-    // first place, so they're the credentials we need to tear it down.
-    //
-    // An empty payload means the session was minted with no upstreams
-    // (test rig with `vec![]`) and is already gone — return 404 so the
-    // caller doesn't get a misleading 200 from `join_all([])`.
-    if payload.connections.is_empty() {
-        return (StatusCode::NOT_FOUND, "unknown session").into_response();
-    }
-    let attempts: Vec<_> = payload
-        .connections
-        .into_iter()
-        .map(|(url, mut header_map)| {
-            let sid = header_map
-                .shift_remove(crate::upstream::MCP_SESSION_ID_KEY)
-                .unwrap_or_default();
-            let client = state.client.clone();
-            async move {
-                client.delete(url, sid, Some(header_map)).await
-            }
-        })
-        .collect();
-    let results = futures::future::join_all(attempts).await;
+    let results = futures::future::join_all(
+        session.connections.values().map(|c| c.delete()),
+    )
+    .await;
     finalize_delete_results(&results)
 }
 
@@ -298,12 +252,12 @@ pub async fn handle_get(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Response {
-    let session_id = match extract_session_id(&headers) {
+    let response_id = match extract_response_id(&headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    let session = match state.sessions.get(&session_id) {
+    let session = match state.sessions.get(&response_id) {
         Some(s) => s,
         None => return (StatusCode::NOT_FOUND, "unknown session").into_response(),
     };
@@ -343,9 +297,6 @@ async fn handle_initialize(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_in = header_session_id(headers).unwrap_or_default();
-    let session_in = session_in.as_str();
-    let rpc_id_str = format!("{}", request.id);
     // Validate the client's requested protocolVersion. We don't care
     // about anything else in `params` (clientInfo / capabilities) — they
     // don't change our routing or our advertised feature set.
@@ -378,138 +329,68 @@ async fn handle_initialize(
         }
     }
 
-    // Proxy session ids are AEAD-encrypted, base62-encoded envelopes
-    // wrapping a `URL → header_map` payload. The header map is the
-    // full set of HTTP headers needed to reconnect that upstream —
-    // `Mcp-Session-Id`, `Authorization`, plus any custom `X-*`. The
-    // upstream session id is uniform with every other header, no
-    // dedicated field. See `session_manager::SessionPayload`.
+    // Routing keys off the objectiveai response id, NOT the inbound
+    // `Mcp-Session-Id` — the latter is ignored for branch selection here
+    // (and everywhere else). Every objectiveai MCP client sends the
+    // response id on every request; a fresh connect and a reconnect look
+    // identical to the proxy and resolve the same way. Two outcomes:
     //
-    // Three branches:
-    //   1. id provided + alive in `state.sessions` → cheap-path: reuse
-    //      the live in-memory `Session`, re-mint its id from its
-    //      stored payload. The new request's `X-MCP-Servers` /
-    //      `X-MCP-Headers` are IGNORED — the encoded id is the sole
-    //      source of truth for what's connected and how. This is the
-    //      "one id = one connection state" guarantee.
-    //   2. id provided but not in memory → decrypt-and-decode it. If
-    //      decryption fails, or decoding fails → 401. Otherwise
-    //      reconnect to every URL in the decoded payload using its
-    //      stored headers (same ignore-the-request semantics as
-    //      branch 1). The `Mcp-Session-Id` and `Authorization`
-    //      headers come ONLY from the encoded id; anything the
-    //      request snuck into `X-MCP-Headers` is ignored.
-    //   3. no id → fresh init. `X-MCP-Servers` / `X-MCP-Headers`
-    //      build the spec list, every URL connects from scratch, the
-    //      resulting `(Connection, headers)` set encodes into a
-    //      brand-new id.
-    let provided_session_id = header_session_id(headers);
+    //   1. A session for this response id is already live in memory →
+    //      REUSE it. The new request's `X-MCP-Servers` / `X-MCP-Headers`
+    //      are NOT re-dialed; we just refresh the session-global
+    //      transient headers from this request's HeaderMap.
+    //   2. No session yet → FRESH CONNECT. `X-MCP-Servers` /
+    //      `X-MCP-Headers` build the spec list, every URL connects from
+    //      scratch, and the opened upstreams are registered under the
+    //      response id.
+    //
+    // Both outcomes return a fresh random-UUID `Mcp-Session-Id` purely
+    // for MCP-spec compliance; the proxy never routes on it.
+    let response_id = match extract_response_id(headers) {
+        Ok(id) => id,
+        Err(resp) => return resp,
+    };
+    let mcp_session_id = uuid::Uuid::new_v4().to_string();
 
-    if let Some(sid) = &provided_session_id {
-        if let Some(session) = state.sessions.get(sid) {
-            // Branch 1 — alive in-memory. Re-mint the id from the
-            // session's (unchanged) payload; the deterministic AEAD
-            // nonce makes it byte-identical to the key the session is
-            // stored under (i.e. the id the client already holds). Echo
-            // it back so the "always tell the client our current session
-            // id" contract is uniform across the fresh / reconnect /
-            // alive branches.
-            let new_id = state.sessions.mint_id(&session.payload);
-            // Re-apply the session-global transient headers from
-            // THIS reconnect's inbound HeaderMap. Full replace —
-            // missing keys drop from the bag.
-            session.apply_transient_headers(headers).await;
-            return ok_response_resume_sse(request.id, new_id);
-        }
-        // Branch 2 — decrypt and reconnect strictly from the payload.
-        let connections_with_headers = match state.sessions.decode_session_id(sid) {
-            Some(payload) => {
-                match crate::upstream::reconnect_from_payload(
-                    &state.client,
-                    state.reverse_channel.as_ref(),
-                    &payload,
-                    headers,
-                )
-                .await
-                {
-                    Ok(pairs) => pairs,
-                    Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
-                        return internal_error_response(request.id, e.to_string());
-                    }
-                    Err(e) => {
-                        // NotUtf8 / NotJson can't fire on this path
-                        // (no header parsing) but exhaustively handled.
-                        return internal_error_response(request.id, e.to_string());
-                    }
-                }
-            }
-            None => {
-                return (
-                    StatusCode::UNAUTHORIZED,
-                    format!("Unauthorized: Session not found ({sid:?})"),
-                )
-                    .into_response();
-            }
-        };
-        // Register the just-reconnected session in memory under its
-        // freshly-minted id. This id may DIFFER from the one the client
-        // presented (`sid`): when the upstream reassigns its own
-        // `Mcp-Session-Id` on the reconnect `initialize`, the SDK adopts
-        // it and it gets encoded into the new proxy id. That's fine — we
-        // echo `new_id` back in the response header (see
-        // `ok_response_resume_sse`), so the client adopts it for every
-        // subsequent request. The SDK refreshes its connection's session
-        // id from the response, and the response continuation re-derives
-        // `mcp_sessions` from that, so the next turn presents `new_id`.
-        // The session lives under `new_id`; the client is told `new_id`.
-        let new_id = state.sessions.add(connections_with_headers);
-        // Apply the session-global transient headers from THIS
-        // reconnect's inbound HeaderMap. Full replace — missing keys
-        // drop from the bag. The reconnect's `X-MCP-Headers` is
-        // ignored (per Branch 2 semantics), but the transient keys
-        // (agent identity + response routing) are extracted from the
-        // top-level HeaderMap here.
-        if let Some(session) = state.sessions.get(&new_id) {
-            session.apply_transient_headers(headers).await;
-        }
-        ok_response_resume_sse(request.id, new_id)
-    } else {
-        // Branch 3 — fresh init. `X-MCP-Servers` / `X-MCP-Headers`
-        // build the spec list, every URL connects from scratch, the
-        // resulting `(Connection, headers)` set encodes into a
-        // brand-new id which we echo back in the response header +
-        // SSE-deliver the `InitializeResult`. The agent-identity and
-        // response-routing headers ride on
-        // `Session::transient_headers` (applied below), not the
-        // AEAD payload.
-        let connections_with_headers = match crate::upstream::connect_all_fresh(
-            &state.client,
-            state.reverse_channel.as_ref(),
-            headers,
-        ).await {
-            Ok(pairs) => pairs,
-            Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
-                return invalid_request_response(request.id, e.to_string());
-            }
-            Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
-                return internal_error_response(request.id, e.to_string());
-            }
-            Err(e @ BadInit::UpstreamListFailed { .. }) => {
-                // A post-connect tools/resources probe failed: the
-                // upstream accepted initialize but can't serve. Same
-                // outcome as a connect failure — the session is not viable.
-                return internal_error_response(request.id, e.to_string());
-            }
-        };
-        let session_id = state.sessions.add(connections_with_headers);
-        // Stamp the session-global transient headers extracted from
-        // the inbound HeaderMap. Stays in memory; not encoded in the
-        // session id.
-        if let Some(session) = state.sessions.get(&session_id) {
-            session.apply_transient_headers(headers).await;
-        }
-        ok_response_fresh_sse(request.id, session_id)
+    if let Some(session) = state.sessions.get(&response_id) {
+        // Outcome 1 — reuse the live in-memory session. Re-apply the
+        // session-global transient headers from THIS request's inbound
+        // HeaderMap (full replace — missing keys drop from the bag).
+        session.apply_transient_headers(headers).await;
+        return ok_response_resume_sse(request.id, mcp_session_id);
     }
+
+    // Outcome 2 — fresh connect. `X-MCP-Servers` / `X-MCP-Headers` build
+    // the spec list, every URL connects from scratch, and the opened
+    // upstreams are registered under the response id. The agent-identity
+    // and response-routing headers ride on `Session::transient_headers`
+    // (applied below).
+    let connections = match crate::upstream::connect_all_fresh(
+        &state.client,
+        state.reverse_channel.as_ref(),
+        headers,
+    ).await {
+        Ok(conns) => conns,
+        Err(e @ (BadInit::NotUtf8 { .. } | BadInit::NotJson { .. })) => {
+            return invalid_request_response(request.id, e.to_string());
+        }
+        Err(e @ BadInit::UpstreamConnectFailed { .. }) => {
+            return internal_error_response(request.id, e.to_string());
+        }
+        Err(e @ BadInit::UpstreamListFailed { .. }) => {
+            // A post-connect tools/resources probe failed: the
+            // upstream accepted initialize but can't serve. Same
+            // outcome as a connect failure — the session is not viable.
+            return internal_error_response(request.id, e.to_string());
+        }
+    };
+    state.sessions.add(response_id.clone(), connections);
+    // Stamp the session-global transient headers extracted from the
+    // inbound HeaderMap.
+    if let Some(session) = state.sessions.get(&response_id) {
+        session.apply_transient_headers(headers).await;
+    }
+    ok_response_fresh_sse(request.id, mcp_session_id)
 }
 
 /// Fresh-init `initialize` response: 200 OK + `Mcp-Session-Id`
@@ -579,9 +460,8 @@ fn ok_response_fresh_sse(
     response
 }
 
-/// Resume-init `initialize` response: the client already carries an
-/// `Mcp-Session-Id` header for a session we recognize (Branch 1
-/// alive) or one we just decoded and reconnected (Branch 2). Matches
+/// Reuse-init `initialize` response: a session for this response id was
+/// already live in memory, so no upstreams were re-dialed. Matches
 /// `rmcp`'s reference behavior — yields two SSE events, then leaves
 /// the stream open until the client disconnects:
 ///
@@ -595,18 +475,11 @@ fn ok_response_fresh_sse(
 ///   2. The `InitializeResult` JSON as a `data:` event, so the
 ///      client gets the result it asked for, just like a fresh init.
 ///
-/// Echoes the `Mcp-Session-Id` response header set to `session_id` —
-/// the id the session is currently stored under. On a Branch 2
-/// reconnect this may DIFFER from the id the client presented: the
-/// upstream can reassign its own session id on the reconnect
-/// `initialize`, the SDK adopts it, and it's encoded into the re-minted
-/// proxy id. Echoing the current id lets the client adopt it for every
-/// subsequent request, so it never references a session stored under a
-/// key it no longer sends (the omission that used to 404 every
-/// post-`initialize` request on resume). Sending the header in an SSE
-/// initialize response is the same shape as a fresh init, which
-/// `claude_agent_sdk`'s bundled CLI already accepts — what previously
-/// broke that CLI was echoing the body as plain JSON, not the header.
+/// Echoes a fresh random-UUID `Mcp-Session-Id` response header
+/// (`session_id`). The proxy doesn't route on it — every subsequent
+/// request resolves by `X-OBJECTIVEAI-RESPONSE-ID` — but a valid
+/// `Mcp-Session-Id` is returned for MCP-spec compliance so 3rd-party
+/// clients (e.g. `claude_agent_sdk`'s bundled CLI) accept the response.
 fn ok_response_resume_sse(
     request_id: serde_json::Value,
     session_id: String,
@@ -685,12 +558,12 @@ async fn handle_tools_list(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_id = match extract_session_id(headers) {
+    let response_id = match extract_response_id(headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&session_id) {
+    let session = match sessions.get(&response_id) {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -721,12 +594,12 @@ async fn handle_tools_call(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_id = match extract_session_id(headers) {
+    let response_id = match extract_response_id(headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&session_id) {
+    let session = match sessions.get(&response_id) {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -770,7 +643,7 @@ async fn handle_tools_call(
             // row gets surfaced.
             let agent_arguments = session.transient_headers.read().await.clone();
             if let Some(crate::QueueRead { token, blocks }) =
-                maybe_read_blocks(queue_delegate, &agent_arguments, &session_id).await
+                maybe_read_blocks(queue_delegate, &agent_arguments, &response_id).await
             {
                 // Splice the queued rows ahead of the upstream's
                 // tool-result content, wrapped in the SDK-owned
@@ -849,10 +722,10 @@ async fn handle_tools_call(
 async fn maybe_read_blocks(
     delegate: Option<&Arc<dyn crate::QueueDelegate>>,
     agent_arguments: &indexmap::IndexMap<String, String>,
-    mcp_session_id: &str,
+    response_id: &str,
 ) -> Option<crate::QueueRead> {
     delegate?
-        .read_pending_blocks(agent_arguments, mcp_session_id)
+        .read_pending_blocks(agent_arguments, response_id)
         .await
 }
 
@@ -861,12 +734,12 @@ async fn handle_resources_list(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_id = match extract_session_id(headers) {
+    let response_id = match extract_response_id(headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&session_id) {
+    let session = match sessions.get(&response_id) {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -896,12 +769,12 @@ async fn handle_resources_read(
     headers: &HeaderMap,
     request: JsonRpcRequest,
 ) -> Response {
-    let session_id = match extract_session_id(headers) {
+    let response_id = match extract_response_id(headers) {
         Ok(id) => id,
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&session_id) {
+    let session = match sessions.get(&response_id) {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -953,48 +826,26 @@ async fn handle_resources_read(
 
 // ---- Helpers --------------------------------------------------------------
 
-/// Read the session id from the `Mcp-Session-Id` header, tolerating a
-/// comma-joined value.
-///
-/// When an agent's MCP config pre-seeds `Mcp-Session-Id` (so the SDK
-/// resumes the parent's proxy session — see the API's
-/// `claude_agent_sdk::mcp_server_config`), some SDK HTTP transports
-/// (notably claude-code's StreamableHTTP client) ALSO append their own
-/// post-initialize tracked session id on subsequent requests. The two
-/// land in a single header as `"<configured>, <tracked>"`, which an
-/// exact-match `state.sessions.get` never finds → spurious "unknown
-/// session" 404s on every `tools/list` / `tools/call` after a
-/// successful `initialize`.
-///
-/// Normalize by taking the LAST non-empty comma-separated token: that's
-/// the SDK's freshly-tracked id, which is authoritative when the upstream
-/// reassigned its session on reconnect (the configured token may be
-/// stale). When the SDK didn't append anything, there's a single token
-/// and this is a no-op.
-fn header_session_id(headers: &HeaderMap) -> Option<String> {
-    let raw = headers.get(SESSION_ID_HEADER)?.to_str().ok()?;
-    raw.split(',')
-        .map(str::trim)
-        .filter(|s| !s.is_empty())
-        .next_back()
+/// Read the objectiveai response id from [`RESPONSE_ID_HEADER`]. This is
+/// the key the proxy routes every endpoint on. Unlike `Mcp-Session-Id`,
+/// it is never comma-joined by SDK transports (it's a custom header the
+/// objectiveai clients set explicitly), so a single verbatim read.
+fn header_response_id(headers: &HeaderMap) -> Option<String> {
+    headers
+        .get(RESPONSE_ID_HEADER)
+        .and_then(|v| v.to_str().ok())
         .map(str::to_string)
 }
 
-fn extract_session_id(headers: &HeaderMap) -> Result<String, Response> {
-    match headers.get(SESSION_ID_HEADER) {
-        Some(_) => match header_session_id(headers) {
-            Some(s) => Ok(s),
-            // Present but unparseable (not UTF-8, or empty after split).
-            // Per spec, maps to HTTP 404 — transport, not JSON-RPC.
-            None => Err((
-                StatusCode::NOT_FOUND,
-                format!("{SESSION_ID_HEADER} is not a valid session id"),
-            )
-                .into_response()),
-        },
+/// Resolve the routing key for any request: the objectiveai response id.
+/// Absent → 404 (transport-level — the same shape the proxy used for a
+/// missing `Mcp-Session-Id` before it switched to response-id routing).
+fn extract_response_id(headers: &HeaderMap) -> Result<String, Response> {
+    match header_response_id(headers) {
+        Some(id) => Ok(id),
         None => Err((
             StatusCode::NOT_FOUND,
-            format!("missing {SESSION_ID_HEADER} header"),
+            format!("missing {RESPONSE_ID_HEADER} header"),
         )
             .into_response()),
     }
@@ -1149,40 +1000,28 @@ mod tests {
 
     fn hm(value: &str) -> HeaderMap {
         let mut h = HeaderMap::new();
-        h.insert(SESSION_ID_HEADER, HeaderValue::from_str(value).unwrap());
+        h.insert(RESPONSE_ID_HEADER, HeaderValue::from_str(value).unwrap());
         h
     }
 
     #[test]
-    fn single_session_id_passes_through() {
-        assert_eq!(header_session_id(&hm("abc123")), Some("abc123".to_string()));
+    fn response_id_read_verbatim() {
+        // The response id is a custom header objectiveai clients set
+        // explicitly; it's read verbatim (no comma-join normalization).
+        assert_eq!(header_response_id(&hm("resp-abc123")), Some("resp-abc123".to_string()));
     }
 
     #[test]
-    fn comma_joined_duplicate_takes_one() {
-        // claude-code's StreamableHTTP client appends its tracked id on
-        // top of the config-injected one → "<id>, <id>". Both equal here.
-        assert_eq!(
-            header_session_id(&hm("abc123, abc123")),
-            Some("abc123".to_string()),
-        );
+    fn response_id_missing_is_none() {
+        assert_eq!(header_response_id(&HeaderMap::new()), None);
     }
 
     #[test]
-    fn comma_joined_distinct_takes_last() {
-        // On reconnect the upstream may reassign; the SDK-tracked (last)
-        // id is authoritative, the config-injected (first) one is stale.
-        assert_eq!(
-            header_session_id(&hm("stale, fresh")),
-            Some("fresh".to_string()),
-        );
-    }
-
-    #[test]
-    fn empty_and_missing() {
-        assert_eq!(header_session_id(&HeaderMap::new()), None);
-        assert_eq!(header_session_id(&hm("")), None);
-        assert_eq!(header_session_id(&hm("  ,  ")), None);
+    fn extract_response_id_errors_when_absent() {
+        // Missing header → an error Response (the 404 is asserted at the
+        // integration level; here we only need the Err arm).
+        assert!(extract_response_id(&HeaderMap::new()).is_err());
+        assert!(extract_response_id(&hm("resp-1")).is_ok());
     }
 }
 

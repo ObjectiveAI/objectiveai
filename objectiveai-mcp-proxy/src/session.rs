@@ -18,7 +18,7 @@ use objectiveai_sdk::mcp::{
 
 use crate::reverse_channel::Upstream;
 use axum::http::HeaderMap;
-use tokio::sync::{Mutex, RwLock, broadcast};
+use tokio::sync::{RwLock, broadcast};
 use tokio_util::sync::CancellationToken;
 
 /// Capacity of the per-session outbound notification channel. Sized so
@@ -76,32 +76,23 @@ pub struct Session {
     /// firing via `tokio::select!` and returns a `-32800 request cancelled`
     /// JSON-RPC error. Drops the upstream call's future as a side effect.
     in_flight: DashMap<String, CancellationToken>,
-    /// The canonical `URL → header_map` payload that was encoded into
-    /// this session's id. Used by `handle_initialize`'s
-    /// alive-in-memory branch to re-mint an id from the same byte-
-    /// stable shape that was originally encoded — so even if the live
-    /// `Connection`s rotated their internal state, the id remains
-    /// derivable from the immutable per-upstream header set.
-    pub payload: crate::session_manager::SessionPayload,
     /// Session-global header overrides stamped on every outbound
-    /// request to every upstream. Lives only in memory (NOT encoded
-    /// into the session id) so it doesn't survive proxy restart. The
-    /// only keys ever recorded are `X-OBJECTIVEAI-RESPONSE-ID` and
-    /// `X-OBJECTIVEAI-RESPONSE-IDS` — extracted from inbound
+    /// request to every upstream. The only keys ever recorded are the
+    /// agent-identity + response-routing headers (see
+    /// [`Self::TRANSIENT_HEADER_KEYS`]) — extracted from inbound
     /// `initialize` HeaderMaps by [`Self::apply_transient_headers`].
     ///
     /// Reads dominate writes: every outbound request through any
     /// upstream Connection reads (via [`Connection::set_extra_headers`]
     /// applied on the Connection's own RwLock); writes fire only on
-    /// inbound `initialize` (alive, decrypt+reconnect, fresh).
-    /// `RwLock` matches the read/write ratio.
+    /// inbound `initialize` (reuse or fresh connect). `RwLock` matches
+    /// the read/write ratio.
     pub transient_headers: RwLock<IndexMap<String, String>>,
 }
 
 impl Session {
     pub(crate) fn new(
         connections: IndexMap<String, Upstream>,
-        payload: crate::session_manager::SessionPayload,
     ) -> Self {
         let (outbound, _) = broadcast::channel(OUTBOUND_CAPACITY);
 
@@ -135,7 +126,6 @@ impl Session {
             connections,
             outbound,
             in_flight: DashMap::new(),
-            payload,
             transient_headers: RwLock::new(IndexMap::new()),
         }
     }
@@ -145,9 +135,8 @@ impl Session {
     /// every outbound upstream request via
     /// [`Connection::set_extra_headers`]. Closed set; not extensible.
     ///
-    /// None of these are encoded into the AEAD session id; each
-    /// reconnect re-extracts from the inbound `HeaderMap` and full-
-    /// replaces the bag (missing keys drop).
+    /// Each `initialize` re-extracts these from the inbound `HeaderMap`
+    /// and full-replaces the bag (missing keys drop).
     pub const TRANSIENT_HEADER_KEYS: [&'static str; 6] = [
         "X-OBJECTIVEAI-RESPONSE-ID",
         "X-OBJECTIVEAI-RESPONSE-IDS",

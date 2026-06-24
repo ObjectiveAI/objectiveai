@@ -192,7 +192,12 @@ pub async fn setup(
         mcp_connect_timeout,
         mcp_call_timeout,
         mcp_backoff_max_elapsed_time,
-        mcp_encryption_key,
+        // Vestigial: the proxy no longer encrypts session ids (they're
+        // plain UUIDs keyed by objectiveai response id). The field is
+        // kept on Config so the API/CLI env plumbing compiles unchanged;
+        // it's ignored here. Removal is deferred to a later step of the
+        // session-id refactor.
+        mcp_encryption_key: _,
         suppress_output: _,
         logs_dir,
     } = config;
@@ -212,10 +217,7 @@ pub async fn setup(
         Duration::from_millis(mcp_call_timeout),
     );
 
-    let sessions = match mcp_encryption_key {
-        Some(key) => SessionManager::new(key),
-        None => SessionManager::with_ephemeral_key(),
-    };
+    let sessions = SessionManager::new();
     let state = AppState {
         sessions: Arc::new(sessions),
         client: Arc::new(client),

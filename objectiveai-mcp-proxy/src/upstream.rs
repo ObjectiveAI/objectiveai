@@ -62,17 +62,19 @@ pub enum BadInit {
     },
 }
 
-/// HTTP header name used to carry the upstream MCP session id. Stored
-/// alongside `Authorization` and any custom headers in the per-upstream
-/// header map encoded into the proxy session id.
+/// HTTP header name used to carry the upstream MCP session id. When a
+/// caller supplies it inside `X-MCP-Headers`, it's hoisted out of the
+/// per-upstream header bag and passed to `Client::connect` as the
+/// dedicated resume `session_id` argument.
 pub const MCP_SESSION_ID_KEY: &str = "Mcp-Session-Id";
 
 /// Parse the two custom session-init headers and fresh-connect to
 /// every upstream URL they describe in parallel.
 ///
-/// This is the no-prior-session path: every URL is connected from
-/// scratch, no resume sid. The resume / re-encode flow lives in
-/// `mcp::handle_initialize` and uses [`reconnect_from_payload`].
+/// Every URL is connected from scratch. Sessions are keyed by the
+/// objectiveai response id in `mcp::handle_initialize`, so there is no
+/// resume-from-id path — a request for a known response id reuses the
+/// live in-memory `Session`; an unknown one fresh-connects here.
 ///
 /// Headers (all optional):
 /// - `X-MCP-Servers`: JSON array of upstream URLs. Empty / absent →
@@ -85,21 +87,16 @@ pub const MCP_SESSION_ID_KEY: &str = "Mcp-Session-Id";
 ///   `X-MCP-Authorization` header; `Authorization` rides as a regular
 ///   header inside the per-URL map.
 ///
-/// Returns each opened `Connection` paired with the canonical full
-/// header set (the headers the proxy used to talk to that upstream,
-/// which is what gets encoded into the new session id). The header
-/// set is `spec.headers` ∪ `Mcp-Session-Id` (the freshly-minted
-/// upstream sid).
-///
-/// Duplicate URLs in `X-MCP-Servers` are ignored (first-occurrence wins).
-/// If any upstream fails to connect, the first such failure is returned
-/// as `BadInit::UpstreamConnectFailed` and the remaining in-flight
-/// attempts are dropped.
+/// Returns each opened [`Upstream`]. Duplicate URLs in `X-MCP-Servers`
+/// are ignored (first-occurrence wins). If any upstream fails to
+/// connect, the first such failure is returned as
+/// `BadInit::UpstreamConnectFailed` and the remaining in-flight attempts
+/// are dropped.
 pub async fn connect_all_fresh(
     client: &Client,
     reverse_channel: Option<&ReverseChannel>,
     http_headers: &HeaderMap,
-) -> Result<Vec<(Upstream, IndexMap<String, String>)>, BadInit> {
+) -> Result<Vec<Upstream>, BadInit> {
     let specs = parse_init_headers(http_headers)?;
 
     // Extract the session-global transient header set from the inbound
@@ -123,7 +120,6 @@ pub async fn connect_all_fresh(
 
     let attempts = specs.into_iter().map(|spec| {
         let url = spec.url.clone();
-        let headers_for_payload = spec.headers.clone();
         let transient = transient.clone();
         async move {
             // Hoist any caller-supplied `Mcp-Session-Id` out of the
@@ -158,88 +154,7 @@ pub async fn connect_all_fresh(
                     source,
                 }),
             )?;
-            let payload_headers =
-                build_canonical_headers(&headers_for_payload, upstream.session_id());
-            Ok::<_, BadInit>((upstream, payload_headers))
-        }
-    });
-
-    let connections = try_join_all(attempts).await?;
-    Ok(connections)
-}
-
-/// Reconnect to the upstreams encoded in a stale (decoded-but-not-
-/// alive) session payload. Each URL gets connected with the headers
-/// stored in the payload — the new request's `X-MCP-Servers` /
-/// `X-MCP-Headers` are NOT consulted on this path. The encoded id is
-/// the sole source of truth for what to reconnect to and how.
-///
-/// `Mcp-Session-Id` is pulled out of each per-URL header map and
-/// passed to `Client::connect` as its dedicated `session_id` argument;
-/// everything else (including `Authorization`) rides as `headers` and
-/// gets stamped on every request the resulting `Connection` makes.
-/// The returned pair includes the payload-derived header map, with
-/// the `Mcp-Session-Id` refreshed to whatever the upstream returned
-/// (which may be the same or a rotated sid).
-pub async fn reconnect_from_payload(
-    client: &Client,
-    reverse_channel: Option<&ReverseChannel>,
-    payload: &crate::session_manager::SessionPayload,
-    http_headers: &HeaderMap,
-) -> Result<Vec<(Upstream, IndexMap<String, String>)>, BadInit> {
-    // Same transient extraction as `connect_all_fresh`. The agent
-    // identity headers are NOT in the payload (stripped at parse time +
-    // stored on `Session::transient_headers`, never encoded into the
-    // id) — they come from THIS reconnect request's HeaderMap and MUST
-    // be stamped on the resume `initialize`: the CLI conduit's
-    // `require_transient` rejects an `initialize` missing
-    // `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` (& the other four) with
-    // -32600, failing the whole reconnect. The fresh path already does
-    // this; the resume path must match or every MCP continuation 400s.
-    let transient: IndexMap<String, String> = crate::session::Session::TRANSIENT_HEADER_KEYS
-        .iter()
-        .filter_map(|key| {
-            let v = http_headers.get(*key)?.to_str().ok()?;
-            Some((key.to_string(), v.to_string()))
-        })
-        .collect();
-
-    let attempts = payload.connections.iter().map(|(url, headers)| {
-        let url = url.clone();
-        let mut headers = headers.clone();
-        let session_id = headers.shift_remove(MCP_SESSION_ID_KEY);
-        // Agent identity headers live on `Session::transient_headers`
-        // (extracted from the reconnect request's HeaderMap in
-        // `handle_initialize`), not on the payload. The per-URL bag
-        // here carries only `Authorization` + custom headers — so the
-        // canonical payload we re-encode stays transient-free and the
-        // re-minted id is byte-stable across resumes.
-        let payload_headers = headers.clone();
-        let transient = transient.clone();
-        async move {
-            // Stamp the session-global transient identity headers on the
-            // reconnect `initialize`, exactly as `connect_all_fresh` does.
-            for (k, v) in transient {
-                headers.entry(k).or_insert(v);
-            }
-            let upstream =
-                connect_upstream(client, reverse_channel, &url, session_id, headers).await?;
-            // Same post-connect health probe as the fresh path: a resumed
-            // upstream must still list its tools and resources.
-            tokio::try_join!(
-                upstream.list_tools().map_err(|source| BadInit::UpstreamListFailed {
-                    url: url.clone(),
-                    kind: "tools",
-                    source,
-                }),
-                upstream.list_resources().map_err(|source| BadInit::UpstreamListFailed {
-                    url: url.clone(),
-                    kind: "resources",
-                    source,
-                }),
-            )?;
-            let canonical = build_canonical_headers(&payload_headers, upstream.session_id());
-            Ok::<_, BadInit>((upstream, canonical))
+            Ok::<_, BadInit>(upstream)
         }
     });
 
@@ -307,19 +222,6 @@ async fn connect_upstream(
     }
 }
 
-/// Build the canonical full header map for one upstream, suitable for
-/// encoding into the session id. Sort happens later (in
-/// `session_manager::build_payload`); this function just merges in the
-/// freshly-minted `Mcp-Session-Id`.
-fn build_canonical_headers(
-    headers: &IndexMap<String, String>,
-    upstream_session_id: &str,
-) -> IndexMap<String, String> {
-    let mut out: IndexMap<String, String> = headers.clone();
-    out.insert(MCP_SESSION_ID_KEY.to_string(), upstream_session_id.to_string());
-    out
-}
-
 fn parse_init_headers(
     http_headers: &HeaderMap,
 ) -> Result<Vec<UpstreamSpec>, BadInit> {
@@ -347,12 +249,11 @@ fn parse_init_headers(
         };
 
     // Strip the session-global transient keys from every per-URL bag.
-    // These keys live on `Session::transient_headers` (in-memory only,
-    // never encoded into the session id) and re-stamp on every
-    // outbound request via the SDK's `Connection.extra_headers`. A
-    // caller-supplied per-URL entry for either key is dropped at parse
-    // time so it can never leak into `SessionPayload.connections[url]`
-    // or `Connection.headers`.
+    // These keys live on `Session::transient_headers` (in-memory only)
+    // and re-stamp on every outbound request via the SDK's
+    // `Connection.extra_headers`. A caller-supplied per-URL entry for
+    // any of these keys is dropped at parse time so it can never leak
+    // into a `Connection`'s connect-time header set.
     for inner in per_url_headers.values_mut() {
         for key in crate::session::Session::TRANSIENT_HEADER_KEYS {
             inner.shift_remove(key);
