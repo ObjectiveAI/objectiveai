@@ -271,6 +271,14 @@ pub async fn connect_through_proxy(
     // X-MCP-Headers is a per-URL `{url: {header: value}}` map. Empty
     // map → no per-upstream headers to apply.
     headers.insert("X-MCP-Headers".into(), "{}".into());
+    // The proxy keys every session by the objectiveai response id and
+    // rejects a connect without it (404 "missing X-OBJECTIVEAI-RESPONSE-ID
+    // header"). These HTTP-only tests don't exercise the reverse channel,
+    // so any stable id suffices.
+    headers.insert(
+        "X-OBJECTIVEAI-RESPONSE-ID".into(),
+        "test-mcp-server".into(),
+    );
 
     // Reuse the process-wide MCP client singleton. Its underlying
     // reqwest::Client is built with `pool_max_idle_per_host(0)` so each
