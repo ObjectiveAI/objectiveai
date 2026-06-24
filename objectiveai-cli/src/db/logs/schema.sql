@@ -454,6 +454,30 @@ CREATE INDEX IF NOT EXISTS messages_queue_spawned_idx
     ON objectiveai.messages_queue(spawned_agent_instance_hierarchy);
 
 -- =====================================================================
+-- plugin_messages: captured stderr from `plugins run`
+-- =====================================================================
+--
+-- Every line a spawned plugin writes to stderr during `plugins run` is
+-- appended here by a dedicated writer task that owns the child's stderr
+-- pipe (stdout is the NDJSON command/value protocol channel, so stderr
+-- is the free diagnostic channel). Read back via `plugins logs list`,
+-- filtered by the plugin coordinate (owner/name/version) and paginated
+-- by the BIGSERIAL "index" cursor. `agent_instance_hierarchy` /
+-- `response_id` correlate a captured line to the invoking agent run.
+CREATE TABLE IF NOT EXISTS objectiveai.plugin_messages (
+    "index"                  BIGSERIAL PRIMARY KEY,
+    owner                    TEXT   NOT NULL,
+    name                     TEXT   NOT NULL,
+    version                  TEXT   NOT NULL,
+    agent_instance_hierarchy TEXT   NOT NULL,
+    response_id              TEXT,
+    created_at               BIGINT NOT NULL,
+    line                     TEXT   NOT NULL
+);
+CREATE INDEX IF NOT EXISTS plugin_messages_coord_index_idx
+    ON objectiveai.plugin_messages(owner, name, version, "index");
+
+-- =====================================================================
 -- log_reader role: read-only access for the future LLM SQL endpoint.
 -- =====================================================================
 DO $logs_role_bootstrap$ BEGIN

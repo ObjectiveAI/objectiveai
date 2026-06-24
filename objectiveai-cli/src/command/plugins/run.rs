@@ -21,12 +21,12 @@ use objectiveai_sdk::cli::command::plugins::run::{Request, ResponseItem};
 use objectiveai_sdk::cli::plugins::Output as PluginOutput;
 use objectiveai_sdk::cli::{Error as CliError, ErrorType as CliErrorType};
 use serde::Serialize;
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{ChildStdin, Command};
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
-use crate::child_io::{PipeEvent, spawn_pipe_reader};
+use crate::child_io::{PipeEvent, spawn_stdout_reader};
 use crate::context::Context;
 use crate::error::Error;
 
@@ -123,22 +123,32 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     let stdin = child.stdin.take().expect("stdin was piped");
     let plugin_stdin: Arc<Mutex<ChildStdin>> = Arc::new(Mutex::new(stdin));
 
-    let mut events = spawn_pipe_reader(stdout, stderr);
+    // Capture the plugin's stderr (stdout is the protocol channel) into
+    // `objectiveai.plugin_messages` on a dedicated task that OWNS the
+    // pipe and reads it line-by-line — the OS pipe is the buffer, so a
+    // slow DB just backpressures the plugin's stderr writes. Joined at
+    // the end of the stream so every line is flushed before `plugins
+    // run` completes.
+    let stderr_writer = spawn_stderr_log_writer(
+        ctx.db_client().await?.clone(),
+        request.owner.clone(),
+        request.name.clone(),
+        request.version.clone(),
+        ctx.config.agent_instance_hierarchy.clone(),
+        ctx.config.response_id.clone(),
+        stderr,
+    );
+
+    let mut events = spawn_stdout_reader(stdout);
 
     let stream = async_stream::stream! {
         let mut command_tasks: Vec<(Option<String>, JoinHandle<i32>)> = Vec::new();
         while let Some(event) = events.recv().await {
             match event {
                 PipeEvent::Stderr(_) => {
-                    // Bare anonymous error — no level, no fatal, no
-                    // message. Stops at "something went wrong on
-                    // stderr" by deliberate host policy.
-                    yield Ok(ResponseItem::Error(CliError {
-                        r#type: CliErrorType::Error,
-                        level: None,
-                        fatal: None,
-                        message: serde_json::Value::Null,
-                    }));
+                    // stderr is owned by the DB log-writer task, not this
+                    // reader (stdout-only), so this never fires — kept for
+                    // match exhaustiveness over `PipeEvent`.
                 }
                 PipeEvent::Stdout(trimmed) => {
                     match serde_json::from_str::<PluginOutput>(&trimmed) {
@@ -207,9 +217,63 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                 yield Err(Error::PluginRead(e));
             }
         }
+
+        // The child has exited, so its stderr pipe is closed; join the
+        // log-writer task so every captured line is committed before the
+        // run stream ends. Surface the first DB/read error if any.
+        match stderr_writer.await {
+            Ok(Ok(())) => {}
+            Ok(Err(e)) => {
+                yield Err(e);
+            }
+            Err(_join) => {}
+        }
     };
 
     Ok(Box::pin(stream))
+}
+
+/// Spawn the task that owns the plugin's stderr pipe and appends every
+/// line to `objectiveai.plugin_messages`. Reads one line at a time, so
+/// the OS pipe backpressures a slow DB rather than buffering unbounded.
+/// The returned handle is awaited before the run stream completes; the
+/// first insert/read error is surfaced through it.
+fn spawn_stderr_log_writer(
+    pool: crate::db::Pool,
+    owner: String,
+    name: String,
+    version: String,
+    agent_instance_hierarchy: String,
+    response_id: Option<String>,
+    stderr: tokio::process::ChildStderr,
+) -> JoinHandle<Result<(), Error>> {
+    tokio::spawn(async move {
+        let mut lines = BufReader::new(stderr).lines();
+        loop {
+            match lines.next_line().await {
+                Ok(Some(line)) => {
+                    let created_at = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .map(|d| d.as_secs() as i64)
+                        .unwrap_or(0);
+                    crate::db::logs::insert_plugin_message(
+                        &pool,
+                        &owner,
+                        &name,
+                        &version,
+                        &agent_instance_hierarchy,
+                        response_id.as_deref(),
+                        created_at,
+                        &line,
+                    )
+                    .await
+                    .map_err(Error::from)?;
+                }
+                Ok(None) => return Ok(()),
+                Err(e) => return Err(Error::PluginRead(e)),
+            }
+        }
+    })
 }
 
 /// Dispatch a plugin-originated command IN-PROCESS — no subprocess, no
