@@ -58,9 +58,10 @@
 //! [`try_acquire`] returns `Option`, the blocking subscribers
 //! return `io::Result`.
 
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::sync::{LazyLock, Mutex};
+use std::sync::LazyLock;
+
+use dashmap::DashMap;
 
 /// Process-global registry of locks this process currently holds, keyed
 /// by `(dir, key)`. Makes acquisition REENTRANT within an ownership
@@ -77,8 +78,10 @@ use std::sync::{LazyLock, Mutex};
 /// The OS files live HERE (not on the [`LockClaim`]) so they outlive every
 /// outstanding claim for the key and are released only when the last
 /// `Owned` claim is `release`d.
-static HELD: LazyLock<Mutex<HashMap<(PathBuf, String), Entry>>> =
-    LazyLock::new(|| Mutex::new(HashMap::new()));
+///
+/// A [`DashMap`] (sharded locking, per-key `entry` atomicity) — never hold
+/// one of its guards across an `.await`.
+static HELD: LazyLock<DashMap<(PathBuf, String), Entry>> = LazyLock::new(DashMap::new);
 
 enum Entry {
     /// This process acquired the OS lock itself. The registry owns the
@@ -101,8 +104,7 @@ enum Entry {
 /// `try_acquire`/`wait_acquire` for `(dir, key)` succeed instantly.
 /// Idempotent; never downgrades an existing `Owned` entry.
 pub fn adopt(dir: &Path, key: &str) {
-    let mut held = HELD.lock().expect("lock registry poisoned");
-    held.entry((dir.to_path_buf(), key.to_string()))
+    HELD.entry((dir.to_path_buf(), key.to_string()))
         .or_insert(Entry::Inherited);
 }
 
@@ -141,8 +143,7 @@ pub fn adopt_inherited_from_env() {
 /// error). `refs` resets to 1 — a failed transfer means the caller still
 /// solely holds it.
 fn reinsert_owned(dir: PathBuf, key: String, gate: std::fs::File, announce: std::fs::File) {
-    let mut held = HELD.lock().expect("lock registry poisoned");
-    held.insert(
+    HELD.insert(
         (dir, key),
         Entry::Owned {
             gate: std::mem::ManuallyDrop::new(gate),
@@ -199,13 +200,17 @@ impl LockClaim {
         #[cfg(unix)]
         {
             use std::os::unix::io::AsRawFd;
-            let held = HELD.lock().expect("lock registry poisoned");
-            let Some(Entry::Owned { gate, announce, .. }) = held.get(&self.map_key()) else {
-                return;
+            let (gate_fd, announce_fd) = {
+                let Some(entry) = HELD.get(&self.map_key()) else {
+                    return;
+                };
+                match entry.value() {
+                    Entry::Owned { gate, announce, .. } => {
+                        (gate.as_raw_fd(), announce.as_raw_fd())
+                    }
+                    Entry::Inherited => return,
+                }
             };
-            let gate_fd = gate.as_raw_fd();
-            let announce_fd = announce.as_raw_fd();
-            drop(held);
             // SAFETY: the hook runs post-fork pre-exec in the child;
             // `fcntl(F_SETFD)` is async-signal-safe and both fds are
             // plain integers valid in the child's inherited fd table.
@@ -239,24 +244,25 @@ impl LockClaim {
     /// On Unix the claim FILES deliberately stay on disk — deleting flock
     /// files is racy ([`try_held`] probes lock state, not existence).
     pub fn release(self) -> std::io::Result<()> {
-        let key = self.map_key();
-        let mut held = HELD.lock().expect("lock registry poisoned");
-        let should_remove = match held.get_mut(&key) {
-            Some(Entry::Owned { refs, .. }) => {
-                *refs -= 1;
-                *refs == 0
-            }
-            // Inherited (no-op; freed on process exit) or absent
-            // (already released): nothing to do.
-            _ => false,
-        };
-        if should_remove {
-            if let Some(Entry::Owned { gate, announce, .. }) = held.remove(&key) {
-                let announce = std::mem::ManuallyDrop::into_inner(announce);
-                let gate = std::mem::ManuallyDrop::into_inner(gate);
-                drop(held);
-                release_file(announce)?;
-                release_file(gate)?;
+        use dashmap::mapref::entry::Entry as DmEntry;
+        // Decrement + remove under the per-key shard lock (atomic). An
+        // absent entry (already released) is a no-op.
+        if let DmEntry::Occupied(mut occupied) = HELD.entry(self.map_key()) {
+            let remove = match occupied.get_mut() {
+                Entry::Owned { refs, .. } => {
+                    *refs -= 1;
+                    *refs == 0
+                }
+                // Inherited: no-op (freed on process exit).
+                Entry::Inherited => false,
+            };
+            if remove {
+                if let Entry::Owned { gate, announce, .. } = occupied.remove() {
+                    let announce = std::mem::ManuallyDrop::into_inner(announce);
+                    let gate = std::mem::ManuallyDrop::into_inner(gate);
+                    release_file(announce)?;
+                    release_file(gate)?;
+                }
             }
         }
         Ok(())
@@ -283,12 +289,9 @@ impl LockClaim {
         self,
         child: &tokio::process::Child,
     ) -> Result<(), (Self, std::io::Error)> {
-        let entry = HELD
-            .lock()
-            .expect("lock registry poisoned")
-            .remove(&self.map_key());
+        let entry = HELD.remove(&self.map_key());
         let (gate, announce) = match entry {
-            Some(Entry::Owned { gate, announce, .. }) => (
+            Some((_, Entry::Owned { gate, announce, .. })) => (
                 std::mem::ManuallyDrop::into_inner(gate),
                 std::mem::ManuallyDrop::into_inner(announce),
             ),
@@ -386,37 +389,40 @@ fn release_file(file: std::fs::File) -> std::io::Result<()> {
 /// files are not yet wrapped in `ManuallyDrop`, so dropping them
 /// genuinely releases).
 pub async fn try_acquire(dir: &Path, key: &str, contents: &str) -> Option<LockClaim> {
-    // Create the dir before taking the registry lock — the std `Mutex`
-    // guard must never be held across an `.await`.
+    use dashmap::mapref::entry::Entry as DmEntry;
+    // Create the dir before touching the registry — never hold a DashMap
+    // guard across an `.await`.
     tokio::fs::create_dir_all(dir).await.ok()?;
     let map_key = (dir.to_path_buf(), key.to_string());
-    let mut held = HELD.lock().expect("lock registry poisoned");
-    // Reentrant: this process already owns it (in-process or adopted) →
-    // succeed instantly.
-    if let Some(entry) = held.get_mut(&map_key) {
-        if let Entry::Owned { refs, .. } = entry {
-            *refs += 1;
+    // The per-key `entry` makes check-or-acquire-and-insert atomic: a
+    // concurrent same-key acquire blocks on the shard then sees our entry
+    // instead of conflicting at the OS level.
+    match HELD.entry(map_key.clone()) {
+        DmEntry::Occupied(mut occupied) => {
+            // Reentrant: this process already owns it (in-process or
+            // adopted) → succeed instantly.
+            if let Entry::Owned { refs, .. } = occupied.get_mut() {
+                *refs += 1;
+            }
+            Some(LockClaim { dir: map_key.0, key: map_key.1 })
         }
-        return Some(LockClaim { dir: map_key.0, key: map_key.1 });
+        DmEntry::Vacant(vacant) => {
+            // Not held in-process: real OS acquire. `open_claim_file` is
+            // non-blocking (try) and synchronous, so running it under the
+            // shard lock is fine. A failed step drops `vacant`, releasing
+            // the shard lock.
+            let mut gate = open_claim_file(&gate_path(dir, key))?;
+            write_contents(&mut gate, contents).ok()?;
+            let mut announce = open_claim_file(&announce_path(dir, key))?;
+            write_beacon(&mut announce).ok()?;
+            vacant.insert(Entry::Owned {
+                gate: std::mem::ManuallyDrop::new(gate),
+                announce: std::mem::ManuallyDrop::new(announce),
+                refs: 1,
+            });
+            Some(LockClaim { dir: map_key.0, key: map_key.1 })
+        }
     }
-    // Not held in-process: do the real OS acquire. `open_claim_file` is
-    // non-blocking (try) and synchronous, so holding the registry guard
-    // across it is fine — and makes check+acquire+insert atomic, so a
-    // concurrent same-key acquire blocks on the registry then sees our
-    // entry instead of conflicting at the OS level.
-    let mut gate = open_claim_file(&gate_path(dir, key))?;
-    write_contents(&mut gate, contents).ok()?;
-    let mut announce = open_claim_file(&announce_path(dir, key))?;
-    write_beacon(&mut announce).ok()?;
-    held.insert(
-        map_key.clone(),
-        Entry::Owned {
-            gate: std::mem::ManuallyDrop::new(gate),
-            announce: std::mem::ManuallyDrop::new(announce),
-            refs: 1,
-        },
-    );
-    Some(LockClaim { dir: map_key.0, key: map_key.1 })
 }
 
 /// Acquire `(dir, key)`, blocking until we own it, then publish
@@ -435,14 +441,11 @@ pub async fn wait_acquire(
 ) -> std::io::Result<LockClaim> {
     let map_key = (dir.to_path_buf(), key.to_string());
     // Reentrant: this process already owns it → instant (no blocking wait).
-    {
-        let mut held = HELD.lock().expect("lock registry poisoned");
-        if let Some(entry) = held.get_mut(&map_key) {
-            if let Entry::Owned { refs, .. } = entry {
-                *refs += 1;
-            }
-            return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+    if let Some(mut entry) = HELD.get_mut(&map_key) {
+        if let Entry::Owned { refs, .. } = entry.value_mut() {
+            *refs += 1;
         }
+        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
     }
     tokio::fs::create_dir_all(dir).await?;
     let gate_path = gate_path(dir, key);
@@ -457,28 +460,29 @@ pub async fn wait_acquire(
         match open_claim_file(&announce_path) {
             Some(mut announce) => {
                 write_beacon(&mut announce)?;
-                let mut held = HELD.lock().expect("lock registry poisoned");
-                // Dedup: if a concurrent in-process acquire registered the
-                // key while we blocked, our freshly-won OS lock is
-                // redundant — refcount the existing entry and release ours.
-                if let Some(entry) = held.get_mut(&map_key) {
-                    if let Entry::Owned { refs, .. } = entry {
-                        *refs += 1;
+                use dashmap::mapref::entry::Entry as DmEntry;
+                match HELD.entry(map_key.clone()) {
+                    // Dedup: a concurrent in-process acquire registered the
+                    // key while we blocked — our freshly-won OS lock is
+                    // redundant; refcount the existing entry and release it.
+                    DmEntry::Occupied(mut occupied) => {
+                        if let Entry::Owned { refs, .. } = occupied.get_mut() {
+                            *refs += 1;
+                        }
+                        drop(occupied);
+                        let _ = release_file(announce);
+                        let _ = release_file(gate);
+                        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
                     }
-                    drop(held);
-                    let _ = release_file(announce);
-                    let _ = release_file(gate);
-                    return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+                    DmEntry::Vacant(vacant) => {
+                        vacant.insert(Entry::Owned {
+                            gate: std::mem::ManuallyDrop::new(gate),
+                            announce: std::mem::ManuallyDrop::new(announce),
+                            refs: 1,
+                        });
+                        return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
+                    }
                 }
-                held.insert(
-                    map_key.clone(),
-                    Entry::Owned {
-                        gate: std::mem::ManuallyDrop::new(gate),
-                        announce: std::mem::ManuallyDrop::new(announce),
-                        refs: 1,
-                    },
-                );
-                return Ok(LockClaim { dir: map_key.0, key: map_key.1 });
             }
             None => {
                 // Foreign announce holder — abandon the gate and
