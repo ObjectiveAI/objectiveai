@@ -114,6 +114,16 @@ impl Notifier {
             client_response::Response::Error { code, message, .. } => {
                 Err(super::HttpError::NotifyRejected { code, message })
             }
+            // This notifier only sends `McpListChanged`, whose reply is
+            // `Ok`/`Error`. The MCP-op result variants
+            // (`ListTools`/`CallTool`/...) are replies to other requests
+            // and shouldn't arrive here (responses correlate by id).
+            _ => Err(super::HttpError::NotifyRejected {
+                code: 0,
+                message: serde_json::Value::String(
+                    "unexpected reply variant for notify".to_string(),
+                ),
+            }),
         }
     }
 }

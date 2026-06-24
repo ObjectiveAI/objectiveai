@@ -224,6 +224,11 @@ pub async fn setup(
     if let Some(dropper) = &dropper {
         dropper.wire(sessions.clone(), reverse_channel.clone());
     }
+    // Late-bind the session registry into the reverse channel so inbound
+    // MCP-op client_requests can resolve a session by response id.
+    if let Some(rc) = &reverse_channel {
+        rc.wire_sessions(sessions.clone());
+    }
     let state = AppState {
         sessions,
         client: Arc::new(client),

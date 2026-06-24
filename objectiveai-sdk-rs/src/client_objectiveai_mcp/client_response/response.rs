@@ -33,6 +33,40 @@ pub enum Response {
         code: u16,
         message: serde_json::Value,
     },
+
+    /// Reply to [`super::super::client_request::Payload::ListTools`] —
+    /// the proxy's normal aggregated `tools/list` result (or an error),
+    /// the same shape its HTTP endpoint returns.
+    #[schemars(title = "client_objectiveai_mcp.client_response.Response.ListTools")]
+    ListTools {
+        id: String,
+        #[serde(flatten)]
+        result: super::super::server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>,
+    },
+
+    /// Reply to [`super::super::client_request::Payload::CallTool`].
+    #[schemars(title = "client_objectiveai_mcp.client_response.Response.CallTool")]
+    CallTool {
+        id: String,
+        #[serde(flatten)]
+        result: super::super::server_response::JsonRpcResult<crate::mcp::tool::CallToolResult>,
+    },
+
+    /// Reply to [`super::super::client_request::Payload::ListResources`].
+    #[schemars(title = "client_objectiveai_mcp.client_response.Response.ListResources")]
+    ListResources {
+        id: String,
+        #[serde(flatten)]
+        result: super::super::server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>,
+    },
+
+    /// Reply to [`super::super::client_request::Payload::ReadResource`].
+    #[schemars(title = "client_objectiveai_mcp.client_response.Response.ReadResource")]
+    ReadResource {
+        id: String,
+        #[serde(flatten)]
+        result: super::super::server_response::JsonRpcResult<crate::mcp::resource::ReadResourceResult>,
+    },
 }
 
 impl Response {
@@ -41,6 +75,10 @@ impl Response {
         match self {
             Response::Ok { id } => id,
             Response::Error { id, .. } => id,
+            Response::ListTools { id, .. } => id,
+            Response::CallTool { id, .. } => id,
+            Response::ListResources { id, .. } => id,
+            Response::ReadResource { id, .. } => id,
         }
     }
 }

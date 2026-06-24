@@ -284,17 +284,20 @@ pub async fn recv_loop(
         // share the `id` field but differ everywhere else), then
         // server_response, then drop.
         if let Ok(request) = serde_json::from_str::<ClientRequest>(text.as_str()) {
-            // Proxy-bound client_request (today only McpListChanged): hand it
-            // to this request's proxy, which fires the matching upstream's
-            // list-changed callback (→ the proxy's session `outbound` SSE),
-            // and write the ack back over the WS.
-            let response = channel.deliver_client_request(request);
-            let frame = match serde_json::to_string(&response) {
-                Ok(s) => s,
-                Err(_) => continue,
-            };
+            // Proxy-bound client_request: hand it to this request's proxy.
+            // `McpListChanged` fires the matching upstream's list-changed
+            // callback; the MCP-op variants (ListTools/CallTool/...) run the
+            // proxy's aggregated Session ops by response id. The whole
+            // deliver→serialize→write is spawned so a slow `call_tool`
+            // doesn't block the recv loop from draining further frames.
+            let channel = channel.clone();
             let sink = sink.clone();
             tokio::spawn(async move {
+                let response = channel.deliver_client_request(request).await;
+                let frame = match serde_json::to_string(&response) {
+                    Ok(s) => s,
+                    Err(_) => return,
+                };
                 let mut guard = sink.lock().await;
                 let _ = guard.send(Message::Text(frame.into())).await;
             });
