@@ -26,10 +26,12 @@ type CliCommandAgentsRequest struct {
 	PublishRequestSchema *CliCommandAgentsPublishRequestSchemaRequest 
 	PublishResponseSchema *CliCommandAgentsPublishResponseSchemaRequest 
 	Queue *CliCommandAgentsQueueRequest 
+	Resources *CliCommandAgentsResourcesRequest 
 	Spawn *CliCommandAgentsSpawnRequest 
 	SpawnRequestSchema *CliCommandAgentsSpawnRequestSchemaRequest 
 	SpawnResponseSchema *CliCommandAgentsSpawnResponseSchemaRequest 
 	Tags *CliCommandAgentsTagsRequest 
+	Tools *CliCommandAgentsToolsRequest 
 	Wait *CliCommandAgentsWaitRequest 
 	WaitRequestSchema *CliCommandAgentsWaitRequestSchemaRequest 
 	WaitResponseSchema *CliCommandAgentsWaitResponseSchemaRequest 
@@ -90,6 +92,9 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	if v.Queue != nil {
 		return json.Marshal(v.Queue)
 	}
+	if v.Resources != nil {
+		return json.Marshal(v.Resources)
+	}
 	if v.Spawn != nil {
 		return json.Marshal(v.Spawn)
 	}
@@ -101,6 +106,9 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Tags != nil {
 		return json.Marshal(v.Tags)
+	}
+	if v.Tools != nil {
+		return json.Marshal(v.Tools)
 	}
 	if v.Wait != nil {
 		return json.Marshal(v.Wait)
@@ -314,6 +322,17 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandAgentsResourcesRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.Resources = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandAgentsSpawnRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
@@ -351,6 +370,17 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
 			candidate.Tags = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsToolsRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.Tools = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -413,10 +443,12 @@ func (v CliCommandAgentsRequest) Validate() error {
 	if v.PublishRequestSchema != nil { count++ }
 	if v.PublishResponseSchema != nil { count++ }
 	if v.Queue != nil { count++ }
+	if v.Resources != nil { count++ }
 	if v.Spawn != nil { count++ }
 	if v.SpawnRequestSchema != nil { count++ }
 	if v.SpawnResponseSchema != nil { count++ }
 	if v.Tags != nil { count++ }
+	if v.Tools != nil { count++ }
 	if v.Wait != nil { count++ }
 	if v.WaitRequestSchema != nil { count++ }
 	if v.WaitResponseSchema != nil { count++ }
