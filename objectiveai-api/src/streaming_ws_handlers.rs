@@ -81,6 +81,9 @@ pub(crate) async fn create_agent_completion_ws(
         // is held for the entire `on_upgrade` async block — when it
         // drops, all registered ids are removed.
         let pending = streaming_ws::new_pending_requests();
+        // Tracks in-flight client_request handlers spawned by `recv_loop`
+        // so we can keep the WS open until they've written their replies.
+        let tasks = tokio_util::task::TaskTracker::new();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
@@ -128,19 +131,23 @@ pub(crate) async fn create_agent_completion_ws(
                     return;
                 }
             }
-            streaming_ws::send_close_split(&send_sink, close_code::NORMAL).await;
         };
 
         let recv = streaming_ws::recv_loop(
             rx,
-            sink,
+            sink.clone(),
             pending,
             reverse_channel,
+            tasks.clone(),
         );
 
         tokio::select! {
-            _ = send => {},
-            _ = recv => {},
+            // Send won: agent stream done. Drain any in-flight
+            // client_request handlers (write their replies) before the
+            // Close frame + sink drop close the WS.
+            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Recv won: peer closed / recv error — nothing to deliver.
+            _ = recv => {}
         }
     })
 }
@@ -208,6 +215,9 @@ where
                 }
             };
         let pending = streaming_ws::new_pending_requests();
+        // Tracks in-flight client_request handlers spawned by `recv_loop`
+        // so we can keep the WS open until they've written their replies.
+        let tasks = tokio_util::task::TaskTracker::new();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
@@ -246,19 +256,23 @@ where
                     return;
                 }
             }
-            streaming_ws::send_close_split(&send_sink, close_code::NORMAL).await;
         };
 
         let recv = streaming_ws::recv_loop(
             rx,
-            sink,
+            sink.clone(),
             pending,
             reverse_channel,
+            tasks.clone(),
         );
 
         tokio::select! {
-            _ = send => {},
-            _ = recv => {},
+            // Send won: agent stream done. Drain any in-flight
+            // client_request handlers (write their replies) before the
+            // Close frame + sink drop close the WS.
+            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Recv won: peer closed / recv error — nothing to deliver.
+            _ = recv => {}
         }
     })
 }
@@ -327,6 +341,9 @@ where
                 }
             };
         let pending = streaming_ws::new_pending_requests();
+        // Tracks in-flight client_request handlers spawned by `recv_loop`
+        // so we can keep the WS open until they've written their replies.
+        let tasks = tokio_util::task::TaskTracker::new();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
@@ -361,19 +378,23 @@ where
                     return;
                 }
             }
-            streaming_ws::send_close_split(&send_sink, close_code::NORMAL).await;
         };
 
         let recv = streaming_ws::recv_loop(
             rx,
-            sink,
+            sink.clone(),
             pending,
             reverse_channel,
+            tasks.clone(),
         );
 
         tokio::select! {
-            _ = send => {},
-            _ = recv => {},
+            // Send won: agent stream done. Drain any in-flight
+            // client_request handlers (write their replies) before the
+            // Close frame + sink drop close the WS.
+            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Recv won: peer closed / recv error — nothing to deliver.
+            _ = recv => {}
         }
     })
 }
@@ -417,6 +438,9 @@ where
                 }
             };
         let pending = streaming_ws::new_pending_requests();
+        // Tracks in-flight client_request handlers spawned by `recv_loop`
+        // so we can keep the WS open until they've written their replies.
+        let tasks = tokio_util::task::TaskTracker::new();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
@@ -465,19 +489,23 @@ where
                 }
                 drop(guard);
             }
-            streaming_ws::send_close_split(&send_sink, close_code::NORMAL).await;
         };
 
         let recv = streaming_ws::recv_loop(
             rx,
-            sink,
+            sink.clone(),
             pending,
             reverse_channel,
+            tasks.clone(),
         );
 
         tokio::select! {
-            _ = send => {},
-            _ = recv => {},
+            // Send won: agent stream done. Drain any in-flight
+            // client_request handlers (write their replies) before the
+            // Close frame + sink drop close the WS.
+            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Recv won: peer closed / recv error — nothing to deliver.
+            _ = recv => {}
         }
     })
 }
@@ -521,6 +549,9 @@ where
                 }
             };
         let pending = streaming_ws::new_pending_requests();
+        // Tracks in-flight client_request handlers spawned by `recv_loop`
+        // so we can keep the WS open until they've written their replies.
+        let tasks = tokio_util::task::TaskTracker::new();
         let (tx, rx) = socket.split();
         let sink: streaming_ws::SharedSink = Arc::new(tokio::sync::Mutex::new(tx));
         let _attach_guard = streaming_ws::ReverseAttachGuard::new(
@@ -566,19 +597,23 @@ where
                 }
                 drop(guard);
             }
-            streaming_ws::send_close_split(&send_sink, close_code::NORMAL).await;
         };
 
         let recv = streaming_ws::recv_loop(
             rx,
-            sink,
+            sink.clone(),
             pending,
             reverse_channel,
+            tasks.clone(),
         );
 
         tokio::select! {
-            _ = send => {},
-            _ = recv => {},
+            // Send won: agent stream done. Drain any in-flight
+            // client_request handlers (write their replies) before the
+            // Close frame + sink drop close the WS.
+            _ = send => streaming_ws::drain_and_close(tasks, &sink).await,
+            // Recv won: peer closed / recv error — nothing to deliver.
+            _ = recv => {}
         }
     })
 }

@@ -56,7 +56,7 @@ git2 = { version = "0.20.4", default-features = false, features = ["vendored-lib
 dirs = "6.0.0"
 twox-hash = { version = "2.1.2" }
 base62 = { version = "2.2.4" }
-tokio-util = { version = "0.7.18", features = ["io"] }
+tokio-util = { version = "0.7.18", features = ["io", "rt"] }
 rmcp = { version = "1.7", features = ["server", "transport-streamable-http-server"] }
 futures-util = { version = "0.3.32" }
 base64 = { version = "0.22.1" }

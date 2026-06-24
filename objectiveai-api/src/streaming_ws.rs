@@ -221,6 +221,22 @@ pub async fn send_close_split(sink: &SharedSink, code: CloseCode) {
         .await;
 }
 
+/// Drain any in-flight client_request handlers (the tasks `recv_loop`
+/// spawned into `tasks`), then send the `NORMAL` Close frame.
+///
+/// Called on the send-won path so a client-initiated request still being
+/// served writes its reply on the (still-open) `sink` before the WS
+/// closes. Bounded by the proxy's per-op timeout — every spawned handler
+/// resolves eventually — so the wait can't hang indefinitely. `close()`
+/// stops further tracking (`recv_loop` is already dropped by the
+/// `select!`, so no new handlers arrive); `wait()` blocks until the count
+/// hits zero.
+pub async fn drain_and_close(tasks: tokio_util::task::TaskTracker, sink: &SharedSink) {
+    tasks.close();
+    tasks.wait().await;
+    send_close_split(sink, close_code::NORMAL).await;
+}
+
 // PendingRequests, ReverseChannel, ReverseAttachConfig,
 // ReverseAttachGuard, ReverseAttachHandle and `new_pending_requests`
 // are re-exported at the top of this file from `crate::objectiveai_mcp`.
@@ -248,6 +264,7 @@ pub async fn recv_loop(
     sink: SharedSink,
     pending: PendingRequests,
     channel: objectiveai_mcp_proxy::ReverseChannel,
+    tasks: tokio_util::task::TaskTracker,
 ) {
     use objectiveai_sdk::client_objectiveai_mcp::{
         client_request::Request as ClientRequest,
@@ -292,7 +309,9 @@ pub async fn recv_loop(
             // doesn't block the recv loop from draining further frames.
             let channel = channel.clone();
             let sink = sink.clone();
-            tokio::spawn(async move {
+            // Tracked (not detached) so the handler can keep the WS open
+            // until this reply is written — see `drain_and_close`.
+            tasks.spawn(async move {
                 let response = channel.deliver_client_request(request).await;
                 let frame = match serde_json::to_string(&response) {
                     Ok(s) => s,
