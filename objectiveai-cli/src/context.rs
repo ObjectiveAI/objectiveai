@@ -151,9 +151,9 @@ impl Context {
     /// Effective MCP timeout (ms), used as BOTH the connect and per-call
     /// timeout for every MCP client this CLI drives (its streaming
     /// conduit). The merged (`--final`) `api.mcp_timeout_ms` config value,
-    /// or the canonical default (60000ms) when unset.
+    /// or the canonical default (1_800_000ms / 30 min) when unset.
     pub async fn resolve_mcp_timeout_ms(&self) -> Result<u64, crate::error::Error> {
-        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000))
+        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(1_800_000))
     }
 
     /// Effective backoff max-elapsed-time (ms) — the retry budget for the
