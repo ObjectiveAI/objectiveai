@@ -44,7 +44,7 @@ pub enum McpKind {
     },
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.
-    /// Mirrors the proxy URL `ws://id/{id}`.
+    /// Mirrors the proxy URL `ws://laboratory/{id}`.
     #[schemars(title = "Laboratory")]
     Laboratory { id: String },
 }

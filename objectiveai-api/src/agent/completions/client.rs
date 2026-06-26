@@ -659,7 +659,7 @@ where
                 // CLI is present. Gated on `needs_reverse_attach` (not on
                 // `client_objectiveai_mcp`) — labs apply even when the agent
                 // declares no `client_objectiveai_mcp`. Each becomes a
-                // synthetic `ws://id/{id}` upstream (no args), flowing through
+                // synthetic `ws://laboratory/{id}` upstream (no args), flowing through
                 // the same URL/header plumbing as the other synthetic URLs.
                 if needs_reverse_attach {
                     if let Some(labs) = &params.laboratories {
@@ -667,7 +667,7 @@ where
                             let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
                             client_mcp_synthetic_urls.push((
                                 format!(
-                                    "ws://id/{}",
+                                    "ws://laboratory/{}",
                                     percent_encode_segment(&c.id)
                                 ),
                                 None,
