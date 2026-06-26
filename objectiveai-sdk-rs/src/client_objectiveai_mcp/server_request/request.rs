@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Which CLI-hosted MCP server the request targets rides as
 /// `mcp_kind` on the envelope. The API parses this off the inbound
 /// URL path (`/objectiveai` → [`super::super::McpKind::ObjectiveAi`];
-/// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Other`])
+/// `/{owner}/{name}/{version}/{mcp}` → [`super::super::McpKind::Plugin`])
 /// before forwarding.
 ///
 /// Wire shape (envelope is `{id, mcp_kind, headers?, type, …variant

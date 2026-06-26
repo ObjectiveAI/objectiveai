@@ -6,7 +6,7 @@
 //! `ws` ([`WsUpstream`]) are reached through it instead of over HTTP:
 //!
 //! - `ws://objectiveai` → [`McpKind::ObjectiveAi`]
-//! - `ws:///owner/name/version/mcp` → [`McpKind::Other`]
+//! - `ws:///owner/name/version/mcp` → [`McpKind::Plugin`]
 //!
 //! Direction split (the API owns the WS itself):
 //! - **send**: the proxy emits a `server_request::Request` into the
@@ -593,7 +593,7 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     // `ws://id/<id>` → host "id", single id segment (laboratory MCP).
     if let Some(id) = rest.strip_prefix("id/") {
         if !id.is_empty() {
-            return Some(McpKind::Id { id: id.to_string() });
+            return Some(McpKind::Laboratory { id: id.to_string() });
         }
     }
     // `ws:///owner/name/version/mcp` → empty host, leading '/'.
@@ -601,7 +601,7 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     let parts: Vec<&str> = path.split('/').collect();
     if let [owner, name, version, mcp] = parts.as_slice() {
         if !owner.is_empty() && !name.is_empty() && !version.is_empty() && !mcp.is_empty() {
-            return Some(McpKind::Other {
+            return Some(McpKind::Plugin {
                 owner: (*owner).to_string(),
                 name: (*name).to_string(),
                 version: (*version).to_string(),

@@ -13,10 +13,10 @@ use serde::{Deserialize, Serialize};
 /// rather than by parsing the proxy's URL path on every hop.
 ///
 /// Wire shape: `{"type":"objective_ai"}`,
-/// `{"type":"other","owner":"…","name":"…","version":"…","mcp":"…"}`, or
-/// `{"type":"id","id":"…"}`.
+/// `{"type":"plugin","owner":"…","name":"…","version":"…","mcp":"…"}`, or
+/// `{"type":"laboratory","id":"…"}`.
 ///
-/// The four discriminator fields on `Other` mirror the API's
+/// The four discriminator fields on `Plugin` mirror the API's
 /// `/{owner}/{name}/{version}/{mcp}` URL path that the proxy dials
 /// for plugin-hosted MCP servers.
 #[derive(
@@ -35,8 +35,8 @@ pub enum McpKind {
     /// within that plugin's manifest. Mirrors the API URL
     /// `/{owner}/{name}/{version}/{mcp}` and the agent declaration's
     /// `plugins[i].{owner,name,version}.mcp_servers[j].name`.
-    #[schemars(title = "Other")]
-    Other {
+    #[schemars(title = "Plugin")]
+    Plugin {
         owner: String,
         name: String,
         version: String,
@@ -45,6 +45,6 @@ pub enum McpKind {
 
     /// A laboratory-hosted MCP server, identified by an opaque `id`.
     /// Mirrors the proxy URL `ws://id/{id}`.
-    #[schemars(title = "Id")]
-    Id { id: String },
+    #[schemars(title = "Laboratory")]
+    Laboratory { id: String },
 }
