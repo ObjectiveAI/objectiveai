@@ -548,10 +548,17 @@ where
         // reverse channel (the WS). No per-agent registration: the
         // per-request proxy holds the channel directly — there's no
         // response-id routing registry to populate anymore.
+        // Laboratories are completion-wide client-side MCP servers: they
+        // apply to every agent (and fallback) and, like
+        // `client_objectiveai_mcp`, require this request's reverse channel
+        // (the WS).
+        let has_laboratories =
+            params.laboratories.as_ref().is_some_and(|l| !l.is_empty());
         let agent_needs_reverse_attach: Vec<bool> = filtered_agents
             .iter()
             .map(|agent| {
-                agent.base().client_objectiveai_mcp().is_some()
+                (agent.base().client_objectiveai_mcp().is_some()
+                    || has_laboratories)
                     && ctx.reverse_channel().is_some()
             })
             .collect();
@@ -610,7 +617,7 @@ where
                 //   plugin MCP server. Plugin args ride alongside as
                 //   `X-OBJECTIVEAI-ARGUMENTS` (per-URL header), JSON-
                 //   serialized in declaration order.
-                let client_mcp_synthetic_urls: Vec<(
+                let mut client_mcp_synthetic_urls: Vec<(
                     String,
                     Option<indexmap::IndexMap<String, Option<String>>>,
                 )> = match (
@@ -647,6 +654,27 @@ where
                     }
                     _ => Vec::new(),
                 };
+                // Laboratories: completion-wide client-side MCP servers,
+                // appended to every agent (and fallback) when a WS-attached
+                // CLI is present. Gated on `needs_reverse_attach` (not on
+                // `client_objectiveai_mcp`) — labs apply even when the agent
+                // declares no `client_objectiveai_mcp`. Each becomes a
+                // synthetic `ws://id/{id}` upstream (no args), flowing through
+                // the same URL/header plumbing as the other synthetic URLs.
+                if needs_reverse_attach {
+                    if let Some(labs) = &params.laboratories {
+                        for lab in labs {
+                            let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
+                            client_mcp_synthetic_urls.push((
+                                format!(
+                                    "ws://id/{}",
+                                    percent_encode_segment(&c.id)
+                                ),
+                                None,
+                            ));
+                        }
+                    }
+                }
                 urls.extend(client_mcp_synthetic_urls.iter().map(|(u, _)| u.clone()));
 
                 // No MCP servers → no proxy connection needed for this
@@ -916,7 +944,8 @@ where
                 // available.
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty()
-                    || attempt.agent.base().client_objectiveai_mcp().is_some();
+                    || attempt.agent.base().client_objectiveai_mcp().is_some()
+                    || has_laboratories;
                 let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {

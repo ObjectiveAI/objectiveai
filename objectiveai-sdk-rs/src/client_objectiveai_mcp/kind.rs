@@ -12,8 +12,9 @@ use serde::{Deserialize, Serialize};
 /// payload so the CLI's per-MCP dispatch table can route by enum
 /// rather than by parsing the proxy's URL path on every hop.
 ///
-/// Wire shape: `{"type":"objective_ai"}` or
-/// `{"type":"other","owner":"…","name":"…","version":"…","mcp":"…"}`.
+/// Wire shape: `{"type":"objective_ai"}`,
+/// `{"type":"other","owner":"…","name":"…","version":"…","mcp":"…"}`, or
+/// `{"type":"id","id":"…"}`.
 ///
 /// The four discriminator fields on `Other` mirror the API's
 /// `/{owner}/{name}/{version}/{mcp}` URL path that the proxy dials
@@ -41,4 +42,9 @@ pub enum McpKind {
         version: String,
         mcp: String,
     },
+
+    /// A laboratory-hosted MCP server, identified by an opaque `id`.
+    /// Mirrors the proxy URL `ws://id/{id}`.
+    #[schemars(title = "Id")]
+    Id { id: String },
 }

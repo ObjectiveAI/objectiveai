@@ -590,6 +590,12 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     if rest == "objectiveai" {
         return Some(McpKind::ObjectiveAi);
     }
+    // `ws://id/<id>` → host "id", single id segment (laboratory MCP).
+    if let Some(id) = rest.strip_prefix("id/") {
+        if !id.is_empty() {
+            return Some(McpKind::Id { id: id.to_string() });
+        }
+    }
     // `ws:///owner/name/version/mcp` → empty host, leading '/'.
     let path = rest.strip_prefix('/')?;
     let parts: Vec<&str> = path.split('/').collect();

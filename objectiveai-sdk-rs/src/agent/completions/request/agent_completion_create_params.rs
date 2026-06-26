@@ -31,5 +31,10 @@ pub struct AgentCompletionCreateParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub continuation: Option<String>,
+    /// Laboratories (client-side MCP servers) attached across all agents,
+    /// including fallbacks.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratories: Option<Vec<crate::laboratories::Laboratory>>,
 }
 
