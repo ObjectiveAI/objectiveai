@@ -17,6 +17,7 @@
 //! <bin_dir>/objectiveai-db{.exe}
 //! <bin_dir>/objectiveai-claude-agent-sdk-runner{.exe}
 //! <bin_dir>/objectiveai-codex-sdk-runner{.exe}
+//! <bin_dir>/objectiveai-mcp-laboratory   (always musl-linux; no .exe)
 //! ```
 //!
 //! Flow:

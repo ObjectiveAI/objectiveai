@@ -195,6 +195,27 @@ if [ "$NO_ZIP" != "1" ]; then
   bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
   CODEX_RUNNER_PID=$!
 
+  # objectiveai-mcp-laboratory: a musl-linux binary injected into Docker lab
+  # containers, bundled (arch-matched) into every platform zip. Built natively
+  # ONLY when absent AND the host is linux — its build.sh forces a
+  # <host-arch>-unknown-linux-musl target, which can't be linked from
+  # mac/windows. In CI the `laboratory` release job prebuilds it and pre-places
+  # it into embed/, so it's already present here (no rebuild). On a non-linux
+  # local build with no pre-placed binary it's skipped (packaging warns).
+  LAB_ARCH=$(uname -m)
+  case "$LAB_ARCH" in amd64) LAB_ARCH=x86_64 ;; arm64) LAB_ARCH=aarch64 ;; esac
+  LAB_PROFILE="debug"; [ "$RELEASE" = "1" ] && LAB_PROFILE="release"
+  LAB_BIN="$REPO_ROOT/objectiveai-mcp-laboratory/embed/${LAB_ARCH}-unknown-linux-musl/$LAB_PROFILE/objectiveai-mcp-laboratory"
+  LAB_PID=""
+  if [ ! -f "$LAB_BIN" ]; then
+    if [ "$(uname -s)" = "Linux" ]; then
+      bash "$REPO_ROOT/objectiveai-mcp-laboratory/build.sh" $PROFILE_FLAG &
+      LAB_PID=$!
+    else
+      echo "build.sh: objectiveai-mcp-laboratory musl binary absent on non-linux host; zip will omit it (CI supplies it via the laboratory job)."
+    fi
+  fi
+
   # The integration-test fixture crates (plugins + tools under tests/)
   # co-build with the product binaries — discovered by glob over their
   # Cargo.toml names. They are NOT staged into the zip (test inputs, not
@@ -342,7 +363,7 @@ fi
 # Skipped under --no-zip (phase 1 never launched).
 if [ "$NO_ZIP" != "1" ]; then
   FAILED=false
-  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID; do
+  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID $LAB_PID; do
     if ! wait "$pid"; then
       FAILED=true
     fi
@@ -428,6 +449,19 @@ package_host_zip() {
     fi
     cp "$src" "$stage/$r$ext"
   done
+
+  # objectiveai-mcp-laboratory — always a musl-linux binary (no ext, fixed
+  # name), arch-matched to the host; it runs inside Docker lab containers, not
+  # on the host. Best-effort: present in CI (pre-placed by the `laboratory`
+  # release job) and on local linux builds (built in phase 1); on a non-linux
+  # local build it is absent → warn and omit so the local zip still builds.
+  local lab_triple="${arch}-unknown-linux-musl"
+  src="$REPO_ROOT/objectiveai-mcp-laboratory/embed/$lab_triple/$profile/objectiveai-mcp-laboratory"
+  if [ -f "$src" ]; then
+    cp "$src" "$stage/objectiveai-mcp-laboratory"
+  else
+    echo "package: WARNING — objectiveai-mcp-laboratory missing ($src); zip omits it" >&2
+  fi
 
   # Build the zip to a temp path, then move into place (no partial asset).
   local out="$bin_dir/$asset" tmp="$bin_dir/$asset.partial.$$"

@@ -33,6 +33,7 @@
 #   <dir>/bin/objectiveai-db{.exe}
 #   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
 #   <dir>/bin/objectiveai-codex-sdk-runner{.exe}
+#   <dir>/bin/objectiveai-mcp-laboratory   (always musl-linux; no .exe)
 #
 # No toolchain required for the default (download) path. To build from a
 # repo checkout instead, pass --from-source (or --from-source-release):
