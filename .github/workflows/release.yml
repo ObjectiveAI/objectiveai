@@ -111,45 +111,64 @@ jobs:
   # zip (incl. macOS/Windows) under the fixed name `objectiveai-mcp-laboratory`
   # (no .exe). To avoid cross-compiling musl from the mac/windows runners, the
   # two arches are built here where musl is native (linux) and uploaded as
-  # artifacts; the `binaries` jobs download the arch-matched one and bundle it.
+  # artifacts; each `binaries-<arch>` job downloads its arch's artifact.
+  #
+  # Split per-arch (not one matrix) so each zip job depends ONLY on its own
+  # arch's laboratory build: an aarch64 runner shortage can't gate the x86_64
+  # zips, and vice-versa. GitHub `needs` is job-level, so per-arch decoupling
+  # requires per-arch jobs.
 
-  laboratory:
-    name: laboratory musl (${{ matrix.arch }})
+  laboratory-x86_64:
+    name: laboratory musl (x86_64)
     needs: check-version
     if: needs.check-version.outputs.should-release == 'true'
-    runs-on: ${{ matrix.runs-on }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - { arch: x86_64,  runs-on: ubuntu-22.04,     triple: x86_64-unknown-linux-musl }
-          - { arch: aarch64, runs-on: ubuntu-24.04-arm, triple: aarch64-unknown-linux-musl }
+    runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - run: rustup target add ${{ matrix.triple }}
+      - run: rustup target add x86_64-unknown-linux-musl
       # Pure-Rust crate (no ring/openssl/aws-lc/rustls in its dep closure), so
       # rustup's self-contained musl std suffices — no musl-tools / cmake.
       - name: Build musl binary
         shell: bash
-        # build.sh's default target is <host-arch>-unknown-linux-musl, which on
-        # each arm equals matrix.triple; output lands in
-        # objectiveai-mcp-laboratory/embed/<triple>/release/objectiveai-mcp-laboratory
         run: bash objectiveai-mcp-laboratory/build.sh --release
       - uses: actions/upload-artifact@v4
         with:
-          name: laboratory-${{ matrix.arch }}
-          path: objectiveai-mcp-laboratory/embed/${{ matrix.triple }}/release/objectiveai-mcp-laboratory
+          name: laboratory-x86_64
+          path: objectiveai-mcp-laboratory/embed/x86_64-unknown-linux-musl/release/objectiveai-mcp-laboratory
+          if-no-files-found: error
+
+  laboratory-aarch64:
+    name: laboratory musl (aarch64)
+    needs: check-version
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: rustup target add aarch64-unknown-linux-musl
+      - name: Build musl binary
+        shell: bash
+        run: bash objectiveai-mcp-laboratory/build.sh --release
+      - uses: actions/upload-artifact@v4
+        with:
+          name: laboratory-aarch64
+          path: objectiveai-mcp-laboratory/embed/aarch64-unknown-linux-musl/release/objectiveai-mcp-laboratory
           if-no-files-found: error
 
   # ── Binary zips (5 platforms; build.sh --release --no-sdk --no-test-integration) ──
+  # Split into binaries-x86_64 (linux/macos/windows) and binaries-aarch64
+  # (linux/macos) so each depends only on its arch's laboratory job. The steps
+  # are identical between the two — they read matrix.arch / matrix.triple — only
+  # the matrix platform list and the laboratory `needs` differ.
+  #
   # No windows-arm64: objectiveai-db's bundled embedded-postgres has no
   # aarch64-pc-windows-msvc binary upstream (theseus-rs/postgresql-binaries),
   # so the zip can't be built (or would ship a non-functional db).
 
-  binaries:
+  binaries-x86_64:
     name: zip (${{ matrix.os }}-${{ matrix.arch }})
-    needs: [check-version, create-release, laboratory]
+    needs: [check-version, create-release, laboratory-x86_64]
     if: needs.check-version.outputs.should-release == 'true'
     runs-on: ${{ matrix.runs-on }}
     env:
@@ -158,11 +177,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { os: linux,   arch: x86_64,  runs-on: ubuntu-22.04,      triple: x86_64-unknown-linux-musl }
-          - { os: linux,   arch: aarch64, runs-on: ubuntu-24.04-arm,  triple: aarch64-unknown-linux-musl }
-          - { os: macos,   arch: x86_64,  runs-on: macos-15-intel,    triple: x86_64-unknown-linux-musl }
-          - { os: macos,   arch: aarch64, runs-on: macos-14,          triple: aarch64-unknown-linux-musl }
-          - { os: windows, arch: x86_64,  runs-on: windows-latest,    triple: x86_64-unknown-linux-musl }
+          - { os: linux,   arch: x86_64, runs-on: ubuntu-22.04,   triple: x86_64-unknown-linux-musl }
+          - { os: macos,   arch: x86_64, runs-on: macos-15-intel, triple: x86_64-unknown-linux-musl }
+          - { os: windows, arch: x86_64, runs-on: windows-latest, triple: x86_64-unknown-linux-musl }
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -213,6 +230,81 @@ jobs:
         # integration-test fixture crates — they're test inputs, never
         # shipped in the release zip. GITHUB_TOKEN lets objectiveai-db's
         # postgres archive download avoid rate limits.
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash build.sh --release --no-sdk --no-test-integration
+      - name: Dump build logs on failure
+        if: failure()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for log in .logs/build/*.txt; do
+            echo "::group::$log"; cat "$log"; echo "::endgroup::"
+          done
+      - name: Upload zip to release
+        shell: bash
+        run: |
+          gh release upload "v${{ needs.check-version.outputs.version }}" \
+            "$HOME"/.objectiveai/bin/objectiveai-*.zip \
+            --clobber --repo "${{ github.repository }}"
+
+  binaries-aarch64:
+    name: zip (${{ matrix.os }}-${{ matrix.arch }})
+    needs: [check-version, create-release, laboratory-aarch64]
+    if: needs.check-version.outputs.should-release == 'true'
+    runs-on: ${{ matrix.runs-on }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: linux, arch: aarch64, runs-on: ubuntu-24.04-arm, triple: aarch64-unknown-linux-musl }
+          - { os: macos, arch: aarch64, runs-on: macos-14,         triple: aarch64-unknown-linux-musl }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Download laboratory musl binary
+        uses: actions/download-artifact@v4
+        with:
+          name: laboratory-${{ matrix.arch }}
+          path: lab-dl
+      - name: Place laboratory binary into embed/
+        shell: bash
+        # Pre-place the prebuilt musl binary where build.sh packaging expects
+        # it; build.sh then sees it present and does not rebuild (no musl
+        # compile attempted on mac/windows). `test -f` is the CI integrity
+        # guard guaranteeing the zip includes it.
+        run: |
+          dest="objectiveai-mcp-laboratory/embed/${{ matrix.triple }}/release"
+          mkdir -p "$dest"
+          cp "lab-dl/objectiveai-mcp-laboratory" "$dest/objectiveai-mcp-laboratory"
+          chmod +x "$dest/objectiveai-mcp-laboratory"
+          test -f "$dest/objectiveai-mcp-laboratory"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      # node + pnpm: the viewer's build.sh runs `pnpm install` + `tauri build`
+      # (frontend against the committed workspace SDK — no SDK build).
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Install Linux Tauri deps
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libsoup-3.0-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libssl-dev
+      - name: Build + package the zip
+        shell: bash
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: bash build.sh --release --no-sdk --no-test-integration
