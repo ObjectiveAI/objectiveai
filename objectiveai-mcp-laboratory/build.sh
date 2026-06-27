@@ -32,8 +32,40 @@ run() {
   # any embedder that's also building. Always pass --target so the output
   # lands in <target-dir>/<triple>/<profile>/.
   TARGET_DIR="$REPO_ROOT/target-$MODULE"
-  echo "Building $MODULE ($PROFILE, $TARGET)..."
-  if ! cargo build -p "$MODULE" --target-dir "$TARGET_DIR" --target "$TARGET" "$@"; then
+
+  # Ensure the target's std is installed (idempotent; needed for both native
+  # musl on Linux and cross-compiling from another host).
+  if command -v rustup >/dev/null 2>&1; then
+    rustup target add "$TARGET" >/dev/null 2>&1 || true
+  fi
+
+  # Pick the build command. On a Linux host the musl target links locally, so
+  # plain `cargo build` works with no extra toolchain. On a non-Linux host we
+  # cross-compile to linux-musl with cargo-zigbuild (zig as the cross
+  # linker/CC). That toolchain is REQUIRED — error clearly if it is missing
+  # rather than producing a broken or wrong-platform binary.
+  local -a BUILD_CMD
+  if [ "$(uname -s)" = "Linux" ]; then
+    BUILD_CMD=(cargo build)
+  else
+    if ! command -v cargo-zigbuild >/dev/null 2>&1; then
+      echo "ERROR: building $MODULE for $TARGET from a non-Linux host needs cargo-zigbuild." >&2
+      echo "  Install it:  cargo install cargo-zigbuild" >&2
+      echo "  And install zig:  pip install ziglang   (or see https://ziglang.org/download/)" >&2
+      return 1
+    fi
+    if ! command -v zig >/dev/null 2>&1 \
+       && ! python3 -c "import ziglang" >/dev/null 2>&1 \
+       && ! python -c "import ziglang" >/dev/null 2>&1; then
+      echo "ERROR: cargo-zigbuild needs the zig compiler to build $TARGET." >&2
+      echo "  Install zig:  pip install ziglang   (or see https://ziglang.org/download/)" >&2
+      return 1
+    fi
+    BUILD_CMD=(cargo zigbuild)
+  fi
+
+  echo "Building $MODULE ($PROFILE, $TARGET) via ${BUILD_CMD[*]}..."
+  if ! "${BUILD_CMD[@]}" -p "$MODULE" --target-dir "$TARGET_DIR" --target "$TARGET" "$@"; then
     return 1
   fi
 
