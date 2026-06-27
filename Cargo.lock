@@ -4303,7 +4303,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "objectiveai-mcp-filesystem"
+name = "objectiveai-mcp-laboratory"
 version = "2.2.7"
 dependencies = [
  "anyhow",

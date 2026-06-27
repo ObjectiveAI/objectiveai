@@ -1,7 +1,7 @@
 //! ObjectiveAI MCP filesystem server.
 //!
 //! Mirrors the `objectiveai-mcp-proxy` `run.rs` shape so other crates can
-//! `use objectiveai_mcp_filesystem::{ConfigBuilder, run}` and spawn the
+//! `use objectiveai_mcp_laboratory::{ConfigBuilder, run}` and spawn the
 //! server in-process without going through the binary.
 
 use envconfig::Envconfig;

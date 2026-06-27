@@ -1,5 +1,5 @@
 [package]
-name = "objectiveai-mcp-filesystem"
+name = "objectiveai-mcp-laboratory"
 version = "2.2.7"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
@@ -7,7 +7,7 @@ description = "MCP (Model Context Protocol) filesystem helpers for ObjectiveAI"
 license = "MIT"
 repository = "https://github.com/ObjectiveAI/objectiveai"
 homepage = "https://objectiveai.dev"
-documentation = "https://docs.rs/objectiveai-mcp-filesystem"
+documentation = "https://docs.rs/objectiveai-mcp-laboratory"
 readme = "README.md"
 keywords = ["llm", "ai", "swarm", "mcp"]
 publish = true

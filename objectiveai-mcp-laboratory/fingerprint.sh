@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Computes a SHA256 fingerprint of all source files that affect the
-# objectiveai-mcp-filesystem build (its own src + Cargo.lock; no
+# objectiveai-mcp-laboratory build (its own src + Cargo.lock; no
 # transitive workspace deps).
 #
 # Usage:

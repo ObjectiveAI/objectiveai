@@ -311,7 +311,7 @@ fn looks_like_dev_tree(current_exe: &Path) -> bool {
     current_exe.components().any(|c| {
         let s = c.as_os_str();
         s == "target"
-            || s == "target-objectiveai-mcp-filesystem"
+            || s == "target-objectiveai-mcp-laboratory"
             || s == "target-objectiveai-mcp-proxy"
             || s == "target-objectiveai-viewer"
     })

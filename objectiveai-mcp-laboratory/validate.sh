@@ -4,7 +4,7 @@
 # is stale.
 #
 # Usage:
-#   bash objectiveai-mcp-filesystem/validate.sh [--target <triple>] [--release]
+#   bash objectiveai-mcp-laboratory/validate.sh [--target <triple>] [--release]
 
 set -euo pipefail
 

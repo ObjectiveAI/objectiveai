@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Builds objectiveai-mcp-filesystem and places the binary in
+# Builds objectiveai-mcp-laboratory and places the binary in
 # embed/<target>/<profile>/. Skips the build if the source fingerprint
 # hasn't changed. All arguments are forwarded to cargo build.
-# Output is captured to .logs/build/objectiveai-mcp-filesystem.txt.
+# Output is captured to .logs/build/objectiveai-mcp-laboratory.txt.
 #
 # Default target is `<host-arch>-unknown-linux-musl` — same convention
 # as the legacy objectiveai-mcp build, since this binary is meant to be
@@ -10,11 +10,11 @@
 # `--target <triple>` for local-host builds.
 #
 # Usage:
-#   bash objectiveai-mcp-filesystem/build.sh [--release] [--target <triple>] [...]
+#   bash objectiveai-mcp-laboratory/build.sh [--release] [--target <triple>] [...]
 
 set -euo pipefail
 
-MODULE="objectiveai-mcp-filesystem"
+MODULE="objectiveai-mcp-laboratory"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOG_DIR="$REPO_ROOT/.logs/build"
