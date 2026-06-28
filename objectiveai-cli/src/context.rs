@@ -111,23 +111,23 @@ impl Context {
             .await
     }
 
-    /// The podman executable, ready to use. On first use this installs podman
-    /// into `<bin>/podman/<version>/` ([`crate::podman::install`]) and then
-    /// initializes the global podman machine ([`crate::podman::setup`] —
-    /// `machine init` on macOS/Windows, no-op on Linux); the result is
-    /// memoized. Each phase is gated by its own bin lock + completion marker
-    /// and coalesced in-process by the `OnceCell`; commands that never need
-    /// podman never pay the cost. Not yet called anywhere.
+    /// The podman executable, ready to use. The **install** (download +
+    /// extract into `<bin>/podman/<version>/`, [`crate::podman::install`]) is
+    /// memoized in the `OnceCell` — it's immutable, so it's paid once per
+    /// process and coalesced in-process. The **machine** is then ensured
+    /// *running* on EVERY call ([`crate::podman::running`] — `machine init` if
+    /// absent, then `machine start`; no-op on Linux), because running-state is
+    /// volatile (a host reboot stops it) and a memoized/marker result would go
+    /// stale. The warm path is a single `machine inspect`. Commands that never
+    /// need podman never pay the cost.
     pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
         let bin = self.filesystem.bin_dir();
-        self.podman
-            .get_or_try_init(move || async move {
-                let exe = crate::podman::install::ensure_installed(bin.clone()).await?;
-                crate::podman::setup::ensure_setup(&bin, &exe).await?;
-                Ok(exe)
-            })
-            .await
-            .map(|p| p.as_path())
+        let exe = self
+            .podman
+            .get_or_try_init(|| crate::podman::install::ensure_installed(bin.clone()))
+            .await?;
+        crate::podman::running::ensure_running(&bin, exe).await?;
+        Ok(exe.as_path())
     }
 
     /// The API `HttpClient`, built on first use and memoized.
