@@ -13,14 +13,18 @@
 //! also self-healing — a destroyed-but-previously-initialized machine reads as
 //! `Absent` and is re-created.
 //!
-//! Concurrency mirrors [`super::install`]: the lock-free fast path returns
-//! immediately when the machine is already running; otherwise the reconcile is
-//! serialized by the bin lock (`<bin>/locks`, key `podman-machine`) with
-//! double-checked locking (probe → `wait_acquire` → re-probe → reconcile →
-//! explicit release). Across DIFFERENT objectiveai dirs the per-dir lock does
-//! not serialize, but the global machine still converges: each reconcile
-//! re-probes, and podman's "already exists" / "already running" are treated as
-//! success.
+//! Concurrency is two-layered. The lock-free fast path returns immediately when
+//! the machine is already running. Otherwise the slow path is serialized at two
+//! levels: an **in-process** `Mutex` (the bin lock below is a cross-PROCESS
+//! mutex that is reentrant in-process, so it does NOT serialize concurrent
+//! in-process callers — e.g. the conduit dialing several laboratories at once —
+//! and without the `Mutex` they could both reconcile and double-start), then
+//! the **cross-process** bin lock (`<bin>/locks`, key `podman-machine`) with
+//! double-checked locking (probe → in-process `Mutex` → `wait_acquire` →
+//! re-probe → reconcile → explicit release). Across DIFFERENT objectiveai dirs
+//! the per-dir lock does not serialize, but the global machine still converges:
+//! each reconcile re-probes, and podman's "already exists" / "already running"
+//! are treated as success.
 
 use std::path::Path;
 
@@ -40,21 +44,33 @@ enum MachineState {
 
 /// Ensure the global podman machine is **running** for this host, creating it
 /// first if necessary. No-op on Linux (native rootless podman needs no
-/// machine). Concurrency-safe; see the module docs. `exe` is the podman binary
-/// from [`super::install`].
-pub async fn ensure_running(bin_dir: &Path, exe: &Path) -> Result<(), Error> {
+/// machine). Concurrency-safe; see the module docs. `machine_lock` is the
+/// process-wide [`crate::context::Context`] mutex that serializes the in-process
+/// slow path; `exe` is the podman binary from [`super::install`].
+pub async fn ensure_running(
+    machine_lock: &tokio::sync::Mutex<()>,
+    bin_dir: &Path,
+    exe: &Path,
+) -> Result<(), Error> {
     // Linux runs containers natively — no machine to start.
     if std::env::consts::OS == "linux" {
         return Ok(());
     }
     let helper_dir = exe.parent();
 
-    // 1. Fast path: already running — no lock.
+    // 1. Fast path: already running — no lock at all.
     if machine_state(exe, helper_dir).await == MachineState::Running {
         return Ok(());
     }
 
-    // 2. Serialize the reconcile machine-wide. We may BLOCK here while a
+    // 2. Serialize the slow path WITHIN this process. The cross-process bin
+    //    lock below is reentrant in-process (it's a cross-PROCESS mutex,
+    //    refcounted per process), so without this two concurrent in-process
+    //    callers could both reconcile and double-`machine start`. Held for the
+    //    whole reconcile; the fast path above stays lock-free.
+    let _in_process = machine_lock.lock().await;
+
+    // 3. Serialize the reconcile machine-WIDE. We may BLOCK here while a
     //    sibling process is mid-init/start (or about to finish one).
     let claim = objectiveai_sdk::lockfile::wait_acquire(
         &bin_dir.join("locks"),
@@ -64,13 +80,15 @@ pub async fn ensure_running(bin_dir: &Path, exe: &Path) -> Result<(), Error> {
     .await
     .map_err(|e| Error::Podman(format!("machine lock: {e}")))?;
 
-    // 3. DOUBLE-CHECKED LOCKING: re-probe now that we hold the lock — a sibling
-    //    may have started (or created) the machine while we were blocked.
+    // 4. DOUBLE-CHECKED LOCKING: `reconcile` re-probes now that we hold both
+    //    locks — a sibling (process OR, before we got the Mutex, an in-process
+    //    task) may have started or created the machine while we were blocked.
     let result = reconcile(exe, helper_dir).await;
 
-    // 4. Release explicitly on EVERY path — dropping a LockClaim deliberately
-    //    does NOT release it (mirrors `install::ensure_installed`). Release
-    //    before propagating an error so the lock is never leaked.
+    // 5. Release the bin lock explicitly on EVERY path — dropping a LockClaim
+    //    deliberately does NOT release it (mirrors `install::ensure_installed`).
+    //    Release before propagating an error so the lock is never leaked. The
+    //    in-process Mutex guard drops at end of scope.
     claim
         .release()
         .map_err(|e| Error::Podman(format!("machine lock release: {e}")))?;

@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 
 use crate::db;
 use crate::filesystem;
@@ -53,6 +53,13 @@ pub struct Context {
     /// [`Context::podman`]. Downloaded + installed on first use,
     /// shared across clones.
     podman: Arc<OnceCell<std::path::PathBuf>>,
+    /// Serializes the podman-machine "ensure running" SLOW path within this
+    /// process (shared across clones). The cross-process bin lock used there
+    /// is reentrant in-process, so this is what stops two concurrent in-process
+    /// callers (e.g. the conduit dialing several laboratories at once) from
+    /// both reconciling and double-starting the machine. See
+    /// [`crate::podman::running::ensure_running`].
+    podman_machine: Arc<Mutex<()>>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -84,6 +91,7 @@ impl Context {
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
             podman: Arc::new(OnceCell::new()),
+            podman_machine: Arc::new(Mutex::new(())),
             no_objectiveai: false,
         }
     }
@@ -126,7 +134,7 @@ impl Context {
             .podman
             .get_or_try_init(|| crate::podman::install::ensure_installed(bin.clone()))
             .await?;
-        crate::podman::running::ensure_running(&bin, exe).await?;
+        crate::podman::running::ensure_running(&self.podman_machine, &bin, exe).await?;
         Ok(exe.as_path())
     }
 
