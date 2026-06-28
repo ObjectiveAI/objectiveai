@@ -14,7 +14,13 @@
 //! - **macOS / Windows** — the official `containers/podman` remote-client
 //!   release zip. The container engine itself lives in a `podman machine`
 //!   (a VM on macOS, WSL2 on Windows) that podman downloads/sets up on
-//!   demand — none of that is bundled here.
+//!   demand — that image is not bundled here.
+//!   - **Windows** carries its machine helpers in the zip already
+//!     (`gvproxy.exe`, `win-sshproxy.exe`).
+//!   - **macOS** does NOT: the zip is just `podman` + `podman-mac-helper`, so
+//!     after extracting we also fetch `vfkit` (the applehv VM monitor, with the
+//!     virtualization entitlement) and `gvproxy` (networking) beside `podman`
+//!     — podman won't auto-download those. See [`fetch_macos_helpers`].
 //!
 //! Concurrency mirrors [`crate::python`] / `objectiveai-db`'s installer:
 //! in-process callers coalesce on the `Context`'s `OnceCell`; across
@@ -36,6 +42,13 @@ pub const PODMAN_VERSION_MACOS_AMD64: &str = "5.8.4"; // containers/podman
 pub const PODMAN_VERSION_MACOS_ARM64: &str = "5.8.4"; // containers/podman
 pub const PODMAN_VERSION_WINDOWS_AMD64: &str = "5.8.4"; // containers/podman
 pub const PODMAN_VERSION_WINDOWS_ARM64: &str = "5.8.4"; // containers/podman
+
+// macOS `podman machine` (applehv) helpers that the remote-client zip omits.
+// Pinned to the versions podman 5.8.4's official .pkg bundles (its
+// contrib/pkginstaller: VFKIT_VERSION, and gvisor-tap-vsock from go.mod). Both
+// release assets are universal Mach-O (arm64 + amd64), so one URL serves both.
+const VFKIT_VERSION: &str = "0.6.1"; // crc-org/vfkit
+const GVPROXY_VERSION: &str = "0.8.9"; // containers/gvisor-tap-vsock
 
 /// Download timeout for the (tens-of-MB) podman archive.
 const DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
@@ -242,11 +255,88 @@ async fn install(
         )));
     }
 
+    // macOS: the official remote-client zip is podman + podman-mac-helper only.
+    // `podman machine` (the applehv VM) ALSO needs vfkit (the VM monitor) and
+    // gvproxy (networking), which podman does NOT auto-download — they ship in
+    // the official .pkg. Fetch them beside podman so the setup phase's
+    // `CONTAINERS_HELPER_BINARY_DIR` (= podman's dir) finds them.
+    if std::env::consts::OS == "macos" {
+        fetch_macos_helpers(exe).await?;
+    }
+
     // Marker LAST — its presence is the signal that the install is COMPLETE.
     tokio::fs::write(marker, b"")
         .await
         .map_err(|e| Error::Podman(format!("write {marker:?}: {e}")))?;
     Ok(())
+}
+
+/// Fetch the macOS `podman machine` (applehv) helpers beside `exe`.
+///
+/// `vfkit` is the pre-SIGNED release asset: it carries the
+/// `com.apple.security.virtualization` entitlement required to use
+/// Virtualization.framework, so it is used AS-IS (re-signing would strip the
+/// entitlement). `gvproxy` is ad-hoc codesigned (best-effort) so it runs on
+/// Apple Silicon, which refuses unsigned binaries. Both assets are universal
+/// Mach-O (arm64 + amd64). `krunkit` (the libkrun provider) is intentionally
+/// omitted — it's only needed for `--provider libkrun`, not the default
+/// applehv path.
+async fn fetch_macos_helpers(exe: &Path) -> Result<(), Error> {
+    let dir = exe
+        .parent()
+        .ok_or_else(|| Error::Podman(format!("podman exe has no parent: {exe:?}")))?;
+
+    let vfkit = dir.join("vfkit");
+    let vfkit_url =
+        format!("https://github.com/crc-org/vfkit/releases/download/v{VFKIT_VERSION}/vfkit");
+    download_to(&vfkit_url, &vfkit).await?;
+    set_executable(&vfkit).await?;
+
+    let gvproxy = dir.join("gvproxy");
+    let gvproxy_url = format!(
+        "https://github.com/containers/gvisor-tap-vsock/releases/download/v{GVPROXY_VERSION}/gvproxy-darwin"
+    );
+    download_to(&gvproxy_url, &gvproxy).await?;
+    set_executable(&gvproxy).await?;
+    // Apple Silicon refuses to exec unsigned binaries; ad-hoc sign gvproxy so
+    // it runs regardless of how the upstream asset was signed (vfkit is left
+    // untouched to preserve its entitlement signature). Best-effort.
+    let _ = ad_hoc_codesign(&gvproxy).await;
+
+    Ok(())
+}
+
+/// Set the unix executable bit (0o755). No-op on non-unix.
+async fn set_executable(path: &Path) -> Result<(), Error> {
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        tokio::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755))
+            .await
+            .map_err(|e| Error::Podman(format!("chmod {path:?}: {e}")))?;
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = path;
+    }
+    Ok(())
+}
+
+/// Ad-hoc codesign a binary (`codesign --force --sign - <path>`).
+async fn ad_hoc_codesign(path: &Path) -> Result<(), Error> {
+    let status = tokio::process::Command::new("codesign")
+        .arg("--force")
+        .arg("--sign")
+        .arg("-")
+        .arg(path)
+        .status()
+        .await
+        .map_err(|e| Error::Podman(format!("spawn codesign: {e}")))?;
+    if status.success() {
+        Ok(())
+    } else {
+        Err(Error::Podman(format!("codesign failed for {path:?}")))
+    }
 }
 
 /// Run the synchronous [`extract_archive`] on a blocking thread.
