@@ -49,6 +49,10 @@ pub struct Context {
     /// [`Context::python`]. No per-request identity; always shared
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
+    /// Lazily-installed podman executable path — see
+    /// [`Context::podman`]. Downloaded + installed on first use,
+    /// shared across clones.
+    podman: Arc<OnceCell<std::path::PathBuf>>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -79,6 +83,7 @@ impl Context {
             viewer: Arc::new(OnceCell::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
+            podman: Arc::new(OnceCell::new()),
             no_objectiveai: false,
         }
     }
@@ -104,6 +109,18 @@ impl Context {
         self.python
             .get_or_try_init(|| crate::python::Python::initialize(self.filesystem.bin_dir()))
             .await
+    }
+
+    /// The podman executable, downloaded + installed on first use into
+    /// `<bin>/podman/<version>/` and memoized. Install is gated
+    /// machine-wide by the bin lock (key `podman`) and coalesced
+    /// in-process by the `OnceCell`; commands that never need podman
+    /// never pay the cost. Not yet called anywhere.
+    pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
+        self.podman
+            .get_or_try_init(|| crate::podman::ensure_installed(self.filesystem.bin_dir()))
+            .await
+            .map(|p| p.as_path())
     }
 
     /// The API `HttpClient`, built on first use and memoized.

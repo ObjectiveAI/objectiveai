@@ -16,6 +16,8 @@ pub enum Error {
     PathParse(String),
     #[error("python wasm runtime error: {0}")]
     PythonWasm(String),
+    #[error("podman: {0}")]
+    Podman(String),
     #[error("failed to read python file {0}: {1}")]
     PythonFileRead(std::path::PathBuf, std::io::Error),
     #[error("failed to read prompt file {0}: {1}")]
