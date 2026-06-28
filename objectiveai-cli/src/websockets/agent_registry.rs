@@ -37,11 +37,11 @@ pub struct AgentInstanceRegistry {
     /// Every hierarchy `observe` has ever tried — exactly one
     /// try_acquire per AIH per registry lifetime, success or not.
     attempted: HashSet<String>,
-    /// Tag claim guarding a (GROUPED) tag spawn. RETAINED for the
-    /// registry's lifetime (released on drop) so the tag — and the
-    /// laboratories that travel with it — cannot be relocated while
-    /// the agent is active.
-    tag_claim: Option<AgentLock>,
+    /// The agent's tag-lock FAMILY: every tag in its GROUPED group, or every
+    /// tag bound to its AIH. RETAINED for the registry's lifetime (released on
+    /// drop) so NONE of the agent's tags — nor the laboratories that travel with
+    /// them — can be relocated or detached while the agent is active.
+    tag_claims: Vec<AgentLock>,
 }
 
 impl AgentInstanceRegistry {
@@ -51,7 +51,7 @@ impl AgentInstanceRegistry {
             agent_locks,
             open: HashMap::new(),
             attempted: HashSet::new(),
-            tag_claim: None,
+            tag_claims: Vec::new(),
         }
     }
 
@@ -64,10 +64,10 @@ impl AgentInstanceRegistry {
         self.open.insert(hier, claim);
     }
 
-    /// Hand the registry the tag's claim. Retained for the registry's
-    /// lifetime (released on drop) — see the field doc.
-    pub fn hold_tag_claim(&mut self, claim: AgentLock) {
-        self.tag_claim = Some(claim);
+    /// Hand the registry the agent's tag-lock family. Retained for the
+    /// registry's lifetime (released on drop) — see the field doc.
+    pub fn hold_tag_claims(&mut self, claims: Vec<AgentLock>) {
+        self.tag_claims.extend(claims);
     }
 
     /// Idempotent, best-effort. The first time we see `hier`, try to
@@ -101,12 +101,12 @@ impl AgentInstanceRegistry {
 
 impl Drop for AgentInstanceRegistry {
     fn drop(&mut self) {
-        // AIH claims first, then the tag claim — each AgentLock releases its
+        // AIH claims first, then the tag family — each AgentLock releases its
         // lockfile claim, then drops its in-process guard.
         for (_, claim) in self.open.drain() {
             let _ = claim.release();
         }
-        if let Some(claim) = self.tag_claim.take() {
+        for claim in self.tag_claims.drain(..) {
             let _ = claim.release();
         }
     }

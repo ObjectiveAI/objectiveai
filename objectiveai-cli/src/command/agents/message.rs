@@ -70,11 +70,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                 crate::db::tags::LookupState::Bound {
                     agent_instance_hierarchy,
                 } => instance_route(&state_dir, agent_instance_hierarchy),
-                crate::db::tags::LookupState::Grouped { .. } => {
+                crate::db::tags::LookupState::Grouped { tag_group_id, .. } => {
                     let (dir, key) = super::locks::agent_tag_lock(&state_dir, &agent_tag);
                     Route::Locked {
                         dir,
                         key,
+                        family: super::locks::Family::Group(tag_group_id),
                         hierarchy: None,
                         tag: Some(agent_tag.clone()),
                         child: AgentSelector::Tag { agent_tag },
@@ -88,26 +89,33 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     };
 
     match route {
-        Route::Ref { child } => spawn_child(child, content, seed, None).await,
+        Route::Ref { child } => spawn_child(child, content, seed, Vec::new()).await,
         Route::Locked {
             dir,
             key,
+            family,
             hierarchy,
             tag,
             child,
         } => {
-            // Fast path: nobody holds the lock — exec the spawn child
-            // under the fresh claim.
-            if let Some(lock) =
-                crate::command::agents::locks::try_acquire(ctx.agent_locks(), &dir, &key).await
+            // Fast path: acquire the WHOLE family (all-or-nothing). If every
+            // member is free, exec the spawn child carrying the family —
+            // transferred, so the child adopts it with no release gap.
+            let coords =
+                super::locks::family_coords(ctx.db_client().await?, &state_dir, family.clone())
+                    .await?;
+            if let Some(locks) =
+                super::locks::try_acquire_all(ctx.agent_locks(), &coords).await
             {
-                return spawn_locked(child, content, seed, lock).await;
+                return spawn_locked(child, content, seed, locks).await;
             }
 
-            // Slow path: live owner. Park the message, then wait for
-            // whichever comes first — the row flipping inactive (the
-            // owner consumed it) or the lock freeing up (the owner
-            // died / finished without consuming; we take over).
+            // Slow path: a live owner holds part of the family. Park the
+            // message, then race "the owner consumed it" vs "the primary freed
+            // (owner died) and we take over the whole family". The family
+            // releases atomically on the owner's drop, so once the primary frees
+            // the remainder is normally free too; a rare concurrent grab on a
+            // sibling re-arms the race (the row stays enqueued).
             let queue_id = crate::db::message_queue::enqueue_with_content(
                 ctx.db_client().await?,
                 hierarchy,
@@ -118,26 +126,58 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             )
             .await?;
             let pool = ctx.db_client().await?.clone();
-            tokio::select! {
-                delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
-                    delivery?;
-                    Ok(Response::Delivered)
-                }
-                lock = crate::command::agents::locks::wait_acquire(ctx.agent_locks(), &dir, &key) => {
-                    let lock = lock.map_err(|e| Error::Lockfile {
-                        key: key.clone(),
-                        source: e,
-                    })?;
-                    // We own the slot now. Reclaim our queue row so
-                    // the spawn child doesn't see it again — the
-                    // message rides inline instead.
-                    let _ = crate::db::message_queue::delete_by_id(
-                        ctx.db_client().await?,
-                        queue_id,
-                        &ctx.config.agent_instance_hierarchy,
-                    )
-                    .await;
-                    spawn_locked(child, content, seed, lock).await
+            let primary = (dir, key);
+            let mut child = Some(child);
+            let mut content = Some(content);
+            loop {
+                tokio::select! {
+                    delivery = crate::db::message_queue::subscribe_delivered(&pool, queue_id) => {
+                        delivery?;
+                        return Ok(Response::Delivered);
+                    }
+                    lock = super::locks::wait_acquire(ctx.agent_locks(), &primary.0, &primary.1) => {
+                        let primary_lock = lock.map_err(|e| Error::Lockfile {
+                            key: primary.1.clone(),
+                            source: e,
+                        })?;
+                        // Hold the primary; try to grab the rest of the family.
+                        let coords = super::locks::family_coords(
+                            ctx.db_client().await?,
+                            &state_dir,
+                            family.clone(),
+                        )
+                        .await?;
+                        let remainder: Vec<_> =
+                            coords.into_iter().filter(|c| c != &primary).collect();
+                        match super::locks::try_acquire_all(ctx.agent_locks(), &remainder).await {
+                            Some(mut rest) => {
+                                // We own the whole family. Reclaim our queue row
+                                // so the child doesn't re-see it — the message
+                                // rides inline instead.
+                                let _ = crate::db::message_queue::delete_by_id(
+                                    ctx.db_client().await?,
+                                    queue_id,
+                                    &ctx.config.agent_instance_hierarchy,
+                                )
+                                .await;
+                                let mut all = vec![primary_lock];
+                                all.append(&mut rest);
+                                return spawn_locked(
+                                    child.take().expect("child consumed once"),
+                                    content.take().expect("content consumed once"),
+                                    seed,
+                                    all,
+                                )
+                                .await;
+                            }
+                            None => {
+                                // A sibling is still held — drop the primary and
+                                // re-arm the race.
+                                drop(primary_lock);
+                                continue;
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -149,12 +189,14 @@ enum Route {
     /// Plain agent ref — nothing to lock or enqueue against; always
     /// spawns a fresh agent carrying the message.
     Ref { child: AgentSelector },
-    /// Lockable target: the lock coordinates, the queue target
-    /// (exactly one of `hierarchy` / `tag` is `Some`), and the
-    /// selector the spawn child receives.
+    /// Lockable target: the PRIMARY lock coordinates, the agent's whole
+    /// lock `family` (acquired together so none of its tags/labs can be
+    /// relocated/detached while live), the queue target (exactly one of
+    /// `hierarchy` / `tag` is `Some`), and the selector the spawn child receives.
     Locked {
         dir: std::path::PathBuf,
         key: String,
+        family: super::locks::Family,
         hierarchy: Option<String>,
         tag: Option<String>,
         child: AgentSelector,
@@ -176,6 +218,7 @@ fn instance_route(state_dir: &std::path::Path, hierarchy: String) -> Route {
     Route::Locked {
         dir,
         key,
+        family: super::locks::Family::Hierarchy(hierarchy.clone()),
         hierarchy: Some(hierarchy),
         tag: None,
         child,
@@ -194,9 +237,9 @@ async fn spawn_locked(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    lock: super::locks::AgentLock,
+    family: Vec<super::locks::AgentLock>,
 ) -> Result<Response, Error> {
-    spawn_child(agent, content, seed, Some(lock)).await
+    spawn_child(agent, content, seed, family).await
 }
 
 /// Exec a detached `agents spawn` child (stream=true) and return its
@@ -211,7 +254,7 @@ async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    transfer: Option<super::locks::AgentLock>,
+    transfer: Vec<super::locks::AgentLock>,
 ) -> Result<Response, Error> {
     let child_request = spawn_sdk::Request {
         path_type: spawn_sdk::Path::AgentsSpawn,
@@ -227,17 +270,19 @@ async fn spawn_child(
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
     let mut executor = BinaryExecutor::from_path(exe).detach(true);
-    // Hold the in-process guard across the synchronous prepare→spawn→transfer
-    // inside `execute` (the cross-process claim is handed to the child). The
-    // `AgentLock` — now guard-only after `take_claim` — drops at the end of this
-    // fn, freeing the per-key in-process mutex; by then the child owns the
-    // cross-process lock, so a later in-process acquirer passes the mutex but
+    // Hold the in-process guards across the synchronous prepare→spawn→transfer
+    // inside `execute` (each cross-process claim is handed to the child). The
+    // `AgentLock`s — now guard-only after `take_claim` — drop at the end of this
+    // fn, freeing the per-key in-process mutexes; by then the child owns the
+    // cross-process locks, so a later in-process acquirer passes the mutex but
     // correctly fails the lockfile.
     let mut transfer = transfer;
-    if let Some(lock) = transfer.as_mut() {
-        if let Some(claim) = lock.take_claim() {
-            executor = executor.transfer_lock(claim);
-        }
+    let claims: Vec<_> = transfer
+        .iter_mut()
+        .filter_map(|lock| lock.take_claim())
+        .collect();
+    if !claims.is_empty() {
+        executor = executor.transfer_locks(claims);
     }
     let mut stream = executor
         .execute::<spawn_sdk::Request, spawn_sdk::ResponseItem>(child_request, None)

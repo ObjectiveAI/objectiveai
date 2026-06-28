@@ -140,6 +140,98 @@ pub async fn wait_acquire(
     })
 }
 
+/// The lock "family" of an agent target — the set of locks a live agent must
+/// hold so that NONE of its tags can be relocated (`tags apply`) or have labs
+/// detached (`laboratories detach`) while it is active.
+#[derive(Clone)]
+pub enum Family {
+    /// A GROUPED tag: every tag in the group (they upgrade together).
+    Group(i64),
+    /// A bound tag or an AIH: the AIH lock + every tag bound to that AIH.
+    Hierarchy(String),
+}
+
+/// An acquired lock [`Family`], partitioned for the registry.
+pub struct AcquiredFamily {
+    /// `(hierarchy, lock)` for the AIH lock — `None` for a GROUPED family.
+    pub aih: Option<(String, AgentLock)>,
+    /// The tag-lock family (group members, or the AIH's bound tags).
+    pub tags: Vec<AgentLock>,
+}
+
+/// Resolve + acquire a whole [`Family`] NON-BLOCKING, all-or-nothing, and
+/// partition it for the registry (AIH lock split out from the tag locks).
+/// `Ok(None)` if any member is busy. Used by spawn / deliver, which resolve the
+/// family up front and acquire it in one shot.
+pub async fn try_acquire_family(
+    map: &AgentLockMap,
+    pool: &crate::db::Pool,
+    state_dir: &Path,
+    family: Family,
+) -> Result<Option<AcquiredFamily>, crate::error::Error> {
+    // Keep the AIH string for the partition (family is consumed below).
+    let aih = match &family {
+        Family::Group(_) => None,
+        Family::Hierarchy(h) => Some(h.clone()),
+    };
+    let coords = family_coords(pool, state_dir, family).await?;
+    let Some(mut locks) = try_acquire_all(map, &coords).await else {
+        return Ok(None);
+    };
+    // `family_coords` puts the AIH coord FIRST for a Hierarchy family.
+    Ok(Some(match aih {
+        Some(hierarchy) => AcquiredFamily {
+            aih: Some((hierarchy, locks.remove(0))),
+            tags: locks,
+        },
+        None => AcquiredFamily { aih: None, tags: locks },
+    }))
+}
+
+/// Resolve a [`Family`] to its lock coordinates. `Group` → a tag lock per group
+/// member; `Hierarchy` → the AIH instance lock FIRST, then a tag lock per bound
+/// tag.
+pub async fn family_coords(
+    pool: &crate::db::Pool,
+    state_dir: &Path,
+    family: Family,
+) -> Result<Vec<(PathBuf, String)>, crate::error::Error> {
+    let mut coords = Vec::new();
+    match family {
+        Family::Group(tag_group) => {
+            for tag in crate::db::tags::tags_for_group(pool, tag_group).await? {
+                coords.push(agent_tag_lock(state_dir, &tag));
+            }
+        }
+        Family::Hierarchy(agent_instance_hierarchy) => {
+            coords.push(agent_instance_lock(state_dir, &agent_instance_hierarchy));
+            for tag in crate::db::tags::tags_for_hierarchy(pool, &agent_instance_hierarchy).await? {
+                coords.push(agent_tag_lock(state_dir, &tag));
+            }
+        }
+    }
+    Ok(coords)
+}
+
+/// Acquire EVERY coord NON-BLOCKING, all-or-nothing, concurrently. `None` if any
+/// coord is busy (in-process guard taken OR cross-process held) — the ones that
+/// were acquired drop here, releasing them. Deadlock-free: every leg is a
+/// non-blocking `try`, so acquisition order never matters.
+pub async fn try_acquire_all(
+    map: &AgentLockMap,
+    coords: &[(PathBuf, String)],
+) -> Option<Vec<AgentLock>> {
+    let got = futures::future::join_all(
+        coords.iter().map(|(dir, key)| try_acquire(map, dir, key)),
+    )
+    .await;
+    if got.iter().all(Option::is_some) {
+        Some(got.into_iter().flatten().collect())
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

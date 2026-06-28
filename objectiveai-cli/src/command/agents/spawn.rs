@@ -170,14 +170,16 @@ async fn execute_streaming(
     // we only name the targets — the same 3 permutations as before: a grouped
     // tag → the tag's labs; a resolved (Bound) tag → the tag's UNION the bound
     // AIH's; an instance → the AIH's.
+    use crate::command::agents::locks::Family;
     use crate::db::laboratory_attachments::Target;
-    let (mode, lab_targets): (Mode, Vec<Target>) = match request.agent {
+    let (mode, lab_targets, family): (Mode, Vec<Target>, Option<Family>) = match request.agent {
         AgentSelector::Ref { agent } => (
             Mode::Fresh {
                 agent: resolve_agent_ref(ctx, agent).await?,
                 tag: None,
             },
             Vec::new(),
+            None,
         ),
         AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
@@ -188,12 +190,13 @@ async fn execute_streaming(
                     ];
                     (
                         Mode::Historic {
-                            hierarchy: agent_instance_hierarchy,
+                            hierarchy: agent_instance_hierarchy.clone(),
                         },
                         lab_targets,
+                        Some(Family::Hierarchy(agent_instance_hierarchy)),
                     )
                 }
-                crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
+                crate::db::tags::LookupState::Grouped { agent_spec, tag_group_id, .. } => {
                     let lab_targets = vec![Target::Tag(agent_tag.clone())];
                     (
                         Mode::Fresh {
@@ -201,6 +204,7 @@ async fn execute_streaming(
                             tag: Some(agent_tag),
                         },
                         lab_targets,
+                        Some(Family::Group(tag_group_id)),
                     )
                 }
                 crate::db::tags::LookupState::Absent => {
@@ -217,40 +221,66 @@ async fn execute_streaming(
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let hierarchy = format!("{parent}/{agent_instance}");
             let lab_targets = vec![Target::Aih(hierarchy.clone())];
-            (Mode::Historic { hierarchy }, lab_targets)
+            (
+                Mode::Historic {
+                    hierarchy: hierarchy.clone(),
+                },
+                lab_targets,
+                Some(Family::Hierarchy(hierarchy)),
+            )
         }
     };
 
-    // Initial lock + params assembly. try_acquire only — a held lock
-    // means the agent (or another spawn of the tag) is already live,
-    // and this spawn errors out. When the parent `agents message`
-    // transferred a lock into this process, the lockfile adopts the
-    // matching claim lazily on this first `try_acquire`, so it re-acquires
-    // INSTANTLY rather than conflicting with the inherited handles.
-    // Mid-stream best-effort AIH claims in `run_multi_pass` are unaffected.
+    // Initial lock + params assembly. Acquire the agent's whole lock FAMILY
+    // (all-or-nothing, NON-BLOCKING) so that while it's live none of its tags
+    // can be relocated (`tags apply`) or have labs detached (`laboratories
+    // detach`): a GROUPED tag locks every tag in its group; a bound tag / AIH
+    // locks the AIH plus every tag bound to it. A held member means the agent
+    // (or another spawn of the tag) is already live → error. When the parent
+    // `agents message` transferred the family into this process, the lockfile
+    // adopts each claim lazily on this first acquire, so they re-acquire
+    // INSTANTLY rather than conflicting with the inherited handles. Mid-stream
+    // best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
     let mut registry = AgentInstanceRegistry::new(state_dir.clone(), ctx.agent_locks_arc());
-    let (agent, agent_tag, continuation) = match mode {
-        Mode::Fresh { agent, tag } => {
-            if let Some(tag) = &tag {
-                let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
-                match super::locks::try_acquire(ctx.agent_locks(), &dir, &key).await {
-                    Some(claim) => registry.hold_tag_claim(claim),
-                    None => return Err(Error::AgentTagActive { tag: tag.clone() }),
+    if let Some(family) = family {
+        let is_group = matches!(family, Family::Group(_));
+        match super::locks::try_acquire_family(
+            ctx.agent_locks(),
+            ctx.db_client().await?,
+            &state_dir,
+            family,
+        )
+        .await?
+        {
+            Some(fam) => {
+                if let Some((hierarchy, aih_lock)) = fam.aih {
+                    registry.preseed(hierarchy, aih_lock);
                 }
+                registry.hold_tag_claims(fam.tags);
             }
-            (agent, tag, None)
+            None if is_group => {
+                // GROUPED: name the requested tag in the error.
+                let tag = match &mode {
+                    Mode::Fresh { tag: Some(tag), .. } => tag.clone(),
+                    _ => String::new(),
+                };
+                return Err(Error::AgentTagActive { tag });
+            }
+            None => {
+                let agent_instance_hierarchy = match &mode {
+                    Mode::Historic { hierarchy } => hierarchy.clone(),
+                    _ => String::new(),
+                };
+                return Err(Error::AgentInstanceActive {
+                    agent_instance_hierarchy,
+                });
+            }
         }
+    }
+    let (agent, agent_tag, continuation) = match mode {
+        Mode::Fresh { agent, tag } => (agent, tag, None),
         Mode::Historic { hierarchy } => {
-            let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-            match super::locks::try_acquire(ctx.agent_locks(), &dir, &key).await {
-                Some(claim) => registry.preseed(hierarchy.clone(), claim),
-                None => {
-                    return Err(Error::AgentInstanceActive {
-                        agent_instance_hierarchy: hierarchy,
-                    });
-                }
-            }
             let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
                 .await?
                 .ok_or(Error::AgentNoPriorRequest {
