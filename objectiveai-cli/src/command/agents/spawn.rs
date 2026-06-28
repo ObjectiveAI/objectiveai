@@ -164,24 +164,50 @@ async fn execute_streaming(
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
 
-    let mode = match request.agent {
-        AgentSelector::Ref { agent } => Mode::Fresh {
-            agent: resolve_agent_ref(ctx, agent).await?,
-            tag: None,
-        },
+    // Resolve the agent target AND the laboratory ids attached to it. Labs
+    // only apply in Tag/Instance mode (a direct Ref has no tag/AIH to key
+    // on). For a resolved (Bound) tag, the labs are the tag's UNION the bound
+    // AIH's; a grouped tag uses the tag's; an instance uses the AIH's.
+    use crate::db::laboratory_attachments::{Target, list as list_labs};
+    let (mode, lab_ids): (Mode, Vec<String>) = match request.agent {
+        AgentSelector::Ref { agent } => (
+            Mode::Fresh {
+                agent: resolve_agent_ref(ctx, agent).await?,
+                tag: None,
+            },
+            Vec::new(),
+        ),
         AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    Mode::Historic {
-                        hierarchy: agent_instance_hierarchy,
+                    let pool = ctx.db_client().await?;
+                    let mut lab_ids =
+                        list_labs(pool, &Target::Tag(agent_tag.clone())).await?;
+                    for id in
+                        list_labs(pool, &Target::Aih(agent_instance_hierarchy.clone())).await?
+                    {
+                        if !lab_ids.contains(&id) {
+                            lab_ids.push(id);
+                        }
                     }
+                    (
+                        Mode::Historic {
+                            hierarchy: agent_instance_hierarchy,
+                        },
+                        lab_ids,
+                    )
                 }
                 crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
-                    let agent = agent_spec;
-                    Mode::Fresh {
-                        agent,
-                        tag: Some(agent_tag),
-                    }
+                    let lab_ids =
+                        list_labs(ctx.db_client().await?, &Target::Tag(agent_tag.clone()))
+                            .await?;
+                    (
+                        Mode::Fresh {
+                            agent: agent_spec,
+                            tag: Some(agent_tag),
+                        },
+                        lab_ids,
+                    )
                 }
                 crate::db::tags::LookupState::Absent => {
                     return Err(Error::TagNotFound(agent_tag));
@@ -195,9 +221,10 @@ async fn execute_streaming(
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
-            Mode::Historic {
-                hierarchy: format!("{parent}/{agent_instance}"),
-            }
+            let hierarchy = format!("{parent}/{agent_instance}");
+            let lab_ids =
+                list_labs(ctx.db_client().await?, &Target::Aih(hierarchy.clone())).await?;
+            (Mode::Historic { hierarchy }, lab_ids)
         }
     };
 
@@ -240,6 +267,32 @@ async fn execute_streaming(
         }
     };
 
+    // Pre-spawn active-check: every attached laboratory's container must be
+    // running before we hand the ids to the API (which will dial each as a
+    // client-side MCP upstream). Only touches podman when labs are attached.
+    let laboratories = if lab_ids.is_empty() {
+        None
+    } else {
+        for id in &lab_ids {
+            if !crate::podman::laboratory::is_active(ctx, id).await? {
+                return Err(Error::LaboratoryNotActive { id: id.clone() });
+            }
+        }
+        Some(
+            lab_ids
+                .into_iter()
+                .map(|id| {
+                    objectiveai_sdk::laboratories::Laboratory::Client(
+                        objectiveai_sdk::laboratories::ClientLaboratory {
+                            r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+                            id,
+                        },
+                    )
+                })
+                .collect(),
+        )
+    };
+
     let params = AgentCompletionCreateParams {
         messages,
         provider: None,
@@ -248,6 +301,7 @@ async fn execute_streaming(
         seed,
         stream: Some(true),
         continuation,
+        laboratories,
     };
 
     // Message-queue delivery to the live API happens through the

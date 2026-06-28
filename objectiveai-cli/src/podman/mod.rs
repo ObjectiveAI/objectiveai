@@ -9,4 +9,5 @@
 //! modules here.
 
 pub mod install;
+pub mod laboratory;
 pub mod setup;

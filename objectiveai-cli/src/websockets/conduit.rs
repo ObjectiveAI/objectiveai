@@ -408,7 +408,7 @@ async fn dispatch_initialize(
                 .map(|c| (c, None))
                 .map_err(|e| format!("connect: {e}"))
         }
-        McpKind::Other { owner, name, version, mcp } => {
+        McpKind::Plugin { owner, name, version, mcp } => {
             let connect_headers = sanitize_connect_headers(headers);
             dial_plugin_upstream(
                 inner,
@@ -424,6 +424,25 @@ async fn dispatch_initialize(
             .await
             .map(|(c, drain)| (c, Some(drain)))
             .map_err(|e| format!("{e}"))
+        }
+        McpKind::Laboratory { id } => {
+            // A laboratory is a podman container running the laboratory MCP
+            // server on a fixed in-container port, published to a random
+            // 127.0.0.1 host port. Resolve that port and connect to it as a
+            // streamable-HTTP MCP upstream (no subprocess → no drain handle).
+            let port = match crate::podman::laboratory::host_port(&inner.ctx, id).await {
+                Ok(p) => p,
+                Err(message) => {
+                    return initialize_err(-32603, format!("laboratory {id}: {message}"));
+                }
+            };
+            let connect_headers = sanitize_connect_headers(headers);
+            inner
+                .client
+                .connect(format!("http://127.0.0.1:{port}/"), None, Some(connect_headers))
+                .await
+                .map(|c| (c, None))
+                .map_err(|e| format!("connect: {e}"))
         }
     };
 
