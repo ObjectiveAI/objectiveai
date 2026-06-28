@@ -180,12 +180,17 @@ async fn execute_streaming(
         AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
+                    // Resolved tag: the tag's labs UNION the bound AIH's. List
+                    // both concurrently (a pool handles concurrent queries) so
+                    // the user isn't billed two serial round-trips.
                     let pool = ctx.db_client().await?;
-                    let mut lab_ids =
-                        list_labs(pool, &Target::Tag(agent_tag.clone())).await?;
-                    for id in
-                        list_labs(pool, &Target::Aih(agent_instance_hierarchy.clone())).await?
-                    {
+                    let tag_target = Target::Tag(agent_tag.clone());
+                    let aih_target = Target::Aih(agent_instance_hierarchy.clone());
+                    let (mut lab_ids, aih_labs) = tokio::try_join!(
+                        list_labs(pool, &tag_target),
+                        list_labs(pool, &aih_target),
+                    )?;
+                    for id in aih_labs {
                         if !lab_ids.contains(&id) {
                             lab_ids.push(id);
                         }
@@ -267,17 +272,11 @@ async fn execute_streaming(
         }
     };
 
-    // Pre-spawn active-check: every attached laboratory's container must be
-    // running before we hand the ids to the API (which will dial each as a
-    // client-side MCP upstream). Only touches podman when labs are attached.
+    // Attach the agent's laboratories to the request (no liveness check here —
+    // the conduit resolves/dials each on demand at MCP-initialize time).
     let laboratories = if lab_ids.is_empty() {
         None
     } else {
-        for id in &lab_ids {
-            if !crate::podman::laboratory::is_active(ctx, id).await? {
-                return Err(Error::LaboratoryNotActive { id: id.clone() });
-            }
-        }
         Some(
             lab_ids
                 .into_iter()
