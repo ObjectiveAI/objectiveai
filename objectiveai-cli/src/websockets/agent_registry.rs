@@ -3,15 +3,16 @@
 //! [`objectiveai_sdk::lockfile`] at the per-agent lock layout
 //! ([`crate::command::agents::locks`]).
 //!
-//! A `HashMap<hierarchy, LockClaim>` that attempts each hierarchy's
+//! A `HashMap<hierarchy, AgentLock>` that attempts each hierarchy's
 //! lock exactly once ([`AgentInstanceRegistry::observe`] is
 //! best-effort — a failed try_acquire is silently dropped, which
 //! also covers the case where this process already holds the lock
 //! via handles a parent transferred in). The registry can carry one
 //! tag claim ([`AgentInstanceRegistry::hold_tag_claim`]) for spawns
-//! materializing an un-upgraded tag; the FIRST successful AIH claim
-//! releases it — once the minted hierarchy's lock is held, the tag
-//! lock's job is done.
+//! materializing a (GROUPED) tag; it is RETAINED for the registry's
+//! lifetime (released on drop with the rest), NOT dropped at the
+//! GROUPED→BOUND upgrade — laboratories travel with a tag, so the tag
+//! must stay locked (un-relocatable) for the agent's whole active life.
 //!
 //! SDK claims do NOT release on drop (their handles are leaked on
 //! purpose so a lock normally lives until process death). The
@@ -36,9 +37,10 @@ pub struct AgentInstanceRegistry {
     /// Every hierarchy `observe` has ever tried — exactly one
     /// try_acquire per AIH per registry lifetime, success or not.
     attempted: HashSet<String>,
-    /// Tag claim guarding an un-upgraded (GROUPED) tag spawn.
-    /// Released on the first successful AIH claim, held to the end
-    /// otherwise.
+    /// Tag claim guarding a (GROUPED) tag spawn. RETAINED for the
+    /// registry's lifetime (released on drop) so the tag — and the
+    /// laboratories that travel with it — cannot be relocated while
+    /// the agent is active.
     tag_claim: Option<AgentLock>,
 }
 
@@ -62,8 +64,8 @@ impl AgentInstanceRegistry {
         self.open.insert(hier, claim);
     }
 
-    /// Hand the registry the un-upgraded tag's claim. Released by
-    /// the first successful AIH claim, or on drop.
+    /// Hand the registry the tag's claim. Retained for the registry's
+    /// lifetime (released on drop) — see the field doc.
     pub fn hold_tag_claim(&mut self, claim: AgentLock) {
         self.tag_claim = Some(claim);
     }
@@ -72,8 +74,9 @@ impl AgentInstanceRegistry {
     /// acquire its instance lock; repeat calls are no-ops. Any
     /// failure (held by another process — or by THIS process via
     /// transferred handles, or the in-process guard busy) is silently
-    /// dropped: the registry only tracks claims it really owns. On the
-    /// first success, the held tag claim (if any) is released.
+    /// dropped: the registry only tracks claims it really owns. The tag
+    /// claim (if any) is RETAINED here — it is released only on drop, so
+    /// the tag stays un-relocatable for the agent's whole active life.
     pub async fn observe(&mut self, hier: &str) {
         if !self.attempted.insert(hier.to_string()) {
             return;
@@ -83,11 +86,6 @@ impl AgentInstanceRegistry {
             crate::command::agents::locks::try_acquire(&self.agent_locks, &dir, &key).await
         {
             self.open.insert(hier.to_string(), claim);
-            // The minted hierarchy is now guarded directly — the tag
-            // lock has served its purpose.
-            if let Some(tag_claim) = self.tag_claim.take() {
-                let _ = tag_claim.release();
-            }
         }
     }
 
