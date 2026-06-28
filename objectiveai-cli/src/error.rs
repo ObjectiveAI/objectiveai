@@ -128,6 +128,10 @@ pub enum Error {
     AgentInstanceActive { agent_instance_hierarchy: String },
     #[error("agent tag {tag:?} is already being spawned (its lock is held by a live process)")]
     AgentTagActive { tag: String },
+    #[error(
+        "cannot apply tag {tag:?} while an agent holding it is active (its tag lock is held by a live process)"
+    )]
+    TagApplyAgentActive { tag: String },
     #[error("cannot enqueue against an agent ref; enqueue targets an instance or a tag")]
     EnqueueRefTarget,
     #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
