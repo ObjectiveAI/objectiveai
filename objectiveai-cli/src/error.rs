@@ -132,6 +132,12 @@ pub enum Error {
     EnqueueRefTarget,
     #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
     WaitRefTarget,
+    #[error("cannot attach/detach a laboratory to an agent ref; target an instance or a tag")]
+    LaboratoryRefTarget,
+    #[error("laboratory {laboratory_id:?} is already attached to this agent")]
+    LaboratoryAlreadyAttached { laboratory_id: String },
+    #[error("laboratory {laboratory_id:?} is not attached to this agent")]
+    LaboratoryNotAttached { laboratory_id: String },
     #[error(
         "FATAL: tag {tag:?} lock was released without its GROUPED->BOUND upgrade; the spawn flow's upgrade-before-release invariant is broken"
     )]
