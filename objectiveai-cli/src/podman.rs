@@ -40,6 +40,7 @@ pub const PODMAN_VERSION_WINDOWS_ARM64: &str = "5.8.4"; // containers/podman
 /// Download timeout for the (tens-of-MB) podman archive.
 const DOWNLOAD_TIMEOUT: std::time::Duration = std::time::Duration::from_secs(600);
 
+#[derive(Clone, Copy)]
 enum ArchiveKind {
     Zip,
     TarGz,
@@ -143,8 +144,8 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
         return Ok(exe);
     }
 
-    // 2. Serialize installs machine-wide (a sibling may be mid-extract;
-    //    we wait rather than race).
+    // 2. Serialize installs machine-wide. We may BLOCK here while a sibling
+    //    process is mid-install (or about to finish one).
     let claim = objectiveai_sdk::lockfile::wait_acquire(
         &bin_dir.join("locks"),
         "podman",
@@ -153,10 +154,22 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
     .await
     .map_err(|e| Error::Podman(format!("bin lock: {e}")))?;
 
-    // 3. Install under the claim, then release explicitly — dropping a
-    //    LockClaim deliberately does NOT release it (mirrors
-    //    `python::initialize`).
-    let result = install_under_lock(&bin_dir, &root, &marker, &exe, &target).await;
+    // 3. DOUBLE-CHECKED LOCKING: re-check the marker now that we hold the
+    //    lock — a sibling may have completed the install while we were
+    //    blocked acquiring it. Only install if it is STILL missing. The
+    //    install (download + extract + marker) runs entirely under the lock.
+    let result = async {
+        if tokio::fs::try_exists(&marker).await.unwrap_or(false) {
+            return Ok(());
+        }
+        install(&bin_dir, &root, &marker, &exe, &target).await
+    }
+    .await;
+
+    // 4. Release explicitly on EVERY path — dropping a LockClaim
+    //    deliberately does NOT release it (mirrors `python::initialize`).
+    //    Release before propagating an install error so the lock is never
+    //    leaked.
     claim
         .release()
         .map_err(|e| Error::Podman(format!("bin lock release: {e}")))?;
@@ -164,34 +177,33 @@ pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
     Ok(exe)
 }
 
-/// Download + extract under the bin lock. Caller holds the claim.
-async fn install_under_lock(
+/// Download + extract into `root`. The caller holds the bin lock and has
+/// already re-checked (under the lock) that the install is missing.
+async fn install(
     bin_dir: &Path,
     root: &Path,
     marker: &Path,
     exe: &Path,
     target: &Target,
 ) -> Result<(), Error> {
-    // Re-probe under the lock — a sibling may have finished while we waited.
-    if tokio::fs::try_exists(marker).await.unwrap_or(false) {
-        return Ok(());
-    }
-
     let podman_dir = bin_dir.join("podman");
 
     // A partial extract has the dir but no marker. Move it aside before
     // re-extracting — rename-then-delete, not delete-in-place: Windows
     // directory deletion is asynchronous, so a plain `remove_dir_all`
     // returns while the tree is still pending-delete and the immediate
-    // re-create races ACCESS_DENIED. The rename frees the name instantly;
-    // deleting the renamed tree is best-effort.
+    // re-create races ACCESS_DENIED. The rename frees the name instantly.
     if tokio::fs::try_exists(root).await.unwrap_or(false) {
         let trash = podman_dir.join(format!("{}.trash-{}", target.version, std::process::id()));
         tokio::fs::rename(root, &trash)
             .await
             .map_err(|e| Error::Podman(format!("move partial install aside: {e}")))?;
-        let _ = tokio::fs::remove_dir_all(&trash).await;
     }
+    // Best-effort sweep of leftover trash dirs / download temp files (this
+    // run's renamed-aside tree, plus anything a crashed prior run left).
+    // Safe — we hold the lock; prevents unbounded accumulation.
+    sweep_leftovers(&podman_dir).await;
+
     tokio::fs::create_dir_all(root)
         .await
         .map_err(|e| Error::Podman(format!("mkdir {root:?}: {e}")))?;
@@ -203,26 +215,25 @@ async fn install_under_lock(
         std::process::id(),
         target.ext
     ));
-    let download = download_to(&target.url, &archive).await;
-    if let Err(e) = download {
+    if let Err(e) = download_to(&target.url, &archive).await {
         let _ = tokio::fs::remove_file(&archive).await;
         return Err(e);
     }
 
-    // Extract (synchronous crates) on a blocking thread.
-    let extract = {
-        let archive = archive.clone();
-        let root = root.to_path_buf();
-        let kind = match target.kind {
-            ArchiveKind::Zip => ArchiveKind::Zip,
-            ArchiveKind::TarGz => ArchiveKind::TarGz,
-        };
-        tokio::task::spawn_blocking(move || extract_archive(&archive, &root, kind))
-            .await
-            .map_err(|e| Error::Podman(format!("extract task join: {e}")))?
-    };
+    // Extract, retrying a couple of times: transient Windows AV interference
+    // can briefly pin a just-written executable (mirrors objectiveai-db).
+    // Both extractors overwrite, so a partial tree is fine to extract over —
+    // no wipe between tries (which would reintroduce the async-delete race).
+    let mut result = run_extract(&archive, root, target.kind).await;
+    for _ in 0..2 {
+        if result.is_ok() {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+        result = run_extract(&archive, root, target.kind).await;
+    }
     let _ = tokio::fs::remove_file(&archive).await;
-    extract?;
+    result?;
 
     // Guard against upstream layout drift: the exe must be where we expect.
     if !tokio::fs::try_exists(exe).await.unwrap_or(false) {
@@ -231,11 +242,42 @@ async fn install_under_lock(
         )));
     }
 
-    // Marker last — its presence means a COMPLETE install.
+    // Marker LAST — its presence is the signal that the install is COMPLETE.
     tokio::fs::write(marker, b"")
         .await
         .map_err(|e| Error::Podman(format!("write {marker:?}: {e}")))?;
     Ok(())
+}
+
+/// Run the synchronous [`extract_archive`] on a blocking thread.
+async fn run_extract(archive: &Path, root: &Path, kind: ArchiveKind) -> Result<(), Error> {
+    let archive = archive.to_path_buf();
+    let root = root.to_path_buf();
+    tokio::task::spawn_blocking(move || extract_archive(&archive, &root, kind))
+        .await
+        .map_err(|e| Error::Podman(format!("extract task join: {e}")))?
+}
+
+/// Best-effort removal of `*.trash-*` dirs and `*.download-*` temp files
+/// under the podman dir — leftovers from this run's rename-aside or a
+/// crashed prior install. Caller holds the lock, so this is race-free.
+async fn sweep_leftovers(podman_dir: &Path) {
+    let Ok(mut entries) = tokio::fs::read_dir(podman_dir).await else {
+        return;
+    };
+    while let Ok(Some(entry)) = entries.next_entry().await {
+        let name = entry.file_name();
+        let name = name.to_string_lossy();
+        if !name.contains(".trash-") && !name.contains(".download-") {
+            continue;
+        }
+        let path = entry.path();
+        if entry.file_type().await.map(|t| t.is_dir()).unwrap_or(false) {
+            let _ = tokio::fs::remove_dir_all(&path).await;
+        } else {
+            let _ = tokio::fs::remove_file(&path).await;
+        }
+    }
 }
 
 /// Extract `archive` into `dest`, preserving unix mode bits (so the
