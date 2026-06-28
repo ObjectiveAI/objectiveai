@@ -7,8 +7,8 @@
 //! laboratory MCP server listens on the fixed port [`LAB_PORT`]; that port is
 //! published to a random `127.0.0.1` host port the caller looks up here.
 //!
-//! NOTE: nothing creates these containers yet — that's future work. Until it
-//! lands, [`is_active`] reports `false` for any attached laboratory.
+//! NOTE: nothing creates these containers yet — that's future work, so
+//! [`host_port`] will error for any attached laboratory until then.
 
 use std::path::Path;
 
@@ -37,26 +37,6 @@ fn container_command(exe: &Path) -> tokio::process::Command {
         cmd.arg("--connection").arg(MACHINE_NAME);
     }
     cmd
-}
-
-/// Whether the laboratory's container is currently running.
-/// A missing container (or any inspect failure) reads as not active.
-pub async fn is_active(ctx: &Context, id: &str) -> Result<bool, Error> {
-    let exe = ctx.podman().await?;
-    let name = container_name(ctx.filesystem.state(), id);
-    let output = container_command(exe)
-        .arg("container")
-        .arg("inspect")
-        .arg(&name)
-        .arg("--format")
-        .arg("{{.State.Running}}")
-        .output()
-        .await
-        .map_err(|e| Error::Podman(format!("spawn podman container inspect: {e}")))?;
-    if !output.status.success() {
-        return Ok(false);
-    }
-    Ok(String::from_utf8_lossy(&output.stdout).trim() == "true")
 }
 
 /// The `127.0.0.1` host port the container's [`LAB_PORT`]/tcp is published on.

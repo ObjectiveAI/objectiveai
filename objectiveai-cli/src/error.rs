@@ -138,8 +138,6 @@ pub enum Error {
     LaboratoryAlreadyAttached { laboratory_id: String },
     #[error("laboratory {laboratory_id:?} is not attached to this agent")]
     LaboratoryNotAttached { laboratory_id: String },
-    #[error("laboratory {id:?} is not active (no running container)")]
-    LaboratoryNotActive { id: String },
     #[error(
         "FATAL: tag {tag:?} lock was released without its GROUPED->BOUND upgrade; the spawn flow's upgrade-before-release invariant is broken"
     )]

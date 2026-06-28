@@ -45,7 +45,6 @@ use std::collections::HashSet;
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::ResponseItem as RootResponseItem;
 use objectiveai_sdk::cli::command::agents::ResponseItem as AgentsResponseItem;
 use objectiveai_sdk::cli::command::agents::queue::deliver::{
@@ -211,39 +210,6 @@ async fn execute_streaming(ctx: &Context, request: Request) -> Result<ItemStream
     Ok(Box::pin(out))
 }
 
-/// Resolve the laboratories attached to `target`, active-checking each
-/// (every attached lab's container must be running), and build the
-/// `AgentCompletionCreateParams.laboratories` value. `None` when none are
-/// attached (and podman is never touched in that case).
-async fn resolve_laboratories(
-    ctx: &Context,
-    pool: &crate::db::Pool,
-    target: &crate::db::laboratory_attachments::Target,
-) -> Result<Option<Vec<objectiveai_sdk::laboratories::Laboratory>>, Error> {
-    let lab_ids = crate::db::laboratory_attachments::list(pool, target).await?;
-    if lab_ids.is_empty() {
-        return Ok(None);
-    }
-    for id in &lab_ids {
-        if !crate::podman::laboratory::is_active(ctx, id).await? {
-            return Err(Error::LaboratoryNotActive { id: id.clone() });
-        }
-    }
-    Ok(Some(
-        lab_ids
-            .into_iter()
-            .map(|id| {
-                objectiveai_sdk::laboratories::Laboratory::Client(
-                    objectiveai_sdk::laboratories::ClientLaboratory {
-                        r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
-                        id,
-                    },
-                )
-            })
-            .collect(),
-    ))
-}
-
 /// Deliver one AIH. The FIRST item is always the resolution:
 /// `AgentActive` (lock held by a live owner), `AgentSpawned` (lock
 /// won, spawn starting), or a setup `Err` (lock won but no prior
@@ -296,45 +262,23 @@ fn deliver_one_hierarchy(
         let mut registry = AgentInstanceRegistry::new(state_dir);
         registry.preseed(hierarchy.clone(), claim);
 
-        // Attach this agent's laboratories (keyed by AIH), active-checking
-        // them before announcing the spawn. On failure the registry drops →
-        // the claim is released.
-        let laboratories = match resolve_laboratories(
-            &ctx,
-            pool,
-            &crate::db::laboratory_attachments::Target::Aih(hierarchy.clone()),
-        )
-        .await
-        {
-            Ok(labs) => labs,
-            Err(e) => {
-                yield Err(e);
-                return;
-            }
-        };
-
         yield Ok(ResponseItem::AgentSpawned(AgentSpawnedResponseItem {
             r#type: AgentSpawnedType::AgentSpawned,
             agent_instance_hierarchy: hierarchy.clone(),
         }));
 
-        // Empty messages: the wake-up turn exists so the agent drains
-        // its own queue (the conduit reads pending rows during the
-        // turn), same shape `run_multi_pass` itself uses on restart.
-        let params = AgentCompletionCreateParams {
-            messages: Vec::new(),
-            provider: None,
-            agent: lookup.agent,
-            response_format: None,
-            seed: None,
-            stream: Some(true),
-            continuation: lookup.continuation,
-            laboratories,
-        };
+        // Empty messages: the wake-up turn exists so the agent drains its own
+        // queue (the conduit reads pending rows during the turn), same shape
+        // `run_multi_pass` itself uses on restart. `run_multi_pass` resolves
+        // this AIH's laboratory attachments internally.
         let inner = crate::command::agents::spawn::run_multi_pass(
             ctx.clone(),
-            params,
+            Vec::new(),
+            lookup.agent,
             None,
+            lookup.continuation,
+            None,
+            vec![crate::db::laboratory_attachments::Target::Aih(hierarchy.clone())],
             registry,
         );
         let mut inner = Box::pin(inner);
@@ -422,46 +366,26 @@ fn deliver_one_tag(
         let mut registry = AgentInstanceRegistry::new(state_dir);
         registry.hold_tag_claim(claim);
 
-        // Attach the laboratories for this (grouped) tag, active-checked,
-        // before announcing the spawn. On failure the registry drops → the
-        // tag claim is released.
-        let laboratories = match resolve_laboratories(
-            &ctx,
-            pool,
-            &crate::db::laboratory_attachments::Target::Tag(agent_tag.clone()),
-        )
-        .await
-        {
-            Ok(labs) => labs,
-            Err(e) => {
-                yield Err(e);
-                return;
-            }
-        };
-
         yield Ok(ResponseItem::TagSpawned(TagSpawnedResponseItem {
             r#type: TagSpawnedType::TagSpawned,
             agent_tag: agent_tag.clone(),
         }));
 
-        // Fresh spawn from the group's stored spec: empty messages
-        // (the queued rows ARE the prompt, drained via the conduit),
-        // no continuation, the tag threaded in so the first conduit
-        // read flips the whole group to BOUND on the minted AIH.
-        let params = AgentCompletionCreateParams {
-            messages: Vec::new(),
-            provider: None,
-            agent,
-            response_format: None,
-            seed: None,
-            stream: Some(true),
-            continuation: None,
-            laboratories,
-        };
+        // Fresh spawn from the group's stored spec: empty messages (the queued
+        // rows ARE the prompt, drained via the conduit), no continuation, the
+        // tag threaded in so the first conduit read flips the whole group to
+        // BOUND on the minted AIH. `run_multi_pass` resolves this tag's
+        // laboratory attachments internally. (Compute the lab target before the
+        // call so `agent_tag` isn't moved by the `Some(agent_tag)` arg first.)
+        let lab_targets = vec![crate::db::laboratory_attachments::Target::Tag(agent_tag.clone())];
         let inner = crate::command::agents::spawn::run_multi_pass(
             ctx.clone(),
-            params,
+            Vec::new(),
+            agent,
+            None,
+            None,
             Some(agent_tag),
+            lab_targets,
             registry,
         );
         let mut inner = Box::pin(inner);

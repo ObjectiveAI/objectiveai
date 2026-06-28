@@ -164,12 +164,14 @@ async fn execute_streaming(
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
 
-    // Resolve the agent target AND the laboratory ids attached to it. Labs
-    // only apply in Tag/Instance mode (a direct Ref has no tag/AIH to key
-    // on). For a resolved (Bound) tag, the labs are the tag's UNION the bound
-    // AIH's; a grouped tag uses the tag's; an instance uses the AIH's.
-    use crate::db::laboratory_attachments::{Target, list as list_labs};
-    let (mode, lab_ids): (Mode, Vec<String>) = match request.agent {
+    // Resolve the agent target AND which laboratory targets its attachments
+    // are keyed on. Labs only apply in Tag/Instance mode (a direct Ref has no
+    // tag/AIH to key on). `run_multi_pass` does the actual DB resolution; here
+    // we only name the targets — the same 3 permutations as before: a grouped
+    // tag → the tag's labs; a resolved (Bound) tag → the tag's UNION the bound
+    // AIH's; an instance → the AIH's.
+    use crate::db::laboratory_attachments::Target;
+    let (mode, lab_targets): (Mode, Vec<Target>) = match request.agent {
         AgentSelector::Ref { agent } => (
             Mode::Fresh {
                 agent: resolve_agent_ref(ctx, agent).await?,
@@ -180,38 +182,25 @@ async fn execute_streaming(
         AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    // Resolved tag: the tag's labs UNION the bound AIH's. List
-                    // both concurrently (a pool handles concurrent queries) so
-                    // the user isn't billed two serial round-trips.
-                    let pool = ctx.db_client().await?;
-                    let tag_target = Target::Tag(agent_tag.clone());
-                    let aih_target = Target::Aih(agent_instance_hierarchy.clone());
-                    let (mut lab_ids, aih_labs) = tokio::try_join!(
-                        list_labs(pool, &tag_target),
-                        list_labs(pool, &aih_target),
-                    )?;
-                    for id in aih_labs {
-                        if !lab_ids.contains(&id) {
-                            lab_ids.push(id);
-                        }
-                    }
+                    let lab_targets = vec![
+                        Target::Tag(agent_tag.clone()),
+                        Target::Aih(agent_instance_hierarchy.clone()),
+                    ];
                     (
                         Mode::Historic {
                             hierarchy: agent_instance_hierarchy,
                         },
-                        lab_ids,
+                        lab_targets,
                     )
                 }
                 crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
-                    let lab_ids =
-                        list_labs(ctx.db_client().await?, &Target::Tag(agent_tag.clone()))
-                            .await?;
+                    let lab_targets = vec![Target::Tag(agent_tag.clone())];
                     (
                         Mode::Fresh {
                             agent: agent_spec,
                             tag: Some(agent_tag),
                         },
-                        lab_ids,
+                        lab_targets,
                     )
                 }
                 crate::db::tags::LookupState::Absent => {
@@ -227,9 +216,8 @@ async fn execute_streaming(
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let hierarchy = format!("{parent}/{agent_instance}");
-            let lab_ids =
-                list_labs(ctx.db_client().await?, &Target::Aih(hierarchy.clone())).await?;
-            (Mode::Historic { hierarchy }, lab_ids)
+            let lab_targets = vec![Target::Aih(hierarchy.clone())];
+            (Mode::Historic { hierarchy }, lab_targets)
         }
     };
 
@@ -272,44 +260,25 @@ async fn execute_streaming(
         }
     };
 
-    // Attach the agent's laboratories to the request (no liveness check here —
-    // the conduit resolves/dials each on demand at MCP-initialize time).
-    let laboratories = if lab_ids.is_empty() {
-        None
-    } else {
-        Some(
-            lab_ids
-                .into_iter()
-                .map(|id| {
-                    objectiveai_sdk::laboratories::Laboratory::Client(
-                        objectiveai_sdk::laboratories::ClientLaboratory {
-                            r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
-                            id,
-                        },
-                    )
-                })
-                .collect(),
-        )
-    };
-
-    let params = AgentCompletionCreateParams {
-        messages,
-        provider: None,
-        agent,
-        response_format: None,
-        seed,
-        stream: Some(true),
-        continuation,
-        laboratories,
-    };
-
     // Message-queue delivery to the live API happens through the
     // conduit's `read_pending_and_upgrade_tag` call — the API
     // pulls pending rows on demand as the stream runs and stamps
     // their ids onto the first emitted assistant chunk's
     // `request_message_ids`. No pre-spawn drain + prepend here.
+    //
+    // `run_multi_pass` builds the create-params and resolves the laboratory
+    // attachments (from `lab_targets`) internally.
     let ctx_clone = ctx.clone();
-    Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, registry)))
+    Ok(Box::pin(run_multi_pass(
+        ctx_clone,
+        messages,
+        agent,
+        seed,
+        continuation,
+        agent_tag,
+        lab_targets,
+        registry,
+    )))
 }
 
 /// Drives one or more stream passes until no seen hierarchy has
@@ -319,14 +288,78 @@ async fn execute_streaming(
 /// persists across passes so an agent's lock stays held for the
 /// whole spawn lifetime, not per-pass — and is released when the
 /// stream (and with it the registry) drops.
+/// Resolve the laboratory ids attached to `lab_targets` into the request's
+/// `laboratories` value. Lists every target CONCURRENTLY (one pool serves
+/// concurrent queries), then flattens + dedups (first-seen order). `None` when
+/// no targets / no attachments. Shared by `agents spawn` and `agents queue
+/// deliver` (both go through `run_multi_pass`). No liveness check — the conduit
+/// dials each laboratory on demand at MCP-initialize time.
+async fn resolve_laboratories(
+    ctx: &Context,
+    lab_targets: &[crate::db::laboratory_attachments::Target],
+) -> Result<Option<Vec<objectiveai_sdk::laboratories::Laboratory>>, Error> {
+    if lab_targets.is_empty() {
+        return Ok(None);
+    }
+    let pool = ctx.db_client().await?;
+    let lists = futures::future::try_join_all(
+        lab_targets
+            .iter()
+            .map(|target| crate::db::laboratory_attachments::list(pool, target)),
+    )
+    .await?;
+    let mut ids: Vec<String> = Vec::new();
+    for list in lists {
+        for id in list {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    if ids.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(
+        ids.into_iter()
+            .map(|id| {
+                objectiveai_sdk::laboratories::Laboratory::Client(
+                    objectiveai_sdk::laboratories::ClientLaboratory {
+                        r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+                        id,
+                    },
+                )
+            })
+            .collect(),
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_multi_pass(
     ctx: Context,
-    initial_params: AgentCompletionCreateParams,
+    messages: Vec<Message>,
+    agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    seed: Option<i64>,
+    continuation: Option<String>,
     agent_tag: Option<String>,
+    lab_targets: Vec<crate::db::laboratory_attachments::Target>,
     mut registry: AgentInstanceRegistry,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
-        let mut params = initial_params;
+        // Resolve the agent's laboratory attachments (from the named targets)
+        // and assemble the create-params. `provider`/`response_format` are
+        // always defaulted and `stream` is always true for the in-process WS
+        // path; only `messages`/`continuation` change across restart passes.
+        let laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
+        let mut params = AgentCompletionCreateParams {
+            messages,
+            provider: None,
+            agent,
+            response_format: None,
+            seed,
+            stream: Some(true),
+            continuation,
+            laboratories,
+        };
         // A spawn has exactly one `(agent_instance_hierarchy,
         // agent_full_id)` pair — set by the API on the very first
         // chunk and never changes across restart passes. Capture
