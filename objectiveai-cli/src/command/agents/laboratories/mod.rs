@@ -6,7 +6,6 @@ use std::pin::Pin;
 use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::laboratories::{Request, ResponseItem};
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
-use objectiveai_sdk::lockfile::LockClaim;
 
 use crate::command::agents::locks;
 use crate::context::Context;
@@ -79,12 +78,12 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
 ///
 /// Locks are taken with `try_acquire`, so a live owner ⇒ an "active"
 /// error. On any error the partial claims are released here. On success
-/// the caller MUST [`release_all`] after its DB op — `LockClaim` does
-/// not release on drop.
+/// the caller MUST [`release_all`] after its DB op — an [`locks::AgentLock`]
+/// does not release on drop of its lockfile claim implicitly via this path.
 pub(super) async fn lock_target(
     ctx: &Context,
     selector: &AgentSelector,
-) -> Result<(Target, Vec<LockClaim>), Error> {
+) -> Result<(Target, Vec<locks::AgentLock>), Error> {
     let state_dir = ctx.filesystem.state_dir();
     match selector {
         AgentSelector::Ref { .. } => Err(Error::LaboratoryRefTarget),
@@ -97,7 +96,7 @@ pub(super) async fn lock_target(
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
             let aih = format!("{parent}/{agent_instance}");
             let (dir, key) = locks::agent_instance_lock(&state_dir, &aih);
-            let claim = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "")
+            let claim = locks::try_acquire(ctx.agent_locks(), &dir, &key)
                 .await
                 .ok_or(Error::AgentInstanceActive {
                     agent_instance_hierarchy: aih.clone(),
@@ -106,7 +105,7 @@ pub(super) async fn lock_target(
         }
         AgentSelector::Tag { agent_tag } => {
             let (tdir, tkey) = locks::agent_tag_lock(&state_dir, agent_tag);
-            let tag_claim = objectiveai_sdk::lockfile::try_acquire(&tdir, &tkey, "")
+            let tag_claim = locks::try_acquire(ctx.agent_locks(), &tdir, &tkey)
                 .await
                 .ok_or_else(|| Error::AgentTagActive {
                     tag: agent_tag.clone(),
@@ -125,7 +124,7 @@ pub(super) async fn lock_target(
                 }) => {
                     let (idir, ikey) =
                         locks::agent_instance_lock(&state_dir, &agent_instance_hierarchy);
-                    match objectiveai_sdk::lockfile::try_acquire(&idir, &ikey, "").await {
+                    match locks::try_acquire(ctx.agent_locks(), &idir, &ikey).await {
                         Some(aih_claim) => Ok((
                             Target::Tag(agent_tag.clone()),
                             vec![tag_claim, aih_claim],
@@ -149,7 +148,7 @@ pub(super) async fn lock_target(
 
 /// Release every claim (best-effort). Call after the DB op on both the
 /// success and error paths — claims do not release on drop.
-pub(super) fn release_all(claims: Vec<LockClaim>) {
+pub(super) fn release_all(claims: Vec<locks::AgentLock>) {
     for claim in claims {
         let _ = claim.release();
     }

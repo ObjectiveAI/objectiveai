@@ -69,7 +69,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     let state_dir = ctx.filesystem.state_dir();
     let (lock_dir, lock_key) =
         crate::command::agents::locks::agent_tag_lock(&state_dir, &request.name);
-    let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&lock_dir, &lock_key, "").await else {
+    let Some(claim) =
+        crate::command::agents::locks::try_acquire(ctx.agent_locks(), &lock_dir, &lock_key).await
+    else {
         return Err(Error::TagApplyAgentActive { tag: request.name });
     };
     let result = db::tags::apply(pool, &request.name, resolved).await;

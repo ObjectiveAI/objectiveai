@@ -56,7 +56,8 @@ pub fn run(
     params: FunctionExecutionCreateParams,
 ) -> impl Stream<Item = Result<Event, Error>> + Send {
     async_stream::try_stream! {
-        let mut registry = AgentInstanceRegistry::new(ctx.filesystem.state_dir());
+        let mut registry =
+            AgentInstanceRegistry::new(ctx.filesystem.state_dir(), ctx.agent_locks_arc());
 
         // Per-call resources.
         let mcp_server = crate::websockets::mcp_server::spawn(ctx.clone());

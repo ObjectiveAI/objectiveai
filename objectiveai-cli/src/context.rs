@@ -60,6 +60,12 @@ pub struct Context {
     /// both reconciling and double-starting the machine. See
     /// [`crate::podman::running::ensure_running`].
     podman_machine: Arc<Mutex<()>>,
+    /// Per-key in-process gate for agent locks (AIH + tag), shared across
+    /// clones. The lockfile is a cross-process mutex that is reentrant
+    /// in-process, so this is what gives agent locks true in-process exclusion.
+    /// Acquired/released only through
+    /// [`crate::command::agents::locks::{try_acquire, wait_acquire}`].
+    agent_locks: Arc<crate::command::agents::locks::AgentLockMap>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -92,6 +98,7 @@ impl Context {
             python: Arc::new(OnceCell::new()),
             podman: Arc::new(OnceCell::new()),
             podman_machine: Arc::new(Mutex::new(())),
+            agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
     }
@@ -136,6 +143,18 @@ impl Context {
             .await?;
         crate::podman::running::ensure_running(&self.podman_machine, &bin, exe).await?;
         Ok(exe.as_path())
+    }
+
+    /// The per-key in-process gate for agent locks — for direct acquire sites
+    /// (`crate::command::agents::locks::{try_acquire, wait_acquire}`).
+    pub fn agent_locks(&self) -> &crate::command::agents::locks::AgentLockMap {
+        &self.agent_locks
+    }
+
+    /// A clone of the shared agent-lock map's `Arc` — for the
+    /// `AgentInstanceRegistry`, which holds it for its lifetime.
+    pub fn agent_locks_arc(&self) -> Arc<crate::command::agents::locks::AgentLockMap> {
+        self.agent_locks.clone()
     }
 
     /// The API `HttpClient`, built on first use and memoized.

@@ -28,7 +28,6 @@ use objectiveai_sdk::cli::command::agents::message::{Request, RequestMessage, Re
 use objectiveai_sdk::cli::command::agents::selector::{AgentRef, AgentSelector};
 use objectiveai_sdk::cli::command::agents::spawn as spawn_sdk;
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
-use objectiveai_sdk::lockfile::LockClaim;
 
 use crate::context::Context;
 use crate::error::Error;
@@ -99,8 +98,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         } => {
             // Fast path: nobody holds the lock — exec the spawn child
             // under the fresh claim.
-            if let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                return spawn_locked(child, content, seed, claim).await;
+            if let Some(lock) =
+                crate::command::agents::locks::try_acquire(ctx.agent_locks(), &dir, &key).await
+            {
+                return spawn_locked(child, content, seed, lock).await;
             }
 
             // Slow path: live owner. Park the message, then wait for
@@ -122,8 +123,8 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                     delivery?;
                     Ok(Response::Delivered)
                 }
-                claim = objectiveai_sdk::lockfile::wait_acquire(&dir, &key, "") => {
-                    let claim = claim.map_err(|e| Error::Lockfile {
+                lock = crate::command::agents::locks::wait_acquire(ctx.agent_locks(), &dir, &key) => {
+                    let lock = lock.map_err(|e| Error::Lockfile {
                         key: key.clone(),
                         source: e,
                     })?;
@@ -136,7 +137,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         &ctx.config.agent_instance_hierarchy,
                     )
                     .await;
-                    spawn_locked(child, content, seed, claim).await
+                    spawn_locked(child, content, seed, lock).await
                 }
             }
         }
@@ -193,9 +194,9 @@ async fn spawn_locked(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    claim: LockClaim,
+    lock: super::locks::AgentLock,
 ) -> Result<Response, Error> {
-    spawn_child(agent, content, seed, Some(claim)).await
+    spawn_child(agent, content, seed, Some(lock)).await
 }
 
 /// Exec a detached `agents spawn` child (stream=true) and return its
@@ -210,7 +211,7 @@ async fn spawn_child(
     agent: AgentSelector,
     content: RichContent,
     seed: Option<i64>,
-    transfer: Option<LockClaim>,
+    transfer: Option<super::locks::AgentLock>,
 ) -> Result<Response, Error> {
     let child_request = spawn_sdk::Request {
         path_type: spawn_sdk::Path::AgentsSpawn,
@@ -226,8 +227,17 @@ async fn spawn_child(
     let exe = std::env::current_exe()
         .map_err(|e| Error::Spawn("current_exe".into(), e))?;
     let mut executor = BinaryExecutor::from_path(exe).detach(true);
-    if let Some(claim) = transfer {
-        executor = executor.transfer_lock(claim);
+    // Hold the in-process guard across the synchronous prepare→spawn→transfer
+    // inside `execute` (the cross-process claim is handed to the child). The
+    // `AgentLock` — now guard-only after `take_claim` — drops at the end of this
+    // fn, freeing the per-key in-process mutex; by then the child owns the
+    // cross-process lock, so a later in-process acquirer passes the mutex but
+    // correctly fails the lockfile.
+    let mut transfer = transfer;
+    if let Some(lock) = transfer.as_mut() {
+        if let Some(claim) = lock.take_claim() {
+            executor = executor.transfer_lock(claim);
+        }
     }
     let mut stream = executor
         .execute::<spawn_sdk::Request, spawn_sdk::ResponseItem>(child_request, None)

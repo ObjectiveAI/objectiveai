@@ -229,12 +229,12 @@ async fn execute_streaming(
     // INSTANTLY rather than conflicting with the inherited handles.
     // Mid-stream best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
-    let mut registry = AgentInstanceRegistry::new(state_dir.clone());
+    let mut registry = AgentInstanceRegistry::new(state_dir.clone(), ctx.agent_locks_arc());
     let (agent, agent_tag, continuation) = match mode {
         Mode::Fresh { agent, tag } => {
             if let Some(tag) = &tag {
                 let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
-                match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+                match super::locks::try_acquire(ctx.agent_locks(), &dir, &key).await {
                     Some(claim) => registry.hold_tag_claim(claim),
                     None => return Err(Error::AgentTagActive { tag: tag.clone() }),
                 }
@@ -243,7 +243,7 @@ async fn execute_streaming(
         }
         Mode::Historic { hierarchy } => {
             let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-            match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
+            match super::locks::try_acquire(ctx.agent_locks(), &dir, &key).await {
                 Some(claim) => registry.preseed(hierarchy.clone(), claim),
                 None => {
                     return Err(Error::AgentInstanceActive {

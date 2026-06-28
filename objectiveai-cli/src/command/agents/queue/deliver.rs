@@ -225,7 +225,9 @@ fn deliver_one_hierarchy(
         let state_dir = ctx.filesystem.state_dir();
         let (dir, key) =
             crate::command::agents::locks::agent_instance_lock(&state_dir, &hierarchy);
-        let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await else {
+        let Some(claim) =
+            crate::command::agents::locks::try_acquire(ctx.agent_locks(), &dir, &key).await
+        else {
             yield Ok(ResponseItem::AgentActive(AgentActiveResponseItem {
                 r#type: AgentActiveType::AgentActive,
                 agent_instance_hierarchy: hierarchy,
@@ -259,7 +261,7 @@ fn deliver_one_hierarchy(
             }
         };
 
-        let mut registry = AgentInstanceRegistry::new(state_dir);
+        let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
         registry.preseed(hierarchy.clone(), claim);
 
         yield Ok(ResponseItem::AgentSpawned(AgentSpawnedResponseItem {
@@ -316,7 +318,9 @@ fn deliver_one_tag(
         let state_dir = ctx.filesystem.state_dir();
         let (dir, key) =
             crate::command::agents::locks::agent_tag_lock(&state_dir, &agent_tag);
-        let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await else {
+        let Some(claim) =
+            crate::command::agents::locks::try_acquire(ctx.agent_locks(), &dir, &key).await
+        else {
             yield Ok(ResponseItem::TagActive(TagActiveResponseItem {
                 r#type: TagActiveType::TagActive,
                 agent_tag,
@@ -363,7 +367,7 @@ fn deliver_one_tag(
             }
         };
 
-        let mut registry = AgentInstanceRegistry::new(state_dir);
+        let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
         registry.hold_tag_claim(claim);
 
         yield Ok(ResponseItem::TagSpawned(TagSpawnedResponseItem {
