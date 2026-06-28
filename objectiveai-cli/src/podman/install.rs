@@ -19,7 +19,7 @@
 //! Concurrency mirrors [`crate::python`] / `objectiveai-db`'s installer:
 //! in-process callers coalesce on the `Context`'s `OnceCell`; across
 //! processes the install is serialized by the bin lock
-//! (`<bin>/locks`, key `podman`) and gated by a `.objectiveai-complete`
+//! (`<bin>/locks`, key `podman`) and gated by a `.objectiveai-install-complete`
 //! marker (probe → `wait_acquire` → re-probe → install → marker →
 //! explicit release). A partial install (dir present, marker absent) is
 //! renamed aside and redone.
@@ -136,7 +136,7 @@ fn resolve_target() -> Result<Target, Error> {
 pub async fn ensure_installed(bin_dir: PathBuf) -> Result<PathBuf, Error> {
     let target = resolve_target()?;
     let root = bin_dir.join("podman").join(target.version);
-    let marker = root.join(".objectiveai-complete");
+    let marker = root.join(".objectiveai-install-complete");
     let exe = root.join(&target.exe_rel);
 
     // 1. Fast path: a completed install — no lock.

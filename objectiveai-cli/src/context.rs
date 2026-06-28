@@ -111,14 +111,21 @@ impl Context {
             .await
     }
 
-    /// The podman executable, downloaded + installed on first use into
-    /// `<bin>/podman/<version>/` and memoized. Install is gated
-    /// machine-wide by the bin lock (key `podman`) and coalesced
-    /// in-process by the `OnceCell`; commands that never need podman
-    /// never pay the cost. Not yet called anywhere.
+    /// The podman executable, ready to use. On first use this installs podman
+    /// into `<bin>/podman/<version>/` ([`crate::podman::install`]) and then
+    /// initializes the global podman machine ([`crate::podman::setup`] —
+    /// `machine init` on macOS/Windows, no-op on Linux); the result is
+    /// memoized. Each phase is gated by its own bin lock + completion marker
+    /// and coalesced in-process by the `OnceCell`; commands that never need
+    /// podman never pay the cost. Not yet called anywhere.
     pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
+        let bin = self.filesystem.bin_dir();
         self.podman
-            .get_or_try_init(|| crate::podman::install::ensure_installed(self.filesystem.bin_dir()))
+            .get_or_try_init(move || async move {
+                let exe = crate::podman::install::ensure_installed(bin.clone()).await?;
+                crate::podman::setup::ensure_setup(&bin, &exe).await?;
+                Ok(exe)
+            })
             .await
             .map(|p| p.as_path())
     }
