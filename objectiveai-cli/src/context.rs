@@ -118,7 +118,7 @@ impl Context {
     /// never pay the cost. Not yet called anywhere.
     pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
         self.podman
-            .get_or_try_init(|| crate::podman::ensure_installed(self.filesystem.bin_dir()))
+            .get_or_try_init(|| crate::podman::install::ensure_installed(self.filesystem.bin_dir()))
             .await
             .map(|p| p.as_path())
     }
