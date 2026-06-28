@@ -159,6 +159,20 @@ pub struct AcquiredFamily {
     pub tags: Vec<AgentLock>,
 }
 
+impl AcquiredFamily {
+    /// Flatten to the raw lock list (AIH lock first, then tags) — for callers
+    /// that transfer or hold the whole family rather than partitioning it into a
+    /// registry (e.g. `agents message`, which transfers the family to the child).
+    pub fn into_locks(self) -> Vec<AgentLock> {
+        let mut locks = Vec::with_capacity(self.tags.len() + 1);
+        if let Some((_, aih)) = self.aih {
+            locks.push(aih);
+        }
+        locks.extend(self.tags);
+        locks
+    }
+}
+
 /// Resolve + acquire a whole [`Family`] NON-BLOCKING, all-or-nothing, and
 /// partition it for the registry (AIH lock split out from the tag locks).
 /// `Ok(None)` if any member is busy. Used by spawn / deliver, which resolve the

@@ -98,24 +98,25 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             tag,
             child,
         } => {
-            // Fast path: acquire the WHOLE family (all-or-nothing). If every
-            // member is free, exec the spawn child carrying the family —
-            // transferred, so the child adopts it with no release gap.
-            let coords =
-                super::locks::family_coords(ctx.db_client().await?, &state_dir, family.clone())
-                    .await?;
-            if let Some(locks) =
-                super::locks::try_acquire_all(ctx.agent_locks(), &coords).await
+            // Fast path: FETCH the current family + LOCK it (all-or-nothing) in
+            // one call. If every member is free, exec the spawn child carrying
+            // the family — transferred, so the child adopts it with no gap.
+            if let Some(fam) = super::locks::try_acquire_family(
+                ctx.agent_locks(),
+                ctx.db_client().await?,
+                &state_dir,
+                family.clone(),
+            )
+            .await?
             {
-                return spawn_locked(child, content, seed, locks).await;
+                return spawn_locked(child, content, seed, fam.into_locks()).await;
             }
 
             // Slow path: a live owner holds part of the family. Park the
-            // message, then race "the owner consumed it" vs "the primary freed
-            // (owner died) and we take over the whole family". The family
-            // releases atomically on the owner's drop, so once the primary frees
-            // the remainder is normally free too; a rare concurrent grab on a
-            // sibling re-arms the race (the row stays enqueued).
+            // message, then race "the owner consumed it" vs "the owner exited
+            // and we take over". On exit we re-FETCH the (possibly changed)
+            // family and LOCK it in one call — the membership can shift during
+            // the long wait, so it must be resolved at lock time, not before.
             let queue_id = crate::db::message_queue::enqueue_with_content(
                 ctx.db_client().await?,
                 hierarchy,
@@ -135,22 +136,22 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                         delivery?;
                         return Ok(Response::Delivered);
                     }
-                    lock = super::locks::wait_acquire(ctx.agent_locks(), &primary.0, &primary.1) => {
-                        let primary_lock = lock.map_err(|e| Error::Lockfile {
+                    // Wait for the owner to EXIT (release, don't acquire), so the
+                    // fetch+lock below sees a free family.
+                    released = objectiveai_sdk::lockfile::wait_released(&primary.0, &primary.1) => {
+                        released.map_err(|e| Error::Lockfile {
                             key: primary.1.clone(),
                             source: e,
                         })?;
-                        // Hold the primary; try to grab the rest of the family.
-                        let coords = super::locks::family_coords(
+                        match super::locks::try_acquire_family(
+                            ctx.agent_locks(),
                             ctx.db_client().await?,
                             &state_dir,
                             family.clone(),
                         )
-                        .await?;
-                        let remainder: Vec<_> =
-                            coords.into_iter().filter(|c| c != &primary).collect();
-                        match super::locks::try_acquire_all(ctx.agent_locks(), &remainder).await {
-                            Some(mut rest) => {
+                        .await?
+                        {
+                            Some(fam) => {
                                 // We own the whole family. Reclaim our queue row
                                 // so the child doesn't re-see it — the message
                                 // rides inline instead.
@@ -160,22 +161,17 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
                                     &ctx.config.agent_instance_hierarchy,
                                 )
                                 .await;
-                                let mut all = vec![primary_lock];
-                                all.append(&mut rest);
                                 return spawn_locked(
                                     child.take().expect("child consumed once"),
                                     content.take().expect("content consumed once"),
                                     seed,
-                                    all,
+                                    fam.into_locks(),
                                 )
                                 .await;
                             }
-                            None => {
-                                // A sibling is still held — drop the primary and
-                                // re-arm the race.
-                                drop(primary_lock);
-                                continue;
-                            }
+                            // Someone grabbed it first — re-arm; `wait_released`
+                            // blocks again on the now-held lock.
+                            None => continue,
                         }
                     }
                 }
