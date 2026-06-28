@@ -3,7 +3,7 @@
 
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::laboratories::{Request, ResponseItem};
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 use objectiveai_sdk::lockfile::LockClaim;
@@ -15,6 +15,7 @@ use crate::error::Error;
 
 pub mod attach;
 pub mod detach;
+pub mod list;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -49,6 +50,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::DetachResponseSchema(req) => {
             let value = detach::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::DetachResponseSchema(value)))
+        }
+        Request::List(req) => {
+            let inner = list::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value = list::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListRequestSchema(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value = list::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListResponseSchema(value)))
         }
     };
     Ok(stream)

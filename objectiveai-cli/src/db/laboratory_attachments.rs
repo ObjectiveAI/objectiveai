@@ -7,6 +7,8 @@
 //! most once per target (a partial unique index per target column).
 //! `laboratory_id` is an opaque external identifier.
 
+use sqlx::Row as _;
+
 use super::{Error, Pool};
 
 /// Which target column a row is keyed on.
@@ -93,4 +95,24 @@ pub async fn detach(
     .execute(&**pool)
     .await?;
     Ok(result.rows_affected() > 0)
+}
+
+/// All laboratory ids attached to `target`, oldest-attached first.
+pub async fn list(pool: &Pool, target: &Target) -> Result<Vec<String>, Error> {
+    let (tag, aih) = target.columns();
+    let rows = sqlx::query(
+        "SELECT laboratory_id FROM objectiveai.laboratory_attachments \
+         WHERE tag IS NOT DISTINCT FROM $1 \
+           AND agent_instance_hierarchy IS NOT DISTINCT FROM $2 \
+         ORDER BY created_at",
+    )
+    .bind(tag)
+    .bind(aih)
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(row.try_get::<String, _>(0)?);
+    }
+    Ok(out)
 }

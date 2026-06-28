@@ -6,6 +6,7 @@ use crate::cli::command::CommandRequest;
 
 pub mod attach;
 pub mod detach;
+pub mod list;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -13,6 +14,8 @@ pub enum Command {
     Attach(attach::Command),
     /// Detach a laboratory id from an agent target.
     Detach(detach::Command),
+    /// List the laboratory ids attached to an agent target.
+    List(list::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -31,6 +34,12 @@ pub enum Request {
     DetachRequestSchema(detach::request_schema::Request),
     #[schemars(title = "DetachResponseSchema")]
     DetachResponseSchema(detach::response_schema::Request),
+    #[schemars(title = "List")]
+    List(list::Request),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Request),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -52,6 +61,12 @@ pub enum ResponseItem {
     DetachRequestSchema(detach::request_schema::Response),
     #[schemars(title = "DetachResponseSchema")]
     DetachResponseSchema(detach::response_schema::Response),
+    #[schemars(title = "List")]
+    List(list::ResponseItem),
+    #[schemars(title = "ListRequestSchema")]
+    ListRequestSchema(list::request_schema::Response),
+    #[schemars(title = "ListResponseSchema")]
+    ListResponseSchema(list::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -64,6 +79,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Detach(v) => v.into_mcp(),
             ResponseItem::DetachRequestSchema(v) => v.into_mcp(),
             ResponseItem::DetachResponseSchema(v) => v.into_mcp(),
+            ResponseItem::List(v) => v.into_mcp(),
+            ResponseItem::ListRequestSchema(v) => v.into_mcp(),
+            ResponseItem::ListResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -90,6 +108,15 @@ impl TryFrom<Command> for Request {
                     detach::response_schema::Request::try_from(args)?,
                 )),
             },
+            Command::List(cmd) => match cmd.schema {
+                None => Ok(Request::List(list::Request::try_from(cmd.args)?)),
+                Some(list::Schema::RequestSchema(args)) => Ok(Request::ListRequestSchema(
+                    list::request_schema::Request::try_from(args)?,
+                )),
+                Some(list::Schema::ResponseSchema(args)) => Ok(Request::ListResponseSchema(
+                    list::response_schema::Request::try_from(args)?,
+                )),
+            },
         }
     }
 }
@@ -103,6 +130,9 @@ impl CommandRequest for Request {
             Request::Detach(inner) => inner.request_base(),
             Request::DetachRequestSchema(inner) => inner.request_base(),
             Request::DetachResponseSchema(inner) => inner.request_base(),
+            Request::List(inner) => inner.request_base(),
+            Request::ListRequestSchema(inner) => inner.request_base(),
+            Request::ListResponseSchema(inner) => inner.request_base(),
         }
     }
 
@@ -114,6 +144,9 @@ impl CommandRequest for Request {
             Request::Detach(inner) => inner.request_base_mut(),
             Request::DetachRequestSchema(inner) => inner.request_base_mut(),
             Request::DetachResponseSchema(inner) => inner.request_base_mut(),
+            Request::List(inner) => inner.request_base_mut(),
+            Request::ListRequestSchema(inner) => inner.request_base_mut(),
+            Request::ListResponseSchema(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -127,6 +160,7 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
     E::Error,
 > {
+    use futures::StreamExt as _;
     let stream: std::pin::Pin<
         Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
     > = match request {
@@ -164,6 +198,22 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             let value = detach::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::DetachResponseSchema(value),
+            )))
+        }
+        Request::List(req) => {
+            let inner = list::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value = list::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListRequestSchema(value),
+            )))
+        }
+        Request::ListResponseSchema(req) => {
+            let value = list::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::ListResponseSchema(value),
             )))
         }
     };
@@ -223,6 +273,30 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         }
         Request::DetachResponseSchema(req) => {
             let value = detach::response_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::List(req) => {
+            let inner = list::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(inner)
+        }
+        Request::ListRequestSchema(req) => {
+            let value = list::request_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value = list::response_schema::execute_transform(
                 executor,
                 req,
                 transform,
