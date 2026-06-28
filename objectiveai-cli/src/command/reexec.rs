@@ -15,13 +15,10 @@
 //! | `max_tokens`    | NO (stripped)   | token budget, parent-only     |
 //! | `timeout_seconds` | YES (kept)    | the one cap a child honors    |
 //!
-//! Two deliberate non-participants:
+//! One deliberate non-participant:
 //! - `tools run` / `plugins run` launch foreign tool/plugin binaries
 //!   (not a re-exec of this CLI) and pass the envelope through
 //!   verbatim.
-//! - `tasks run` re-enters `crate::run` with a fired schedule's own
-//!   stored argv — that command's flags are its own configuration,
-//!   not an inherited parent envelope, so they propagate as-is.
 
 use objectiveai_sdk::cli::command::RequestBase;
 
