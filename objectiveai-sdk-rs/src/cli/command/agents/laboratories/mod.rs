@@ -5,11 +5,14 @@
 use crate::cli::command::CommandRequest;
 
 pub mod attach;
+pub mod detach;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
     /// Attach a laboratory id to an agent target.
     Attach(attach::Command),
+    /// Detach a laboratory id from an agent target.
+    Detach(detach::Command),
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -22,6 +25,12 @@ pub enum Request {
     AttachRequestSchema(attach::request_schema::Request),
     #[schemars(title = "AttachResponseSchema")]
     AttachResponseSchema(attach::response_schema::Request),
+    #[schemars(title = "Detach")]
+    Detach(detach::Request),
+    #[schemars(title = "DetachRequestSchema")]
+    DetachRequestSchema(detach::request_schema::Request),
+    #[schemars(title = "DetachResponseSchema")]
+    DetachResponseSchema(detach::response_schema::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -37,6 +46,12 @@ pub enum ResponseItem {
     AttachRequestSchema(attach::request_schema::Response),
     #[schemars(title = "AttachResponseSchema")]
     AttachResponseSchema(attach::response_schema::Response),
+    #[schemars(title = "Detach")]
+    Detach(detach::Response),
+    #[schemars(title = "DetachRequestSchema")]
+    DetachRequestSchema(detach::request_schema::Response),
+    #[schemars(title = "DetachResponseSchema")]
+    DetachResponseSchema(detach::response_schema::Response),
 }
 
 #[cfg(feature = "mcp")]
@@ -46,6 +61,9 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Attach(v) => v.into_mcp(),
             ResponseItem::AttachRequestSchema(v) => v.into_mcp(),
             ResponseItem::AttachResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Detach(v) => v.into_mcp(),
+            ResponseItem::DetachRequestSchema(v) => v.into_mcp(),
+            ResponseItem::DetachResponseSchema(v) => v.into_mcp(),
         }
     }
 }
@@ -63,6 +81,15 @@ impl TryFrom<Command> for Request {
                     attach::response_schema::Request::try_from(args)?,
                 )),
             },
+            Command::Detach(cmd) => match cmd.schema {
+                None => Ok(Request::Detach(detach::Request::try_from(cmd.args)?)),
+                Some(detach::Schema::RequestSchema(args)) => Ok(Request::DetachRequestSchema(
+                    detach::request_schema::Request::try_from(args)?,
+                )),
+                Some(detach::Schema::ResponseSchema(args)) => Ok(Request::DetachResponseSchema(
+                    detach::response_schema::Request::try_from(args)?,
+                )),
+            },
         }
     }
 }
@@ -73,6 +100,9 @@ impl CommandRequest for Request {
             Request::Attach(inner) => inner.request_base(),
             Request::AttachRequestSchema(inner) => inner.request_base(),
             Request::AttachResponseSchema(inner) => inner.request_base(),
+            Request::Detach(inner) => inner.request_base(),
+            Request::DetachRequestSchema(inner) => inner.request_base(),
+            Request::DetachResponseSchema(inner) => inner.request_base(),
         }
     }
 
@@ -81,6 +111,9 @@ impl CommandRequest for Request {
             Request::Attach(inner) => inner.request_base_mut(),
             Request::AttachRequestSchema(inner) => inner.request_base_mut(),
             Request::AttachResponseSchema(inner) => inner.request_base_mut(),
+            Request::Detach(inner) => inner.request_base_mut(),
+            Request::DetachRequestSchema(inner) => inner.request_base_mut(),
+            Request::DetachResponseSchema(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -113,6 +146,24 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
             let value = attach::response_schema::execute(executor, req, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(
                 ResponseItem::AttachResponseSchema(value),
+            )))
+        }
+        Request::Detach(req) => {
+            let value = detach::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Detach(value),
+            )))
+        }
+        Request::DetachRequestSchema(req) => {
+            let value = detach::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DetachRequestSchema(value),
+            )))
+        }
+        Request::DetachResponseSchema(req) => {
+            let value = detach::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::DetachResponseSchema(value),
             )))
         }
     };
@@ -148,6 +199,30 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         }
         Request::AttachResponseSchema(req) => {
             let value = attach::response_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::Detach(req) => {
+            let value = detach::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DetachRequestSchema(req) => {
+            let value = detach::request_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::DetachResponseSchema(req) => {
+            let value = detach::response_schema::execute_transform(
                 executor,
                 req,
                 transform,

@@ -71,3 +71,26 @@ pub async fn attach(
     .await?;
     Ok(true)
 }
+
+/// Detach `laboratory_id` from `target`. Returns `true` if a row was
+/// deleted, `false` if there was nothing to delete. Caller holds the
+/// agent lock.
+pub async fn detach(
+    pool: &Pool,
+    target: &Target,
+    laboratory_id: &str,
+) -> Result<bool, Error> {
+    let (tag, aih) = target.columns();
+    let result = sqlx::query(
+        "DELETE FROM objectiveai.laboratory_attachments \
+         WHERE tag IS NOT DISTINCT FROM $1 \
+           AND agent_instance_hierarchy IS NOT DISTINCT FROM $2 \
+           AND laboratory_id = $3",
+    )
+    .bind(tag)
+    .bind(aih)
+    .bind(laboratory_id)
+    .execute(&**pool)
+    .await?;
+    Ok(result.rows_affected() > 0)
+}

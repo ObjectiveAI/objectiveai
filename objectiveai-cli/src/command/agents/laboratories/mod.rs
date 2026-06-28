@@ -14,6 +14,7 @@ use crate::db::laboratory_attachments::Target;
 use crate::error::Error;
 
 pub mod attach;
+pub mod detach;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -36,6 +37,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::AttachResponseSchema(req) => {
             let value = attach::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::AttachResponseSchema(value)))
+        }
+        Request::Detach(req) => {
+            let value = detach::execute(ctx, req).await?;
+            once(Ok(ResponseItem::Detach(value)))
+        }
+        Request::DetachRequestSchema(req) => {
+            let value = detach::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DetachRequestSchema(value)))
+        }
+        Request::DetachResponseSchema(req) => {
+            let value = detach::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::DetachResponseSchema(value)))
         }
     };
     Ok(stream)
