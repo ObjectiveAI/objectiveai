@@ -421,6 +421,15 @@ Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64 (A
 
 A plugin is a binary that adds new top-level subcommands to the ObjectiveAI CLI, optionally paired with a viewer UI tab. Plugins are described by an `objectiveai.json` manifest at the repository root. The CLI dispatches any unknown top-level subcommand to the matching installed plugin binary, communicating over a JSONL protocol on stdout. The viewer surfaces plugins with a declared UI source as sandboxed iframe tabs, isolated from the host DOM.
 
+### First-party plugins
+
+Built and maintained by ObjectiveAI:
+
+- **[psychological-operations](https://github.com/ObjectiveAI/psychological-operations)** — run autonomous persona agents on X (Twitter) and Discord. Each agent is an X account plus a Discord bot, addressed by a tag, with tool-mediated presence on both platforms (the `x` and `discord` MCP servers), scored ingestion pipelines ("psyops" that pull posts/messages, score them through a swarm, and deliver the survivors to agents' work queues), and event-driven wake-ups from a resident daemon that fires when an agent is mentioned, replied to, or DM'd.
+- **[mundus-animarum](https://github.com/ObjectiveAI/mundus-animarum)** — persistent, self-authored "souls" for agents. A key/value store keyed by an agent's content-addressed ID, with cross-agent lookups, subscriptions, and change notifications; every instance of the same agent definition shares one soul, which the agent can rewrite over time.
+- **[arcanum](https://github.com/ObjectiveAI/arcanum)** — skills for agents. Lets agents load skills and governs which agents may use which skills.
+- **[quas-wex-exort](https://github.com/ObjectiveAI/quas-wex-exort)** — programmatic invocation of MCP tools and the ObjectiveAI CLI from within an agent.
+
 ### Installing a plugin
 
 Install from a public GitHub repository:
