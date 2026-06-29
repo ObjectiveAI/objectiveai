@@ -1,6 +1,6 @@
 # ObjectiveAI
 
-**The Distributed Swarm Harness.**
+**The Swarm Harness.**
 
 Define and compose swarms of LLM agents. Spawn an agent to do things, spawn a swarm to score things, or hand a swarm a Docker sandbox — from the CLI, the SDKs, or your own agent.
 
