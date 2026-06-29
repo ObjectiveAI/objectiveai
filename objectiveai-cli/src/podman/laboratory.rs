@@ -127,6 +127,12 @@ pub async fn create(
     }
     // Force the MCP's bind port; appended after the user's env so it wins.
     create_cmd.arg("-e").arg(format!("PORT={LAB_PORT}"));
+    // The laboratory id, so the in-container MCP names itself `oail-<id>`.
+    // Baked into the container config at create time → static and persists
+    // across restarts. Appended after the user's env so it wins.
+    create_cmd
+        .arg("-e")
+        .arg(format!("OBJECTIVEAI_LABORATORY_ID={id}"));
     create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
