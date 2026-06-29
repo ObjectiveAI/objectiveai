@@ -43,7 +43,7 @@ export function ComingSoon() {
           <Wordmark className={styles.wordmark} />
         </div>
 
-        <p className={styles.tagline}>the agentic collective judgment harness</p>
+        <p className={styles.tagline}>the swarm harness</p>
 
         <p className={styles.body}>
           Your agent doesn&apos;t have to decide alone. ObjectiveAI lets any agent

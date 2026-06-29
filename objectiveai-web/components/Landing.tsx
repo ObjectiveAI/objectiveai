@@ -30,9 +30,9 @@ export function Landing() {
 
       {/* ── Hero ── */}
       <section className={styles.hero}>
-        <h1 className={styles.heroTitle}>the agentic collective judgment harness</h1>
+        <h1 className={styles.heroTitle}>the swarm harness</h1>
         <p className={styles.heroBody}>
-          Any agent can call out to a swarm of models for collective judgment; routing decisions through recursive scoring trees that produce a vector of scores across every option. No fine-tuning. ObjectiveAI learns weights.
+          Define and compose swarms of LLM agents. Spawn an agent to do things, spawn a swarm, or hand a swarm a Docker sandbox — from the CLI, the SDKs, or your own agent.
         </p>
 
         {/* CTA — Ronald's hyperprompt / CLI install */}
