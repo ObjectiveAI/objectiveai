@@ -1,16 +1,18 @@
 //! `laboratories` — top-level CLI dispatch for laboratory containers (podman
 //! containers the conduit dials as client-side MCP servers). Distinct from
-//! `agents laboratories` (attachments). Only `create` exists today.
+//! `agents laboratories` (attachments). `create` creates + starts a
+//! laboratory container; `list` reads them back from podman.
 
 use std::pin::Pin;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::laboratories::{Request, ResponseItem};
 
 use crate::context::Context;
 use crate::error::Error;
 
 pub mod create;
+pub mod list;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -33,6 +35,18 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::CreateResponseSchema(req) => {
             let value = create::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::CreateResponseSchema(value)))
+        }
+        Request::List(req) => {
+            let inner = list::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::List)))
+        }
+        Request::ListRequestSchema(req) => {
+            let value = list::request_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListRequestSchema(value)))
+        }
+        Request::ListResponseSchema(req) => {
+            let value = list::response_schema::execute(ctx, req).await?;
+            once(Ok(ResponseItem::ListResponseSchema(value)))
         }
     };
     Ok(stream)
