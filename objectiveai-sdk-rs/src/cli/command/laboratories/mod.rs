@@ -1,0 +1,162 @@
+//! `laboratories` — top-level group for laboratory containers (podman
+//! containers the conduit dials as client-side MCP servers), sibling to
+//! `agents`/`swarms`. Distinct from `agents laboratories` (attachments).
+//! Only `create` exists today; `list` lands in a follow-up commit.
+
+use crate::cli::command::CommandRequest;
+
+pub mod create;
+
+#[derive(clap::Subcommand)]
+pub enum Command {
+    /// Create + start a laboratory container.
+    Create(create::Command),
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.laboratories.Request")]
+pub enum Request {
+    #[schemars(title = "Create")]
+    Create(create::Request),
+    #[schemars(title = "CreateRequestSchema")]
+    CreateRequestSchema(create::request_schema::Request),
+    #[schemars(title = "CreateResponseSchema")]
+    CreateResponseSchema(create::response_schema::Request),
+}
+
+// Exempt from json-schema coverage: tier aggregate (see the root
+// `ResponseItem` in command.rs - TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.laboratories.ResponseItem")]
+#[serde(untagged)]
+pub enum ResponseItem {
+    #[schemars(title = "Create")]
+    Create(create::Response),
+    #[schemars(title = "CreateRequestSchema")]
+    CreateRequestSchema(create::request_schema::Response),
+    #[schemars(title = "CreateResponseSchema")]
+    CreateResponseSchema(create::response_schema::Response),
+}
+
+#[cfg(feature = "mcp")]
+impl crate::cli::command::CommandResponse for ResponseItem {
+    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
+        match self {
+            ResponseItem::Create(v) => v.into_mcp(),
+            ResponseItem::CreateRequestSchema(v) => v.into_mcp(),
+            ResponseItem::CreateResponseSchema(v) => v.into_mcp(),
+        }
+    }
+}
+
+impl TryFrom<Command> for Request {
+    type Error = crate::cli::command::FromArgsError;
+    fn try_from(command: Command) -> Result<Self, Self::Error> {
+        match command {
+            Command::Create(cmd) => match cmd.schema {
+                None => Ok(Request::Create(create::Request::try_from(cmd.args)?)),
+                Some(create::Schema::RequestSchema(args)) => Ok(Request::CreateRequestSchema(
+                    create::request_schema::Request::try_from(args)?,
+                )),
+                Some(create::Schema::ResponseSchema(args)) => Ok(Request::CreateResponseSchema(
+                    create::response_schema::Request::try_from(args)?,
+                )),
+            },
+        }
+    }
+}
+
+impl CommandRequest for Request {
+    fn request_base(&self) -> &crate::cli::command::RequestBase {
+        match self {
+            Request::Create(inner) => inner.request_base(),
+            Request::CreateRequestSchema(inner) => inner.request_base(),
+            Request::CreateResponseSchema(inner) => inner.request_base(),
+        }
+    }
+
+    fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
+        match self {
+            Request::Create(inner) => inner.request_base_mut(),
+            Request::CreateRequestSchema(inner) => inner.request_base_mut(),
+            Request::CreateResponseSchema(inner) => inner.request_base_mut(),
+        }
+    }
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<ResponseItem, E::Error>> + Send>,
+    > = match request {
+        Request::Create(req) => {
+            let value = create::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::Create(value),
+            )))
+        }
+        Request::CreateRequestSchema(req) => {
+            let value = create::request_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::CreateRequestSchema(value),
+            )))
+        }
+        Request::CreateResponseSchema(req) => {
+            let value = create::response_schema::execute(executor, req, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(
+                ResponseItem::CreateResponseSchema(value),
+            )))
+        }
+    };
+    Ok(stream)
+}
+
+#[cfg(feature = "cli-executor")]
+pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
+    executor: &E,
+    request: Request,
+    transform: crate::cli::command::Transform,
+    agent_arguments: Option<&crate::cli::command::AgentArguments>,
+) -> Result<
+    std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>>,
+    E::Error,
+> {
+    let stream: std::pin::Pin<
+        Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>,
+    > = match request {
+        Request::Create(req) => {
+            let value = create::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::CreateRequestSchema(req) => {
+            let value = create::request_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::CreateResponseSchema(req) => {
+            let value = create::response_schema::execute_transform(
+                executor,
+                req,
+                transform,
+                agent_arguments,
+            )
+            .await?;
+            Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+    };
+    Ok(stream)
+}
