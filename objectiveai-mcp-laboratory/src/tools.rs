@@ -26,14 +26,22 @@ pub struct BashRequest {
 pub struct ObjectiveAiMcpLaboratory {
     pub tool_router: ToolRouter<Self>,
     shell_state: crate::bash::ShellState,
+    /// MCP server name reported in `get_info`: `oail-<id>` from the laboratory
+    /// id (env `OBJECTIVEAI_LABORATORY_ID`), or `oail` when run standalone.
+    server_name: String,
 }
 
 #[tool_router]
 impl ObjectiveAiMcpLaboratory {
-    pub fn new() -> Self {
+    pub fn new(laboratory_id: Option<String>) -> Self {
+        let server_name = match laboratory_id {
+            Some(id) => format!("oail-{id}"),
+            None => "oail".to_string(),
+        };
         Self {
             tool_router: Self::tool_router(),
             shell_state: crate::bash::ShellState::new(),
+            server_name,
         }
     }
 
@@ -66,7 +74,7 @@ impl ServerHandler for ObjectiveAiMcpLaboratory {
         // rmcp 1.7 marks `ServerInfo`/`Implementation` `#[non_exhaustive]`,
         // so build via `Default` + explicit field assignment.
         let mut server_info = Implementation::default();
-        server_info.name = "oaifs".into();
+        server_info.name = self.server_name.clone().into();
         server_info.version = env!("CARGO_PKG_VERSION").into();
         let mut info = ServerInfo::default();
         info.protocol_version = ProtocolVersion::V_2025_06_18;

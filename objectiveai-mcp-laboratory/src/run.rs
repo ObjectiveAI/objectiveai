@@ -21,6 +21,8 @@ struct EnvConfigBuilder {
     port: Option<u16>,
     #[envconfig(from = "SUPPRESS_OUTPUT")]
     suppress_output: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_LABORATORY_ID")]
+    laboratory_id: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -31,6 +33,7 @@ impl EnvConfigBuilder {
             suppress_output: self.suppress_output.map(|v| {
                 matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
             }),
+            laboratory_id: self.laboratory_id,
         }
     }
 }
@@ -40,6 +43,7 @@ pub struct ConfigBuilder {
     pub address: Option<String>,
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
+    pub laboratory_id: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -65,6 +69,7 @@ impl ConfigBuilder {
             address: self.address.unwrap_or_else(|| "0.0.0.0".to_string()),
             port: self.port.unwrap_or(3000),
             suppress_output: self.suppress_output.unwrap_or(false),
+            laboratory_id: self.laboratory_id,
         }
     }
 }
@@ -73,6 +78,9 @@ pub struct Config {
     pub address: String,
     pub port: u16,
     pub suppress_output: bool,
+    /// Laboratory id (env `OBJECTIVEAI_LABORATORY_ID`) — names the MCP server
+    /// `oail-<id>`. `None` when run standalone (no laboratory).
+    pub laboratory_id: Option<String>,
 }
 
 pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
@@ -80,9 +88,10 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         address,
         port,
         suppress_output: _,
+        laboratory_id,
     } = config;
 
-    let server = ObjectiveAiMcpLaboratory::new();
+    let server = ObjectiveAiMcpLaboratory::new(laboratory_id);
     server.init().await;
 
     let ct = CancellationToken::new();
