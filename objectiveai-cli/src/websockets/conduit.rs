@@ -428,8 +428,14 @@ async fn dispatch_initialize(
         McpKind::Laboratory { id } => {
             // A laboratory is a podman container running the laboratory MCP
             // server on a fixed in-container port, published to a random
-            // 127.0.0.1 host port. Resolve that port and connect to it as a
-            // streamable-HTTP MCP upstream (no subprocess → no drain handle).
+            // 127.0.0.1 host port. The container may or may not be running, so
+            // ensure it's started first — `start` is idempotent (no-op + exit 0
+            // if already running) and concurrency-safe, so run it blindly. Then
+            // resolve the published port and connect to it as a streamable-HTTP
+            // MCP upstream (no subprocess → no drain handle).
+            if let Err(message) = crate::podman::laboratory::start(&inner.ctx, id).await {
+                return initialize_err(-32603, format!("laboratory {id}: {message}"));
+            }
             let port = match crate::podman::laboratory::host_port(&inner.ctx, id).await {
                 Ok(p) => p,
                 Err(message) => {

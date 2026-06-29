@@ -161,7 +161,31 @@ pub async fn create(
     }
 
     // NOTE: the container is created but NOT started here — starting it (which
-    // runs the injected entrypoint on PORT=14978) is done elsewhere.
+    // runs the injected entrypoint on PORT=14978) is done elsewhere (see
+    // [`start`], called by the conduit at dial time).
+    Ok(())
+}
+
+/// Start a laboratory container, idempotently. `podman start` is a no-op that
+/// still exits 0 when the container is already running, and podman serializes
+/// container ops internally — so this is safe to run BLINDLY and CONCURRENTLY
+/// (two parallel starters both succeed; no check-then-start race). Errors only
+/// if the container does not exist (the id was never [`create`]d).
+pub async fn start(ctx: &Context, id: &str) -> Result<(), Error> {
+    let exe = ctx.podman().await?;
+    let name = container_name(ctx.filesystem.state(), id);
+    let output = container_command(exe)
+        .arg("start")
+        .arg(&name)
+        .output()
+        .await
+        .map_err(|e| Error::Podman(format!("spawn podman start: {e}")))?;
+    if !output.status.success() {
+        return Err(Error::Podman(format!(
+            "podman start {name}: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
     Ok(())
 }
 
