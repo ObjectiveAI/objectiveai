@@ -607,9 +607,13 @@ pub(crate) fn run_multi_pass(
 
             // Restart with the latest continuation only. No new
             // messages — the API picks up state from the
-            // continuation token.
+            // continuation token. Re-resolve the agent's laboratory
+            // attachments too: one may have been attached or detached
+            // while this pass ran, and each pass must dial whatever is
+            // attached NOW.
             params.messages = Vec::new();
             params.continuation = last_continuation;
+            params.laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
         }
     }
 }
