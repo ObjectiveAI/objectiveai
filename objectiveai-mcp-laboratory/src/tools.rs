@@ -1,6 +1,7 @@
 use rmcp::{
     ServerHandler,
     handler::server::router::tool::ToolRouter,
+    handler::server::tool::Extension,
     handler::server::wrapper::Parameters,
     model::{
         Content, Implementation, ProtocolVersion, ServerCapabilities, ServerInfo,
@@ -52,8 +53,22 @@ impl ObjectiveAiMcpLaboratory {
     }
 
     #[tool(name = "Bash", description = "Executes a given bash command and returns its output.")]
-    async fn bash(&self, Parameters(req): Parameters<BashRequest>) -> Content {
-        match crate::bash::execute_bash(&self.shell_state, &req.command, req.timeout).await {
+    async fn bash(
+        &self,
+        Parameters(req): Parameters<BashRequest>,
+        Extension(parts): Extension<http::request::Parts>,
+    ) -> Content {
+        // The conduit forwards `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` on every
+        // tools/call (1:1 with the agent instance). cwd/env are kept per-AIH so
+        // concurrent agents sharing this lab don't trample each other; a
+        // missing/empty header (standalone runs) routes to the `""` bucket.
+        // `HeaderMap::get` is case-insensitive.
+        let aih = parts
+            .headers
+            .get("x-objectiveai-agent-instance-hierarchy")
+            .and_then(|v| v.to_str().ok())
+            .unwrap_or("");
+        match crate::bash::execute_bash(&self.shell_state, aih, &req.command, req.timeout).await {
             Ok(output) => {
                 if output.is_image {
                     if let Some(parsed) = crate::bash::parse_data_uri(&output.stdout) {

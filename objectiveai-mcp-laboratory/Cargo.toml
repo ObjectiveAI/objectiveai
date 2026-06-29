@@ -16,9 +16,11 @@ publish = true
 anyhow = "1.0.102"
 axum = "0.8.8"
 base64 = "0.22"
+dashmap = "6.1.0"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
 glob = "0.3"
+http = "1.4.0"
 indexmap = { version = "2.13.0", features = ["serde"] }
 pathdiff = "0.2"
 regex = "1"

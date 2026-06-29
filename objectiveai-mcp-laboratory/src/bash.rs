@@ -8,6 +8,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::Duration;
 
+use dashmap::DashMap;
 use tokio::fs;
 
 #[derive(Debug, serde::Serialize)]
@@ -29,46 +30,35 @@ pub struct BashOutput {
     pub no_output_expected: bool,
 }
 
-/// Per-session shell state. Tracks CWD, shell snapshot, session env vars,
-/// and tmux isolation across bash invocations.
+/// Shell state shared by every agent dialing this laboratory MCP. CWD and
+/// exported env are kept **per agent-instance-hierarchy (AIH)** so concurrent
+/// agents sharing the one container don't trample each other's working
+/// directory or environment; the snapshot, tmux socket, and shell path are
+/// process-global (the snapshot is the container's static functions/aliases).
 #[derive(Debug, Clone)]
 pub struct ShellState {
-    /// Current working directory, persisted across commands.
-    cwd: Arc<RwLock<PathBuf>>,
+    /// Per-AIH working directory, persisted across that AIH's commands.
+    cwds: Arc<DashMap<String, PathBuf>>,
     /// Path to the shell environment snapshot file (functions, aliases, options).
     /// Captured once at session start from the user's shell config.
     snapshot_path: Arc<RwLock<Option<String>>>,
-    /// Session-scoped environment variables (set via API, not from commands).
-    session_env_vars: Arc<RwLock<HashMap<String, String>>>,
     /// Tmux socket env override. Set once tmux is first used.
     tmux_env: Arc<RwLock<Option<String>>>,
     /// Whether tmux has been used this session.
     tmux_used: Arc<RwLock<bool>>,
     /// The user's shell path (e.g., /bin/bash, /bin/zsh).
     shell_path: String,
-    /// Persistent file of exported env vars: `export -p` is dumped here after
-    /// every command and sourced before the next, giving env the same
-    /// cross-command persistence as `cwd`. Stable for the session.
-    env_path: String,
 }
 
 impl ShellState {
     pub fn new() -> Self {
         let shell_path = detect_shell();
         Self {
-            cwd: Arc::new(RwLock::new(
-                std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")),
-            )),
+            cwds: Arc::new(DashMap::new()),
             snapshot_path: Arc::new(RwLock::new(None)),
-            session_env_vars: Arc::new(RwLock::new(HashMap::new())),
             tmux_env: Arc::new(RwLock::new(None)),
             tmux_used: Arc::new(RwLock::new(false)),
             shell_path,
-            env_path: format!(
-                "{}/objectiveai-mcp-{}-env.sh",
-                std::env::temp_dir().to_string_lossy(),
-                std::process::id(),
-            ),
         }
     }
 
@@ -85,24 +75,17 @@ impl ShellState {
         }
     }
 
-    pub fn get_cwd(&self) -> PathBuf {
-        self.cwd.read().unwrap().clone()
+    /// This AIH's current working directory, or the process cwd (fallback `/`)
+    /// the first time the AIH is seen.
+    fn get_cwd(&self, aih: &str) -> PathBuf {
+        self.cwds
+            .get(aih)
+            .map(|c| c.clone())
+            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")))
     }
 
-    fn set_cwd(&self, path: PathBuf) {
-        *self.cwd.write().unwrap() = path;
-    }
-
-    pub fn set_session_env_var(&self, name: String, value: String) {
-        self.session_env_vars.write().unwrap().insert(name, value);
-    }
-
-    pub fn delete_session_env_var(&self, name: &str) {
-        self.session_env_vars.write().unwrap().remove(name);
-    }
-
-    pub fn get_session_env_vars(&self) -> HashMap<String, String> {
-        self.session_env_vars.read().unwrap().clone()
+    fn set_cwd(&self, aih: &str, path: PathBuf) {
+        self.cwds.insert(aih.to_string(), path);
     }
 
     fn get_snapshot_path(&self) -> Option<String> {
@@ -128,6 +111,7 @@ impl ShellState {
 
 pub async fn execute_bash(
     shell_state: &ShellState,
+    aih: &str,
     command: &str,
     timeout_ms: Option<u64>,
 ) -> Result<BashOutput, String> {
@@ -145,8 +129,10 @@ pub async fn execute_bash(
         }
     }
 
-    // Build the full command string with all session state
-    let cwd = shell_state.get_cwd();
+    // Build the full command string with all session state. cwd + the exported
+    // env file are per-AIH; the snapshot is process-global.
+    let cwd = shell_state.get_cwd(aih);
+    let env_path = env_path_for(aih);
     let snapshot_path = shell_state.get_snapshot_path();
     let has_snapshot = snapshot_path.is_some();
 
@@ -157,22 +143,12 @@ pub async fn execute_bash(
         command_parts.push(format!("source {} 2>/dev/null || true", shell_quote(snap)));
     }
 
-    // 1b. Replay the exported env persisted after the previous command. The
-    // file won't exist on the first call — `|| true` shrugs that off.
+    // 1b. Replay the exported env persisted after this AIH's previous command.
+    // The file won't exist on the first call — `|| true` shrugs that off.
     command_parts.push(format!(
         "source {} 2>/dev/null || true",
-        shell_quote(&shell_state.env_path)
+        shell_quote(&env_path)
     ));
-
-    // 2. Source session environment variables
-    let session_env = shell_state.get_session_env_vars();
-    if !session_env.is_empty() {
-        let exports: Vec<String> = session_env
-            .iter()
-            .map(|(k, v)| format!("export {}={}", k, shell_quote(v)))
-            .collect();
-        command_parts.push(exports.join("; "));
-    }
 
     // 3. Source CLAUDE_ENV_FILE if set (for venv/conda activation, parent process env persistence)
     if let Ok(env_file) = std::env::var("CLAUDE_ENV_FILE") {
@@ -201,7 +177,7 @@ pub async fn execute_bash(
     command_parts.push(format!(
         "{{ pwd -P >| {}; export -p >| {}; }}",
         shell_quote(&cwd_file),
-        shell_quote(&shell_state.env_path),
+        shell_quote(&env_path),
     ));
 
     let command_string = command_parts.join(" && ");
@@ -215,7 +191,7 @@ pub async fn execute_bash(
     args.push(command_string);
 
     // Build environment overrides
-    let mut env_overrides: HashMap<String, String> = shell_state.get_session_env_vars();
+    let mut env_overrides: HashMap<String, String> = HashMap::new();
 
     // Set SHELL to the detected shell path
     env_overrides.insert("SHELL".into(), shell_state.shell_path.clone());
@@ -314,11 +290,11 @@ pub async fn execute_bash(
         full_output
     };
 
-    // Read the saved CWD from the temp file
+    // Read the saved CWD from the temp file and persist it for this AIH.
     if let Ok(new_cwd) = fs::read_to_string(&cwd_file).await {
         let new_cwd = new_cwd.trim();
         if !new_cwd.is_empty() {
-            shell_state.set_cwd(PathBuf::from(new_cwd));
+            shell_state.set_cwd(aih, PathBuf::from(new_cwd));
         }
     }
     // Clean up the CWD file
@@ -398,6 +374,22 @@ fn cwd_file_path() -> String {
         std::env::temp_dir().to_string_lossy(),
         std::process::id(),
         id,
+    )
+}
+
+/// Per-AIH exported-env file path. The AIH (which contains `/`) is hashed so
+/// the filename is filesystem-safe and collision-free; `export -p` is dumped
+/// here after each of this AIH's commands and sourced before the next, giving
+/// env the same cross-command persistence as cwd, scoped per agent instance.
+fn env_path_for(aih: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    aih.hash(&mut h);
+    format!(
+        "{}/objectiveai-mcp-{}-env-{:016x}.sh",
+        std::env::temp_dir().to_string_lossy(),
+        std::process::id(),
+        h.finish(),
     )
 }
 
