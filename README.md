@@ -507,7 +507,7 @@ Full reference: [PLUGINS.md](PLUGINS.md).
 
 The [`examples/`](examples/) directory collects real software built on top of ObjectiveAI, with links to full source repositories.
 
-**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (scoring jobs that pull tagged posts and run them through ObjectiveAI using a chosen swarm and strategy — including Swiss System tournament-style ranking). A pilot study ranked tweets from 33 YC W22 CEO accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
+**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (scoring jobs that pull tagged posts and run them through ObjectiveAI using a chosen swarm and strategy — including Swiss System tournament-style ranking). A pilot study ranked tweets from a set of public startup-founder accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
 
 ### Ecosystem
 
