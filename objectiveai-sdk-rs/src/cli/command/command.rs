@@ -27,6 +27,10 @@ pub enum Subcommand {
     /// Kill every process holding a lock anywhere under the configured
     /// `OBJECTIVEAI_DIR` — the blunt whole-tree sweep.
     KillAll(super::kill_all::Command),
+    Laboratories {
+        #[command(subcommand)]
+        command: super::laboratories::Command,
+    },
     Mcp {
         #[command(subcommand)]
         command: super::mcp::Command,
@@ -72,6 +76,8 @@ pub enum Request {
     KillAllRequestSchema(super::kill_all::request_schema::Request),
     #[schemars(title = "KillAllResponseSchema")]
     KillAllResponseSchema(super::kill_all::response_schema::Request),
+    #[schemars(title = "Laboratories")]
+    Laboratories(super::laboratories::Request),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Request),
     #[schemars(title = "Plugins")]
@@ -122,6 +128,8 @@ pub enum ResponseItem {
     KillAllRequestSchema(super::kill_all::request_schema::Response),
     #[schemars(title = "KillAllResponseSchema")]
     KillAllResponseSchema(super::kill_all::response_schema::Response),
+    #[schemars(title = "Laboratories")]
+    Laboratories(super::laboratories::ResponseItem),
     #[schemars(title = "Mcp")]
     Mcp(super::mcp::Response),
     #[schemars(title = "Plugins")]
@@ -158,6 +166,7 @@ impl super::CommandResponse for ResponseItem {
             ResponseItem::KillAll(v) => v.into_mcp(),
             ResponseItem::KillAllRequestSchema(v) => v.into_mcp(),
             ResponseItem::KillAllResponseSchema(v) => v.into_mcp(),
+            ResponseItem::Laboratories(v) => v.into_mcp(),
             ResponseItem::Mcp(v) => v.into_mcp(),
             ResponseItem::Plugins(v) => v.into_mcp(),
             ResponseItem::Python(v) => v.into_mcp(),
@@ -194,6 +203,8 @@ impl TryFrom<Subcommand> for Request {
                 Some(super::kill_all::Schema::ResponseSchema(args)) =>
                     Ok(Request::KillAllResponseSchema(super::kill_all::response_schema::Request::try_from(args)?)),
             },
+            Subcommand::Laboratories { command } =>
+                Ok(Request::Laboratories(super::laboratories::Request::try_from(command)?)),
             Subcommand::Mcp { command } =>
                 Ok(Request::Mcp(super::mcp::Request::try_from(command)?)),
             Subcommand::Plugins { command } =>
@@ -257,6 +268,7 @@ impl super::CommandRequest for Request {
             Request::KillAll(inner) => inner.request_base(),
             Request::KillAllRequestSchema(inner) => inner.request_base(),
             Request::KillAllResponseSchema(inner) => inner.request_base(),
+            Request::Laboratories(inner) => inner.request_base(),
             Request::Mcp(inner) => inner.request_base(),
             Request::Plugins(inner) => inner.request_base(),
             Request::Python(inner) => inner.request_base(),
@@ -281,6 +293,7 @@ impl super::CommandRequest for Request {
             Request::KillAll(inner) => inner.request_base_mut(),
             Request::KillAllRequestSchema(inner) => inner.request_base_mut(),
             Request::KillAllResponseSchema(inner) => inner.request_base_mut(),
+            Request::Laboratories(inner) => inner.request_base_mut(),
             Request::Mcp(inner) => inner.request_base_mut(),
             Request::Plugins(inner) => inner.request_base_mut(),
             Request::Python(inner) => inner.request_base_mut(),
@@ -340,6 +353,10 @@ pub async fn execute<E: super::CommandExecutor>(
             Request::KillAllResponseSchema(req) => {
                 let value = super::kill_all::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(ResponseItem::KillAllResponseSchema(value))))
+            }
+            Request::Laboratories(req) => {
+                let inner = super::laboratories::execute(executor, req, agent_arguments).await?;
+                Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
             }
             Request::Mcp(req) => {
                 let inner = super::mcp::execute(executor, req, agent_arguments).await?;
@@ -433,6 +450,10 @@ pub async fn execute_transform<E: super::CommandExecutor>(
             Request::KillAllResponseSchema(req) => {
                 let value = super::kill_all::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(super::StreamOnce::new(Ok(value)))
+            }
+            Request::Laboratories(req) => {
+                let inner = super::laboratories::execute_transform(executor, req, transform, agent_arguments).await?;
+                Box::pin(inner)
             }
             Request::Mcp(req) => {
                 let inner = super::mcp::execute_transform(executor, req, transform, agent_arguments).await?;
