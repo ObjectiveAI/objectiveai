@@ -46,6 +46,10 @@ pub struct ShellState {
     tmux_used: Arc<RwLock<bool>>,
     /// The user's shell path (e.g., /bin/bash, /bin/zsh).
     shell_path: String,
+    /// Persistent file of exported env vars: `export -p` is dumped here after
+    /// every command and sourced before the next, giving env the same
+    /// cross-command persistence as `cwd`. Stable for the session.
+    env_path: String,
 }
 
 impl ShellState {
@@ -60,6 +64,11 @@ impl ShellState {
             tmux_env: Arc::new(RwLock::new(None)),
             tmux_used: Arc::new(RwLock::new(false)),
             shell_path,
+            env_path: format!(
+                "{}/objectiveai-mcp-{}-env.sh",
+                std::env::temp_dir().to_string_lossy(),
+                std::process::id(),
+            ),
         }
     }
 
@@ -148,6 +157,13 @@ pub async fn execute_bash(
         command_parts.push(format!("source {} 2>/dev/null || true", shell_quote(snap)));
     }
 
+    // 1b. Replay the exported env persisted after the previous command. The
+    // file won't exist on the first call — `|| true` shrugs that off.
+    command_parts.push(format!(
+        "source {} 2>/dev/null || true",
+        shell_quote(&shell_state.env_path)
+    ));
+
     // 2. Source session environment variables
     let session_env = shell_state.get_session_env_vars();
     if !session_env.is_empty() {
@@ -178,9 +194,15 @@ pub async fn execute_bash(
     // 5. The user's command (wrapped in eval for alias expansion)
     command_parts.push(format!("eval {}", shell_quote(command)));
 
-    // 6. Save CWD after command execution
+    // 6. After the command, capture BOTH cwd and exported env in one trailing
+    // step: cwd → a per-call temp file (read back into ShellState below), env →
+    // the persistent per-session file (sourced by the next command at step 1b).
     let cwd_file = cwd_file_path();
-    command_parts.push(format!("pwd -P >| {}", shell_quote(&cwd_file)));
+    command_parts.push(format!(
+        "{{ pwd -P >| {}; export -p >| {}; }}",
+        shell_quote(&cwd_file),
+        shell_quote(&shell_state.env_path),
+    ));
 
     let command_string = command_parts.join(" && ");
 
