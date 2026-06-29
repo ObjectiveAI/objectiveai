@@ -1,7 +1,7 @@
 {
   "name": "ObjectiveAI",
   "short_name": "ObjectiveAI",
-  "description": "The agentic collective judgment harness.",
+  "description": "The Swarm Harness.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0c0a09",
