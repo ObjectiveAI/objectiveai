@@ -46,22 +46,31 @@ pub struct Mount {
     pub container: String,
 }
 
+/// A laboratory container as read back by [`list`], reconstructed from its
+/// `objectiveai.laboratory` label. Mirrors the `create` echo.
+pub struct LaboratoryInfo {
+    pub id: String,
+    pub image: String,
+    pub mounts: Vec<Mount>,
+    pub env: Vec<(String, String)>,
+}
+
 /// The `objectiveai.laboratory` container label — the authoritative round-trip
 /// record of how a laboratory was created, so `list` can reconstruct its spec
 /// without relying on podman's merged env/mount parsing. Env is a list of
 /// `[key, value]` pairs.
-#[derive(serde::Serialize)]
-struct Label<'a> {
-    id: &'a str,
-    image: &'a str,
-    mounts: Vec<LabelMount<'a>>,
-    env: Vec<[&'a str; 2]>,
+#[derive(serde::Serialize, serde::Deserialize)]
+struct Label {
+    id: String,
+    image: String,
+    mounts: Vec<LabelMount>,
+    env: Vec<[String; 2]>,
 }
 
-#[derive(serde::Serialize)]
-struct LabelMount<'a> {
-    host: &'a str,
-    container: &'a str,
+#[derive(serde::Serialize, serde::Deserialize)]
+struct LabelMount {
+    host: String,
+    container: String,
 }
 
 /// Create + start a laboratory container: `podman create` → `podman cp` (inject
@@ -86,16 +95,16 @@ pub async fn create(
     let name = container_name(state, id);
 
     let label = Label {
-        id,
-        image,
+        id: id.to_string(),
+        image: image.to_string(),
         mounts: mounts
             .iter()
             .map(|m| LabelMount {
-                host: &m.host,
-                container: &m.container,
+                host: m.host.clone(),
+                container: m.container.clone(),
             })
             .collect(),
-        env: env.iter().map(|(k, v)| [k.as_str(), v.as_str()]).collect(),
+        env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
     };
     let label_json = serde_json::to_string(&label)
         .map_err(|e| Error::Podman(format!("serialize laboratory label: {e}")))?;
@@ -200,4 +209,65 @@ pub async fn host_port(ctx: &Context, id: &str) -> Result<u16, Error> {
             "podman port {name}: unparseable host port {port_str:?}: {e}"
         ))
     })
+}
+
+/// The laboratory containers created in this state, reconstructed from each
+/// container's `objectiveai.laboratory` label.
+///
+/// Runs `podman ps -a --filter name=objectiveai-laboratory-<state>- --format
+/// json` (a JSON array of containers, each with a `Labels` object) and reads
+/// the authoritative `objectiveai.laboratory` label per container (the label is
+/// the round-trip record, avoiding podman's merged env/mount parsing).
+/// Containers missing the label are skipped.
+pub async fn list(ctx: &Context) -> Result<Vec<LaboratoryInfo>, Error> {
+    let exe = ctx.podman().await?;
+    let state = ctx.filesystem.state();
+    let output = container_command(exe)
+        .arg("ps")
+        .arg("-a")
+        .arg("--filter")
+        .arg(format!("name=objectiveai-laboratory-{state}-"))
+        .arg("--format")
+        .arg("json")
+        .output()
+        .await
+        .map_err(|e| Error::Podman(format!("spawn podman ps: {e}")))?;
+    if !output.status.success() {
+        return Err(Error::Podman(format!(
+            "podman ps: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        )));
+    }
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let value: serde_json::Value = serde_json::from_str(&stdout)
+        .map_err(|e| Error::Podman(format!("parse podman ps output: {e}")))?;
+    let array = value
+        .as_array()
+        .ok_or_else(|| Error::Podman("podman ps output: expected a JSON array".to_string()))?;
+    let mut labs = Vec::new();
+    for elem in array {
+        let Some(label_str) = elem
+            .get("Labels")
+            .and_then(|l| l.get("objectiveai.laboratory"))
+            .and_then(|v| v.as_str())
+        else {
+            continue;
+        };
+        let label: Label = serde_json::from_str(label_str)
+            .map_err(|e| Error::Podman(format!("parse laboratory label: {e}")))?;
+        labs.push(LaboratoryInfo {
+            id: label.id,
+            image: label.image,
+            mounts: label
+                .mounts
+                .into_iter()
+                .map(|m| Mount {
+                    host: m.host,
+                    container: m.container,
+                })
+                .collect(),
+            env: label.env.into_iter().map(|[k, v]| (k, v)).collect(),
+        });
+    }
+    Ok(labs)
 }
