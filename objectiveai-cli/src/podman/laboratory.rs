@@ -73,16 +73,16 @@ struct LabelMount {
     container: String,
 }
 
-/// Create + start a laboratory container: `podman create` → `podman cp` (inject
-/// the bundled `objectiveai-mcp-laboratory` musl binary) → `podman start`, in
-/// that order so the injected binary exists before the entrypoint runs it.
+/// Create a laboratory container (created, NOT started): `podman create` →
+/// `podman cp` (inject the bundled `objectiveai-mcp-laboratory` musl binary).
+/// Starting it is done elsewhere.
 ///
 /// The container is named [`container_name`]`(state, id)`, publishes its fixed
 /// internal [`LAB_PORT`] to a random `127.0.0.1` host port (looked up later by
 /// [`host_port`]), forces `PORT=14978` (appended after the user's env so it
 /// wins), records its spec in the `objectiveai.laboratory` label, and overrides
-/// the entrypoint to the injected MCP binary so container lifetime == MCP
-/// lifetime.
+/// the entrypoint to the injected MCP binary so that when started the container
+/// lifetime == MCP lifetime.
 pub async fn create(
     ctx: &Context,
     id: &str,
@@ -160,19 +160,8 @@ pub async fn create(
         )));
     }
 
-    // 3. podman start — runs the injected entrypoint with PORT=14978.
-    let output = container_command(exe)
-        .arg("start")
-        .arg(&name)
-        .output()
-        .await
-        .map_err(|e| Error::Podman(format!("spawn podman start: {e}")))?;
-    if !output.status.success() {
-        return Err(Error::Podman(format!(
-            "podman start {name}: {}",
-            String::from_utf8_lossy(&output.stderr).trim()
-        )));
-    }
+    // NOTE: the container is created but NOT started here — starting it (which
+    // runs the injected entrypoint on PORT=14978) is done elsewhere.
     Ok(())
 }
 
