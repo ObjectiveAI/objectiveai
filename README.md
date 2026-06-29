@@ -1,8 +1,8 @@
 # ObjectiveAI
 
-**The Swarm Judgment Harness.**
+**The Distributed Swarm Harness.**
 
-Define and compose swarms of LLM agents. Spawn an agent to do things, spawn a swarm to evaluate things, or hand a swarm a Docker sandbox — from the CLI, the SDKs, or your own agent.
+Define and compose swarms of LLM agents. Spawn an agent to do things, spawn a swarm to score things, or hand a swarm a Docker sandbox — from the CLI, the SDKs, or your own agent.
 
 [Website](https://objectiveai.dev) · [Discord](https://discord.gg/gbNFHensby) · [GitHub](https://github.com/ObjectiveAI/objectiveai)
 
@@ -23,7 +23,7 @@ SDKs published to language-native registries. Pick the one for your stack:
 | Python | [`objectiveai-sdk`](https://pypi.org/project/objectiveai-sdk/) | `pip install objectiveai-sdk` |
 | Go | [`objectiveai-sdk-go`](https://pkg.go.dev/github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go) | `go get github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` |
 
-Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-filesystem`](https://crates.io/crates/objectiveai-mcp-filesystem), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros). Additional PyPI package: [`objectiveai-cocoindex`](https://pypi.org/project/objectiveai-cocoindex/).
+Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-filesystem`](https://crates.io/crates/objectiveai-mcp-filesystem), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros).
 
 ## Binaries
 
@@ -47,64 +47,58 @@ Supported platforms: Linux x86_64, Linux aarch64, macOS x86_64, macOS aarch64, W
 
 ## What ObjectiveAI is
 
-ObjectiveAI is a harness for defining, composing, and running swarms of LLM agents. You define an **Agent** once — model, prompts, decoding parameters, output mode, tools, MCP servers. You compose Agents into a **Swarm**. You then run them in any of three execution modes: spawn a single agent to do work, spawn a whole swarm to collectively evaluate something, or hand a swarm a Docker sandbox to act in.
+ObjectiveAI is a harness for defining, composing, and running swarms of LLM agents — distributed across the CLI, the API, the SDKs, the MCP server, and your own agents. You define an **Agent** once — model, prompts, decoding parameters, output mode, tools, MCP servers. You compose Agents into a **Swarm**. You then run them in any of three ways: spawn a single agent to do work, spawn a whole swarm to collectively score candidates, or hand a swarm a Docker sandbox to act in.
 
-Agents, Swarms, Functions, and Profiles are all content-addressed Git-hosted resources. The same swarm.json that powers your CLI invocation tonight is the one your colleague pins by commit SHA next month and the one your trained Profile was fit against.
+Agents and Swarms are content-addressed, Git-hosted resources. The same `swarm.json` that powers your CLI invocation tonight is the one your colleague pins by commit SHA next month.
 
-The brand promise is **judgment**: the system was built so that collective evaluation by a swarm — not a single sampled token — produces every score. The mechanism is **swarms**: reusable, composable, version-tracked collections of configured models. Everything else (the CLI, the API, the web app, the MCP server, the SDKs in five languages) exists to drive swarms in the ways that matter.
+The mechanism is **swarms**: reusable, composable, version-tracked collections of configured models. Everything else (the CLI, the API, the web app, the MCP server, the SDKs in five languages) exists to drive swarms in the ways that matter.
 
 ### Execution modes
 
-Two shapes. Each mode resolves the same Agents and Swarms but does something different with them.
+Each mode resolves the same Agents and Swarms but does something different with them.
 
 | Mode | What it does | Returns | Reach for it when |
 |---|---|---|---|
 | [**Agent completion**](#agent-completions) | Spawn a single Agent to do work — call tools, talk to MCP servers, execute multi-turn loops, generate artifacts | Whatever the Agent produces | You need one agent to perform a discrete task |
-| [**Function execution**](#function-executions) | Spawn a swarm to evaluate something. Functions are composable, recursive evaluation pipelines | Scalar or vector of scores | You want a calibrated, trainable multi-model evaluation |
+| [**Vector completion**](#vector-completions) | Spawn a swarm to score a fixed set of candidate responses — each agent votes, votes combine under weights | Vector of scores that sums to 1 | You want a calibrated, multi-model score |
 
-Function execution is the judgment mode — that's where the system's name comes from. Agent completions are the foundational orchestration layer; every other mode is built on top of them.
+Agent completions are the foundational orchestration layer; vector completions are built on top of the same underlying agent primitive.
 
-### Why collective judgment
+### Why a swarm scores better than one model
 
 A single language model asked to score something hands back one sampled token and walks away from everything else it computed. The signal it had — how confident it really was, where it hedged, what it nearly chose instead — never leaves the model. ObjectiveAI is built to preserve that signal across an entire swarm.
 
-Each agent in a swarm contributes a preference distribution over the candidates rather than a single sampled token. Those distributions combine across the swarm under learned weights to produce the final score. No discrete collapse. No lost signal.
+Each agent in a swarm contributes a preference distribution over the candidates rather than a single sampled token. Those distributions combine across the swarm under weights to produce the final score. No discrete collapse. No lost signal.
 
 ```
-Function execution requested
+Vector completion requested
         │
         ▼
-  ┌─────────────┐
-  │  Function   │  (composable, content-addressed, versioned)
-  └──────┬──────┘
-         │ fans out to its swarm
-         ▼
   ┌──────────────────────────────────┐
   │              Swarm               │
   │  ┌────────┐ ┌────────┐ ┌──────┐ │
   │  │ Agent  │ │ Agent  │ │ ...  │ │
   │  └───┬────┘ └───┬────┘ └──┬───┘ │
   └──────┼──────────┼─────────┼─────┘
-         │ evaluations         │
+         │ votes (preference distributions)
          ▼          ▼         ▼
   ┌────────────────────────────────┐
-  │  weighted combination (Profile)│
+  │  weighted combination          │
   └────────────────────────────────┘
          │
          ▼
   scores: [0.61, 0.28, 0.11]  (sums to 1)
 ```
 
-This matters twice over: once per model, and once across models. Different models have different failure modes, different training distributions, different calibration profiles. Combining them with learned weights — weights that can be trained against ground truth — is strictly more powerful than picking the one model that scores highest on average.
+This matters twice over: once per model, and once across models. Different models have different failure modes and different training distributions. Combining them with weights is strictly more powerful than picking the one model that scores highest on average.
 
 ### Why this system
 
-Reusability across modes. Trainability where it counts. Content-addressing throughout:
+Reusability across modes. Content-addressing throughout:
 
-- **Reusable.** An Agent is a 22-character ID — define one once and reference it from any swarm, any function, any lab. A Swarm is a sorted set of `(agent_id, count)` pairs. Define it once and run it for action, evaluation, or sandboxed work without re-defining anything.
-- **Trainable.** Profiles learn weights over a Function's task tree against labeled data. The models stay fixed; the way the swarm's evaluations combine improves.
-- **Reproducible.** Every resource reference is `(owner, repo, commit)`. Pin a commit SHA, get the exact same agent / swarm / function / profile your evaluation ran against six months ago.
-- **Composable.** Functions can call other Functions. Swarms compose into bigger swarms. The CLI dispatches plugins as unknown subcommands. The viewer surfaces plugin UIs as sandboxed iframe tabs.
+- **Reusable.** An Agent is a 22-character ID — define one once and reference it from any swarm or lab. A Swarm is a sorted set of `(agent_id, count)` pairs. Define it once and run it for action, scoring, or sandboxed work without re-defining anything.
+- **Reproducible.** Every resource reference is `(owner, repo, commit)`. Pin a commit SHA, get the exact same agent / swarm your run used six months ago.
+- **Composable.** Swarms compose into bigger swarms. The CLI dispatches plugins as unknown subcommands. The viewer surfaces plugin UIs as sandboxed iframe tabs.
 - **Polyglot.** Rust, TypeScript, Python, Go, and (in-progress) .NET SDKs share the same generated JSON Schema corpus. Field names and shapes are identical across languages.
 
 ## Quick start
@@ -122,45 +116,7 @@ Set your API key:
 objectiveai api headers x-objectiveai-authorization config set "apk_your_key_here"
 ```
 
-### CLI — spawn a swarm to evaluate something
-
-A **Function** describes the evaluation; a **Profile** names the swarm and its trained weights. Both are GitHub-hosted resources you reference by `owner/repository`. The example below calls a published code-safety evaluator function with its trained profile:
-
-```bash
-objectiveai functions executions create standard \
-  --function remote=github,owner=your-org,repository=safety-evaluator \
-  --profile remote=github,owner=your-org,repository=safety-evaluator-profile \
-  --input-inline '{"snippet":"eval(user_input)"}'
-```
-
-The streamed output ends with a notification containing the score vector:
-
-```json
-{"Notification":{"value":{"execution":{"output":{"Vector":[0.91,0.07,0.01,0.01]}}}}}
-```
-
-Each number is the swarm's combined evaluation weight for that label, in the order declared by the function's response set. Values sum to 1.
-
-### SDK — TypeScript
-
-```typescript
-import { ObjectiveAI, functionsExecutionsCreateFunctionExecution } from "@objectiveai/sdk";
-
-const client = new ObjectiveAI({ authorization: process.env.OBJECTIVEAI_AUTHORIZATION });
-
-const result = await functionsExecutionsCreateFunctionExecution(client, {
-  function: { remote: "github", owner: "your-org", repository: "safety-evaluator" },
-  profile: { remote: "github", owner: "your-org", repository: "safety-evaluator-profile" },
-  input: { snippet: "eval(user_input)" },
-  stream: false,
-});
-
-console.log(result.output); // { Vector: [0.91, 0.07, 0.01, 0.01] }
-```
-
-### Other execution modes
-
-Spawn a single agent to do work:
+### CLI — spawn an agent to do work
 
 ```bash
 objectiveai agents spawn \
@@ -168,17 +124,33 @@ objectiveai agents spawn \
   --inline '[{"role":"user","content":"Write a haiku about ocean waves."}]'
 ```
 
-Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents, Swarms, Profiles, and the two execution modes, and [SDKs](#sdks) for Python, Rust, Go, and .NET patterns including streaming.
+Pin a `commit=<sha>` segment to lock in a specific version of any remote resource. See [Core primitives](#core-primitives) for a full explanation of Agents, Swarms, and the two execution modes, and [SDKs](#sdks) for Python, Rust, Go, and .NET patterns including streaming.
+
+### SDK — TypeScript
+
+```typescript
+import { ObjectiveAI, agentsCompletionsCreateAgentCompletion } from "@objectiveai/sdk";
+
+const client = new ObjectiveAI({ authorization: process.env.OBJECTIVEAI_AUTHORIZATION });
+
+const result = await agentsCompletionsCreateAgentCompletion(client, {
+  agent: { remote: "github", owner: "your-org", repository: "writer-agent" },
+  messages: [{ role: "user", content: "Write a haiku about ocean waves." }],
+  stream: false,
+});
+
+console.log(result);
+```
 
 ## Core primitives
 
-Three **resources** (Agents, Swarms, Profiles) define what's in the system; two **execution modes** (Agent completions, Function executions) define what you can do with them. Resources are content-addressed Git-hosted JSON; execution modes resolve resources at request time and stream typed results back. Everything ties together through a shared resource graph at the bottom of this section.
+Two **resources** (Agents, Swarms) define what's in the system; two **execution modes** (Agent completions, Vector completions) define what you can do with them. Resources are content-addressed Git-hosted JSON; execution modes resolve resources at request time and stream typed results back.
 
 ### Agents
 
 An **Agent** is a fully-specified configuration of a single upstream model: model identity, prompt structure, decoding parameters, output mode, tools, MCP servers, provider preferences. Agents are content-addressed via XXHash3-128 — the same configuration always produces the same 22-character base62 ID. IDs are deterministic because the serialized configuration is hashed after normalization (empty fields stripped, defaults canonicalized). Two Agents with identical effective settings are the same Agent.
 
-Agents are stored as `agent.json` in Git repositories and referenced by `owner/repo@commit` everywhere a swarm or function needs an agent. Authoring agents lives in source control; calling them happens by reference.
+Agents are stored as `agent.json` in Git repositories and referenced by `owner/repo@commit` everywhere a swarm needs an agent. Authoring agents lives in source control; calling them happens by reference.
 
 ```json
 {
@@ -193,17 +165,17 @@ Agents are stored as `agent.json` in Git repositories and referenced by `owner/r
 }
 ```
 
-Each upstream (OpenRouter, Claude Agent SDK, Codex SDK) has its own agent type with its own parameter set. The same Agent can be driven in either execution mode — running solo in an agent completion, or contributing to the swarm's evaluation in a function execution.
+Each upstream (OpenRouter, Claude Agent SDK, Codex SDK) has its own agent type with its own parameter set. The same Agent can be driven in either execution mode — running solo in an agent completion, or contributing to the swarm's score in a vector completion.
 
 ### Swarms
 
-A **Swarm** is an ordered collection of Agents used together for collective judgment. Swarms are immutable and content-addressed — their ID is computed from the sorted `(full_id, count)` pairs of their constituent agents. Weights are **not** baked into the swarm definition; they are execution-time parameters supplied by a Profile or passed directly.
+A **Swarm** is an ordered collection of Agents used together to score collectively. Swarms are immutable and content-addressed — their ID is computed from the sorted `(full_id, count)` pairs of their constituent agents. Weights are **not** baked into the swarm definition; they are execution-time parameters supplied with the request.
 
 Each agent slot has a `count` (number of instances) and optional fallbacks. Duplicate agents are merged and their counts summed. The total agent count across all slots must be between 1 and 128.
 
 ```json
 {
-  "description": "Balanced judgment panel",
+  "description": "Balanced scoring panel",
   "agents": [
     {
       "upstream": "openrouter",
@@ -227,29 +199,11 @@ Each agent slot has a `count` (number of instances) and optional fallbacks. Dupl
 }
 ```
 
-Swarms are stored as `swarm.json` in Git repositories and shared across functions. Because weights are external, the same swarm can be reused with different weight configurations without creating a new swarm.
-
-### Profiles
-
-ObjectiveAI does not fine-tune models. It learns weights.
-
-A Profile is the result of training: given a dataset of `(input, expected_output)` pairs, ObjectiveAI executes a Function repeatedly, computes loss against expected outputs, and adjusts the weights over each task until they converge. The learned configuration — which tasks to trust more, which to discount — is stored as `profile.json`.
-
-Profiles are GitHub-hosted and referenced by `owner/repo@commit`. Pinning a commit SHA is strongly recommended: the Profile's shape (number of tasks, their order) is tied to the function it was trained on, and that function may evolve. A mismatched Profile silently produces wrong weights.
-
-```json
-{
-  "owner": "ObjectiveAI",
-  "repo": "quality-scorer",
-  "commit": "a3f8c21d..."
-}
-```
-
-At execution time, the Function and Profile are independent inputs. The retrieval system fetches both, resolves the resource graph, and applies the learned weights to combine task outputs.
+Swarms are stored as `swarm.json` in Git repositories and shared across runs. Because weights are external, the same swarm can be reused with different weight configurations without creating a new swarm.
 
 ### Agent completions
 
-An **agent completion** spawns a single Agent to do work. The Agent receives a task as a conversation and acts on it — calls tools, talks to MCP servers, executes a multi-turn loop, writes code, generates artifacts. Function executions are built on top of agent completions; they're multi-agent orchestrations of the same underlying primitive.
+An **agent completion** spawns a single Agent to do work. The Agent receives a task as a conversation and acts on it — calls tools, talks to MCP servers, executes a multi-turn loop, writes code, generates artifacts. Vector completions are built on top of agent completions; they're multi-agent orchestrations of the same underlying primitive.
 
 The Agent is supplied by remote reference. Messages can include images, audio, and files in addition to text. Tool calls are detected mid-stream and executed automatically; MCP servers attached to the Agent are dialed transparently. The response carries a `Continuation` that captures the conversation state so the next call can pick up where this one left off.
 
@@ -264,59 +218,36 @@ The Agent is supplied by remote reference. Messages can include images, audio, a
 
 CLI: `objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'`. SDK: `agentsCompletionsCreateAgentCompletion` (JS) / `create_agent_completion` (Python) / `agent::completions::http::create_agent_completion` (Rust).
 
-### Function executions
+### Vector completions
 
-A **function execution** spawns a swarm to evaluate something. Functions are composable, recursive evaluation pipelines: data in, scores out. A Function is a list of **tasks** executed against an input. Each task is one of:
+A **vector completion** spawns a swarm to score a fixed set of candidate responses. It takes a prompt plus the candidate responses, runs an agent completion across every Agent in the swarm, and each Agent **votes** for one of the candidates. Rather than collapsing to a single sampled token, ObjectiveAI reads each Agent's **logprobs** to capture its full preference distribution over the candidates. The votes combine under per-agent **weights** — execution-time parameters, never baked into the swarm — into a final **score vector** that sums to 1, one entry per candidate.
 
-- A **swarm evaluation step** — hands the input plus a fixed set of candidate labels to the swarm and gets back a score across those candidates. Each Agent contributes a preference distribution over the candidates rather than a single sampled token; the distributions combine with the Profile's weights to produce the step's score. Larger candidate sets are handled transparently by internal machinery — evaluations span hundreds of candidates if needed.
-- A **nested function call** — references another `function.json` by `owner/repo@commit`. Resolves and executes that function against the same (or a transformed) input.
-- A **mapped operation** — runs a task N times over an indexed range, producing N outputs.
-
-Functions are recursive: a function's tasks can themselves be functions, which can contain more nested functions. The composition is arbitrarily deep.
-
-Functions produce either:
-
-- **Scalar** — a single score in [0, 1].
-- **Vector** — an array of scores summing to 1, one per output dimension.
-
-The final output is the weighted combination of all task outputs, with weights supplied by a Profile. Tasks carry `output` expressions (JMESPath or Starlark) that transform raw task results into the function's output type before combining.
-
-Functions are stored as `function.json` in Git repositories and referenced by `owner/repo` triple. They are content-addressed via their task structure and input schema.
+Large candidate sets are handled transparently by internal machinery (a prefix tree structured around the logprobs limit), so a single vector completion can score across hundreds of candidates while preserving the probability signal.
 
 ```json
 {
-  "type": "alpha.scalar.leaf.function",
-  "description": "Score response quality on a 0-1 scale",
-  "input_schema": { "type": "object", "properties": { "response": { "type": "string" } } },
-  "tasks": [
-    {
-      "type": "vector.completion",
-      "messages": [{ "role": "user", "content": "Rate this response: {{input.response}}" }],
-      "responses": ["poor", "mediocre", "good", "excellent"],
-      "output": { "$starlark": "output['scores'][2] + output['scores'][3]" }
-    }
-  ]
+  "swarm": { "remote": "github", "owner": "your-org", "repository": "scoring-swarm" },
+  "messages": [{ "role": "user", "content": "Rate this response: ..." }],
+  "responses": ["poor", "mediocre", "good", "excellent"]
 }
 ```
+
+CLI: the `objectiveai vector` command group. Both execution modes stream typed chunks over Server-Sent Events.
 
 ### The resource graph
 
 All resources reference each other via `(owner, repository, commit)` triples. Content-addressing plus commit pinning makes the full graph reproducible from any entry point.
 
 ```text
-agent.json  <-  swarm.json  <-  profile.json      function.json
-                 (agents)        (swarms+weights)   (tasks + input_schema)
-
-At execution:  function.json + profile.json  ->  scores
+agent.json  <-  swarm.json
+                 (agents)
 ```
 
-The Function and Profile are deliberately separate files. The same Function can be run with different Profiles (e.g. a domain-specific profile vs. a general-purpose profile). The same Profile cannot be applied to a structurally different Function — the task count and order must match.
-
-Remote references resolve lazily: the retrieval system walks the graph starting from the execution request, fetching and caching each resource exactly once. Deduplication is by `(owner, repo, commit)` triple. All fetches are content-verified — a cached resource is never re-fetched if the commit SHA matches. Even deeply nested function graphs execute with minimal network overhead.
+Remote references resolve lazily: the retrieval system walks the graph starting from the execution request, fetching and caching each resource exactly once. Deduplication is by `(owner, repo, commit)` triple. All fetches are content-verified — a cached resource is never re-fetched if the commit SHA matches.
 
 ## SDKs
 
-Every SDK exposes the same two execution modes: **Agent Completions** (spawn a single Agent to do work — tools, MCP, multi-turn loops) and **Function Executions** (spawn a swarm to evaluate something — composable evaluation pipelines). Both support streaming via Server-Sent Events. The API emits incremental chunks; each SDK merges them into an accumulating object using an immutable merge system (TypeScript), a mutable push system (Python, Rust, Go), or equivalent. Types are generated from a shared JSON Schema corpus derived from the Rust SDK, so field names and shapes are identical across languages.
+Every SDK exposes the same two execution modes: **Agent Completions** (spawn a single Agent to do work — tools, MCP, multi-turn loops) and **Vector Completions** (spawn a swarm to score candidates). Both support streaming via Server-Sent Events. The API emits incremental chunks; each SDK merges them into an accumulating object using an immutable merge system (TypeScript), a mutable push system (Python, Rust, Go), or equivalent. Types are generated from a shared JSON Schema corpus derived from the Rust SDK, so field names and shapes are identical across languages.
 
 ### Languages
 
@@ -330,31 +261,24 @@ Every SDK exposes the same two execution modes: **Agent Completions** (spawn a s
 
 ### Streaming examples
 
-The base URL defaults to `https://api.objectiveai.dev` in all SDKs. Auth is passed as `OBJECTIVEAI_AUTHORIZATION` (env var) or via the client constructor.
+The base URL defaults to `https://api.objectiveai.dev` in all SDKs. Auth is passed as `OBJECTIVEAI_AUTHORIZATION` (env var) or via the client constructor. Each example spawns an agent with `stream: true` and consumes the streamed chunks.
 
 #### TypeScript
 
 ```typescript
-import {
-  ObjectiveAI,
-  functionsExecutionsCreateFunctionExecution,
-  functionsExecutionsResponseStreamingFunctionExecutionChunkMerged,
-} from "@objectiveai/sdk";
+import { ObjectiveAI, agentsCompletionsCreateAgentCompletion } from "@objectiveai/sdk";
 
 const client = new ObjectiveAI({ authorization: process.env.OBJECTIVEAI_AUTHORIZATION });
 
-const stream = await functionsExecutionsCreateFunctionExecution(client, {
+const stream = await agentsCompletionsCreateAgentCompletion(client, {
   stream: true,
-  function: { remote: "github", owner: "your-org", repository: "safety-evaluator" },
-  profile: { remote: "github", owner: "your-org", repository: "safety-evaluator-profile" },
-  input: { snippet: "eval(user_input)" },
+  agent: { remote: "github", owner: "your-org", repository: "writer-agent" },
+  messages: [{ role: "user", content: "Write a haiku about ocean waves." }],
 });
 
-let acc: any = null;
 for await (const chunk of stream) {
-  acc = acc ? functionsExecutionsResponseStreamingFunctionExecutionChunkMerged(acc, chunk)[0] : chunk;
+  process.stdout.write(JSON.stringify(chunk) + "\n");
 }
-console.log("output:", acc?.output);
 ```
 
 #### Python
@@ -362,24 +286,23 @@ console.log("output:", acc?.output);
 ```python
 import asyncio, os
 from objectiveai_sdk.client import ObjectiveAI
-from objectiveai_sdk.functions.executions.http import create_function_execution
+from objectiveai_sdk.agent.completions.http import create_agent_completion
 
 async def main() -> None:
     client = ObjectiveAI(authorization=os.environ.get("OBJECTIVEAI_AUTHORIZATION"))
     params = {
         "stream": True,
-        "function": {"remote": "github", "owner": "your-org", "repository": "safety-evaluator"},
-        "profile": {"remote": "github", "owner": "your-org", "repository": "safety-evaluator-profile"},
-        "input": {"snippet": "eval(user_input)"},
+        "agent": {"remote": "github", "owner": "your-org", "repository": "writer-agent"},
+        "messages": [{"role": "user", "content": "Write a haiku about ocean waves."}],
     }
-    stream = await create_function_execution(client, params)
+    stream = await create_agent_completion(client, params)
     acc = None
     async for chunk in stream:
         if acc is None:
             acc = chunk
         else:
             acc.push(chunk)
-    print("output:", acc.output if acc else None)
+    print("output:", acc)
 
 asyncio.run(main())
 ```
@@ -388,7 +311,7 @@ asyncio.run(main())
 
 ```rust
 use futures::StreamExt;
-use objectiveai_sdk::{HttpClient, functions::executions};
+use objectiveai_sdk::{HttpClient, agent::completions};
 
 #[tokio::main]
 async fn main() -> Result<(), objectiveai_sdk::HttpError> {
@@ -396,26 +319,21 @@ async fn main() -> Result<(), objectiveai_sdk::HttpError> {
         .authorization(std::env::var("OBJECTIVEAI_AUTHORIZATION").ok())
         .build();
 
-    let mut stream = executions::http::create_function_execution_streaming(
+    let mut stream = completions::http::create_agent_completion_streaming(
         &client,
-        executions::request::params(/* function: remote ref, profile: remote ref, input */),
+        completions::request::params(/* agent: remote ref, messages */),
     ).await?;
 
-    let mut acc: Option<executions::response::streaming::FunctionExecutionChunk> = None;
     while let Some(Ok(chunk)) = stream.next().await {
-        match &mut acc {
-            Some(a) => a.push(&chunk),
-            None => acc = Some(chunk),
-        }
+        println!("{chunk:?}");
     }
-    println!("output: {:?}", acc.map(|a| a.output));
     Ok(())
 }
 ```
 
 ### Go and .NET
 
-The Go SDK is fully auto-generated from the JSON Schema corpus. Types are strict-validated on unmarshal. The client exposes generic helpers `PostUnary[T]` / `PostStreaming[T]` / `GetUnary[T]` / `DeleteUnary[T]`; endpoint functions such as `FunctionsExecutionsCreateFunctionExecutionStreaming` wrap these. A wazero-hosted WASM binary (compiled from the Rust core) provides chunk-to-unary conversion and merge verification without CGO.
+The Go SDK is fully auto-generated from the JSON Schema corpus. Types are strict-validated on unmarshal. The client exposes generic helpers `PostUnary[T]` / `PostStreaming[T]` / `GetUnary[T]` / `DeleteUnary[T]`; endpoint functions wrap these. A wazero-hosted WASM binary (compiled from the Rust core) provides chunk-to-unary conversion and merge verification without CGO.
 
 The .NET SDK (`ObjectiveAI`, targeting net10.0) is in active development. The NuGet publish workflow is not yet wired up, so it must be built from source for now.
 
@@ -430,12 +348,11 @@ All four binaries land in `~/.objectiveai/bin/` and are added to `PATH`. The CLI
 
 ### `objectiveai` (CLI)
 
-The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `functions`, `vector`, `plugins`, `logs`, `instructions`, `schemas`, `api`, `viewer`.
+The primary user-facing binary. Built with `clap` derive macros and emits newline-delimited JSON (NDJSON) on stdout. Top-level command groups: `agents`, `swarms`, `vector`, `plugins`, `logs`, `instructions`, `schemas`, `api`, `viewer`.
 
 ```bash
 objectiveai agents list
 objectiveai agents spawn --agent remote=github,owner=...,repository=... --inline '...'
-objectiveai functions executions create standard --function remote=github,owner=...,repository=... --profile remote=github,owner=...,repository=... --input-inline '{...}'
 objectiveai plugins install github --owner ObjectiveAI --repository my-plugin
 ```
 
@@ -461,7 +378,7 @@ Key environment variables (all optional):
 | `GITHUB_AUTHORIZATION` | — | GitHub token for resource retrieval |
 | `MCP_AUTHORIZATION` | — | Bearer token for outbound MCP calls |
 
-The server is streaming-first: every layer (agent completions, vector completions, function executions) produces a typed stream of chunks and yields immediately to the HTTP response — nothing is buffered in the hot path.
+The server is streaming-first: every layer (agent completions, vector completions) produces a typed stream of chunks and yields immediately to the HTTP response — nothing is buffered in the hot path.
 
 ### `objectiveai-viewer`
 
@@ -552,11 +469,11 @@ Example:
   "author": "Example Corp",
   "license": "MIT",
   "binaries": {
-    "linux_x86_64":   "psyops-linux-x86_64",
-    "windows_x86_64": "psyops-windows-x86_64.exe",
-    "macos_aarch64":  "psyops-macos-aarch64"
+    "linux_x86_64":   "sim-linux-x86_64",
+    "windows_x86_64": "sim-windows-x86_64.exe",
+    "macos_aarch64":  "sim-macos-aarch64"
   },
-  "viewer_zip": "psyops-viewer.zip"
+  "viewer_zip": "sim-viewer.zip"
 }
 ```
 
@@ -584,21 +501,20 @@ Full reference: [PLUGINS.md](PLUGINS.md).
 
 ### Web app
 
-[objectiveai.dev](https://objectiveai.dev) is the production web interface, built with Next.js (App Router). The app provides browsing and detail views for the three core resource types: Functions (`/functions`, `/{owner}/{repo}`), Swarms (`/swarms`, `/{id}`), and Profiles (`/profiles`). From a function detail page, users can inspect the task tree, execute the function against a chosen swarm and profile, and view per-task vote breakdowns and aggregate scores. The profiles listing surfaces trained weight configurations available for reuse. A `/demo` route renders live component prototypes including the `FunctionTree` canvas visualization, vote matrices, decomposition views, and contribution waterfalls.
+[objectiveai.dev](https://objectiveai.dev) is the production web interface, built with Next.js (App Router). The app provides browsing and detail views for Swarms (`/swarms`, `/{id}`), and lets you run a swarm against chosen candidates and view per-agent vote breakdowns and aggregate scores. A `/demo` route renders live component prototypes including vote matrices, decomposition views, and contribution waterfalls.
 
 ### Examples
 
 The [`examples/`](examples/) directory collects real software built on top of ObjectiveAI, with links to full source repositories.
 
-**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (scoring jobs that pull tagged posts and run them through an ObjectiveAI function using a chosen swarm, profile, and strategy — including Swiss System tournament-style ranking). A pilot study ranked tweets from 33 YC W22 CEO accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
+**[psychological-operations](examples/psychological-operations.md)** — an agentic X (Twitter) scraper and scoring pipeline ([repo](https://github.com/WiggidyW/psychological-operations)). It pairs human-driven Chrome automation with ObjectiveAI to rank scraped tweets along operator-defined axes. The project defines two primary objects: *Scrapes* (declarative search jobs that scroll and parse `x.com` into SQLite) and *PsyOps* (scoring jobs that pull tagged posts and run them through ObjectiveAI using a chosen swarm and strategy — including Swiss System tournament-style ranking). A pilot study ranked tweets from 33 YC W22 CEO accounts along an *unsettlingness* axis; published artifacts are content-addressed and reproducible.
 
 ### Ecosystem
 
 - **`objectiveai-claude-agent-sdk-runner`** — a long-lived Python stdio NDJSON server that runs concurrent Claude Agent SDK sessions on behalf of `objectiveai-api`. The Rust API caller spawns and multiplexes requests over a single stdin/stdout pair using a semaphore-backed FIFO queue; each request carries a string `id` for demultiplexing events from N concurrent streams.
 - **`objectiveai-codex-sdk-runner`** — same architecture as the Claude runner but targets the OpenAI Codex SDK. Authentication is inherited from `~/.codex/auth.json`; the runner shells out to the `codex` binary and streams `ThreadEvent` objects back to the Rust caller.
-- **`objectiveai-cocoindex`** ([PyPI](https://pypi.org/project/objectiveai-cocoindex/)) — a Python integration that wraps ObjectiveAI function executions as memoized [CocoIndex](https://github.com/cocoindex-io/cocoindex) processing components. The memo key combines the bound `(function, profile, strategy)` triple with the per-call input, making it safe to drop into indexing pipelines.
 - **`objectiveai-github-discord-notifier`** — a Python FastAPI webhook server (Docker-deployable) that validates GitHub webhook signatures and forwards pull-request and issue events to a configured Discord channel.
-- **`objectiveai-json-schema`** — generated JSON Schema files for every public serializable type in the Rust SDK, named using dot-separated module paths (e.g. `functions.executions.RetryToken.json`). Several hundred schemas cover agents, swarms, functions, profiles, executions, CLI output, MCP types, and more. These files drive code generation for the Go SDK and .NET SDK and can be used by any downstream tooling that needs machine-readable type definitions.
+- **`objectiveai-json-schema`** — generated JSON Schema files for every public serializable type in the Rust SDK, named using dot-separated module paths. Several hundred schemas cover agents, swarms, completions, CLI output, MCP types, and more. These files drive code generation for the Go SDK and .NET SDK and can be used by any downstream tooling that needs machine-readable type definitions.
 
 ## Repository structure
 
