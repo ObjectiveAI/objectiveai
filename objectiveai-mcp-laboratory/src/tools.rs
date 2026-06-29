@@ -23,13 +23,13 @@ pub struct BashRequest {
 // --- Tool server ---
 
 #[derive(Debug, Clone)]
-pub struct FilesystemMcp {
+pub struct ObjectiveAiMcpLaboratory {
     pub tool_router: ToolRouter<Self>,
     shell_state: crate::bash::ShellState,
 }
 
 #[tool_router]
-impl FilesystemMcp {
+impl ObjectiveAiMcpLaboratory {
     pub fn new() -> Self {
         Self {
             tool_router: Self::tool_router(),
@@ -61,7 +61,7 @@ impl FilesystemMcp {
 }
 
 #[tool_handler]
-impl ServerHandler for FilesystemMcp {
+impl ServerHandler for ObjectiveAiMcpLaboratory {
     fn get_info(&self) -> ServerInfo {
         // rmcp 1.7 marks `ServerInfo`/`Implementation` `#[non_exhaustive]`,
         // so build via `Default` + explicit field assignment.

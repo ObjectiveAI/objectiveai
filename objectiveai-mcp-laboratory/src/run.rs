@@ -11,7 +11,7 @@ use rmcp::transport::streamable_http_server::{
 };
 use tokio_util::sync::CancellationToken;
 
-use crate::tools::FilesystemMcp;
+use crate::tools::ObjectiveAiMcpLaboratory;
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
@@ -82,12 +82,12 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         suppress_output: _,
     } = config;
 
-    let server = FilesystemMcp::new();
+    let server = ObjectiveAiMcpLaboratory::new();
     server.init().await;
 
     let ct = CancellationToken::new();
 
-    let service: StreamableHttpService<FilesystemMcp, LocalSessionManager> =
+    let service: StreamableHttpService<ObjectiveAiMcpLaboratory, LocalSessionManager> =
         StreamableHttpService::new(move || Ok(server.clone()), Default::default(), {
             // rmcp 1.7 marks `StreamableHttpServerConfig` `#[non_exhaustive]`.
             let mut cfg = StreamableHttpServerConfig::default();
