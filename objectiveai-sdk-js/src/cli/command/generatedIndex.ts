@@ -7,6 +7,7 @@ export * from "./db/index";
 export * from "./executor/index";
 export * from "./functions/index";
 export * from "./kill_all/index";
+export * from "./laboratories/index";
 export * from "./mcp/index";
 export * from "./plugins/index";
 export * from "./python/index";

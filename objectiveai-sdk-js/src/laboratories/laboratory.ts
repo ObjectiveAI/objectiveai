@@ -3,5 +3,5 @@
 import { z } from "zod";
 import { LaboratoriesClientLaboratorySchema } from "./clientLaboratory";
 
-export const LaboratoriesLaboratorySchema = LaboratoriesClientLaboratorySchema.describe("A client-resolved laboratory, identified by an opaque `id`.").meta({ title: "laboratories.Laboratory" });
+export const LaboratoriesLaboratorySchema = LaboratoriesClientLaboratorySchema.and(z.object({})).describe("A client-resolved laboratory, identified by an opaque `id`.").meta({ title: "laboratories.Laboratory" });
 export type LaboratoriesLaboratory = z.infer<typeof LaboratoriesLaboratorySchema>;

@@ -7,7 +7,7 @@ import { McpResourceListResourcesRequestSchema } from "../../../../../../mcp/res
 export const CliCommandAgentsMcpResourcesListRequestSchema = z.object({
   jq: z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.").optional(),
   max_tokens: z.number().int().min(0).max(18446744073709552000).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.").meta({ omitempty: true }).optional(),
-  name: z.string().nullable().describe("Restrict the listing to the single server with this name (the\nrouting prefix `agents mcp servers list` reports). `None` lists\nevery server.").optional(),
+  name: z.string().nullable().describe("Restrict the listing to the single server with this name (the\nrouting prefix `agents mcp servers list` reports). `None` lists\nevery server.").meta({ omitempty: true }).optional(),
   params: McpResourceListResourcesRequestSchema,
   path_type: CliCommandAgentsMcpResourcesListPathSchema,
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
