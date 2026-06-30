@@ -27,6 +27,17 @@
       ],
       "omitempty": true
     },
+    "name": {
+      "description": "Restrict the listing to the single server with this name (the\nrouting prefix `agents mcp servers list` reports). `None` lists\nevery server.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "params": {
       "$ref": "mcp.resource.ListResourcesRequest"
     },
