@@ -86,7 +86,11 @@ async fn create_lab(executor: &Exec, id: &str) {
             image: BASE_IMAGE.to_string(),
             mounts: Vec::new(),
             env: Vec::new(),
-            cwd: "/work".to_string(),
+            // Default cwd `/` — it always exists. The lab's first bash
+            // spawns in `default_cwd`, so a non-existent dir (e.g. /work,
+            // absent from the base image) would fail before any command;
+            // the scripts `mkdir -p` their own work dirs.
+            cwd: "/".to_string(),
             base: Default::default(),
         },
     )
@@ -362,5 +366,230 @@ async fn servers_list_and_name_filter() {
     assert!(
         !results.contains(&format!("oail-{lab_b}_Bash")),
         "tools --name <lab a> must not include lab b's tools; got: {results}"
+    );
+}
+
+/// Apply `tag` carrying `agent_json` (a GROUPED mock agent), attach `labs`
+/// to it, spawn via the tag, wait for completion, and return the response
+/// id. Encapsulates the create→tag→attach→spawn→wait orchestration.
+async fn spawn_lab_session(
+    executor: &Exec,
+    tag: &str,
+    agent_json: serde_json::Value,
+    labs: &[&str],
+) -> String {
+    let agent_spec =
+        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(agent_json)
+            .expect("mock agent spec deserializes");
+    let _: ApplyResp = cli_test_util::execute_one(
+        executor,
+        ApplyReq {
+            path_type: ApplyPath::AgentsTagsApply,
+            name: tag.to_string(),
+            target: ApplyTarget::Agent {
+                agent_spec,
+                parent_agent_instance_hierarchy: None,
+            },
+            base: Default::default(),
+        },
+    )
+    .await;
+    for lab in labs {
+        attach_lab(executor, tag, lab).await;
+    }
+    let items: Vec<SpawnItem> = cli_test_util::collect_stream(
+        executor,
+        SpawnReq {
+            path_type: SpawnPath::AgentsSpawn,
+            message: RequestMessage::Simple("go".to_string()),
+            agent: AgentSelector::Tag {
+                agent_tag: tag.to_string(),
+            },
+            dangerous_advanced: Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                seed: Some(1),
+            }),
+            base: Default::default(),
+        },
+    )
+    .await;
+    let aih = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.agent_instance_hierarchy.is_empty() => {
+                Some(c.agent_instance_hierarchy.clone())
+            }
+            _ => None,
+        })
+        .expect("spawn emits an agent_instance_hierarchy");
+    let response_id = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.id.is_empty() => Some(c.id.clone()),
+            _ => None,
+        })
+        .expect("spawn emits a response id");
+    cli_test_util::wait_for_agent(executor, &aih).await;
+    response_id
+}
+
+/// `laboratory_transfer` of a directory tree (a -> b), nested files
+/// restored cp-style under `<dest>/<basename>`.
+#[tokio::test(flavor = "multi_thread")]
+async fn transfer_directory_between_laboratories() {
+    if !podman_enabled() {
+        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
+        return;
+    }
+    let _base = cli_test_util::test_base_dir();
+    let executor = cli_test_util::executor().await;
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab_a = format!("td-a-{nanos}");
+    let lab_b = format!("td-b-{nanos}");
+    let tag = format!("td-tag-{nanos}");
+    create_lab(&executor, &lab_a).await;
+    create_lab(&executor, &lab_b).await;
+
+    let bash_a = format!("oail-{lab_a}_Bash");
+    let bash_b = format!("oail-{lab_b}_Bash");
+    let write_args = serde_json::to_string(&json!({
+        "command": "mkdir -p /work/d/sub && printf a > /work/d/f1 && printf b > /work/d/sub/f2"
+    }))
+    .unwrap();
+    let transfer_args = serde_json::to_string(&json!({
+        "source": lab_a, "source_path": "/work/d",
+        "destination": lab_b, "destination_path": "/work",
+    }))
+    .unwrap();
+    // Concatenate both files with a separator so the result is distinctive.
+    let read_args =
+        serde_json::to_string(&json!({ "command": "cat /work/d/f1; printf '|'; cat /work/d/sub/f2" }))
+            .unwrap();
+
+    let agent_json = json!({
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "instruction": "done",
+        "calls": [
+            { "tool_calls": [{ "name": bash_a, "arguments": write_args }], "content": "" },
+            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": transfer_args }], "content": "" },
+            { "tool_calls": [{ "name": bash_b, "arguments": read_args }], "content": "" }
+        ]
+    });
+    let rid = spawn_lab_session(&executor, &tag, agent_json, &[&lab_a, &lab_b]).await;
+
+    let results = tool_result_texts(&executor, &rid).await.join("\n");
+    assert!(
+        results.contains("transferred"),
+        "expected a laboratory_transfer success line; got: {results}"
+    );
+    assert!(
+        results.contains("a|b"),
+        "expected lab b to read back the transferred directory's nested files; got: {results}"
+    );
+}
+
+/// `laboratory_transfer` with an unknown source laboratory id surfaces as
+/// an `isError` tool result (the resolve-by-id failure path).
+#[tokio::test(flavor = "multi_thread")]
+async fn transfer_unknown_laboratory_is_error() {
+    if !podman_enabled() {
+        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
+        return;
+    }
+    let _base = cli_test_util::test_base_dir();
+    let executor = cli_test_util::executor().await;
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab_a = format!("te-a-{nanos}");
+    let lab_b = format!("te-b-{nanos}");
+    let tag = format!("te-tag-{nanos}");
+    create_lab(&executor, &lab_a).await;
+    create_lab(&executor, &lab_b).await;
+
+    let transfer_args = serde_json::to_string(&json!({
+        "source": "does-not-exist",
+        "source_path": "/work/x",
+        "destination": lab_b,
+        "destination_path": "/work",
+    }))
+    .unwrap();
+    let agent_json = json!({
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "instruction": "done",
+        "calls": [
+            { "tool_calls": [{ "name": "laboratory_transfer", "arguments": transfer_args }], "content": "" }
+        ]
+    });
+    let rid = spawn_lab_session(&executor, &tag, agent_json, &[&lab_a, &lab_b]).await;
+
+    let results = tool_result_texts(&executor, &rid).await.join("\n");
+    assert!(
+        results.contains("no laboratory"),
+        "unknown source laboratory should error; got: {results}"
+    );
+}
+
+/// `laboratory_transfer` is NOT injected when a session has fewer than two
+/// laboratories. Inspect the aggregated tool list (via the plugin's
+/// `list-tools` surface) in a one-lab session.
+#[tokio::test(flavor = "multi_thread")]
+async fn laboratory_transfer_absent_with_one_lab() {
+    if !podman_enabled() {
+        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
+        return;
+    }
+    let base = cli_test_util::test_base_dir();
+    let pid_file = base.join("plugin-pid");
+    let _guard = PluginGuard {
+        pid_file: pid_file.clone(),
+    };
+    let executor = cli_test_util::executor()
+        .await
+        .env("OAI_TEST_MCP_PID_FILE", pid_file.to_string_lossy().into_owned());
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab_a = format!("v1-a-{nanos}");
+    let tag = format!("v1-tag-{nanos}");
+    create_lab(&executor, &lab_a).await;
+
+    let agent_json = json!({
+        "upstream": "mock",
+        "output_mode": "instruction",
+        "instruction": "done",
+        "client_objectiveai_mcp": {
+            "plugins": [{
+                "owner": "testorg",
+                "name": "test-mcp-plugin-self-call",
+                "version": "1.0.0",
+                "executable": false,
+                "mcp_servers": [{ "name": "list-tools" }]
+            }]
+        },
+        "calls": [
+            { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_list_tools", "arguments": "{}" }], "content": "" }
+        ]
+    });
+    let rid = spawn_lab_session(&executor, &tag, agent_json, &[&lab_a]).await;
+
+    let results = tool_result_texts(&executor, &rid).await.join("\n");
+    assert!(
+        !results.contains("laboratory_transfer"),
+        "laboratory_transfer must be absent with fewer than two labs; got: {results}"
+    );
+    assert!(
+        results.contains("Bash"),
+        "expected the single lab's Bash tool in the listing; got: {results}"
     );
 }
