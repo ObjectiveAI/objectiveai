@@ -289,6 +289,9 @@ impl McpHandler for ConduitMcpHandler {
                 dispatch_retrieve(&self.inner, req).await
             }
             server_request::Payload::Drop(req) => dispatch_drop(&self.inner, req),
+            server_request::Payload::LaboratoryTransfer(req) => {
+                dispatch_laboratory_transfer(&self.inner, req).await
+            }
         };
 
         server_response::Response { id, payload }
@@ -553,6 +556,86 @@ fn dispatch_drop(
     // `Arc<ConduitState>` under this response id.
     let dropped = inner.connections.remove(&req.response_id).is_some();
     server_response::Payload::Drop(server_response::DropResult { dropped })
+}
+
+/// Copy a file/folder from one laboratory container to another by splicing
+/// the source's streamed `/export` tar straight into the destination's
+/// `/import` — single pass, flat memory, no full-archive buffer. Both
+/// containers live on this conduit host; we ensure each is started, resolve
+/// its published `127.0.0.1` port, and relay over loopback.
+async fn dispatch_laboratory_transfer(
+    inner: &Arc<Inner>,
+    req: server_request::LaboratoryTransferRequest,
+) -> server_response::Payload {
+    use futures::TryStreamExt;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    let err = |message: String| -> server_response::Payload {
+        server_response::Payload::LaboratoryTransfer(rpc_err(-32603, message))
+    };
+
+    // Both containers must be running before we can reach their MCP port.
+    // `start` is idempotent + concurrency-safe.
+    if let Err(e) = crate::podman::laboratory::start(&inner.ctx, &req.source_id).await {
+        return err(format!("start source laboratory {}: {e}", req.source_id));
+    }
+    if let Err(e) = crate::podman::laboratory::start(&inner.ctx, &req.dest_id).await {
+        return err(format!("start destination laboratory {}: {e}", req.dest_id));
+    }
+    let source_port = match crate::podman::laboratory::host_port(&inner.ctx, &req.source_id).await {
+        Ok(p) => p,
+        Err(e) => return err(format!("source laboratory {}: {e}", req.source_id)),
+    };
+    let dest_port = match crate::podman::laboratory::host_port(&inner.ctx, &req.dest_id).await {
+        Ok(p) => p,
+        Err(e) => return err(format!("destination laboratory {}: {e}", req.dest_id)),
+    };
+
+    let client = reqwest::Client::new();
+
+    // Source `/export` → a streamed tar of `source_path`.
+    let export = match client
+        .get(format!("http://127.0.0.1:{source_port}/export"))
+        .query(&[("path", &req.source_path)])
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => return err(format!("export from source: {e}")),
+    };
+    if !export.status().is_success() {
+        let status = export.status();
+        let body = export.text().await.unwrap_or_default();
+        return err(format!("export from source: HTTP {status}: {}", body.trim()));
+    }
+
+    // Splice the export stream straight into the destination `/import`,
+    // counting bytes as they pass (no intermediate buffer).
+    let counter = Arc::new(AtomicU64::new(0));
+    let counter_for_stream = counter.clone();
+    let body_stream = export.bytes_stream().inspect_ok(move |chunk| {
+        counter_for_stream.fetch_add(chunk.len() as u64, Ordering::Relaxed);
+    });
+    let import = match client
+        .post(format!("http://127.0.0.1:{dest_port}/import"))
+        .query(&[("path", &req.dest_path)])
+        .body(reqwest::Body::wrap_stream(body_stream))
+        .send()
+        .await
+    {
+        Ok(r) => r,
+        Err(e) => return err(format!("import to destination: {e}")),
+    };
+    if !import.status().is_success() {
+        let status = import.status();
+        let body = import.text().await.unwrap_or_default();
+        return err(format!("import to destination: HTTP {status}: {}", body.trim()));
+    }
+
+    let bytes = counter.load(Ordering::Relaxed);
+    server_response::Payload::LaboratoryTransfer(JsonRpcResult::Ok {
+        result: server_response::LaboratoryTransferResult { bytes },
+    })
 }
 
 async fn dispatch_tools_list(
