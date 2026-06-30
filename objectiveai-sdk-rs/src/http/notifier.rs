@@ -165,6 +165,25 @@ impl Notifier {
         }
     }
 
+    /// List the proxy's connected upstream MCP servers for `response_id`
+    /// over this WS (a proxy-local aggregate). See [`Self::list_tools`]
+    /// for the error contract.
+    pub async fn list_servers(
+        &self,
+        response_id: String,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::server::ListServersResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::ListServers { response_id })
+            .await?
+        {
+            client_response::Response::ListServers { result, .. } => Ok(result),
+            other => Self::fold_unexpected(other),
+        }
+    }
+
     /// Run the proxy's `resources/read` for `response_id` over this WS
     /// (routes by URI prefix). See [`Self::list_tools`] for the error
     /// contract.

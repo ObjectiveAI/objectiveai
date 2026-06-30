@@ -8,6 +8,7 @@ pub mod resource;
 /// `objectiveai mcp` <-> `rmcp` conversions. The mcp type is always the
 /// middle-man: objectiveai -> mcp -> rmcp and rmcp -> mcp -> objectiveai.
 mod rmcp_bridge;
+pub mod server;
 mod session;
 pub mod shared;
 pub mod tool;

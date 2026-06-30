@@ -55,6 +55,13 @@ pub enum Payload {
         params: crate::mcp::resource::ListResourcesRequest,
     },
 
+    /// List the proxy's connected upstream MCP servers for `response_id`,
+    /// with each server's initialize metadata. A proxy-local aggregate
+    /// answered from its in-memory connection set — no MCP params, no
+    /// upstream round-trip.
+    #[schemars(title = "ListServers")]
+    ListServers { response_id: String },
+
     /// Run the proxy's `resources/read` for `response_id` (routes by URI
     /// prefix to the owning upstream).
     #[schemars(title = "ReadResource")]
