@@ -35,3 +35,6 @@ tokio-util = { version = "0.7.18", features = ["io", "io-util"] }
 tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter"] }
 walkdir = "2"
+
+[dev-dependencies]
+reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2"] }
