@@ -10,10 +10,12 @@ from objectiveai_sdk.cli.command.agents.get.request import Request as CliCommand
 from objectiveai_sdk.cli.command.agents.get.request_schema.request import Request as CliCommandAgentsGetRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.get.response_schema.request import Request as CliCommandAgentsGetResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.instances.request import Request as CliCommandAgentsInstancesRequest
+from objectiveai_sdk.cli.command.agents.laboratories.request import Request as CliCommandAgentsLaboratoriesRequest
 from objectiveai_sdk.cli.command.agents.list.request import Request as CliCommandAgentsListRequest
 from objectiveai_sdk.cli.command.agents.list.request_schema.request import Request as CliCommandAgentsListRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.list.response_schema.request import Request as CliCommandAgentsListResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.logs.request import Request as CliCommandAgentsLogsRequest
+from objectiveai_sdk.cli.command.agents.mcp.request import Request as CliCommandAgentsMcpRequest
 from objectiveai_sdk.cli.command.agents.message.request import Request as CliCommandAgentsMessageRequest
 from objectiveai_sdk.cli.command.agents.message.request_schema.request import Request as CliCommandAgentsMessageRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.message.response_schema.request import Request as CliCommandAgentsMessageResponseSchemaRequest
@@ -21,12 +23,10 @@ from objectiveai_sdk.cli.command.agents.publish.request import Request as CliCom
 from objectiveai_sdk.cli.command.agents.publish.request_schema.request import Request as CliCommandAgentsPublishRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.publish.response_schema.request import Request as CliCommandAgentsPublishResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.queue.request import Request as CliCommandAgentsQueueRequest
-from objectiveai_sdk.cli.command.agents.resources.request import Request as CliCommandAgentsResourcesRequest
 from objectiveai_sdk.cli.command.agents.spawn.request import Request as CliCommandAgentsSpawnRequest
 from objectiveai_sdk.cli.command.agents.spawn.request_schema.request import Request as CliCommandAgentsSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.spawn.response_schema.request import Request as CliCommandAgentsSpawnResponseSchemaRequest
 from objectiveai_sdk.cli.command.agents.tags.request import Request as CliCommandAgentsTagsRequest
-from objectiveai_sdk.cli.command.agents.tools.request import Request as CliCommandAgentsToolsRequest
 from objectiveai_sdk.cli.command.agents.wait.request import Request as CliCommandAgentsWaitRequest
 from objectiveai_sdk.cli.command.agents.wait.request_schema.request import Request as CliCommandAgentsWaitRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.wait.response_schema.request import Request as CliCommandAgentsWaitResponseSchemaRequest
@@ -74,6 +74,12 @@ class RequestInstances(RootModel):
     root: CliCommandAgentsInstancesRequest
 
 
+class RequestLaboratories(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Laboratories'})
+
+    root: CliCommandAgentsLaboratoriesRequest
+
+
 class RequestList(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'List'})
 
@@ -96,6 +102,12 @@ class RequestLogs(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Logs'})
 
     root: CliCommandAgentsLogsRequest
+
+
+class RequestMcp(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Mcp'})
+
+    root: CliCommandAgentsMcpRequest
 
 
 class RequestMessage(RootModel):
@@ -140,12 +152,6 @@ class RequestQueue(RootModel):
     root: CliCommandAgentsQueueRequest
 
 
-class RequestResources(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Resources'})
-
-    root: CliCommandAgentsResourcesRequest
-
-
 class RequestSpawn(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Spawn'})
 
@@ -170,12 +176,6 @@ class RequestTags(RootModel):
     root: CliCommandAgentsTagsRequest
 
 
-class RequestTools(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Tools'})
-
-    root: CliCommandAgentsToolsRequest
-
-
 class RequestWait(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Wait'})
 
@@ -197,5 +197,5 @@ class RequestWaitResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.Request')
 
-    root: Union[RequestEnqueue, RequestEnqueueRequestSchema, RequestEnqueueResponseSchema, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestResources, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags, RequestTools, RequestWait, RequestWaitRequestSchema, RequestWaitResponseSchema]
+    root: Union[RequestEnqueue, RequestEnqueueRequestSchema, RequestEnqueueResponseSchema, RequestGet, RequestGetRequestSchema, RequestGetResponseSchema, RequestInstances, RequestLaboratories, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestLogs, RequestMcp, RequestMessage, RequestMessageRequestSchema, RequestMessageResponseSchema, RequestPublish, RequestPublishRequestSchema, RequestPublishResponseSchema, RequestQueue, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema, RequestTags, RequestWait, RequestWaitRequestSchema, RequestWaitResponseSchema]
 
