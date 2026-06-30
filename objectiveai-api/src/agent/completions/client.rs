@@ -661,17 +661,26 @@ where
                 // declares no `client_objectiveai_mcp`. Each becomes a
                 // synthetic `ws://laboratory/{id}` upstream (no args), flowing through
                 // the same URL/header plumbing as the other synthetic URLs.
+                //
+                // The `ws://laboratory/{id}` URL is just the upstream's address;
+                // the proxy must NOT infer laboratory identity by string-parsing
+                // it. We carry the typed `Laboratory` explicitly, keyed by URL,
+                // in `X-MCP-Laboratories` — the authoritative signal the proxy
+                // uses to mark an upstream as a laboratory.
+                let mut laboratories_by_url: indexmap::IndexMap<
+                    String,
+                    objectiveai_sdk::laboratories::Laboratory,
+                > = indexmap::IndexMap::new();
                 if needs_reverse_attach {
                     if let Some(labs) = &params.laboratories {
                         for lab in labs {
                             let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
-                            client_mcp_synthetic_urls.push((
-                                format!(
-                                    "ws://laboratory/{}",
-                                    percent_encode_segment(&c.id)
-                                ),
-                                None,
-                            ));
+                            let url = format!(
+                                "ws://laboratory/{}",
+                                percent_encode_segment(&c.id)
+                            );
+                            client_mcp_synthetic_urls.push((url.clone(), None));
+                            laboratories_by_url.insert(url, lab.clone());
                         }
                     }
                 }
@@ -797,6 +806,15 @@ where
                         "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
                         "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
+                // Typed laboratory marker (url → Laboratory). Present only when
+                // labs are attached; the proxy uses it as the authoritative
+                // signal for which upstreams are laboratories.
+                if !laboratories_by_url.is_empty() {
+                    proxy_request_headers.insert(
+                        "X-MCP-Laboratories".to_string(),
+                        serde_json::to_string(&laboratories_by_url).unwrap(),
+                    );
+                }
                 if let Some(remote) = agent_remote.as_ref() {
                     if let Ok(serialized) = serde_json::to_string(remote) {
                         proxy_request_headers.insert(
