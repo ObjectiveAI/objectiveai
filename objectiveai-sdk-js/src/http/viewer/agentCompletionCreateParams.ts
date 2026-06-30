@@ -5,11 +5,13 @@ import { AgentCompletionsMessageMessageSchema } from "../../agent/completions/me
 import { AgentCompletionsRequestProviderSchema } from "../../agent/completions/request/provider";
 import { AgentCompletionsRequestResponseFormatParamSchema } from "../../agent/completions/request/responseFormatParam";
 import { AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema } from "../../agent/inlineAgentBaseWithFallbacksOrRemoteCommitOptional";
+import { LaboratoriesLaboratorySchema } from "../../laboratories/laboratory";
 
 export const HttpViewerAgentCompletionCreateParamsSchema = z.object({
   agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.describe("The agent to use (inline Agent or stored ID)."),
   continuation: z.string().nullable().describe("Continuation from a previous completion, as a base64-encoded string.").meta({ omitempty: true }).optional(),
   id: z.string(),
+  laboratories: z.array(LaboratoriesLaboratorySchema).nullable().describe("Laboratories (client-side MCP servers) attached across all agents,\nincluding fallbacks.").meta({ omitempty: true }).optional(),
   messages: z.array(AgentCompletionsMessageMessageSchema).describe("The conversation messages."),
   provider: AgentCompletionsRequestProviderSchema.nullable().describe("Provider routing preferences.").meta({ omitempty: true }).optional(),
   response_format: AgentCompletionsRequestResponseFormatParamSchema.nullable().describe("Output format constraints (text, JSON, or JSON schema).").meta({ omitempty: true }).optional(),
