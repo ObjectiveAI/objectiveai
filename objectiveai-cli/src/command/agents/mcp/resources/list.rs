@@ -11,7 +11,10 @@ use crate::websockets::mcp_listener::{SocketRequest, SocketResponse, call_socket
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
     let state_dir = ctx.filesystem.state_dir();
-    let socket_request = SocketRequest::ListResources(request.params);
+    let socket_request = SocketRequest::ListResources {
+        params: request.params,
+        name: request.name,
+    };
     let response: SocketResponse<Response> =
         call_socket(&state_dir, &request.response_id, &socket_request)
             .await
