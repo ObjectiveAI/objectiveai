@@ -98,6 +98,13 @@ pub enum Payload {
     /// the response id was present and removed. Non-MCP — no `mcp_kind`.
     #[schemars(title = "Drop")]
     Drop(DropResult),
+
+    /// Reply to
+    /// [`super::super::server_request::Payload::LaboratoryTransfer`].
+    /// On success carries the byte count streamed; on failure the
+    /// conduit's transfer error. Non-MCP — no `mcp_kind`.
+    #[schemars(title = "LaboratoryTransfer")]
+    LaboratoryTransfer(JsonRpcResult<LaboratoryTransferResult>),
 }
 
 impl Payload {
@@ -112,7 +119,10 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind, .. } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) | Payload::Drop(_) => None,
+            Payload::ReadMessageQueue(_)
+            | Payload::Retrieve(_)
+            | Payload::Drop(_)
+            | Payload::LaboratoryTransfer(_) => None,
         }
     }
 }
@@ -153,6 +163,14 @@ pub struct ReadMessageQueueResult {
 #[schemars(rename = "client_objectiveai_mcp.server_response.DropResult")]
 pub struct DropResult {
     pub dropped: bool,
+}
+
+/// Successful payload for [`Payload::LaboratoryTransfer`] — the number of
+/// archive bytes streamed from the source laboratory into the destination.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_response.LaboratoryTransferResult")]
+pub struct LaboratoryTransferResult {
+    pub bytes: u64,
 }
 
 /// One queued row's payload + its content-slot ids.

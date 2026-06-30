@@ -89,6 +89,14 @@ pub enum Payload {
     /// `DELETE`); `Drop` is drop = kill.
     #[schemars(title = "Drop")]
     Drop(DropRequest),
+
+    /// Copy a file/folder from one laboratory to another (both on this
+    /// conduit). Non-MCP — it spans TWO laboratories, so it carries their
+    /// ids directly rather than a single `mcp_kind`. The conduit streams
+    /// the source laboratory's `/export` straight into the destination's
+    /// `/import` (a tar splice, no intermediate buffering).
+    #[schemars(title = "LaboratoryTransfer")]
+    LaboratoryTransfer(LaboratoryTransferRequest),
 }
 
 impl Payload {
@@ -103,7 +111,10 @@ impl Payload {
             | Payload::ResourcesList { mcp_kind, .. }
             | Payload::ResourcesRead { mcp_kind, .. }
             | Payload::SessionTerminate { mcp_kind } => Some(mcp_kind.clone()),
-            Payload::ReadMessageQueue(_) | Payload::Retrieve(_) | Payload::Drop(_) => None,
+            Payload::ReadMessageQueue(_)
+            | Payload::Retrieve(_)
+            | Payload::Drop(_)
+            | Payload::LaboratoryTransfer(_) => None,
         }
     }
 }
@@ -141,6 +152,18 @@ pub struct ReadMessageQueueRequest {
 #[schemars(rename = "client_objectiveai_mcp.server_request.DropRequest")]
 pub struct DropRequest {
     pub response_id: String,
+}
+
+/// Parameters for [`Payload::LaboratoryTransfer`]. Copy `source_path` from
+/// the `source_id` laboratory into `dest_path` of the `dest_id` laboratory
+/// (cp-style: a directory `source_path` lands as `dest_path/<basename>`).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "client_objectiveai_mcp.server_request.LaboratoryTransferRequest")]
+pub struct LaboratoryTransferRequest {
+    pub source_id: String,
+    pub dest_id: String,
+    pub source_path: String,
+    pub dest_path: String,
 }
 
 /// Parameters for [`Payload::Initialize`].
