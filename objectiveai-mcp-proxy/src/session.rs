@@ -209,30 +209,33 @@ impl Session {
     /// order; downstream consumers (e.g. seeded mock agents) rely on
     /// this for deterministic output.
     pub async fn list_tools(&self) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        self.list_tools_filtered(None).await
+        self.list_tools_filtered(None, None).await
     }
 
-    /// Per-upstream variant of [`Self::list_tools`]: when `filter_url`
-    /// is `Some`, only fans out to the single upstream whose connection
-    /// `url` matches verbatim. When `None`, behaves identically to the
-    /// no-arg form (fan out to every upstream).
+    /// Per-upstream variant of [`Self::list_tools`]. Each provided filter
+    /// narrows the set of upstreams that participate (ANDed together):
+    /// `filter_url` keeps only the upstream whose connection `url` matches
+    /// verbatim; `filter_name` keeps only the upstream whose routing
+    /// prefix (the name `servers/list` reports) matches. `None` for both
+    /// behaves like the no-arg form (fan out to every upstream).
     ///
-    /// An unmatched `filter_url` returns an empty `ListToolsResult`
-    /// (not an error) — the caller validates whether emptiness is
-    /// acceptable. The per-upstream allowlist (`X-MCP-Tools-Allow`)
-    /// is still applied to whichever upstream(s) participate.
+    /// An unmatched filter returns an empty `ListToolsResult` (not an
+    /// error) — the caller validates whether emptiness is acceptable. The
+    /// per-upstream allowlist (`X-MCP-Tools-Allow`) is still applied to
+    /// whichever upstream(s) participate.
     pub async fn list_tools_filtered(
         &self,
         filter_url: Option<&str>,
+        filter_name: Option<&str>,
     ) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Upstream)> = match filter_url {
-            Some(url) => self
-                .connections
-                .iter()
-                .filter(|(_, c)| c.url() == url)
-                .collect(),
-            None => self.connections.iter().collect(),
-        };
+        let pairs: Vec<(&String, &Upstream)> = self
+            .connections
+            .iter()
+            .filter(|(name, c)| {
+                filter_url.is_none_or(|u| c.url() == u)
+                    && filter_name.is_none_or(|n| name.as_str() == n)
+            })
+            .collect();
         let results = try_join_all(
             pairs
                 .iter()
@@ -288,29 +291,30 @@ impl Session {
     /// semantics as [`Session::list_tools`] — the first upstream error
     /// short-circuits and is returned to the caller.
     pub async fn list_resources(&self) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        self.list_resources_filtered(None).await
+        self.list_resources_filtered(None, None).await
     }
 
-    /// Per-upstream variant of [`Self::list_resources`]: when
-    /// `filter_url` is `Some`, only fans out to the single upstream
-    /// whose connection `url` matches verbatim. When `None`, behaves
-    /// identically to the no-arg form (fan out to every upstream).
+    /// Per-upstream variant of [`Self::list_resources`]. Each provided
+    /// filter narrows the participating upstreams (ANDed): `filter_url`
+    /// matches the connection `url`; `filter_name` matches the routing
+    /// prefix (the name `servers/list` reports). `None` for both fans out
+    /// to every upstream.
     ///
-    /// An unmatched `filter_url` returns an empty `ListResourcesResult`
-    /// (not an error) — the caller validates whether emptiness is
-    /// acceptable.
+    /// An unmatched filter returns an empty `ListResourcesResult` (not an
+    /// error) — the caller validates whether emptiness is acceptable.
     pub async fn list_resources_filtered(
         &self,
         filter_url: Option<&str>,
+        filter_name: Option<&str>,
     ) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Upstream)> = match filter_url {
-            Some(url) => self
-                .connections
-                .iter()
-                .filter(|(_, c)| c.url() == url)
-                .collect(),
-            None => self.connections.iter().collect(),
-        };
+        let pairs: Vec<(&String, &Upstream)> = self
+            .connections
+            .iter()
+            .filter(|(name, c)| {
+                filter_url.is_none_or(|u| c.url() == u)
+                    && filter_name.is_none_or(|n| name.as_str() == n)
+            })
+            .collect();
         let results = try_join_all(
             pairs
                 .iter()

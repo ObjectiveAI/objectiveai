@@ -200,22 +200,33 @@ impl ReverseChannel {
             }
             // List params (cursor) are ignored, matching the HTTP
             // `handle_tools_list` which fans out to every upstream.
-            client_request::Payload::ListTools { response_id, .. } => {
+            // List params (cursor) are ignored, matching the HTTP
+            // `handle_tools_list`; `name`, when set, scopes the fan-out to
+            // the single server with that routing prefix.
+            client_request::Payload::ListTools {
+                response_id, name, ..
+            } => {
                 let result = match self.lookup_session(&response_id) {
-                    Ok(session) => match session.list_tools_filtered(None).await {
-                        Ok(result) => JsonRpcResult::Ok { result },
-                        Err(e) => rpc_err_result(-32603, format!("list_tools: {e}")),
-                    },
+                    Ok(session) => {
+                        match session.list_tools_filtered(None, name.as_deref()).await {
+                            Ok(result) => JsonRpcResult::Ok { result },
+                            Err(e) => rpc_err_result(-32603, format!("list_tools: {e}")),
+                        }
+                    }
                     Err((code, message)) => rpc_err_result(code, message),
                 };
                 client_response::Response::ListTools { id, result }
             }
-            client_request::Payload::ListResources { response_id, .. } => {
+            client_request::Payload::ListResources {
+                response_id, name, ..
+            } => {
                 let result = match self.lookup_session(&response_id) {
-                    Ok(session) => match session.list_resources_filtered(None).await {
-                        Ok(result) => JsonRpcResult::Ok { result },
-                        Err(e) => rpc_err_result(-32603, format!("list_resources: {e}")),
-                    },
+                    Ok(session) => {
+                        match session.list_resources_filtered(None, name.as_deref()).await {
+                            Ok(result) => JsonRpcResult::Ok { result },
+                            Err(e) => rpc_err_result(-32603, format!("list_resources: {e}")),
+                        }
+                    }
                     Err((code, message)) => rpc_err_result(code, message),
                 };
                 client_response::Response::ListResources { id, result }
