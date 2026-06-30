@@ -1,10 +1,7 @@
-//! E2E: `laboratories create` + `laboratories list` (real podman).
+//! E2E: `laboratories create` + `laboratories list`.
 //!
-//! Gated behind `OBJECTIVEAI_TEST_PODMAN=1`: `laboratories create` shells
-//! out to podman (which the CLI provisions on demand), so this is opt-in
-//! to keep the default suite podman-free. With the gate set, it creates a
-//! laboratory container (created, not started) and confirms `list` reads
-//! the spec back from the container's `objectiveai.laboratory` label.
+//! Creates a laboratory and confirms `list` reads its spec (id, image,
+//! env, cwd) back — all through the CLI laboratories commands.
 
 mod cli_test_util;
 
@@ -15,21 +12,11 @@ use objectiveai_sdk::cli::command::laboratories::list::{
     Path as ListPath, Request as ListReq, ResponseItem as ListItem,
 };
 
-/// Skip unless the caller opted into podman-backed tests.
-fn podman_enabled() -> bool {
-    std::env::var("OBJECTIVEAI_TEST_PODMAN").as_deref() == Ok("1")
-}
-
-/// A minimal, widely-available base image. `create` only `podman
-/// create`s + `podman cp`s into it (no run), so any image works.
+/// A minimal, widely-available base image for the laboratory.
 const BASE_IMAGE: &str = "docker.io/library/busybox:latest";
 
 #[tokio::test(flavor = "multi_thread")]
 async fn create_then_list_round_trips_the_spec() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratories_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 

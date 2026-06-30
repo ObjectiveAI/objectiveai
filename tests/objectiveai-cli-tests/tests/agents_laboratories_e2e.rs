@@ -1,9 +1,9 @@
 //! E2E: `agents laboratories attach / detach / list`.
 //!
-//! These commands are pure DB (`laboratory_attachments`) + lockfile —
-//! no agent spawn, no podman. We attach laboratory ids to instance and
-//! tag targets, list them back (created_at order), detach, and exercise
-//! the error variants (duplicate, not-attached, ref-target).
+//! No agent spawn needed — these just record/read attachments and take
+//! the target's lock. We attach laboratory ids to instance and tag
+//! targets, list them back (created_at order), detach, and exercise the
+//! error variants (duplicate, not-attached, ref-target).
 
 mod cli_test_util;
 

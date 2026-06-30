@@ -1,8 +1,7 @@
 //! E2E: the proxy-native `laboratory_transfer` tool, end to end through
-//! the CLI with two real laboratory containers.
+//! the CLI with two laboratories.
 //!
-//! Gated behind `OBJECTIVEAI_TEST_PODMAN=1` (the CLI provisions podman on
-//! demand). Everything goes through the CLI:
+//! Everything goes through the CLI:
 //!   1. `laboratories create` two labs (a, b).
 //!   2. `agents tags apply` a GROUPED tag carrying a mock agent whose
 //!      deterministic `calls` script drives the aggregated tools.
@@ -15,10 +14,10 @@
 //!   5. Assert the tool-response text shows the transfer succeeded and
 //!      lab b now has the file.
 //!
-//! The lab MCP names itself `oail-<id>`; the proxy routing prefix is that
-//! verbatim (no `_`/`.` to normalize when the id has none), so the
+//! A laboratory's server is named `oail-<id>`; the proxy routing prefix is
+//! that verbatim (no `_`/`.` to normalize when the id has none), so the
 //! aggregated bash tool is `oail-<id>_Bash`. `laboratory_transfer` takes
-//! laboratory *ids* for source/destination.
+//! laboratory ids for source/destination.
 
 mod cli_test_util;
 
@@ -43,15 +42,9 @@ use objectiveai_sdk::cli::command::laboratories::create::{
 };
 use serde_json::json;
 
-/// A base image with `/bin/bash` + coreutils, runnable from a clean
-/// `podman create` (the lab MCP's `Bash` tool needs a real bash). The
-/// official `bash` image is Alpine-based (musl), matching our static lab
-/// MCP binary.
+/// A base image with `/bin/bash` + coreutils for the laboratory's `Bash`
+/// tool. The official `bash` image is Alpine-based (musl).
 const BASE_IMAGE: &str = "docker.io/library/bash:latest";
-
-fn podman_enabled() -> bool {
-    std::env::var("OBJECTIVEAI_TEST_PODMAN").as_deref() == Ok("1")
-}
 
 /// RAII kill of the plugin process (PID read from `OAI_TEST_MCP_PID_FILE`)
 /// on test drop — mirrors `plugin_mcp_self_call_e2e`.
@@ -133,10 +126,6 @@ async fn tool_result_texts(executor: &Exec, response_id: &str) -> Vec<String> {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_between_two_laboratories() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -251,10 +240,6 @@ async fn transfer_between_two_laboratories() {
 /// the live response id), so it's all through the CLI.
 #[tokio::test(flavor = "multi_thread")]
 async fn servers_list_and_name_filter() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let base = cli_test_util::test_base_dir();
     let pid_file = base.join("plugin-pid");
     let _guard = PluginGuard {
@@ -437,10 +422,6 @@ async fn spawn_lab_session(
 /// restored cp-style under `<dest>/<basename>`.
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_directory_between_laboratories() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -497,10 +478,6 @@ async fn transfer_directory_between_laboratories() {
 /// an `isError` tool result (the resolve-by-id failure path).
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_unknown_laboratory_is_error() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -543,10 +520,6 @@ async fn transfer_unknown_laboratory_is_error() {
 /// `list-tools` surface) in a one-lab session.
 #[tokio::test(flavor = "multi_thread")]
 async fn laboratory_transfer_absent_with_one_lab() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_transfer_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let base = cli_test_util::test_base_dir();
     let pid_file = base.join("plugin-pid");
     let _guard = PluginGuard {

@@ -2,8 +2,8 @@
 //! (`GET /export` + `POST /import`). Binds the real server on an ephemeral
 //! 127.0.0.1 port and verifies that a tar export of a source tree
 //! round-trips into a destination via import — the same primitive the
-//! conduit splices laboratory-to-laboratory. No podman / containers: the
-//! lab MCP tars its own filesystem.
+//! conduit splices laboratory-to-laboratory. The MCP server tars its own
+//! filesystem in-process.
 
 use std::path::PathBuf;
 

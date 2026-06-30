@@ -1,11 +1,9 @@
 //! E2E: laboratory `create` runtime effects — custom cwd, env vars, and
-//! host filesystem mounts — exercised through the CLI with a real podman
-//! container.
+//! host filesystem mounts — exercised through the CLI.
 //!
-//! Gated behind `OBJECTIVEAI_TEST_PODMAN=1` (the CLI provisions podman on
-//! demand). Each test creates a lab, attaches it to a GROUPED tag, spawns a
-//! mock agent whose deterministic `calls` script runs the lab's `Bash`
-//! tool, and asserts on the tool output (and, for mounts, the host fs).
+//! Each test creates a lab, attaches it to a GROUPED tag, spawns a mock
+//! agent whose deterministic `calls` script runs the lab's `Bash` tool,
+//! and asserts on the tool output (and, for mounts, the host fs).
 
 mod cli_test_util;
 
@@ -30,10 +28,6 @@ use serde_json::json;
 const BASE_IMAGE: &str = "docker.io/library/bash:latest";
 
 type Exec = cli_test_util::HangPreventingBinaryCommandExecutor;
-
-fn podman_enabled() -> bool {
-    std::env::var("OBJECTIVEAI_TEST_PODMAN").as_deref() == Ok("1")
-}
 
 fn nanos() -> u128 {
     std::time::SystemTime::now()
@@ -175,10 +169,6 @@ fn bash_agent(lab_id: &str, command: &str) -> serde_json::Value {
 /// `--cwd` baked at create time is where the lab's first command runs.
 #[tokio::test(flavor = "multi_thread")]
 async fn custom_cwd_takes_effect() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_runtime_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -198,10 +188,6 @@ async fn custom_cwd_takes_effect() {
 /// `--env K=V` baked at create time is visible to the lab's bash.
 #[tokio::test(flavor = "multi_thread")]
 async fn env_vars_available_in_bash() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_runtime_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -234,15 +220,11 @@ async fn env_vars_available_in_bash() {
     );
 }
 
-/// A host directory mounted into the container round-trips both ways:
-/// host-seeded content is readable inside, and container writes persist
-/// back to the host path.
+/// A host directory mounted into the laboratory round-trips both ways:
+/// host-seeded content is readable inside, and the laboratory's writes
+/// persist back to the host path.
 #[tokio::test(flavor = "multi_thread")]
 async fn host_mount_round_trips() {
-    if !podman_enabled() {
-        eprintln!("skipping laboratory_runtime_e2e: set OBJECTIVEAI_TEST_PODMAN=1 to run");
-        return;
-    }
     let _base = cli_test_util::test_base_dir();
     let executor = cli_test_util::executor().await;
 
@@ -266,29 +248,29 @@ async fn host_mount_round_trips() {
     )
     .await;
 
-    // Read the host-seeded file in-container, then write back to the mount.
+    // Read the host-seeded file in the laboratory, then write back to the mount.
     let rid = spawn_lab_session(
         &executor,
         &tag,
         bash_agent(
             &lab,
-            "cat /mnt/data/seed.txt && printf written-from-container > /mnt/data/out.txt",
+            "cat /mnt/data/seed.txt && printf written-from-lab > /mnt/data/out.txt",
         ),
         &[&lab],
     )
     .await;
     let results = tool_result_texts(&executor, &rid).await.join("\n");
 
-    // host -> container visibility.
+    // host -> laboratory visibility.
     assert!(
         results.contains("seed-content-xyz"),
-        "expected the host-seeded file to be readable inside the container; got: {results}"
+        "expected the host-seeded file to be readable inside the laboratory; got: {results}"
     );
-    // container -> host persistence.
+    // laboratory -> host persistence.
     let out = std::fs::read_to_string(host_dir.join("out.txt")).unwrap_or_default();
     assert_eq!(
-        out, "written-from-container",
-        "expected the container's write to persist to the host mount"
+        out, "written-from-lab",
+        "expected the laboratory's write to persist to the host mount"
     );
 
     let _ = std::fs::remove_dir_all(&host_dir);
