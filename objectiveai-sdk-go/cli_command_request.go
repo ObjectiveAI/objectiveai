@@ -16,6 +16,7 @@ type CliCommandRequest struct {
 	KillAll *CliCommandKillAllRequest 
 	KillAllRequestSchema *CliCommandKillAllRequestSchemaRequest 
 	KillAllResponseSchema *CliCommandKillAllResponseSchemaRequest 
+	Laboratories *CliCommandLaboratoriesRequest 
 	MCP *CliCommandMcpRequest `variantTitle:"Mcp"`
 	Plugins *CliCommandPluginsRequest 
 	Python *CliCommandPythonRequest 
@@ -53,6 +54,9 @@ func (v CliCommandRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.KillAllResponseSchema != nil {
 		return json.Marshal(v.KillAllResponseSchema)
+	}
+	if v.Laboratories != nil {
+		return json.Marshal(v.Laboratories)
 	}
 	if v.MCP != nil {
 		return json.Marshal(v.MCP)
@@ -173,6 +177,17 @@ func (v *CliCommandRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandRequest{}
 			candidate.KillAllResponseSchema = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandLaboratoriesRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandRequest{}
+			candidate.Laboratories = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -313,6 +328,7 @@ func (v CliCommandRequest) Validate() error {
 	if v.KillAll != nil { count++ }
 	if v.KillAllRequestSchema != nil { count++ }
 	if v.KillAllResponseSchema != nil { count++ }
+	if v.Laboratories != nil { count++ }
 	if v.MCP != nil { count++ }
 	if v.Plugins != nil { count++ }
 	if v.Python != nil { count++ }
