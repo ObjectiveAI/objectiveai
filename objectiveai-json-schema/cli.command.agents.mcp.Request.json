@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.mcp.Request",
+  "anyOf": [
+    {
+      "title": "Resources",
+      "$ref": "cli.command.agents.mcp.resources.Request"
+    },
+    {
+      "title": "Tools",
+      "$ref": "cli.command.agents.mcp.tools.Request"
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.laboratories.detach.Path",
+  "type": "string",
+  "enum": [
+    "agents/laboratories/detach"
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "laboratories.ClientLaboratory",
+  "description": "A client-resolved laboratory: a client-side MCP server keyed by an\nopaque `id`. Wire shape: `{\"type\":\"client\",\"id\":\"…\"}`.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "description": "The opaque laboratory id.",
+      "type": "string"
+    },
+    "type": {
+      "description": "Discriminator — always `\"client\"`.",
+      "$ref": "laboratories.ClientLaboratoryType"
+    }
+  }
+}

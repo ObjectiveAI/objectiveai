@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.mcp.tools.call.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/mcp/tools/call/request_schema"
+  ]
+}

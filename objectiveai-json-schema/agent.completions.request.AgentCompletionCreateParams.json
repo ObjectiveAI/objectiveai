@@ -19,6 +19,21 @@
       ],
       "omitempty": true
     },
+    "laboratories": {
+      "description": "Laboratories (client-side MCP servers) attached across all agents,\nincluding fallbacks.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "laboratories.Laboratory"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "messages": {
       "description": "The conversation messages.",
       "type": "array",

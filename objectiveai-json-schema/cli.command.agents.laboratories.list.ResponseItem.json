@@ -1,0 +1,10 @@
+{
+  "title": "cli.command.agents.laboratories.list.ResponseItem",
+  "description": "One attached laboratory id.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    }
+  }
+}

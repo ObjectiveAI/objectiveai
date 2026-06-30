@@ -1,0 +1,8 @@
+{
+  "title": "Client",
+  "description": "Serializes to `\"client\"`.",
+  "type": "string",
+  "enum": [
+    "client"
+  ]
+}

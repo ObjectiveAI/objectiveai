@@ -1,0 +1,5 @@
+{
+  "title": "cli.command.agents.laboratories.attach.Response",
+  "description": "Empty confirmation — attach succeeded.",
+  "type": "object"
+}

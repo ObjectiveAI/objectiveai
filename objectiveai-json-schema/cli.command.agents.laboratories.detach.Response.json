@@ -1,0 +1,5 @@
+{
+  "title": "cli.command.agents.laboratories.detach.Response",
+  "description": "Empty confirmation — detach succeeded.",
+  "type": "object"
+}

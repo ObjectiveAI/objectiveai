@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.mcp.resources.list.Path",
+  "type": "string",
+  "enum": [
+    "agents/mcp/resources/list"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "title": "laboratories.Laboratory",
+  "description": "A client-resolved laboratory, identified by an opaque `id`.",
+  "$ref": "laboratories.ClientLaboratory"
+}
