@@ -220,6 +220,16 @@ impl ReverseChannel {
                 };
                 client_response::Response::ListResources { id, result }
             }
+            client_request::Payload::ListServers { response_id } => {
+                let result = match self.lookup_session(&response_id) {
+                    // Proxy-local aggregate — no upstream fan-out, can't fail.
+                    Ok(session) => JsonRpcResult::Ok {
+                        result: session.list_servers(),
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::ListServers { id, result }
+            }
             client_request::Payload::CallTool { response_id, params } => {
                 let result = match self.lookup_session(&response_id) {
                     // No queue delegate here — unlike the HTTP path, this
@@ -281,6 +291,11 @@ pub struct WsUpstream {
     /// reply — feeds the session's routing-prefix derivation.
     server_name: String,
     server_version: String,
+    /// The upstream's full `initialize` reply (capabilities, server_info,
+    /// instructions, protocol version) — kept verbatim so `servers/list`
+    /// can report it. `Connection` exposes the same via its own
+    /// `initialize_result`.
+    initialize_result: objectiveai_sdk::mcp::initialize_result::InitializeResult,
     /// Whether the upstream advertised the `tools` / `resources`
     /// capability in its `initialize` reply. We must NOT issue
     /// `tools/list` / `resources/list` against an upstream that didn't
@@ -514,6 +529,17 @@ impl Upstream {
         }
     }
 
+    /// The upstream's full `initialize` reply (capabilities, server_info,
+    /// instructions, protocol version) — used by `servers/list`.
+    pub fn initialize_result(
+        &self,
+    ) -> &objectiveai_sdk::mcp::initialize_result::InitializeResult {
+        match self {
+            Upstream::Http(c) => &c.initialize_result,
+            Upstream::Ws(w) => &w.initialize_result,
+        }
+    }
+
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
         match self {
             Upstream::Http(c) => c.list_tools().await,
@@ -642,15 +668,20 @@ pub async fn connect_ws(
     // but keeps the transient identity + auth so the post-init health
     // probe + every later call still pass the conduit's transient check.
     headers.shift_remove(crate::upstream::MCP_SESSION_ID_KEY);
-    let has_tools_cap = reply.result.capabilities.tools.is_some();
-    let has_resources_cap = reply.result.capabilities.resources.is_some();
+    let session_id = reply.mcp_session_id;
+    let initialize_result = reply.result;
+    let has_tools_cap = initialize_result.capabilities.tools.is_some();
+    let has_resources_cap = initialize_result.capabilities.resources.is_some();
+    let server_name = initialize_result.server_info.name.clone();
+    let server_version = initialize_result.server_info.version.clone();
     Ok(WsUpstream {
         channel,
         mcp_kind,
         url,
-        session_id: reply.mcp_session_id,
-        server_name: reply.result.server_info.name,
-        server_version: reply.result.server_info.version,
+        session_id,
+        server_name,
+        server_version,
+        initialize_result,
         has_tools_cap,
         has_resources_cap,
         // The connect-time set (per-URL ∪ dial-time identity) is the

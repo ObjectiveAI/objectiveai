@@ -13,6 +13,7 @@ use std::sync::Arc;
 use objectiveai_sdk::mcp::{
     JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
+    server::{ListServersResult, Server},
     tool::{CallToolRequestParams, CallToolResult, ListToolsResult, Tool},
 };
 
@@ -257,6 +258,26 @@ impl Session {
             next_cursor: None,
             _meta: None,
         })
+    }
+
+    /// List every connected upstream MCP server with its metadata. Unlike
+    /// `list_tools`/`list_resources` this is a proxy-local aggregate: each
+    /// upstream's `initialize` reply is already held in memory, so there's
+    /// no fan-out / network call. One [`Server`] per connection, keyed by
+    /// the routing prefix (the same `<prefix>_` prepended to that server's
+    /// tools/resources), sorted by name for stable output.
+    pub fn list_servers(&self) -> ListServersResult {
+        let mut servers: Vec<Server> = self
+            .connections
+            .iter()
+            .map(|(prefix, up)| Server {
+                name: prefix.clone(),
+                url: up.url().to_string(),
+                initialize_result: up.initialize_result().clone(),
+            })
+            .collect();
+        servers.sort_by(|a, b| a.name.cmp(&b.name));
+        ListServersResult { servers }
     }
 
     /// Fan `resources/list` out to every upstream in parallel, prefix
