@@ -94,8 +94,10 @@ struct LabelMount {
 /// [`host_port`]), forces `PORT=14978` (appended after the user's env so it
 /// wins), bakes in the default working directory new agents start in
 /// (`OBJECTIVEAI_LABORATORY_CWD=<cwd>`), records its spec in the
-/// `objectiveai.laboratory` label, and overrides the entrypoint to the injected
-/// MCP binary so that when started the container lifetime == MCP lifetime.
+/// `objectiveai.laboratory` label, and overrides the entrypoint to a shell
+/// wrapper that `chmod +x`es then exec's the injected MCP binary (so the
+/// `podman cp`'d binary is executable regardless of the host's file mode, and
+/// the container lifetime == MCP lifetime).
 pub async fn create(
     ctx: &Context,
     id: &str,
@@ -156,8 +158,18 @@ pub async fn create(
     create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
+        // Entrypoint is a shell wrapper that `chmod +x`es the injected binary
+        // before exec'ing it. `podman cp` (below) preserves the *host* file
+        // mode, and on Windows/macOS the bundled musl binary arrives without a
+        // Unix execute bit — so a bare `--entrypoint /objectiveai-mcp-laboratory`
+        // fails at start with "exists but it is not executable". The chmod is
+        // idempotent and runs on every start; `exec` keeps the MCP as PID 1 so
+        // container lifetime == MCP lifetime. A laboratory image always has a
+        // shell (its raison d'être is running the Bash tool).
         .arg("--entrypoint")
-        .arg("/objectiveai-mcp-laboratory")
+        .arg(
+            r#"["/bin/sh","-c","chmod +x /objectiveai-mcp-laboratory && exec /objectiveai-mcp-laboratory"]"#,
+        )
         .arg(image);
     let output = create_cmd
         .output()

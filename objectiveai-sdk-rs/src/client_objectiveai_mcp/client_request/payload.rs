@@ -36,6 +36,7 @@ pub enum Payload {
         /// Restrict the listing to the single server with this name (the
         /// proxy's routing prefix). `None` fans out to every upstream.
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::tool::ListToolsRequest,
@@ -58,6 +59,7 @@ pub enum Payload {
         /// Restrict the listing to the single server with this name (the
         /// proxy's routing prefix). `None` fans out to every upstream.
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
         name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::resource::ListResourcesRequest,

@@ -15,6 +15,7 @@ pub struct Request {
     /// routing prefix `agents mcp servers list` reports). `None` lists
     /// every server.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     pub name: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,

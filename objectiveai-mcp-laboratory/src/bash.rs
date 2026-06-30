@@ -367,6 +367,24 @@ fn detect_shell() -> String {
         }
     }
 
+    // 4. Probe common shell locations and use the first that exists. A bare
+    //    `/bin/bash` fallback fails on images that put bash elsewhere (the
+    //    Alpine `bash` image installs it at `/usr/local/bin/bash`, with no
+    //    `/bin/bash`) or that ship only a POSIX shell. Prefer bash, then fall
+    //    back to `/bin/sh` (always present in a laboratory image — the
+    //    container entrypoint itself is `/bin/sh`).
+    for candidate in &[
+        "/bin/bash",
+        "/usr/bin/bash",
+        "/usr/local/bin/bash",
+        "/bin/sh",
+        "/usr/bin/sh",
+    ] {
+        if std::path::Path::new(candidate).exists() {
+            return candidate.to_string();
+        }
+    }
+
     "/bin/bash".into()
 }
 

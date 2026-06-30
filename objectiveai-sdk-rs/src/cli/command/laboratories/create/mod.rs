@@ -46,7 +46,10 @@ pub enum Path {
 #[serde(tag = "by", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.laboratories.create.Kind")]
 pub enum Kind {
-    #[schemars(title = "Client")]
+    // No variant-level `#[schemars(title = "...")]`: a single-variant enum
+    // collapses and hoists the variant title to the schema's top-level
+    // `title`, which the JS codegen then uses as the module path — a title
+    // of "Client" would clobber `src/client.ts`. Let `rename` drive it.
     Client,
 }
 

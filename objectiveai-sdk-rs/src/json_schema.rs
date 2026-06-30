@@ -1037,6 +1037,24 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::python::response_schema::Path),
         schemars::schema_for!(crate::cli::command::python::response_schema::Request),
         schemars::schema_for!(crate::cli::command::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::create::EnvVar),
+        schemars::schema_for!(crate::cli::command::laboratories::create::Kind),
+        schemars::schema_for!(crate::cli::command::laboratories::create::Mount),
+        schemars::schema_for!(crate::cli::command::laboratories::create::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::create::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::create::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::create::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::create::Response),
+        schemars::schema_for!(crate::cli::command::laboratories::create::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::create::response_schema::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::list::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::list::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::list::request_schema::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::list::request_schema::Request),
+        schemars::schema_for!(crate::cli::command::laboratories::list::ResponseItem),
+        schemars::schema_for!(crate::cli::command::laboratories::list::response_schema::Path),
+        schemars::schema_for!(crate::cli::command::laboratories::list::response_schema::Request),
         schemars::schema_for!(crate::cli::command::swarms::get::Path),
         schemars::schema_for!(crate::cli::command::swarms::get::Request),
         schemars::schema_for!(crate::cli::command::swarms::get::request_schema::Path),
@@ -1181,4 +1199,23 @@ pub fn flatten_schema<T: schemars::JsonSchema>(
     generator: &mut schemars::SchemaGenerator,
 ) -> schemars::Schema {
     generator.subschema_for::<T>()
+}
+
+/// Schema transform (for `#[schemars(transform = ...)]`): inserts a top-level
+/// `"type": "object"` alongside whatever the schema already holds.
+///
+/// Applied to single-variant `#[serde(untagged)]` enums. schemars emits such an
+/// enum as a single-variant `anyOf`, which the json-schema builder then flattens
+/// (merging the lone variant's `$ref` into the parent) down to a *bare* `$ref`.
+/// The SDK code generators (Go, TS) inline a bare top-level `$ref` instead of
+/// emitting a reference, which breaks the JSON-Schema roundtrip tests. Adding a
+/// sibling `"type": "object"` yields the `{type: object, $ref}` ref-wrapper shape
+/// the generators already round-trip cleanly (the same shape `flatten_schema`
+/// produces for a flattened struct field), and which the builder's guarantees
+/// allow (`type` + `$ref` siblings are fine; only `anyOf` + `$ref` is not).
+pub fn ref_wrapper_object(schema: &mut schemars::Schema) {
+    schema.ensure_object().insert(
+        "type".to_string(),
+        serde_json::Value::String("object".to_string()),
+    );
 }

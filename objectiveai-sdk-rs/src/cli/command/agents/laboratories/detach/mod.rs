@@ -33,10 +33,14 @@ impl CommandRequest for Request {
     }
 }
 
-/// Empty confirmation — detach succeeded.
+/// Confirmation — detach succeeded; echoes the laboratory id that was
+/// detached.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.laboratories.detach.Response")]
-pub struct Response {}
+pub struct Response {
+    /// The laboratory id that was detached from the target.
+    pub laboratory_id: String,
+}
 
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("laboratory_id_required").required(true).args(["laboratory_id"])))]

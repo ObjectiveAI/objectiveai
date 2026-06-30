@@ -1,12 +1,3 @@
-//! Laboratories: completion-wide client-side MCP servers.
-//!
-//! A [`Laboratory`] attached to an agent completion is dialed by the proxy
-//! as a client-side MCP upstream across *every* agent in the completion,
-//! including fallbacks. Each laboratory is identified by an opaque `id`;
-//! the proxy mirrors it as the URL `ws://laboratory/{id}` and the CLI conduit
-//! routes it via the `id`-keyed [`crate::client_objectiveai_mcp::McpKind`]
-//! variant.
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -28,6 +19,12 @@ use serde::{Deserialize, Serialize};
 )]
 #[serde(untagged)]
 #[schemars(rename = "laboratories.Laboratory")]
+// Single-variant untagged enum: schemars emits a single-variant `anyOf` that
+// the json-schema builder flattens to a bare top-level `$ref`, which the SDK
+// code generators inline (breaking the schema roundtrip). The transform adds a
+// sibling `"type": "object"` so it lands as the round-trippable `{type, $ref}`
+// ref-wrapper shape. See `crate::json_schema::ref_wrapper_object`.
+#[schemars(transform = crate::json_schema::ref_wrapper_object)]
 pub enum Laboratory {
     /// A client-resolved laboratory, identified by an opaque `id`.
     Client(ClientLaboratory),
@@ -70,7 +67,12 @@ pub struct ClientLaboratory {
 #[serde(rename_all = "snake_case")]
 #[schemars(rename = "laboratories.ClientLaboratoryType")]
 pub enum ClientLaboratoryType {
+    // NOTE: no variant-level `#[schemars(title = "...")]`. This is a
+    // single-variant unit enum, which schemars collapses to a bare string
+    // schema and hoists the variant title to the schema's top-level
+    // `title`. A title of "Client" makes the JS codegen route this type to
+    // `src/client.ts` (clobbering the real SDK client). Leaving it off lets
+    // the type's `rename` drive the title, matching its siblings.
     /// Serializes to `"client"`.
-    #[schemars(title = "Client")]
     Client,
 }

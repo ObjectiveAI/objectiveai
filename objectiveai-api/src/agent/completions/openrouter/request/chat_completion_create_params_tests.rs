@@ -101,6 +101,7 @@ async fn test_no_tools_empty_params() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params(
@@ -174,6 +175,7 @@ async fn test_top_logprobs_zero_omits_logprobs() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
@@ -247,6 +249,7 @@ async fn test_multiple_mcp_tools_no_conflicts() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
@@ -428,6 +431,7 @@ async fn test_toolcall_not_required_uses_auto_choice() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
@@ -524,6 +528,7 @@ async fn test_mcp_tool_parameters_preserved() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let mut inv_params = indexmap::IndexMap::new();
@@ -654,6 +659,7 @@ async fn test_agent_base_fields_passthrough() {
             seed: None,
             stream: None,
             continuation: None,
+            laboratories: None,
             };
 
     let messages = vec![
@@ -764,6 +770,7 @@ async fn test_provider_merging_both_sides() {
             seed: None,
             stream: None,
             continuation: None,
+            laboratories: None,
             };
 
     let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
@@ -865,6 +872,7 @@ async fn test_per_agent_response_format_miss() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
@@ -965,6 +973,7 @@ async fn test_json_schema_response_format_extracts_title() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages: Vec<objectiveai_sdk::agent::completions::message::Message> = vec![];
@@ -1066,6 +1075,7 @@ async fn test_seed_passthrough() {
         seed: Some(42),
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages = vec![
@@ -1199,6 +1209,7 @@ async fn test_toolcall_required_forces_function_choice() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params(
@@ -1294,6 +1305,7 @@ async fn test_three_mcp_servers_fifteen_tools_all_unique() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     // Server 1: file operations
@@ -1873,6 +1885,7 @@ async fn test_continuation_assistant_message_appended() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
@@ -1985,6 +1998,7 @@ async fn test_continuation_mixed_items() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let messages = vec![objectiveai_sdk::agent::completions::message::Message::User(
@@ -2155,6 +2169,7 @@ async fn test_tools_disabled_sets_tool_choice_none() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params_with_tools_enabled(
@@ -2199,6 +2214,7 @@ async fn test_tools_disabled_no_tools_no_tool_choice() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params_with_tools_enabled(
@@ -2240,6 +2256,7 @@ async fn test_request_continuation_messages_come_first() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let request_continuation = objectiveai_sdk::agent::openrouter::Continuation {
@@ -2306,6 +2323,7 @@ async fn test_context_compression_middle_out_emits_plugins_entry() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params(&agent, &params, &[], None, None).await;
@@ -2350,6 +2368,7 @@ async fn test_context_compression_none_omits_plugins_field() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params(&agent, &params, &[], None, None).await;
@@ -2397,6 +2416,7 @@ async fn test_system_prompt_leads_messages_fresh() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     let result = build_params(&agent, &params, &messages, None, None).await;
@@ -2456,6 +2476,7 @@ async fn test_system_prompt_leads_and_not_duplicated_on_resume() {
         seed: None,
         stream: None,
         continuation: None,
+        laboratories: None,
     };
 
     // Prior-turn history. Crucially it does NOT carry the system prompt — the

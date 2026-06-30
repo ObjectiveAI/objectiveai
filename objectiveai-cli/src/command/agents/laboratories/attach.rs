@@ -19,7 +19,9 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
             laboratory_id: request.laboratory_id,
         });
     }
-    Ok(Response {})
+    Ok(Response {
+        laboratory_id: request.laboratory_id,
+    })
 }
 
 pub mod request_schema {
