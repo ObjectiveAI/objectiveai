@@ -2,7 +2,7 @@
 //! socket mechanic. An inline mock agent calls a tool on the
 //! `test-mcp-plugin-self-call` plugin; that tool reads its
 //! `X-OBJECTIVEAI-RESPONSE-ID` header and, via the objectiveai
-//! `PluginExecutor`, re-invokes `agents tools|resources …` for that
+//! `PluginExecutor`, re-invokes `agents mcp tools|resources …` for that
 //! response id — which routes back through the host's listener socket
 //! into the same agent's MCP aggregation. The tool returns the MCP
 //! result, which we assert from `objectiveai.tool_response_content_text`.
@@ -10,9 +10,9 @@
 //! Four surfaces (selected by mcp-server name), one per test:
 //! - `call-other`     — `call_hello` calls the sibling `hello` tool
 //!   through the system; result contains "hello world".
-//! - `list-tools`     — `do_list_tools` returns `agents tools list`.
-//! - `list-resources` — `do_list_resources` returns `agents resources list`.
-//! - `read-resource`  — `do_read_resource` returns `agents resources read`.
+//! - `list-tools`     — `do_list_tools` returns `agents mcp tools list`.
+//! - `list-resources` — `do_list_resources` returns `agents mcp resources list`.
+//! - `read-resource`  — `do_read_resource` returns `agents mcp resources read`.
 //!
 //! The plugin RMCP server is killed before each test returns via a
 //! `Drop` guard reading the PID from `OAI_TEST_MCP_PID_FILE`.
