@@ -48,10 +48,15 @@ pub struct ShellState {
     tmux_used: Arc<RwLock<bool>>,
     /// The user's shell path (e.g., /bin/bash, /bin/zsh).
     shell_path: String,
+    /// Working directory an AIH starts in before it runs anything (env
+    /// `OBJECTIVEAI_LABORATORY_CWD`, baked in at `laboratories create`,
+    /// defaulting to `/`). Only the first-touch fallback — once an AIH runs a
+    /// command its cwd is tracked per-AIH in `cwds`.
+    default_cwd: PathBuf,
 }
 
 impl ShellState {
-    pub fn new() -> Self {
+    pub fn new(default_cwd: PathBuf) -> Self {
         let shell_path = detect_shell();
         Self {
             cwds: Arc::new(DashMap::new()),
@@ -59,6 +64,7 @@ impl ShellState {
             tmux_env: Arc::new(RwLock::new(None)),
             tmux_used: Arc::new(RwLock::new(false)),
             shell_path,
+            default_cwd,
         }
     }
 
@@ -75,13 +81,13 @@ impl ShellState {
         }
     }
 
-    /// This AIH's current working directory, or the process cwd (fallback `/`)
-    /// the first time the AIH is seen.
+    /// This AIH's current working directory, or the laboratory's configured
+    /// default the first time the AIH is seen.
     fn get_cwd(&self, aih: &str) -> PathBuf {
         self.cwds
             .get(aih)
             .map(|c| c.clone())
-            .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/")))
+            .unwrap_or_else(|| self.default_cwd.clone())
     }
 
     fn set_cwd(&self, aih: &str, path: PathBuf) {

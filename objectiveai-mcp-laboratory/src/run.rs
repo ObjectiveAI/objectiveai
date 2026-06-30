@@ -23,6 +23,8 @@ struct EnvConfigBuilder {
     suppress_output: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_LABORATORY_ID")]
     laboratory_id: Option<String>,
+    #[envconfig(from = "OBJECTIVEAI_LABORATORY_CWD")]
+    laboratory_cwd: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -34,6 +36,7 @@ impl EnvConfigBuilder {
                 matches!(v.to_ascii_lowercase().as_str(), "1" | "true" | "yes" | "on")
             }),
             laboratory_id: self.laboratory_id,
+            laboratory_cwd: self.laboratory_cwd,
         }
     }
 }
@@ -44,6 +47,7 @@ pub struct ConfigBuilder {
     pub port: Option<u16>,
     pub suppress_output: Option<bool>,
     pub laboratory_id: Option<String>,
+    pub laboratory_cwd: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -70,6 +74,7 @@ impl ConfigBuilder {
             port: self.port.unwrap_or(3000),
             suppress_output: self.suppress_output.unwrap_or(false),
             laboratory_id: self.laboratory_id,
+            laboratory_cwd: self.laboratory_cwd,
         }
     }
 }
@@ -81,6 +86,11 @@ pub struct Config {
     /// Laboratory id (env `OBJECTIVEAI_LABORATORY_ID`) — names the MCP server
     /// `oail-<id>`. `None` when run standalone (no laboratory).
     pub laboratory_id: Option<String>,
+    /// Default working directory new agents start in (env
+    /// `OBJECTIVEAI_LABORATORY_CWD`, baked in at `laboratories create`,
+    /// defaulting to `/`). `None` when run standalone → falls back to the
+    /// process cwd.
+    pub laboratory_cwd: Option<String>,
 }
 
 pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, axum::Router)> {
@@ -89,9 +99,17 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
         port,
         suppress_output: _,
         laboratory_id,
+        laboratory_cwd,
     } = config;
 
-    let server = ObjectiveAiMcpLaboratory::new(laboratory_id);
+    // Env wins; standalone runs (no env) keep the process cwd → `/` behavior.
+    let default_cwd = laboratory_cwd
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(|| {
+            std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::from("/"))
+        });
+
+    let server = ObjectiveAiMcpLaboratory::new(laboratory_id, default_cwd);
     server.init().await;
 
     let ct = CancellationToken::new();

@@ -34,14 +34,14 @@ pub struct ObjectiveAiMcpLaboratory {
 
 #[tool_router]
 impl ObjectiveAiMcpLaboratory {
-    pub fn new(laboratory_id: Option<String>) -> Self {
+    pub fn new(laboratory_id: Option<String>, default_cwd: std::path::PathBuf) -> Self {
         let server_name = match laboratory_id {
             Some(id) => format!("oail-{id}"),
             None => "oail".to_string(),
         };
         Self {
             tool_router: Self::tool_router(),
-            shell_state: crate::bash::ShellState::new(),
+            shell_state: crate::bash::ShellState::new(default_cwd),
             server_name,
         }
     }
