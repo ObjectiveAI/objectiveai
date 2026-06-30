@@ -42,7 +42,6 @@ RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /root
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY objectiveai-sdk-js/package.json objectiveai-sdk-js/
-COPY objectiveai-viewer-sdk/package.json objectiveai-viewer-sdk/
 COPY objectiveai-web/package.json objectiveai-web/
 COPY objectiveai-viewer/package.json objectiveai-viewer/
 RUN pnpm install --frozen-lockfile
