@@ -28,6 +28,9 @@ use objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional;
 use objectiveai_sdk::cli::command::agents::laboratories::attach::{
     Path as AttachPath, Request as AttachReq, Response as AttachResp,
 };
+use objectiveai_sdk::cli::command::agents::laboratories::detach::{
+    Path as DetachPath, Request as DetachReq, Response as DetachResp,
+};
 use objectiveai_sdk::cli::command::agents::message::RequestMessage;
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 use objectiveai_sdk::cli::command::agents::spawn::{
@@ -564,5 +567,171 @@ async fn laboratory_transfer_absent_with_one_lab() {
     assert!(
         results.contains("Bash"),
         "expected the single lab's Bash tool in the listing; got: {results}"
+    );
+}
+
+/// (Re)apply `tag` as a GROUPED tag carrying `agent_json`. Re-applying is
+/// an upsert that resets a previously-bound tag back to GROUPED, so the
+/// next spawn is a fresh session (its lab attachments, keyed by tag name,
+/// survive the reset).
+async fn apply_grouped_tag(executor: &Exec, tag: &str, agent_json: serde_json::Value) {
+    let agent_spec =
+        serde_json::from_value::<InlineAgentBaseWithFallbacksOrRemoteCommitOptional>(agent_json)
+            .expect("mock agent spec deserializes");
+    let _: ApplyResp = cli_test_util::execute_one(
+        executor,
+        ApplyReq {
+            path_type: ApplyPath::AgentsTagsApply,
+            name: tag.to_string(),
+            target: ApplyTarget::Agent {
+                agent_spec,
+                parent_agent_instance_hierarchy: None,
+            },
+            base: Default::default(),
+        },
+    )
+    .await;
+}
+
+async fn detach_lab(executor: &Exec, tag: &str, lab: &str) {
+    let _: DetachResp = cli_test_util::execute_one(
+        executor,
+        DetachReq {
+            path_type: DetachPath::AgentsLaboratoriesDetach,
+            selector: AgentSelector::Tag {
+                agent_tag: tag.to_string(),
+            },
+            laboratory_id: lab.to_string(),
+            base: Default::default(),
+        },
+    )
+    .await;
+}
+
+/// Spawn `tag`, wait for the agent to finish, and return its response id.
+async fn spawn_tag(executor: &Exec, tag: &str) -> String {
+    let items: Vec<SpawnItem> = cli_test_util::collect_stream(
+        executor,
+        SpawnReq {
+            path_type: SpawnPath::AgentsSpawn,
+            message: RequestMessage::Simple("inspect servers".to_string()),
+            agent: AgentSelector::Tag {
+                agent_tag: tag.to_string(),
+            },
+            dangerous_advanced: Some(RequestDangerousAdvanced {
+                stream: Some(true),
+                seed: Some(1),
+            }),
+            base: Default::default(),
+        },
+    )
+    .await;
+    let aih = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.agent_instance_hierarchy.is_empty() => {
+                Some(c.agent_instance_hierarchy.clone())
+            }
+            _ => None,
+        })
+        .expect("spawn emits an agent_instance_hierarchy");
+    let rid = items
+        .iter()
+        .find_map(|i| match i {
+            SpawnItem::Chunk(c) if !c.id.is_empty() => Some(c.id.clone()),
+            _ => None,
+        })
+        .expect("spawn emits a response id");
+    cli_test_util::wait_for_agent(executor, &aih).await;
+    rid
+}
+
+/// `agents mcp servers list` reflects attach/detach across successive
+/// sessions: one lab present, then a second attached → both present, then
+/// one detached → only the remaining one. Each session is a fresh spawn of
+/// the same tag (re-applied to GROUPED between spawns) running a single
+/// `do_servers_list` against the tag's current lab attachments.
+#[tokio::test(flavor = "multi_thread")]
+async fn servers_list_reflects_attach_and_detach() {
+    let base = cli_test_util::test_base_dir();
+    let pid_file = base.join("plugin-pid");
+    let _guard = PluginGuard {
+        pid_file: pid_file.clone(),
+    };
+    let executor = cli_test_util::executor()
+        .await
+        .env("OAI_TEST_MCP_PID_FILE", pid_file.to_string_lossy().into_owned());
+
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    let lab_a = format!("dyn-a-{nanos}");
+    let lab_b = format!("dyn-b-{nanos}");
+    let tag = format!("dyn-tag-{nanos}");
+    create_lab(&executor, &lab_a).await;
+    create_lab(&executor, &lab_b).await;
+
+    // A lab-driver plugin agent that does exactly one `do_servers_list` per
+    // (fresh) session.
+    let agent_json = || {
+        json!({
+            "upstream": "mock",
+            "output_mode": "instruction",
+            "instruction": "done",
+            "client_objectiveai_mcp": {
+                "plugins": [{
+                    "owner": "testorg",
+                    "name": "test-mcp-plugin-self-call",
+                    "version": "1.0.0",
+                    "executable": false,
+                    "mcp_servers": [{ "name": "lab-driver" }]
+                }]
+            },
+            "calls": [
+                { "tool_calls": [{ "name": "test-mcp-plugin-self-call_do_servers_list", "arguments": "{}" }], "content": "" }
+            ]
+        })
+    };
+
+    // Session 1: only lab A attached.
+    apply_grouped_tag(&executor, &tag, agent_json()).await;
+    attach_lab(&executor, &tag, &lab_a).await;
+    let s1 = tool_result_texts(&executor, &spawn_tag(&executor, &tag).await)
+        .await
+        .join("\n");
+    assert!(
+        s1.contains(&lab_a),
+        "session 1 servers list should include lab A; got: {s1}"
+    );
+    assert!(
+        !s1.contains(&lab_b),
+        "session 1 should not yet include lab B; got: {s1}"
+    );
+
+    // Session 2: attach lab B → both present.
+    apply_grouped_tag(&executor, &tag, agent_json()).await;
+    attach_lab(&executor, &tag, &lab_b).await;
+    let s2 = tool_result_texts(&executor, &spawn_tag(&executor, &tag).await)
+        .await
+        .join("\n");
+    assert!(
+        s2.contains(&lab_a) && s2.contains(&lab_b),
+        "session 2 servers list should include both labs; got: {s2}"
+    );
+
+    // Session 3: detach lab A → only lab B remains.
+    apply_grouped_tag(&executor, &tag, agent_json()).await;
+    detach_lab(&executor, &tag, &lab_a).await;
+    let s3 = tool_result_texts(&executor, &spawn_tag(&executor, &tag).await)
+        .await
+        .join("\n");
+    assert!(
+        s3.contains(&lab_b),
+        "session 3 servers list should still include lab B; got: {s3}"
+    );
+    assert!(
+        !s3.contains(&lab_a),
+        "session 3 should no longer include lab A; got: {s3}"
     );
 }
