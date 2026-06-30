@@ -27,11 +27,11 @@ steps:
       - "--build-arg"
       - "AUTH_REDDIT_CLIENT_SECRET=$_AUTH_REDDIT_CLIENT_SECRET"
       - "--build-arg"
-      - "NEXTAUTH_URL=$_NEXTAUTH_URL"
+      - "NEXTAUTH_URL=https://objectiveai.dev"
       - "--build-arg"
       - "NEXTAUTH_SECRET=$_NEXTAUTH_SECRET"
       - "--build-arg"
-      - "NEXT_PUBLIC_API_URL=$_NEXT_PUBLIC_API_URL"
+      - "NEXT_PUBLIC_API_URL=https://api.objectiveai.dev"
       - "--build-arg"
       - "NODE_ENV=$_NODE_ENV"
       - "--build-arg"
@@ -70,3 +70,6 @@ images: ["us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"]
 timeout: "2100s"
 options:
   logging: "CLOUD_LOGGING_ONLY"
+  # the two domains above are now hardcoded; tolerate the now-unused
+  # _NEXTAUTH_URL / _NEXT_PUBLIC_API_URL trigger substitutions
+  substitution_option: "ALLOW_LOOSE"
