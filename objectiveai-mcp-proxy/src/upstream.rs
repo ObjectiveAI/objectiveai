@@ -5,12 +5,20 @@ use axum::http::HeaderMap;
 use futures::TryFutureExt;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
+use objectiveai_sdk::client_objectiveai_mcp::McpKind;
+use objectiveai_sdk::laboratories::Laboratory;
 use objectiveai_sdk::mcp::Client;
 
 use crate::reverse_channel::{ReverseChannel, Upstream};
 
 const SERVERS_HEADER: &str = "X-MCP-Servers";
 const HEADERS_HEADER: &str = "X-MCP-Headers";
+/// Typed laboratory marker: JSON `{url: Laboratory}`. The authoritative
+/// signal for which upstreams are laboratories — the proxy must NOT infer
+/// laboratory-ness by string-parsing the `ws://laboratory/{id}` URL. An
+/// upstream whose URL appears here is a laboratory, with its id taken from
+/// the typed value (never the URL path).
+const LABORATORIES_HEADER: &str = "X-MCP-Laboratories";
 /// Per-request header: when present on a `tools/list` or
 /// `resources/list` POST, restricts the fan-out to the single upstream
 /// whose URL matches verbatim. Absent → fan out to every upstream
@@ -27,6 +35,10 @@ struct UpstreamSpec {
     /// inserted by the connect-time logic and is not part of the
     /// caller-supplied set.
     headers: IndexMap<String, String>,
+    /// Typed laboratory identity, from `X-MCP-Laboratories`. `Some` ⇒ the
+    /// proxy treats this upstream as a laboratory (id taken from here, not
+    /// from the URL).
+    laboratory: Option<Laboratory>,
 }
 
 /// Why parsing the two custom session-init headers failed, or why an
@@ -134,8 +146,15 @@ pub async fn connect_all_fresh(
             for (k, v) in transient {
                 headers.entry(k).or_insert(v);
             }
-            let upstream =
-                connect_upstream(client, reverse_channel, &url, session_id, headers).await?;
+            let upstream = connect_upstream(
+                client,
+                reverse_channel,
+                &url,
+                session_id,
+                headers,
+                spec.laboratory,
+            )
+            .await?;
             // Health probe: the upstream must list both its tools and its
             // resources before we count it as connected. Run concurrently;
             // `try_join!` short-circuits on the first failure. `list_tools` /
@@ -171,8 +190,17 @@ async fn connect_upstream(
     url: &str,
     session_id: Option<String>,
     mut headers: IndexMap<String, String>,
+    laboratory: Option<Laboratory>,
 ) -> Result<Upstream, BadInit> {
-    if let Some(mcp_kind) = crate::reverse_channel::parse_ws_mcp_kind(url) {
+    // Laboratory identity is authoritative from the explicit
+    // `X-MCP-Laboratories` marker — its typed id drives `McpKind`, never
+    // a parse of the URL path. Everything else falls back to URL-derived
+    // kinds (objectiveai / plugin) or plain HTTP.
+    let ws_kind = match &laboratory {
+        Some(Laboratory::Client(c)) => Some(McpKind::Laboratory { id: c.id.clone() }),
+        None => crate::reverse_channel::parse_ws_mcp_kind(url),
+    };
+    if let Some(mcp_kind) = ws_kind {
         let channel = reverse_channel.cloned().ok_or_else(|| {
             BadInit::UpstreamConnectFailed {
                 url: url.to_string(),
@@ -203,6 +231,7 @@ async fn connect_upstream(
             mcp_kind,
             args,
             headers,
+            laboratory,
         )
         .await
         .map_err(|source| BadInit::UpstreamConnectFailed {
@@ -248,6 +277,22 @@ fn parse_init_headers(
             None => IndexMap::new(),
         };
 
+    // Typed laboratory marker, keyed by upstream URL. The authoritative
+    // source for laboratory identity — joined to each spec by URL below.
+    let mut laboratories: IndexMap<String, Laboratory> =
+        match http_headers.get(LABORATORIES_HEADER) {
+            Some(v) => {
+                let s = v
+                    .to_str()
+                    .map_err(|_| BadInit::NotUtf8 { header: LABORATORIES_HEADER })?;
+                serde_json::from_str(s).map_err(|source| BadInit::NotJson {
+                    header: LABORATORIES_HEADER,
+                    source,
+                })?
+            }
+            None => IndexMap::new(),
+        };
+
     // Strip the session-global transient keys from every per-URL bag.
     // These keys live on `Session::transient_headers` (in-memory only)
     // and re-stamp on every outbound request via the SDK's
@@ -272,7 +317,12 @@ fn parse_init_headers(
         }
 
         let headers = per_url_headers.shift_remove(&url).unwrap_or_default();
-        specs.push(UpstreamSpec { url, headers });
+        let laboratory = laboratories.shift_remove(&url);
+        specs.push(UpstreamSpec {
+            url,
+            headers,
+            laboratory,
+        });
     }
 
     Ok(specs)
