@@ -7,5 +7,6 @@
 mod bash;
 mod run;
 mod tools;
+mod transfer;
 
 pub use run::*;

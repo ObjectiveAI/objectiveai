@@ -127,8 +127,13 @@ pub async fn setup(config: Config) -> std::io::Result<(tokio::net::TcpListener, 
     // axum 0.8 removed nest_service at "/"; fallback_service mounts the
     // service at the root catch-all without the path-prefix-stripping
     // semantics nest_service had (which we never needed since the rmcp
-    // service handles every path it cares about itself).
-    let router = axum::Router::new().fallback_service(service);
+    // service handles every path it cares about itself). The explicit
+    // `/export` + `/import` routes (laboratory→laboratory file transfer)
+    // take precedence over the fallback; the MCP itself lives at `/`.
+    let router = axum::Router::new()
+        .route("/export", axum::routing::get(crate::transfer::export))
+        .route("/import", axum::routing::post(crate::transfer::import))
+        .fallback_service(service);
     let listener = tokio::net::TcpListener::bind(format!("{address}:{port}")).await?;
 
     Ok((listener, router))
