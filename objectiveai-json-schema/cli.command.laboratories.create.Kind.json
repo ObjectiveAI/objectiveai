@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.laboratories.create.Kind",
+  "description": "Which side of the conduit the laboratory serves. Only `Client` (a\nclient-side MCP server the conduit dials) exists today; the tag-by-`by`\nshape leaves room to add `Server` later.",
+  "type": "object",
+  "properties": {
+    "by": {
+      "type": "string",
+      "enum": [
+        "client"
+      ]
+    }
+  }
+}

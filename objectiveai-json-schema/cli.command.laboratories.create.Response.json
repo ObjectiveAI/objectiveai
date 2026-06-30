@@ -1,0 +1,28 @@
+{
+  "title": "cli.command.laboratories.create.Response",
+  "description": "Echo of the created laboratory.",
+  "type": "object",
+  "properties": {
+    "cwd": {
+      "type": "string"
+    },
+    "env": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.EnvVar"
+      }
+    },
+    "id": {
+      "type": "string"
+    },
+    "image": {
+      "type": "string"
+    },
+    "mounts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.laboratories.create.Mount"
+      }
+    }
+  }
+}

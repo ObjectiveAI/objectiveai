@@ -36,7 +36,8 @@
         {
           "type": "null"
         }
-      ]
+      ],
+      "omitempty": true
     },
     "params": {
       "$ref": "mcp.tool.ListToolsRequest"
