@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.mcp.servers.list.response_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/mcp/servers/list/response_schema"
+  ]
+}

@@ -6,6 +6,10 @@
       "$ref": "cli.command.agents.mcp.resources.Request"
     },
     {
+      "title": "Servers",
+      "$ref": "cli.command.agents.mcp.servers.Request"
+    },
+    {
       "title": "Tools",
       "$ref": "cli.command.agents.mcp.tools.Request"
     }

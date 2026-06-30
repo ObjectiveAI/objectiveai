@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.agents.mcp.servers.Request",
+  "anyOf": [
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.mcp.servers.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.mcp.servers.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.mcp.servers.list.response_schema.Request"
+    }
+  ]
+}
