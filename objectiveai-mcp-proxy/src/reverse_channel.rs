@@ -540,6 +540,32 @@ impl Upstream {
         }
     }
 
+    /// The laboratory this upstream IS, if any — for `servers/list`.
+    ///
+    /// Gated on the actual transport + kind signal, not on a blanket "is
+    /// this a laboratory?": only a websocket upstream whose `McpKind` is
+    /// `Laboratory` is a client laboratory today. HTTP upstreams and
+    /// non-laboratory websocket kinds (the primary `objectiveai` MCP,
+    /// plugins) are `None`. Future laboratory variants get their own arm
+    /// here — the per-`McpKind` match is exhaustive, so adding an `McpKind`
+    /// forces a decision rather than defaulting to `Client`.
+    pub fn laboratory(&self) -> Option<objectiveai_sdk::laboratories::Laboratory> {
+        match self {
+            Upstream::Http(_) => None,
+            Upstream::Ws(w) => match &w.mcp_kind {
+                McpKind::Laboratory { id } => {
+                    Some(objectiveai_sdk::laboratories::Laboratory::Client(
+                        objectiveai_sdk::laboratories::ClientLaboratory {
+                            r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+                            id: id.clone(),
+                        },
+                    ))
+                }
+                McpKind::ObjectiveAi | McpKind::Plugin { .. } => None,
+            },
+        }
+    }
+
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
         match self {
             Upstream::Http(c) => c.list_tools().await,

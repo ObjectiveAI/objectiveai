@@ -25,4 +25,10 @@ pub struct Server {
     /// The server's `initialize` response: capabilities, `server_info`
     /// (name, version, title, description), instructions, protocol version.
     pub initialize_result: super::initialize_result::InitializeResult,
+    /// Set only when this upstream is genuinely a laboratory — i.e. a
+    /// client (websocket) laboratory today. Non-laboratory servers (plain
+    /// HTTP, the primary `objectiveai` MCP, plugins) leave this `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub laboratory: Option<crate::laboratories::Laboratory>,
 }

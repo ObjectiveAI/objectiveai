@@ -274,6 +274,7 @@ impl Session {
                 name: prefix.clone(),
                 url: up.url().to_string(),
                 initialize_result: up.initialize_result().clone(),
+                laboratory: up.laboratory(),
             })
             .collect();
         servers.sort_by(|a, b| a.name.cmp(&b.name));
