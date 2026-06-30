@@ -6,40 +6,16 @@ steps:
       - "update"
       - "--init"
       - "--recursive"
-  # build image
+  # build image — ONLY public NEXT_PUBLIC_* build args (no secrets in image or logs)
   - name: "gcr.io/cloud-builders/docker"
     args:
       - "build"
       - "--build-arg"
-      - "AUTH_GOOGLE_CLIENT_ID=$_AUTH_GOOGLE_CLIENT_ID"
-      - "--build-arg"
-      - "AUTH_GOOGLE_CLIENT_SECRET=$_AUTH_GOOGLE_CLIENT_SECRET"
-      - "--build-arg"
-      - "AUTH_GITHUB_CLIENT_ID=$_AUTH_GITHUB_CLIENT_ID"
-      - "--build-arg"
-      - "AUTH_GITHUB_CLIENT_SECRET=$_AUTH_GITHUB_CLIENT_SECRET"
-      - "--build-arg"
-      - "AUTH_TWITTER_CLIENT_ID=$_AUTH_TWITTER_CLIENT_ID"
-      - "--build-arg"
-      - "AUTH_TWITTER_CLIENT_SECRET=$_AUTH_TWITTER_CLIENT_SECRET"
-      - "--build-arg"
-      - "AUTH_REDDIT_CLIENT_ID=$_AUTH_REDDIT_CLIENT_ID"
-      - "--build-arg"
-      - "AUTH_REDDIT_CLIENT_SECRET=$_AUTH_REDDIT_CLIENT_SECRET"
-      - "--build-arg"
-      - "NEXTAUTH_URL=https://objectiveai.dev"
-      - "--build-arg"
-      - "NEXTAUTH_SECRET=$_NEXTAUTH_SECRET"
-      - "--build-arg"
       - "NEXT_PUBLIC_API_URL=https://api.objectiveai.dev"
       - "--build-arg"
-      - "NODE_ENV=$_NODE_ENV"
+      - "NODE_ENV=production"
       - "--build-arg"
       - "NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=$_NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY"
-      - "--build-arg"
-      - "IP_RSA_PUBLIC_KEY=$_IP_RSA_PUBLIC_KEY"
-      - "--build-arg"
-      - "USER_IP_HEADER=$_USER_IP_HEADER"
       - "--build-arg"
       - "NEXT_PUBLIC_SONARLY_PROJECT_KEY=$_NEXT_PUBLIC_SONARLY_PROJECT_KEY"
       - "--build-arg"
@@ -54,7 +30,7 @@ steps:
     args:
       - "push"
       - "us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"
-  # deploy to Cloud Run
+  # deploy to Cloud Run — server config as runtime env, secrets from Secret Manager
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
     entrypoint: "gcloud"
     args:
@@ -66,10 +42,16 @@ steps:
       - "--region"
       - "us-central1"
       - "--allow-unauthenticated"
+      - "--set-env-vars"
+      - "NEXTAUTH_URL=https://objectiveai.dev,NODE_ENV=production,USER_IP_HEADER=x-forwarded-for,AUTH_GOOGLE_CLIENT_ID=$_AUTH_GOOGLE_CLIENT_ID,AUTH_GITHUB_CLIENT_ID=$_AUTH_GITHUB_CLIENT_ID,AUTH_TWITTER_CLIENT_ID=$_AUTH_TWITTER_CLIENT_ID,AUTH_REDDIT_CLIENT_ID=$_AUTH_REDDIT_CLIENT_ID"
+      - "--set-secrets"
+      - "AUTH_GOOGLE_CLIENT_SECRET=auth-google-client-secret:latest,AUTH_GITHUB_CLIENT_SECRET=auth-github-client-secret:latest,AUTH_TWITTER_CLIENT_SECRET=auth-twitter-client-secret:latest,AUTH_REDDIT_CLIENT_SECRET=auth-reddit-client-secret:latest,NEXTAUTH_SECRET=nextauth-secret:latest,IP_RSA_PUBLIC_KEY=ip-rsa-public-key:latest"
 images: ["us-docker.pkg.dev/$PROJECT_ID/objectiveai/objectiveai-web:latest"]
 timeout: "2100s"
 options:
   logging: "CLOUD_LOGGING_ONLY"
-  # the two domains above are now hardcoded; tolerate the now-unused
-  # _NEXTAUTH_URL / _NEXT_PUBLIC_API_URL trigger substitutions
+  # client IDs / NEXT_PUBLIC_* stay as trigger substitutions; the former
+  # secret substitutions (_AUTH_*_CLIENT_SECRET, _NEXTAUTH_SECRET, etc.) are
+  # no longer referenced — ALLOW_LOOSE tolerates them until they're removed
+  # from the trigger.
   substitution_option: "ALLOW_LOOSE"
