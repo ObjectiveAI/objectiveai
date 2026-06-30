@@ -83,7 +83,7 @@ function extractData(chunk: Chunk | null): {
   if (!chunk) return { votes: [], scores: [], weights: [] };
 
   const votes: DisplayVote[] = (chunk.votes ?? []).map((v) => ({
-    model: v.agent,
+    model: v.agent_full_id,
     vote: v.vote,
     weight: v.weight,
   }));
