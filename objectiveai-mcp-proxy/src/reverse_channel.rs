@@ -566,6 +566,30 @@ impl Upstream {
         }
     }
 
+    /// The plugin this upstream IS, if any — for `servers/list`. Same
+    /// transport+kind gating as [`Self::laboratory`]: only a websocket
+    /// upstream whose `McpKind` is `Plugin` maps to a [`Plugin`]; HTTP and
+    /// non-plugin websocket kinds are `None`.
+    pub fn plugin(&self) -> Option<objectiveai_sdk::mcp::server::Plugin> {
+        match self {
+            Upstream::Http(_) => None,
+            Upstream::Ws(w) => match &w.mcp_kind {
+                McpKind::Plugin {
+                    owner,
+                    name,
+                    version,
+                    mcp,
+                } => Some(objectiveai_sdk::mcp::server::Plugin {
+                    owner: owner.clone(),
+                    name: name.clone(),
+                    version: version.clone(),
+                    mcp: mcp.clone(),
+                }),
+                McpKind::ObjectiveAi | McpKind::Laboratory { .. } => None,
+            },
+        }
+    }
+
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
         match self {
             Upstream::Http(c) => c.list_tools().await,

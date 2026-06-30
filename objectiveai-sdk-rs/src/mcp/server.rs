@@ -31,4 +31,21 @@ pub struct Server {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub laboratory: Option<crate::laboratories::Laboratory>,
+    /// Set only when this upstream is a plugin-hosted MCP server. Other
+    /// servers (plain HTTP, the primary `objectiveai` MCP, laboratories)
+    /// leave this `None`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub plugin: Option<Plugin>,
+}
+
+/// A plugin-hosted MCP server's identity — the four coordinates that name
+/// a plugin's MCP (mirrors `McpKind::Plugin`).
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[schemars(rename = "mcp.Plugin")]
+pub struct Plugin {
+    pub owner: String,
+    pub name: String,
+    pub version: String,
+    pub mcp: String,
 }
