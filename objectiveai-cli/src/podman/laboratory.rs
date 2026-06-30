@@ -46,6 +46,13 @@ pub struct Mount {
     pub container: String,
 }
 
+/// Default working directory new agents start in, when `create` is called
+/// without an explicit cwd and for old containers whose label predates the
+/// field.
+fn default_cwd() -> String {
+    "/".to_string()
+}
+
 /// A laboratory container as read back by [`list`], reconstructed from its
 /// `objectiveai.laboratory` label. Mirrors the `create` echo.
 pub struct LaboratoryInfo {
@@ -53,6 +60,7 @@ pub struct LaboratoryInfo {
     pub image: String,
     pub mounts: Vec<Mount>,
     pub env: Vec<(String, String)>,
+    pub cwd: String,
 }
 
 /// The `objectiveai.laboratory` container label — the authoritative round-trip
@@ -65,6 +73,10 @@ struct Label {
     image: String,
     mounts: Vec<LabelMount>,
     env: Vec<[String; 2]>,
+    /// Default working directory for new agents. `#[serde(default)]` so
+    /// containers created before this field round-trip in [`list`] as `/`.
+    #[serde(default = "default_cwd")]
+    cwd: String,
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -80,15 +92,17 @@ struct LabelMount {
 /// The container is named [`container_name`]`(state, id)`, publishes its fixed
 /// internal [`LAB_PORT`] to a random `127.0.0.1` host port (looked up later by
 /// [`host_port`]), forces `PORT=14978` (appended after the user's env so it
-/// wins), records its spec in the `objectiveai.laboratory` label, and overrides
-/// the entrypoint to the injected MCP binary so that when started the container
-/// lifetime == MCP lifetime.
+/// wins), bakes in the default working directory new agents start in
+/// (`OBJECTIVEAI_LABORATORY_CWD=<cwd>`), records its spec in the
+/// `objectiveai.laboratory` label, and overrides the entrypoint to the injected
+/// MCP binary so that when started the container lifetime == MCP lifetime.
 pub async fn create(
     ctx: &Context,
     id: &str,
     image: &str,
     mounts: &[Mount],
     env: &[(String, String)],
+    cwd: &str,
 ) -> Result<(), Error> {
     let exe = ctx.podman().await?;
     let state = ctx.filesystem.state();
@@ -105,6 +119,7 @@ pub async fn create(
             })
             .collect(),
         env: env.iter().map(|(k, v)| [k.clone(), v.clone()]).collect(),
+        cwd: cwd.to_string(),
     };
     let label_json = serde_json::to_string(&label)
         .map_err(|e| Error::Podman(format!("serialize laboratory label: {e}")))?;
@@ -133,6 +148,11 @@ pub async fn create(
     create_cmd
         .arg("-e")
         .arg(format!("OBJECTIVEAI_LABORATORY_ID={id}"));
+    // The default working directory new agents start in. Appended after the
+    // user's env so it wins.
+    create_cmd
+        .arg("-e")
+        .arg(format!("OBJECTIVEAI_LABORATORY_CWD={cwd}"));
     create_cmd
         .arg("--label")
         .arg(format!("objectiveai.laboratory={label_json}"))
@@ -286,6 +306,7 @@ pub async fn list(ctx: &Context) -> Result<Vec<LaboratoryInfo>, Error> {
                 })
                 .collect(),
             env: label.env.into_iter().map(|[k, v]| (k, v)).collect(),
+            cwd: label.cwd,
         });
     }
     Ok(labs)

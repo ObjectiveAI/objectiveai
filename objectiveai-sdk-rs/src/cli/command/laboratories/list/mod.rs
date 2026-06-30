@@ -2,7 +2,7 @@
 //! state (podman containers the conduit dials as client-side MCP servers).
 //! Read-only; reads back from podman (the source of truth). `--client` is
 //! required (a required arg-group, leaving room to add `--server` later).
-//! Each item echoes a laboratory's spec: `{ id, image, mounts, env }`.
+//! Each item echoes a laboratory's spec: `{ id, image, mounts, env, cwd }`.
 
 use crate::cli::command::CommandRequest;
 
@@ -33,7 +33,7 @@ impl CommandRequest for Request {
 }
 
 /// One laboratory container, reconstructed from its `objectiveai.laboratory`
-/// label. Mirrors the `create` echo: `{ id, image, mounts, env }`.
+/// label. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.list.ResponseItem")]
 pub struct ResponseItem {
@@ -41,6 +41,7 @@ pub struct ResponseItem {
     pub image: String,
     pub mounts: Vec<super::create::Mount>,
     pub env: Vec<super::create::EnvVar>,
+    pub cwd: String,
 }
 
 #[derive(clap::Args)]

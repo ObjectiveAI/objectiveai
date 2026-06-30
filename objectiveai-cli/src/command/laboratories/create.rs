@@ -29,13 +29,22 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         .map(|e| (e.key.clone(), e.value.clone()))
         .collect();
 
-    laboratory::create(ctx, &request.id, &request.image, &podman_mounts, &env).await?;
+    laboratory::create(
+        ctx,
+        &request.id,
+        &request.image,
+        &podman_mounts,
+        &env,
+        &request.cwd,
+    )
+    .await?;
 
     Ok(Response {
         id: request.id,
         image: request.image,
         mounts: request.mounts,
         env: request.env,
+        cwd: request.cwd,
     })
 }
 

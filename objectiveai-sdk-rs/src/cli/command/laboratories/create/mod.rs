@@ -10,6 +10,12 @@ use std::str::FromStr;
 use crate::cli::command::CommandRequest;
 use crate::cli::command::path_ref::tokenize;
 
+/// Default working directory new agents start in, when `--cwd` is omitted (and
+/// `#[serde(default)]` for older clients that don't send the field).
+fn default_cwd() -> String {
+    "/".to_string()
+}
+
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.laboratories.create.Request")]
 pub struct Request {
@@ -19,6 +25,9 @@ pub struct Request {
     pub image: String,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
+    /// Default working directory new agents start in; defaults to `/`.
+    #[serde(default = "default_cwd")]
+    pub cwd: String,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -114,6 +123,7 @@ pub struct Response {
     pub image: String,
     pub mounts: Vec<Mount>,
     pub env: Vec<EnvVar>,
+    pub cwd: String,
 }
 
 #[derive(clap::Args)]
@@ -139,6 +149,9 @@ pub struct Args {
     /// Repeatable `--env KEY=VALUE` environment entry.
     #[arg(long = "env")]
     pub env: Vec<String>,
+    /// Default working directory new agents start in; defaults to `/`.
+    #[arg(long)]
+    pub cwd: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -194,6 +207,7 @@ impl TryFrom<Args> for Request {
                     .map_err(|m| crate::cli::command::FromArgsError::path_parse("env", m))
             })
             .collect::<Result<Vec<_>, _>>()?;
+        let cwd = args.cwd.unwrap_or_else(default_cwd);
         Ok(Self {
             path_type: Path::LaboratoriesCreate,
             kind: Kind::Client,
@@ -201,6 +215,7 @@ impl TryFrom<Args> for Request {
             image,
             mounts,
             env,
+            cwd,
             base: args.base.into(),
         })
     }

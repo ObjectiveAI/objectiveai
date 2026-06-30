@@ -42,6 +42,7 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
                             .into_iter()
                             .map(|(key, value)| EnvVar { key, value })
                             .collect(),
+                        cwd: lab.cwd,
                     });
                 }
             }
