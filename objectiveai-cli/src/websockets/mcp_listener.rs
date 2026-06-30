@@ -59,6 +59,10 @@ pub enum SocketRequest {
     ListResources(mcp::resource::ListResourcesRequest),
     #[serde(rename = "resources/read")]
     ReadResource(mcp::resource::ReadResourceRequestParams),
+    /// List the proxy's connected upstream MCP servers + metadata. A
+    /// proxy-local aggregate with no MCP params — a unit variant.
+    #[serde(rename = "servers/list")]
+    ListServers,
 }
 
 /// The reply written back on the socket: `{type, value}`. On success
@@ -221,6 +225,9 @@ async fn handle_conn(
         }
         Ok(SocketRequest::ReadResource(params)) => {
             render(notifier.read_resource(response_id, params).await)
+        }
+        Ok(SocketRequest::ListServers) => {
+            render(notifier.list_servers(response_id).await)
         }
         Err(e) => err_line(format!("malformed request: {e}")),
     };
