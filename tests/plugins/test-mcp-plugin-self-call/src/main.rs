@@ -24,6 +24,7 @@ use std::io::Write;
 
 use objectiveai_sdk::cli::command::agents::mcp::resources::list as resources_list;
 use objectiveai_sdk::cli::command::agents::mcp::resources::read as resources_read;
+use objectiveai_sdk::cli::command::agents::mcp::servers::list as servers_list;
 use objectiveai_sdk::cli::command::agents::mcp::tools::call as tools_call;
 use objectiveai_sdk::cli::command::agents::mcp::tools::list as tools_list;
 use objectiveai_sdk::cli::command::plugin::PluginExecutor;
@@ -59,6 +60,13 @@ const RESOURCE_TEXT: &str = "resource hello world";
 /// Empty tool input — these tools take no parameters of their own.
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct NoArgs {}
+
+/// Input for `do_tools_named`: the server name (routing prefix) to scope
+/// the `agents mcp tools list --name` to.
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct NameArg {
+    name: String,
+}
 
 /// Read `X-OBJECTIVEAI-RESPONSE-ID` off the inbound request headers.
 fn response_id(parts: &http::request::Parts) -> String {
@@ -97,6 +105,7 @@ async fn op_list_tools(exec: &PluginExecutor, response_id: String) -> String {
         path_type: tools_list::Path::AgentsMcpToolsList,
         response_id,
         params,
+        name: None,
         base: Default::default(),
     };
     match tools_list::execute(exec, req, None).await {
@@ -114,6 +123,7 @@ async fn op_list_resources(exec: &PluginExecutor, response_id: String) -> String
         path_type: resources_list::Path::AgentsMcpResourcesList,
         response_id,
         params,
+        name: None,
         base: Default::default(),
     };
     match resources_list::execute(exec, req, None).await {
@@ -133,6 +143,7 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
         path_type: resources_list::Path::AgentsMcpResourcesList,
         response_id: response_id.clone(),
         params: lparams,
+        name: None,
         base: Default::default(),
     };
     let list = match resources_list::execute(exec, lreq, None).await {
@@ -157,6 +168,38 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
             serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
         }
         Err(e) => format!("executor error (read): {e}"),
+    }
+}
+
+async fn op_list_servers(exec: &PluginExecutor, response_id: String) -> String {
+    let req = servers_list::Request {
+        path_type: servers_list::Path::AgentsMcpServersList,
+        response_id,
+        base: Default::default(),
+    };
+    match servers_list::execute(exec, req, None).await {
+        Ok(result) => {
+            serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
+        }
+        Err(e) => format!("executor error: {e}"),
+    }
+}
+
+async fn op_tools_list_named(exec: &PluginExecutor, response_id: String, name: String) -> String {
+    let params: objectiveai_sdk::mcp::tool::ListToolsRequest =
+        serde_json::from_value(serde_json::json!({})).expect("list-tools params");
+    let req = tools_list::Request {
+        path_type: tools_list::Path::AgentsMcpToolsList,
+        response_id,
+        params,
+        name: Some(name),
+        base: Default::default(),
+    };
+    match tools_list::execute(exec, req, None).await {
+        Ok(result) => {
+            serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
+        }
+        Err(e) => format!("executor error: {e}"),
     }
 }
 
@@ -352,6 +395,49 @@ impl ServerHandler for ReadResource {
     }
 }
 
+// --- surface: lab-driver -----------------------------------------------
+
+#[derive(Clone)]
+struct LabDriver {
+    tool_router: ToolRouter<Self>,
+    exec: PluginExecutor,
+}
+
+#[tool_router]
+impl LabDriver {
+    fn new(exec: PluginExecutor) -> Self {
+        Self { tool_router: Self::tool_router(), exec }
+    }
+
+    #[tool(name = "do_servers_list", description = "Return agents mcp servers list output.")]
+    async fn do_servers_list(
+        &self,
+        Parameters(_): Parameters<NoArgs>,
+        Extension(parts): Extension<http::request::Parts>,
+    ) -> String {
+        op_list_servers(&self.exec, response_id(&parts)).await
+    }
+
+    #[tool(
+        name = "do_tools_named",
+        description = "Return agents mcp tools list output scoped to one server (--name)."
+    )]
+    async fn do_tools_named(
+        &self,
+        Parameters(arg): Parameters<NameArg>,
+        Extension(parts): Extension<http::request::Parts>,
+    ) -> String {
+        op_tools_list_named(&self.exec, response_id(&parts), arg.name).await
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for LabDriver {
+    fn get_info(&self) -> ServerInfo {
+        server_info(false)
+    }
+}
+
 // --- launch ------------------------------------------------------------
 
 fn http_config() -> StreamableHttpServerConfig {
@@ -423,6 +509,10 @@ async fn main() -> std::io::Result<()> {
         "read-resource" => {
             let e = exec.clone();
             run_server(listener, move || ReadResource::new(e.clone())).await
+        }
+        "lab-driver" => {
+            let e = exec.clone();
+            run_server(listener, move || LabDriver::new(e.clone())).await
         }
         other => {
             eprintln!("unknown mcp server name: {other}");
