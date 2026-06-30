@@ -122,10 +122,10 @@ function extractDisplayData(chunk: Chunk | null): {
 
   for (const task of chunk.tasks) {
     if (!("votes" in task) || !("scores" in task) || !("weights" in task)) continue;
-    const vcTask = task as { votes: Array<{ agent: string; vote: number[]; weight: number }>; scores: number[]; weights: number[] };
+    const vcTask = task as { votes: Array<{ agent_full_id: string; vote: number[]; weight: number }>; scores: number[]; weights: number[] };
     if (!Array.isArray(vcTask.votes) || !Array.isArray(vcTask.scores) || !Array.isArray(vcTask.weights)) continue;
     const votes: DisplayVote[] = vcTask.votes.map((v) => ({
-      agent: v.agent,
+      agent: v.agent_full_id,
       vote: v.vote,
       weight: v.weight,
     }));
@@ -146,7 +146,7 @@ function toJudgmentExecution(chunk: Chunk | null): JudgmentExecution | null {
     tasks: chunk.tasks.map((task, i) => {
       if ("votes" in task && "scores" in task) {
         const vcTask = task as {
-          votes: Array<{ agent: string; vote: number[]; weight: number; from_cache?: boolean; from_rng?: boolean }>;
+          votes: Array<{ agent_full_id: string; vote: number[]; weight: number; from_cache?: boolean; from_rng?: boolean }>;
           scores: number[];
           completions?: Array<Record<string, unknown>>;
         };
@@ -154,7 +154,7 @@ function toJudgmentExecution(chunk: Chunk | null): JudgmentExecution | null {
         return {
           task_path: [i],
           votes: vcTask.votes.map((v) => ({
-            model: v.agent,
+            model: v.agent_full_id,
             vote: v.vote,
             weight: v.weight,
             from_cache: v.from_cache,
