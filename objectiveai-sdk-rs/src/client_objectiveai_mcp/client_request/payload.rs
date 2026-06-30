@@ -33,6 +33,10 @@ pub enum Payload {
     #[schemars(title = "ListTools")]
     ListTools {
         response_id: String,
+        /// Restrict the listing to the single server with this name (the
+        /// proxy's routing prefix). `None` fans out to every upstream.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::tool::ListToolsRequest,
     },
@@ -51,6 +55,10 @@ pub enum Payload {
     #[schemars(title = "ListResources")]
     ListResources {
         response_id: String,
+        /// Restrict the listing to the single server with this name (the
+        /// proxy's routing prefix). `None` fans out to every upstream.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::resource::ListResourcesRequest,
     },

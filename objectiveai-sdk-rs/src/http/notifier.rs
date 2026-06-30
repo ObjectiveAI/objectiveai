@@ -100,6 +100,7 @@ impl Notifier {
     pub async fn list_tools(
         &self,
         response_id: String,
+        name: Option<String>,
         params: crate::mcp::tool::ListToolsRequest,
     ) -> Result<
         server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>,
@@ -108,6 +109,7 @@ impl Notifier {
         match self
             .send_raw(client_request::Payload::ListTools {
                 response_id,
+                name,
                 params,
             })
             .await?
@@ -146,6 +148,7 @@ impl Notifier {
     pub async fn list_resources(
         &self,
         response_id: String,
+        name: Option<String>,
         params: crate::mcp::resource::ListResourcesRequest,
     ) -> Result<
         server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>,
@@ -154,6 +157,7 @@ impl Notifier {
         match self
             .send_raw(client_request::Payload::ListResources {
                 response_id,
+                name,
                 params,
             })
             .await?

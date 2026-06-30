@@ -11,6 +11,11 @@ pub struct Request {
     pub path_type: Path,
     pub response_id: String,
     pub params: crate::mcp::tool::ListToolsRequest,
+    /// Restrict the listing to the single server with this name (the
+    /// routing prefix `agents mcp servers list` reports). `None` lists
+    /// every server.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -46,6 +51,10 @@ pub struct Args {
     /// `{"cursor":"..."}`.
     #[arg(long)]
     pub params: Option<String>,
+    /// Restrict the listing to the single server with this name (the
+    /// routing prefix from `agents mcp servers list`). Omit to list all.
+    #[arg(long)]
+    pub name: Option<String>,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -94,6 +103,7 @@ impl TryFrom<Args> for Request {
             path_type: Path::AgentsMcpToolsList,
             response_id,
             params,
+            name: args.name,
             base: args.base.into(),
         })
     }
