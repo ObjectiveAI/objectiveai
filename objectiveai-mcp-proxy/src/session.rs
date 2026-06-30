@@ -268,7 +268,13 @@ impl Session {
         // Proxy-native `laboratory_transfer` — visible only when listing the
         // full surface (not a per-server filtered view) and the session has
         // 2+ laboratories to move files between.
-        if filter_url.is_none()
+        //
+        // SHELVED: the lab→lab transfer path is not yet reliable (the conduit
+        // splice hangs end to end), so the tool is intentionally not advertised
+        // for now. The implementation below is kept intact — drop the `false &&`
+        // to re-enable once the transfer path is fixed.
+        if false
+            && filter_url.is_none()
             && filter_name.is_none()
             && self.laboratory_count() >= 2
         {
