@@ -54,21 +54,21 @@
         "refusal": null
       },
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 525,
+        "prompt_tokens": 47,
+        "total_tokens": 572,
         "cost": 0.0,
         "total_cost": 0.0,
-        "cost_multiplier": 0.0,
+        "cost_multiplier": 1.0,
         "is_byok": false
       }
     }
   ],
   "object": "agent.completion",
   "usage": {
-    "completion_tokens": 0,
-    "prompt_tokens": 0,
-    "total_tokens": 0,
+    "completion_tokens": 525,
+    "prompt_tokens": 47,
+    "total_tokens": 572,
     "cost": 0.0,
     "total_cost": 0.0
   },

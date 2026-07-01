@@ -44,7 +44,7 @@ trait UpstreamClient<AGENT> {
 
 - **OpenRouter:** SSE via `reqwest_eventsource`. Each SSE event is converted 1:1 into an `AgentCompletionChunk` via `into_downstream()`. Accumulates an `AssistantMessage` for continuation state (the only collection — required for tool-call loops).
 - **Claude Agent SDK:** Spawns a `node` subprocess, reads NDJSON lines from stdout. Each `SDKMessage` is converted to `AgentCompletionChunk`. Unknown message types are silently skipped (forward-compatible).
-- **Mock:** Generates random responses from a seeded RNG. Yields pre-computed chunks one by one with optional delay. Usage is always `None`.
+- **Mock:** Generates random responses from a seeded RNG. Yields pre-computed chunks one by one with optional delay, then a terminal usage-only chunk (like the real upstreams): `prompt_tokens` = JSON length of the incoming message array, `completion_tokens` = JSON length of the aggregated response state. Deterministic (test-only; the API crate has no tokenizer).
 
 ### Agent Completions Client (Layer 2)
 
