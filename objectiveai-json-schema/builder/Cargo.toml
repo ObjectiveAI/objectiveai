@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-json-schema-builder"
-version = "2.2.7"
+version = "2.2.8"
 edition = "2024"
 
 [dependencies]
