@@ -158,7 +158,7 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         mcp_connection: Option<objectiveai_sdk::mcp::Connection>,
         continuation: Option<&[ContinuationItem<Self::State>]>,
         byok: Option<&str>,
-        _cost_multiplier: rust_decimal::Decimal,
+        cost_multiplier: rust_decimal::Decimal,
         tools_enabled: bool,
         agent_instance_hierarchy: &str,
         agent_id_arg: &str,
@@ -183,6 +183,9 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
         let response_format = resolve_response_format(&agent.id, params);
         let params_seed = params.seed;
         let delay = self.delay;
+        // `byok` is a non-'static borrow; capture only the bool so the
+        // 'static async move can carry it onto the usage trailer.
+        let is_byok = byok.is_some();
         // Build the full message list: request_continuation -> messages -> continuation.
         let rc_len = request_continuation.map_or(0, |rc| rc.messages.len());
         let cont_len = continuation.map_or(0, |c| c.len());
@@ -430,6 +433,29 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                         reasoning,
                     },
                 }
+            };
+
+            // Trivial, deterministic token counts for the usage trailer
+            // (mock is test-only; the API crate has no tokenizer):
+            // prompt = JSON length of the incoming message array (the one
+            // hashed for the seed), completion = JSON length of the
+            // aggregated response (`state`). Serialize by borrow — `state`
+            // is still moved into the terminal `StreamItem::State` below.
+            let prompt_tokens =
+                serde_json::to_string(&all_messages).map(|s| s.len()).unwrap_or(0) as u64;
+            let completion_tokens =
+                serde_json::to_string(&state).map(|s| s.len()).unwrap_or(0) as u64;
+            let usage = objectiveai_sdk::agent::completions::response::UpstreamUsage {
+                completion_tokens,
+                prompt_tokens,
+                total_tokens: prompt_tokens + completion_tokens,
+                completion_tokens_details: None,
+                prompt_tokens_details: None,
+                cost: rust_decimal::Decimal::ZERO,
+                cost_details: None,
+                total_cost: rust_decimal::Decimal::ZERO,
+                cost_multiplier,
+                is_byok,
             };
 
             let stream = async_stream::stream! {
@@ -711,6 +737,38 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                         }
                     }
                 }
+
+                // --- Yield terminal usage chunk ---
+                // Mirrors the real upstreams (codex/claude): one usage-only
+                // trailer per turn. Empty assistant message (no content /
+                // tool_calls / finish_reason — those already streamed), so
+                // it produces no content rows downstream; run_agent_loop
+                // reads `asst.usage` and folds it via push_upstream_usage.
+                if !delay.is_zero() {
+                    tokio::time::sleep(delay).await;
+                }
+                yield StreamItem::Chunk(AgentCompletionChunk {
+                    id: id.clone(),
+                    agent_instance_hierarchy: agent_instance_hierarchy.clone(),
+                    agent_id: agent_id_for_chunks.clone(),
+                    agent_full_id: agent_full_id.clone(),
+                    agent_remote: agent_remote.clone(),
+                    created,
+                    messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
+                        index: assistant_index,
+                        created,
+                        model: "mock".into(),
+                        upstream_id: id.clone(),
+                        usage: Some(usage),
+                        ..Default::default()
+                    })],
+                    object: Default::default(),
+                    usage: None,
+                    upstream: objectiveai_sdk::agent::Upstream::Mock,
+                    error: None,
+                    continuation: None,
+                    messages_queued: None,
+                });
 
                 // --- Yield final state ---
                 yield StreamItem::State(state);
