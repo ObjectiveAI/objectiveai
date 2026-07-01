@@ -127,9 +127,6 @@ async fn tool_result_texts(executor: &Exec, response_id: &str) -> Vec<String> {
         .collect()
 }
 
-// SHELVED: the `laboratory_transfer` tool is disabled (the conduit transfer
-// path hangs end to end). Re-enable alongside the tool once it's fixed.
-#[ignore = "laboratory_transfer feature shelved: transfer path hangs"]
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_between_two_laboratories() {
     let _base = cli_test_util::test_base_dir();
@@ -426,7 +423,6 @@ async fn spawn_lab_session(
 
 /// `laboratory_transfer` of a directory tree (a -> b), nested files
 /// restored cp-style under `<dest>/<basename>`.
-#[ignore = "laboratory_transfer feature shelved: transfer path hangs"]
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_directory_between_laboratories() {
     let _base = cli_test_util::test_base_dir();
@@ -483,7 +479,6 @@ async fn transfer_directory_between_laboratories() {
 
 /// `laboratory_transfer` with an unknown source laboratory id surfaces as
 /// an `isError` tool result (the resolve-by-id failure path).
-#[ignore = "laboratory_transfer feature shelved: transfer path hangs"]
 #[tokio::test(flavor = "multi_thread")]
 async fn transfer_unknown_laboratory_is_error() {
     let _base = cli_test_util::test_base_dir();
@@ -526,7 +521,6 @@ async fn transfer_unknown_laboratory_is_error() {
 /// `laboratory_transfer` is NOT injected when a session has fewer than two
 /// laboratories. Inspect the aggregated tool list (via the plugin's
 /// `list-tools` surface) in a one-lab session.
-#[ignore = "laboratory_transfer feature shelved: transfer path hangs"]
 #[tokio::test(flavor = "multi_thread")]
 async fn laboratory_transfer_absent_with_one_lab() {
     let base = cli_test_util::test_base_dir();
