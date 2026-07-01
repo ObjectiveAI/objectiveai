@@ -11,6 +11,7 @@ use crate::cli::command::CommandRequest;
 pub mod list;
 pub mod open;
 pub mod subscribe;
+pub mod token_usage;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
@@ -20,6 +21,11 @@ pub enum Command {
     List(list::Command),
     /// Subscribe to live updates for the given agents.
     Subscribe(subscribe::Command),
+    /// Per-AIH token-usage snapshot — `subscribe`.
+    TokenUsage {
+        #[command(subcommand)]
+        command: token_usage::Command,
+    },
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -44,6 +50,8 @@ pub enum Request {
     SubscribeRequestSchema(subscribe::request_schema::Request),
     #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Request),
+    #[schemars(title = "TokenUsage")]
+    TokenUsage(token_usage::Request),
 }
 
 // Exempt from json-schema coverage: tier aggregate (see the root
@@ -71,6 +79,8 @@ pub enum ResponseItem {
     SubscribeRequestSchema(subscribe::request_schema::Response),
     #[schemars(title = "SubscribeResponseSchema")]
     SubscribeResponseSchema(subscribe::response_schema::Response),
+    #[schemars(title = "TokenUsage")]
+    TokenUsage(token_usage::ResponseItem),
 }
 
 #[cfg(feature = "mcp")]
@@ -86,6 +96,7 @@ impl crate::cli::command::CommandResponse for ResponseItem {
             ResponseItem::Subscribe(v) => v.into_mcp(),
             ResponseItem::SubscribeRequestSchema(v) => v.into_mcp(),
             ResponseItem::SubscribeResponseSchema(v) => v.into_mcp(),
+            ResponseItem::TokenUsage(v) => v.into_mcp(),
         }
     }
 }
@@ -121,6 +132,9 @@ impl TryFrom<Command> for Request {
                     Request::SubscribeResponseSchema(subscribe::response_schema::Request::try_from(args)?),
                 ),
             },
+            Command::TokenUsage { command } => {
+                Ok(Request::TokenUsage(token_usage::Request::try_from(command)?))
+            }
         }
     }
 }
@@ -137,6 +151,7 @@ impl CommandRequest for Request {
             Request::Subscribe(inner) => inner.request_base(),
             Request::SubscribeRequestSchema(inner) => inner.request_base(),
             Request::SubscribeResponseSchema(inner) => inner.request_base(),
+            Request::TokenUsage(inner) => inner.request_base(),
         }
     }
 
@@ -151,6 +166,7 @@ impl CommandRequest for Request {
             Request::Subscribe(inner) => inner.request_base_mut(),
             Request::SubscribeRequestSchema(inner) => inner.request_base_mut(),
             Request::SubscribeResponseSchema(inner) => inner.request_base_mut(),
+            Request::TokenUsage(inner) => inner.request_base_mut(),
         }
     }
 }
@@ -218,6 +234,10 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 ResponseItem::SubscribeResponseSchema(value),
             )))
         }
+        Request::TokenUsage(req) => {
+            let inner = token_usage::execute(executor, req, agent_arguments).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::TokenUsage)))
+        }
     };
     Ok(stream)
 }
@@ -276,6 +296,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             let value =
                 subscribe::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
             Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
+        }
+        Request::TokenUsage(req) => {
+            let inner = token_usage::execute_transform(executor, req, transform, agent_arguments).await?;
+            Box::pin(inner)
         }
     };
     Ok(stream)

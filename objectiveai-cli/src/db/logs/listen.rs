@@ -34,3 +34,53 @@ pub async fn wait_for_logs_message_at(
         // Different AIH — keep listening.
     }
 }
+
+/// Current most-recent agent-completion `total_tokens` snapshot for an
+/// AIH (`objectiveai.agent_token_usage`). `None` when no usage has been
+/// recorded for that AIH yet.
+pub async fn get_agent_token_usage(
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+) -> Result<Option<i64>, Error> {
+    let total: Option<i64> = sqlx::query_scalar(
+        "SELECT total_tokens FROM objectiveai.agent_token_usage \
+         WHERE agent_instance_hierarchy = $1",
+    )
+    .bind(agent_instance_hierarchy)
+    .fetch_optional(&**pool)
+    .await?;
+    Ok(total)
+}
+
+/// Block until this AIH's stored `total_tokens` differs from
+/// `baseline`, returning the new value.
+///
+/// Attaches the `agent_token_usage_changed` listener BEFORE the first
+/// read, so a write that lands between the caller's baseline read and
+/// this call is still observed (the post-attach re-read catches it) —
+/// no lost wakeup. A real change is always `Some` (rows are never
+/// deleted), so any difference from `baseline` yields the new value;
+/// same-value overwrites (the writer's upsert fires the trigger even
+/// when the number is unchanged) compare equal and keep waiting.
+pub async fn wait_for_token_usage_change(
+    pool: &Pool,
+    target_aih: &str,
+    baseline: Option<i64>,
+) -> Result<i64, Error> {
+    let mut listener = PgListener::connect_with(&**pool).await?;
+    listener.listen("agent_token_usage_changed").await?;
+    loop {
+        if let Some(total) = get_agent_token_usage(pool, target_aih).await? {
+            if Some(total) != baseline {
+                return Ok(total);
+            }
+        }
+        // No change yet — wait for the next notification for our AIH.
+        loop {
+            let notification = listener.recv().await?;
+            if notification.payload() == target_aih {
+                break;
+            }
+        }
+    }
+}
