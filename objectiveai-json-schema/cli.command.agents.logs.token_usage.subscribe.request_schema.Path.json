@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.logs.token_usage.subscribe.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/logs/token-usage/subscribe/request_schema"
+  ]
+}

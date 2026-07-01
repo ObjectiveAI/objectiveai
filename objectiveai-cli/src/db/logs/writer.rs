@@ -72,14 +72,15 @@ use tokio::task::JoinHandle;
 
 use crate::db::Pool;
 
-use super::row::{RowValue, RowsIter};
+use super::row::{RowValue, WriterItem, WriterItems};
 use super::rows::{
-    agent_completion_chunk_rows, function_execution_chunk_rows, vector_completion_chunk_rows,
+    agent_completion_chunk_rows, function_execution_chunk_rows,
+    vector_completion_chunk_rows,
 };
 use super::shadow::{Shadow, WriteOp};
 use super::write::{
     Tier, insert_request_blob, insert_request_messages_row, insert_response_blob,
-    write_value,
+    update_agent_token_usage, write_value,
 };
 
 pub trait WriterChunk {
@@ -214,7 +215,14 @@ struct LogWriterState<C> {
     /// `insert_request_blob` time. Constant for the writer's
     /// lifetime — one request = one sender.
     sender_agent_instance_hierarchy: String,
-    rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
+    /// Walks a chunk into [`WriterItem`]s — content rows AND, at each
+    /// nested agent completion with usage, a per-AIH `total_tokens`
+    /// snapshot. One traversal covers both.
+    items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
+    /// Last `total_tokens` written per AIH — dedups redundant
+    /// overwrites across the writer's repeated passes over the
+    /// cumulative accumulator.
+    last_usage: HashMap<String, u64>,
     primary_id: Option<String>,
     /// Per-streaming-content-row shadow. Skip path is allocation-free.
     shadow: Shadow,
@@ -233,14 +241,15 @@ impl<C> LogWriterState<C> {
         tier: Tier,
         request_body: serde_json::Value,
         sender_agent_instance_hierarchy: String,
-        rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
+        items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
     ) -> Self {
         Self {
             pool,
             tier,
             request_body,
             sender_agent_instance_hierarchy,
-            rows_fn,
+            items_fn,
+            last_usage: HashMap::new(),
             primary_id: None,
             shadow: Shadow::new(),
             seen_agents: HashSet::new(),
@@ -267,16 +276,36 @@ impl<C> LogWriterState<C> {
             .expect("primary_id set by listener_loop before apply_chunk");
         let created_at_seed = now_secs() as i64;
 
-        // Walk rows, gate via shadow, bucket survivors by
-        // agent_instance_hierarchy. Vec inside the HashMap preserves
-        // iterator order so per-bucket sequential awaits match
-        // chunk_rows()'s ordering.
+        // One traversal of the chunk. Content rows are gated via the
+        // shadow and bucketed by agent_instance_hierarchy (Vec inside
+        // the HashMap preserves iterator order so per-bucket sequential
+        // awaits match the walk's ordering). Usage items (per nested
+        // agent completion carrying a non-`None` usage) overwrite the
+        // per-AIH `total_tokens` snapshot inline — `last_usage` dedups
+        // so the repeated passes over the cumulative accumulator only
+        // write when the value changes.
         let mut buckets: HashMap<&str, Vec<(WriteOp, RowValue<'_>)>> = HashMap::new();
-        for value in (self.rows_fn)(chunk) {
-            let key = value.agent_instance_hierarchy();
-            match self.shadow.record(&value) {
-                WriteOp::Skip => continue,
-                op => buckets.entry(key).or_default().push((op, value)),
+        for item in (self.items_fn)(chunk) {
+            match item {
+                WriterItem::Row(value) => {
+                    let key = value.agent_instance_hierarchy();
+                    match self.shadow.record(&value) {
+                        WriteOp::Skip => {}
+                        op => buckets.entry(key).or_default().push((op, value)),
+                    }
+                }
+                WriterItem::Usage { agent_instance_hierarchy, total_tokens } => {
+                    if self.last_usage.get(agent_instance_hierarchy) != Some(&total_tokens) {
+                        update_agent_token_usage(
+                            &self.pool,
+                            agent_instance_hierarchy,
+                            total_tokens as i64,
+                        )
+                        .await?;
+                        self.last_usage
+                            .insert(agent_instance_hierarchy.to_string(), total_tokens);
+                    }
+                }
             }
         }
 
@@ -497,7 +526,7 @@ fn spawn_writer<C>(
     tier: Tier,
     request_body: serde_json::Value,
     sender_agent_instance_hierarchy: String,
-    rows_fn: for<'a> fn(&'a C) -> RowsIter<'a>,
+    items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
     C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync + 'static,
@@ -510,7 +539,7 @@ where
         tier,
         request_body,
         sender_agent_instance_hierarchy,
-        rows_fn,
+        items_fn,
     );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (

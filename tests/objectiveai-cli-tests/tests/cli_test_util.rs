@@ -180,6 +180,26 @@ where
     E: CommandExecutor,
     E::Error: std::fmt::Debug,
 {
+    db_query_with_timeout(executor, sql, 30).await
+}
+
+/// Like [`db_query`] but with a caller-chosen per-call timeout. The
+/// default [`db_query`] caps at 30s, which is too tight for the FIRST
+/// query against a state whose postgres must still be **cold-spawned**
+/// under the full suite's parallel load — that spawn alone can exceed
+/// 30s. Warmup callers (e.g. a `Context`-based test priming its state's
+/// cluster) pass a generous value. The cli must do the spawn via this
+/// subprocess path: driving `Context::db_client()`'s spawn flow directly
+/// in-process deadlocks.
+pub async fn db_query_with_timeout<E>(
+    executor: &E,
+    sql: &str,
+    timeout_seconds: u64,
+) -> Vec<Vec<serde_json::Value>>
+where
+    E: CommandExecutor,
+    E::Error: std::fmt::Debug,
+{
     use objectiveai_sdk::cli::command::db::query::{
         Path as DbPath, Request as DbReq, Response as DbResp,
     };
@@ -187,7 +207,7 @@ where
         path_type: DbPath::DbQuery,
         query: sql.to_string(),
         base: objectiveai_sdk::cli::command::RequestBase {
-            timeout_seconds: Some(30),
+            timeout_seconds: Some(timeout_seconds),
             ..Default::default()
         },
     };

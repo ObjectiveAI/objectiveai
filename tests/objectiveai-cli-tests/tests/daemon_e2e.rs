@@ -109,10 +109,11 @@ async fn daemon_runs_command_applies_tag() {
     // The echo file appears only after the daemon spawns daemon-echo and its
     // nested postgres-backed apply completes. Under the full integration suite
     // (many tests each running their own postgres cluster in parallel) that can
-    // take well over 10s, so poll generously (30s) to tolerate contention.
+    // take well over 10s — and much longer when a heavy run has many clusters
+    // contending — so poll generously (180s) to tolerate contention.
     let path = echo_input_path("daemon-echo");
     let mut recorded: Option<String> = None;
-    for _ in 0..300 {
+    for _ in 0..1800 {
         if let Ok(contents) = std::fs::read_to_string(&path)
             && let Ok(serde_json::Value::String(tag)) =
                 serde_json::from_str::<serde_json::Value>(&contents)

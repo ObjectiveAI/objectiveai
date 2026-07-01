@@ -38,21 +38,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 442,
+                    "prompt_tokens": 675,
+                    "total_tokens": 1117,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 442,
+                "prompt_tokens": 675,
+                "total_tokens": 1117,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -81,21 +81,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 337,
+                    "prompt_tokens": 1288,
+                    "total_tokens": 1625,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 337,
+                "prompt_tokens": 1288,
+                "total_tokens": 1625,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -124,21 +124,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 529,
+                    "prompt_tokens": 566,
+                    "total_tokens": 1095,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 529,
+                "prompt_tokens": 566,
+                "total_tokens": 1095,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -189,9 +189,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1308,
+            "prompt_tokens": 2529,
+            "total_tokens": 3837,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -226,21 +226,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 290,
+                    "prompt_tokens": 673,
+                    "total_tokens": 963,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 290,
+                "prompt_tokens": 673,
+                "total_tokens": 963,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -269,21 +269,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 695,
+                    "prompt_tokens": 1134,
+                    "total_tokens": 1829,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 695,
+                "prompt_tokens": 1134,
+                "total_tokens": 1829,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -312,21 +312,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 166,
+                    "prompt_tokens": 564,
+                    "total_tokens": 730,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 166,
+                "prompt_tokens": 564,
+                "total_tokens": 730,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -377,9 +377,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1151,
+            "prompt_tokens": 2371,
+            "total_tokens": 3522,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -409,9 +409,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2459,
+        "prompt_tokens": 4900,
+        "total_tokens": 7359,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -452,21 +452,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 44,
+                    "prompt_tokens": 675,
+                    "total_tokens": 719,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 44,
+                "prompt_tokens": 675,
+                "total_tokens": 719,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -495,21 +495,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 427,
+                    "prompt_tokens": 890,
+                    "total_tokens": 1317,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 427,
+                "prompt_tokens": 890,
+                "total_tokens": 1317,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -538,21 +538,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 772,
+                    "prompt_tokens": 566,
+                    "total_tokens": 1338,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 772,
+                "prompt_tokens": 566,
+                "total_tokens": 1338,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -603,9 +603,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1243,
+            "prompt_tokens": 2131,
+            "total_tokens": 3374,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -640,21 +640,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 556,
+                    "prompt_tokens": 673,
+                    "total_tokens": 1229,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 556,
+                "prompt_tokens": 673,
+                "total_tokens": 1229,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -682,21 +682,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 57,
+                    "prompt_tokens": 1400,
+                    "total_tokens": 1457,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 57,
+                "prompt_tokens": 1400,
+                "total_tokens": 1457,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -725,21 +725,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 384,
+                    "prompt_tokens": 564,
+                    "total_tokens": 948,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 384,
+                "prompt_tokens": 564,
+                "total_tokens": 948,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -790,9 +790,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 997,
+            "prompt_tokens": 2637,
+            "total_tokens": 3634,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -822,9 +822,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2240,
+        "prompt_tokens": 4768,
+        "total_tokens": 7008,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -866,21 +866,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 293,
+                    "prompt_tokens": 680,
+                    "total_tokens": 973,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 293,
+                "prompt_tokens": 680,
+                "total_tokens": 973,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -909,21 +909,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 627,
+                    "prompt_tokens": 1144,
+                    "total_tokens": 1771,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 627,
+                "prompt_tokens": 1144,
+                "total_tokens": 1771,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -952,21 +952,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 200,
+                    "prompt_tokens": 571,
+                    "total_tokens": 771,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 200,
+                "prompt_tokens": 571,
+                "total_tokens": 771,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1017,9 +1017,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1120,
+            "prompt_tokens": 2395,
+            "total_tokens": 3515,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -1054,21 +1054,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 412,
+                    "prompt_tokens": 678,
+                    "total_tokens": 1090,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 412,
+                "prompt_tokens": 678,
+                "total_tokens": 1090,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1097,21 +1097,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 703,
+                    "prompt_tokens": 1261,
+                    "total_tokens": 1964,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 703,
+                "prompt_tokens": 1261,
+                "total_tokens": 1964,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1140,21 +1140,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 646,
+                    "prompt_tokens": 569,
+                    "total_tokens": 1215,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 646,
+                "prompt_tokens": 569,
+                "total_tokens": 1215,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1205,9 +1205,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1761,
+            "prompt_tokens": 2508,
+            "total_tokens": 4269,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -1237,9 +1237,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2881,
+        "prompt_tokens": 4903,
+        "total_tokens": 7784,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -1281,21 +1281,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 486,
+                    "prompt_tokens": 680,
+                    "total_tokens": 1166,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 486,
+                "prompt_tokens": 680,
+                "total_tokens": 1166,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1324,21 +1324,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 202,
+                    "prompt_tokens": 1337,
+                    "total_tokens": 1539,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 202,
+                "prompt_tokens": 1337,
+                "total_tokens": 1539,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1367,21 +1367,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 637,
+                    "prompt_tokens": 571,
+                    "total_tokens": 1208,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 637,
+                "prompt_tokens": 571,
+                "total_tokens": 1208,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1432,9 +1432,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1325,
+            "prompt_tokens": 2588,
+            "total_tokens": 3913,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -1469,21 +1469,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 199,
+                    "prompt_tokens": 678,
+                    "total_tokens": 877,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 199,
+                "prompt_tokens": 678,
+                "total_tokens": 877,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1512,21 +1512,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 349,
+                    "prompt_tokens": 1048,
+                    "total_tokens": 1397,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 349,
+                "prompt_tokens": 1048,
+                "total_tokens": 1397,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1555,21 +1555,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 709,
+                    "prompt_tokens": 569,
+                    "total_tokens": 1278,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 709,
+                "prompt_tokens": 569,
+                "total_tokens": 1278,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1620,9 +1620,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1257,
+            "prompt_tokens": 2295,
+            "total_tokens": 3552,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -1652,9 +1652,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2582,
+        "prompt_tokens": 4883,
+        "total_tokens": 7465,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -1696,21 +1696,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 520,
+                    "prompt_tokens": 677,
+                    "total_tokens": 1197,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 520,
+                "prompt_tokens": 677,
+                "total_tokens": 1197,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1739,21 +1739,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 735,
+                    "prompt_tokens": 1368,
+                    "total_tokens": 2103,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 735,
+                "prompt_tokens": 1368,
+                "total_tokens": 2103,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1782,21 +1782,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 227,
+                    "prompt_tokens": 568,
+                    "total_tokens": 795,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 227,
+                "prompt_tokens": 568,
+                "total_tokens": 795,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1847,9 +1847,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1482,
+            "prompt_tokens": 2613,
+            "total_tokens": 4095,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -1884,21 +1884,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 387,
+                    "prompt_tokens": 675,
+                    "total_tokens": 1062,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 387,
+                "prompt_tokens": 675,
+                "total_tokens": 1062,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1927,21 +1927,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 542,
+                    "prompt_tokens": 1233,
+                    "total_tokens": 1775,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 542,
+                "prompt_tokens": 1233,
+                "total_tokens": 1775,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -1970,21 +1970,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 407,
+                    "prompt_tokens": 566,
+                    "total_tokens": 973,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 407,
+                "prompt_tokens": 566,
+                "total_tokens": 973,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2035,9 +2035,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1336,
+            "prompt_tokens": 2474,
+            "total_tokens": 3810,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -2067,9 +2067,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2818,
+        "prompt_tokens": 5087,
+        "total_tokens": 7905,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -2111,21 +2111,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 381,
+                    "prompt_tokens": 677,
+                    "total_tokens": 1058,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 381,
+                "prompt_tokens": 677,
+                "total_tokens": 1058,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2153,21 +2153,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 43,
+                    "prompt_tokens": 1229,
+                    "total_tokens": 1272,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 43,
+                "prompt_tokens": 1229,
+                "total_tokens": 1272,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2196,21 +2196,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 245,
+                    "prompt_tokens": 568,
+                    "total_tokens": 813,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 245,
+                "prompt_tokens": 568,
+                "total_tokens": 813,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2261,9 +2261,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 669,
+            "prompt_tokens": 2474,
+            "total_tokens": 3143,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -2298,21 +2298,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 590,
+                    "prompt_tokens": 675,
+                    "total_tokens": 1265,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 590,
+                "prompt_tokens": 675,
+                "total_tokens": 1265,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2341,21 +2341,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 310,
+                    "prompt_tokens": 1436,
+                    "total_tokens": 1746,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 310,
+                "prompt_tokens": 1436,
+                "total_tokens": 1746,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2384,21 +2384,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 249,
+                    "prompt_tokens": 566,
+                    "total_tokens": 815,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 249,
+                "prompt_tokens": 566,
+                "total_tokens": 815,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2449,9 +2449,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1149,
+            "prompt_tokens": 2677,
+            "total_tokens": 3826,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -2481,9 +2481,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 1818,
+        "prompt_tokens": 5151,
+        "total_tokens": 6969,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -2525,21 +2525,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 330,
+                    "prompt_tokens": 676,
+                    "total_tokens": 1006,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 330,
+                "prompt_tokens": 676,
+                "total_tokens": 1006,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2568,21 +2568,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 164,
+                    "prompt_tokens": 1177,
+                    "total_tokens": 1341,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 164,
+                "prompt_tokens": 1177,
+                "total_tokens": 1341,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2611,21 +2611,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 170,
+                    "prompt_tokens": 567,
+                    "total_tokens": 737,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 170,
+                "prompt_tokens": 567,
+                "total_tokens": 737,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2676,9 +2676,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 664,
+            "prompt_tokens": 2420,
+            "total_tokens": 3084,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -2713,21 +2713,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 396,
+                    "prompt_tokens": 674,
+                    "total_tokens": 1070,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 396,
+                "prompt_tokens": 674,
+                "total_tokens": 1070,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2756,21 +2756,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 387,
+                    "prompt_tokens": 1241,
+                    "total_tokens": 1628,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 387,
+                "prompt_tokens": 1241,
+                "total_tokens": 1628,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2799,21 +2799,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 277,
+                    "prompt_tokens": 565,
+                    "total_tokens": 842,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 277,
+                "prompt_tokens": 565,
+                "total_tokens": 842,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2864,9 +2864,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1060,
+            "prompt_tokens": 2480,
+            "total_tokens": 3540,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -2896,9 +2896,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 1724,
+        "prompt_tokens": 4900,
+        "total_tokens": 6624,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -2940,21 +2940,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 624,
+                    "prompt_tokens": 680,
+                    "total_tokens": 1304,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 624,
+                "prompt_tokens": 680,
+                "total_tokens": 1304,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -2983,21 +2983,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 336,
+                    "prompt_tokens": 1475,
+                    "total_tokens": 1811,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 336,
+                "prompt_tokens": 1475,
+                "total_tokens": 1811,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3026,21 +3026,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 238,
+                    "prompt_tokens": 571,
+                    "total_tokens": 809,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 238,
+                "prompt_tokens": 571,
+                "total_tokens": 809,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3091,9 +3091,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1198,
+            "prompt_tokens": 2726,
+            "total_tokens": 3924,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -3127,21 +3127,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 102,
+                    "prompt_tokens": 678,
+                    "total_tokens": 780,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 102,
+                "prompt_tokens": 678,
+                "total_tokens": 780,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3170,21 +3170,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 460,
+                    "prompt_tokens": 951,
+                    "total_tokens": 1411,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 460,
+                "prompt_tokens": 951,
+                "total_tokens": 1411,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3213,21 +3213,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 651,
+                    "prompt_tokens": 569,
+                    "total_tokens": 1220,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 651,
+                "prompt_tokens": 569,
+                "total_tokens": 1220,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3278,9 +3278,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1213,
+            "prompt_tokens": 2198,
+            "total_tokens": 3411,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -3310,9 +3310,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2411,
+        "prompt_tokens": 4924,
+        "total_tokens": 7335,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -3354,21 +3354,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 513,
+                    "prompt_tokens": 676,
+                    "total_tokens": 1189,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 513,
+                "prompt_tokens": 676,
+                "total_tokens": 1189,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3397,21 +3397,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 356,
+                    "prompt_tokens": 1360,
+                    "total_tokens": 1716,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 356,
+                "prompt_tokens": 1360,
+                "total_tokens": 1716,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3439,21 +3439,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 40,
+                    "prompt_tokens": 567,
+                    "total_tokens": 607,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 40,
+                "prompt_tokens": 567,
+                "total_tokens": 607,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3504,9 +3504,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 909,
+            "prompt_tokens": 2603,
+            "total_tokens": 3512,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -3540,21 +3540,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 90,
+                    "prompt_tokens": 674,
+                    "total_tokens": 764,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 90,
+                "prompt_tokens": 674,
+                "total_tokens": 764,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3583,21 +3583,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 157,
+                    "prompt_tokens": 935,
+                    "total_tokens": 1092,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 157,
+                "prompt_tokens": 935,
+                "total_tokens": 1092,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3626,21 +3626,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 448,
+                    "prompt_tokens": 565,
+                    "total_tokens": 1013,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 448,
+                "prompt_tokens": 565,
+                "total_tokens": 1013,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3691,9 +3691,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 695,
+            "prompt_tokens": 2174,
+            "total_tokens": 2869,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -3723,9 +3723,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 1604,
+        "prompt_tokens": 4777,
+        "total_tokens": 6381,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -3767,21 +3767,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 253,
+                    "prompt_tokens": 679,
+                    "total_tokens": 932,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 253,
+                "prompt_tokens": 679,
+                "total_tokens": 932,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3809,21 +3809,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 65,
+                    "prompt_tokens": 1103,
+                    "total_tokens": 1168,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 65,
+                "prompt_tokens": 1103,
+                "total_tokens": 1168,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3852,21 +3852,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 650,
+                    "prompt_tokens": 570,
+                    "total_tokens": 1220,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 650,
+                "prompt_tokens": 570,
+                "total_tokens": 1220,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3917,9 +3917,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 968,
+            "prompt_tokens": 2352,
+            "total_tokens": 3320,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -3954,21 +3954,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 328,
+                    "prompt_tokens": 677,
+                    "total_tokens": 1005,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 328,
+                "prompt_tokens": 677,
+                "total_tokens": 1005,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -3996,21 +3996,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 52,
+                    "prompt_tokens": 1176,
+                    "total_tokens": 1228,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 52,
+                "prompt_tokens": 1176,
+                "total_tokens": 1228,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4039,21 +4039,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 379,
+                    "prompt_tokens": 568,
+                    "total_tokens": 947,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 379,
+                "prompt_tokens": 568,
+                "total_tokens": 947,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4104,9 +4104,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 759,
+            "prompt_tokens": 2421,
+            "total_tokens": 3180,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -4136,9 +4136,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 1727,
+        "prompt_tokens": 4773,
+        "total_tokens": 6500,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -4180,21 +4180,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 493,
+                    "prompt_tokens": 676,
+                    "total_tokens": 1169,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 493,
+                "prompt_tokens": 676,
+                "total_tokens": 1169,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4223,21 +4223,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 483,
+                    "prompt_tokens": 1340,
+                    "total_tokens": 1823,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 483,
+                "prompt_tokens": 1340,
+                "total_tokens": 1823,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4266,21 +4266,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 553,
+                    "prompt_tokens": 567,
+                    "total_tokens": 1120,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 553,
+                "prompt_tokens": 567,
+                "total_tokens": 1120,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4331,9 +4331,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1529,
+            "prompt_tokens": 2583,
+            "total_tokens": 4112,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -4368,21 +4368,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 317,
+                    "prompt_tokens": 674,
+                    "total_tokens": 991,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 317,
+                "prompt_tokens": 674,
+                "total_tokens": 991,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4411,21 +4411,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 117,
+                    "prompt_tokens": 1162,
+                    "total_tokens": 1279,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 117,
+                "prompt_tokens": 1162,
+                "total_tokens": 1279,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4454,21 +4454,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 446,
+                    "prompt_tokens": 565,
+                    "total_tokens": 1011,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 446,
+                "prompt_tokens": 565,
+                "total_tokens": 1011,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4519,9 +4519,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 880,
+            "prompt_tokens": 2401,
+            "total_tokens": 3281,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -4551,9 +4551,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 2409,
+        "prompt_tokens": 4984,
+        "total_tokens": 7393,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -4595,21 +4595,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 636,
+                    "prompt_tokens": 679,
+                    "total_tokens": 1315,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 636,
+                "prompt_tokens": 679,
+                "total_tokens": 1315,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4638,21 +4638,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 268,
+                    "prompt_tokens": 1486,
+                    "total_tokens": 1754,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 268,
+                "prompt_tokens": 1486,
+                "total_tokens": 1754,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4680,21 +4680,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 40,
+                    "prompt_tokens": 570,
+                    "total_tokens": 610,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 40,
+                "prompt_tokens": 570,
+                "total_tokens": 610,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4745,9 +4745,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 944,
+            "prompt_tokens": 2735,
+            "total_tokens": 3679,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -4782,21 +4782,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 683,
+                    "prompt_tokens": 677,
+                    "total_tokens": 1360,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 683,
+                "prompt_tokens": 677,
+                "total_tokens": 1360,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4824,21 +4824,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 79,
+                    "prompt_tokens": 1531,
+                    "total_tokens": 1610,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 79,
+                "prompt_tokens": 1531,
+                "total_tokens": 1610,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4867,21 +4867,21 @@
                   "finish_reason": "stop",
                   "logprobs": null,
                   "usage": {
-                    "completion_tokens": 0,
-                    "prompt_tokens": 0,
-                    "total_tokens": 0,
+                    "completion_tokens": 285,
+                    "prompt_tokens": 568,
+                    "total_tokens": 853,
                     "cost": 0.0,
                     "total_cost": 0.0,
-                    "cost_multiplier": 0.0,
+                    "cost_multiplier": 1.0,
                     "is_byok": false
                   }
                 }
               ],
               "object": "agent.completion",
               "usage": {
-                "completion_tokens": 0,
-                "prompt_tokens": 0,
-                "total_tokens": 0,
+                "completion_tokens": 285,
+                "prompt_tokens": 568,
+                "total_tokens": 853,
                 "cost": 0.0,
                 "total_cost": 0.0
               },
@@ -4932,9 +4932,9 @@
           "swarm": "05rLTZxkVLqBRPHiDsvtLX",
           "object": "vector.completion",
           "usage": {
-            "completion_tokens": 0,
-            "prompt_tokens": 0,
-            "total_tokens": 0,
+            "completion_tokens": 1047,
+            "prompt_tokens": 2776,
+            "total_tokens": 3823,
             "cost": 0.0,
             "total_cost": 0.0
           },
@@ -4964,9 +4964,9 @@
       },
       "object": "vector.function.execution",
       "usage": {
-        "completion_tokens": 0,
-        "prompt_tokens": 0,
-        "total_tokens": 0,
+        "completion_tokens": 1991,
+        "prompt_tokens": 5511,
+        "total_tokens": 7502,
         "cost": 0.0,
         "total_cost": 0.0
       }
@@ -5010,9 +5010,9 @@
   },
   "object": "vector.function.execution",
   "usage": {
-    "completion_tokens": 0,
-    "prompt_tokens": 0,
-    "total_tokens": 0,
+    "completion_tokens": 26664,
+    "prompt_tokens": 59561,
+    "total_tokens": 86225,
     "cost": 0.0,
     "total_cost": 0.0
   }

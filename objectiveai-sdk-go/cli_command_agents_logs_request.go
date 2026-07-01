@@ -17,6 +17,7 @@ type CliCommandAgentsLogsRequest struct {
 	Subscribe *CliCommandAgentsLogsSubscribeRequest 
 	SubscribeRequestSchema *CliCommandAgentsLogsSubscribeRequestSchemaRequest 
 	SubscribeResponseSchema *CliCommandAgentsLogsSubscribeResponseSchemaRequest 
+	TokenUsage *CliCommandAgentsLogsTokenUsageRequest 
 }
 
 func (v CliCommandAgentsLogsRequest) MarshalJSON() ([]byte, error) {
@@ -46,6 +47,9 @@ func (v CliCommandAgentsLogsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.SubscribeResponseSchema != nil {
 		return json.Marshal(v.SubscribeResponseSchema)
+	}
+	if v.TokenUsage != nil {
+		return json.Marshal(v.TokenUsage)
 	}
 	return []byte("null"), nil
 }
@@ -150,6 +154,17 @@ func (v *CliCommandAgentsLogsRequest) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsLogsTokenUsageRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsRequest{}
+			candidate.TokenUsage = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsLogsRequest")
 }
 
@@ -164,6 +179,7 @@ func (v CliCommandAgentsLogsRequest) Validate() error {
 	if v.Subscribe != nil { count++ }
 	if v.SubscribeRequestSchema != nil { count++ }
 	if v.SubscribeResponseSchema != nil { count++ }
+	if v.TokenUsage != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsLogsRequest: exactly one variant must be set, got %d", count)
 	}

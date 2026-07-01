@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.agents.logs.token_usage.subscribe.TokenUsage",
+  "description": "A per-AIH token-usage snapshot.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    },
+    "total_tokens": {
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    }
+  }
+}

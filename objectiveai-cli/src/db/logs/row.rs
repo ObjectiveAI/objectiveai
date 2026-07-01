@@ -669,6 +669,26 @@ impl<'a> RowValue<'a> {
 /// One Box per recursive descent, never per leaf row.
 pub type RowsIter<'a> = Box<dyn Iterator<Item = RowValue<'a>> + Send + 'a>;
 
+/// One item from a top-level chunk walk: either a streaming-content
+/// [`RowValue`] or a per-AIH agent-completion token-usage snapshot.
+/// Usage rides the SAME single traversal as the content rows — the
+/// walk already descends into every nested agent completion, so the
+/// writer never re-walks the chunk tree for usage.
+#[derive(Debug)]
+pub enum WriterItem<'a> {
+    Row(RowValue<'a>),
+    Usage {
+        agent_instance_hierarchy: &'a str,
+        total_tokens: u64,
+    },
+}
+
+/// Boxed iterator of [`WriterItem`]s — the return type of the three
+/// entry-point chunk walkers. Internal per-message helpers still yield
+/// bare [`RowValue`] via [`RowsIter`]; only the entry points interleave
+/// the usage item.
+pub type WriterItems<'a> = Box<dyn Iterator<Item = WriterItem<'a>> + Send + 'a>;
+
 // ---------------------------------------------------------------------
 // Shadow keys (borrowed + owned)
 // ---------------------------------------------------------------------

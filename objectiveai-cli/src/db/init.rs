@@ -114,6 +114,35 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_continuations (
     updated_at               BIGINT           NOT NULL
 );
 
+-- Most-recent agent-completion `total_tokens` per AIH. Overwritten
+-- (last-write-wins) by the log writer every time it encounters an
+-- agent-completion chunk carrying a non-NULL usage, at any tier
+-- (standalone agent completion, or nested inside vector/function
+-- executions). A snapshot for sampling token usage over time — not a
+-- running sum.
+CREATE TABLE IF NOT EXISTS objectiveai.agent_token_usage (
+    agent_instance_hierarchy TEXT   PRIMARY KEY NOT NULL,
+    total_tokens             BIGINT NOT NULL
+);
+
+-- AFTER-INSERT/UPDATE trigger on `agent_token_usage`: every write
+-- emits `NOTIFY agent_token_usage_changed '<agent_instance_hierarchy>'`
+-- so `agents logs token-usage subscribe` wakes the instant an AIH's
+-- token snapshot is written. The listener re-reads and compares to a
+-- baseline, so a same-value overwrite (the writer's ON CONFLICT DO
+-- UPDATE fires this even when the number is unchanged) is filtered
+-- out client-side.
+CREATE OR REPLACE FUNCTION objectiveai.notify_agent_token_usage_changed()
+RETURNS trigger AS $$
+BEGIN
+    PERFORM pg_notify('agent_token_usage_changed', NEW.agent_instance_hierarchy);
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER agent_token_usage_changed_notify
+AFTER INSERT OR UPDATE ON objectiveai.agent_token_usage
+FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_agent_token_usage_changed();
+
 CREATE TABLE IF NOT EXISTS objectiveai.message_queue (
     id                              BIGSERIAL PRIMARY KEY,
     agent_instance_hierarchy        TEXT,

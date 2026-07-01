@@ -13,6 +13,7 @@ use crate::error::Error;
 pub mod list;
 pub mod open;
 pub mod subscribe;
+pub mod token_usage;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
@@ -59,6 +60,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::SubscribeResponseSchema(req) => {
             let value = subscribe::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::SubscribeResponseSchema(value)))
+        }
+        Request::TokenUsage(req) => {
+            let inner = token_usage::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::TokenUsage)))
         }
     };
     Ok(stream)

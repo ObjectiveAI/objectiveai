@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.agents.logs.token_usage.subscribe.ResponseItem",
+  "description": "Subscribe's wire shape: either a token-usage snapshot (`Item`) or\nthe literal string `\"agents_inactive\"`. `#[serde(untagged)]` so\n`Item` passes through as a plain object and `AgentsInactive` as a\nbare string — the same convention as `agents logs subscribe`.",
+  "anyOf": [
+    {
+      "title": "Item",
+      "$ref": "cli.command.agents.logs.token_usage.subscribe.TokenUsage"
+    },
+    {
+      "title": "AgentsInactive",
+      "$ref": "cli.command.agents.logs.token_usage.subscribe.AgentsInactiveTag"
+    }
+  ]
+}

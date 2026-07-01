@@ -1,5 +1,7 @@
-//! Free functions that walk a chunk and yield every streaming-content
-//! [`RowValue`] it implies. One entry point per top-level chunk type:
+//! Free functions that walk a chunk and yield every [`WriterItem`] it
+//! implies — the streaming-content [`RowValue`]s plus, at each nested
+//! agent completion carrying usage, a [`WriterItem::Usage`] token-count
+//! snapshot. One entry point per top-level chunk type:
 //!
 //! - [`agent_completion_chunk_rows`]
 //! - [`vector_completion_chunk_rows`]
@@ -8,8 +10,9 @@
 //! The function-execution walker is recursive — it forwards into the
 //! vector walker (and back into itself for nested function tasks),
 //! which in turn forwards into the agent walker. No collection
-//! happens: each yielded row borrows from the input chunk and the
-//! writer drains the iterator one element at a time.
+//! happens: each yielded item borrows from the input chunk and the
+//! writer drains the iterator one element at a time — a single
+//! traversal covers both rows and usage.
 //!
 //! Every yielded `RowValue` carries the enclosing agent-completion
 //! chunk's `response_id` AND `agent_instance_hierarchy`, so the
@@ -26,29 +29,34 @@ use objectiveai_sdk::functions::executions::response::streaming::{
 };
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 
-use super::row::{RowValue, RowsIter};
+use super::row::{RowValue, RowsIter, WriterItem, WriterItems};
 
-/// Entry: walk an agent-completion chunk's `messages` and yield every
-/// streaming-content row keyed by the chunk's own `id` and
-/// `agent_instance_hierarchy`.
+/// Entry: walk an agent-completion chunk. Emits a [`WriterItem::Usage`]
+/// first when the chunk carries a non-`None` usage (its `total_tokens`
+/// snapshot), then every streaming-content row keyed by the chunk's own
+/// `id` and `agent_instance_hierarchy`.
 pub fn agent_completion_chunk_rows<'a>(
     chunk: &'a AgentCompletionChunk,
-) -> RowsIter<'a> {
+) -> WriterItems<'a> {
     let response_id = chunk.id.as_str();
     let agent_hierarchy = chunk.agent_instance_hierarchy.as_str();
-    Box::new(
-        chunk
-            .messages
-            .iter()
-            .flat_map(move |msg| message_chunk_rows(response_id, agent_hierarchy, msg)),
-    )
+    let usage = chunk.usage.as_ref().map(move |u| WriterItem::Usage {
+        agent_instance_hierarchy: agent_hierarchy,
+        total_tokens: u.total_tokens,
+    });
+    let rows = chunk
+        .messages
+        .iter()
+        .flat_map(move |msg| message_chunk_rows(response_id, agent_hierarchy, msg))
+        .map(WriterItem::Row);
+    Box::new(usage.into_iter().chain(rows))
 }
 
 /// Entry: walk every embedded per-agent completion in a vector chunk
-/// and forward to [`agent_completion_chunk_rows`].
+/// and forward to [`agent_completion_chunk_rows`] (usage included).
 pub fn vector_completion_chunk_rows<'a>(
     chunk: &'a VectorCompletionChunk,
-) -> RowsIter<'a> {
+) -> WriterItems<'a> {
     Box::new(
         chunk
             .completions
@@ -60,10 +68,10 @@ pub fn vector_completion_chunk_rows<'a>(
 /// Entry: walk every task in a function chunk and forward to the
 /// matching tier walker. Reasoning summary's inner agent completion
 /// also flows through. Recursive: function tasks chain back into this
-/// function.
+/// function. Usage items interleave with rows via the leaf walker.
 pub fn function_execution_chunk_rows<'a>(
     chunk: &'a FunctionExecutionChunk,
-) -> RowsIter<'a> {
+) -> WriterItems<'a> {
     let task_iter = chunk
         .tasks
         .iter()
@@ -77,7 +85,7 @@ pub fn function_execution_chunk_rows<'a>(
 
 // ---- internal helpers -------------------------------------------------
 
-fn task_chunk_rows<'a>(task: &'a TaskChunk) -> RowsIter<'a> {
+fn task_chunk_rows<'a>(task: &'a TaskChunk) -> WriterItems<'a> {
     match task {
         TaskChunk::FunctionExecution(wrapper) => {
             function_execution_chunk_rows(&wrapper.inner)
@@ -315,5 +323,57 @@ fn tool_content_part<'a>(
         RichContentPart::File { file } => RowValue::ToolResponseContentFile {
             response_id, agent_instance_hierarchy, index, part_index, file,
         },
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use objectiveai_sdk::agent::completions::response::Usage;
+
+    fn agent_chunk(aih: &str, total: Option<u64>) -> AgentCompletionChunk {
+        AgentCompletionChunk {
+            agent_instance_hierarchy: aih.to_string(),
+            usage: total.map(|t| Usage { total_tokens: t, ..Default::default() }),
+            ..Default::default()
+        }
+    }
+
+    /// Collect just the `Usage` items from a walk.
+    fn usages<'a>(items: WriterItems<'a>) -> Vec<(&'a str, u64)> {
+        items
+            .filter_map(|item| match item {
+                WriterItem::Usage { agent_instance_hierarchy, total_tokens } => {
+                    Some((agent_instance_hierarchy, total_tokens))
+                }
+                WriterItem::Row(_) => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn agent_walk_emits_usage_only_when_present() {
+        assert_eq!(
+            usages(agent_completion_chunk_rows(&agent_chunk("a/b", Some(42)))),
+            vec![("a/b", 42)]
+        );
+        assert!(usages(agent_completion_chunk_rows(&agent_chunk("a/b", None))).is_empty());
+    }
+
+    #[test]
+    fn vector_walk_surfaces_nested_usage_and_skips_none() {
+        use objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk as VecAgent;
+        let chunk = VectorCompletionChunk {
+            completions: vec![
+                VecAgent { index: 0, inner: agent_chunk("a/x", Some(10)), ..Default::default() },
+                VecAgent { index: 1, inner: agent_chunk("a/y", None), ..Default::default() },
+                VecAgent { index: 2, inner: agent_chunk("a/z", Some(7)), ..Default::default() },
+            ],
+            ..Default::default()
+        };
+        assert_eq!(
+            usages(vector_completion_chunk_rows(&chunk)),
+            vec![("a/x", 10), ("a/z", 7)]
+        );
     }
 }
