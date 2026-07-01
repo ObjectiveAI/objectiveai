@@ -1,0 +1,23 @@
+{
+  "title": "cli.command.agents.logs.token_usage.get.Response",
+  "description": "The current stored snapshot. `total_tokens` is `None` when no\nagent-completion usage has been recorded for this AIH yet.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    },
+    "total_tokens": {
+      "anyOf": [
+        {
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

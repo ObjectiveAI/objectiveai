@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.logs.token_usage.Request",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.agents.logs.token_usage.get.Request"
+    },
+    {
+      "title": "GetRequestSchema",
+      "$ref": "cli.command.agents.logs.token_usage.get.request_schema.Request"
+    },
+    {
+      "title": "GetResponseSchema",
+      "$ref": "cli.command.agents.logs.token_usage.get.response_schema.Request"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.agents.logs.token_usage.subscribe.Request"
+    },
+    {
+      "title": "SubscribeRequestSchema",
+      "$ref": "cli.command.agents.logs.token_usage.subscribe.request_schema.Request"
+    },
+    {
+      "title": "SubscribeResponseSchema",
+      "$ref": "cli.command.agents.logs.token_usage.subscribe.response_schema.Request"
+    }
+  ]
+}

@@ -36,6 +36,10 @@
     {
       "title": "SubscribeResponseSchema",
       "$ref": "cli.command.agents.logs.subscribe.response_schema.Request"
+    },
+    {
+      "title": "TokenUsage",
+      "$ref": "cli.command.agents.logs.token_usage.Request"
     }
   ]
 }

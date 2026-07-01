@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.agents.logs.token_usage.subscribe.AgentsInactiveTag",
+  "description": "Single-variant enum whose lone variant serializes as the literal\nstring `\"agents_inactive\"` (mirrors `logs::subscribe::AgentsInactiveTag`).",
+  "type": "string",
+  "enum": [
+    "agents_inactive"
+  ]
+}
