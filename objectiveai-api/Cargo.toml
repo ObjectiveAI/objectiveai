@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-api"
-version = "2.2.8"
+version = "2.2.9"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI API Server"
@@ -24,8 +24,8 @@ include = [
 ]
 
 [dependencies]
-objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.8", default-features = false, features = ["http", "mcp", "lockfile", "subprocess-reaper"] }
-objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.2.8" }
+objectiveai-sdk = { path = "../objectiveai-sdk-rs", version = "2.2.9", default-features = false, features = ["http", "mcp", "lockfile", "subprocess-reaper"] }
+objectiveai-mcp-proxy = { path = "../objectiveai-mcp-proxy", version = "2.2.9" }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
