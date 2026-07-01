@@ -58,7 +58,7 @@ pub struct BinaryExecutor {
     /// mutability because [`CommandExecutor::execute`] takes `&self`.
     /// Set via [`Self::transfer_lock`].
     #[cfg(feature = "lockfile")]
-    transfer_lock: std::sync::Mutex<Option<crate::lockfile::LockClaim>>,
+    transfer_locks: std::sync::Mutex<Vec<crate::lockfile::LockClaim>>,
 }
 
 impl BinaryExecutor {
@@ -70,7 +70,7 @@ impl BinaryExecutor {
             kill_on_drop: false,
             detach: false,
             #[cfg(feature = "lockfile")]
-            transfer_lock: std::sync::Mutex::new(None),
+            transfer_locks: std::sync::Mutex::new(Vec::new()),
         }
     }
 
@@ -86,20 +86,36 @@ impl BinaryExecutor {
             kill_on_drop: false,
             detach: false,
             #[cfg(feature = "lockfile")]
-            transfer_lock: std::sync::Mutex::new(None),
+            transfer_locks: std::sync::Mutex::new(Vec::new()),
         }
     }
 
     /// Hand `claim` off to the next spawned child: ownership of the
     /// lock transfers into the child process, which keeps it until it
-    /// exits (the parent retains nothing). One-shot — consumed by the
-    /// first `execute`. On spawn failure the claim is released; on
-    /// transfer failure the child is killed best-effort, the claim is
-    /// released, and `execute` returns [`Error::LockTransfer`] —
-    /// either way the lock slot is retryable afterwards.
+    /// exits (the parent retains nothing). Accumulates with any prior
+    /// claim(s); all are consumed by the first `execute`. On spawn
+    /// failure the claims are released; on transfer failure the child
+    /// is killed best-effort, the failing claim plus every not-yet-
+    /// transferred claim are released, and `execute` returns
+    /// [`Error::LockTransfer`] — either way the lock slots are retryable.
     #[cfg(feature = "lockfile")]
     pub fn transfer_lock(mut self, claim: crate::lockfile::LockClaim) -> Self {
-        self.transfer_lock = std::sync::Mutex::new(Some(claim));
+        self.transfer_locks
+            .get_mut()
+            .expect("transfer_locks mutex poisoned")
+            .push(claim);
+        self
+    }
+
+    /// Hand a whole set of claims off to the next spawned child — see
+    /// [`Self::transfer_lock`]. The entire family transfers into the child,
+    /// which keeps them until it exits.
+    #[cfg(feature = "lockfile")]
+    pub fn transfer_locks(mut self, claims: Vec<crate::lockfile::LockClaim>) -> Self {
+        self.transfer_locks
+            .get_mut()
+            .expect("transfer_locks mutex poisoned")
+            .extend(claims);
         self
     }
 
@@ -267,15 +283,18 @@ impl CommandExecutor for BinaryExecutor {
             args.apply_to_command(&mut command);
         }
         // Lockfile-claim handoff, step 1 of 2: arm the command so the
-        // child inherits/duplicates the claim's handles at spawn.
+        // child inherits/duplicates each claim's handles at spawn.
+        // `prepare_transfer` accumulates (env + unix CLOEXEC hooks stack),
+        // so multiple claims hand off to the one child.
         #[cfg(feature = "lockfile")]
-        let transfer_claim = self
-            .transfer_lock
-            .lock()
-            .expect("transfer_lock mutex poisoned")
-            .take();
+        let transfer_claims: Vec<crate::lockfile::LockClaim> = std::mem::take(
+            &mut *self
+                .transfer_locks
+                .lock()
+                .expect("transfer_locks mutex poisoned"),
+        );
         #[cfg(feature = "lockfile")]
-        if let Some(claim) = transfer_claim.as_ref() {
+        for claim in &transfer_claims {
             // Arms the command: CLOEXEC-clear (unix) + the inherited-lock
             // env so the child adopts + re-acquires the claim instantly.
             claim.prepare_transfer(&mut command);
@@ -283,23 +302,34 @@ impl CommandExecutor for BinaryExecutor {
         let spawned = command.spawn();
         // Step 2 of 2: complete (or unwind) the handoff. Dropping a
         // claim does NOT release it (ManuallyDrop), so every failure
-        // path must release explicitly to keep the lock slot
-        // retryable.
+        // path must release explicitly to keep the lock slots
+        // retryable. On a mid-set transfer failure the already-handed
+        // claims belong to the child; release the failing claim + every
+        // remaining (un-transferred) one and kill the child.
         #[cfg(feature = "lockfile")]
         let spawned = match spawned {
             Ok(child) => {
-                if let Some(claim) = transfer_claim {
+                let mut remaining = transfer_claims.into_iter();
+                let mut transfer_err = None;
+                for claim in remaining.by_ref() {
                     if let Err((claim, e)) = claim.transfer(&child) {
-                        let mut child = child;
-                        let _ = child.start_kill();
                         let _ = claim.release();
-                        return Err(Error::LockTransfer(e));
+                        transfer_err = Some(e);
+                        break;
                     }
+                }
+                if let Some(e) = transfer_err {
+                    for claim in remaining {
+                        let _ = claim.release();
+                    }
+                    let mut child = child;
+                    let _ = child.start_kill();
+                    return Err(Error::LockTransfer(e));
                 }
                 Ok(child)
             }
             Err(e) => {
-                if let Some(claim) = transfer_claim {
+                for claim in transfer_claims {
                     let _ = claim.release();
                 }
                 Err(e)

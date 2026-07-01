@@ -122,6 +122,24 @@ pub async fn tags_for_hierarchy(
     Ok(out)
 }
 
+/// All tags belonging to the given tag_group, newest-updated first.
+/// They upgrade together, so a spawn of any of them locks all of them.
+pub async fn tags_for_group(pool: &Pool, tag_group: i64) -> Result<Vec<String>, Error> {
+    let rows = sqlx::query(
+        "SELECT name FROM objectiveai.tags \
+         WHERE tag_group = $1 \
+         ORDER BY updated_at DESC",
+    )
+    .bind(tag_group)
+    .fetch_all(&**pool)
+    .await?;
+    let mut out = Vec::with_capacity(rows.len());
+    for row in rows {
+        out.push(row.try_get::<String, _>(0)?);
+    }
+    Ok(out)
+}
+
 /// Hierarchy bound to a given tag. `None` for GROUPED rows and for
 /// absent rows.
 pub async fn hierarchy_for_tag(

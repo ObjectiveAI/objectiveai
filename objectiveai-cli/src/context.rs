@@ -20,7 +20,7 @@
 use std::sync::Arc;
 
 use objectiveai_sdk::HttpClient;
-use tokio::sync::OnceCell;
+use tokio::sync::{Mutex, OnceCell};
 
 use crate::db;
 use crate::filesystem;
@@ -49,6 +49,23 @@ pub struct Context {
     /// [`Context::python`]. No per-request identity; always shared
     /// across clones.
     python: Arc<OnceCell<crate::python::Python>>,
+    /// Lazily-installed podman executable path — see
+    /// [`Context::podman`]. Downloaded + installed on first use,
+    /// shared across clones.
+    podman: Arc<OnceCell<std::path::PathBuf>>,
+    /// Serializes the podman-machine "ensure running" SLOW path within this
+    /// process (shared across clones). The cross-process bin lock used there
+    /// is reentrant in-process, so this is what stops two concurrent in-process
+    /// callers (e.g. the conduit dialing several laboratories at once) from
+    /// both reconciling and double-starting the machine. See
+    /// [`crate::podman::running::ensure_running`].
+    podman_machine: Arc<Mutex<()>>,
+    /// Per-key in-process gate for agent locks (AIH + tag), shared across
+    /// clones. The lockfile is a cross-process mutex that is reentrant
+    /// in-process, so this is what gives agent locks true in-process exclusion.
+    /// Acquired/released only through
+    /// [`crate::command::agents::locks::{try_acquire, wait_acquire}`].
+    agent_locks: Arc<crate::command::agents::locks::AgentLockMap>,
     /// When true, the embedded python's `objectiveai.execute(...)` host
     /// call raises instead of dispatching a CLI command. Read by
     /// `python::add_objectiveai_host` via the run's `PyHostState.ctx`.
@@ -79,6 +96,9 @@ impl Context {
             viewer: Arc::new(OnceCell::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
+            podman: Arc::new(OnceCell::new()),
+            podman_machine: Arc::new(Mutex::new(())),
+            agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
     }
@@ -104,6 +124,37 @@ impl Context {
         self.python
             .get_or_try_init(|| crate::python::Python::initialize(self.filesystem.bin_dir()))
             .await
+    }
+
+    /// The podman executable, ready to use. The **install** (download +
+    /// extract into `<bin>/podman/<version>/`, [`crate::podman::install`]) is
+    /// memoized in the `OnceCell` — it's immutable, so it's paid once per
+    /// process and coalesced in-process. The **machine** is then ensured
+    /// *running* on EVERY call ([`crate::podman::running`] — `machine init` if
+    /// absent, then `machine start`; no-op on Linux), because running-state is
+    /// volatile (a host reboot stops it) and a memoized/marker result would go
+    /// stale. The warm path is a single `machine inspect`. Commands that never
+    /// need podman never pay the cost.
+    pub async fn podman(&self) -> Result<&std::path::Path, crate::error::Error> {
+        let bin = self.filesystem.bin_dir();
+        let exe = self
+            .podman
+            .get_or_try_init(|| crate::podman::install::ensure_installed(bin.clone()))
+            .await?;
+        crate::podman::running::ensure_running(&self.podman_machine, &bin, exe).await?;
+        Ok(exe.as_path())
+    }
+
+    /// The per-key in-process gate for agent locks — for direct acquire sites
+    /// (`crate::command::agents::locks::{try_acquire, wait_acquire}`).
+    pub fn agent_locks(&self) -> &crate::command::agents::locks::AgentLockMap {
+        &self.agent_locks
+    }
+
+    /// A clone of the shared agent-lock map's `Arc` — for the
+    /// `AgentInstanceRegistry`, which holds it for its lifetime.
+    pub fn agent_locks_arc(&self) -> Arc<crate::command::agents::locks::AgentLockMap> {
+        self.agent_locks.clone()
     }
 
     /// The API `HttpClient`, built on first use and memoized.
@@ -151,9 +202,9 @@ impl Context {
     /// Effective MCP timeout (ms), used as BOTH the connect and per-call
     /// timeout for every MCP client this CLI drives (its streaming
     /// conduit). The merged (`--final`) `api.mcp_timeout_ms` config value,
-    /// or the canonical default (60000ms) when unset.
+    /// or the canonical default (1_800_000ms / 30 min) when unset.
     pub async fn resolve_mcp_timeout_ms(&self) -> Result<u64, crate::error::Error> {
-        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(60000))
+        Ok(self.resolve_mcp_timeout_ms_opt().await?.unwrap_or(1_800_000))
     }
 
     /// Effective backoff max-elapsed-time (ms) — the retry budget for the

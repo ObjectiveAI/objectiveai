@@ -17,6 +17,7 @@ pub mod db;
 pub mod functions;
 pub mod kill_all;
 pub mod kill_helpers;
+pub mod laboratories;
 pub mod mcp;
 pub mod plugins;
 pub mod python;

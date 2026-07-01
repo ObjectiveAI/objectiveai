@@ -30,6 +30,10 @@
       "$ref": "cli.command.agents.instances.Request"
     },
     {
+      "title": "Laboratories",
+      "$ref": "cli.command.agents.laboratories.Request"
+    },
+    {
       "title": "List",
       "$ref": "cli.command.agents.list.Request"
     },
@@ -44,6 +48,10 @@
     {
       "title": "Logs",
       "$ref": "cli.command.agents.logs.Request"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.agents.mcp.Request"
     },
     {
       "title": "Message",
@@ -74,10 +82,6 @@
       "$ref": "cli.command.agents.queue.Request"
     },
     {
-      "title": "Resources",
-      "$ref": "cli.command.agents.resources.Request"
-    },
-    {
       "title": "Spawn",
       "$ref": "cli.command.agents.spawn.Request"
     },
@@ -92,10 +96,6 @@
     {
       "title": "Tags",
       "$ref": "cli.command.agents.tags.Request"
-    },
-    {
-      "title": "Tools",
-      "$ref": "cli.command.agents.tools.Request"
     },
     {
       "title": "Wait",

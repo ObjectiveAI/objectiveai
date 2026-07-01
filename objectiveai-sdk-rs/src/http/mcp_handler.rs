@@ -93,6 +93,9 @@ impl McpHandler for RejectHandler {
             server_request::Payload::Drop(_) => {
                 Payload::Drop(server_response::DropResult { dropped: false })
             }
+            server_request::Payload::LaboratoryTransfer(_) => {
+                Payload::LaboratoryTransfer(reject_err())
+            }
         };
         server_response::Response {
             id: request.id,

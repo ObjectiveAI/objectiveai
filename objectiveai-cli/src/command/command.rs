@@ -62,6 +62,10 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
             let value = super::kill_all::response_schema::execute(ctx, req).await?;
             once(Ok(ResponseItem::KillAllResponseSchema(value)))
         }
+        Request::Laboratories(req) => {
+            let inner = super::laboratories::execute(ctx, req).await?;
+            Box::pin(inner.map(|r| r.map(ResponseItem::Laboratories)))
+        }
         Request::Mcp(req) => {
             let inner = super::mcp::execute(ctx, req).await?;
             Box::pin(inner.map(|r| r.map(ResponseItem::Mcp)))

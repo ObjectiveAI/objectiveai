@@ -23,7 +23,7 @@ SDKs published to language-native registries. Pick the one for your stack:
 | Python | [`objectiveai-sdk`](https://pypi.org/project/objectiveai-sdk/) | `pip install objectiveai-sdk` |
 | Go | [`objectiveai-sdk-go`](https://pkg.go.dev/github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go) | `go get github.com/ObjectiveAI/objectiveai/objectiveai-sdk-go` |
 
-Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-filesystem`](https://crates.io/crates/objectiveai-mcp-filesystem), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros).
+Additional crates on crates.io: [`objectiveai-api`](https://crates.io/crates/objectiveai-api), [`objectiveai-cli`](https://crates.io/crates/objectiveai-cli), [`objectiveai-mcp`](https://crates.io/crates/objectiveai-mcp), [`objectiveai-mcp-proxy`](https://crates.io/crates/objectiveai-mcp-proxy), [`objectiveai-mcp-laboratory`](https://crates.io/crates/objectiveai-mcp-laboratory), [`objectiveai-sdk-macros`](https://crates.io/crates/objectiveai-sdk-macros).
 
 ## Binaries
 
@@ -392,7 +392,7 @@ Three crates make up the MCP surface:
 
 - **`objectiveai-mcp`** — the primary MCP surface. Wraps the CLI as MCP tools over streamable-HTTP. What users run locally and expose upstream for distributed agents.
 - **`objectiveai-mcp-proxy`** — a multiplexing sidecar of `objectiveai-api`. Terminates an MCP client connection and forwards tool calls to an upstream MCP server or to ObjectiveAI-native tools. Embedded inside `objectiveai-api` at runtime.
-- **`objectiveai-mcp-filesystem`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls.
+- **`objectiveai-mcp-laboratory`** — MCP filesystem helpers (read/write/list) adapting the SDK's filesystem layer to MCP tool calls.
 
 ### Install flags
 
@@ -553,7 +553,7 @@ objectiveai/
 │
 ├── # MCP integration
 │   ├── objectiveai-mcp-proxy/                 # MCP proxy — multiplexes tool calls
-│   └── objectiveai-mcp-filesystem/            # MCP filesystem helpers
+│   └── objectiveai-mcp-laboratory/            # MCP filesystem helpers
 │
 ├── # Runners
 │   ├── objectiveai-claude-agent-sdk-runner/   # Concurrent Claude Agent SDK runner

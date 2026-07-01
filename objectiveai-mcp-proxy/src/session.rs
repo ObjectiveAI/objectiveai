@@ -10,13 +10,24 @@ use dashmap::DashMap;
 use futures::future::try_join_all;
 use indexmap::IndexMap;
 use std::sync::Arc;
+use objectiveai_sdk::laboratories::Laboratory;
 use objectiveai_sdk::mcp::{
     JsonRpcNotification,
     resource::{ListResourcesResult, ReadResourceResult, Resource},
-    tool::{CallToolRequestParams, CallToolResult, ListToolsResult, Tool},
+    server::{ListServersResult, Server},
+    tool::{
+        CallToolRequestParams, CallToolResult, ContentBlock, ListToolsResult,
+        TextContent, Tool, ToolSchemaObject, ToolSchemaType,
+    },
 };
 
 use crate::reverse_channel::Upstream;
+
+/// Name of the proxy-native tool injected when a session has 2+
+/// laboratories. Reserved — intercepted by exact match in
+/// [`Session::call_tool`] before prefix routing, so it never forwards to
+/// an upstream.
+pub const LABORATORY_TRANSFER_TOOL: &str = "laboratory_transfer";
 use axum::http::HeaderMap;
 use tokio::sync::{RwLock, broadcast};
 use tokio_util::sync::CancellationToken;
@@ -208,30 +219,33 @@ impl Session {
     /// order; downstream consumers (e.g. seeded mock agents) rely on
     /// this for deterministic output.
     pub async fn list_tools(&self) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        self.list_tools_filtered(None).await
+        self.list_tools_filtered(None, None).await
     }
 
-    /// Per-upstream variant of [`Self::list_tools`]: when `filter_url`
-    /// is `Some`, only fans out to the single upstream whose connection
-    /// `url` matches verbatim. When `None`, behaves identically to the
-    /// no-arg form (fan out to every upstream).
+    /// Per-upstream variant of [`Self::list_tools`]. Each provided filter
+    /// narrows the set of upstreams that participate (ANDed together):
+    /// `filter_url` keeps only the upstream whose connection `url` matches
+    /// verbatim; `filter_name` keeps only the upstream whose routing
+    /// prefix (the name `servers/list` reports) matches. `None` for both
+    /// behaves like the no-arg form (fan out to every upstream).
     ///
-    /// An unmatched `filter_url` returns an empty `ListToolsResult`
-    /// (not an error) — the caller validates whether emptiness is
-    /// acceptable. The per-upstream allowlist (`X-MCP-Tools-Allow`)
-    /// is still applied to whichever upstream(s) participate.
+    /// An unmatched filter returns an empty `ListToolsResult` (not an
+    /// error) — the caller validates whether emptiness is acceptable. The
+    /// per-upstream allowlist (`X-MCP-Tools-Allow`) is still applied to
+    /// whichever upstream(s) participate.
     pub async fn list_tools_filtered(
         &self,
         filter_url: Option<&str>,
+        filter_name: Option<&str>,
     ) -> Result<ListToolsResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Upstream)> = match filter_url {
-            Some(url) => self
-                .connections
-                .iter()
-                .filter(|(_, c)| c.url() == url)
-                .collect(),
-            None => self.connections.iter().collect(),
-        };
+        let pairs: Vec<(&String, &Upstream)> = self
+            .connections
+            .iter()
+            .filter(|(name, c)| {
+                filter_url.is_none_or(|u| c.url() == u)
+                    && filter_name.is_none_or(|n| name.as_str() == n)
+            })
+            .collect();
         let results = try_join_all(
             pairs
                 .iter()
@@ -250,6 +264,23 @@ impl Session {
                 tools.push(prefixed);
             }
         }
+
+        // Proxy-native `laboratory_transfer` — visible only when listing the
+        // full surface (not a per-server filtered view) and the session has
+        // 2+ laboratories to move files between.
+        //
+        // SHELVED: the lab→lab transfer path is not yet reliable (the conduit
+        // splice hangs end to end), so the tool is intentionally not advertised
+        // for now. The implementation below is kept intact — drop the `false &&`
+        // to re-enable once the transfer path is fixed.
+        if false
+            && filter_url.is_none()
+            && filter_name.is_none()
+            && self.laboratory_count() >= 2
+        {
+            tools.push(laboratory_transfer_tool());
+        }
+
         tools.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(ListToolsResult {
@@ -259,35 +290,58 @@ impl Session {
         })
     }
 
+    /// List every connected upstream MCP server with its metadata. Unlike
+    /// `list_tools`/`list_resources` this is a proxy-local aggregate: each
+    /// upstream's `initialize` reply is already held in memory, so there's
+    /// no fan-out / network call. One [`Server`] per connection, keyed by
+    /// the routing prefix (the same `<prefix>_` prepended to that server's
+    /// tools/resources), sorted by name for stable output.
+    pub fn list_servers(&self) -> ListServersResult {
+        let mut servers: Vec<Server> = self
+            .connections
+            .iter()
+            .map(|(prefix, up)| Server {
+                name: prefix.clone(),
+                url: up.url().to_string(),
+                initialize_result: up.initialize_result().clone(),
+                laboratory: up.laboratory(),
+                plugin: up.plugin(),
+            })
+            .collect();
+        servers.sort_by(|a, b| a.name.cmp(&b.name));
+        ListServersResult { servers }
+    }
+
     /// Fan `resources/list` out to every upstream in parallel, prefix
     /// each URI with `<server-name>_`, concatenate the per-upstream
     /// lists, and return the union sorted by URI. Same fail-fast
     /// semantics as [`Session::list_tools`] — the first upstream error
     /// short-circuits and is returned to the caller.
     pub async fn list_resources(&self) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        self.list_resources_filtered(None).await
+        self.list_resources_filtered(None, None).await
     }
 
-    /// Per-upstream variant of [`Self::list_resources`]: when
-    /// `filter_url` is `Some`, only fans out to the single upstream
-    /// whose connection `url` matches verbatim. When `None`, behaves
-    /// identically to the no-arg form (fan out to every upstream).
+    /// Per-upstream variant of [`Self::list_resources`]. Each provided
+    /// filter narrows the participating upstreams (ANDed): `filter_url`
+    /// matches the connection `url`; `filter_name` matches the routing
+    /// prefix (the name `servers/list` reports). `None` for both fans out
+    /// to every upstream.
     ///
-    /// An unmatched `filter_url` returns an empty `ListResourcesResult`
-    /// (not an error) — the caller validates whether emptiness is
-    /// acceptable.
+    /// An unmatched filter returns an empty `ListResourcesResult` (not an
+    /// error) — the caller validates whether emptiness is acceptable.
     pub async fn list_resources_filtered(
         &self,
         filter_url: Option<&str>,
+        filter_name: Option<&str>,
     ) -> Result<ListResourcesResult, Arc<objectiveai_sdk::mcp::Error>> {
-        let pairs: Vec<(&String, &Upstream)> = match filter_url {
-            Some(url) => self
-                .connections
-                .iter()
-                .filter(|(_, c)| c.url() == url)
-                .collect(),
-            None => self.connections.iter().collect(),
-        };
+        let pairs: Vec<(&String, &Upstream)> = self
+            .connections
+            .iter()
+            .filter(|(name, c)| {
+                filter_url.is_none_or(|u| c.url() == u)
+                    && filter_name.is_none_or(|n| name.as_str() == n)
+            })
+            .collect();
         let results = try_join_all(
             pairs
                 .iter()
@@ -322,6 +376,12 @@ impl Session {
         &self,
         params: &CallToolRequestParams,
     ) -> Result<CallToolResult, CallToolError> {
+        // Proxy-native tool — intercept by exact name BEFORE prefix routing
+        // so it can't be shadowed by (or mistaken for) a `<prefix>_<tool>`.
+        if params.name == LABORATORY_TRANSFER_TOOL {
+            return Ok(self.laboratory_transfer(params).await);
+        }
+
         let (connection, original_name) = self
             .route(&params.name)
             .ok_or_else(|| CallToolError::ToolNotFound(params.name.clone()))?;
@@ -337,6 +397,87 @@ impl Session {
         };
         let r = connection.call_tool(&upstream_params).await;
         Ok(r?)
+    }
+
+    /// Number of laboratory upstreams in this session (typed marker, not
+    /// URL-derived). Drives the `laboratory_transfer` tool's visibility.
+    fn laboratory_count(&self) -> usize {
+        self.connections
+            .values()
+            .filter(|u| u.laboratory().is_some())
+            .count()
+    }
+
+    /// Find the upstream that IS the laboratory with this id (matched on
+    /// the typed laboratory id, never a routing prefix / name).
+    fn find_laboratory(&self, id: &str) -> Option<&Upstream> {
+        self.connections.values().find(|u| {
+            matches!(u.laboratory(), Some(Laboratory::Client(c)) if c.id == id)
+        })
+    }
+
+    /// Handle the proxy-native `laboratory_transfer` tool: copy a
+    /// file/folder from one laboratory to another. Source/destination are
+    /// identified by laboratory **id** (the `laboratory.id` from
+    /// `agents mcp servers list`), resolved against the typed markers — no
+    /// prefix/name strings. The actual byte movement is delegated to the
+    /// conduit over the session reverse channel (a streamed tar splice).
+    async fn laboratory_transfer(&self, params: &CallToolRequestParams) -> CallToolResult {
+        let arg = |key: &str| -> Option<&str> {
+            params
+                .arguments
+                .as_ref()
+                .and_then(|m| m.get(key))
+                .and_then(|v| v.as_str())
+        };
+        let (source, source_path, destination, destination_path) = match (
+            arg("source"),
+            arg("source_path"),
+            arg("destination"),
+            arg("destination_path"),
+        ) {
+            (Some(s), Some(sp), Some(d), Some(dp)) => (s, sp, d, dp),
+            _ => {
+                return transfer_error(
+                    "laboratory_transfer requires string arguments: source, \
+                     source_path, destination, destination_path",
+                );
+            }
+        };
+        if source == destination {
+            return transfer_error("source and destination must be different laboratories");
+        }
+        if self.find_laboratory(source).is_none() {
+            return transfer_error(format!("no laboratory with id '{source}' in this session"));
+        }
+        // Any laboratory's reverse channel reaches the conduit that hosts
+        // both (one conduit per session).
+        let channel = match self.find_laboratory(destination) {
+            Some(u) => match u.reverse_channel() {
+                Some(c) => c,
+                None => return transfer_error("destination laboratory has no reverse channel"),
+            },
+            None => {
+                return transfer_error(format!(
+                    "no laboratory with id '{destination}' in this session"
+                ));
+            }
+        };
+        match channel
+            .transfer_laboratories(
+                source.to_string(),
+                destination.to_string(),
+                source_path.to_string(),
+                destination_path.to_string(),
+            )
+            .await
+        {
+            Ok(result) => transfer_text(format!(
+                "transferred {} bytes: {source}:{source_path} → {destination}:{destination_path}",
+                result.bytes
+            )),
+            Err(e) => transfer_error(format!("transfer failed: {e}")),
+        }
     }
 
     /// Forward `resources/read` to whichever upstream owns the URI. Same
@@ -373,6 +514,93 @@ impl Session {
 /// Format: `<server-name>_<original>`.
 fn prefix_name(server_name: &str, name: &str) -> String {
     format!("{server_name}_{name}")
+}
+
+/// The proxy-native `laboratory_transfer` tool definition, injected into
+/// `tools/list` when a session has 2+ laboratories. Source/destination are
+/// laboratory ids (from `agents mcp servers list`).
+fn laboratory_transfer_tool() -> Tool {
+    fn string_prop(description: &str) -> serde_json::Value {
+        serde_json::json!({ "type": "string", "description": description })
+    }
+    let mut properties: IndexMap<String, serde_json::Value> = IndexMap::new();
+    properties.insert(
+        "source".to_string(),
+        string_prop(
+            "Laboratory id of the source (the `laboratory.id` from \
+             `agents mcp servers list`).",
+        ),
+    );
+    properties.insert(
+        "source_path".to_string(),
+        string_prop("Absolute path of the file or folder to copy from the source laboratory."),
+    );
+    properties.insert(
+        "destination".to_string(),
+        string_prop("Laboratory id of the destination."),
+    );
+    properties.insert(
+        "destination_path".to_string(),
+        string_prop(
+            "Absolute destination directory in the destination laboratory; the \
+             source's basename is created inside it.",
+        ),
+    );
+    Tool {
+        name: LABORATORY_TRANSFER_TOOL.to_string(),
+        title: Some("Laboratory Transfer".to_string()),
+        description: Some(
+            "Copy a file or folder from one laboratory to another (streamed). \
+             Identify the laboratories by their id from `agents mcp servers list`."
+                .to_string(),
+        ),
+        icons: None,
+        input_schema: ToolSchemaObject {
+            r#type: ToolSchemaType::Object,
+            properties: Some(properties),
+            required: Some(vec![
+                "source".to_string(),
+                "source_path".to_string(),
+                "destination".to_string(),
+                "destination_path".to_string(),
+            ]),
+            extra: IndexMap::new(),
+        },
+        output_schema: None,
+        annotations: None,
+        execution: None,
+        _meta: None,
+    }
+}
+
+/// Build a successful `laboratory_transfer` `CallToolResult` (text).
+fn transfer_text(text: String) -> CallToolResult {
+    CallToolResult {
+        content: vec![ContentBlock::Text(TextContent {
+            text,
+            annotations: None,
+            _meta: None,
+        })],
+        structured_content: None,
+        is_error: None,
+        _meta: None,
+    }
+}
+
+/// Build an error `laboratory_transfer` `CallToolResult` (`isError: true`)
+/// so the failure surfaces to the agent as a tool error, not a protocol
+/// error.
+fn transfer_error(text: impl Into<String>) -> CallToolResult {
+    CallToolResult {
+        content: vec![ContentBlock::Text(TextContent {
+            text: text.into(),
+            annotations: None,
+            _meta: None,
+        })],
+        structured_content: None,
+        is_error: Some(true),
+        _meta: None,
+    }
 }
 
 /// Failure modes for [`Session::call_tool`].

@@ -37,6 +37,7 @@ pub mod data_url;
 pub mod error;
 pub mod functions;
 mod json_schema;
+pub mod laboratories;
 pub mod swarm;
 pub use json_schema::*;
 pub mod prefixed_uuid;

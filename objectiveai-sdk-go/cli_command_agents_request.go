@@ -15,10 +15,12 @@ type CliCommandAgentsRequest struct {
 	GetRequestSchema *CliCommandAgentsGetRequestSchemaRequest 
 	GetResponseSchema *CliCommandAgentsGetResponseSchemaRequest 
 	Instances *CliCommandAgentsInstancesRequest 
+	Laboratories *CliCommandAgentsLaboratoriesRequest 
 	List *CliCommandAgentsListRequest 
 	ListRequestSchema *CliCommandAgentsListRequestSchemaRequest 
 	ListResponseSchema *CliCommandAgentsListResponseSchemaRequest 
 	Logs *CliCommandAgentsLogsRequest 
+	MCP *CliCommandAgentsMcpRequest `variantTitle:"Mcp"`
 	Message *CliCommandAgentsMessageRequest 
 	MessageRequestSchema *CliCommandAgentsMessageRequestSchemaRequest 
 	MessageResponseSchema *CliCommandAgentsMessageResponseSchemaRequest 
@@ -26,12 +28,10 @@ type CliCommandAgentsRequest struct {
 	PublishRequestSchema *CliCommandAgentsPublishRequestSchemaRequest 
 	PublishResponseSchema *CliCommandAgentsPublishResponseSchemaRequest 
 	Queue *CliCommandAgentsQueueRequest 
-	Resources *CliCommandAgentsResourcesRequest 
 	Spawn *CliCommandAgentsSpawnRequest 
 	SpawnRequestSchema *CliCommandAgentsSpawnRequestSchemaRequest 
 	SpawnResponseSchema *CliCommandAgentsSpawnResponseSchemaRequest 
 	Tags *CliCommandAgentsTagsRequest 
-	Tools *CliCommandAgentsToolsRequest 
 	Wait *CliCommandAgentsWaitRequest 
 	WaitRequestSchema *CliCommandAgentsWaitRequestSchemaRequest 
 	WaitResponseSchema *CliCommandAgentsWaitResponseSchemaRequest 
@@ -59,6 +59,9 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	if v.Instances != nil {
 		return json.Marshal(v.Instances)
 	}
+	if v.Laboratories != nil {
+		return json.Marshal(v.Laboratories)
+	}
 	if v.List != nil {
 		return json.Marshal(v.List)
 	}
@@ -70,6 +73,9 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Logs != nil {
 		return json.Marshal(v.Logs)
+	}
+	if v.MCP != nil {
+		return json.Marshal(v.MCP)
 	}
 	if v.Message != nil {
 		return json.Marshal(v.Message)
@@ -92,9 +98,6 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	if v.Queue != nil {
 		return json.Marshal(v.Queue)
 	}
-	if v.Resources != nil {
-		return json.Marshal(v.Resources)
-	}
 	if v.Spawn != nil {
 		return json.Marshal(v.Spawn)
 	}
@@ -106,9 +109,6 @@ func (v CliCommandAgentsRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Tags != nil {
 		return json.Marshal(v.Tags)
-	}
-	if v.Tools != nil {
-		return json.Marshal(v.Tools)
 	}
 	if v.Wait != nil {
 		return json.Marshal(v.Wait)
@@ -201,6 +201,17 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
+		var try CliCommandAgentsLaboratoriesRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.Laboratories = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliCommandAgentsListRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
@@ -238,6 +249,17 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
 			candidate.Logs = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsMcpRequest
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsRequest{}
+			candidate.MCP = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -322,17 +344,6 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandAgentsResourcesRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsRequest{}
-			candidate.Resources = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandAgentsSpawnRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
@@ -370,17 +381,6 @@ func (v *CliCommandAgentsRequest) UnmarshalJSON(data []byte) error {
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsRequest{}
 			candidate.Tags = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandAgentsToolsRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandAgentsRequest{}
-			candidate.Tools = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -432,10 +432,12 @@ func (v CliCommandAgentsRequest) Validate() error {
 	if v.GetRequestSchema != nil { count++ }
 	if v.GetResponseSchema != nil { count++ }
 	if v.Instances != nil { count++ }
+	if v.Laboratories != nil { count++ }
 	if v.List != nil { count++ }
 	if v.ListRequestSchema != nil { count++ }
 	if v.ListResponseSchema != nil { count++ }
 	if v.Logs != nil { count++ }
+	if v.MCP != nil { count++ }
 	if v.Message != nil { count++ }
 	if v.MessageRequestSchema != nil { count++ }
 	if v.MessageResponseSchema != nil { count++ }
@@ -443,12 +445,10 @@ func (v CliCommandAgentsRequest) Validate() error {
 	if v.PublishRequestSchema != nil { count++ }
 	if v.PublishResponseSchema != nil { count++ }
 	if v.Queue != nil { count++ }
-	if v.Resources != nil { count++ }
 	if v.Spawn != nil { count++ }
 	if v.SpawnRequestSchema != nil { count++ }
 	if v.SpawnResponseSchema != nil { count++ }
 	if v.Tags != nil { count++ }
-	if v.Tools != nil { count++ }
 	if v.Wait != nil { count++ }
 	if v.WaitRequestSchema != nil { count++ }
 	if v.WaitResponseSchema != nil { count++ }

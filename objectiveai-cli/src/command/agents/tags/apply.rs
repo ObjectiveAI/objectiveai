@@ -58,7 +58,29 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
         db::tags::ResolvedApplyTarget::AgentTag { agent_tag } => Some(agent_tag.clone()),
         _ => None,
     };
-    let state = db::tags::apply(ctx.db_client().await?, &request.name, resolved).await?;
+    // Resolve the db handle before taking the lock so an error there can't
+    // skip the explicit release below.
+    let pool = ctx.db_client().await?;
+    // Laboratories travel with the tag when it's relocated, so a tag may not be
+    // moved while an agent holding it is live. Take the tag lock NON-BLOCKING
+    // (`try_acquire`): a held lock means a live process owns that tag, and the
+    // apply is rejected. Released right after the write — this command isn't an
+    // active agent, it just needs exclusivity for the relocation itself.
+    let state_dir = ctx.filesystem.state_dir();
+    let (lock_dir, lock_key) =
+        crate::command::agents::locks::agent_tag_lock(&state_dir, &request.name);
+    let Some(claim) =
+        crate::command::agents::locks::try_acquire(ctx.agent_locks(), &lock_dir, &lock_key).await
+    else {
+        return Err(Error::TagApplyAgentActive { tag: request.name });
+    };
+    let result = db::tags::apply(pool, &request.name, resolved).await;
+    // Release on every path (dropping a LockClaim does NOT release it) before
+    // propagating the apply outcome.
+    claim
+        .release()
+        .map_err(|e| Error::Lockfile { key: lock_key, source: e })?;
+    let state = result?;
     Ok(match (source_tag, state) {
         (None, db::tags::LookupState::Bound { agent_instance_hierarchy }) => {
             // AgentInstance path — re-derive `agent_instance` + parent

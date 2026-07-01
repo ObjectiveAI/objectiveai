@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.tools.call.Path",
-  "type": "string",
-  "enum": [
-    "agents/tools/call"
-  ]
-}

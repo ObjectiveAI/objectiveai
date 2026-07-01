@@ -33,6 +33,11 @@ pub enum Payload {
     #[schemars(title = "ListTools")]
     ListTools {
         response_id: String,
+        /// Restrict the listing to the single server with this name (the
+        /// proxy's routing prefix). `None` fans out to every upstream.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::tool::ListToolsRequest,
     },
@@ -51,9 +56,21 @@ pub enum Payload {
     #[schemars(title = "ListResources")]
     ListResources {
         response_id: String,
+        /// Restrict the listing to the single server with this name (the
+        /// proxy's routing prefix). `None` fans out to every upstream.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        name: Option<String>,
         #[serde(flatten)]
         params: crate::mcp::resource::ListResourcesRequest,
     },
+
+    /// List the proxy's connected upstream MCP servers for `response_id`,
+    /// with each server's initialize metadata. A proxy-local aggregate
+    /// answered from its in-memory connection set — no MCP params, no
+    /// upstream round-trip.
+    #[schemars(title = "ListServers")]
+    ListServers { response_id: String },
 
     /// Run the proxy's `resources/read` for `response_id` (routes by URI
     /// prefix to the owning upstream).

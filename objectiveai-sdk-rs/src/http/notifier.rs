@@ -100,6 +100,7 @@ impl Notifier {
     pub async fn list_tools(
         &self,
         response_id: String,
+        name: Option<String>,
         params: crate::mcp::tool::ListToolsRequest,
     ) -> Result<
         server_response::JsonRpcResult<crate::mcp::tool::ListToolsResult>,
@@ -108,6 +109,7 @@ impl Notifier {
         match self
             .send_raw(client_request::Payload::ListTools {
                 response_id,
+                name,
                 params,
             })
             .await?
@@ -146,6 +148,7 @@ impl Notifier {
     pub async fn list_resources(
         &self,
         response_id: String,
+        name: Option<String>,
         params: crate::mcp::resource::ListResourcesRequest,
     ) -> Result<
         server_response::JsonRpcResult<crate::mcp::resource::ListResourcesResult>,
@@ -154,6 +157,7 @@ impl Notifier {
         match self
             .send_raw(client_request::Payload::ListResources {
                 response_id,
+                name,
                 params,
             })
             .await?
@@ -161,6 +165,25 @@ impl Notifier {
             client_response::Response::ListResources { result, .. } => {
                 Ok(result)
             }
+            other => Self::fold_unexpected(other),
+        }
+    }
+
+    /// List the proxy's connected upstream MCP servers for `response_id`
+    /// over this WS (a proxy-local aggregate). See [`Self::list_tools`]
+    /// for the error contract.
+    pub async fn list_servers(
+        &self,
+        response_id: String,
+    ) -> Result<
+        server_response::JsonRpcResult<crate::mcp::server::ListServersResult>,
+        super::HttpError,
+    > {
+        match self
+            .send_raw(client_request::Payload::ListServers { response_id })
+            .await?
+        {
+            client_response::Response::ListServers { result, .. } => Ok(result),
             other => Self::fold_unexpected(other),
         }
     }

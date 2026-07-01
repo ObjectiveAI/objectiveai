@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.laboratories.list.request_schema.Path",
+  "type": "string",
+  "enum": [
+    "agents/laboratories/list/request_schema"
+  ]
+}

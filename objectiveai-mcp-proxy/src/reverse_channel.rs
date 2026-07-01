@@ -6,7 +6,7 @@
 //! `ws` ([`WsUpstream`]) are reached through it instead of over HTTP:
 //!
 //! - `ws://objectiveai` → [`McpKind::ObjectiveAi`]
-//! - `ws:///owner/name/version/mcp` → [`McpKind::Other`]
+//! - `ws:///owner/name/version/mcp` → [`McpKind::Plugin`]
 //!
 //! Direction split (the API owns the WS itself):
 //! - **send**: the proxy emits a `server_request::Request` into the
@@ -159,6 +159,42 @@ impl ReverseChannel {
             .await;
     }
 
+    /// Stream a file/folder from one laboratory to another. The conduit
+    /// splices the source laboratory's `/export` straight into the
+    /// destination's `/import`; both laboratories are on the same conduit,
+    /// so this rides the session's reverse channel like any other op.
+    pub async fn transfer_laboratories(
+        &self,
+        source_id: String,
+        dest_id: String,
+        source_path: String,
+        dest_path: String,
+    ) -> Result<server_response::LaboratoryTransferResult, McpError> {
+        let response = self
+            .request(
+                server_request::Payload::LaboratoryTransfer(
+                    server_request::LaboratoryTransferRequest {
+                        source_id,
+                        dest_id,
+                        source_path,
+                        dest_path,
+                    },
+                ),
+                IndexMap::new(),
+            )
+            .await?;
+        match response.payload {
+            server_response::Payload::LaboratoryTransfer(result) => {
+                unwrap_rpc("laboratory_transfer", result)
+            }
+            other => Err(variant_mismatch(
+                "laboratory_transfer",
+                "laboratory_transfer",
+                &other,
+            )),
+        }
+    }
+
     /// Hand a proxy-bound `server_response` (one of the 6 MCP variants)
     /// back to the waiter that issued the matching request. Called by the
     /// API's recv loop. Unknown id → dropped.
@@ -200,25 +236,46 @@ impl ReverseChannel {
             }
             // List params (cursor) are ignored, matching the HTTP
             // `handle_tools_list` which fans out to every upstream.
-            client_request::Payload::ListTools { response_id, .. } => {
+            // List params (cursor) are ignored, matching the HTTP
+            // `handle_tools_list`; `name`, when set, scopes the fan-out to
+            // the single server with that routing prefix.
+            client_request::Payload::ListTools {
+                response_id, name, ..
+            } => {
                 let result = match self.lookup_session(&response_id) {
-                    Ok(session) => match session.list_tools_filtered(None).await {
-                        Ok(result) => JsonRpcResult::Ok { result },
-                        Err(e) => rpc_err_result(-32603, format!("list_tools: {e}")),
-                    },
+                    Ok(session) => {
+                        match session.list_tools_filtered(None, name.as_deref()).await {
+                            Ok(result) => JsonRpcResult::Ok { result },
+                            Err(e) => rpc_err_result(-32603, format!("list_tools: {e}")),
+                        }
+                    }
                     Err((code, message)) => rpc_err_result(code, message),
                 };
                 client_response::Response::ListTools { id, result }
             }
-            client_request::Payload::ListResources { response_id, .. } => {
+            client_request::Payload::ListResources {
+                response_id, name, ..
+            } => {
                 let result = match self.lookup_session(&response_id) {
-                    Ok(session) => match session.list_resources_filtered(None).await {
-                        Ok(result) => JsonRpcResult::Ok { result },
-                        Err(e) => rpc_err_result(-32603, format!("list_resources: {e}")),
-                    },
+                    Ok(session) => {
+                        match session.list_resources_filtered(None, name.as_deref()).await {
+                            Ok(result) => JsonRpcResult::Ok { result },
+                            Err(e) => rpc_err_result(-32603, format!("list_resources: {e}")),
+                        }
+                    }
                     Err((code, message)) => rpc_err_result(code, message),
                 };
                 client_response::Response::ListResources { id, result }
+            }
+            client_request::Payload::ListServers { response_id } => {
+                let result = match self.lookup_session(&response_id) {
+                    // Proxy-local aggregate — no upstream fan-out, can't fail.
+                    Ok(session) => JsonRpcResult::Ok {
+                        result: session.list_servers(),
+                    },
+                    Err((code, message)) => rpc_err_result(code, message),
+                };
+                client_response::Response::ListServers { id, result }
             }
             client_request::Payload::CallTool { response_id, params } => {
                 let result = match self.lookup_session(&response_id) {
@@ -281,6 +338,15 @@ pub struct WsUpstream {
     /// reply — feeds the session's routing-prefix derivation.
     server_name: String,
     server_version: String,
+    /// The upstream's full `initialize` reply (capabilities, server_info,
+    /// instructions, protocol version) — kept verbatim so `servers/list`
+    /// can report it. `Connection` exposes the same via its own
+    /// `initialize_result`.
+    initialize_result: objectiveai_sdk::mcp::initialize_result::InitializeResult,
+    /// Typed laboratory identity from the explicit `X-MCP-Laboratories`
+    /// marker — the authoritative "this upstream is a laboratory" signal,
+    /// `None` for non-laboratory upstreams. Never derived from the URL.
+    laboratory: Option<objectiveai_sdk::laboratories::Laboratory>,
     /// Whether the upstream advertised the `tools` / `resources`
     /// capability in its `initialize` reply. We must NOT issue
     /// `tools/list` / `resources/list` against an upstream that didn't
@@ -514,6 +580,66 @@ impl Upstream {
         }
     }
 
+    /// The upstream's full `initialize` reply (capabilities, server_info,
+    /// instructions, protocol version) — used by `servers/list`.
+    pub fn initialize_result(
+        &self,
+    ) -> &objectiveai_sdk::mcp::initialize_result::InitializeResult {
+        match self {
+            Upstream::Http(c) => &c.initialize_result,
+            Upstream::Ws(w) => &w.initialize_result,
+        }
+    }
+
+    /// The laboratory this upstream IS, if any — for `servers/list` and
+    /// `laboratory_transfer`.
+    ///
+    /// Read from the explicit, typed laboratory marker the API supplied
+    /// (`X-MCP-Laboratories`), NOT inferred by string-parsing the
+    /// `ws://laboratory/{id}` URL. HTTP upstreams and unmarked websocket
+    /// upstreams (the primary `objectiveai` MCP, plugins) are `None`.
+    pub fn laboratory(&self) -> Option<objectiveai_sdk::laboratories::Laboratory> {
+        match self {
+            Upstream::Http(_) => None,
+            Upstream::Ws(w) => w.laboratory.clone(),
+        }
+    }
+
+    /// The plugin this upstream IS, if any — for `servers/list`. Same
+    /// transport+kind gating as [`Self::laboratory`]: only a websocket
+    /// upstream whose `McpKind` is `Plugin` maps to a [`Plugin`]; HTTP and
+    /// non-plugin websocket kinds are `None`.
+    pub fn plugin(&self) -> Option<objectiveai_sdk::mcp::server::Plugin> {
+        match self {
+            Upstream::Http(_) => None,
+            Upstream::Ws(w) => match &w.mcp_kind {
+                McpKind::Plugin {
+                    owner,
+                    name,
+                    version,
+                    mcp,
+                } => Some(objectiveai_sdk::mcp::server::Plugin {
+                    owner: owner.clone(),
+                    name: name.clone(),
+                    version: version.clone(),
+                    mcp: mcp.clone(),
+                }),
+                McpKind::ObjectiveAi | McpKind::Laboratory { .. } => None,
+            },
+        }
+    }
+
+    /// The session reverse channel this upstream rides, for proxy-level
+    /// ops that aren't a per-upstream MCP call (e.g. laboratory transfer,
+    /// which spans two laboratories on the same conduit). `None` for HTTP
+    /// upstreams, which have no reverse channel.
+    pub fn reverse_channel(&self) -> Option<&ReverseChannel> {
+        match self {
+            Upstream::Http(_) => None,
+            Upstream::Ws(w) => Some(&w.channel),
+        }
+    }
+
     pub async fn list_tools(&self) -> Result<Arc<Vec<Tool>>, Arc<McpError>> {
         match self {
             Upstream::Http(c) => c.list_tools().await,
@@ -582,6 +708,12 @@ impl Upstream {
 
 /// Parse a `ws://objectiveai` / `ws:///owner/name/version/mcp` URL into
 /// its [`McpKind`]. Returns `None` for any other shape.
+///
+/// NOTE: laboratories are deliberately NOT parsed here. A laboratory's
+/// `McpKind` comes from the explicit, typed `X-MCP-Laboratories` marker
+/// (see `crate::upstream`), never from string-matching the URL — so the
+/// proxy's notion of "this is a laboratory" has a single authoritative
+/// source.
 pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     let rest = url.strip_prefix("ws://")?;
     // Drop any `?query` (plugin args ride there, parsed separately).
@@ -595,7 +727,7 @@ pub fn parse_ws_mcp_kind(url: &str) -> Option<McpKind> {
     let parts: Vec<&str> = path.split('/').collect();
     if let [owner, name, version, mcp] = parts.as_slice() {
         if !owner.is_empty() && !name.is_empty() && !version.is_empty() && !mcp.is_empty() {
-            return Some(McpKind::Other {
+            return Some(McpKind::Plugin {
                 owner: (*owner).to_string(),
                 name: (*name).to_string(),
                 version: (*version).to_string(),
@@ -617,6 +749,7 @@ pub async fn connect_ws(
     mcp_kind: McpKind,
     args: IndexMap<String, Option<String>>,
     mut headers: IndexMap<String, String>,
+    laboratory: Option<objectiveai_sdk::laboratories::Laboratory>,
 ) -> Result<WsUpstream, McpError> {
     let response = channel
         .request(
@@ -636,15 +769,21 @@ pub async fn connect_ws(
     // but keeps the transient identity + auth so the post-init health
     // probe + every later call still pass the conduit's transient check.
     headers.shift_remove(crate::upstream::MCP_SESSION_ID_KEY);
-    let has_tools_cap = reply.result.capabilities.tools.is_some();
-    let has_resources_cap = reply.result.capabilities.resources.is_some();
+    let session_id = reply.mcp_session_id;
+    let initialize_result = reply.result;
+    let has_tools_cap = initialize_result.capabilities.tools.is_some();
+    let has_resources_cap = initialize_result.capabilities.resources.is_some();
+    let server_name = initialize_result.server_info.name.clone();
+    let server_version = initialize_result.server_info.version.clone();
     Ok(WsUpstream {
         channel,
         mcp_kind,
         url,
-        session_id: reply.mcp_session_id,
-        server_name: reply.result.server_info.name,
-        server_version: reply.result.server_info.version,
+        session_id,
+        server_name,
+        server_version,
+        initialize_result,
+        laboratory,
         has_tools_cap,
         has_resources_cap,
         // The connect-time set (per-URL ∪ dial-time identity) is the
@@ -713,5 +852,6 @@ fn got_variant_name(p: &server_response::Payload) -> &'static str {
         P::ReadMessageQueue(_) => "read_message_queue",
         P::Retrieve(_) => "retrieve",
         P::Drop(_) => "drop",
+        P::LaboratoryTransfer(_) => "laboratory_transfer",
     }
 }

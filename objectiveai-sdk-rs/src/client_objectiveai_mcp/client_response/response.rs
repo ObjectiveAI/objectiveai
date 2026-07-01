@@ -67,6 +67,15 @@ pub enum Response {
         #[serde(flatten)]
         result: super::super::server_response::JsonRpcResult<crate::mcp::resource::ReadResourceResult>,
     },
+
+    /// Reply to [`super::super::client_request::Payload::ListServers`] —
+    /// the proxy's connected upstream MCP servers and their metadata.
+    #[schemars(title = "client_objectiveai_mcp.client_response.Response.ListServers")]
+    ListServers {
+        id: String,
+        #[serde(flatten)]
+        result: super::super::server_response::JsonRpcResult<crate::mcp::server::ListServersResult>,
+    },
 }
 
 impl Response {
@@ -79,6 +88,7 @@ impl Response {
             Response::CallTool { id, .. } => id,
             Response::ListResources { id, .. } => id,
             Response::ReadResource { id, .. } => id,
+            Response::ListServers { id, .. } => id,
         }
     }
 }

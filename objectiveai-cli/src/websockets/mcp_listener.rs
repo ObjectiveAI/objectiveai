@@ -52,13 +52,31 @@ const SOCKET_ERR_CODE: i64 = -32099;
 #[serde(tag = "path")]
 pub enum SocketRequest {
     #[serde(rename = "tools/list")]
-    ListTools(mcp::tool::ListToolsRequest),
+    ListTools {
+        #[serde(flatten)]
+        params: mcp::tool::ListToolsRequest,
+        /// Restrict the listing to the server with this name (routing
+        /// prefix). `None` lists every server.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
     #[serde(rename = "tools/call")]
     CallTool(mcp::tool::CallToolRequestParams),
     #[serde(rename = "resources/list")]
-    ListResources(mcp::resource::ListResourcesRequest),
+    ListResources {
+        #[serde(flatten)]
+        params: mcp::resource::ListResourcesRequest,
+        /// Restrict the listing to the server with this name (routing
+        /// prefix). `None` lists every server.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        name: Option<String>,
+    },
     #[serde(rename = "resources/read")]
     ReadResource(mcp::resource::ReadResourceRequestParams),
+    /// List the proxy's connected upstream MCP servers + metadata. A
+    /// proxy-local aggregate with no MCP params — a unit variant.
+    #[serde(rename = "servers/list")]
+    ListServers,
 }
 
 /// The reply written back on the socket: `{type, value}`. On success
@@ -210,17 +228,20 @@ async fn handle_conn(
     }
 
     let reply = match serde_json::from_str::<SocketRequest>(line.trim()) {
-        Ok(SocketRequest::ListTools(params)) => {
-            render(notifier.list_tools(response_id, params).await)
+        Ok(SocketRequest::ListTools { params, name }) => {
+            render(notifier.list_tools(response_id, name, params).await)
         }
         Ok(SocketRequest::CallTool(params)) => {
             render(notifier.call_tool(response_id, params).await)
         }
-        Ok(SocketRequest::ListResources(params)) => {
-            render(notifier.list_resources(response_id, params).await)
+        Ok(SocketRequest::ListResources { params, name }) => {
+            render(notifier.list_resources(response_id, name, params).await)
         }
         Ok(SocketRequest::ReadResource(params)) => {
             render(notifier.read_resource(response_id, params).await)
+        }
+        Ok(SocketRequest::ListServers) => {
+            render(notifier.list_servers(response_id).await)
         }
         Err(e) => err_line(format!("malformed request: {e}")),
     };

@@ -33,6 +33,7 @@
 #   <dir>/bin/objectiveai-db{.exe}
 #   <dir>/bin/objectiveai-claude-agent-sdk-runner{.exe}
 #   <dir>/bin/objectiveai-codex-sdk-runner{.exe}
+#   <dir>/bin/objectiveai-mcp-laboratory   (always musl-linux; no .exe)
 #
 # No toolchain required for the default (download) path. To build from a
 # repo checkout instead, pass --from-source (or --from-source-release):
@@ -42,7 +43,7 @@
 set -euo pipefail
 
 # Release version this installer pulls. Kept in lockstep by version.sh.
-VERSION="2.2.7"
+VERSION="2.2.8"
 REPO="ObjectiveAI/objectiveai"
 
 # ── Parse arguments ───────────────────────────────────────────────────
@@ -144,6 +145,24 @@ if [ "$FROM_SOURCE" = "1" ]; then
   if [ ! -f "$SCRIPT_DIR/build.sh" ]; then
     echo "--from-source requires a repo checkout (build.sh not found beside install.sh)" >&2
     exit 1
+  fi
+  # objectiveai-mcp-laboratory is always a musl-linux binary. On a non-Linux
+  # host build.sh cross-compiles it with cargo-zigbuild; require that toolchain
+  # up front so we fail fast with instructions instead of deep inside the build.
+  if [ "$(uname -s)" != "Linux" ]; then
+    lab_missing=""
+    command -v cargo-zigbuild >/dev/null 2>&1 || lab_missing="cargo-zigbuild"
+    if ! command -v zig >/dev/null 2>&1 \
+       && ! python3 -c "import ziglang" >/dev/null 2>&1 \
+       && ! python -c "import ziglang" >/dev/null 2>&1; then
+      lab_missing="${lab_missing:+$lab_missing and }zig"
+    fi
+    if [ -n "$lab_missing" ]; then
+      echo "--from-source needs $lab_missing to cross-compile objectiveai-mcp-laboratory (musl-linux) on this host." >&2
+      echo "  Install:  cargo install cargo-zigbuild   and   pip install ziglang" >&2
+      echo "  (or install zig from https://ziglang.org/download/)" >&2
+      exit 1
+    fi
   fi
   BUILD_ARGS=(--no-sdk)
   if [ "$FROM_SOURCE_RELEASE" = "1" ]; then

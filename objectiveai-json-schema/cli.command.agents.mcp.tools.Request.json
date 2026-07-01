@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.agents.mcp.tools.Request",
+  "anyOf": [
+    {
+      "title": "Call",
+      "$ref": "cli.command.agents.mcp.tools.call.Request"
+    },
+    {
+      "title": "CallRequestSchema",
+      "$ref": "cli.command.agents.mcp.tools.call.request_schema.Request"
+    },
+    {
+      "title": "CallResponseSchema",
+      "$ref": "cli.command.agents.mcp.tools.call.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.mcp.tools.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.agents.mcp.tools.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.agents.mcp.tools.list.response_schema.Request"
+    }
+  ]
+}

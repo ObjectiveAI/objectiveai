@@ -79,6 +79,31 @@ CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
 CREATE INDEX IF NOT EXISTS tags_tag_group_idx
     ON objectiveai.tags(tag_group);
 
+-- `laboratory_attachments`: laboratory IDs attached to an agent target.
+-- The target is EITHER an `agent_instance_hierarchy` (AIH) OR a `tag`
+-- (never both — same exclusivity CHECK as `tags`/`message_queue`). A
+-- given laboratory is attached at most once per target, enforced by a
+-- partial unique index per target column. `laboratory_id` is an opaque
+-- external identifier (no labs table, no FK).
+CREATE TABLE IF NOT EXISTS objectiveai.laboratory_attachments (
+    id                       BIGSERIAL PRIMARY KEY,
+    agent_instance_hierarchy TEXT,
+    tag                      TEXT,
+    laboratory_id            TEXT   NOT NULL,
+    created_at               BIGINT NOT NULL,
+    CHECK (
+        (agent_instance_hierarchy IS NOT NULL AND tag IS NULL)
+        OR
+        (agent_instance_hierarchy IS NULL AND tag IS NOT NULL)
+    )
+);
+CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_tag_unique_idx
+    ON objectiveai.laboratory_attachments(tag, laboratory_id)
+    WHERE tag IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS laboratory_attachments_aih_unique_idx
+    ON objectiveai.laboratory_attachments(agent_instance_hierarchy, laboratory_id)
+    WHERE agent_instance_hierarchy IS NOT NULL;
+
 -- Latest continuation token per agent_instance_hierarchy. Upserted
 -- per streamed chunk by the chunk-yielder loops in `agents spawn`
 -- and `functions execute`. No GC, no history — querying it gives

@@ -45,7 +45,6 @@ use std::collections::HashSet;
 use std::pin::Pin;
 
 use futures::{Stream, StreamExt};
-use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
 use objectiveai_sdk::cli::command::ResponseItem as RootResponseItem;
 use objectiveai_sdk::cli::command::agents::ResponseItem as AgentsResponseItem;
 use objectiveai_sdk::cli::command::agents::queue::deliver::{
@@ -224,66 +223,77 @@ fn deliver_one_hierarchy(
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::stream! {
         let state_dir = ctx.filesystem.state_dir();
-        let (dir, key) =
-            crate::command::agents::locks::agent_instance_lock(&state_dir, &hierarchy);
-        let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await else {
-            yield Ok(ResponseItem::AgentActive(AgentActiveResponseItem {
-                r#type: AgentActiveType::AgentActive,
-                agent_instance_hierarchy: hierarchy,
-            }));
-            return;
-        };
-
         let pool = match ctx.db_client().await {
             Ok(pool) => pool,
             Err(e) => {
-                let _ = claim.release();
                 yield Err(e);
                 return;
             }
         };
+        // Acquire the AIH + every tag bound to it (the whole family),
+        // all-or-nothing, so none of this agent's tags/labs can be relocated or
+        // detached while it is live. A held member ⇒ already active.
+        let registry = match crate::command::agents::locks::try_acquire_family(
+            ctx.agent_locks(),
+            pool,
+            &state_dir,
+            crate::command::agents::locks::Family::Hierarchy(hierarchy.clone()),
+        )
+        .await
+        {
+            Ok(Some(fam)) => {
+                let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
+                if let Some((h, aih_lock)) = fam.aih {
+                    registry.preseed(h, aih_lock);
+                }
+                registry.hold_tag_claims(fam.tags);
+                registry
+            }
+            Ok(None) => {
+                yield Ok(ResponseItem::AgentActive(AgentActiveResponseItem {
+                    r#type: AgentActiveType::AgentActive,
+                    agent_instance_hierarchy: hierarchy,
+                }));
+                return;
+            }
+            Err(e) => {
+                yield Err(e);
+                return;
+            }
+        };
+
         let lookup = match crate::db::logs::lookup_session(pool, &hierarchy).await {
             Ok(Some(lookup)) => lookup,
             Ok(None) => {
-                // SDK claims don't release on drop — free the slot
-                // before bailing.
-                let _ = claim.release();
+                // `registry` drops here → releases the whole family.
                 yield Err(Error::AgentNoPriorRequest {
                     agent_instance_hierarchy: hierarchy,
                 });
                 return;
             }
             Err(e) => {
-                let _ = claim.release();
                 yield Err(e.into());
                 return;
             }
         };
-
-        let mut registry = AgentInstanceRegistry::new(state_dir);
-        registry.preseed(hierarchy.clone(), claim);
 
         yield Ok(ResponseItem::AgentSpawned(AgentSpawnedResponseItem {
             r#type: AgentSpawnedType::AgentSpawned,
             agent_instance_hierarchy: hierarchy.clone(),
         }));
 
-        // Empty messages: the wake-up turn exists so the agent drains
-        // its own queue (the conduit reads pending rows during the
-        // turn), same shape `run_multi_pass` itself uses on restart.
-        let params = AgentCompletionCreateParams {
-            messages: Vec::new(),
-            provider: None,
-            agent: lookup.agent,
-            response_format: None,
-            seed: None,
-            stream: Some(true),
-            continuation: lookup.continuation,
-        };
+        // Empty messages: the wake-up turn exists so the agent drains its own
+        // queue (the conduit reads pending rows during the turn), same shape
+        // `run_multi_pass` itself uses on restart. `run_multi_pass` resolves
+        // this AIH's laboratory attachments internally.
         let inner = crate::command::agents::spawn::run_multi_pass(
             ctx.clone(),
-            params,
+            Vec::new(),
+            lookup.agent,
             None,
+            lookup.continuation,
+            None,
+            vec![crate::db::laboratory_attachments::Target::Aih(hierarchy.clone())],
             registry,
         );
         let mut inner = Box::pin(inner);
@@ -319,34 +329,21 @@ fn deliver_one_tag(
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::stream! {
         let state_dir = ctx.filesystem.state_dir();
-        let (dir, key) =
-            crate::command::agents::locks::agent_tag_lock(&state_dir, &agent_tag);
-        let Some(claim) = objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await else {
-            yield Ok(ResponseItem::TagActive(TagActiveResponseItem {
-                r#type: TagActiveType::TagActive,
-                agent_tag,
-            }));
-            return;
-        };
-
-        // Re-resolve under the lock — the target list was a snapshot
-        // and the tag may have been upgraded (or deleted) since.
+        // Resolve the tag with a fresh lookup — the target list was a snapshot
+        // and the tag may have upgraded (or been deleted) since.
         let pool = match ctx.db_client().await {
             Ok(pool) => pool,
             Err(e) => {
-                let _ = claim.release();
                 yield Err(e);
                 return;
             }
         };
-        let agent = match crate::db::tags::lookup(pool, &agent_tag).await {
-            Ok(crate::db::tags::LookupState::Grouped { agent_spec, .. }) => {
-                agent_spec
+        let (agent, tag_group_id) = match crate::db::tags::lookup(pool, &agent_tag).await {
+            Ok(crate::db::tags::LookupState::Grouped { agent_spec, tag_group_id, .. }) => {
+                (agent_spec, tag_group_id)
             }
             Ok(crate::db::tags::LookupState::Bound { agent_instance_hierarchy }) => {
-                // Raced to BOUND — the tag lock has no further job;
-                // deliver the live hierarchy instead.
-                let _ = claim.release();
+                // Already upgraded to BOUND — deliver the live hierarchy instead.
                 let mut inner = Box::pin(deliver_one_hierarchy(
                     ctx.clone(),
                     agent_instance_hierarchy,
@@ -357,42 +354,64 @@ fn deliver_one_tag(
                 return;
             }
             Ok(crate::db::tags::LookupState::Absent) => {
-                let _ = claim.release();
                 yield Err(Error::TagNotFound(agent_tag));
                 return;
             }
             Err(e) => {
-                let _ = claim.release();
                 yield Err(e.into());
                 return;
             }
         };
 
-        let mut registry = AgentInstanceRegistry::new(state_dir);
-        registry.hold_tag_claim(claim);
+        // Acquire every tag in the group (all-or-nothing) — they upgrade
+        // together, so a live spawn of any of them must hold all of them. A held
+        // member ⇒ already being materialized.
+        let registry = match crate::command::agents::locks::try_acquire_family(
+            ctx.agent_locks(),
+            pool,
+            &state_dir,
+            crate::command::agents::locks::Family::Group(tag_group_id),
+        )
+        .await
+        {
+            Ok(Some(fam)) => {
+                let mut registry = AgentInstanceRegistry::new(state_dir, ctx.agent_locks_arc());
+                registry.hold_tag_claims(fam.tags);
+                registry
+            }
+            Ok(None) => {
+                yield Ok(ResponseItem::TagActive(TagActiveResponseItem {
+                    r#type: TagActiveType::TagActive,
+                    agent_tag,
+                }));
+                return;
+            }
+            Err(e) => {
+                yield Err(e);
+                return;
+            }
+        };
 
         yield Ok(ResponseItem::TagSpawned(TagSpawnedResponseItem {
             r#type: TagSpawnedType::TagSpawned,
             agent_tag: agent_tag.clone(),
         }));
 
-        // Fresh spawn from the group's stored spec: empty messages
-        // (the queued rows ARE the prompt, drained via the conduit),
-        // no continuation, the tag threaded in so the first conduit
-        // read flips the whole group to BOUND on the minted AIH.
-        let params = AgentCompletionCreateParams {
-            messages: Vec::new(),
-            provider: None,
-            agent,
-            response_format: None,
-            seed: None,
-            stream: Some(true),
-            continuation: None,
-        };
+        // Fresh spawn from the group's stored spec: empty messages (the queued
+        // rows ARE the prompt, drained via the conduit), no continuation, the
+        // tag threaded in so the first conduit read flips the whole group to
+        // BOUND on the minted AIH. `run_multi_pass` resolves this tag's
+        // laboratory attachments internally. (Compute the lab target before the
+        // call so `agent_tag` isn't moved by the `Some(agent_tag)` arg first.)
+        let lab_targets = vec![crate::db::laboratory_attachments::Target::Tag(agent_tag.clone())];
         let inner = crate::command::agents::spawn::run_multi_pass(
             ctx.clone(),
-            params,
+            Vec::new(),
+            agent,
+            None,
+            None,
             Some(agent_tag),
+            lab_targets,
             registry,
         );
         let mut inner = Box::pin(inner);

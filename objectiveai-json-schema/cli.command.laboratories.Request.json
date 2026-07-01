@@ -1,0 +1,29 @@
+{
+  "title": "cli.command.laboratories.Request",
+  "anyOf": [
+    {
+      "title": "Create",
+      "$ref": "cli.command.laboratories.create.Request"
+    },
+    {
+      "title": "CreateRequestSchema",
+      "$ref": "cli.command.laboratories.create.request_schema.Request"
+    },
+    {
+      "title": "CreateResponseSchema",
+      "$ref": "cli.command.laboratories.create.response_schema.Request"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.laboratories.list.Request"
+    },
+    {
+      "title": "ListRequestSchema",
+      "$ref": "cli.command.laboratories.list.request_schema.Request"
+    },
+    {
+      "title": "ListResponseSchema",
+      "$ref": "cli.command.laboratories.list.response_schema.Request"
+    }
+  ]
+}

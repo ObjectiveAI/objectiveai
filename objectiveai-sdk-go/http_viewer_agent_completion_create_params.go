@@ -14,6 +14,9 @@ type HttpViewerAgentCompletionCreateParams struct {
 	// Continuation from a previous completion, as a base64-encoded string.
 	Continuation *string `json:"continuation,omitempty"`
 	ID string `json:"id"`
+	// Laboratories (client-side MCP servers) attached across all agents,
+	// including fallbacks.
+	Laboratories *[]LaboratoriesLaboratory `json:"laboratories,omitempty"`
 	// The conversation messages.
 	Messages []AgentCompletionsMessageMessage `json:"messages"`
 	// Provider routing preferences.

@@ -1,7 +1,7 @@
 //! Test-fixture plugin that re-enters the per-`response_id` MCP socket
 //! mechanic. Its tools read `X-OBJECTIVEAI-RESPONSE-ID` from the
 //! incoming request headers and, via the objectiveai `PluginExecutor`,
-//! re-invoke `agents tools|resources …` for that response id — which
+//! re-invoke `agents mcp tools|resources …` for that response id — which
 //! routes back through the host's listener socket into the same agent's
 //! MCP aggregation.
 //!
@@ -10,11 +10,11 @@
 //!
 //! - `call-other`     — two tools: `hello` (prints "hello world") and
 //!   `call_hello` (calls `hello` back through the system via
-//!   `agents tools call`).
-//! - `list-tools`     — one tool: returns `agents tools list` output.
-//! - `list-resources` — one tool: returns `agents resources list`
+//!   `agents mcp tools call`).
+//! - `list-tools`     — one tool: returns `agents mcp tools list` output.
+//! - `list-resources` — one tool: returns `agents mcp resources list`
 //!   output (the server also declares a resource).
-//! - `read-resource`  — one tool: returns `agents resources read`
+//! - `read-resource`  — one tool: returns `agents mcp resources read`
 //!   output (lists first to discover the aggregated URI, then reads it).
 //!
 //! Like the other fixtures it writes its PID to `OAI_TEST_MCP_PID_FILE`
@@ -22,10 +22,11 @@
 
 use std::io::Write;
 
-use objectiveai_sdk::cli::command::agents::resources::list as resources_list;
-use objectiveai_sdk::cli::command::agents::resources::read as resources_read;
-use objectiveai_sdk::cli::command::agents::tools::call as tools_call;
-use objectiveai_sdk::cli::command::agents::tools::list as tools_list;
+use objectiveai_sdk::cli::command::agents::mcp::resources::list as resources_list;
+use objectiveai_sdk::cli::command::agents::mcp::resources::read as resources_read;
+use objectiveai_sdk::cli::command::agents::mcp::servers::list as servers_list;
+use objectiveai_sdk::cli::command::agents::mcp::tools::call as tools_call;
+use objectiveai_sdk::cli::command::agents::mcp::tools::list as tools_list;
 use objectiveai_sdk::cli::command::plugin::PluginExecutor;
 use rmcp::{
     ServerHandler,
@@ -60,6 +61,13 @@ const RESOURCE_TEXT: &str = "resource hello world";
 #[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
 struct NoArgs {}
 
+/// Input for `do_tools_named`: the server name (routing prefix) to scope
+/// the `agents mcp tools list --name` to.
+#[derive(Debug, serde::Deserialize, schemars::JsonSchema)]
+struct NameArg {
+    name: String,
+}
+
 /// Read `X-OBJECTIVEAI-RESPONSE-ID` off the inbound request headers.
 fn response_id(parts: &http::request::Parts) -> String {
     parts
@@ -77,7 +85,7 @@ async fn op_call_tool(exec: &PluginExecutor, response_id: String, tool_name: &st
         serde_json::from_value(serde_json::json!({ "name": tool_name, "arguments": {} }))
             .expect("call-tool params");
     let req = tools_call::Request {
-        path_type: tools_call::Path::AgentsToolsCall,
+        path_type: tools_call::Path::AgentsMcpToolsCall,
         response_id,
         params,
         base: Default::default(),
@@ -94,9 +102,10 @@ async fn op_list_tools(exec: &PluginExecutor, response_id: String) -> String {
     let params: objectiveai_sdk::mcp::tool::ListToolsRequest =
         serde_json::from_value(serde_json::json!({})).expect("list-tools params");
     let req = tools_list::Request {
-        path_type: tools_list::Path::AgentsToolsList,
+        path_type: tools_list::Path::AgentsMcpToolsList,
         response_id,
         params,
+        name: None,
         base: Default::default(),
     };
     match tools_list::execute(exec, req, None).await {
@@ -111,9 +120,10 @@ async fn op_list_resources(exec: &PluginExecutor, response_id: String) -> String
     let params: objectiveai_sdk::mcp::resource::ListResourcesRequest =
         serde_json::from_value(serde_json::json!({})).expect("list-resources params");
     let req = resources_list::Request {
-        path_type: resources_list::Path::AgentsResourcesList,
+        path_type: resources_list::Path::AgentsMcpResourcesList,
         response_id,
         params,
+        name: None,
         base: Default::default(),
     };
     match resources_list::execute(exec, req, None).await {
@@ -130,9 +140,10 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
     let lparams: objectiveai_sdk::mcp::resource::ListResourcesRequest =
         serde_json::from_value(serde_json::json!({})).expect("list-resources params");
     let lreq = resources_list::Request {
-        path_type: resources_list::Path::AgentsResourcesList,
+        path_type: resources_list::Path::AgentsMcpResourcesList,
         response_id: response_id.clone(),
         params: lparams,
+        name: None,
         base: Default::default(),
     };
     let list = match resources_list::execute(exec, lreq, None).await {
@@ -147,7 +158,7 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
     let rparams: objectiveai_sdk::mcp::resource::ReadResourceRequestParams =
         serde_json::from_value(serde_json::json!({ "uri": uri })).expect("read-resource params");
     let rreq = resources_read::Request {
-        path_type: resources_read::Path::AgentsResourcesRead,
+        path_type: resources_read::Path::AgentsMcpResourcesRead,
         response_id,
         params: rparams,
         base: Default::default(),
@@ -157,6 +168,38 @@ async fn op_read_resource(exec: &PluginExecutor, response_id: String) -> String 
             serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
         }
         Err(e) => format!("executor error (read): {e}"),
+    }
+}
+
+async fn op_list_servers(exec: &PluginExecutor, response_id: String) -> String {
+    let req = servers_list::Request {
+        path_type: servers_list::Path::AgentsMcpServersList,
+        response_id,
+        base: Default::default(),
+    };
+    match servers_list::execute(exec, req, None).await {
+        Ok(result) => {
+            serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
+        }
+        Err(e) => format!("executor error: {e}"),
+    }
+}
+
+async fn op_tools_list_named(exec: &PluginExecutor, response_id: String, name: String) -> String {
+    let params: objectiveai_sdk::mcp::tool::ListToolsRequest =
+        serde_json::from_value(serde_json::json!({})).expect("list-tools params");
+    let req = tools_list::Request {
+        path_type: tools_list::Path::AgentsMcpToolsList,
+        response_id,
+        params,
+        name: Some(name),
+        base: Default::default(),
+    };
+    match tools_list::execute(exec, req, None).await {
+        Ok(result) => {
+            serde_json::to_string(&result).unwrap_or_else(|e| format!("serialize error: {e}"))
+        }
+        Err(e) => format!("executor error: {e}"),
     }
 }
 
@@ -235,7 +278,7 @@ impl ListTools {
         Self { tool_router: Self::tool_router(), exec }
     }
 
-    #[tool(name = "do_list_tools", description = "Return agents tools list output.")]
+    #[tool(name = "do_list_tools", description = "Return agents mcp tools list output.")]
     async fn do_list_tools(
         &self,
         Parameters(_): Parameters<NoArgs>,
@@ -266,7 +309,7 @@ impl ListResources {
         Self { tool_router: Self::tool_router(), exec }
     }
 
-    #[tool(name = "do_list_resources", description = "Return agents resources list output.")]
+    #[tool(name = "do_list_resources", description = "Return agents mcp resources list output.")]
     async fn do_list_resources(
         &self,
         Parameters(_): Parameters<NoArgs>,
@@ -316,7 +359,7 @@ impl ReadResource {
         Self { tool_router: Self::tool_router(), exec }
     }
 
-    #[tool(name = "do_read_resource", description = "Return agents resources read output.")]
+    #[tool(name = "do_read_resource", description = "Return agents mcp resources read output.")]
     async fn do_read_resource(
         &self,
         Parameters(_): Parameters<NoArgs>,
@@ -349,6 +392,49 @@ impl ServerHandler for ReadResource {
             RESOURCE_TEXT,
             request.uri,
         )]))
+    }
+}
+
+// --- surface: lab-driver -----------------------------------------------
+
+#[derive(Clone)]
+struct LabDriver {
+    tool_router: ToolRouter<Self>,
+    exec: PluginExecutor,
+}
+
+#[tool_router]
+impl LabDriver {
+    fn new(exec: PluginExecutor) -> Self {
+        Self { tool_router: Self::tool_router(), exec }
+    }
+
+    #[tool(name = "do_servers_list", description = "Return agents mcp servers list output.")]
+    async fn do_servers_list(
+        &self,
+        Parameters(_): Parameters<NoArgs>,
+        Extension(parts): Extension<http::request::Parts>,
+    ) -> String {
+        op_list_servers(&self.exec, response_id(&parts)).await
+    }
+
+    #[tool(
+        name = "do_tools_named",
+        description = "Return agents mcp tools list output scoped to one server (--name)."
+    )]
+    async fn do_tools_named(
+        &self,
+        Parameters(arg): Parameters<NameArg>,
+        Extension(parts): Extension<http::request::Parts>,
+    ) -> String {
+        op_tools_list_named(&self.exec, response_id(&parts), arg.name).await
+    }
+}
+
+#[tool_handler]
+impl ServerHandler for LabDriver {
+    fn get_info(&self) -> ServerInfo {
+        server_info(false)
     }
 }
 
@@ -423,6 +509,10 @@ async fn main() -> std::io::Result<()> {
         "read-resource" => {
             let e = exec.clone();
             run_server(listener, move || ReadResource::new(e.clone())).await
+        }
+        "lab-driver" => {
+            let e = exec.clone();
+            run_server(listener, move || LabDriver::new(e.clone())).await
         }
         other => {
             eprintln!("unknown mcp server name: {other}");

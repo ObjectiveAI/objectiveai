@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.laboratories.create.EnvVar",
+  "description": "One environment entry. CLI wire form is `KEY=VALUE`, split on the first\n`=` so values may contain `=`.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string"
+    },
+    "value": {
+      "type": "string"
+    }
+  }
+}

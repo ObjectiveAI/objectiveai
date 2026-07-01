@@ -52,6 +52,7 @@ pub mod daemon;
 pub mod db;
 pub mod functions;
 pub mod kill_all;
+pub mod laboratories;
 pub mod mcp;
 pub mod plugins;
 pub mod python;

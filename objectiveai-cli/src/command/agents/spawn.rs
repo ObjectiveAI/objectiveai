@@ -164,24 +164,48 @@ async fn execute_streaming(
     };
     let seed = request.dangerous_advanced.as_ref().and_then(|a| a.seed);
 
-    let mode = match request.agent {
-        AgentSelector::Ref { agent } => Mode::Fresh {
-            agent: resolve_agent_ref(ctx, agent).await?,
-            tag: None,
-        },
+    // Resolve the agent target AND which laboratory targets its attachments
+    // are keyed on. Labs only apply in Tag/Instance mode (a direct Ref has no
+    // tag/AIH to key on). `run_multi_pass` does the actual DB resolution; here
+    // we only name the targets — the same 3 permutations as before: a grouped
+    // tag → the tag's labs; a resolved (Bound) tag → the tag's UNION the bound
+    // AIH's; an instance → the AIH's.
+    use crate::command::agents::locks::Family;
+    use crate::db::laboratory_attachments::Target;
+    let (mode, lab_targets, family): (Mode, Vec<Target>, Option<Family>) = match request.agent {
+        AgentSelector::Ref { agent } => (
+            Mode::Fresh {
+                agent: resolve_agent_ref(ctx, agent).await?,
+                tag: None,
+            },
+            Vec::new(),
+            None,
+        ),
         AgentSelector::Tag { agent_tag } => {
             match crate::db::tags::lookup(ctx.db_client().await?, &agent_tag).await? {
                 crate::db::tags::LookupState::Bound { agent_instance_hierarchy } => {
-                    Mode::Historic {
-                        hierarchy: agent_instance_hierarchy,
-                    }
+                    let lab_targets = vec![
+                        Target::Tag(agent_tag.clone()),
+                        Target::Aih(agent_instance_hierarchy.clone()),
+                    ];
+                    (
+                        Mode::Historic {
+                            hierarchy: agent_instance_hierarchy.clone(),
+                        },
+                        lab_targets,
+                        Some(Family::Hierarchy(agent_instance_hierarchy)),
+                    )
                 }
-                crate::db::tags::LookupState::Grouped { agent_spec, .. } => {
-                    let agent = agent_spec;
-                    Mode::Fresh {
-                        agent,
-                        tag: Some(agent_tag),
-                    }
+                crate::db::tags::LookupState::Grouped { agent_spec, tag_group_id, .. } => {
+                    let lab_targets = vec![Target::Tag(agent_tag.clone())];
+                    (
+                        Mode::Fresh {
+                            agent: agent_spec,
+                            tag: Some(agent_tag),
+                        },
+                        lab_targets,
+                        Some(Family::Group(tag_group_id)),
+                    )
                 }
                 crate::db::tags::LookupState::Absent => {
                     return Err(Error::TagNotFound(agent_tag));
@@ -195,42 +219,68 @@ async fn execute_streaming(
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
-            Mode::Historic {
-                hierarchy: format!("{parent}/{agent_instance}"),
-            }
+            let hierarchy = format!("{parent}/{agent_instance}");
+            let lab_targets = vec![Target::Aih(hierarchy.clone())];
+            (
+                Mode::Historic {
+                    hierarchy: hierarchy.clone(),
+                },
+                lab_targets,
+                Some(Family::Hierarchy(hierarchy)),
+            )
         }
     };
 
-    // Initial lock + params assembly. try_acquire only — a held lock
-    // means the agent (or another spawn of the tag) is already live,
-    // and this spawn errors out. When the parent `agents message`
-    // transferred a lock into this process, the lockfile adopts the
-    // matching claim lazily on this first `try_acquire`, so it re-acquires
-    // INSTANTLY rather than conflicting with the inherited handles.
-    // Mid-stream best-effort AIH claims in `run_multi_pass` are unaffected.
+    // Initial lock + params assembly. Acquire the agent's whole lock FAMILY
+    // (all-or-nothing, NON-BLOCKING) so that while it's live none of its tags
+    // can be relocated (`tags apply`) or have labs detached (`laboratories
+    // detach`): a GROUPED tag locks every tag in its group; a bound tag / AIH
+    // locks the AIH plus every tag bound to it. A held member means the agent
+    // (or another spawn of the tag) is already live → error. When the parent
+    // `agents message` transferred the family into this process, the lockfile
+    // adopts each claim lazily on this first acquire, so they re-acquire
+    // INSTANTLY rather than conflicting with the inherited handles. Mid-stream
+    // best-effort AIH claims in `run_multi_pass` are unaffected.
     let state_dir = ctx.filesystem.state_dir();
-    let mut registry = AgentInstanceRegistry::new(state_dir.clone());
-    let (agent, agent_tag, continuation) = match mode {
-        Mode::Fresh { agent, tag } => {
-            if let Some(tag) = &tag {
-                let (dir, key) = super::locks::agent_tag_lock(&state_dir, tag);
-                match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                    Some(claim) => registry.hold_tag_claim(claim),
-                    None => return Err(Error::AgentTagActive { tag: tag.clone() }),
+    let mut registry = AgentInstanceRegistry::new(state_dir.clone(), ctx.agent_locks_arc());
+    if let Some(family) = family {
+        let is_group = matches!(family, Family::Group(_));
+        match super::locks::try_acquire_family(
+            ctx.agent_locks(),
+            ctx.db_client().await?,
+            &state_dir,
+            family,
+        )
+        .await?
+        {
+            Some(fam) => {
+                if let Some((hierarchy, aih_lock)) = fam.aih {
+                    registry.preseed(hierarchy, aih_lock);
                 }
+                registry.hold_tag_claims(fam.tags);
             }
-            (agent, tag, None)
+            None if is_group => {
+                // GROUPED: name the requested tag in the error.
+                let tag = match &mode {
+                    Mode::Fresh { tag: Some(tag), .. } => tag.clone(),
+                    _ => String::new(),
+                };
+                return Err(Error::AgentTagActive { tag });
+            }
+            None => {
+                let agent_instance_hierarchy = match &mode {
+                    Mode::Historic { hierarchy } => hierarchy.clone(),
+                    _ => String::new(),
+                };
+                return Err(Error::AgentInstanceActive {
+                    agent_instance_hierarchy,
+                });
+            }
         }
+    }
+    let (agent, agent_tag, continuation) = match mode {
+        Mode::Fresh { agent, tag } => (agent, tag, None),
         Mode::Historic { hierarchy } => {
-            let (dir, key) = super::locks::agent_instance_lock(&state_dir, &hierarchy);
-            match objectiveai_sdk::lockfile::try_acquire(&dir, &key, "").await {
-                Some(claim) => registry.preseed(hierarchy.clone(), claim),
-                None => {
-                    return Err(Error::AgentInstanceActive {
-                        agent_instance_hierarchy: hierarchy,
-                    });
-                }
-            }
             let lookup = crate::db::logs::lookup_session(ctx.db_client().await?, &hierarchy)
                 .await?
                 .ok_or(Error::AgentNoPriorRequest {
@@ -240,23 +290,25 @@ async fn execute_streaming(
         }
     };
 
-    let params = AgentCompletionCreateParams {
-        messages,
-        provider: None,
-        agent,
-        response_format: None,
-        seed,
-        stream: Some(true),
-        continuation,
-    };
-
     // Message-queue delivery to the live API happens through the
     // conduit's `read_pending_and_upgrade_tag` call — the API
     // pulls pending rows on demand as the stream runs and stamps
     // their ids onto the first emitted assistant chunk's
     // `request_message_ids`. No pre-spawn drain + prepend here.
+    //
+    // `run_multi_pass` builds the create-params and resolves the laboratory
+    // attachments (from `lab_targets`) internally.
     let ctx_clone = ctx.clone();
-    Ok(Box::pin(run_multi_pass(ctx_clone, params, agent_tag, registry)))
+    Ok(Box::pin(run_multi_pass(
+        ctx_clone,
+        messages,
+        agent,
+        seed,
+        continuation,
+        agent_tag,
+        lab_targets,
+        registry,
+    )))
 }
 
 /// Drives one or more stream passes until no seen hierarchy has
@@ -266,14 +318,78 @@ async fn execute_streaming(
 /// persists across passes so an agent's lock stays held for the
 /// whole spawn lifetime, not per-pass — and is released when the
 /// stream (and with it the registry) drops.
+/// Resolve the laboratory ids attached to `lab_targets` into the request's
+/// `laboratories` value. Lists every target CONCURRENTLY (one pool serves
+/// concurrent queries), then flattens + dedups (first-seen order). `None` when
+/// no targets / no attachments. Shared by `agents spawn` and `agents queue
+/// deliver` (both go through `run_multi_pass`). No liveness check — the conduit
+/// dials each laboratory on demand at MCP-initialize time.
+async fn resolve_laboratories(
+    ctx: &Context,
+    lab_targets: &[crate::db::laboratory_attachments::Target],
+) -> Result<Option<Vec<objectiveai_sdk::laboratories::Laboratory>>, Error> {
+    if lab_targets.is_empty() {
+        return Ok(None);
+    }
+    let pool = ctx.db_client().await?;
+    let lists = futures::future::try_join_all(
+        lab_targets
+            .iter()
+            .map(|target| crate::db::laboratory_attachments::list(pool, target)),
+    )
+    .await?;
+    let mut ids: Vec<String> = Vec::new();
+    for list in lists {
+        for id in list {
+            if !ids.contains(&id) {
+                ids.push(id);
+            }
+        }
+    }
+    if ids.is_empty() {
+        return Ok(None);
+    }
+    Ok(Some(
+        ids.into_iter()
+            .map(|id| {
+                objectiveai_sdk::laboratories::Laboratory::Client(
+                    objectiveai_sdk::laboratories::ClientLaboratory {
+                        r#type: objectiveai_sdk::laboratories::ClientLaboratoryType::Client,
+                        id,
+                    },
+                )
+            })
+            .collect(),
+    ))
+}
+
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_multi_pass(
     ctx: Context,
-    initial_params: AgentCompletionCreateParams,
+    messages: Vec<Message>,
+    agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional,
+    seed: Option<i64>,
+    continuation: Option<String>,
     agent_tag: Option<String>,
+    lab_targets: Vec<crate::db::laboratory_attachments::Target>,
     mut registry: AgentInstanceRegistry,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
-        let mut params = initial_params;
+        // Resolve the agent's laboratory attachments (from the named targets)
+        // and assemble the create-params. `provider`/`response_format` are
+        // always defaulted and `stream` is always true for the in-process WS
+        // path; only `messages`/`continuation` change across restart passes.
+        let laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
+        let mut params = AgentCompletionCreateParams {
+            messages,
+            provider: None,
+            agent,
+            response_format: None,
+            seed,
+            stream: Some(true),
+            continuation,
+            laboratories,
+        };
         // A spawn has exactly one `(agent_instance_hierarchy,
         // agent_full_id)` pair — set by the API on the very first
         // chunk and never changes across restart passes. Capture
@@ -491,9 +607,13 @@ pub(crate) fn run_multi_pass(
 
             // Restart with the latest continuation only. No new
             // messages — the API picks up state from the
-            // continuation token.
+            // continuation token. Re-resolve the agent's laboratory
+            // attachments too: one may have been attached or detached
+            // while this pass ran, and each pass must dial whatever is
+            // attached NOW.
             params.messages = Vec::new();
             params.continuation = last_continuation;
+            params.laboratories = resolve_laboratories(&ctx, &lab_targets).await?;
         }
     }
 }

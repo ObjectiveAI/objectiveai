@@ -7,6 +7,7 @@ from objectiveai_sdk.agent.completions.message.message import Message
 from objectiveai_sdk.agent.completions.request.provider import Provider
 from objectiveai_sdk.agent.completions.request.response_format_param import ResponseFormatParam
 from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
+from objectiveai_sdk.laboratories.laboratory import Laboratory
 
 
 class AgentCompletionCreateParams(BaseModel):
@@ -16,6 +17,7 @@ class AgentCompletionCreateParams(BaseModel):
     agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional = Field(..., description='The agent to use (inline Agent or stored ID).')
     continuation: Optional[str] = Field(None, description='Continuation from a previous completion, as a base64-encoded string.', json_schema_extra={'omitempty': True})
     id: str
+    laboratories: Optional[list[Laboratory]] = Field(None, description='Laboratories (client-side MCP servers) attached across all agents,\nincluding fallbacks.', json_schema_extra={'omitempty': True})
     messages: list[Message] = Field(..., description='The conversation messages.')
     provider: Optional[Provider] = Field(None, description='Provider routing preferences.', json_schema_extra={'omitempty': True})
     response_format: Optional[ResponseFormatParam] = Field(None, description='Output format constraints (text, JSON, or JSON schema).', json_schema_extra={'omitempty': True})

@@ -592,7 +592,7 @@ async fn handle_tools_list(
         .get(crate::upstream::LIST_FILTER_HEADER)
         .and_then(|v| v.to_str().ok());
 
-    match session.list_tools_filtered(filter_url).await {
+    match session.list_tools_filtered(filter_url, None).await {
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),
@@ -765,7 +765,7 @@ async fn handle_resources_list(
         .get(crate::upstream::LIST_FILTER_HEADER)
         .and_then(|v| v.to_str().ok());
 
-    match session.list_resources_filtered(filter_url).await {
+    match session.list_resources_filtered(filter_url, None).await {
         Ok(result) => {
             let body = JsonRpcResponse::Success {
                 jsonrpc: "2.0".into(),

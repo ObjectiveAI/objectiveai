@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.agents.resources.read.Path",
-  "type": "string",
-  "enum": [
-    "agents/resources/read"
-  ]
-}

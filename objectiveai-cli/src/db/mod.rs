@@ -19,6 +19,7 @@ pub use init::*;
 pub mod agent_continuations;
 pub mod compartment;
 pub mod instances;
+pub mod laboratory_attachments;
 pub mod logs;
 pub mod query;
 pub mod tags;

@@ -2771,6 +2771,7 @@ where
                         seed: request.seed,
                         stream: Some(true),
                         continuation: request.continuation.clone(),
+                        laboratories: None,
                     },
                 ),
                 None,

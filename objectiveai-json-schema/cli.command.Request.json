@@ -34,6 +34,10 @@
       "$ref": "cli.command.kill_all.response_schema.Request"
     },
     {
+      "title": "Laboratories",
+      "$ref": "cli.command.laboratories.Request"
+    },
+    {
       "title": "Mcp",
       "$ref": "cli.command.mcp.Request"
     },

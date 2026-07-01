@@ -1,0 +1,7 @@
+{
+  "title": "cli.command.agents.laboratories.attach.Path",
+  "type": "string",
+  "enum": [
+    "agents/laboratories/attach"
+  ]
+}

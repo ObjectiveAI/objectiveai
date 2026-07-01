@@ -3,7 +3,7 @@
 # OBJECTIVEAI_DIR. Expects the binary to be already built (build.sh, or
 # `cargo build -p test-mcp-plugin-self-call`). Copies it into the
 # coordinate's cli/ dir and writes the matching objectiveai.json with
-# four mcp_servers (one per test surface).
+# one mcp_server per test surface.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -40,7 +40,8 @@ cat > "$VDIR/objectiveai.json" <<JSON
     {"name":"call-other","authorization":false},
     {"name":"list-tools","authorization":false},
     {"name":"list-resources","authorization":false},
-    {"name":"read-resource","authorization":false}
+    {"name":"read-resource","authorization":false},
+    {"name":"lab-driver","authorization":false}
   ]
 }
 JSON

@@ -195,6 +195,28 @@ if [ "$NO_ZIP" != "1" ]; then
   bash "$REPO_ROOT/objectiveai-codex-sdk-runner/build.sh" $PROFILE_FLAG &
   CODEX_RUNNER_PID=$!
 
+  # objectiveai-mcp-laboratory: a musl-linux binary injected into Docker lab
+  # containers, bundled (arch-matched) into every platform zip. Two cases:
+  #  - CI release: the `laboratory` job prebuilds the musl binary and the zip
+  #    job pre-places it (the binary alone, with NO .fingerprint) — detected
+  #    here and used as-is, never rebuilt, so the release runners never
+  #    cross-compile.
+  #  - From source (install.sh / build-and-test): no pre-placed binary, so
+  #    build it via its own build.sh — native `cargo build` on Linux,
+  #    `cargo zigbuild` cross-compile on mac/windows (toolchain required;
+  #    fingerprint-cached, so an unchanged rebuild is skipped and fast).
+  LAB_ARCH=$(uname -m)
+  case "$LAB_ARCH" in amd64) LAB_ARCH=x86_64 ;; arm64) LAB_ARCH=aarch64 ;; esac
+  LAB_PROFILE="debug"; [ "$RELEASE" = "1" ] && LAB_PROFILE="release"
+  LAB_DIR="$REPO_ROOT/objectiveai-mcp-laboratory/embed/${LAB_ARCH}-unknown-linux-musl/$LAB_PROFILE"
+  LAB_PID=""
+  if [ -f "$LAB_DIR/objectiveai-mcp-laboratory" ] && [ ! -f "$LAB_DIR/.fingerprint" ]; then
+    echo "build.sh: using pre-placed objectiveai-mcp-laboratory binary (no rebuild)."
+  else
+    bash "$REPO_ROOT/objectiveai-mcp-laboratory/build.sh" $PROFILE_FLAG &
+    LAB_PID=$!
+  fi
+
   # The integration-test fixture crates (plugins + tools under tests/)
   # co-build with the product binaries — discovered by glob over their
   # Cargo.toml names. They are NOT staged into the zip (test inputs, not
@@ -342,7 +364,7 @@ fi
 # Skipped under --no-zip (phase 1 never launched).
 if [ "$NO_ZIP" != "1" ]; then
   FAILED=false
-  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID; do
+  for pid in $CLAUDE_RUNNER_PID $CODEX_RUNNER_PID $CARGO_WORKSPACE_PID $VIEWER_PID $LAB_PID; do
     if ! wait "$pid"; then
       FAILED=true
     fi
@@ -428,6 +450,17 @@ package_host_zip() {
     fi
     cp "$src" "$stage/$r$ext"
   done
+
+  # objectiveai-mcp-laboratory — always a musl-linux binary (no ext, fixed
+  # name), arch-matched to the host; it runs inside Docker lab containers, not
+  # on the host. Phase 1 guarantees it (built from source, or pre-placed in
+  # CI), so a missing binary here is a hard error like the other binaries.
+  local lab_triple="${arch}-unknown-linux-musl"
+  src="$REPO_ROOT/objectiveai-mcp-laboratory/embed/$lab_triple/$profile/objectiveai-mcp-laboratory"
+  if [ ! -f "$src" ]; then
+    echo "package: missing $src" >&2; rm -rf "$stage"; return 1
+  fi
+  cp "$src" "$stage/objectiveai-mcp-laboratory"
 
   # Build the zip to a temp path, then move into place (no partial asset).
   local out="$bin_dir/$asset" tmp="$bin_dir/$asset.partial.$$"

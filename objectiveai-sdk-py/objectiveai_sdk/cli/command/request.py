@@ -11,6 +11,7 @@ from objectiveai_sdk.cli.command.functions.request import Request as CliCommandF
 from objectiveai_sdk.cli.command.kill_all.request import Request as CliCommandKillAllRequest
 from objectiveai_sdk.cli.command.kill_all.request_schema.request import Request as CliCommandKillAllRequestSchemaRequest
 from objectiveai_sdk.cli.command.kill_all.response_schema.request import Request as CliCommandKillAllResponseSchemaRequest
+from objectiveai_sdk.cli.command.laboratories.request import Request as CliCommandLaboratoriesRequest
 from objectiveai_sdk.cli.command.mcp.request import Request as CliCommandMcpRequest
 from objectiveai_sdk.cli.command.plugins.request import Request as CliCommandPluginsRequest
 from objectiveai_sdk.cli.command.python.request import Request as CliCommandPythonRequest
@@ -70,6 +71,12 @@ class RequestKillAllResponseSchema(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'KillAllResponseSchema'})
 
     root: CliCommandKillAllResponseSchemaRequest
+
+
+class RequestLaboratories(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Laboratories'})
+
+    root: CliCommandLaboratoriesRequest
 
 
 class RequestMcp(RootModel):
@@ -141,5 +148,5 @@ class RequestViewer(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.Request')
 
-    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
+    root: Union[RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestLaboratories, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer]
 

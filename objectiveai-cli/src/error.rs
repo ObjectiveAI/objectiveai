@@ -16,6 +16,8 @@ pub enum Error {
     PathParse(String),
     #[error("python wasm runtime error: {0}")]
     PythonWasm(String),
+    #[error("podman: {0}")]
+    Podman(String),
     #[error("failed to read python file {0}: {1}")]
     PythonFileRead(std::path::PathBuf, std::io::Error),
     #[error("failed to read prompt file {0}: {1}")]
@@ -126,10 +128,20 @@ pub enum Error {
     AgentInstanceActive { agent_instance_hierarchy: String },
     #[error("agent tag {tag:?} is already being spawned (its lock is held by a live process)")]
     AgentTagActive { tag: String },
+    #[error(
+        "cannot apply tag {tag:?} while an agent holding it is active (its tag lock is held by a live process)"
+    )]
+    TagApplyAgentActive { tag: String },
     #[error("cannot enqueue against an agent ref; enqueue targets an instance or a tag")]
     EnqueueRefTarget,
     #[error("cannot wait on an agent ref; wait targets an instance or a tag")]
     WaitRefTarget,
+    #[error("cannot attach/detach a laboratory to an agent ref; target an instance or a tag")]
+    LaboratoryRefTarget,
+    #[error("laboratory {laboratory_id:?} is already attached to this agent")]
+    LaboratoryAlreadyAttached { laboratory_id: String },
+    #[error("laboratory {laboratory_id:?} is not attached to this agent")]
+    LaboratoryNotAttached { laboratory_id: String },
     #[error(
         "FATAL: tag {tag:?} lock was released without its GROUPED->BOUND upgrade; the spawn flow's upgrade-before-release invariant is broken"
     )]

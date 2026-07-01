@@ -723,6 +723,7 @@ where
             seed: request.seed.map(|s| per_agent_seed(s, &primary_id, flat_swarm_index, &prompt_id, &responses_ids)),
             stream: Some(false),
             continuation: request.continuation.clone(),
+            laboratories: None,
         });
 
         // Call the agent completions client, yielding each chunk immediately

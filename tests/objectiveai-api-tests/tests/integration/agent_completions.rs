@@ -172,6 +172,7 @@ fn params_with(
         seed: Some(seed),
         stream: Some(true),
         continuation: None,
+        laboratories: None,
     }
 }
 

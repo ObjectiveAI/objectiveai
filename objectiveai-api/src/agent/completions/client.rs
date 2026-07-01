@@ -548,10 +548,17 @@ where
         // reverse channel (the WS). No per-agent registration: the
         // per-request proxy holds the channel directly — there's no
         // response-id routing registry to populate anymore.
+        // Laboratories are completion-wide client-side MCP servers: they
+        // apply to every agent (and fallback) and, like
+        // `client_objectiveai_mcp`, require this request's reverse channel
+        // (the WS).
+        let has_laboratories =
+            params.laboratories.as_ref().is_some_and(|l| !l.is_empty());
         let agent_needs_reverse_attach: Vec<bool> = filtered_agents
             .iter()
             .map(|agent| {
-                agent.base().client_objectiveai_mcp().is_some()
+                (agent.base().client_objectiveai_mcp().is_some()
+                    || has_laboratories)
                     && ctx.reverse_channel().is_some()
             })
             .collect();
@@ -610,7 +617,7 @@ where
                 //   plugin MCP server. Plugin args ride alongside as
                 //   `X-OBJECTIVEAI-ARGUMENTS` (per-URL header), JSON-
                 //   serialized in declaration order.
-                let client_mcp_synthetic_urls: Vec<(
+                let mut client_mcp_synthetic_urls: Vec<(
                     String,
                     Option<indexmap::IndexMap<String, Option<String>>>,
                 )> = match (
@@ -647,6 +654,36 @@ where
                     }
                     _ => Vec::new(),
                 };
+                // Laboratories: completion-wide client-side MCP servers,
+                // appended to every agent (and fallback) when a WS-attached
+                // CLI is present. Gated on `needs_reverse_attach` (not on
+                // `client_objectiveai_mcp`) — labs apply even when the agent
+                // declares no `client_objectiveai_mcp`. Each becomes a
+                // synthetic `ws://laboratory/{id}` upstream (no args), flowing through
+                // the same URL/header plumbing as the other synthetic URLs.
+                //
+                // The `ws://laboratory/{id}` URL is just the upstream's address;
+                // the proxy must NOT infer laboratory identity by string-parsing
+                // it. We carry the typed `Laboratory` explicitly, keyed by URL,
+                // in `X-MCP-Laboratories` — the authoritative signal the proxy
+                // uses to mark an upstream as a laboratory.
+                let mut laboratories_by_url: indexmap::IndexMap<
+                    String,
+                    objectiveai_sdk::laboratories::Laboratory,
+                > = indexmap::IndexMap::new();
+                if needs_reverse_attach {
+                    if let Some(labs) = &params.laboratories {
+                        for lab in labs {
+                            let objectiveai_sdk::laboratories::Laboratory::Client(c) = lab;
+                            let url = format!(
+                                "ws://laboratory/{}",
+                                percent_encode_segment(&c.id)
+                            );
+                            client_mcp_synthetic_urls.push((url.clone(), None));
+                            laboratories_by_url.insert(url, lab.clone());
+                        }
+                    }
+                }
                 urls.extend(client_mcp_synthetic_urls.iter().map(|(u, _)| u.clone()));
 
                 // No MCP servers → no proxy connection needed for this
@@ -769,6 +806,15 @@ where
                         "X-OBJECTIVEAI-RESPONSE-ID".to_string() => id.clone(),
                         "X-OBJECTIVEAI-RESPONSE-IDS".to_string() => response_ids_group.clone(),
                     };
+                // Typed laboratory marker (url → Laboratory). Present only when
+                // labs are attached; the proxy uses it as the authoritative
+                // signal for which upstreams are laboratories.
+                if !laboratories_by_url.is_empty() {
+                    proxy_request_headers.insert(
+                        "X-MCP-Laboratories".to_string(),
+                        serde_json::to_string(&laboratories_by_url).unwrap(),
+                    );
+                }
                 if let Some(remote) = agent_remote.as_ref() {
                     if let Ok(serialized) = serde_json::to_string(remote) {
                         proxy_request_headers.insert(
@@ -916,7 +962,8 @@ where
                 // available.
                 let agent_needs_mcp = attempt.agent.base().mcp_servers().is_some()
                     || !extra_mcp_servers.is_empty()
-                    || attempt.agent.base().client_objectiveai_mcp().is_some();
+                    || attempt.agent.base().client_objectiveai_mcp().is_some()
+                    || has_laboratories;
                 let mcp_connection: Option<objectiveai_sdk::mcp::Connection> =
                     attempt_connections[idx].clone();
                 if agent_needs_mcp && mcp_connection.is_none() {
