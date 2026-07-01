@@ -457,6 +457,12 @@ fn spawn_postgres(env: &Args, port: u16) -> Result<tokio::process::Child, String
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null());
 
+    // Raise the connection ceiling well above postgres's default of 100.
+    // A single state fans out many concurrent pools/sessions, and the full
+    // integration suite runs a cluster per state in parallel — 100 is easily
+    // exhausted under that load.
+    cmd.arg("-c").arg("max_connections=1000");
+
     #[cfg(unix)]
     {
         // TCP only — no unix-domain sockets to place or clean up.
