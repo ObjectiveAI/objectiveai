@@ -12,6 +12,7 @@ from objectiveai_sdk.cli.command.agents.logs.open.response_schema.request import
 from objectiveai_sdk.cli.command.agents.logs.subscribe.request import Request as CliCommandAgentsLogsSubscribeRequest
 from objectiveai_sdk.cli.command.agents.logs.subscribe.request_schema.request import Request as CliCommandAgentsLogsSubscribeRequestSchemaRequest
 from objectiveai_sdk.cli.command.agents.logs.subscribe.response_schema.request import Request as CliCommandAgentsLogsSubscribeResponseSchemaRequest
+from objectiveai_sdk.cli.command.agents.logs.token_usage.request import Request as CliCommandAgentsLogsTokenUsageRequest
 
 
 class RequestOpen(RootModel):
@@ -68,8 +69,14 @@ class RequestSubscribeResponseSchema(RootModel):
     root: CliCommandAgentsLogsSubscribeResponseSchemaRequest
 
 
+class RequestTokenUsage(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'TokenUsage'})
+
+    root: CliCommandAgentsLogsTokenUsageRequest
+
+
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.agents.logs.Request')
 
-    root: Union[RequestOpen, RequestOpenRequestSchema, RequestOpenResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestSubscribe, RequestSubscribeRequestSchema, RequestSubscribeResponseSchema]
+    root: Union[RequestOpen, RequestOpenRequestSchema, RequestOpenResponseSchema, RequestList, RequestListRequestSchema, RequestListResponseSchema, RequestSubscribe, RequestSubscribeRequestSchema, RequestSubscribeResponseSchema, RequestTokenUsage]
 
