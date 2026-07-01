@@ -37,15 +37,20 @@ use objectiveai_cli::command::agents::logs::token_usage::subscribe as cli_sub;
 // ── helpers ────────────────────────────────────────────────────────
 
 /// Build a `Context` bound to this test's `(OBJECTIVEAI_DIR,
-/// OBJECTIVEAI_STATE)` and return it plus a cloned `Pool`. A warmup
-/// `db query` through the cli first ensures the per-state postgres is
-/// spawned via the proven cli path; the in-process `Context` then just
-/// connects to that same instance (per-state db singleton behind
-/// `state/<state>/locks/db`).
+/// OBJECTIVEAI_STATE)` and return it. The per-state postgres MUST be
+/// spawned through the cli subprocess first (a warmup `db query`):
+/// driving `Context::db_handle()`'s spawn flow directly in-process
+/// deadlocks, so the in-process `Context` may only *connect* to an
+/// already-running cluster, never cold-spawn one. The warmup uses a
+/// generous timeout (not the default 30s cap) because a cold cluster
+/// starting under the full suite's parallel load can exceed 30s; the
+/// subprocess still gets the harness's 120s inactivity hang-guard, so a
+/// genuine hang fails fast while a slow-but-progressing spawn survives.
 async fn setup() -> objectiveai_cli::context::Context {
     let executor = cli_test_util::executor().await;
-    // Spawns/attaches the per-state postgres (read-only SELECT is fine).
-    let _ = cli_test_util::db_query(&executor, "SELECT 1").await;
+    // Cold-spawns (or attaches to) this state's postgres via the proven
+    // cli path. 180s absorbs a slow cold start under load.
+    let _ = cli_test_util::db_query_with_timeout(&executor, "SELECT 1", 180).await;
 
     let config = objectiveai_cli::ConfigBuilder {
         objectiveai_dir: Some(cli_test_util::objectiveai_dir().to_string_lossy().into_owned()),
@@ -54,7 +59,7 @@ async fn setup() -> objectiveai_cli::context::Context {
     }
     .build();
     let ctx = objectiveai_cli::context::Context::new(config);
-    // Force the lazy db connect now so failures surface here.
+    // The cluster is up now, so this just connects (never cold-spawns).
     ctx.db_client().await.expect("connect to per-state postgres");
     ctx
 }
