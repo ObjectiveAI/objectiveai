@@ -47,6 +47,27 @@ use crate::db::{Error, Pool};
 use super::row::{MessageTable, RowValue};
 use super::shadow::WriteOp;
 
+/// Overwrite an AIH's most-recent agent-completion `total_tokens`
+/// (last-write-wins snapshot — not a running sum).
+pub async fn update_agent_token_usage(
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+    total_tokens: i64,
+) -> Result<(), Error> {
+    sqlx::query(
+        "INSERT INTO objectiveai.agent_token_usage \
+            (agent_instance_hierarchy, total_tokens) \
+         VALUES ($1, $2) \
+         ON CONFLICT (agent_instance_hierarchy) \
+         DO UPDATE SET total_tokens = EXCLUDED.total_tokens",
+    )
+    .bind(agent_instance_hierarchy)
+    .bind(total_tokens)
+    .execute(&**pool)
+    .await?;
+    Ok(())
+}
+
 /// Dispatch SQL for `value` per `op`. `Skip` is a no-op.
 pub async fn write_value<'a>(
     pool: &Pool,

@@ -114,6 +114,17 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_continuations (
     updated_at               BIGINT           NOT NULL
 );
 
+-- Most-recent agent-completion `total_tokens` per AIH. Overwritten
+-- (last-write-wins) by the log writer every time it encounters an
+-- agent-completion chunk carrying a non-NULL usage, at any tier
+-- (standalone agent completion, or nested inside vector/function
+-- executions). A snapshot for sampling token usage over time — not a
+-- running sum.
+CREATE TABLE IF NOT EXISTS objectiveai.agent_token_usage (
+    agent_instance_hierarchy TEXT   PRIMARY KEY NOT NULL,
+    total_tokens             BIGINT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS objectiveai.message_queue (
     id                              BIGSERIAL PRIMARY KEY,
     agent_instance_hierarchy        TEXT,
