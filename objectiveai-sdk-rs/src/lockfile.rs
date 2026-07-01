@@ -26,10 +26,11 @@
 //!
 //! Per-platform liveness mechanics (per file):
 //!
-//! - **Windows**: `CreateFileW + CREATE_NEW + FILE_FLAG_DELETE_ON_CLOSE`.
-//!   File existence ⇔ owner alive. Kill the process by any means →
-//!   kernel deletes the file. Subscribe to release via
-//!   [`FindFirstChangeNotificationW`] on the parent directory.
+//! - **Windows**: persistent file + `LockFileEx` on a sentinel byte.
+//!   Lock state ⇔ owner alive. Kill the process by any means → kernel
+//!   releases the lock. Subscribe to release via a blocking shared
+//!   `LockFileEx` (wakes when no exclusive holder remains). Subscribe
+//!   to acquisition via blocking exclusive `LockFileEx`.
 //! - **Unix**: persistent file + `flock(LOCK_EX | LOCK_NB)`. Lock
 //!   state ⇔ owner alive. Kill the process → kernel releases the
 //!   flock. Subscribe to release via blocking `flock(LOCK_SH)`
@@ -71,7 +72,7 @@ use dashmap::DashMap;
 ///   process already owns succeeds instantly (refcounted) rather than
 ///   conflicting with our own OS lock — both platforms deny a
 ///   same-process re-acquire at the OS level (Unix flock on a fresh fd;
-///   Windows `CREATE_NEW`).
+///   Windows `LockFileEx` on a fresh handle).
 /// - **Inherited**: a child whose parent transferred a lock in adopts it
 ///   lazily on its first acquisition (see `ensure_inherited_adopted`) and
 ///   then acquires instantly.
@@ -296,9 +297,10 @@ impl LockClaim {
     ///
     /// - **Windows**: `DuplicateHandle`s both lock handles directly
     ///   into the child's handle table (surgical — no inheritance),
-    ///   then closes the parent's. `FILE_FLAG_DELETE_ON_CLOSE` fires
-    ///   when the child's last handles close. On `Err` the entry is
-    ///   re-registered and the claim handed back.
+    ///   then closes the parent's. The byte-range lock rides the shared
+    ///   file object, so the child holds it continuously (no
+    ///   release/reacquire). On `Err` the entry is re-registered and
+    ///   the claim handed back.
     /// - **Unix**: nothing left to inject — the child already shares
     ///   both locks via the inherited fds (step 1); this closes the
     ///   parent's fds (a close is NOT an unlock), leaving the child sole
@@ -377,20 +379,17 @@ impl LockClaim {
     }
 }
 
-/// Explicit, error-surfacing close of one lock file. Windows: the
-/// checked `CloseHandle` fires `DELETE_ON_CLOSE`. Unix: explicit
-/// `flock(LOCK_UN)` then close.
+/// Explicit release of one lock file. Both platforms unlock then close
+/// (`UnlockFileEx` / `flock(LOCK_UN)`); the file stays on disk.
 fn release_file(file: std::fs::File) -> std::io::Result<()> {
     #[cfg(windows)]
     {
-        use std::os::windows::io::IntoRawHandle;
-        use windows_sys::Win32::Foundation::CloseHandle;
-        let handle = file.into_raw_handle();
-        // SAFETY: `into_raw_handle` transferred ownership to us;
-        // this is the sole close of a live handle.
-        if unsafe { CloseHandle(handle as _) } == 0 {
-            return Err(std::io::Error::last_os_error());
-        }
+        // Drop the sentinel-byte lock, then close. The file STAYS on
+        // disk (persistent, like Unix) — held-ness is the lock, not
+        // existence, so a lingering file is inert. Closing the handle
+        // would release the lock anyway; `unlock` is the explicit form.
+        winlock::unlock(&file);
+        drop(file);
         Ok(())
     }
     #[cfg(unix)]
@@ -534,10 +533,10 @@ const PARTIAL_STATE_POLL: std::time::Duration = std::time::Duration::from_micros
 ///
 /// - gate unlocked → **false**, immediately. (This includes the
 ///   microseconds-wide owner-death window where the kernel has
-///   closed the gate but not yet the announce — handle-close order
-///   on process death is unspecified, so announce-without-gate IS
-///   transiently representable there, and it correctly reads as
-///   "no live owner".)
+///   released the gate lock but not yet the announce lock —
+///   lock-release order on process death is unspecified, so
+///   announce-without-gate IS transiently representable there, and it
+///   correctly reads as "no live owner".)
 /// - gate AND announce locked → **true**, immediately.
 /// - gate locked, announce not → an acquisition (or release, or
 ///   death cleanup) is in flight. The holder is a live process
@@ -589,7 +588,7 @@ pub async fn try_read(dir: &Path, key: &str) -> std::io::Result<Option<String>> 
         }
         let contents = match tokio::fs::read_to_string(&gate).await {
             Ok(c) => c,
-            // Vanished mid-read (Windows: owner died) — re-evaluate.
+            // Vanished mid-read (file externally removed) — re-evaluate.
             Err(e) if e.kind() == std::io::ErrorKind::NotFound => continue,
             Err(e) => return Err(e),
         };
@@ -1133,14 +1132,25 @@ fn write_contents(file: &mut std::fs::File, contents: &str) -> std::io::Result<(
     file.flush()
 }
 
-/// Is the file at `path` exclusively locked by a live process?
-/// Windows: existence ⇔ liveness (`FILE_FLAG_DELETE_ON_CLOSE`).
-/// Unix: non-blocking shared-lock probe (success ⇒ no exclusive
-/// holder ⇒ release immediately and report false).
+/// Is the file at `path` exclusively locked by a live process? Both
+/// platforms: a non-blocking SHARED-lock probe (`LockFileEx` /
+/// `flock(LOCK_SH)`) — success ⇒ no exclusive holder ⇒ release
+/// immediately and report false. A stale/orphaned file (owner dead,
+/// lock long gone) therefore reads as NOT held. A missing file is false.
 fn file_locked(path: &Path) -> bool {
     #[cfg(windows)]
     {
-        path.exists()
+        let Ok(file) = std::fs::OpenOptions::new().read(true).open(path) else {
+            // No file at all — no holder.
+            return false;
+        };
+        if winlock::try_lock(&file, false) {
+            // Got the shared lock → no exclusive holder. Release.
+            winlock::unlock(&file);
+            false
+        } else {
+            true
+        }
     }
     #[cfg(unix)]
     {
@@ -1527,141 +1537,134 @@ impl HeldWatcher {
 }
 
 // ---------------------------------------------------------------------
-// Windows: CreateFileW + DELETE_ON_CLOSE, FindFirstChangeNotificationW
-// for release subscription.
+// Windows: persistent file + LockFileEx on a sentinel byte (the Win32
+// analogue of flock). Held-ness is the lock, not existence; the kernel
+// releases it on handle close / process death / reboot. Release and
+// acquire subscriptions are blocking shared / exclusive LockFileEx.
 // ---------------------------------------------------------------------
 
+/// Sentinel-byte `LockFileEx` helpers — the Win32 twin of the Unix
+/// `flock` calls. A claim's held-ness is an exclusive byte-range lock
+/// on ONE sentinel byte far past any content; a held-probe is a shared
+/// lock. The kernel releases these on handle close / process death /
+/// reboot, so held-ness tracks a live owner rather than file existence.
+#[cfg(windows)]
+mod winlock {
+    use std::os::windows::io::AsRawHandle;
+    use windows_sys::Win32::Storage::FileSystem::{
+        LOCKFILE_EXCLUSIVE_LOCK, LOCKFILE_FAIL_IMMEDIATELY, LockFileEx, UnlockFileEx,
+    };
+    use windows_sys::Win32::System::IO::OVERLAPPED;
+
+    /// A byte offset beyond any plausible content. Windows permits
+    /// locking ranges past EOF, so the file stays content-sized and a
+    /// concurrent `ReadFile [0, len)` never collides with this lock
+    /// (Windows byte-range locks are MANDATORY, unlike advisory flock).
+    const OFFSET: u64 = u64::MAX - 1;
+
+    fn overlapped() -> OVERLAPPED {
+        // SAFETY: OVERLAPPED is plain data; a zeroed value is valid and
+        // inert. We set only the offset (the union's Offset/OffsetHigh
+        // arm) and leave hEvent null → the call is synchronous.
+        let mut ov: OVERLAPPED = unsafe { std::mem::zeroed() };
+        ov.Anonymous.Anonymous.Offset = OFFSET as u32;
+        ov.Anonymous.Anonymous.OffsetHigh = (OFFSET >> 32) as u32;
+        ov
+    }
+
+    /// Non-blocking lock of the sentinel byte. `exclusive` selects an
+    /// exclusive (acquire) vs shared (held-probe) lock. Returns whether
+    /// it was granted.
+    pub fn try_lock(file: &std::fs::File, exclusive: bool) -> bool {
+        let mut ov = overlapped();
+        let mut flags = LOCKFILE_FAIL_IMMEDIATELY;
+        if exclusive {
+            flags |= LOCKFILE_EXCLUSIVE_LOCK;
+        }
+        // SAFETY: live handle; `ov` outlives the synchronous call.
+        unsafe { LockFileEx(file.as_raw_handle() as _, flags, 0, 1, 0, &mut ov) != 0 }
+    }
+
+    /// Blocking lock of the sentinel byte. `exclusive` = wait to acquire
+    /// (EX); shared (SH) = wait until no exclusive holder remains, i.e.
+    /// until the current owner releases OR dies.
+    pub fn lock_blocking(file: &std::fs::File, exclusive: bool) -> std::io::Result<()> {
+        let mut ov = overlapped();
+        let flags = if exclusive { LOCKFILE_EXCLUSIVE_LOCK } else { 0 };
+        // SAFETY: live handle; `ov` outlives the call. No
+        // FAIL_IMMEDIATELY ⇒ blocks on the synchronous handle.
+        if unsafe { LockFileEx(file.as_raw_handle() as _, flags, 0, 1, 0, &mut ov) } == 0 {
+            return Err(std::io::Error::last_os_error());
+        }
+        Ok(())
+    }
+
+    /// Release the sentinel-byte lock. (Closing the handle also drops
+    /// it; this is the explicit form.)
+    pub fn unlock(file: &std::fs::File) {
+        let mut ov = overlapped();
+        // SAFETY: live handle; `ov` outlives the call.
+        unsafe {
+            UnlockFileEx(file.as_raw_handle() as _, 0, 1, 0, &mut ov);
+        }
+    }
+}
+
+/// Open (creating if absent) the persistent claim file and take its
+/// exclusive sentinel-byte lock, non-blocking. `None` when a live
+/// process already holds the lock (or the open fails). The file is NOT
+/// deleted on close — held-ness is the lock, not the file's existence.
 #[cfg(windows)]
 fn open_claim_file(path: &Path) -> Option<std::fs::File> {
-    use std::os::windows::ffi::OsStrExt;
-    use std::os::windows::io::FromRawHandle;
-    use windows_sys::Win32::Foundation::{
-        GENERIC_READ, GENERIC_WRITE, INVALID_HANDLE_VALUE,
-    };
-    use windows_sys::Win32::Storage::FileSystem::{
-        CREATE_NEW, CreateFileW, FILE_ATTRIBUTE_NORMAL,
-        FILE_FLAG_DELETE_ON_CLOSE, FILE_SHARE_READ,
-    };
-
-    let wide: Vec<u16> = path
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-
-    // SAFETY: `wide.as_ptr()` is valid for `wide.len()` u16s and
-    // null-terminated. `CreateFileW` returns `INVALID_HANDLE_VALUE`
-    // on any failure (including file-already-exists).
-    let handle = unsafe {
-        CreateFileW(
-            wide.as_ptr(),
-            GENERIC_READ | GENERIC_WRITE,
-            FILE_SHARE_READ,
-            std::ptr::null(),
-            CREATE_NEW,
-            FILE_ATTRIBUTE_NORMAL | FILE_FLAG_DELETE_ON_CLOSE,
-            std::ptr::null_mut(),
-        )
-    };
-    if handle == INVALID_HANDLE_VALUE {
-        return None;
-    }
-    // SAFETY: handle is exclusively owned, no aliasing.
-    Some(unsafe { std::fs::File::from_raw_handle(handle as _) })
+    // Persistent (no DELETE_ON_CLOSE). std's default Windows share mode
+    // is permissive (read|write|delete), so probers/readers can open it
+    // concurrently; LockFileEx provides the mutual exclusion.
+    let file = std::fs::OpenOptions::new()
+        .read(true)
+        .write(true)
+        .create(true)
+        .truncate(false)
+        .open(path)
+        .ok()?;
+    winlock::try_lock(&file, true).then_some(file)
 }
 
 #[cfg(windows)]
 async fn wait_release_windows(path: PathBuf) -> std::io::Result<()> {
-    tokio::task::spawn_blocking(move || windows_wait_for_file_gone(&path))
-        .await
-        .map_err(|e| std::io::Error::other(format!("join: {e}")))?
+    tokio::task::spawn_blocking(move || {
+        // Open read-only to probe; a missing file ⇒ nothing to wait for.
+        let file = match std::fs::OpenOptions::new().read(true).open(&path) {
+            Ok(f) => f,
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(()),
+            Err(e) => return Err(e),
+        };
+        // Blocking SHARED lock: granted the moment no exclusive holder
+        // remains — including when the holder DIES (the kernel releases
+        // its lock on handle close / process teardown). Then release the
+        // shared lock immediately; the acquire was just the wakeup.
+        winlock::lock_blocking(&file, false)?;
+        winlock::unlock(&file);
+        Ok(())
+    })
+    .await
+    .map_err(|e| std::io::Error::other(format!("join: {e}")))?
 }
 
 #[cfg(windows)]
 async fn wait_acquire_windows(path: PathBuf) -> std::io::Result<std::fs::File> {
-    loop {
-        if let Some(file) = open_claim_file(&path) {
-            return Ok(file);
-        }
-        // No file yet? `open_claim_file` failed because the file
-        // already exists (someone holds it) — wait for it to be
-        // deleted, then retry. If the file truly didn't exist
-        // (any other reason `CREATE_NEW` would fail), the wait
-        // returns immediately on the first directory change.
-        wait_release_windows(path.clone()).await?;
-    }
-}
-
-/// Block the calling thread on `FindFirstChangeNotificationW` over
-/// the parent directory, looping until `path` no longer exists.
-#[cfg(windows)]
-fn windows_wait_for_file_gone(path: &Path) -> std::io::Result<()> {
-    use std::os::windows::ffi::OsStrExt;
-    use windows_sys::Win32::Foundation::{
-        INVALID_HANDLE_VALUE, WAIT_FAILED, WAIT_OBJECT_0,
-    };
-    use windows_sys::Win32::Storage::FileSystem::{
-        FILE_NOTIFY_CHANGE_FILE_NAME, FindCloseChangeNotification,
-        FindFirstChangeNotificationW, FindNextChangeNotification,
-    };
-    use windows_sys::Win32::System::Threading::{INFINITE, WaitForSingleObject};
-
-    let parent = match path.parent() {
-        Some(p) => p,
-        None => return Ok(()),
-    };
-    if !path.exists() {
-        return Ok(());
-    }
-
-    let parent_wide: Vec<u16> = parent
-        .as_os_str()
-        .encode_wide()
-        .chain(std::iter::once(0))
-        .collect();
-
-    // SAFETY: `parent_wide` is null-terminated and lives through
-    // the call.
-    let handle = unsafe {
-        FindFirstChangeNotificationW(
-            parent_wide.as_ptr(),
-            0,
-            FILE_NOTIFY_CHANGE_FILE_NAME,
-        )
-    };
-    if handle == INVALID_HANDLE_VALUE {
-        return Err(std::io::Error::last_os_error());
-    }
-
-    // RAII guard so the handle is always closed.
-    struct Guard(isize);
-    impl Drop for Guard {
-        fn drop(&mut self) {
-            // SAFETY: handle valid + owned for the guard's lifetime.
-            unsafe {
-                FindCloseChangeNotification(self.0 as _);
-            }
-        }
-    }
-    let _guard = Guard(handle as isize);
-
-    loop {
-        if !path.exists() {
-            return Ok(());
-        }
-        // SAFETY: handle still valid (held by guard).
-        let rc = unsafe { WaitForSingleObject(handle as _, INFINITE) };
-        if rc == WAIT_FAILED {
-            return Err(std::io::Error::last_os_error());
-        }
-        if rc != WAIT_OBJECT_0 {
-            return Err(std::io::Error::other(format!(
-                "unexpected WaitForSingleObject result: {rc}"
-            )));
-        }
-        // SAFETY: re-arm the notification handle for the next round.
-        unsafe { FindNextChangeNotification(handle as _) };
-    }
+    tokio::task::spawn_blocking(move || {
+        let file = std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(false)
+            .open(&path)?;
+        // Blocking exclusive acquire of the sentinel byte.
+        winlock::lock_blocking(&file, true)?;
+        Ok(file)
+    })
+    .await
+    .map_err(|e| std::io::Error::other(format!("join: {e}")))?
 }
 
 // ---------------------------------------------------------------------
