@@ -327,8 +327,18 @@ pub async fn recv_loop(
             // Demux by type: the 6 MCP variants (`mcp_kind().is_some()`)
             // belong to this request's proxy; `ReadMessageQueue`/`Retrieve`
             // (no mcp_kind) are the API's own (queue delegate + retrieval),
-            // awaited on `pending`.
-            if response.payload.mcp_kind().is_some() {
+            // awaited on `pending`. `LaboratoryTransfer` is ALSO proxy-bound
+            // (issued on the proxy's reverse channel via
+            // `ReverseChannel::transfer_laboratories`) but carries no
+            // `mcp_kind`, so it must be routed to the proxy explicitly —
+            // otherwise it falls through to the API `pending` map, is not
+            // found, and gets dropped (hanging the transfer waiter).
+            let proxy_bound = response.payload.mcp_kind().is_some()
+                || matches!(
+                    response.payload,
+                    objectiveai_sdk::client_objectiveai_mcp::server_response::Payload::LaboratoryTransfer(_)
+                );
+            if proxy_bound {
                 channel.deliver_response(response);
             } else {
                 match pending.remove(&response.id) {
