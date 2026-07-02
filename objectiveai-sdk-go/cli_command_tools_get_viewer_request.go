@@ -8,7 +8,16 @@ import (
 )
 
 type CliCommandToolsGetViewerRequest struct {
+	AgentFullID *string `json:"agent_full_id,omitempty"`
+	AgentID *string `json:"agent_id,omitempty"`
+	AgentInstanceHierarchy *string `json:"agent_instance_hierarchy,omitempty"`
+	AgentRemote *string `json:"agent_remote,omitempty"`
 	ID string `json:"id"`
+	PluginOwner *string `json:"plugin_owner,omitempty"`
+	PluginRepository *string `json:"plugin_repository,omitempty"`
+	PluginVersion *string `json:"plugin_version,omitempty"`
+	ResponseID *string `json:"response_id,omitempty"`
+	ResponseIds *string `json:"response_ids,omitempty"`
 	Value CliCommandToolsGetRequest `json:"value"`
 }
 

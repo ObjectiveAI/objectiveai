@@ -13,7 +13,7 @@ import (
 type CliCommandViewerSendViewerResponse struct {
 	ID string `json:"id"`
 	PathType CliCommandViewerSendPath `json:"path_type"`
-	Value CliCommandViewerSendResponse `json:"value"`
+	Value CliCommandOk `json:"value"`
 }
 
 func (CliCommandViewerSendViewerResponse) SchemaTitle() string { return "cli.command.viewer.send.ViewerResponse" }

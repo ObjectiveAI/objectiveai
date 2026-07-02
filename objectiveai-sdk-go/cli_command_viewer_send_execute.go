@@ -8,7 +8,7 @@ import (
 )
 
 // ViewerSendExecute — `viewer send execute` (unary); the first stream item, rest discarded.
-func ViewerSendExecute(ctx context.Context, executor CommandExecutor, request CliCommandViewerSendRequest) (*CliCommandViewerSendResponse, error) {
+func ViewerSendExecute(ctx context.Context, executor CommandExecutor, request CliCommandViewerSendRequest) (*CliCommandOk, error) {
 	wire, err := cliWire(request)
 	if err != nil {
 		return nil, err
@@ -20,7 +20,7 @@ func ViewerSendExecute(ctx context.Context, executor CommandExecutor, request Cl
 	if err != nil {
 		return nil, err
 	}
-	first, err := NewCliStream[CliCommandViewerSendResponse](raw).First()
+	first, err := NewCliStream[CliCommandOk](raw).First()
 	if err != nil {
 		return nil, err
 	}
