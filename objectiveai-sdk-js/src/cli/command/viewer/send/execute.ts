@@ -3,14 +3,14 @@
 import { z } from "zod";
 import { CliStream } from "../../cliStream";
 import { type CommandExecutor } from "../../executor";
+import { CliCommandOkSchema, type CliCommandOk } from "../../ok";
 import { type CliCommandViewerSendRequest } from "./request";
-import { CliCommandViewerSendResponseSchema, type CliCommandViewerSendResponse } from "./response";
 import { CliErrorSchema, type CliError } from "../../../error";
 import { JsonValueSchema, type JsonValue } from "../../../../jsonValue";
 
 /** `viewer send execute` — unary; first stream item, rest discarded. */
-export async function viewerSendExecute(executor: CommandExecutor, request: Omit<CliCommandViewerSendRequest, "path_type">): Promise<CliError | CliCommandViewerSendResponse> {
-  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "viewer/send" }), z.union([CliErrorSchema, CliCommandViewerSendResponseSchema]));
+export async function viewerSendExecute(executor: CommandExecutor, request: Omit<CliCommandViewerSendRequest, "path_type">): Promise<CliError | CliCommandOk> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "viewer/send" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === undefined) {
     throw new Error("viewer send: cli produced no output before the end marker");

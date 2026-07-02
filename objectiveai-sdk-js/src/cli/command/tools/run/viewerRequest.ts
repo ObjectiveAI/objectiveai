@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandToolsRunRequestSchema } from "./request";
 
 export const CliCommandToolsRunViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsRunRequestSchema,
 }).meta({ title: "cli.command.tools.run.ViewerRequest" });
 export type CliCommandToolsRunViewerRequest = z.infer<typeof CliCommandToolsRunViewerRequestSchema>;

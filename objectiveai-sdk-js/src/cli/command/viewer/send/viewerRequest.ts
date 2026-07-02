@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandViewerSendRequestSchema } from "./request";
 
 export const CliCommandViewerSendViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerSendRequestSchema,
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.send.ViewerRequest" });
 export type CliCommandViewerSendViewerRequest = z.infer<typeof CliCommandViewerSendViewerRequestSchema>;

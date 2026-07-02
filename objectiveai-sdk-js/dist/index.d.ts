@@ -45818,7 +45818,16 @@ declare const CliCommandAgentsEnqueueResponseSchema: z.ZodObject<{
 type CliCommandAgentsEnqueueResponse = z.infer<typeof CliCommandAgentsEnqueueResponseSchema>;
 
 declare const CliCommandAgentsEnqueueViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -47099,7 +47108,16 @@ declare const CliCommandAgentsGetResponseSchema: z.ZodIntersection<z.ZodUnion<re
 type CliCommandAgentsGetResponse = z.infer<typeof CliCommandAgentsGetResponseSchema>;
 
 declare const CliCommandAgentsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -47218,7 +47236,16 @@ declare const CliCommandAgentsInstancesGetRequestSchema: z.ZodObject<{
 type CliCommandAgentsInstancesGetRequest = z.infer<typeof CliCommandAgentsInstancesGetRequestSchema>;
 
 declare const CliCommandAgentsInstancesGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -47373,7 +47400,16 @@ declare const CliCommandAgentsInstancesListRequestSchema: z.ZodObject<{
 type CliCommandAgentsInstancesListRequest = z.infer<typeof CliCommandAgentsInstancesListRequestSchema>;
 
 declare const CliCommandAgentsInstancesListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -47477,7 +47513,16 @@ declare const CliCommandAgentsInstancesRequestSchema: z.ZodUnion<readonly [z.Zod
 type CliCommandAgentsInstancesRequest = z.infer<typeof CliCommandAgentsInstancesRequestSchema>;
 
 declare const CliCommandAgentsInstancesViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -47496,7 +47541,16 @@ declare const CliCommandAgentsInstancesViewerRequestSchema: z.ZodUnion<readonly 
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -48698,7 +48752,16 @@ declare const CliCommandAgentsLaboratoriesAttachResponseSchema: z.ZodObject<{
 type CliCommandAgentsLaboratoriesAttachResponse = z.infer<typeof CliCommandAgentsLaboratoriesAttachResponseSchema>;
 
 declare const CliCommandAgentsLaboratoriesAttachViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -51029,7 +51092,16 @@ declare const CliCommandAgentsLaboratoriesDetachResponseSchema: z.ZodObject<{
 type CliCommandAgentsLaboratoriesDetachResponse = z.infer<typeof CliCommandAgentsLaboratoriesDetachResponseSchema>;
 
 declare const CliCommandAgentsLaboratoriesDetachViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -53359,7 +53431,16 @@ declare const CliCommandAgentsLaboratoriesListResponseItemSchema: z.ZodObject<{
 type CliCommandAgentsLaboratoriesListResponseItem = z.infer<typeof CliCommandAgentsLaboratoriesListResponseItemSchema>;
 
 declare const CliCommandAgentsLaboratoriesListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -57928,7 +58009,16 @@ declare const CliCommandAgentsLaboratoriesRequestSchema: z.ZodUnion<readonly [z.
 type CliCommandAgentsLaboratoriesRequest = z.infer<typeof CliCommandAgentsLaboratoriesRequestSchema>;
 
 declare const CliCommandAgentsLaboratoriesViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -59058,7 +59148,16 @@ declare const CliCommandAgentsLaboratoriesViewerRequestSchema: z.ZodUnion<readon
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -60188,7 +60287,16 @@ declare const CliCommandAgentsLaboratoriesViewerRequestSchema: z.ZodUnion<readon
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -61374,7 +61482,16 @@ declare const CliCommandAgentsListRequestSchema: z.ZodObject<{
 type CliCommandAgentsListRequest = z.infer<typeof CliCommandAgentsListRequestSchema>;
 
 declare const CliCommandAgentsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -61690,7 +61807,16 @@ declare const CliCommandAgentsLogsListToolResponsePartTypeSchema: z.ZodEnum<{
 type CliCommandAgentsLogsListToolResponsePartType = z.infer<typeof CliCommandAgentsLogsListToolResponsePartTypeSchema>;
 
 declare const CliCommandAgentsLogsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -67188,7 +67314,16 @@ declare const CliCommandAgentsLogsOpenResponseSchema: z.ZodUnion<readonly [z.Zod
 type CliCommandAgentsLogsOpenResponse = z.infer<typeof CliCommandAgentsLogsOpenResponseSchema>;
 
 declare const CliCommandAgentsLogsOpenViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -72700,7 +72835,16 @@ declare const CliCommandAgentsLogsSubscribeResponseItemSchema: z.ZodUnion<readon
 type CliCommandAgentsLogsSubscribeResponseItem = z.infer<typeof CliCommandAgentsLogsSubscribeResponseItemSchema>;
 
 declare const CliCommandAgentsLogsSubscribeViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -72901,7 +73045,16 @@ declare const CliCommandAgentsLogsTokenUsageGetResponseSchema: z.ZodObject<{
 type CliCommandAgentsLogsTokenUsageGetResponse = z.infer<typeof CliCommandAgentsLogsTokenUsageGetResponseSchema>;
 
 declare const CliCommandAgentsLogsTokenUsageGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73004,7 +73157,16 @@ declare const CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema: z.ZodObje
 type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage = z.infer<typeof CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema>;
 
 declare const CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73079,7 +73241,16 @@ declare const CliCommandAgentsLogsTokenUsageRequestSchema: z.ZodUnion<readonly [
 type CliCommandAgentsLogsTokenUsageRequest = z.infer<typeof CliCommandAgentsLogsTokenUsageRequestSchema>;
 
 declare const CliCommandAgentsLogsTokenUsageViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73089,7 +73260,16 @@ declare const CliCommandAgentsLogsTokenUsageViewerRequestSchema: z.ZodUnion<read
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73230,7 +73410,16 @@ declare const CliCommandAgentsLogsRequestSchema: z.ZodUnion<readonly [z.ZodObjec
 type CliCommandAgentsLogsRequest = z.infer<typeof CliCommandAgentsLogsRequestSchema>;
 
 declare const CliCommandAgentsLogsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73240,7 +73429,16 @@ declare const CliCommandAgentsLogsViewerRequestSchema: z.ZodUnion<readonly [z.Zo
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73262,7 +73460,16 @@ declare const CliCommandAgentsLogsViewerRequestSchema: z.ZodUnion<readonly [z.Zo
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73288,7 +73495,16 @@ declare const CliCommandAgentsLogsViewerRequestSchema: z.ZodUnion<readonly [z.Zo
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73298,7 +73514,16 @@ declare const CliCommandAgentsLogsViewerRequestSchema: z.ZodUnion<readonly [z.Zo
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -73371,7 +73596,16 @@ declare const CliCommandAgentsMcpResourcesListRequestSchema: z.ZodObject<{
 type CliCommandAgentsMcpResourcesListRequest = z.infer<typeof CliCommandAgentsMcpResourcesListRequestSchema>;
 
 declare const CliCommandAgentsMcpResourcesListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73453,7 +73687,16 @@ declare const CliCommandAgentsMcpResourcesReadRequestSchema: z.ZodObject<{
 type CliCommandAgentsMcpResourcesReadRequest = z.infer<typeof CliCommandAgentsMcpResourcesReadRequestSchema>;
 
 declare const CliCommandAgentsMcpResourcesReadViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73524,7 +73767,16 @@ declare const CliCommandAgentsMcpResourcesRequestSchema: z.ZodUnion<readonly [z.
 type CliCommandAgentsMcpResourcesRequest = z.infer<typeof CliCommandAgentsMcpResourcesRequestSchema>;
 
 declare const CliCommandAgentsMcpResourcesViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73538,7 +73790,16 @@ declare const CliCommandAgentsMcpResourcesViewerRequestSchema: z.ZodUnion<readon
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73609,7 +73870,16 @@ declare const CliCommandAgentsMcpServersListRequestSchema: z.ZodObject<{
 type CliCommandAgentsMcpServersListRequest = z.infer<typeof CliCommandAgentsMcpServersListRequestSchema>;
 
 declare const CliCommandAgentsMcpServersListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73714,7 +73984,16 @@ declare const CliCommandAgentsMcpToolsCallRequestSchema: z.ZodObject<{
 type CliCommandAgentsMcpToolsCallRequest = z.infer<typeof CliCommandAgentsMcpToolsCallRequestSchema>;
 
 declare const CliCommandAgentsMcpToolsCallViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73801,7 +74080,16 @@ declare const CliCommandAgentsMcpToolsListRequestSchema: z.ZodObject<{
 type CliCommandAgentsMcpToolsListRequest = z.infer<typeof CliCommandAgentsMcpToolsListRequestSchema>;
 
 declare const CliCommandAgentsMcpToolsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73878,7 +74166,16 @@ declare const CliCommandAgentsMcpToolsRequestSchema: z.ZodUnion<readonly [z.ZodO
 type CliCommandAgentsMcpToolsRequest = z.infer<typeof CliCommandAgentsMcpToolsRequestSchema>;
 
 declare const CliCommandAgentsMcpToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -73896,7 +74193,16 @@ declare const CliCommandAgentsMcpToolsViewerRequestSchema: z.ZodUnion<readonly [
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -74030,7 +74336,16 @@ declare const CliCommandAgentsMcpRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
 type CliCommandAgentsMcpRequest = z.infer<typeof CliCommandAgentsMcpRequestSchema>;
 
 declare const CliCommandAgentsMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -74044,7 +74359,16 @@ declare const CliCommandAgentsMcpViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -74057,7 +74381,16 @@ declare const CliCommandAgentsMcpViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -74067,7 +74400,16 @@ declare const CliCommandAgentsMcpViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -74085,7 +74427,16 @@ declare const CliCommandAgentsMcpViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -75382,7 +75733,16 @@ declare const CliCommandAgentsMessageResponseSchema: z.ZodUnion<readonly [z.ZodO
 type CliCommandAgentsMessageResponse = z.infer<typeof CliCommandAgentsMessageResponseSchema>;
 
 declare const CliCommandAgentsMessageViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -78855,7 +79215,16 @@ declare const CliCommandAgentsPublishResponseSchema: z.ZodObject<{
 type CliCommandAgentsPublishResponse = z.infer<typeof CliCommandAgentsPublishResponseSchema>;
 
 declare const CliCommandAgentsPublishViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
@@ -80089,7 +80458,16 @@ declare const CliCommandAgentsQueueDeleteResponseSchema: z.ZodObject<{
 type CliCommandAgentsQueueDeleteResponse = z.infer<typeof CliCommandAgentsQueueDeleteResponseSchema>;
 
 declare const CliCommandAgentsQueueDeleteViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80284,7 +80662,16 @@ declare const CliCommandAgentsQueueDeliverValueResponseItemSchema: z.ZodObject<{
 type CliCommandAgentsQueueDeliverValueResponseItem = z.infer<typeof CliCommandAgentsQueueDeliverValueResponseItemSchema>;
 
 declare const CliCommandAgentsQueueDeliverViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -80446,7 +80833,16 @@ declare const CliCommandAgentsQueueListResponseItemSchema: z.ZodUnion<readonly [
 type CliCommandAgentsQueueListResponseItem = z.infer<typeof CliCommandAgentsQueueListResponseItemSchema>;
 
 declare const CliCommandAgentsQueueListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80575,7 +80971,16 @@ declare const CliCommandAgentsQueueOpenRequestSchema: z.ZodObject<{
 type CliCommandAgentsQueueOpenRequest = z.infer<typeof CliCommandAgentsQueueOpenRequestSchema>;
 
 declare const CliCommandAgentsQueueOpenViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80730,7 +81135,16 @@ declare const CliCommandAgentsQueueRequestSchema: z.ZodUnion<readonly [z.ZodObje
 type CliCommandAgentsQueueRequest = z.infer<typeof CliCommandAgentsQueueRequestSchema>;
 
 declare const CliCommandAgentsQueueViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80740,7 +81154,16 @@ declare const CliCommandAgentsQueueViewerRequestSchema: z.ZodUnion<readonly [z.Z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -80753,7 +81176,16 @@ declare const CliCommandAgentsQueueViewerRequestSchema: z.ZodUnion<readonly [z.Z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -80774,7 +81206,16 @@ declare const CliCommandAgentsQueueViewerRequestSchema: z.ZodUnion<readonly [z.Z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -82215,7 +82656,16 @@ declare const CliCommandAgentsSpawnResponseItemSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandAgentsSpawnResponseItem = z.infer<typeof CliCommandAgentsSpawnResponseItemSchema>;
 
 declare const CliCommandAgentsSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -89249,7 +89699,16 @@ declare const CliCommandAgentsTagsApplyTargetSchema: z.ZodUnion<readonly [z.ZodO
 type CliCommandAgentsTagsApplyTarget = z.infer<typeof CliCommandAgentsTagsApplyTargetSchema>;
 
 declare const CliCommandAgentsTagsApplyViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -94915,7 +95374,16 @@ declare const CliCommandAgentsTagsLookupResponseSchema: z.ZodUnion<readonly [z.Z
 type CliCommandAgentsTagsLookupResponse = z.infer<typeof CliCommandAgentsTagsLookupResponseSchema>;
 
 declare const CliCommandAgentsTagsLookupViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodUnion<readonly [z.ZodObject<{
         agent_instance: z.ZodString;
         by: z.ZodLiteral<"agent_instance_hierarchy">;
@@ -97225,7 +97693,16 @@ declare const CliCommandAgentsTagsRequestSchema: z.ZodUnion<readonly [z.ZodUnion
 type CliCommandAgentsTagsRequest = z.infer<typeof CliCommandAgentsTagsRequestSchema>;
 
 declare const CliCommandAgentsTagsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodUnion<readonly [z.ZodObject<{
         agent_instance: z.ZodString;
         by: z.ZodLiteral<"agent_instance_hierarchy">;
@@ -97245,7 +97722,16 @@ declare const CliCommandAgentsTagsViewerRequestSchema: z.ZodUnion<readonly [z.Zo
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>]>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -99545,7 +100031,16 @@ declare const CliCommandAgentsWaitRequestSchema: z.ZodObject<{
 type CliCommandAgentsWaitRequest = z.infer<typeof CliCommandAgentsWaitRequestSchema>;
 
 declare const CliCommandAgentsWaitViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -113760,7 +114255,16 @@ declare const CliCommandAgentsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
 type CliCommandAgentsRequest = z.infer<typeof CliCommandAgentsRequestSchema>;
 
 declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -114934,7 +115438,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -114957,7 +115470,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -114976,7 +115498,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -114995,7 +115526,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -116125,7 +116665,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -117255,7 +117804,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118384,7 +118942,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118393,7 +118960,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -118403,7 +118979,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -118425,7 +119010,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -118451,7 +119045,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -118461,7 +119064,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -118472,7 +119084,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118486,7 +119107,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118499,7 +119129,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118509,7 +119148,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118527,7 +119175,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -118541,7 +119198,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -119717,7 +120383,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
@@ -120832,7 +121507,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -120842,7 +121526,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -120855,7 +121548,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -120876,7 +121578,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -120886,7 +121597,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -122063,7 +122783,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodUnion<readonly [z.ZodObject<{
         agent_instance: z.ZodString;
         by: z.ZodLiteral<"agent_instance_hierarchy">;
@@ -122083,7 +122812,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>]>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -123206,7 +123944,16 @@ declare const CliCommandAgentsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -124402,7 +125149,16 @@ declare const CliCommandApiConfigAddressGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigAddressGetResponse = z.infer<typeof CliCommandApiConfigAddressGetResponseSchema>;
 
 declare const CliCommandApiConfigAddressGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124496,7 +125252,16 @@ declare const CliCommandApiConfigAddressSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigAddressSetRequest = z.infer<typeof CliCommandApiConfigAddressSetRequestSchema>;
 
 declare const CliCommandApiConfigAddressSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124578,7 +125343,16 @@ declare const CliCommandApiConfigAddressRequestSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandApiConfigAddressRequest = z.infer<typeof CliCommandApiConfigAddressRequestSchema>;
 
 declare const CliCommandApiConfigAddressViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124592,7 +125366,16 @@ declare const CliCommandApiConfigAddressViewerRequestSchema: z.ZodUnion<readonly
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124673,7 +125456,16 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema: z.Zod
 type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema>;
 
 declare const CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124767,7 +125559,16 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema: z.ZodO
 type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema>;
 
 declare const CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124849,7 +125650,16 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema: z.ZodUnio
 type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest = z.infer<typeof CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema>;
 
 declare const CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124863,7 +125673,16 @@ declare const CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema: z.Z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -124944,7 +125763,16 @@ declare const CliCommandApiConfigCommitAuthorEmailGetResponseSchema: z.ZodObject
 type CliCommandApiConfigCommitAuthorEmailGetResponse = z.infer<typeof CliCommandApiConfigCommitAuthorEmailGetResponseSchema>;
 
 declare const CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125038,7 +125866,16 @@ declare const CliCommandApiConfigCommitAuthorEmailSetRequestSchema: z.ZodObject<
 type CliCommandApiConfigCommitAuthorEmailSetRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailSetRequestSchema>;
 
 declare const CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125120,7 +125957,16 @@ declare const CliCommandApiConfigCommitAuthorEmailRequestSchema: z.ZodUnion<read
 type CliCommandApiConfigCommitAuthorEmailRequest = z.infer<typeof CliCommandApiConfigCommitAuthorEmailRequestSchema>;
 
 declare const CliCommandApiConfigCommitAuthorEmailViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125134,7 +125980,16 @@ declare const CliCommandApiConfigCommitAuthorEmailViewerRequestSchema: z.ZodUnio
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125215,7 +126070,16 @@ declare const CliCommandApiConfigCommitAuthorNameGetResponseSchema: z.ZodObject<
 type CliCommandApiConfigCommitAuthorNameGetResponse = z.infer<typeof CliCommandApiConfigCommitAuthorNameGetResponseSchema>;
 
 declare const CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125309,7 +126173,16 @@ declare const CliCommandApiConfigCommitAuthorNameSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigCommitAuthorNameSetRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameSetRequestSchema>;
 
 declare const CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125391,7 +126264,16 @@ declare const CliCommandApiConfigCommitAuthorNameRequestSchema: z.ZodUnion<reado
 type CliCommandApiConfigCommitAuthorNameRequest = z.infer<typeof CliCommandApiConfigCommitAuthorNameRequestSchema>;
 
 declare const CliCommandApiConfigCommitAuthorNameViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125405,7 +126287,16 @@ declare const CliCommandApiConfigCommitAuthorNameViewerRequestSchema: z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125495,7 +126386,16 @@ declare const CliCommandApiConfigGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigGetResponse = z.infer<typeof CliCommandApiConfigGetResponseSchema>;
 
 declare const CliCommandApiConfigGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125603,7 +126503,16 @@ declare const CliCommandApiConfigGithubAuthorizationGetResponseSchema: z.ZodObje
 type CliCommandApiConfigGithubAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigGithubAuthorizationGetResponseSchema>;
 
 declare const CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125697,7 +126606,16 @@ declare const CliCommandApiConfigGithubAuthorizationSetRequestSchema: z.ZodObjec
 type CliCommandApiConfigGithubAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationSetRequestSchema>;
 
 declare const CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125779,7 +126697,16 @@ declare const CliCommandApiConfigGithubAuthorizationRequestSchema: z.ZodUnion<re
 type CliCommandApiConfigGithubAuthorizationRequest = z.infer<typeof CliCommandApiConfigGithubAuthorizationRequestSchema>;
 
 declare const CliCommandApiConfigGithubAuthorizationViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125793,7 +126720,16 @@ declare const CliCommandApiConfigGithubAuthorizationViewerRequestSchema: z.ZodUn
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125874,7 +126810,16 @@ declare const CliCommandApiConfigHttpRefererGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigHttpRefererGetResponse = z.infer<typeof CliCommandApiConfigHttpRefererGetResponseSchema>;
 
 declare const CliCommandApiConfigHttpRefererGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -125968,7 +126913,16 @@ declare const CliCommandApiConfigHttpRefererSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigHttpRefererSetRequest = z.infer<typeof CliCommandApiConfigHttpRefererSetRequestSchema>;
 
 declare const CliCommandApiConfigHttpRefererSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126050,7 +127004,16 @@ declare const CliCommandApiConfigHttpRefererRequestSchema: z.ZodUnion<readonly [
 type CliCommandApiConfigHttpRefererRequest = z.infer<typeof CliCommandApiConfigHttpRefererRequestSchema>;
 
 declare const CliCommandApiConfigHttpRefererViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126064,7 +127027,16 @@ declare const CliCommandApiConfigHttpRefererViewerRequestSchema: z.ZodUnion<read
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126141,7 +127113,16 @@ declare const CliCommandApiConfigMcpAuthorizationAddRequestSchema: z.ZodObject<{
 type CliCommandApiConfigMcpAuthorizationAddRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationAddRequestSchema>;
 
 declare const CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -126234,7 +127215,16 @@ declare const CliCommandApiConfigMcpAuthorizationDelRequestSchema: z.ZodObject<{
 type CliCommandApiConfigMcpAuthorizationDelRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationDelRequestSchema>;
 
 declare const CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -126331,7 +127321,16 @@ declare const CliCommandApiConfigMcpAuthorizationGetResponseSchema: z.ZodObject<
 type CliCommandApiConfigMcpAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigMcpAuthorizationGetResponseSchema>;
 
 declare const CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126439,7 +127438,16 @@ declare const CliCommandApiConfigMcpAuthorizationRequestSchema: z.ZodUnion<reado
 type CliCommandApiConfigMcpAuthorizationRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationRequestSchema>;
 
 declare const CliCommandApiConfigMcpAuthorizationViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -126454,7 +127462,16 @@ declare const CliCommandApiConfigMcpAuthorizationViewerRequestSchema: z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -126468,7 +127485,16 @@ declare const CliCommandApiConfigMcpAuthorizationViewerRequestSchema: z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126549,7 +127575,16 @@ declare const CliCommandApiConfigMcpTimeoutMsGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigMcpTimeoutMsGetResponse = z.infer<typeof CliCommandApiConfigMcpTimeoutMsGetResponseSchema>;
 
 declare const CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126643,7 +127678,16 @@ declare const CliCommandApiConfigMcpTimeoutMsSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigMcpTimeoutMsSetRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsSetRequestSchema>;
 
 declare const CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126725,7 +127769,16 @@ declare const CliCommandApiConfigMcpTimeoutMsRequestSchema: z.ZodUnion<readonly 
 type CliCommandApiConfigMcpTimeoutMsRequest = z.infer<typeof CliCommandApiConfigMcpTimeoutMsRequestSchema>;
 
 declare const CliCommandApiConfigMcpTimeoutMsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126739,7 +127792,16 @@ declare const CliCommandApiConfigMcpTimeoutMsViewerRequestSchema: z.ZodUnion<rea
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126820,7 +127882,16 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema: z.Zo
 type CliCommandApiConfigObjectiveaiAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema>;
 
 declare const CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126914,7 +127985,16 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema: z.Zod
 type CliCommandApiConfigObjectiveaiAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema>;
 
 declare const CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -126996,7 +128076,16 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationRequestSchema: z.ZodUni
 type CliCommandApiConfigObjectiveaiAuthorizationRequest = z.infer<typeof CliCommandApiConfigObjectiveaiAuthorizationRequestSchema>;
 
 declare const CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127010,7 +128099,16 @@ declare const CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema: z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127091,7 +128189,16 @@ declare const CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema: z.Zod
 type CliCommandApiConfigOpenrouterAuthorizationGetResponse = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema>;
 
 declare const CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127185,7 +128292,16 @@ declare const CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema: z.ZodO
 type CliCommandApiConfigOpenrouterAuthorizationSetRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema>;
 
 declare const CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127267,7 +128383,16 @@ declare const CliCommandApiConfigOpenrouterAuthorizationRequestSchema: z.ZodUnio
 type CliCommandApiConfigOpenrouterAuthorizationRequest = z.infer<typeof CliCommandApiConfigOpenrouterAuthorizationRequestSchema>;
 
 declare const CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127281,7 +128406,16 @@ declare const CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema: z.Z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127362,7 +128496,16 @@ declare const CliCommandApiConfigUserAgentGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigUserAgentGetResponse = z.infer<typeof CliCommandApiConfigUserAgentGetResponseSchema>;
 
 declare const CliCommandApiConfigUserAgentGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127456,7 +128599,16 @@ declare const CliCommandApiConfigUserAgentSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigUserAgentSetRequest = z.infer<typeof CliCommandApiConfigUserAgentSetRequestSchema>;
 
 declare const CliCommandApiConfigUserAgentSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127538,7 +128690,16 @@ declare const CliCommandApiConfigUserAgentRequestSchema: z.ZodUnion<readonly [z.
 type CliCommandApiConfigUserAgentRequest = z.infer<typeof CliCommandApiConfigUserAgentRequestSchema>;
 
 declare const CliCommandApiConfigUserAgentViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127552,7 +128713,16 @@ declare const CliCommandApiConfigUserAgentViewerRequestSchema: z.ZodUnion<readon
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127633,7 +128803,16 @@ declare const CliCommandApiConfigXTitleGetResponseSchema: z.ZodObject<{
 type CliCommandApiConfigXTitleGetResponse = z.infer<typeof CliCommandApiConfigXTitleGetResponseSchema>;
 
 declare const CliCommandApiConfigXTitleGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127727,7 +128906,16 @@ declare const CliCommandApiConfigXTitleSetRequestSchema: z.ZodObject<{
 type CliCommandApiConfigXTitleSetRequest = z.infer<typeof CliCommandApiConfigXTitleSetRequestSchema>;
 
 declare const CliCommandApiConfigXTitleSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127809,7 +128997,16 @@ declare const CliCommandApiConfigXTitleRequestSchema: z.ZodUnion<readonly [z.Zod
 type CliCommandApiConfigXTitleRequest = z.infer<typeof CliCommandApiConfigXTitleRequestSchema>;
 
 declare const CliCommandApiConfigXTitleViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -127823,7 +129020,16 @@ declare const CliCommandApiConfigXTitleViewerRequestSchema: z.ZodUnion<readonly 
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128442,7 +129648,16 @@ declare const CliCommandApiConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject
 type CliCommandApiConfigRequest = z.infer<typeof CliCommandApiConfigRequestSchema>;
 
 declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128456,7 +129671,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128470,7 +129694,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128484,7 +129717,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128498,7 +129740,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128512,7 +129763,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128526,7 +129786,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128540,7 +129809,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128554,7 +129832,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128568,7 +129855,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -128583,7 +129879,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -128597,7 +129902,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128611,7 +129925,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128625,7 +129948,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128639,7 +129971,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128653,7 +129994,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128667,7 +130017,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128681,7 +130040,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128695,7 +130063,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128709,7 +130086,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128723,7 +130109,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128737,7 +130132,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128751,7 +130155,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128765,7 +130178,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128779,7 +130201,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128793,7 +130224,16 @@ declare const CliCommandApiConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128873,7 +130313,16 @@ declare const CliCommandApiKillResponseSchema: z.ZodObject<{
 type CliCommandApiKillResponse = z.infer<typeof CliCommandApiKillResponseSchema>;
 
 declare const CliCommandApiKillViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -128966,7 +130415,16 @@ declare const CliCommandApiSpawnResponseSchema: z.ZodObject<{
 type CliCommandApiSpawnResponse = z.infer<typeof CliCommandApiSpawnResponseSchema>;
 
 declare const CliCommandApiSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129638,7 +131096,16 @@ declare const CliCommandApiRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readon
 type CliCommandApiRequest = z.infer<typeof CliCommandApiRequestSchema>;
 
 declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129652,7 +131119,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129666,7 +131142,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129680,7 +131165,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129694,7 +131188,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129708,7 +131211,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129722,7 +131234,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129736,7 +131257,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129750,7 +131280,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129764,7 +131303,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -129779,7 +131327,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -129793,7 +131350,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129807,7 +131373,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129821,7 +131396,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129835,7 +131419,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129849,7 +131442,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129863,7 +131465,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129877,7 +131488,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129891,7 +131511,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129905,7 +131534,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129919,7 +131557,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129933,7 +131580,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129947,7 +131603,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129961,7 +131626,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129975,7 +131649,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -129989,7 +131672,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130003,7 +131695,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130016,7 +131717,16 @@ declare const CliCommandApiViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130087,7 +131797,16 @@ declare const CliCommandDaemonKillResponseSchema: z.ZodObject<{
 type CliCommandDaemonKillResponse = z.infer<typeof CliCommandDaemonKillResponseSchema>;
 
 declare const CliCommandDaemonKillViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130184,7 +131903,16 @@ declare const CliCommandDaemonSpawnResponseItemSchema: z.ZodObject<{
 type CliCommandDaemonSpawnResponseItem = z.infer<typeof CliCommandDaemonSpawnResponseItemSchema>;
 
 declare const CliCommandDaemonSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             foreground: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -130259,7 +131987,16 @@ declare const CliCommandDaemonRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
 type CliCommandDaemonRequest = z.infer<typeof CliCommandDaemonRequestSchema>;
 
 declare const CliCommandDaemonViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             foreground: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -130271,7 +132008,16 @@ declare const CliCommandDaemonViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130347,7 +132093,16 @@ declare const CliCommandDbConfigAddressGetResponseSchema: z.ZodObject<{
 type CliCommandDbConfigAddressGetResponse = z.infer<typeof CliCommandDbConfigAddressGetResponseSchema>;
 
 declare const CliCommandDbConfigAddressGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130441,7 +132196,16 @@ declare const CliCommandDbConfigAddressSetRequestSchema: z.ZodObject<{
 type CliCommandDbConfigAddressSetRequest = z.infer<typeof CliCommandDbConfigAddressSetRequestSchema>;
 
 declare const CliCommandDbConfigAddressSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130523,7 +132287,16 @@ declare const CliCommandDbConfigAddressRequestSchema: z.ZodUnion<readonly [z.Zod
 type CliCommandDbConfigAddressRequest = z.infer<typeof CliCommandDbConfigAddressRequestSchema>;
 
 declare const CliCommandDbConfigAddressViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130537,7 +132310,16 @@ declare const CliCommandDbConfigAddressViewerRequestSchema: z.ZodUnion<readonly 
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130618,7 +132400,16 @@ declare const CliCommandDbConfigDatabaseGetResponseSchema: z.ZodObject<{
 type CliCommandDbConfigDatabaseGetResponse = z.infer<typeof CliCommandDbConfigDatabaseGetResponseSchema>;
 
 declare const CliCommandDbConfigDatabaseGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130712,7 +132503,16 @@ declare const CliCommandDbConfigDatabaseSetRequestSchema: z.ZodObject<{
 type CliCommandDbConfigDatabaseSetRequest = z.infer<typeof CliCommandDbConfigDatabaseSetRequestSchema>;
 
 declare const CliCommandDbConfigDatabaseSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130794,7 +132594,16 @@ declare const CliCommandDbConfigDatabaseRequestSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandDbConfigDatabaseRequest = z.infer<typeof CliCommandDbConfigDatabaseRequestSchema>;
 
 declare const CliCommandDbConfigDatabaseViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130808,7 +132617,16 @@ declare const CliCommandDbConfigDatabaseViewerRequestSchema: z.ZodUnion<readonly
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130892,7 +132710,16 @@ declare const CliCommandDbConfigGetResponseSchema: z.ZodObject<{
 type CliCommandDbConfigGetResponse = z.infer<typeof CliCommandDbConfigGetResponseSchema>;
 
 declare const CliCommandDbConfigGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -130994,7 +132821,16 @@ declare const CliCommandDbConfigPasswordGetResponseSchema: z.ZodObject<{
 type CliCommandDbConfigPasswordGetResponse = z.infer<typeof CliCommandDbConfigPasswordGetResponseSchema>;
 
 declare const CliCommandDbConfigPasswordGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131088,7 +132924,16 @@ declare const CliCommandDbConfigPasswordSetRequestSchema: z.ZodObject<{
 type CliCommandDbConfigPasswordSetRequest = z.infer<typeof CliCommandDbConfigPasswordSetRequestSchema>;
 
 declare const CliCommandDbConfigPasswordSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131170,7 +133015,16 @@ declare const CliCommandDbConfigPasswordRequestSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandDbConfigPasswordRequest = z.infer<typeof CliCommandDbConfigPasswordRequestSchema>;
 
 declare const CliCommandDbConfigPasswordViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131184,7 +133038,16 @@ declare const CliCommandDbConfigPasswordViewerRequestSchema: z.ZodUnion<readonly
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131265,7 +133128,16 @@ declare const CliCommandDbConfigUserGetResponseSchema: z.ZodObject<{
 type CliCommandDbConfigUserGetResponse = z.infer<typeof CliCommandDbConfigUserGetResponseSchema>;
 
 declare const CliCommandDbConfigUserGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131359,7 +133231,16 @@ declare const CliCommandDbConfigUserSetRequestSchema: z.ZodObject<{
 type CliCommandDbConfigUserSetRequest = z.infer<typeof CliCommandDbConfigUserSetRequestSchema>;
 
 declare const CliCommandDbConfigUserSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131441,7 +133322,16 @@ declare const CliCommandDbConfigUserRequestSchema: z.ZodUnion<readonly [z.ZodObj
 type CliCommandDbConfigUserRequest = z.infer<typeof CliCommandDbConfigUserRequestSchema>;
 
 declare const CliCommandDbConfigUserViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131455,7 +133345,16 @@ declare const CliCommandDbConfigUserViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131682,7 +133581,16 @@ declare const CliCommandDbConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject<
 type CliCommandDbConfigRequest = z.infer<typeof CliCommandDbConfigRequestSchema>;
 
 declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131696,7 +133604,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131710,7 +133627,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131724,7 +133650,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131738,7 +133673,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131752,7 +133696,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131766,7 +133719,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131780,7 +133742,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131794,7 +133765,16 @@ declare const CliCommandDbConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodO
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131874,7 +133854,16 @@ declare const CliCommandDbKillResponseSchema: z.ZodObject<{
 type CliCommandDbKillResponse = z.infer<typeof CliCommandDbKillResponseSchema>;
 
 declare const CliCommandDbKillViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -131980,7 +133969,16 @@ declare const CliCommandDbQueryResponseSchema: z.ZodObject<{
 type CliCommandDbQueryResponse = z.infer<typeof CliCommandDbQueryResponseSchema>;
 
 declare const CliCommandDbQueryViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132076,7 +134074,16 @@ declare const CliCommandDbSpawnResponseSchema: z.ZodObject<{
 type CliCommandDbSpawnResponse = z.infer<typeof CliCommandDbSpawnResponseSchema>;
 
 declare const CliCommandDbSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132375,7 +134382,16 @@ declare const CliCommandDbRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonl
 type CliCommandDbRequest = z.infer<typeof CliCommandDbRequestSchema>;
 
 declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132389,7 +134405,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132403,7 +134428,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132417,7 +134451,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132431,7 +134474,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132445,7 +134497,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132459,7 +134520,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132473,7 +134543,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132487,7 +134566,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132501,7 +134589,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132514,7 +134611,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -132524,7 +134630,16 @@ declare const CliCommandDbViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<r
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -134435,7 +136550,16 @@ declare const CliCommandFunctionsExecuteStandardResponseItemSchema: z.ZodUnion<r
 type CliCommandFunctionsExecuteStandardResponseItem = z.infer<typeof CliCommandFunctionsExecuteStandardResponseItemSchema>;
 
 declare const CliCommandFunctionsExecuteStandardViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -138192,7 +140316,16 @@ declare const CliCommandFunctionsExecuteSwissSystemResponseItemSchema: z.ZodUnio
 type CliCommandFunctionsExecuteSwissSystemResponseItem = z.infer<typeof CliCommandFunctionsExecuteSwissSystemResponseItemSchema>;
 
 declare const CliCommandFunctionsExecuteSwissSystemViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -144741,7 +146874,16 @@ declare const CliCommandFunctionsExecuteRequestSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandFunctionsExecuteRequest = z.infer<typeof CliCommandFunctionsExecuteRequestSchema>;
 
 declare const CliCommandFunctionsExecuteViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -146302,7 +148444,16 @@ declare const CliCommandFunctionsExecuteViewerRequestSchema: z.ZodUnion<readonly
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -147952,7 +150103,16 @@ declare const CliCommandFunctionsGetResponseSchema: z.ZodIntersection<z.ZodUnion
 type CliCommandFunctionsGetResponse = z.infer<typeof CliCommandFunctionsGetResponseSchema>;
 
 declare const CliCommandFunctionsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -148079,7 +150239,16 @@ declare const CliCommandFunctionsListResponseSchema: z.ZodObject<{
 type CliCommandFunctionsListResponse = z.infer<typeof CliCommandFunctionsListResponseSchema>;
 
 declare const CliCommandFunctionsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -148206,7 +150375,16 @@ declare const CliCommandFunctionsProfilesGetResponseSchema: z.ZodIntersection<z.
 type CliCommandFunctionsProfilesGetResponse = z.infer<typeof CliCommandFunctionsProfilesGetResponseSchema>;
 
 declare const CliCommandFunctionsProfilesGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -148333,7 +150511,16 @@ declare const CliCommandFunctionsProfilesListResponseSchema: z.ZodObject<{
 type CliCommandFunctionsProfilesListResponse = z.infer<typeof CliCommandFunctionsProfilesListResponseSchema>;
 
 declare const CliCommandFunctionsProfilesListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -150695,7 +152882,16 @@ declare const CliCommandFunctionsProfilesPublishResponseSchema: z.ZodObject<{
 type CliCommandFunctionsProfilesPublishResponse = z.infer<typeof CliCommandFunctionsProfilesPublishResponseSchema>;
 
 declare const CliCommandFunctionsProfilesPublishViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodIntersection<z.ZodType<FunctionsInlineTasksProfile, unknown, z.core.$ZodTypeInternals<FunctionsInlineTasksProfile, unknown>>, z.ZodObject<{
@@ -153054,7 +155250,16 @@ declare const CliCommandFunctionsProfilesRequestSchema: z.ZodUnion<readonly [z.Z
 type CliCommandFunctionsProfilesRequest = z.infer<typeof CliCommandFunctionsProfilesRequestSchema>;
 
 declare const CliCommandFunctionsProfilesViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -153077,7 +155282,16 @@ declare const CliCommandFunctionsProfilesViewerRequestSchema: z.ZodUnion<readonl
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -153086,7 +155300,16 @@ declare const CliCommandFunctionsProfilesViewerRequestSchema: z.ZodUnion<readonl
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodIntersection<z.ZodType<FunctionsInlineTasksProfile, unknown, z.core.$ZodTypeInternals<FunctionsInlineTasksProfile, unknown>>, z.ZodObject<{
@@ -157386,7 +159609,16 @@ declare const CliCommandFunctionsPublishResponseSchema: z.ZodObject<{
 type CliCommandFunctionsPublishResponse = z.infer<typeof CliCommandFunctionsPublishResponseSchema>;
 
 declare const CliCommandFunctionsPublishViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
@@ -164924,7 +167156,16 @@ declare const CliCommandFunctionsRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
 type CliCommandFunctionsRequest = z.infer<typeof CliCommandFunctionsRequestSchema>;
 
 declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -166485,7 +168726,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -168048,7 +170298,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -168071,7 +170330,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -168080,7 +170348,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -168103,7 +170380,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -168112,7 +170398,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodIntersection<z.ZodType<FunctionsInlineTasksProfile, unknown, z.core.$ZodTypeInternals<FunctionsInlineTasksProfile, unknown>>, z.ZodObject<{
@@ -169250,7 +171545,16 @@ declare const CliCommandFunctionsViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
@@ -170870,7 +173174,16 @@ declare const CliCommandKillAllResponseSchema: z.ZodObject<{
 type CliCommandKillAllResponse = z.infer<typeof CliCommandKillAllResponseSchema>;
 
 declare const CliCommandKillAllViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171000,7 +173313,16 @@ declare const CliCommandLaboratoriesCreateResponseSchema: z.ZodObject<{
 type CliCommandLaboratoriesCreateResponse = z.infer<typeof CliCommandLaboratoriesCreateResponseSchema>;
 
 declare const CliCommandLaboratoriesCreateViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         cwd: z.ZodDefault<z.ZodString>;
         env: z.ZodArray<z.ZodObject<{
@@ -171126,7 +173448,16 @@ declare const CliCommandLaboratoriesListResponseItemSchema: z.ZodObject<{
 type CliCommandLaboratoriesListResponseItem = z.infer<typeof CliCommandLaboratoriesListResponseItemSchema>;
 
 declare const CliCommandLaboratoriesListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         kind: z.ZodObject<{
@@ -171225,7 +173556,16 @@ declare const CliCommandLaboratoriesRequestSchema: z.ZodUnion<readonly [z.ZodObj
 type CliCommandLaboratoriesRequest = z.infer<typeof CliCommandLaboratoriesRequestSchema>;
 
 declare const CliCommandLaboratoriesViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         cwd: z.ZodDefault<z.ZodString>;
         env: z.ZodArray<z.ZodObject<{
@@ -171248,7 +173588,16 @@ declare const CliCommandLaboratoriesViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         kind: z.ZodObject<{
@@ -171327,7 +173676,16 @@ declare const CliCommandMcpConfigAddressGetResponseSchema: z.ZodObject<{
 type CliCommandMcpConfigAddressGetResponse = z.infer<typeof CliCommandMcpConfigAddressGetResponseSchema>;
 
 declare const CliCommandMcpConfigAddressGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171421,7 +173779,16 @@ declare const CliCommandMcpConfigAddressSetRequestSchema: z.ZodObject<{
 type CliCommandMcpConfigAddressSetRequest = z.infer<typeof CliCommandMcpConfigAddressSetRequestSchema>;
 
 declare const CliCommandMcpConfigAddressSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171503,7 +173870,16 @@ declare const CliCommandMcpConfigAddressRequestSchema: z.ZodUnion<readonly [z.Zo
 type CliCommandMcpConfigAddressRequest = z.infer<typeof CliCommandMcpConfigAddressRequestSchema>;
 
 declare const CliCommandMcpConfigAddressViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171517,7 +173893,16 @@ declare const CliCommandMcpConfigAddressViewerRequestSchema: z.ZodUnion<readonly
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171599,7 +173984,16 @@ declare const CliCommandMcpConfigGetResponseSchema: z.ZodObject<{
 type CliCommandMcpConfigGetResponse = z.infer<typeof CliCommandMcpConfigGetResponseSchema>;
 
 declare const CliCommandMcpConfigGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171699,7 +174093,16 @@ declare const CliCommandMcpConfigPortGetResponseSchema: z.ZodObject<{
 type CliCommandMcpConfigPortGetResponse = z.infer<typeof CliCommandMcpConfigPortGetResponseSchema>;
 
 declare const CliCommandMcpConfigPortGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171793,7 +174196,16 @@ declare const CliCommandMcpConfigPortSetRequestSchema: z.ZodObject<{
 type CliCommandMcpConfigPortSetRequest = z.infer<typeof CliCommandMcpConfigPortSetRequestSchema>;
 
 declare const CliCommandMcpConfigPortSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171875,7 +174287,16 @@ declare const CliCommandMcpConfigPortRequestSchema: z.ZodUnion<readonly [z.ZodOb
 type CliCommandMcpConfigPortRequest = z.infer<typeof CliCommandMcpConfigPortRequestSchema>;
 
 declare const CliCommandMcpConfigPortViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -171889,7 +174310,16 @@ declare const CliCommandMcpConfigPortViewerRequestSchema: z.ZodUnion<readonly [z
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172024,7 +174454,16 @@ declare const CliCommandMcpConfigRequestSchema: z.ZodUnion<readonly [z.ZodObject
 type CliCommandMcpConfigRequest = z.infer<typeof CliCommandMcpConfigRequestSchema>;
 
 declare const CliCommandMcpConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172038,7 +174477,16 @@ declare const CliCommandMcpConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172052,7 +174500,16 @@ declare const CliCommandMcpConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172066,7 +174523,16 @@ declare const CliCommandMcpConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172080,7 +174546,16 @@ declare const CliCommandMcpConfigViewerRequestSchema: z.ZodUnion<readonly [z.Zod
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172160,7 +174635,16 @@ declare const CliCommandMcpKillResponseSchema: z.ZodObject<{
 type CliCommandMcpKillResponse = z.infer<typeof CliCommandMcpKillResponseSchema>;
 
 declare const CliCommandMcpKillViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172253,7 +174737,16 @@ declare const CliCommandMcpSpawnResponseSchema: z.ZodObject<{
 type CliCommandMcpSpawnResponse = z.infer<typeof CliCommandMcpSpawnResponseSchema>;
 
 declare const CliCommandMcpSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172441,7 +174934,16 @@ declare const CliCommandMcpRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readon
 type CliCommandMcpRequest = z.infer<typeof CliCommandMcpRequestSchema>;
 
 declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172455,7 +174957,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172469,7 +174980,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172483,7 +175003,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172497,7 +175026,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172511,7 +175049,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         value: z.ZodNumber;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172524,7 +175071,16 @@ declare const CliCommandMcpViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172650,7 +175206,16 @@ declare const CliCommandPluginsGetResponseViewerRouteSchema: z.ZodObject<{
 type CliCommandPluginsGetResponseViewerRoute = z.infer<typeof CliCommandPluginsGetResponseViewerRouteSchema>;
 
 declare const CliCommandPluginsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172766,7 +175331,16 @@ declare const CliCommandPluginsInstallFilesystemResponseSchema: z.ZodObject<{
 type CliCommandPluginsInstallFilesystemResponse = z.infer<typeof CliCommandPluginsInstallFilesystemResponseSchema>;
 
 declare const CliCommandPluginsInstallFilesystemViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172859,7 +175433,16 @@ declare const CliCommandPluginsInstallGithubResponseSchema: z.ZodObject<{
 type CliCommandPluginsInstallGithubResponse = z.infer<typeof CliCommandPluginsInstallGithubResponseSchema>;
 
 declare const CliCommandPluginsInstallGithubViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -172936,7 +175519,16 @@ declare const CliCommandPluginsInstallRequestSchema: z.ZodUnion<readonly [z.ZodO
 type CliCommandPluginsInstallRequest = z.infer<typeof CliCommandPluginsInstallRequestSchema>;
 
 declare const CliCommandPluginsInstallViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -172945,7 +175537,16 @@ declare const CliCommandPluginsInstallViewerRequestSchema: z.ZodUnion<readonly [
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173017,7 +175618,16 @@ declare const CliCommandPluginsListRequestSchema: z.ZodObject<{
 type CliCommandPluginsListRequest = z.infer<typeof CliCommandPluginsListRequestSchema>;
 
 declare const CliCommandPluginsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -173144,7 +175754,16 @@ declare const CliCommandPluginsLogsListResponseItemSchema: z.ZodObject<{
 type CliCommandPluginsLogsListResponseItem = z.infer<typeof CliCommandPluginsLogsListResponseItemSchema>;
 
 declare const CliCommandPluginsLogsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173296,7 +175915,16 @@ declare const CliCommandPluginsRunResponseItemSchema: z.ZodUnion<readonly [z.Zod
 type CliCommandPluginsRunResponseItem = z.infer<typeof CliCommandPluginsRunResponseItemSchema>;
 
 declare const CliCommandPluginsRunViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173471,7 +176099,16 @@ declare const CliCommandPluginsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
 type CliCommandPluginsRequest = z.infer<typeof CliCommandPluginsRequestSchema>;
 
 declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -173483,7 +176120,16 @@ declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodOb
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -173492,7 +176138,16 @@ declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodOb
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173505,7 +176160,16 @@ declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodOb
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -173516,7 +176180,16 @@ declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodOb
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173530,7 +176203,16 @@ declare const CliCommandPluginsViewerRequestSchema: z.ZodUnion<readonly [z.ZodOb
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -173603,7 +176285,16 @@ declare const CliCommandPythonRequestSchema: z.ZodObject<{
 type CliCommandPythonRequest = z.infer<typeof CliCommandPythonRequestSchema>;
 
 declare const CliCommandPythonViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         code: z.ZodString;
         input: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
@@ -173718,7 +176409,16 @@ declare const CliCommandSwarmsGetResponseSchema: z.ZodIntersection<z.ZodUnion<re
 type CliCommandSwarmsGetResponse = z.infer<typeof CliCommandSwarmsGetResponseSchema>;
 
 declare const CliCommandSwarmsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -173845,7 +176545,16 @@ declare const CliCommandSwarmsListResponseSchema: z.ZodObject<{
 type CliCommandSwarmsListResponse = z.infer<typeof CliCommandSwarmsListResponseSchema>;
 
 declare const CliCommandSwarmsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -176223,7 +178932,16 @@ declare const CliCommandSwarmsPublishResponseSchema: z.ZodObject<{
 type CliCommandSwarmsPublishResponse = z.infer<typeof CliCommandSwarmsPublishResponseSchema>;
 
 declare const CliCommandSwarmsPublishViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodObject<{
@@ -178578,7 +181296,16 @@ declare const CliCommandSwarmsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
 type CliCommandSwarmsRequest = z.infer<typeof CliCommandSwarmsRequestSchema>;
 
 declare const CliCommandSwarmsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -178601,7 +181328,16 @@ declare const CliCommandSwarmsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -178610,7 +181346,16 @@ declare const CliCommandSwarmsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObj
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodObject<{
@@ -179826,7 +182571,16 @@ declare const CliCommandToolsGetResponseManifestSchema: z.ZodObject<{
 type CliCommandToolsGetResponseManifest = z.infer<typeof CliCommandToolsGetResponseManifestSchema>;
 
 declare const CliCommandToolsGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -179926,7 +182680,16 @@ declare const CliCommandToolsInstallFilesystemResponseSchema: z.ZodObject<{
 type CliCommandToolsInstallFilesystemResponse = z.infer<typeof CliCommandToolsInstallFilesystemResponseSchema>;
 
 declare const CliCommandToolsInstallFilesystemViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180019,7 +182782,16 @@ declare const CliCommandToolsInstallGithubResponseSchema: z.ZodObject<{
 type CliCommandToolsInstallGithubResponse = z.infer<typeof CliCommandToolsInstallGithubResponseSchema>;
 
 declare const CliCommandToolsInstallGithubViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -180096,7 +182868,16 @@ declare const CliCommandToolsInstallRequestSchema: z.ZodUnion<readonly [z.ZodObj
 type CliCommandToolsInstallRequest = z.infer<typeof CliCommandToolsInstallRequestSchema>;
 
 declare const CliCommandToolsInstallViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180105,7 +182886,16 @@ declare const CliCommandToolsInstallViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -180177,7 +182967,16 @@ declare const CliCommandToolsListRequestSchema: z.ZodObject<{
 type CliCommandToolsListRequest = z.infer<typeof CliCommandToolsListRequestSchema>;
 
 declare const CliCommandToolsListViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180289,7 +183088,16 @@ declare const CliCommandToolsRunResponseItemSchema: z.ZodUnion<readonly [z.ZodSt
 type CliCommandToolsRunResponseItem = z.infer<typeof CliCommandToolsRunResponseItemSchema>;
 
 declare const CliCommandToolsRunViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -180438,7 +183246,16 @@ declare const CliCommandToolsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
 type CliCommandToolsRequest = z.infer<typeof CliCommandToolsRequestSchema>;
 
 declare const CliCommandToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180450,7 +183267,16 @@ declare const CliCommandToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObje
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180459,7 +183285,16 @@ declare const CliCommandToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObje
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -180472,7 +183307,16 @@ declare const CliCommandToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObje
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180483,7 +183327,16 @@ declare const CliCommandToolsViewerRequestSchema: z.ZodUnion<readonly [z.ZodObje
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -180618,7 +183471,16 @@ declare const CliCommandUpdateResponseSkipReasonSchema: z.ZodEnum<{
 type CliCommandUpdateResponseSkipReason = z.infer<typeof CliCommandUpdateResponseSkipReasonSchema>;
 
 declare const CliCommandUpdateViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180769,7 +183631,16 @@ declare const CliCommandViewerConfigAddressGetResponseSchema: z.ZodObject<{
 type CliCommandViewerConfigAddressGetResponse = z.infer<typeof CliCommandViewerConfigAddressGetResponseSchema>;
 
 declare const CliCommandViewerConfigAddressGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180863,7 +183734,16 @@ declare const CliCommandViewerConfigAddressSetRequestSchema: z.ZodObject<{
 type CliCommandViewerConfigAddressSetRequest = z.infer<typeof CliCommandViewerConfigAddressSetRequestSchema>;
 
 declare const CliCommandViewerConfigAddressSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180945,7 +183825,16 @@ declare const CliCommandViewerConfigAddressRequestSchema: z.ZodUnion<readonly [z
 type CliCommandViewerConfigAddressRequest = z.infer<typeof CliCommandViewerConfigAddressRequestSchema>;
 
 declare const CliCommandViewerConfigAddressViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -180959,7 +183848,16 @@ declare const CliCommandViewerConfigAddressViewerRequestSchema: z.ZodUnion<reado
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181042,7 +183940,16 @@ declare const CliCommandViewerConfigGetResponseSchema: z.ZodObject<{
 type CliCommandViewerConfigGetResponse = z.infer<typeof CliCommandViewerConfigGetResponseSchema>;
 
 declare const CliCommandViewerConfigGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181143,7 +184050,16 @@ declare const CliCommandViewerConfigSecretGetResponseSchema: z.ZodObject<{
 type CliCommandViewerConfigSecretGetResponse = z.infer<typeof CliCommandViewerConfigSecretGetResponseSchema>;
 
 declare const CliCommandViewerConfigSecretGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181237,7 +184153,16 @@ declare const CliCommandViewerConfigSecretSetRequestSchema: z.ZodObject<{
 type CliCommandViewerConfigSecretSetRequest = z.infer<typeof CliCommandViewerConfigSecretSetRequestSchema>;
 
 declare const CliCommandViewerConfigSecretSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181319,7 +184244,16 @@ declare const CliCommandViewerConfigSecretRequestSchema: z.ZodUnion<readonly [z.
 type CliCommandViewerConfigSecretRequest = z.infer<typeof CliCommandViewerConfigSecretRequestSchema>;
 
 declare const CliCommandViewerConfigSecretViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181333,7 +184267,16 @@ declare const CliCommandViewerConfigSecretViewerRequestSchema: z.ZodUnion<readon
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181414,7 +184357,16 @@ declare const CliCommandViewerConfigSignatureGetResponseSchema: z.ZodObject<{
 type CliCommandViewerConfigSignatureGetResponse = z.infer<typeof CliCommandViewerConfigSignatureGetResponseSchema>;
 
 declare const CliCommandViewerConfigSignatureGetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181508,7 +184460,16 @@ declare const CliCommandViewerConfigSignatureSetRequestSchema: z.ZodObject<{
 type CliCommandViewerConfigSignatureSetRequest = z.infer<typeof CliCommandViewerConfigSignatureSetRequestSchema>;
 
 declare const CliCommandViewerConfigSignatureSetViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181590,7 +184551,16 @@ declare const CliCommandViewerConfigSignatureRequestSchema: z.ZodUnion<readonly 
 type CliCommandViewerConfigSignatureRequest = z.infer<typeof CliCommandViewerConfigSignatureRequestSchema>;
 
 declare const CliCommandViewerConfigSignatureViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181604,7 +184574,16 @@ declare const CliCommandViewerConfigSignatureViewerRequestSchema: z.ZodUnion<rea
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181785,7 +184764,16 @@ declare const CliCommandViewerConfigRequestSchema: z.ZodUnion<readonly [z.ZodObj
 type CliCommandViewerConfigRequest = z.infer<typeof CliCommandViewerConfigRequestSchema>;
 
 declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181799,7 +184787,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181813,7 +184810,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181827,7 +184833,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181841,7 +184856,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181855,7 +184879,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181869,7 +184902,16 @@ declare const CliCommandViewerConfigViewerRequestSchema: z.ZodUnion<readonly [z.
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -181946,7 +184988,16 @@ declare const CliCommandViewerGenerateSecretSignaturePairResponseSchema: z.ZodOb
 type CliCommandViewerGenerateSecretSignaturePairResponse = z.infer<typeof CliCommandViewerGenerateSecretSignaturePairResponseSchema>;
 
 declare const CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182040,7 +185091,16 @@ declare const CliCommandViewerKillResponseSchema: z.ZodObject<{
 type CliCommandViewerKillResponse = z.infer<typeof CliCommandViewerKillResponseSchema>;
 
 declare const CliCommandViewerKillViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182129,14 +185189,17 @@ declare const CliCommandViewerSendRequestSchema: z.ZodObject<{
 }, z.core.$strip>;
 type CliCommandViewerSendRequest = z.infer<typeof CliCommandViewerSendRequestSchema>;
 
-declare const CliCommandViewerSendResponseSchema: z.ZodObject<{
-    body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-    status: z.ZodNumber;
-}, z.core.$strip>;
-type CliCommandViewerSendResponse = z.infer<typeof CliCommandViewerSendResponseSchema>;
-
 declare const CliCommandViewerSendViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -182152,15 +185215,12 @@ type CliCommandViewerSendViewerRequest = z.infer<typeof CliCommandViewerSendView
 declare const CliCommandViewerSendViewerResponseSchema: z.ZodObject<{
     id: z.ZodString;
     path_type: z.ZodLiteral<"viewer/send">;
-    value: z.ZodObject<{
-        body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
-        status: z.ZodNumber;
-    }, z.core.$strip>;
+    value: z.ZodLiteral<"Ok">;
 }, z.core.$strip>;
 type CliCommandViewerSendViewerResponse = z.infer<typeof CliCommandViewerSendViewerResponseSchema>;
 
 /** `viewer send execute` — unary; first stream item, rest discarded. */
-declare function viewerSendExecute(executor: CommandExecutor, request: Omit<CliCommandViewerSendRequest, "path_type">): Promise<CliError | CliCommandViewerSendResponse>;
+declare function viewerSendExecute(executor: CommandExecutor, request: Omit<CliCommandViewerSendRequest, "path_type">): Promise<CliError | CliCommandOk>;
 /** `viewer send execute_transform` — unary; first stream item, rest discarded. */
 declare function viewerSendExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandViewerSendRequest, "path_type">, transform: {
     jq: string;
@@ -182228,7 +185288,16 @@ declare const CliCommandViewerSpawnResponseSchema: z.ZodObject<{
 type CliCommandViewerSpawnResponse = z.infer<typeof CliCommandViewerSpawnResponseSchema>;
 
 declare const CliCommandViewerSpawnViewerRequestSchema: z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182500,7 +185569,16 @@ declare const CliCommandViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<rea
 type CliCommandViewerRequest = z.infer<typeof CliCommandViewerRequestSchema>;
 
 declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182514,7 +185592,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182528,7 +185615,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182542,7 +185638,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182556,7 +185661,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182570,7 +185684,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182584,7 +185707,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182598,7 +185730,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182607,7 +185748,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182620,7 +185770,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -182631,7 +185790,16 @@ declare const CliCommandViewerViewerRequestSchema: z.ZodUnion<readonly [z.ZodUni
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -182669,7 +185837,16 @@ declare const CliCommandRequestBaseSchema: z.ZodObject<{
 type CliCommandRequestBase = z.infer<typeof CliCommandRequestBaseSchema>;
 
 declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -183843,7 +187020,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -183866,7 +187052,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -183885,7 +187080,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -183904,7 +187108,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -185034,7 +188247,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         laboratory_id: z.ZodString;
@@ -186164,7 +189386,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187293,7 +190524,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187302,7 +190542,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -187312,7 +190561,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -187334,7 +190592,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -187360,7 +190627,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -187370,7 +190646,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent_instance_hierarchy: z.ZodString;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -187381,7 +190666,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187395,7 +190689,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187408,7 +190711,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187418,7 +190730,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187436,7 +190757,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -187450,7 +190780,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -188626,7 +191965,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodIntersection<z.ZodUnion<readonly [z.ZodObject<{
@@ -189741,7 +193089,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -189751,7 +193108,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             stream_spawns: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -189764,7 +193130,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -189785,7 +193160,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         id: z.ZodNumber;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -189795,7 +193179,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -190972,7 +194365,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodUnion<readonly [z.ZodObject<{
         agent_instance: z.ZodString;
         by: z.ZodLiteral<"agent_instance_hierarchy">;
@@ -190992,7 +194394,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>]>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -192115,7 +195526,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         agent: z.ZodUnion<readonly [z.ZodObject<{
             agent: z.ZodUnion<readonly [z.ZodObject<{
@@ -193244,7 +196664,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193258,7 +196687,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193272,7 +196710,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193286,7 +196733,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193300,7 +196756,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193314,7 +196779,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193328,7 +196802,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193342,7 +196825,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193356,7 +196848,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193370,7 +196871,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -193385,7 +196895,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         key: z.ZodString;
@@ -193399,7 +196918,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193413,7 +196941,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193427,7 +196964,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193441,7 +196987,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193455,7 +197010,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193469,7 +197033,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193483,7 +197056,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193497,7 +197079,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193511,7 +197102,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193525,7 +197125,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193539,7 +197148,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193553,7 +197171,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193567,7 +197194,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193581,7 +197217,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193595,7 +197240,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193609,7 +197263,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193622,7 +197285,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193631,7 +197303,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
             foreground: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
@@ -193643,7 +197324,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193652,7 +197342,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193666,7 +197365,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193680,7 +197388,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193694,7 +197411,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193708,7 +197434,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193722,7 +197457,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193736,7 +197480,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193750,7 +197503,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193764,7 +197526,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193778,7 +197549,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193791,7 +197571,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193801,7 +197590,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -193810,7 +197608,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -195371,7 +199178,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         continuation: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         dangerous_advanced: z.ZodOptional<z.ZodNullable<z.ZodObject<{
@@ -196934,7 +200750,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -196957,7 +200782,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -196966,7 +200800,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -196989,7 +200832,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -196998,7 +200850,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodIntersection<z.ZodType<FunctionsInlineTasksProfile, unknown, z.core.$ZodTypeInternals<FunctionsInlineTasksProfile, unknown>>, z.ZodObject<{
@@ -198136,7 +201997,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
@@ -199694,7 +203564,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199703,7 +203582,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         cwd: z.ZodDefault<z.ZodString>;
         env: z.ZodArray<z.ZodObject<{
@@ -199726,7 +203614,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         kind: z.ZodObject<{
@@ -199738,7 +203635,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199752,7 +203658,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199766,7 +203681,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199780,7 +203704,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199794,7 +203727,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199808,7 +203750,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodNumber;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199821,7 +203772,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199830,7 +203790,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199842,7 +203811,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199851,7 +203829,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -199864,7 +203851,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199875,7 +203871,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         after_id: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -199889,7 +203894,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -199902,7 +203916,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         code: z.ZodString;
         input: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
@@ -199914,7 +203937,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199937,7 +203969,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -199946,7 +203987,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodUnion<readonly [z.ZodObject<{
             Inline: z.ZodIntersection<z.ZodObject<{
@@ -201082,7 +205132,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201094,7 +205153,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201103,7 +205171,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         allow_untrusted: z.ZodBoolean;
         commit_sha: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -201116,7 +205193,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         limit: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201127,7 +205213,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         args: z.ZodArray<z.ZodString>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -201140,7 +205235,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         version: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201149,7 +205253,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201163,7 +205276,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201177,7 +205299,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201191,7 +205322,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201205,7 +205345,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201219,7 +205368,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>, z.ZodUnion<readonly [z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201233,7 +205391,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201247,7 +205414,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         value: z.ZodString;
     }, z.core.$strip>;
 }, z.core.$strip>]>]>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201256,7 +205432,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -201269,7 +205454,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         body: z.ZodType<JsonValue, unknown, z.core.$ZodTypeInternals<JsonValue, unknown>>;
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
@@ -201280,7 +205474,16 @@ declare const CliCommandRootViewerRequestSchema: z.ZodUnion<readonly [z.ZodUnion
         timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     }, z.core.$strip>;
 }, z.core.$strip>, z.ZodObject<{
+    agent_full_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_instance_hierarchy: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    agent_remote: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     id: z.ZodString;
+    plugin_owner: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_repository: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    plugin_version: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_id: z.ZodOptional<z.ZodNullable<z.ZodString>>;
+    response_ids: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     value: z.ZodObject<{
         jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
         max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
@@ -263034,4 +267237,4 @@ declare function merge<T extends {}>(a: T | null | undefined, b: T | null | unde
 declare function mergedString(a: string, b: string): [string, boolean];
 declare function mergedNumberArray(a: number[], b: number[]): [number[], boolean];
 
-export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentClientObjectiveaiMcp, type AgentClientObjectiveaiMcpEntry, AgentClientObjectiveaiMcpEntrySchema, type AgentClientObjectiveaiMcpHeaders, AgentClientObjectiveaiMcpHeadersSchema, type AgentClientObjectiveaiMcpPluginEntry, AgentClientObjectiveaiMcpPluginEntrySchema, type AgentClientObjectiveaiMcpPluginMcpServer, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, type CliCommandAgentArguments, CliCommandAgentArgumentsSchema, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsEnqueueViewerRequest, CliCommandAgentsEnqueueViewerRequestSchema, type CliCommandAgentsEnqueueViewerResponse, CliCommandAgentsEnqueueViewerResponseSchema, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsGetViewerRequest, CliCommandAgentsGetViewerRequestSchema, type CliCommandAgentsGetViewerResponse, CliCommandAgentsGetViewerResponseSchema, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetViewerRequest, CliCommandAgentsInstancesGetViewerRequestSchema, type CliCommandAgentsInstancesGetViewerResponseItem, CliCommandAgentsInstancesGetViewerResponseItemSchema, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListViewerRequest, CliCommandAgentsInstancesListViewerRequestSchema, type CliCommandAgentsInstancesListViewerResponseItem, CliCommandAgentsInstancesListViewerResponseItemSchema, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsInstancesViewerRequest, CliCommandAgentsInstancesViewerRequestSchema, type CliCommandAgentsLaboratoriesAttachPath, CliCommandAgentsLaboratoriesAttachPathSchema, type CliCommandAgentsLaboratoriesAttachRequest, CliCommandAgentsLaboratoriesAttachRequestSchema, type CliCommandAgentsLaboratoriesAttachRequestSchemaPath, CliCommandAgentsLaboratoriesAttachRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesAttachRequestSchemaRequest, CliCommandAgentsLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesAttachResponse, CliCommandAgentsLaboratoriesAttachResponseSchema, type CliCommandAgentsLaboratoriesAttachResponseSchemaPath, CliCommandAgentsLaboratoriesAttachResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesAttachResponseSchemaRequest, CliCommandAgentsLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesAttachViewerRequest, CliCommandAgentsLaboratoriesAttachViewerRequestSchema, type CliCommandAgentsLaboratoriesAttachViewerResponse, CliCommandAgentsLaboratoriesAttachViewerResponseSchema, type CliCommandAgentsLaboratoriesDetachPath, CliCommandAgentsLaboratoriesDetachPathSchema, type CliCommandAgentsLaboratoriesDetachRequest, CliCommandAgentsLaboratoriesDetachRequestSchema, type CliCommandAgentsLaboratoriesDetachRequestSchemaPath, CliCommandAgentsLaboratoriesDetachRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesDetachRequestSchemaRequest, CliCommandAgentsLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesDetachResponse, CliCommandAgentsLaboratoriesDetachResponseSchema, type CliCommandAgentsLaboratoriesDetachResponseSchemaPath, CliCommandAgentsLaboratoriesDetachResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesDetachResponseSchemaRequest, CliCommandAgentsLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesDetachViewerRequest, CliCommandAgentsLaboratoriesDetachViewerRequestSchema, type CliCommandAgentsLaboratoriesDetachViewerResponse, CliCommandAgentsLaboratoriesDetachViewerResponseSchema, type CliCommandAgentsLaboratoriesListPath, CliCommandAgentsLaboratoriesListPathSchema, type CliCommandAgentsLaboratoriesListRequest, CliCommandAgentsLaboratoriesListRequestSchema, type CliCommandAgentsLaboratoriesListRequestSchemaPath, CliCommandAgentsLaboratoriesListRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesListRequestSchemaRequest, CliCommandAgentsLaboratoriesListRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesListResponseItem, CliCommandAgentsLaboratoriesListResponseItemSchema, type CliCommandAgentsLaboratoriesListResponseSchemaPath, CliCommandAgentsLaboratoriesListResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesListResponseSchemaRequest, CliCommandAgentsLaboratoriesListResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesListViewerRequest, CliCommandAgentsLaboratoriesListViewerRequestSchema, type CliCommandAgentsLaboratoriesListViewerResponseItem, CliCommandAgentsLaboratoriesListViewerResponseItemSchema, type CliCommandAgentsLaboratoriesRequest, CliCommandAgentsLaboratoriesRequestSchema, type CliCommandAgentsLaboratoriesViewerRequest, CliCommandAgentsLaboratoriesViewerRequestSchema, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListViewerRequest, CliCommandAgentsListViewerRequestSchema, type CliCommandAgentsListViewerResponseItem, CliCommandAgentsListViewerResponseItemSchema, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListViewerRequest, CliCommandAgentsLogsListViewerRequestSchema, type CliCommandAgentsLogsListViewerResponseItem, CliCommandAgentsLogsListViewerResponseItemSchema, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsOpenViewerRequest, CliCommandAgentsLogsOpenViewerRequestSchema, type CliCommandAgentsLogsOpenViewerResponse, CliCommandAgentsLogsOpenViewerResponseSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsSubscribeViewerRequest, CliCommandAgentsLogsSubscribeViewerRequestSchema, type CliCommandAgentsLogsSubscribeViewerResponseItem, CliCommandAgentsLogsSubscribeViewerResponseItemSchema, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetViewerRequest, CliCommandAgentsLogsTokenUsageGetViewerRequestSchema, type CliCommandAgentsLogsTokenUsageGetViewerResponse, CliCommandAgentsLogsTokenUsageGetViewerResponseSchema, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsLogsTokenUsageSubscribeViewerRequest, CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItem, CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItemSchema, type CliCommandAgentsLogsTokenUsageViewerRequest, CliCommandAgentsLogsTokenUsageViewerRequestSchema, type CliCommandAgentsLogsViewerRequest, CliCommandAgentsLogsViewerRequestSchema, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListViewerRequest, CliCommandAgentsMcpResourcesListViewerRequestSchema, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadViewerRequest, CliCommandAgentsMcpResourcesReadViewerRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpResourcesViewerRequest, CliCommandAgentsMcpResourcesViewerRequestSchema, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListViewerRequest, CliCommandAgentsMcpServersListViewerRequestSchema, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsCallViewerRequest, CliCommandAgentsMcpToolsCallViewerRequestSchema, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListViewerRequest, CliCommandAgentsMcpToolsListViewerRequestSchema, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMcpToolsViewerRequest, CliCommandAgentsMcpToolsViewerRequestSchema, type CliCommandAgentsMcpViewerRequest, CliCommandAgentsMcpViewerRequestSchema, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsMessageViewerRequest, CliCommandAgentsMessageViewerRequestSchema, type CliCommandAgentsMessageViewerResponse, CliCommandAgentsMessageViewerResponseSchema, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsPublishViewerRequest, CliCommandAgentsPublishViewerRequestSchema, type CliCommandAgentsPublishViewerResponse, CliCommandAgentsPublishViewerResponseSchema, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteViewerRequest, CliCommandAgentsQueueDeleteViewerRequestSchema, type CliCommandAgentsQueueDeleteViewerResponse, CliCommandAgentsQueueDeleteViewerResponseSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueDeliverViewerRequest, CliCommandAgentsQueueDeliverViewerRequestSchema, type CliCommandAgentsQueueDeliverViewerResponseItem, CliCommandAgentsQueueDeliverViewerResponseItemSchema, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListViewerRequest, CliCommandAgentsQueueListViewerRequestSchema, type CliCommandAgentsQueueListViewerResponseItem, CliCommandAgentsQueueListViewerResponseItemSchema, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueOpenViewerRequest, CliCommandAgentsQueueOpenViewerRequestSchema, type CliCommandAgentsQueueOpenViewerResponse, CliCommandAgentsQueueOpenViewerResponseSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsQueueViewerRequest, CliCommandAgentsQueueViewerRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsSpawnViewerRequest, CliCommandAgentsSpawnViewerRequestSchema, type CliCommandAgentsSpawnViewerResponse, type CliCommandAgentsSpawnViewerResponseItem, CliCommandAgentsSpawnViewerResponseItemSchema, CliCommandAgentsSpawnViewerResponseSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsApplyViewerRequest, CliCommandAgentsTagsApplyViewerRequestSchema, type CliCommandAgentsTagsApplyViewerResponse, CliCommandAgentsTagsApplyViewerResponseSchema, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsLookupViewerRequest, CliCommandAgentsTagsLookupViewerRequestSchema, type CliCommandAgentsTagsLookupViewerResponse, CliCommandAgentsTagsLookupViewerResponseSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsTagsViewerRequest, CliCommandAgentsTagsViewerRequestSchema, type CliCommandAgentsViewerRequest, CliCommandAgentsViewerRequestSchema, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandAgentsWaitViewerRequest, CliCommandAgentsWaitViewerRequestSchema, type CliCommandAgentsWaitViewerResponse, CliCommandAgentsWaitViewerResponseSchema, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetViewerRequest, CliCommandApiConfigAddressGetViewerRequestSchema, type CliCommandApiConfigAddressGetViewerResponse, CliCommandApiConfigAddressGetViewerResponseSchema, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigAddressSetViewerRequest, CliCommandApiConfigAddressSetViewerRequestSchema, type CliCommandApiConfigAddressSetViewerResponse, CliCommandApiConfigAddressSetViewerResponseSchema, type CliCommandApiConfigAddressViewerRequest, CliCommandApiConfigAddressViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetViewerRequest, CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetViewerResponse, CliCommandApiConfigCommitAuthorEmailGetViewerResponseSchema, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetViewerRequest, CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetViewerResponse, CliCommandApiConfigCommitAuthorEmailSetViewerResponseSchema, type CliCommandApiConfigCommitAuthorEmailViewerRequest, CliCommandApiConfigCommitAuthorEmailViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetViewerRequest, CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameGetViewerResponse, CliCommandApiConfigCommitAuthorNameGetViewerResponseSchema, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetViewerRequest, CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameSetViewerResponse, CliCommandApiConfigCommitAuthorNameSetViewerResponseSchema, type CliCommandApiConfigCommitAuthorNameViewerRequest, CliCommandApiConfigCommitAuthorNameViewerRequestSchema, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGetViewerRequest, CliCommandApiConfigGetViewerRequestSchema, type CliCommandApiConfigGetViewerResponse, CliCommandApiConfigGetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetViewerRequest, CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema, type CliCommandApiConfigGithubAuthorizationGetViewerResponse, CliCommandApiConfigGithubAuthorizationGetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetViewerRequest, CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema, type CliCommandApiConfigGithubAuthorizationSetViewerResponse, CliCommandApiConfigGithubAuthorizationSetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationViewerRequest, CliCommandApiConfigGithubAuthorizationViewerRequestSchema, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetViewerRequest, CliCommandApiConfigHttpRefererGetViewerRequestSchema, type CliCommandApiConfigHttpRefererGetViewerResponse, CliCommandApiConfigHttpRefererGetViewerResponseSchema, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetViewerRequest, CliCommandApiConfigHttpRefererSetViewerRequestSchema, type CliCommandApiConfigHttpRefererSetViewerResponse, CliCommandApiConfigHttpRefererSetViewerResponseSchema, type CliCommandApiConfigHttpRefererViewerRequest, CliCommandApiConfigHttpRefererViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddViewerRequest, CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationAddViewerResponse, CliCommandApiConfigMcpAuthorizationAddViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelViewerRequest, CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationDelViewerResponse, CliCommandApiConfigMcpAuthorizationDelViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetViewerRequest, CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationGetViewerResponse, CliCommandApiConfigMcpAuthorizationGetViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpAuthorizationViewerRequest, CliCommandApiConfigMcpAuthorizationViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetPath, CliCommandApiConfigMcpTimeoutMsGetPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetResponse, CliCommandApiConfigMcpTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetViewerRequest, CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetViewerResponse, CliCommandApiConfigMcpTimeoutMsGetViewerResponseSchema, type CliCommandApiConfigMcpTimeoutMsRequest, CliCommandApiConfigMcpTimeoutMsRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetPath, CliCommandApiConfigMcpTimeoutMsSetPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetViewerRequest, CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetViewerResponse, CliCommandApiConfigMcpTimeoutMsSetViewerResponseSchema, type CliCommandApiConfigMcpTimeoutMsViewerRequest, CliCommandApiConfigMcpTimeoutMsViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponse, CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponse, CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetViewerRequest, CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetViewerResponse, CliCommandApiConfigOpenrouterAuthorizationGetViewerResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetViewerRequest, CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetViewerResponse, CliCommandApiConfigOpenrouterAuthorizationSetViewerResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationViewerRequest, CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentGetViewerRequest, CliCommandApiConfigUserAgentGetViewerRequestSchema, type CliCommandApiConfigUserAgentGetViewerResponse, CliCommandApiConfigUserAgentGetViewerResponseSchema, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentSetViewerRequest, CliCommandApiConfigUserAgentSetViewerRequestSchema, type CliCommandApiConfigUserAgentSetViewerResponse, CliCommandApiConfigUserAgentSetViewerResponseSchema, type CliCommandApiConfigUserAgentViewerRequest, CliCommandApiConfigUserAgentViewerRequestSchema, type CliCommandApiConfigViewerRequest, CliCommandApiConfigViewerRequestSchema, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetViewerRequest, CliCommandApiConfigXTitleGetViewerRequestSchema, type CliCommandApiConfigXTitleGetViewerResponse, CliCommandApiConfigXTitleGetViewerResponseSchema, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleSetViewerRequest, CliCommandApiConfigXTitleSetViewerRequestSchema, type CliCommandApiConfigXTitleSetViewerResponse, CliCommandApiConfigXTitleSetViewerResponseSchema, type CliCommandApiConfigXTitleViewerRequest, CliCommandApiConfigXTitleViewerRequestSchema, type CliCommandApiKillPath, CliCommandApiKillPathSchema, type CliCommandApiKillRequest, CliCommandApiKillRequestSchema, type CliCommandApiKillRequestSchemaPath, CliCommandApiKillRequestSchemaPathSchema, type CliCommandApiKillRequestSchemaRequest, CliCommandApiKillRequestSchemaRequestSchema, type CliCommandApiKillResponse, CliCommandApiKillResponseSchema, type CliCommandApiKillResponseSchemaPath, CliCommandApiKillResponseSchemaPathSchema, type CliCommandApiKillResponseSchemaRequest, CliCommandApiKillResponseSchemaRequestSchema, type CliCommandApiKillViewerRequest, CliCommandApiKillViewerRequestSchema, type CliCommandApiKillViewerResponse, CliCommandApiKillViewerResponseSchema, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandApiSpawnPath, CliCommandApiSpawnPathSchema, type CliCommandApiSpawnRequest, CliCommandApiSpawnRequestSchema, type CliCommandApiSpawnRequestSchemaPath, CliCommandApiSpawnRequestSchemaPathSchema, type CliCommandApiSpawnRequestSchemaRequest, CliCommandApiSpawnRequestSchemaRequestSchema, type CliCommandApiSpawnResponse, CliCommandApiSpawnResponseSchema, type CliCommandApiSpawnResponseSchemaPath, CliCommandApiSpawnResponseSchemaPathSchema, type CliCommandApiSpawnResponseSchemaRequest, CliCommandApiSpawnResponseSchemaRequestSchema, type CliCommandApiSpawnViewerRequest, CliCommandApiSpawnViewerRequestSchema, type CliCommandApiSpawnViewerResponse, CliCommandApiSpawnViewerResponseSchema, type CliCommandApiViewerRequest, CliCommandApiViewerRequestSchema, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonKillViewerRequest, CliCommandDaemonKillViewerRequestSchema, type CliCommandDaemonKillViewerResponse, CliCommandDaemonKillViewerResponseSchema, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDaemonSpawnViewerRequest, CliCommandDaemonSpawnViewerRequestSchema, type CliCommandDaemonSpawnViewerResponseItem, CliCommandDaemonSpawnViewerResponseItemSchema, type CliCommandDaemonViewerRequest, CliCommandDaemonViewerRequestSchema, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetViewerRequest, CliCommandDbConfigAddressGetViewerRequestSchema, type CliCommandDbConfigAddressGetViewerResponse, CliCommandDbConfigAddressGetViewerResponseSchema, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigAddressSetPath, CliCommandDbConfigAddressSetPathSchema, type CliCommandDbConfigAddressSetRequest, CliCommandDbConfigAddressSetRequestSchema, type CliCommandDbConfigAddressSetRequestSchemaPath, CliCommandDbConfigAddressSetRequestSchemaPathSchema, type CliCommandDbConfigAddressSetRequestSchemaRequest, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, type CliCommandDbConfigAddressSetResponseSchemaPath, CliCommandDbConfigAddressSetResponseSchemaPathSchema, type CliCommandDbConfigAddressSetResponseSchemaRequest, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, type CliCommandDbConfigAddressSetViewerRequest, CliCommandDbConfigAddressSetViewerRequestSchema, type CliCommandDbConfigAddressSetViewerResponse, CliCommandDbConfigAddressSetViewerResponseSchema, type CliCommandDbConfigAddressViewerRequest, CliCommandDbConfigAddressViewerRequestSchema, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseGetViewerRequest, CliCommandDbConfigDatabaseGetViewerRequestSchema, type CliCommandDbConfigDatabaseGetViewerResponse, CliCommandDbConfigDatabaseGetViewerResponseSchema, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigDatabaseSetPath, CliCommandDbConfigDatabaseSetPathSchema, type CliCommandDbConfigDatabaseSetRequest, CliCommandDbConfigDatabaseSetRequestSchema, type CliCommandDbConfigDatabaseSetRequestSchemaPath, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseSetRequestSchemaRequest, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseSetResponseSchemaPath, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseSetResponseSchemaRequest, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseSetViewerRequest, CliCommandDbConfigDatabaseSetViewerRequestSchema, type CliCommandDbConfigDatabaseSetViewerResponse, CliCommandDbConfigDatabaseSetViewerResponseSchema, type CliCommandDbConfigDatabaseViewerRequest, CliCommandDbConfigDatabaseViewerRequestSchema, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigGetViewerRequest, CliCommandDbConfigGetViewerRequestSchema, type CliCommandDbConfigGetViewerResponse, CliCommandDbConfigGetViewerResponseSchema, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordGetViewerRequest, CliCommandDbConfigPasswordGetViewerRequestSchema, type CliCommandDbConfigPasswordGetViewerResponse, CliCommandDbConfigPasswordGetViewerResponseSchema, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigPasswordSetPath, CliCommandDbConfigPasswordSetPathSchema, type CliCommandDbConfigPasswordSetRequest, CliCommandDbConfigPasswordSetRequestSchema, type CliCommandDbConfigPasswordSetRequestSchemaPath, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, type CliCommandDbConfigPasswordSetRequestSchemaRequest, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordSetResponseSchemaPath, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, type CliCommandDbConfigPasswordSetResponseSchemaRequest, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordSetViewerRequest, CliCommandDbConfigPasswordSetViewerRequestSchema, type CliCommandDbConfigPasswordSetViewerResponse, CliCommandDbConfigPasswordSetViewerResponseSchema, type CliCommandDbConfigPasswordViewerRequest, CliCommandDbConfigPasswordViewerRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserGetViewerRequest, CliCommandDbConfigUserGetViewerRequestSchema, type CliCommandDbConfigUserGetViewerResponse, CliCommandDbConfigUserGetViewerResponseSchema, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbConfigUserSetPath, CliCommandDbConfigUserSetPathSchema, type CliCommandDbConfigUserSetRequest, CliCommandDbConfigUserSetRequestSchema, type CliCommandDbConfigUserSetRequestSchemaPath, CliCommandDbConfigUserSetRequestSchemaPathSchema, type CliCommandDbConfigUserSetRequestSchemaRequest, CliCommandDbConfigUserSetRequestSchemaRequestSchema, type CliCommandDbConfigUserSetResponseSchemaPath, CliCommandDbConfigUserSetResponseSchemaPathSchema, type CliCommandDbConfigUserSetResponseSchemaRequest, CliCommandDbConfigUserSetResponseSchemaRequestSchema, type CliCommandDbConfigUserSetViewerRequest, CliCommandDbConfigUserSetViewerRequestSchema, type CliCommandDbConfigUserSetViewerResponse, CliCommandDbConfigUserSetViewerResponseSchema, type CliCommandDbConfigUserViewerRequest, CliCommandDbConfigUserViewerRequestSchema, type CliCommandDbConfigViewerRequest, CliCommandDbConfigViewerRequestSchema, type CliCommandDbKillPath, CliCommandDbKillPathSchema, type CliCommandDbKillRequest, CliCommandDbKillRequestSchema, type CliCommandDbKillRequestSchemaPath, CliCommandDbKillRequestSchemaPathSchema, type CliCommandDbKillRequestSchemaRequest, CliCommandDbKillRequestSchemaRequestSchema, type CliCommandDbKillResponse, CliCommandDbKillResponseSchema, type CliCommandDbKillResponseSchemaPath, CliCommandDbKillResponseSchemaPathSchema, type CliCommandDbKillResponseSchemaRequest, CliCommandDbKillResponseSchemaRequestSchema, type CliCommandDbKillViewerRequest, CliCommandDbKillViewerRequestSchema, type CliCommandDbKillViewerResponse, CliCommandDbKillViewerResponseSchema, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbQueryViewerRequest, CliCommandDbQueryViewerRequestSchema, type CliCommandDbQueryViewerResponse, CliCommandDbQueryViewerResponseSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandDbSpawnPath, CliCommandDbSpawnPathSchema, type CliCommandDbSpawnRequest, CliCommandDbSpawnRequestSchema, type CliCommandDbSpawnRequestSchemaPath, CliCommandDbSpawnRequestSchemaPathSchema, type CliCommandDbSpawnRequestSchemaRequest, CliCommandDbSpawnRequestSchemaRequestSchema, type CliCommandDbSpawnResponse, CliCommandDbSpawnResponseSchema, type CliCommandDbSpawnResponseSchemaPath, CliCommandDbSpawnResponseSchemaPathSchema, type CliCommandDbSpawnResponseSchemaRequest, CliCommandDbSpawnResponseSchemaRequestSchema, type CliCommandDbSpawnViewerRequest, CliCommandDbSpawnViewerRequestSchema, type CliCommandDbSpawnViewerResponse, CliCommandDbSpawnViewerResponseSchema, type CliCommandDbViewerRequest, CliCommandDbViewerRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteStandardViewerRequest, CliCommandFunctionsExecuteStandardViewerRequestSchema, type CliCommandFunctionsExecuteStandardViewerResponse, type CliCommandFunctionsExecuteStandardViewerResponseItem, CliCommandFunctionsExecuteStandardViewerResponseItemSchema, CliCommandFunctionsExecuteStandardViewerResponseSchema, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemViewerRequest, CliCommandFunctionsExecuteSwissSystemViewerRequestSchema, type CliCommandFunctionsExecuteSwissSystemViewerResponse, type CliCommandFunctionsExecuteSwissSystemViewerResponseItem, CliCommandFunctionsExecuteSwissSystemViewerResponseItemSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseSchema, type CliCommandFunctionsExecuteViewerRequest, CliCommandFunctionsExecuteViewerRequestSchema, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsGetViewerRequest, CliCommandFunctionsGetViewerRequestSchema, type CliCommandFunctionsGetViewerResponse, CliCommandFunctionsGetViewerResponseSchema, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListViewerRequest, CliCommandFunctionsListViewerRequestSchema, type CliCommandFunctionsListViewerResponse, CliCommandFunctionsListViewerResponseSchema, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesGetViewerRequest, CliCommandFunctionsProfilesGetViewerRequestSchema, type CliCommandFunctionsProfilesGetViewerResponse, CliCommandFunctionsProfilesGetViewerResponseSchema, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListViewerRequest, CliCommandFunctionsProfilesListViewerRequestSchema, type CliCommandFunctionsProfilesListViewerResponse, CliCommandFunctionsProfilesListViewerResponseSchema, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesPublishViewerRequest, CliCommandFunctionsProfilesPublishViewerRequestSchema, type CliCommandFunctionsProfilesPublishViewerResponse, CliCommandFunctionsProfilesPublishViewerResponseSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsProfilesViewerRequest, CliCommandFunctionsProfilesViewerRequestSchema, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsPublishViewerRequest, CliCommandFunctionsPublishViewerRequestSchema, type CliCommandFunctionsPublishViewerResponse, CliCommandFunctionsPublishViewerResponseSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandFunctionsViewerRequest, CliCommandFunctionsViewerRequestSchema, type CliCommandGetScope, CliCommandGetScopeSchema, type CliCommandKillAllPath, CliCommandKillAllPathSchema, type CliCommandKillAllRequest, CliCommandKillAllRequestSchema, type CliCommandKillAllRequestSchemaPath, CliCommandKillAllRequestSchemaPathSchema, type CliCommandKillAllRequestSchemaRequest, CliCommandKillAllRequestSchemaRequestSchema, type CliCommandKillAllResponse, CliCommandKillAllResponseSchema, type CliCommandKillAllResponseSchemaPath, CliCommandKillAllResponseSchemaPathSchema, type CliCommandKillAllResponseSchemaRequest, CliCommandKillAllResponseSchemaRequestSchema, type CliCommandKillAllViewerRequest, CliCommandKillAllViewerRequestSchema, type CliCommandKillAllViewerResponse, CliCommandKillAllViewerResponseSchema, type CliCommandLaboratoriesCreateEnvVar, CliCommandLaboratoriesCreateEnvVarSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateMount, CliCommandLaboratoriesCreateMountSchema, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesCreateViewerRequest, CliCommandLaboratoriesCreateViewerRequestSchema, type CliCommandLaboratoriesCreateViewerResponse, CliCommandLaboratoriesCreateViewerResponseSchema, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListViewerRequest, CliCommandLaboratoriesListViewerRequestSchema, type CliCommandLaboratoriesListViewerResponseItem, CliCommandLaboratoriesListViewerResponseItemSchema, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandLaboratoriesViewerRequest, CliCommandLaboratoriesViewerRequestSchema, type CliCommandMcpConfigAddressGetPath, CliCommandMcpConfigAddressGetPathSchema, type CliCommandMcpConfigAddressGetRequest, CliCommandMcpConfigAddressGetRequestSchema, type CliCommandMcpConfigAddressGetRequestSchemaPath, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, type CliCommandMcpConfigAddressGetRequestSchemaRequest, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressGetResponse, CliCommandMcpConfigAddressGetResponseSchema, type CliCommandMcpConfigAddressGetResponseSchemaPath, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, type CliCommandMcpConfigAddressGetResponseSchemaRequest, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressGetViewerRequest, CliCommandMcpConfigAddressGetViewerRequestSchema, type CliCommandMcpConfigAddressGetViewerResponse, CliCommandMcpConfigAddressGetViewerResponseSchema, type CliCommandMcpConfigAddressRequest, CliCommandMcpConfigAddressRequestSchema, type CliCommandMcpConfigAddressSetPath, CliCommandMcpConfigAddressSetPathSchema, type CliCommandMcpConfigAddressSetRequest, CliCommandMcpConfigAddressSetRequestSchema, type CliCommandMcpConfigAddressSetRequestSchemaPath, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, type CliCommandMcpConfigAddressSetRequestSchemaRequest, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressSetResponseSchemaPath, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, type CliCommandMcpConfigAddressSetResponseSchemaRequest, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressSetViewerRequest, CliCommandMcpConfigAddressSetViewerRequestSchema, type CliCommandMcpConfigAddressSetViewerResponse, CliCommandMcpConfigAddressSetViewerResponseSchema, type CliCommandMcpConfigAddressViewerRequest, CliCommandMcpConfigAddressViewerRequestSchema, type CliCommandMcpConfigGetPath, CliCommandMcpConfigGetPathSchema, type CliCommandMcpConfigGetRequest, CliCommandMcpConfigGetRequestSchema, type CliCommandMcpConfigGetRequestSchemaPath, CliCommandMcpConfigGetRequestSchemaPathSchema, type CliCommandMcpConfigGetRequestSchemaRequest, CliCommandMcpConfigGetRequestSchemaRequestSchema, type CliCommandMcpConfigGetResponse, CliCommandMcpConfigGetResponseSchema, type CliCommandMcpConfigGetResponseSchemaPath, CliCommandMcpConfigGetResponseSchemaPathSchema, type CliCommandMcpConfigGetResponseSchemaRequest, CliCommandMcpConfigGetResponseSchemaRequestSchema, type CliCommandMcpConfigGetViewerRequest, CliCommandMcpConfigGetViewerRequestSchema, type CliCommandMcpConfigGetViewerResponse, CliCommandMcpConfigGetViewerResponseSchema, type CliCommandMcpConfigPortGetPath, CliCommandMcpConfigPortGetPathSchema, type CliCommandMcpConfigPortGetRequest, CliCommandMcpConfigPortGetRequestSchema, type CliCommandMcpConfigPortGetRequestSchemaPath, CliCommandMcpConfigPortGetRequestSchemaPathSchema, type CliCommandMcpConfigPortGetRequestSchemaRequest, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, type CliCommandMcpConfigPortGetResponse, CliCommandMcpConfigPortGetResponseSchema, type CliCommandMcpConfigPortGetResponseSchemaPath, CliCommandMcpConfigPortGetResponseSchemaPathSchema, type CliCommandMcpConfigPortGetResponseSchemaRequest, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, type CliCommandMcpConfigPortGetViewerRequest, CliCommandMcpConfigPortGetViewerRequestSchema, type CliCommandMcpConfigPortGetViewerResponse, CliCommandMcpConfigPortGetViewerResponseSchema, type CliCommandMcpConfigPortRequest, CliCommandMcpConfigPortRequestSchema, type CliCommandMcpConfigPortSetPath, CliCommandMcpConfigPortSetPathSchema, type CliCommandMcpConfigPortSetRequest, CliCommandMcpConfigPortSetRequestSchema, type CliCommandMcpConfigPortSetRequestSchemaPath, CliCommandMcpConfigPortSetRequestSchemaPathSchema, type CliCommandMcpConfigPortSetRequestSchemaRequest, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, type CliCommandMcpConfigPortSetResponseSchemaPath, CliCommandMcpConfigPortSetResponseSchemaPathSchema, type CliCommandMcpConfigPortSetResponseSchemaRequest, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, type CliCommandMcpConfigPortSetViewerRequest, CliCommandMcpConfigPortSetViewerRequestSchema, type CliCommandMcpConfigPortSetViewerResponse, CliCommandMcpConfigPortSetViewerResponseSchema, type CliCommandMcpConfigPortViewerRequest, CliCommandMcpConfigPortViewerRequestSchema, type CliCommandMcpConfigRequest, CliCommandMcpConfigRequestSchema, type CliCommandMcpConfigViewerRequest, CliCommandMcpConfigViewerRequestSchema, type CliCommandMcpKillPath, CliCommandMcpKillPathSchema, type CliCommandMcpKillRequest, CliCommandMcpKillRequestSchema, type CliCommandMcpKillRequestSchemaPath, CliCommandMcpKillRequestSchemaPathSchema, type CliCommandMcpKillRequestSchemaRequest, CliCommandMcpKillRequestSchemaRequestSchema, type CliCommandMcpKillResponse, CliCommandMcpKillResponseSchema, type CliCommandMcpKillResponseSchemaPath, CliCommandMcpKillResponseSchemaPathSchema, type CliCommandMcpKillResponseSchemaRequest, CliCommandMcpKillResponseSchemaRequestSchema, type CliCommandMcpKillViewerRequest, CliCommandMcpKillViewerRequestSchema, type CliCommandMcpKillViewerResponse, CliCommandMcpKillViewerResponseSchema, type CliCommandMcpRequest, CliCommandMcpRequestSchema, type CliCommandMcpSpawnPath, CliCommandMcpSpawnPathSchema, type CliCommandMcpSpawnRequest, CliCommandMcpSpawnRequestSchema, type CliCommandMcpSpawnRequestSchemaPath, CliCommandMcpSpawnRequestSchemaPathSchema, type CliCommandMcpSpawnRequestSchemaRequest, CliCommandMcpSpawnRequestSchemaRequestSchema, type CliCommandMcpSpawnResponse, CliCommandMcpSpawnResponseSchema, type CliCommandMcpSpawnResponseSchemaPath, CliCommandMcpSpawnResponseSchemaPathSchema, type CliCommandMcpSpawnResponseSchemaRequest, CliCommandMcpSpawnResponseSchemaRequestSchema, type CliCommandMcpSpawnViewerRequest, CliCommandMcpSpawnViewerRequestSchema, type CliCommandMcpSpawnViewerResponse, CliCommandMcpSpawnViewerResponseSchema, type CliCommandMcpViewerRequest, CliCommandMcpViewerRequestSchema, type CliCommandOk, CliCommandOkSchema, type CliCommandPluginsGetPath, CliCommandPluginsGetPathSchema, type CliCommandPluginsGetRequest, CliCommandPluginsGetRequestSchema, type CliCommandPluginsGetRequestSchemaPath, CliCommandPluginsGetRequestSchemaPathSchema, type CliCommandPluginsGetRequestSchemaRequest, CliCommandPluginsGetRequestSchemaRequestSchema, type CliCommandPluginsGetResponseHttpMethod, CliCommandPluginsGetResponseHttpMethodSchema, type CliCommandPluginsGetResponseManifest, CliCommandPluginsGetResponseManifestSchema, type CliCommandPluginsGetResponseMcpServer, CliCommandPluginsGetResponseMcpServerSchema, type CliCommandPluginsGetResponseSchemaPath, CliCommandPluginsGetResponseSchemaPathSchema, type CliCommandPluginsGetResponseSchemaRequest, CliCommandPluginsGetResponseSchemaRequestSchema, type CliCommandPluginsGetResponseViewerRoute, CliCommandPluginsGetResponseViewerRouteSchema, type CliCommandPluginsGetViewerRequest, CliCommandPluginsGetViewerRequestSchema, type CliCommandPluginsGetViewerResponse, CliCommandPluginsGetViewerResponseSchema, type CliCommandPluginsInstallFilesystemPath, CliCommandPluginsInstallFilesystemPathSchema, type CliCommandPluginsInstallFilesystemRequest, CliCommandPluginsInstallFilesystemRequestSchema, type CliCommandPluginsInstallFilesystemRequestSchemaPath, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, type CliCommandPluginsInstallFilesystemRequestSchemaRequest, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, type CliCommandPluginsInstallFilesystemResponse, CliCommandPluginsInstallFilesystemResponseSchema, type CliCommandPluginsInstallFilesystemResponseSchemaPath, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, type CliCommandPluginsInstallFilesystemResponseSchemaRequest, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, type CliCommandPluginsInstallFilesystemViewerRequest, CliCommandPluginsInstallFilesystemViewerRequestSchema, type CliCommandPluginsInstallFilesystemViewerResponse, CliCommandPluginsInstallFilesystemViewerResponseSchema, type CliCommandPluginsInstallGithubPath, CliCommandPluginsInstallGithubPathSchema, type CliCommandPluginsInstallGithubRequest, CliCommandPluginsInstallGithubRequestSchema, type CliCommandPluginsInstallGithubRequestSchemaPath, CliCommandPluginsInstallGithubRequestSchemaPathSchema, type CliCommandPluginsInstallGithubRequestSchemaRequest, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, type CliCommandPluginsInstallGithubResponse, CliCommandPluginsInstallGithubResponseSchema, type CliCommandPluginsInstallGithubResponseSchemaPath, CliCommandPluginsInstallGithubResponseSchemaPathSchema, type CliCommandPluginsInstallGithubResponseSchemaRequest, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, type CliCommandPluginsInstallGithubViewerRequest, CliCommandPluginsInstallGithubViewerRequestSchema, type CliCommandPluginsInstallGithubViewerResponse, CliCommandPluginsInstallGithubViewerResponseSchema, type CliCommandPluginsInstallRequest, CliCommandPluginsInstallRequestSchema, type CliCommandPluginsInstallViewerRequest, CliCommandPluginsInstallViewerRequestSchema, type CliCommandPluginsListPath, CliCommandPluginsListPathSchema, type CliCommandPluginsListRequest, CliCommandPluginsListRequestSchema, type CliCommandPluginsListRequestSchemaPath, CliCommandPluginsListRequestSchemaPathSchema, type CliCommandPluginsListRequestSchemaRequest, CliCommandPluginsListRequestSchemaRequestSchema, type CliCommandPluginsListResponseSchemaPath, CliCommandPluginsListResponseSchemaPathSchema, type CliCommandPluginsListResponseSchemaRequest, CliCommandPluginsListResponseSchemaRequestSchema, type CliCommandPluginsListViewerRequest, CliCommandPluginsListViewerRequestSchema, type CliCommandPluginsListViewerResponseItem, CliCommandPluginsListViewerResponseItemSchema, type CliCommandPluginsLogsListPath, CliCommandPluginsLogsListPathSchema, type CliCommandPluginsLogsListRequest, CliCommandPluginsLogsListRequestSchema, type CliCommandPluginsLogsListRequestSchemaPath, CliCommandPluginsLogsListRequestSchemaPathSchema, type CliCommandPluginsLogsListRequestSchemaRequest, CliCommandPluginsLogsListRequestSchemaRequestSchema, type CliCommandPluginsLogsListResponseItem, CliCommandPluginsLogsListResponseItemSchema, type CliCommandPluginsLogsListResponseSchemaPath, CliCommandPluginsLogsListResponseSchemaPathSchema, type CliCommandPluginsLogsListResponseSchemaRequest, CliCommandPluginsLogsListResponseSchemaRequestSchema, type CliCommandPluginsLogsListViewerRequest, CliCommandPluginsLogsListViewerRequestSchema, type CliCommandPluginsLogsListViewerResponseItem, CliCommandPluginsLogsListViewerResponseItemSchema, type CliCommandPluginsLogsRequest, CliCommandPluginsLogsRequestSchema, type CliCommandPluginsRequest, CliCommandPluginsRequestSchema, type CliCommandPluginsRunMcp, CliCommandPluginsRunMcpSchema, type CliCommandPluginsRunMcpType, CliCommandPluginsRunMcpTypeSchema, type CliCommandPluginsRunPath, CliCommandPluginsRunPathSchema, type CliCommandPluginsRunRequest, CliCommandPluginsRunRequestSchema, type CliCommandPluginsRunRequestSchemaPath, CliCommandPluginsRunRequestSchemaPathSchema, type CliCommandPluginsRunRequestSchemaRequest, CliCommandPluginsRunRequestSchemaRequestSchema, type CliCommandPluginsRunResponseItem, CliCommandPluginsRunResponseItemSchema, type CliCommandPluginsRunResponseSchemaPath, CliCommandPluginsRunResponseSchemaPathSchema, type CliCommandPluginsRunResponseSchemaRequest, CliCommandPluginsRunResponseSchemaRequestSchema, type CliCommandPluginsRunViewerRequest, CliCommandPluginsRunViewerRequestSchema, type CliCommandPluginsRunViewerResponseItem, CliCommandPluginsRunViewerResponseItemSchema, type CliCommandPluginsViewerRequest, CliCommandPluginsViewerRequestSchema, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandPythonViewerRequest, CliCommandPythonViewerRequestSchema, type CliCommandPythonViewerResponse, CliCommandPythonViewerResponseSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandRootViewerRequest, CliCommandRootViewerRequestSchema, type CliCommandSetScope, CliCommandSetScopeSchema, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsGetViewerRequest, CliCommandSwarmsGetViewerRequestSchema, type CliCommandSwarmsGetViewerResponse, CliCommandSwarmsGetViewerResponseSchema, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListViewerRequest, CliCommandSwarmsListViewerRequestSchema, type CliCommandSwarmsListViewerResponse, type CliCommandSwarmsListViewerResponseItem, CliCommandSwarmsListViewerResponseItemSchema, CliCommandSwarmsListViewerResponseSchema, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsPublishViewerRequest, CliCommandSwarmsPublishViewerRequestSchema, type CliCommandSwarmsPublishViewerResponse, CliCommandSwarmsPublishViewerResponseSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandSwarmsViewerRequest, CliCommandSwarmsViewerRequestSchema, type CliCommandToolsGetExec, CliCommandToolsGetExecSchema, type CliCommandToolsGetPath, CliCommandToolsGetPathSchema, type CliCommandToolsGetRequest, CliCommandToolsGetRequestSchema, type CliCommandToolsGetRequestSchemaPath, CliCommandToolsGetRequestSchemaPathSchema, type CliCommandToolsGetRequestSchemaRequest, CliCommandToolsGetRequestSchemaRequestSchema, type CliCommandToolsGetResponseManifest, CliCommandToolsGetResponseManifestSchema, type CliCommandToolsGetResponseSchemaPath, CliCommandToolsGetResponseSchemaPathSchema, type CliCommandToolsGetResponseSchemaRequest, CliCommandToolsGetResponseSchemaRequestSchema, type CliCommandToolsGetViewerRequest, CliCommandToolsGetViewerRequestSchema, type CliCommandToolsGetViewerResponse, CliCommandToolsGetViewerResponseSchema, type CliCommandToolsInstallFilesystemPath, CliCommandToolsInstallFilesystemPathSchema, type CliCommandToolsInstallFilesystemRequest, CliCommandToolsInstallFilesystemRequestSchema, type CliCommandToolsInstallFilesystemRequestSchemaPath, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, type CliCommandToolsInstallFilesystemRequestSchemaRequest, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, type CliCommandToolsInstallFilesystemResponse, CliCommandToolsInstallFilesystemResponseSchema, type CliCommandToolsInstallFilesystemResponseSchemaPath, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, type CliCommandToolsInstallFilesystemResponseSchemaRequest, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, type CliCommandToolsInstallFilesystemViewerRequest, CliCommandToolsInstallFilesystemViewerRequestSchema, type CliCommandToolsInstallFilesystemViewerResponse, CliCommandToolsInstallFilesystemViewerResponseSchema, type CliCommandToolsInstallGithubPath, CliCommandToolsInstallGithubPathSchema, type CliCommandToolsInstallGithubRequest, CliCommandToolsInstallGithubRequestSchema, type CliCommandToolsInstallGithubRequestSchemaPath, CliCommandToolsInstallGithubRequestSchemaPathSchema, type CliCommandToolsInstallGithubRequestSchemaRequest, CliCommandToolsInstallGithubRequestSchemaRequestSchema, type CliCommandToolsInstallGithubResponse, CliCommandToolsInstallGithubResponseSchema, type CliCommandToolsInstallGithubResponseSchemaPath, CliCommandToolsInstallGithubResponseSchemaPathSchema, type CliCommandToolsInstallGithubResponseSchemaRequest, CliCommandToolsInstallGithubResponseSchemaRequestSchema, type CliCommandToolsInstallGithubViewerRequest, CliCommandToolsInstallGithubViewerRequestSchema, type CliCommandToolsInstallGithubViewerResponse, CliCommandToolsInstallGithubViewerResponseSchema, type CliCommandToolsInstallRequest, CliCommandToolsInstallRequestSchema, type CliCommandToolsInstallViewerRequest, CliCommandToolsInstallViewerRequestSchema, type CliCommandToolsListPath, CliCommandToolsListPathSchema, type CliCommandToolsListRequest, CliCommandToolsListRequestSchema, type CliCommandToolsListRequestSchemaPath, CliCommandToolsListRequestSchemaPathSchema, type CliCommandToolsListRequestSchemaRequest, CliCommandToolsListRequestSchemaRequestSchema, type CliCommandToolsListResponseSchemaPath, CliCommandToolsListResponseSchemaPathSchema, type CliCommandToolsListResponseSchemaRequest, CliCommandToolsListResponseSchemaRequestSchema, type CliCommandToolsListViewerRequest, CliCommandToolsListViewerRequestSchema, type CliCommandToolsListViewerResponseItem, CliCommandToolsListViewerResponseItemSchema, type CliCommandToolsRequest, CliCommandToolsRequestSchema, type CliCommandToolsRunPath, CliCommandToolsRunPathSchema, type CliCommandToolsRunRequest, CliCommandToolsRunRequestSchema, type CliCommandToolsRunRequestSchemaPath, CliCommandToolsRunRequestSchemaPathSchema, type CliCommandToolsRunRequestSchemaRequest, CliCommandToolsRunRequestSchemaRequestSchema, type CliCommandToolsRunResponseItem, CliCommandToolsRunResponseItemSchema, type CliCommandToolsRunResponseSchemaPath, CliCommandToolsRunResponseSchemaPathSchema, type CliCommandToolsRunResponseSchemaRequest, CliCommandToolsRunResponseSchemaRequestSchema, type CliCommandToolsRunViewerRequest, CliCommandToolsRunViewerRequestSchema, type CliCommandToolsRunViewerResponseItem, CliCommandToolsRunViewerResponseItemSchema, type CliCommandToolsViewerRequest, CliCommandToolsViewerRequestSchema, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandUpdateViewerRequest, CliCommandUpdateViewerRequestSchema, type CliCommandUpdateViewerResponse, type CliCommandUpdateViewerResponseItem, CliCommandUpdateViewerResponseItemSchema, CliCommandUpdateViewerResponseSchema, type CliCommandViewerConfigAddressGetPath, CliCommandViewerConfigAddressGetPathSchema, type CliCommandViewerConfigAddressGetRequest, CliCommandViewerConfigAddressGetRequestSchema, type CliCommandViewerConfigAddressGetRequestSchemaPath, CliCommandViewerConfigAddressGetRequestSchemaPathSchema, type CliCommandViewerConfigAddressGetRequestSchemaRequest, CliCommandViewerConfigAddressGetRequestSchemaRequestSchema, type CliCommandViewerConfigAddressGetResponse, CliCommandViewerConfigAddressGetResponseSchema, type CliCommandViewerConfigAddressGetResponseSchemaPath, CliCommandViewerConfigAddressGetResponseSchemaPathSchema, type CliCommandViewerConfigAddressGetResponseSchemaRequest, CliCommandViewerConfigAddressGetResponseSchemaRequestSchema, type CliCommandViewerConfigAddressGetViewerRequest, CliCommandViewerConfigAddressGetViewerRequestSchema, type CliCommandViewerConfigAddressGetViewerResponse, CliCommandViewerConfigAddressGetViewerResponseSchema, type CliCommandViewerConfigAddressRequest, CliCommandViewerConfigAddressRequestSchema, type CliCommandViewerConfigAddressSetPath, CliCommandViewerConfigAddressSetPathSchema, type CliCommandViewerConfigAddressSetRequest, CliCommandViewerConfigAddressSetRequestSchema, type CliCommandViewerConfigAddressSetRequestSchemaPath, CliCommandViewerConfigAddressSetRequestSchemaPathSchema, type CliCommandViewerConfigAddressSetRequestSchemaRequest, CliCommandViewerConfigAddressSetRequestSchemaRequestSchema, type CliCommandViewerConfigAddressSetResponseSchemaPath, CliCommandViewerConfigAddressSetResponseSchemaPathSchema, type CliCommandViewerConfigAddressSetResponseSchemaRequest, CliCommandViewerConfigAddressSetResponseSchemaRequestSchema, type CliCommandViewerConfigAddressSetViewerRequest, CliCommandViewerConfigAddressSetViewerRequestSchema, type CliCommandViewerConfigAddressSetViewerResponse, CliCommandViewerConfigAddressSetViewerResponseSchema, type CliCommandViewerConfigAddressViewerRequest, CliCommandViewerConfigAddressViewerRequestSchema, type CliCommandViewerConfigGetPath, CliCommandViewerConfigGetPathSchema, type CliCommandViewerConfigGetRequest, CliCommandViewerConfigGetRequestSchema, type CliCommandViewerConfigGetRequestSchemaPath, CliCommandViewerConfigGetRequestSchemaPathSchema, type CliCommandViewerConfigGetRequestSchemaRequest, CliCommandViewerConfigGetRequestSchemaRequestSchema, type CliCommandViewerConfigGetResponse, CliCommandViewerConfigGetResponseSchema, type CliCommandViewerConfigGetResponseSchemaPath, CliCommandViewerConfigGetResponseSchemaPathSchema, type CliCommandViewerConfigGetResponseSchemaRequest, CliCommandViewerConfigGetResponseSchemaRequestSchema, type CliCommandViewerConfigGetViewerRequest, CliCommandViewerConfigGetViewerRequestSchema, type CliCommandViewerConfigGetViewerResponse, CliCommandViewerConfigGetViewerResponseSchema, type CliCommandViewerConfigRequest, CliCommandViewerConfigRequestSchema, type CliCommandViewerConfigSecretGetPath, CliCommandViewerConfigSecretGetPathSchema, type CliCommandViewerConfigSecretGetRequest, CliCommandViewerConfigSecretGetRequestSchema, type CliCommandViewerConfigSecretGetRequestSchemaPath, CliCommandViewerConfigSecretGetRequestSchemaPathSchema, type CliCommandViewerConfigSecretGetRequestSchemaRequest, CliCommandViewerConfigSecretGetRequestSchemaRequestSchema, type CliCommandViewerConfigSecretGetResponse, CliCommandViewerConfigSecretGetResponseSchema, type CliCommandViewerConfigSecretGetResponseSchemaPath, CliCommandViewerConfigSecretGetResponseSchemaPathSchema, type CliCommandViewerConfigSecretGetResponseSchemaRequest, CliCommandViewerConfigSecretGetResponseSchemaRequestSchema, type CliCommandViewerConfigSecretGetViewerRequest, CliCommandViewerConfigSecretGetViewerRequestSchema, type CliCommandViewerConfigSecretGetViewerResponse, CliCommandViewerConfigSecretGetViewerResponseSchema, type CliCommandViewerConfigSecretRequest, CliCommandViewerConfigSecretRequestSchema, type CliCommandViewerConfigSecretSetPath, CliCommandViewerConfigSecretSetPathSchema, type CliCommandViewerConfigSecretSetRequest, CliCommandViewerConfigSecretSetRequestSchema, type CliCommandViewerConfigSecretSetRequestSchemaPath, CliCommandViewerConfigSecretSetRequestSchemaPathSchema, type CliCommandViewerConfigSecretSetRequestSchemaRequest, CliCommandViewerConfigSecretSetRequestSchemaRequestSchema, type CliCommandViewerConfigSecretSetResponseSchemaPath, CliCommandViewerConfigSecretSetResponseSchemaPathSchema, type CliCommandViewerConfigSecretSetResponseSchemaRequest, CliCommandViewerConfigSecretSetResponseSchemaRequestSchema, type CliCommandViewerConfigSecretSetViewerRequest, CliCommandViewerConfigSecretSetViewerRequestSchema, type CliCommandViewerConfigSecretSetViewerResponse, CliCommandViewerConfigSecretSetViewerResponseSchema, type CliCommandViewerConfigSecretViewerRequest, CliCommandViewerConfigSecretViewerRequestSchema, type CliCommandViewerConfigSignatureGetPath, CliCommandViewerConfigSignatureGetPathSchema, type CliCommandViewerConfigSignatureGetRequest, CliCommandViewerConfigSignatureGetRequestSchema, type CliCommandViewerConfigSignatureGetRequestSchemaPath, CliCommandViewerConfigSignatureGetRequestSchemaPathSchema, type CliCommandViewerConfigSignatureGetRequestSchemaRequest, CliCommandViewerConfigSignatureGetRequestSchemaRequestSchema, type CliCommandViewerConfigSignatureGetResponse, CliCommandViewerConfigSignatureGetResponseSchema, type CliCommandViewerConfigSignatureGetResponseSchemaPath, CliCommandViewerConfigSignatureGetResponseSchemaPathSchema, type CliCommandViewerConfigSignatureGetResponseSchemaRequest, CliCommandViewerConfigSignatureGetResponseSchemaRequestSchema, type CliCommandViewerConfigSignatureGetViewerRequest, CliCommandViewerConfigSignatureGetViewerRequestSchema, type CliCommandViewerConfigSignatureGetViewerResponse, CliCommandViewerConfigSignatureGetViewerResponseSchema, type CliCommandViewerConfigSignatureRequest, CliCommandViewerConfigSignatureRequestSchema, type CliCommandViewerConfigSignatureSetPath, CliCommandViewerConfigSignatureSetPathSchema, type CliCommandViewerConfigSignatureSetRequest, CliCommandViewerConfigSignatureSetRequestSchema, type CliCommandViewerConfigSignatureSetRequestSchemaPath, CliCommandViewerConfigSignatureSetRequestSchemaPathSchema, type CliCommandViewerConfigSignatureSetRequestSchemaRequest, CliCommandViewerConfigSignatureSetRequestSchemaRequestSchema, type CliCommandViewerConfigSignatureSetResponseSchemaPath, CliCommandViewerConfigSignatureSetResponseSchemaPathSchema, type CliCommandViewerConfigSignatureSetResponseSchemaRequest, CliCommandViewerConfigSignatureSetResponseSchemaRequestSchema, type CliCommandViewerConfigSignatureSetViewerRequest, CliCommandViewerConfigSignatureSetViewerRequestSchema, type CliCommandViewerConfigSignatureSetViewerResponse, CliCommandViewerConfigSignatureSetViewerResponseSchema, type CliCommandViewerConfigSignatureViewerRequest, CliCommandViewerConfigSignatureViewerRequestSchema, type CliCommandViewerConfigViewerRequest, CliCommandViewerConfigViewerRequestSchema, type CliCommandViewerGenerateSecretSignaturePairPath, CliCommandViewerGenerateSecretSignaturePairPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaPath, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairResponse, CliCommandViewerGenerateSecretSignaturePairResponseSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairViewerRequest, CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema, type CliCommandViewerGenerateSecretSignaturePairViewerResponse, CliCommandViewerGenerateSecretSignaturePairViewerResponseSchema, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerKillViewerRequest, CliCommandViewerKillViewerRequestSchema, type CliCommandViewerKillViewerResponse, CliCommandViewerKillViewerResponseSchema, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSendPath, CliCommandViewerSendPathSchema, type CliCommandViewerSendRequest, CliCommandViewerSendRequestSchema, type CliCommandViewerSendRequestSchemaPath, CliCommandViewerSendRequestSchemaPathSchema, type CliCommandViewerSendRequestSchemaRequest, CliCommandViewerSendRequestSchemaRequestSchema, type CliCommandViewerSendResponse, CliCommandViewerSendResponseSchema, type CliCommandViewerSendResponseSchemaPath, CliCommandViewerSendResponseSchemaPathSchema, type CliCommandViewerSendResponseSchemaRequest, CliCommandViewerSendResponseSchemaRequestSchema, type CliCommandViewerSendViewerRequest, CliCommandViewerSendViewerRequestSchema, type CliCommandViewerSendViewerResponse, CliCommandViewerSendViewerResponseSchema, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliCommandViewerSpawnViewerRequest, CliCommandViewerSpawnViewerRequestSchema, type CliCommandViewerSpawnViewerResponse, CliCommandViewerSpawnViewerResponseSchema, type CliCommandViewerViewerRequest, CliCommandViewerViewerRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsOutput, CliPluginsOutputSchema, CliStream, type CommandExecutor, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type HttpViewerAgentCompletionCreateParams, HttpViewerAgentCompletionCreateParamsSchema, type HttpViewerAgentCompletionRequest, HttpViewerAgentCompletionRequestSchema, type HttpViewerFunctionExecutionCreateParams, HttpViewerFunctionExecutionCreateParamsSchema, type HttpViewerFunctionExecutionRequest, HttpViewerFunctionExecutionRequestSchema, type HttpViewerRequest, HttpViewerRequestSchema, type HttpViewerResponseError, HttpViewerResponseErrorSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesLaboratory, LaboratoriesLaboratorySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, ViewerCommandExecutor, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsLaboratoriesAttachExecute, agentsLaboratoriesAttachExecuteTransform, agentsLaboratoriesAttachRequestSchemaExecute, agentsLaboratoriesAttachRequestSchemaExecuteTransform, agentsLaboratoriesAttachResponseSchemaExecute, agentsLaboratoriesAttachResponseSchemaExecuteTransform, agentsLaboratoriesDetachExecute, agentsLaboratoriesDetachExecuteTransform, agentsLaboratoriesDetachRequestSchemaExecute, agentsLaboratoriesDetachRequestSchemaExecuteTransform, agentsLaboratoriesDetachResponseSchemaExecute, agentsLaboratoriesDetachResponseSchemaExecuteTransform, agentsLaboratoriesListExecute, agentsLaboratoriesListExecuteTransform, agentsLaboratoriesListRequestSchemaExecute, agentsLaboratoriesListRequestSchemaExecuteTransform, agentsLaboratoriesListResponseSchemaExecute, agentsLaboratoriesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsGetExecute, apiConfigMcpTimeoutMsGetExecuteTransform, apiConfigMcpTimeoutMsGetRequestSchemaExecute, apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsGetResponseSchemaExecute, apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsSetExecute, apiConfigMcpTimeoutMsSetExecuteTransform, apiConfigMcpTimeoutMsSetRequestSchemaExecute, apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsSetResponseSchemaExecute, apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerConfigAddressGetExecute, viewerConfigAddressGetExecuteTransform, viewerConfigAddressGetRequestSchemaExecute, viewerConfigAddressGetRequestSchemaExecuteTransform, viewerConfigAddressGetResponseSchemaExecute, viewerConfigAddressGetResponseSchemaExecuteTransform, viewerConfigAddressSetExecute, viewerConfigAddressSetExecuteTransform, viewerConfigAddressSetRequestSchemaExecute, viewerConfigAddressSetRequestSchemaExecuteTransform, viewerConfigAddressSetResponseSchemaExecute, viewerConfigAddressSetResponseSchemaExecuteTransform, viewerConfigGetExecute, viewerConfigGetExecuteTransform, viewerConfigGetRequestSchemaExecute, viewerConfigGetRequestSchemaExecuteTransform, viewerConfigGetResponseSchemaExecute, viewerConfigGetResponseSchemaExecuteTransform, viewerConfigSecretGetExecute, viewerConfigSecretGetExecuteTransform, viewerConfigSecretGetRequestSchemaExecute, viewerConfigSecretGetRequestSchemaExecuteTransform, viewerConfigSecretGetResponseSchemaExecute, viewerConfigSecretGetResponseSchemaExecuteTransform, viewerConfigSecretSetExecute, viewerConfigSecretSetExecuteTransform, viewerConfigSecretSetRequestSchemaExecute, viewerConfigSecretSetRequestSchemaExecuteTransform, viewerConfigSecretSetResponseSchemaExecute, viewerConfigSecretSetResponseSchemaExecuteTransform, viewerConfigSignatureGetExecute, viewerConfigSignatureGetExecuteTransform, viewerConfigSignatureGetRequestSchemaExecute, viewerConfigSignatureGetRequestSchemaExecuteTransform, viewerConfigSignatureGetResponseSchemaExecute, viewerConfigSignatureGetResponseSchemaExecuteTransform, viewerConfigSignatureSetExecute, viewerConfigSignatureSetExecuteTransform, viewerConfigSignatureSetRequestSchemaExecute, viewerConfigSignatureSetRequestSchemaExecuteTransform, viewerConfigSignatureSetResponseSchemaExecute, viewerConfigSignatureSetResponseSchemaExecuteTransform, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSendExecute, viewerSendExecuteTransform, viewerSendRequestSchemaExecute, viewerSendRequestSchemaExecuteTransform, viewerSendResponseSchemaExecute, viewerSendResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
+export { type AgentAgent, type AgentAgentBase, AgentAgentBaseSchema, AgentAgentSchema, type AgentAgentWithFallbacks, AgentAgentWithFallbacksSchema, type AgentAgentWithFallbacksWithCount, AgentAgentWithFallbacksWithCountSchema, type AgentClaudeAgentSdkAgent, type AgentClaudeAgentSdkAgentBase, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, type AgentClaudeAgentSdkContinuation, AgentClaudeAgentSdkContinuationSchema, type AgentClaudeAgentSdkEffort, AgentClaudeAgentSdkEffortSchema, type AgentClaudeAgentSdkOutputMode, AgentClaudeAgentSdkOutputModeSchema, type AgentClaudeAgentSdkUpstream, AgentClaudeAgentSdkUpstreamSchema, type AgentClientObjectiveaiMcp, type AgentClientObjectiveaiMcpEntry, AgentClientObjectiveaiMcpEntrySchema, type AgentClientObjectiveaiMcpHeaders, AgentClientObjectiveaiMcpHeadersSchema, type AgentClientObjectiveaiMcpPluginEntry, AgentClientObjectiveaiMcpPluginEntrySchema, type AgentClientObjectiveaiMcpPluginMcpServer, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, type AgentCodexSdkAgent, type AgentCodexSdkAgentBase, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, type AgentCodexSdkContinuation, AgentCodexSdkContinuationSchema, type AgentCodexSdkEffort, AgentCodexSdkEffortSchema, type AgentCodexSdkOutputMode, AgentCodexSdkOutputModeSchema, type AgentCodexSdkUpstream, AgentCodexSdkUpstreamSchema, type AgentCompletionsMessageAssistantMessage, type AgentCompletionsMessageAssistantMessageExpression, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, type AgentCompletionsMessageAssistantToolCall, type AgentCompletionsMessageAssistantToolCallDelta, AgentCompletionsMessageAssistantToolCallDeltaSchema, type AgentCompletionsMessageAssistantToolCallExpression, AgentCompletionsMessageAssistantToolCallExpressionSchema, type AgentCompletionsMessageAssistantToolCallFunction, type AgentCompletionsMessageAssistantToolCallFunctionDelta, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, type AgentCompletionsMessageAssistantToolCallFunctionExpression, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, type AgentCompletionsMessageAssistantToolCallType, AgentCompletionsMessageAssistantToolCallTypeSchema, type AgentCompletionsMessageFile, AgentCompletionsMessageFileSchema, type AgentCompletionsMessageImageUrl, type AgentCompletionsMessageImageUrlDetail, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, type AgentCompletionsMessageInputAudio, AgentCompletionsMessageInputAudioSchema, type AgentCompletionsMessageMessage, type AgentCompletionsMessageMessageExpression, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, type AgentCompletionsMessagePipeAck, AgentCompletionsMessagePipeAckSchema, type AgentCompletionsMessageRichContent, type AgentCompletionsMessageRichContentExpression, AgentCompletionsMessageRichContentExpressionSchema, type AgentCompletionsMessageRichContentPart, type AgentCompletionsMessageRichContentPartExpression, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, type AgentCompletionsMessageToolMessage, type AgentCompletionsMessageToolMessageExpression, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, type AgentCompletionsMessageToolResponseMetadata, AgentCompletionsMessageToolResponseMetadataSchema, type AgentCompletionsMessageUserMessage, type AgentCompletionsMessageUserMessageExpression, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, type AgentCompletionsMessageVideoUrl, AgentCompletionsMessageVideoUrlSchema, type AgentCompletionsRequestAgentCompletionCreateParams, AgentCompletionsRequestAgentCompletionCreateParamsSchema, type AgentCompletionsRequestAgentCompletionCreateParamsStreaming, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, type AgentCompletionsRequestAgentCompletionCreateParamsUnary, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, type AgentCompletionsRequestProvider, type AgentCompletionsRequestProviderDataCollection, AgentCompletionsRequestProviderDataCollectionSchema, type AgentCompletionsRequestProviderMaxPrice, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, type AgentCompletionsRequestProviderSort, AgentCompletionsRequestProviderSortSchema, type AgentCompletionsRequestResponseFormat, type AgentCompletionsRequestResponseFormatParam, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, type AgentCompletionsResponseAssistantRole, AgentCompletionsResponseAssistantRoleSchema, type AgentCompletionsResponseCompletionTokensDetails, AgentCompletionsResponseCompletionTokensDetailsSchema, type AgentCompletionsResponseCostDetails, AgentCompletionsResponseCostDetailsSchema, type AgentCompletionsResponseFinishReason, AgentCompletionsResponseFinishReasonSchema, type AgentCompletionsResponseLogprob, AgentCompletionsResponseLogprobSchema, type AgentCompletionsResponseLogprobs, AgentCompletionsResponseLogprobsSchema, type AgentCompletionsResponsePromptTokensDetails, AgentCompletionsResponsePromptTokensDetailsSchema, type AgentCompletionsResponseStreamingAgentCompletionChunk, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, type AgentCompletionsResponseStreamingAssistantResponseChunk, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, type AgentCompletionsResponseStreamingMessageChunk, AgentCompletionsResponseStreamingMessageChunkSchema, type AgentCompletionsResponseStreamingObject, AgentCompletionsResponseStreamingObjectSchema, type AgentCompletionsResponseToolResponse, AgentCompletionsResponseToolResponseSchema, type AgentCompletionsResponseToolRole, AgentCompletionsResponseToolRoleSchema, type AgentCompletionsResponseTopLogprob, AgentCompletionsResponseTopLogprobSchema, type AgentCompletionsResponseUnaryAgentCompletion, AgentCompletionsResponseUnaryAgentCompletionSchema, type AgentCompletionsResponseUnaryAssistantResponse, AgentCompletionsResponseUnaryAssistantResponseSchema, type AgentCompletionsResponseUnaryMessage, AgentCompletionsResponseUnaryMessageSchema, type AgentCompletionsResponseUnaryObject, AgentCompletionsResponseUnaryObjectSchema, type AgentCompletionsResponseUpstreamUsage, AgentCompletionsResponseUpstreamUsageSchema, type AgentCompletionsResponseUsage, AgentCompletionsResponseUsageSchema, type AgentContinuation, AgentContinuationSchema, type AgentInlineAgent, type AgentInlineAgentBase, AgentInlineAgentBaseSchema, type AgentInlineAgentBaseWithFallbacks, type AgentInlineAgentBaseWithFallbacksOrRemote, type AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, type AgentInlineAgentBaseWithFallbacksOrRemoteWithCount, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, type AgentInlineAgentWithFallbacks, AgentInlineAgentWithFallbacksSchema, type AgentMcpServer, AgentMcpServerSchema, type AgentMockAgent, type AgentMockAgentBase, AgentMockAgentBaseSchema, AgentMockAgentSchema, type AgentMockCall, AgentMockCallSchema, type AgentMockCallToolCall, AgentMockCallToolCallSchema, type AgentMockContinuation, AgentMockContinuationSchema, type AgentMockOutputMode, AgentMockOutputModeSchema, type AgentMockUpstream, AgentMockUpstreamSchema, type AgentOpenrouterAgent, type AgentOpenrouterAgentBase, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, type AgentOpenrouterContextCompression, AgentOpenrouterContextCompressionSchema, type AgentOpenrouterContinuation, AgentOpenrouterContinuationSchema, type AgentOpenrouterOutputMode, AgentOpenrouterOutputModeSchema, type AgentOpenrouterProvider, type AgentOpenrouterProviderQuantization, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, type AgentOpenrouterReasoning, type AgentOpenrouterReasoningEffort, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, type AgentOpenrouterReasoningSummaryVerbosity, AgentOpenrouterReasoningSummaryVerbositySchema, type AgentOpenrouterStop, AgentOpenrouterStopSchema, type AgentOpenrouterSystemPrompt, type AgentOpenrouterSystemPromptRole, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, type AgentOpenrouterUpstream, AgentOpenrouterUpstreamSchema, type AgentOpenrouterVerbosity, AgentOpenrouterVerbositySchema, type AgentOutputMode, AgentOutputModeSchema, type AgentRemoteAgent, type AgentRemoteAgentBase, AgentRemoteAgentBaseSchema, type AgentRemoteAgentBaseWithFallbacks, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, type AgentRemoteAgentWithFallbacks, AgentRemoteAgentWithFallbacksSchema, type AgentUpstream, AgentUpstreamSchema, type AuthApiKeyWithMetadata, AuthApiKeyWithMetadataSchema, type AuthCreateApiKeyRequest, AuthCreateApiKeyRequestSchema, type AuthCreateOpenRouterByokApiKeyRequest, AuthCreateOpenRouterByokApiKeyRequestSchema, type AuthDisableApiKeyRequest, AuthDisableApiKeyRequestSchema, type AuthGetCreditsResponse, AuthGetCreditsResponseSchema, type AuthGetOpenRouterByokApiKeyResponse, AuthGetOpenRouterByokApiKeyResponseSchema, type AuthListApiKeyItem, AuthListApiKeyItemSchema, type AuthListApiKeyResponse, AuthListApiKeyResponseSchema, BinaryCommandExecutor, type BinaryCommandExecutorOptions, type CliCommandAgentArguments, CliCommandAgentArgumentsSchema, type CliCommandAgentsAgentRef, CliCommandAgentsAgentRefSchema, type CliCommandAgentsAgentSelector, CliCommandAgentsAgentSelectorSchema, type CliCommandAgentsEnqueuePath, CliCommandAgentsEnqueuePathSchema, type CliCommandAgentsEnqueueRequest, CliCommandAgentsEnqueueRequestSchema, type CliCommandAgentsEnqueueRequestSchemaPath, CliCommandAgentsEnqueueRequestSchemaPathSchema, type CliCommandAgentsEnqueueRequestSchemaRequest, CliCommandAgentsEnqueueRequestSchemaRequestSchema, type CliCommandAgentsEnqueueResponse, CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponseSchemaPath, CliCommandAgentsEnqueueResponseSchemaPathSchema, type CliCommandAgentsEnqueueResponseSchemaRequest, CliCommandAgentsEnqueueResponseSchemaRequestSchema, type CliCommandAgentsEnqueueViewerRequest, CliCommandAgentsEnqueueViewerRequestSchema, type CliCommandAgentsEnqueueViewerResponse, CliCommandAgentsEnqueueViewerResponseSchema, type CliCommandAgentsGetPath, CliCommandAgentsGetPathSchema, type CliCommandAgentsGetRequest, CliCommandAgentsGetRequestSchema, type CliCommandAgentsGetRequestSchemaPath, CliCommandAgentsGetRequestSchemaPathSchema, type CliCommandAgentsGetRequestSchemaRequest, CliCommandAgentsGetRequestSchemaRequestSchema, type CliCommandAgentsGetResponse, CliCommandAgentsGetResponseSchema, type CliCommandAgentsGetResponseSchemaPath, CliCommandAgentsGetResponseSchemaPathSchema, type CliCommandAgentsGetResponseSchemaRequest, CliCommandAgentsGetResponseSchemaRequestSchema, type CliCommandAgentsGetViewerRequest, CliCommandAgentsGetViewerRequestSchema, type CliCommandAgentsGetViewerResponse, CliCommandAgentsGetViewerResponseSchema, type CliCommandAgentsInstancesGetPath, CliCommandAgentsInstancesGetPathSchema, type CliCommandAgentsInstancesGetRequest, CliCommandAgentsInstancesGetRequestSchema, type CliCommandAgentsInstancesGetRequestSchemaPath, CliCommandAgentsInstancesGetRequestSchemaPathSchema, type CliCommandAgentsInstancesGetRequestSchemaRequest, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, type CliCommandAgentsInstancesGetResponseSchemaPath, CliCommandAgentsInstancesGetResponseSchemaPathSchema, type CliCommandAgentsInstancesGetResponseSchemaRequest, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, type CliCommandAgentsInstancesGetViewerRequest, CliCommandAgentsInstancesGetViewerRequestSchema, type CliCommandAgentsInstancesGetViewerResponseItem, CliCommandAgentsInstancesGetViewerResponseItemSchema, type CliCommandAgentsInstancesListPath, CliCommandAgentsInstancesListPathSchema, type CliCommandAgentsInstancesListRequest, CliCommandAgentsInstancesListRequestSchema, type CliCommandAgentsInstancesListRequestSchemaPath, CliCommandAgentsInstancesListRequestSchemaPathSchema, type CliCommandAgentsInstancesListRequestSchemaRequest, CliCommandAgentsInstancesListRequestSchemaRequestSchema, type CliCommandAgentsInstancesListResponseItem, CliCommandAgentsInstancesListResponseItemSchema, type CliCommandAgentsInstancesListResponseSchemaPath, CliCommandAgentsInstancesListResponseSchemaPathSchema, type CliCommandAgentsInstancesListResponseSchemaRequest, CliCommandAgentsInstancesListResponseSchemaRequestSchema, type CliCommandAgentsInstancesListViewerRequest, CliCommandAgentsInstancesListViewerRequestSchema, type CliCommandAgentsInstancesListViewerResponseItem, CliCommandAgentsInstancesListViewerResponseItemSchema, type CliCommandAgentsInstancesRequest, CliCommandAgentsInstancesRequestSchema, type CliCommandAgentsInstancesViewerRequest, CliCommandAgentsInstancesViewerRequestSchema, type CliCommandAgentsLaboratoriesAttachPath, CliCommandAgentsLaboratoriesAttachPathSchema, type CliCommandAgentsLaboratoriesAttachRequest, CliCommandAgentsLaboratoriesAttachRequestSchema, type CliCommandAgentsLaboratoriesAttachRequestSchemaPath, CliCommandAgentsLaboratoriesAttachRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesAttachRequestSchemaRequest, CliCommandAgentsLaboratoriesAttachRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesAttachResponse, CliCommandAgentsLaboratoriesAttachResponseSchema, type CliCommandAgentsLaboratoriesAttachResponseSchemaPath, CliCommandAgentsLaboratoriesAttachResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesAttachResponseSchemaRequest, CliCommandAgentsLaboratoriesAttachResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesAttachViewerRequest, CliCommandAgentsLaboratoriesAttachViewerRequestSchema, type CliCommandAgentsLaboratoriesAttachViewerResponse, CliCommandAgentsLaboratoriesAttachViewerResponseSchema, type CliCommandAgentsLaboratoriesDetachPath, CliCommandAgentsLaboratoriesDetachPathSchema, type CliCommandAgentsLaboratoriesDetachRequest, CliCommandAgentsLaboratoriesDetachRequestSchema, type CliCommandAgentsLaboratoriesDetachRequestSchemaPath, CliCommandAgentsLaboratoriesDetachRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesDetachRequestSchemaRequest, CliCommandAgentsLaboratoriesDetachRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesDetachResponse, CliCommandAgentsLaboratoriesDetachResponseSchema, type CliCommandAgentsLaboratoriesDetachResponseSchemaPath, CliCommandAgentsLaboratoriesDetachResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesDetachResponseSchemaRequest, CliCommandAgentsLaboratoriesDetachResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesDetachViewerRequest, CliCommandAgentsLaboratoriesDetachViewerRequestSchema, type CliCommandAgentsLaboratoriesDetachViewerResponse, CliCommandAgentsLaboratoriesDetachViewerResponseSchema, type CliCommandAgentsLaboratoriesListPath, CliCommandAgentsLaboratoriesListPathSchema, type CliCommandAgentsLaboratoriesListRequest, CliCommandAgentsLaboratoriesListRequestSchema, type CliCommandAgentsLaboratoriesListRequestSchemaPath, CliCommandAgentsLaboratoriesListRequestSchemaPathSchema, type CliCommandAgentsLaboratoriesListRequestSchemaRequest, CliCommandAgentsLaboratoriesListRequestSchemaRequestSchema, type CliCommandAgentsLaboratoriesListResponseItem, CliCommandAgentsLaboratoriesListResponseItemSchema, type CliCommandAgentsLaboratoriesListResponseSchemaPath, CliCommandAgentsLaboratoriesListResponseSchemaPathSchema, type CliCommandAgentsLaboratoriesListResponseSchemaRequest, CliCommandAgentsLaboratoriesListResponseSchemaRequestSchema, type CliCommandAgentsLaboratoriesListViewerRequest, CliCommandAgentsLaboratoriesListViewerRequestSchema, type CliCommandAgentsLaboratoriesListViewerResponseItem, CliCommandAgentsLaboratoriesListViewerResponseItemSchema, type CliCommandAgentsLaboratoriesRequest, CliCommandAgentsLaboratoriesRequestSchema, type CliCommandAgentsLaboratoriesViewerRequest, CliCommandAgentsLaboratoriesViewerRequestSchema, type CliCommandAgentsListPath, CliCommandAgentsListPathSchema, type CliCommandAgentsListRequest, CliCommandAgentsListRequestSchema, type CliCommandAgentsListRequestSchemaPath, CliCommandAgentsListRequestSchemaPathSchema, type CliCommandAgentsListRequestSchemaRequest, CliCommandAgentsListRequestSchemaRequestSchema, type CliCommandAgentsListResponseSchemaPath, CliCommandAgentsListResponseSchemaPathSchema, type CliCommandAgentsListResponseSchemaRequest, CliCommandAgentsListResponseSchemaRequestSchema, type CliCommandAgentsListViewerRequest, CliCommandAgentsListViewerRequestSchema, type CliCommandAgentsListViewerResponseItem, CliCommandAgentsListViewerResponseItemSchema, type CliCommandAgentsLogsListAssistantResponsePart, CliCommandAgentsLogsListAssistantResponsePartSchema, type CliCommandAgentsLogsListClientNotificationPart, CliCommandAgentsLogsListClientNotificationPartSchema, type CliCommandAgentsLogsListClientNotificationPartType, CliCommandAgentsLogsListClientNotificationPartTypeSchema, type CliCommandAgentsLogsListPath, CliCommandAgentsLogsListPathSchema, type CliCommandAgentsLogsListRequest, CliCommandAgentsLogsListRequestSchema, type CliCommandAgentsLogsListRequestSchemaPath, CliCommandAgentsLogsListRequestSchemaPathSchema, type CliCommandAgentsLogsListRequestSchemaRequest, CliCommandAgentsLogsListRequestSchemaRequestSchema, type CliCommandAgentsLogsListResponseItem, CliCommandAgentsLogsListResponseItemSchema, type CliCommandAgentsLogsListResponseSchemaPath, CliCommandAgentsLogsListResponseSchemaPathSchema, type CliCommandAgentsLogsListResponseSchemaRequest, CliCommandAgentsLogsListResponseSchemaRequestSchema, type CliCommandAgentsLogsListTarget, CliCommandAgentsLogsListTargetSchema, type CliCommandAgentsLogsListToolResponsePart, CliCommandAgentsLogsListToolResponsePartSchema, type CliCommandAgentsLogsListToolResponsePartType, CliCommandAgentsLogsListToolResponsePartTypeSchema, type CliCommandAgentsLogsListViewerRequest, CliCommandAgentsLogsListViewerRequestSchema, type CliCommandAgentsLogsListViewerResponseItem, CliCommandAgentsLogsListViewerResponseItemSchema, type CliCommandAgentsLogsOpenPath, CliCommandAgentsLogsOpenPathSchema, type CliCommandAgentsLogsOpenRequest, CliCommandAgentsLogsOpenRequestSchema, type CliCommandAgentsLogsOpenRequestSchemaPath, CliCommandAgentsLogsOpenRequestSchemaPathSchema, type CliCommandAgentsLogsOpenRequestSchemaRequest, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, type CliCommandAgentsLogsOpenResponse, CliCommandAgentsLogsOpenResponseSchema, type CliCommandAgentsLogsOpenResponseSchemaPath, CliCommandAgentsLogsOpenResponseSchemaPathSchema, type CliCommandAgentsLogsOpenResponseSchemaRequest, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, type CliCommandAgentsLogsOpenViewerRequest, CliCommandAgentsLogsOpenViewerRequestSchema, type CliCommandAgentsLogsOpenViewerResponse, CliCommandAgentsLogsOpenViewerResponseSchema, type CliCommandAgentsLogsRequest, CliCommandAgentsLogsRequestSchema, type CliCommandAgentsLogsSubscribeAgentsInactiveTag, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsSubscribeKindFilter, CliCommandAgentsLogsSubscribeKindFilterSchema, type CliCommandAgentsLogsSubscribePath, CliCommandAgentsLogsSubscribePathSchema, type CliCommandAgentsLogsSubscribeRequest, CliCommandAgentsLogsSubscribeRequestSchema, type CliCommandAgentsLogsSubscribeRequestSchemaPath, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsSubscribeRequestSchemaRequest, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsSubscribeResponseItem, CliCommandAgentsLogsSubscribeResponseItemSchema, type CliCommandAgentsLogsSubscribeResponseSchemaPath, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsSubscribeResponseSchemaRequest, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsSubscribeViewerRequest, CliCommandAgentsLogsSubscribeViewerRequestSchema, type CliCommandAgentsLogsSubscribeViewerResponseItem, CliCommandAgentsLogsSubscribeViewerResponseItemSchema, type CliCommandAgentsLogsTokenUsageGetPath, CliCommandAgentsLogsTokenUsageGetPathSchema, type CliCommandAgentsLogsTokenUsageGetRequest, CliCommandAgentsLogsTokenUsageGetRequestSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaPath, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetResponse, CliCommandAgentsLogsTokenUsageGetResponseSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaPath, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageGetViewerRequest, CliCommandAgentsLogsTokenUsageGetViewerRequestSchema, type CliCommandAgentsLogsTokenUsageGetViewerResponse, CliCommandAgentsLogsTokenUsageGetViewerResponseSchema, type CliCommandAgentsLogsTokenUsageRequest, CliCommandAgentsLogsTokenUsageRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTag, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, type CliCommandAgentsLogsTokenUsageSubscribePath, CliCommandAgentsLogsTokenUsageSubscribePathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseItem, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPath, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, type CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeTokenUsage, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, type CliCommandAgentsLogsTokenUsageSubscribeViewerRequest, CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema, type CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItem, CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItemSchema, type CliCommandAgentsLogsTokenUsageViewerRequest, CliCommandAgentsLogsTokenUsageViewerRequestSchema, type CliCommandAgentsLogsViewerRequest, CliCommandAgentsLogsViewerRequestSchema, type CliCommandAgentsMcpRequest, CliCommandAgentsMcpRequestSchema, type CliCommandAgentsMcpResourcesListPath, CliCommandAgentsMcpResourcesListPathSchema, type CliCommandAgentsMcpResourcesListRequest, CliCommandAgentsMcpResourcesListRequestSchema, type CliCommandAgentsMcpResourcesListRequestSchemaPath, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesListRequestSchemaRequest, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesListResponseSchemaPath, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesListResponseSchemaRequest, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesListViewerRequest, CliCommandAgentsMcpResourcesListViewerRequestSchema, type CliCommandAgentsMcpResourcesReadPath, CliCommandAgentsMcpResourcesReadPathSchema, type CliCommandAgentsMcpResourcesReadRequest, CliCommandAgentsMcpResourcesReadRequestSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaPath, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, type CliCommandAgentsMcpResourcesReadRequestSchemaRequest, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaPath, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, type CliCommandAgentsMcpResourcesReadResponseSchemaRequest, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, type CliCommandAgentsMcpResourcesReadViewerRequest, CliCommandAgentsMcpResourcesReadViewerRequestSchema, type CliCommandAgentsMcpResourcesRequest, CliCommandAgentsMcpResourcesRequestSchema, type CliCommandAgentsMcpResourcesViewerRequest, CliCommandAgentsMcpResourcesViewerRequestSchema, type CliCommandAgentsMcpServersListPath, CliCommandAgentsMcpServersListPathSchema, type CliCommandAgentsMcpServersListRequest, CliCommandAgentsMcpServersListRequestSchema, type CliCommandAgentsMcpServersListRequestSchemaPath, CliCommandAgentsMcpServersListRequestSchemaPathSchema, type CliCommandAgentsMcpServersListRequestSchemaRequest, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, type CliCommandAgentsMcpServersListResponseSchemaPath, CliCommandAgentsMcpServersListResponseSchemaPathSchema, type CliCommandAgentsMcpServersListResponseSchemaRequest, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, type CliCommandAgentsMcpServersListViewerRequest, CliCommandAgentsMcpServersListViewerRequestSchema, type CliCommandAgentsMcpServersRequest, CliCommandAgentsMcpServersRequestSchema, type CliCommandAgentsMcpToolsCallPath, CliCommandAgentsMcpToolsCallPathSchema, type CliCommandAgentsMcpToolsCallRequest, CliCommandAgentsMcpToolsCallRequestSchema, type CliCommandAgentsMcpToolsCallRequestSchemaPath, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, type CliCommandAgentsMcpToolsCallRequestSchemaRequest, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsCallResponseSchemaPath, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, type CliCommandAgentsMcpToolsCallResponseSchemaRequest, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsCallViewerRequest, CliCommandAgentsMcpToolsCallViewerRequestSchema, type CliCommandAgentsMcpToolsListPath, CliCommandAgentsMcpToolsListPathSchema, type CliCommandAgentsMcpToolsListRequest, CliCommandAgentsMcpToolsListRequestSchema, type CliCommandAgentsMcpToolsListRequestSchemaPath, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, type CliCommandAgentsMcpToolsListRequestSchemaRequest, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, type CliCommandAgentsMcpToolsListResponseSchemaPath, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, type CliCommandAgentsMcpToolsListResponseSchemaRequest, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, type CliCommandAgentsMcpToolsListViewerRequest, CliCommandAgentsMcpToolsListViewerRequestSchema, type CliCommandAgentsMcpToolsRequest, CliCommandAgentsMcpToolsRequestSchema, type CliCommandAgentsMcpToolsViewerRequest, CliCommandAgentsMcpToolsViewerRequestSchema, type CliCommandAgentsMcpViewerRequest, CliCommandAgentsMcpViewerRequestSchema, type CliCommandAgentsMessagePath, CliCommandAgentsMessagePathSchema, type CliCommandAgentsMessageRequest, type CliCommandAgentsMessageRequestDangerousAdvanced, CliCommandAgentsMessageRequestDangerousAdvancedSchema, type CliCommandAgentsMessageRequestMessage, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, type CliCommandAgentsMessageRequestSchemaPath, CliCommandAgentsMessageRequestSchemaPathSchema, type CliCommandAgentsMessageRequestSchemaRequest, CliCommandAgentsMessageRequestSchemaRequestSchema, type CliCommandAgentsMessageResponse, CliCommandAgentsMessageResponseSchema, type CliCommandAgentsMessageResponseSchemaPath, CliCommandAgentsMessageResponseSchemaPathSchema, type CliCommandAgentsMessageResponseSchemaRequest, CliCommandAgentsMessageResponseSchemaRequestSchema, type CliCommandAgentsMessageViewerRequest, CliCommandAgentsMessageViewerRequestSchema, type CliCommandAgentsMessageViewerResponse, CliCommandAgentsMessageViewerResponseSchema, type CliCommandAgentsPublishPath, CliCommandAgentsPublishPathSchema, type CliCommandAgentsPublishRequest, type CliCommandAgentsPublishRequestBody, CliCommandAgentsPublishRequestBodySchema, type CliCommandAgentsPublishRequestPublishMessage, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, type CliCommandAgentsPublishRequestSchemaPath, CliCommandAgentsPublishRequestSchemaPathSchema, type CliCommandAgentsPublishRequestSchemaRequest, CliCommandAgentsPublishRequestSchemaRequestSchema, type CliCommandAgentsPublishResponse, CliCommandAgentsPublishResponseSchema, type CliCommandAgentsPublishResponseSchemaPath, CliCommandAgentsPublishResponseSchemaPathSchema, type CliCommandAgentsPublishResponseSchemaRequest, CliCommandAgentsPublishResponseSchemaRequestSchema, type CliCommandAgentsPublishViewerRequest, CliCommandAgentsPublishViewerRequestSchema, type CliCommandAgentsPublishViewerResponse, CliCommandAgentsPublishViewerResponseSchema, type CliCommandAgentsQueueDeletePath, CliCommandAgentsQueueDeletePathSchema, type CliCommandAgentsQueueDeleteRequest, CliCommandAgentsQueueDeleteRequestSchema, type CliCommandAgentsQueueDeleteRequestSchemaPath, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, type CliCommandAgentsQueueDeleteRequestSchemaRequest, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, type CliCommandAgentsQueueDeleteResponse, CliCommandAgentsQueueDeleteResponseSchema, type CliCommandAgentsQueueDeleteResponseSchemaPath, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, type CliCommandAgentsQueueDeleteResponseSchemaRequest, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, type CliCommandAgentsQueueDeleteViewerRequest, CliCommandAgentsQueueDeleteViewerRequestSchema, type CliCommandAgentsQueueDeleteViewerResponse, CliCommandAgentsQueueDeleteViewerResponseSchema, type CliCommandAgentsQueueDeliverAgentActiveResponseItem, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, type CliCommandAgentsQueueDeliverAgentActiveType, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, type CliCommandAgentsQueueDeliverAgentSpawnedResponseItem, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverAgentSpawnedType, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, type CliCommandAgentsQueueDeliverAllAgentsActive, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, type CliCommandAgentsQueueDeliverPath, CliCommandAgentsQueueDeliverPathSchema, type CliCommandAgentsQueueDeliverRequest, type CliCommandAgentsQueueDeliverRequestDangerousAdvanced, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, type CliCommandAgentsQueueDeliverRequestSchemaPath, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, type CliCommandAgentsQueueDeliverRequestSchemaRequest, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, type CliCommandAgentsQueueDeliverResponseItem, CliCommandAgentsQueueDeliverResponseItemSchema, type CliCommandAgentsQueueDeliverResponseSchemaPath, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, type CliCommandAgentsQueueDeliverResponseSchemaRequest, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, type CliCommandAgentsQueueDeliverTagActiveResponseItem, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, type CliCommandAgentsQueueDeliverTagActiveType, CliCommandAgentsQueueDeliverTagActiveTypeSchema, type CliCommandAgentsQueueDeliverTagSpawnedResponseItem, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, type CliCommandAgentsQueueDeliverTagSpawnedType, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, type CliCommandAgentsQueueDeliverValueResponseItem, CliCommandAgentsQueueDeliverValueResponseItemSchema, type CliCommandAgentsQueueDeliverViewerRequest, CliCommandAgentsQueueDeliverViewerRequestSchema, type CliCommandAgentsQueueDeliverViewerResponseItem, CliCommandAgentsQueueDeliverViewerResponseItemSchema, type CliCommandAgentsQueueListPath, CliCommandAgentsQueueListPathSchema, type CliCommandAgentsQueueListQueuePart, CliCommandAgentsQueueListQueuePartSchema, type CliCommandAgentsQueueListRequest, CliCommandAgentsQueueListRequestSchema, type CliCommandAgentsQueueListRequestSchemaPath, CliCommandAgentsQueueListRequestSchemaPathSchema, type CliCommandAgentsQueueListRequestSchemaRequest, CliCommandAgentsQueueListRequestSchemaRequestSchema, type CliCommandAgentsQueueListResponseItem, CliCommandAgentsQueueListResponseItemSchema, type CliCommandAgentsQueueListResponseSchemaPath, CliCommandAgentsQueueListResponseSchemaPathSchema, type CliCommandAgentsQueueListResponseSchemaRequest, CliCommandAgentsQueueListResponseSchemaRequestSchema, type CliCommandAgentsQueueListViewerRequest, CliCommandAgentsQueueListViewerRequestSchema, type CliCommandAgentsQueueListViewerResponseItem, CliCommandAgentsQueueListViewerResponseItemSchema, type CliCommandAgentsQueueOpenPath, CliCommandAgentsQueueOpenPathSchema, type CliCommandAgentsQueueOpenRequest, CliCommandAgentsQueueOpenRequestSchema, type CliCommandAgentsQueueOpenRequestSchemaPath, CliCommandAgentsQueueOpenRequestSchemaPathSchema, type CliCommandAgentsQueueOpenRequestSchemaRequest, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, type CliCommandAgentsQueueOpenResponseSchemaPath, CliCommandAgentsQueueOpenResponseSchemaPathSchema, type CliCommandAgentsQueueOpenResponseSchemaRequest, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, type CliCommandAgentsQueueOpenViewerRequest, CliCommandAgentsQueueOpenViewerRequestSchema, type CliCommandAgentsQueueOpenViewerResponse, CliCommandAgentsQueueOpenViewerResponseSchema, type CliCommandAgentsQueueRequest, CliCommandAgentsQueueRequestSchema, type CliCommandAgentsQueueViewerRequest, CliCommandAgentsQueueViewerRequestSchema, type CliCommandAgentsRequest, CliCommandAgentsRequestSchema, type CliCommandAgentsSpawnPath, CliCommandAgentsSpawnPathSchema, type CliCommandAgentsSpawnRequest, type CliCommandAgentsSpawnRequestDangerousAdvanced, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, type CliCommandAgentsSpawnRequestSchemaPath, CliCommandAgentsSpawnRequestSchemaPathSchema, type CliCommandAgentsSpawnRequestSchemaRequest, CliCommandAgentsSpawnRequestSchemaRequestSchema, type CliCommandAgentsSpawnResponseItem, CliCommandAgentsSpawnResponseItemSchema, type CliCommandAgentsSpawnResponseSchemaPath, CliCommandAgentsSpawnResponseSchemaPathSchema, type CliCommandAgentsSpawnResponseSchemaRequest, CliCommandAgentsSpawnResponseSchemaRequestSchema, type CliCommandAgentsSpawnViewerRequest, CliCommandAgentsSpawnViewerRequestSchema, type CliCommandAgentsSpawnViewerResponse, type CliCommandAgentsSpawnViewerResponseItem, CliCommandAgentsSpawnViewerResponseItemSchema, CliCommandAgentsSpawnViewerResponseSchema, type CliCommandAgentsTagsApplyAgentTagResolution, CliCommandAgentsTagsApplyAgentTagResolutionSchema, type CliCommandAgentsTagsApplyPath, CliCommandAgentsTagsApplyPathSchema, type CliCommandAgentsTagsApplyRequest, CliCommandAgentsTagsApplyRequestSchema, type CliCommandAgentsTagsApplyRequestSchemaPath, CliCommandAgentsTagsApplyRequestSchemaPathSchema, type CliCommandAgentsTagsApplyRequestSchemaRequest, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, type CliCommandAgentsTagsApplyResponse, CliCommandAgentsTagsApplyResponseSchema, type CliCommandAgentsTagsApplyResponseSchemaPath, CliCommandAgentsTagsApplyResponseSchemaPathSchema, type CliCommandAgentsTagsApplyResponseSchemaRequest, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, type CliCommandAgentsTagsApplyTarget, CliCommandAgentsTagsApplyTargetSchema, type CliCommandAgentsTagsApplyViewerRequest, CliCommandAgentsTagsApplyViewerRequestSchema, type CliCommandAgentsTagsApplyViewerResponse, CliCommandAgentsTagsApplyViewerResponseSchema, type CliCommandAgentsTagsLookupLookupState, CliCommandAgentsTagsLookupLookupStateSchema, type CliCommandAgentsTagsLookupPath, CliCommandAgentsTagsLookupPathSchema, type CliCommandAgentsTagsLookupRequest, CliCommandAgentsTagsLookupRequestSchema, type CliCommandAgentsTagsLookupRequestSchemaPath, CliCommandAgentsTagsLookupRequestSchemaPathSchema, type CliCommandAgentsTagsLookupRequestSchemaRequest, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, type CliCommandAgentsTagsLookupResponse, CliCommandAgentsTagsLookupResponseSchema, type CliCommandAgentsTagsLookupResponseSchemaPath, CliCommandAgentsTagsLookupResponseSchemaPathSchema, type CliCommandAgentsTagsLookupResponseSchemaRequest, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, type CliCommandAgentsTagsLookupViewerRequest, CliCommandAgentsTagsLookupViewerRequestSchema, type CliCommandAgentsTagsLookupViewerResponse, CliCommandAgentsTagsLookupViewerResponseSchema, type CliCommandAgentsTagsRequest, CliCommandAgentsTagsRequestSchema, type CliCommandAgentsTagsViewerRequest, CliCommandAgentsTagsViewerRequestSchema, type CliCommandAgentsViewerRequest, CliCommandAgentsViewerRequestSchema, type CliCommandAgentsWaitPath, CliCommandAgentsWaitPathSchema, type CliCommandAgentsWaitRequest, CliCommandAgentsWaitRequestSchema, type CliCommandAgentsWaitRequestSchemaPath, CliCommandAgentsWaitRequestSchemaPathSchema, type CliCommandAgentsWaitRequestSchemaRequest, CliCommandAgentsWaitRequestSchemaRequestSchema, type CliCommandAgentsWaitResponseSchemaPath, CliCommandAgentsWaitResponseSchemaPathSchema, type CliCommandAgentsWaitResponseSchemaRequest, CliCommandAgentsWaitResponseSchemaRequestSchema, type CliCommandAgentsWaitViewerRequest, CliCommandAgentsWaitViewerRequestSchema, type CliCommandAgentsWaitViewerResponse, CliCommandAgentsWaitViewerResponseSchema, type CliCommandApiConfigAddressGetPath, CliCommandApiConfigAddressGetPathSchema, type CliCommandApiConfigAddressGetRequest, CliCommandApiConfigAddressGetRequestSchema, type CliCommandApiConfigAddressGetRequestSchemaPath, CliCommandApiConfigAddressGetRequestSchemaPathSchema, type CliCommandApiConfigAddressGetRequestSchemaRequest, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, type CliCommandApiConfigAddressGetResponse, CliCommandApiConfigAddressGetResponseSchema, type CliCommandApiConfigAddressGetResponseSchemaPath, CliCommandApiConfigAddressGetResponseSchemaPathSchema, type CliCommandApiConfigAddressGetResponseSchemaRequest, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, type CliCommandApiConfigAddressGetViewerRequest, CliCommandApiConfigAddressGetViewerRequestSchema, type CliCommandApiConfigAddressGetViewerResponse, CliCommandApiConfigAddressGetViewerResponseSchema, type CliCommandApiConfigAddressRequest, CliCommandApiConfigAddressRequestSchema, type CliCommandApiConfigAddressSetPath, CliCommandApiConfigAddressSetPathSchema, type CliCommandApiConfigAddressSetRequest, CliCommandApiConfigAddressSetRequestSchema, type CliCommandApiConfigAddressSetRequestSchemaPath, CliCommandApiConfigAddressSetRequestSchemaPathSchema, type CliCommandApiConfigAddressSetRequestSchemaRequest, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, type CliCommandApiConfigAddressSetResponseSchemaPath, CliCommandApiConfigAddressSetResponseSchemaPathSchema, type CliCommandApiConfigAddressSetResponseSchemaRequest, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, type CliCommandApiConfigAddressSetViewerRequest, CliCommandApiConfigAddressSetViewerRequestSchema, type CliCommandApiConfigAddressSetViewerResponse, CliCommandApiConfigAddressSetViewerResponseSchema, type CliCommandApiConfigAddressViewerRequest, CliCommandApiConfigAddressViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPath, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponse, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponseSchema, type CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequest, CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetPath, CliCommandApiConfigCommitAuthorEmailGetPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetResponse, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetViewerRequest, CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailGetViewerResponse, CliCommandApiConfigCommitAuthorEmailGetViewerResponseSchema, type CliCommandApiConfigCommitAuthorEmailRequest, CliCommandApiConfigCommitAuthorEmailRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetPath, CliCommandApiConfigCommitAuthorEmailSetPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPath, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPath, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetViewerRequest, CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema, type CliCommandApiConfigCommitAuthorEmailSetViewerResponse, CliCommandApiConfigCommitAuthorEmailSetViewerResponseSchema, type CliCommandApiConfigCommitAuthorEmailViewerRequest, CliCommandApiConfigCommitAuthorEmailViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameGetPath, CliCommandApiConfigCommitAuthorNameGetPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetResponse, CliCommandApiConfigCommitAuthorNameGetResponseSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameGetViewerRequest, CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameGetViewerResponse, CliCommandApiConfigCommitAuthorNameGetViewerResponseSchema, type CliCommandApiConfigCommitAuthorNameRequest, CliCommandApiConfigCommitAuthorNameRequestSchema, type CliCommandApiConfigCommitAuthorNameSetPath, CliCommandApiConfigCommitAuthorNameSetPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaPath, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaPath, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, type CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, type CliCommandApiConfigCommitAuthorNameSetViewerRequest, CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema, type CliCommandApiConfigCommitAuthorNameSetViewerResponse, CliCommandApiConfigCommitAuthorNameSetViewerResponseSchema, type CliCommandApiConfigCommitAuthorNameViewerRequest, CliCommandApiConfigCommitAuthorNameViewerRequestSchema, type CliCommandApiConfigGetPath, CliCommandApiConfigGetPathSchema, type CliCommandApiConfigGetRequest, CliCommandApiConfigGetRequestSchema, type CliCommandApiConfigGetRequestSchemaPath, CliCommandApiConfigGetRequestSchemaPathSchema, type CliCommandApiConfigGetRequestSchemaRequest, CliCommandApiConfigGetRequestSchemaRequestSchema, type CliCommandApiConfigGetResponse, CliCommandApiConfigGetResponseSchema, type CliCommandApiConfigGetResponseSchemaPath, CliCommandApiConfigGetResponseSchemaPathSchema, type CliCommandApiConfigGetResponseSchemaRequest, CliCommandApiConfigGetResponseSchemaRequestSchema, type CliCommandApiConfigGetViewerRequest, CliCommandApiConfigGetViewerRequestSchema, type CliCommandApiConfigGetViewerResponse, CliCommandApiConfigGetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationGetPath, CliCommandApiConfigGithubAuthorizationGetPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetResponse, CliCommandApiConfigGithubAuthorizationGetResponseSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationGetViewerRequest, CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema, type CliCommandApiConfigGithubAuthorizationGetViewerResponse, CliCommandApiConfigGithubAuthorizationGetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationRequest, CliCommandApiConfigGithubAuthorizationRequestSchema, type CliCommandApiConfigGithubAuthorizationSetPath, CliCommandApiConfigGithubAuthorizationSetPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaPath, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaPath, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigGithubAuthorizationSetViewerRequest, CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema, type CliCommandApiConfigGithubAuthorizationSetViewerResponse, CliCommandApiConfigGithubAuthorizationSetViewerResponseSchema, type CliCommandApiConfigGithubAuthorizationViewerRequest, CliCommandApiConfigGithubAuthorizationViewerRequestSchema, type CliCommandApiConfigHttpRefererGetPath, CliCommandApiConfigHttpRefererGetPathSchema, type CliCommandApiConfigHttpRefererGetRequest, CliCommandApiConfigHttpRefererGetRequestSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaPath, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererGetRequestSchemaRequest, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetResponse, CliCommandApiConfigHttpRefererGetResponseSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaPath, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererGetResponseSchemaRequest, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererGetViewerRequest, CliCommandApiConfigHttpRefererGetViewerRequestSchema, type CliCommandApiConfigHttpRefererGetViewerResponse, CliCommandApiConfigHttpRefererGetViewerResponseSchema, type CliCommandApiConfigHttpRefererRequest, CliCommandApiConfigHttpRefererRequestSchema, type CliCommandApiConfigHttpRefererSetPath, CliCommandApiConfigHttpRefererSetPathSchema, type CliCommandApiConfigHttpRefererSetRequest, CliCommandApiConfigHttpRefererSetRequestSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaPath, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, type CliCommandApiConfigHttpRefererSetRequestSchemaRequest, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaPath, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, type CliCommandApiConfigHttpRefererSetResponseSchemaRequest, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, type CliCommandApiConfigHttpRefererSetViewerRequest, CliCommandApiConfigHttpRefererSetViewerRequestSchema, type CliCommandApiConfigHttpRefererSetViewerResponse, CliCommandApiConfigHttpRefererSetViewerResponseSchema, type CliCommandApiConfigHttpRefererViewerRequest, CliCommandApiConfigHttpRefererViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationAddPath, CliCommandApiConfigMcpAuthorizationAddPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaPath, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaPath, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationAddViewerRequest, CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationAddViewerResponse, CliCommandApiConfigMcpAuthorizationAddViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationDelPath, CliCommandApiConfigMcpAuthorizationDelPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaPath, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaPath, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationDelViewerRequest, CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationDelViewerResponse, CliCommandApiConfigMcpAuthorizationDelViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationGetPath, CliCommandApiConfigMcpAuthorizationGetPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaPath, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetResponse, CliCommandApiConfigMcpAuthorizationGetResponseSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaPath, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpAuthorizationGetViewerRequest, CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema, type CliCommandApiConfigMcpAuthorizationGetViewerResponse, CliCommandApiConfigMcpAuthorizationGetViewerResponseSchema, type CliCommandApiConfigMcpAuthorizationRequest, CliCommandApiConfigMcpAuthorizationRequestSchema, type CliCommandApiConfigMcpAuthorizationViewerRequest, CliCommandApiConfigMcpAuthorizationViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetPath, CliCommandApiConfigMcpTimeoutMsGetPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetResponse, CliCommandApiConfigMcpTimeoutMsGetResponseSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetViewerRequest, CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsGetViewerResponse, CliCommandApiConfigMcpTimeoutMsGetViewerResponseSchema, type CliCommandApiConfigMcpTimeoutMsRequest, CliCommandApiConfigMcpTimeoutMsRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetPath, CliCommandApiConfigMcpTimeoutMsSetPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPath, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPath, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema, type CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetViewerRequest, CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema, type CliCommandApiConfigMcpTimeoutMsSetViewerResponse, CliCommandApiConfigMcpTimeoutMsSetViewerResponseSchema, type CliCommandApiConfigMcpTimeoutMsViewerRequest, CliCommandApiConfigMcpTimeoutMsViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetPath, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponse, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponse, CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationRequest, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetPath, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPath, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema, type CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponse, CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponseSchema, type CliCommandApiConfigObjectiveaiAuthorizationViewerRequest, CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetPath, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponse, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetViewerRequest, CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationGetViewerResponse, CliCommandApiConfigOpenrouterAuthorizationGetViewerResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationRequest, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetPath, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPath, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, type CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetViewerRequest, CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema, type CliCommandApiConfigOpenrouterAuthorizationSetViewerResponse, CliCommandApiConfigOpenrouterAuthorizationSetViewerResponseSchema, type CliCommandApiConfigOpenrouterAuthorizationViewerRequest, CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema, type CliCommandApiConfigRequest, CliCommandApiConfigRequestSchema, type CliCommandApiConfigUserAgentGetPath, CliCommandApiConfigUserAgentGetPathSchema, type CliCommandApiConfigUserAgentGetRequest, CliCommandApiConfigUserAgentGetRequestSchema, type CliCommandApiConfigUserAgentGetRequestSchemaPath, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentGetRequestSchemaRequest, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentGetResponse, CliCommandApiConfigUserAgentGetResponseSchema, type CliCommandApiConfigUserAgentGetResponseSchemaPath, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentGetResponseSchemaRequest, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentGetViewerRequest, CliCommandApiConfigUserAgentGetViewerRequestSchema, type CliCommandApiConfigUserAgentGetViewerResponse, CliCommandApiConfigUserAgentGetViewerResponseSchema, type CliCommandApiConfigUserAgentRequest, CliCommandApiConfigUserAgentRequestSchema, type CliCommandApiConfigUserAgentSetPath, CliCommandApiConfigUserAgentSetPathSchema, type CliCommandApiConfigUserAgentSetRequest, CliCommandApiConfigUserAgentSetRequestSchema, type CliCommandApiConfigUserAgentSetRequestSchemaPath, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, type CliCommandApiConfigUserAgentSetRequestSchemaRequest, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, type CliCommandApiConfigUserAgentSetResponseSchemaPath, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, type CliCommandApiConfigUserAgentSetResponseSchemaRequest, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, type CliCommandApiConfigUserAgentSetViewerRequest, CliCommandApiConfigUserAgentSetViewerRequestSchema, type CliCommandApiConfigUserAgentSetViewerResponse, CliCommandApiConfigUserAgentSetViewerResponseSchema, type CliCommandApiConfigUserAgentViewerRequest, CliCommandApiConfigUserAgentViewerRequestSchema, type CliCommandApiConfigViewerRequest, CliCommandApiConfigViewerRequestSchema, type CliCommandApiConfigXTitleGetPath, CliCommandApiConfigXTitleGetPathSchema, type CliCommandApiConfigXTitleGetRequest, CliCommandApiConfigXTitleGetRequestSchema, type CliCommandApiConfigXTitleGetRequestSchemaPath, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, type CliCommandApiConfigXTitleGetRequestSchemaRequest, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleGetResponse, CliCommandApiConfigXTitleGetResponseSchema, type CliCommandApiConfigXTitleGetResponseSchemaPath, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, type CliCommandApiConfigXTitleGetResponseSchemaRequest, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleGetViewerRequest, CliCommandApiConfigXTitleGetViewerRequestSchema, type CliCommandApiConfigXTitleGetViewerResponse, CliCommandApiConfigXTitleGetViewerResponseSchema, type CliCommandApiConfigXTitleRequest, CliCommandApiConfigXTitleRequestSchema, type CliCommandApiConfigXTitleSetPath, CliCommandApiConfigXTitleSetPathSchema, type CliCommandApiConfigXTitleSetRequest, CliCommandApiConfigXTitleSetRequestSchema, type CliCommandApiConfigXTitleSetRequestSchemaPath, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, type CliCommandApiConfigXTitleSetRequestSchemaRequest, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, type CliCommandApiConfigXTitleSetResponseSchemaPath, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, type CliCommandApiConfigXTitleSetResponseSchemaRequest, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, type CliCommandApiConfigXTitleSetViewerRequest, CliCommandApiConfigXTitleSetViewerRequestSchema, type CliCommandApiConfigXTitleSetViewerResponse, CliCommandApiConfigXTitleSetViewerResponseSchema, type CliCommandApiConfigXTitleViewerRequest, CliCommandApiConfigXTitleViewerRequestSchema, type CliCommandApiKillPath, CliCommandApiKillPathSchema, type CliCommandApiKillRequest, CliCommandApiKillRequestSchema, type CliCommandApiKillRequestSchemaPath, CliCommandApiKillRequestSchemaPathSchema, type CliCommandApiKillRequestSchemaRequest, CliCommandApiKillRequestSchemaRequestSchema, type CliCommandApiKillResponse, CliCommandApiKillResponseSchema, type CliCommandApiKillResponseSchemaPath, CliCommandApiKillResponseSchemaPathSchema, type CliCommandApiKillResponseSchemaRequest, CliCommandApiKillResponseSchemaRequestSchema, type CliCommandApiKillViewerRequest, CliCommandApiKillViewerRequestSchema, type CliCommandApiKillViewerResponse, CliCommandApiKillViewerResponseSchema, type CliCommandApiRequest, CliCommandApiRequestSchema, type CliCommandApiSpawnPath, CliCommandApiSpawnPathSchema, type CliCommandApiSpawnRequest, CliCommandApiSpawnRequestSchema, type CliCommandApiSpawnRequestSchemaPath, CliCommandApiSpawnRequestSchemaPathSchema, type CliCommandApiSpawnRequestSchemaRequest, CliCommandApiSpawnRequestSchemaRequestSchema, type CliCommandApiSpawnResponse, CliCommandApiSpawnResponseSchema, type CliCommandApiSpawnResponseSchemaPath, CliCommandApiSpawnResponseSchemaPathSchema, type CliCommandApiSpawnResponseSchemaRequest, CliCommandApiSpawnResponseSchemaRequestSchema, type CliCommandApiSpawnViewerRequest, CliCommandApiSpawnViewerRequestSchema, type CliCommandApiSpawnViewerResponse, CliCommandApiSpawnViewerResponseSchema, type CliCommandApiViewerRequest, CliCommandApiViewerRequestSchema, type CliCommandDaemonKillPath, CliCommandDaemonKillPathSchema, type CliCommandDaemonKillRequest, CliCommandDaemonKillRequestSchema, type CliCommandDaemonKillRequestSchemaPath, CliCommandDaemonKillRequestSchemaPathSchema, type CliCommandDaemonKillRequestSchemaRequest, CliCommandDaemonKillRequestSchemaRequestSchema, type CliCommandDaemonKillResponse, CliCommandDaemonKillResponseSchema, type CliCommandDaemonKillResponseSchemaPath, CliCommandDaemonKillResponseSchemaPathSchema, type CliCommandDaemonKillResponseSchemaRequest, CliCommandDaemonKillResponseSchemaRequestSchema, type CliCommandDaemonKillViewerRequest, CliCommandDaemonKillViewerRequestSchema, type CliCommandDaemonKillViewerResponse, CliCommandDaemonKillViewerResponseSchema, type CliCommandDaemonRequest, CliCommandDaemonRequestSchema, type CliCommandDaemonSpawnPath, CliCommandDaemonSpawnPathSchema, type CliCommandDaemonSpawnRequest, type CliCommandDaemonSpawnRequestDangerousAdvanced, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, type CliCommandDaemonSpawnRequestSchemaPath, CliCommandDaemonSpawnRequestSchemaPathSchema, type CliCommandDaemonSpawnRequestSchemaRequest, CliCommandDaemonSpawnRequestSchemaRequestSchema, type CliCommandDaemonSpawnResponseItem, CliCommandDaemonSpawnResponseItemSchema, type CliCommandDaemonSpawnResponseSchemaPath, CliCommandDaemonSpawnResponseSchemaPathSchema, type CliCommandDaemonSpawnResponseSchemaRequest, CliCommandDaemonSpawnResponseSchemaRequestSchema, type CliCommandDaemonSpawnViewerRequest, CliCommandDaemonSpawnViewerRequestSchema, type CliCommandDaemonSpawnViewerResponseItem, CliCommandDaemonSpawnViewerResponseItemSchema, type CliCommandDaemonViewerRequest, CliCommandDaemonViewerRequestSchema, type CliCommandDbConfigAddressGetPath, CliCommandDbConfigAddressGetPathSchema, type CliCommandDbConfigAddressGetRequest, CliCommandDbConfigAddressGetRequestSchema, type CliCommandDbConfigAddressGetRequestSchemaPath, CliCommandDbConfigAddressGetRequestSchemaPathSchema, type CliCommandDbConfigAddressGetRequestSchemaRequest, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, type CliCommandDbConfigAddressGetResponse, CliCommandDbConfigAddressGetResponseSchema, type CliCommandDbConfigAddressGetResponseSchemaPath, CliCommandDbConfigAddressGetResponseSchemaPathSchema, type CliCommandDbConfigAddressGetResponseSchemaRequest, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, type CliCommandDbConfigAddressGetViewerRequest, CliCommandDbConfigAddressGetViewerRequestSchema, type CliCommandDbConfigAddressGetViewerResponse, CliCommandDbConfigAddressGetViewerResponseSchema, type CliCommandDbConfigAddressRequest, CliCommandDbConfigAddressRequestSchema, type CliCommandDbConfigAddressSetPath, CliCommandDbConfigAddressSetPathSchema, type CliCommandDbConfigAddressSetRequest, CliCommandDbConfigAddressSetRequestSchema, type CliCommandDbConfigAddressSetRequestSchemaPath, CliCommandDbConfigAddressSetRequestSchemaPathSchema, type CliCommandDbConfigAddressSetRequestSchemaRequest, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, type CliCommandDbConfigAddressSetResponseSchemaPath, CliCommandDbConfigAddressSetResponseSchemaPathSchema, type CliCommandDbConfigAddressSetResponseSchemaRequest, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, type CliCommandDbConfigAddressSetViewerRequest, CliCommandDbConfigAddressSetViewerRequestSchema, type CliCommandDbConfigAddressSetViewerResponse, CliCommandDbConfigAddressSetViewerResponseSchema, type CliCommandDbConfigAddressViewerRequest, CliCommandDbConfigAddressViewerRequestSchema, type CliCommandDbConfigDatabaseGetPath, CliCommandDbConfigDatabaseGetPathSchema, type CliCommandDbConfigDatabaseGetRequest, CliCommandDbConfigDatabaseGetRequestSchema, type CliCommandDbConfigDatabaseGetRequestSchemaPath, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseGetRequestSchemaRequest, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseGetResponse, CliCommandDbConfigDatabaseGetResponseSchema, type CliCommandDbConfigDatabaseGetResponseSchemaPath, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseGetResponseSchemaRequest, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseGetViewerRequest, CliCommandDbConfigDatabaseGetViewerRequestSchema, type CliCommandDbConfigDatabaseGetViewerResponse, CliCommandDbConfigDatabaseGetViewerResponseSchema, type CliCommandDbConfigDatabaseRequest, CliCommandDbConfigDatabaseRequestSchema, type CliCommandDbConfigDatabaseSetPath, CliCommandDbConfigDatabaseSetPathSchema, type CliCommandDbConfigDatabaseSetRequest, CliCommandDbConfigDatabaseSetRequestSchema, type CliCommandDbConfigDatabaseSetRequestSchemaPath, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, type CliCommandDbConfigDatabaseSetRequestSchemaRequest, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, type CliCommandDbConfigDatabaseSetResponseSchemaPath, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, type CliCommandDbConfigDatabaseSetResponseSchemaRequest, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, type CliCommandDbConfigDatabaseSetViewerRequest, CliCommandDbConfigDatabaseSetViewerRequestSchema, type CliCommandDbConfigDatabaseSetViewerResponse, CliCommandDbConfigDatabaseSetViewerResponseSchema, type CliCommandDbConfigDatabaseViewerRequest, CliCommandDbConfigDatabaseViewerRequestSchema, type CliCommandDbConfigGetPath, CliCommandDbConfigGetPathSchema, type CliCommandDbConfigGetRequest, CliCommandDbConfigGetRequestSchema, type CliCommandDbConfigGetRequestSchemaPath, CliCommandDbConfigGetRequestSchemaPathSchema, type CliCommandDbConfigGetRequestSchemaRequest, CliCommandDbConfigGetRequestSchemaRequestSchema, type CliCommandDbConfigGetResponse, CliCommandDbConfigGetResponseSchema, type CliCommandDbConfigGetResponseSchemaPath, CliCommandDbConfigGetResponseSchemaPathSchema, type CliCommandDbConfigGetResponseSchemaRequest, CliCommandDbConfigGetResponseSchemaRequestSchema, type CliCommandDbConfigGetViewerRequest, CliCommandDbConfigGetViewerRequestSchema, type CliCommandDbConfigGetViewerResponse, CliCommandDbConfigGetViewerResponseSchema, type CliCommandDbConfigPasswordGetPath, CliCommandDbConfigPasswordGetPathSchema, type CliCommandDbConfigPasswordGetRequest, CliCommandDbConfigPasswordGetRequestSchema, type CliCommandDbConfigPasswordGetRequestSchemaPath, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, type CliCommandDbConfigPasswordGetRequestSchemaRequest, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordGetResponse, CliCommandDbConfigPasswordGetResponseSchema, type CliCommandDbConfigPasswordGetResponseSchemaPath, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, type CliCommandDbConfigPasswordGetResponseSchemaRequest, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordGetViewerRequest, CliCommandDbConfigPasswordGetViewerRequestSchema, type CliCommandDbConfigPasswordGetViewerResponse, CliCommandDbConfigPasswordGetViewerResponseSchema, type CliCommandDbConfigPasswordRequest, CliCommandDbConfigPasswordRequestSchema, type CliCommandDbConfigPasswordSetPath, CliCommandDbConfigPasswordSetPathSchema, type CliCommandDbConfigPasswordSetRequest, CliCommandDbConfigPasswordSetRequestSchema, type CliCommandDbConfigPasswordSetRequestSchemaPath, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, type CliCommandDbConfigPasswordSetRequestSchemaRequest, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, type CliCommandDbConfigPasswordSetResponseSchemaPath, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, type CliCommandDbConfigPasswordSetResponseSchemaRequest, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, type CliCommandDbConfigPasswordSetViewerRequest, CliCommandDbConfigPasswordSetViewerRequestSchema, type CliCommandDbConfigPasswordSetViewerResponse, CliCommandDbConfigPasswordSetViewerResponseSchema, type CliCommandDbConfigPasswordViewerRequest, CliCommandDbConfigPasswordViewerRequestSchema, type CliCommandDbConfigRequest, CliCommandDbConfigRequestSchema, type CliCommandDbConfigUserGetPath, CliCommandDbConfigUserGetPathSchema, type CliCommandDbConfigUserGetRequest, CliCommandDbConfigUserGetRequestSchema, type CliCommandDbConfigUserGetRequestSchemaPath, CliCommandDbConfigUserGetRequestSchemaPathSchema, type CliCommandDbConfigUserGetRequestSchemaRequest, CliCommandDbConfigUserGetRequestSchemaRequestSchema, type CliCommandDbConfigUserGetResponse, CliCommandDbConfigUserGetResponseSchema, type CliCommandDbConfigUserGetResponseSchemaPath, CliCommandDbConfigUserGetResponseSchemaPathSchema, type CliCommandDbConfigUserGetResponseSchemaRequest, CliCommandDbConfigUserGetResponseSchemaRequestSchema, type CliCommandDbConfigUserGetViewerRequest, CliCommandDbConfigUserGetViewerRequestSchema, type CliCommandDbConfigUserGetViewerResponse, CliCommandDbConfigUserGetViewerResponseSchema, type CliCommandDbConfigUserRequest, CliCommandDbConfigUserRequestSchema, type CliCommandDbConfigUserSetPath, CliCommandDbConfigUserSetPathSchema, type CliCommandDbConfigUserSetRequest, CliCommandDbConfigUserSetRequestSchema, type CliCommandDbConfigUserSetRequestSchemaPath, CliCommandDbConfigUserSetRequestSchemaPathSchema, type CliCommandDbConfigUserSetRequestSchemaRequest, CliCommandDbConfigUserSetRequestSchemaRequestSchema, type CliCommandDbConfigUserSetResponseSchemaPath, CliCommandDbConfigUserSetResponseSchemaPathSchema, type CliCommandDbConfigUserSetResponseSchemaRequest, CliCommandDbConfigUserSetResponseSchemaRequestSchema, type CliCommandDbConfigUserSetViewerRequest, CliCommandDbConfigUserSetViewerRequestSchema, type CliCommandDbConfigUserSetViewerResponse, CliCommandDbConfigUserSetViewerResponseSchema, type CliCommandDbConfigUserViewerRequest, CliCommandDbConfigUserViewerRequestSchema, type CliCommandDbConfigViewerRequest, CliCommandDbConfigViewerRequestSchema, type CliCommandDbKillPath, CliCommandDbKillPathSchema, type CliCommandDbKillRequest, CliCommandDbKillRequestSchema, type CliCommandDbKillRequestSchemaPath, CliCommandDbKillRequestSchemaPathSchema, type CliCommandDbKillRequestSchemaRequest, CliCommandDbKillRequestSchemaRequestSchema, type CliCommandDbKillResponse, CliCommandDbKillResponseSchema, type CliCommandDbKillResponseSchemaPath, CliCommandDbKillResponseSchemaPathSchema, type CliCommandDbKillResponseSchemaRequest, CliCommandDbKillResponseSchemaRequestSchema, type CliCommandDbKillViewerRequest, CliCommandDbKillViewerRequestSchema, type CliCommandDbKillViewerResponse, CliCommandDbKillViewerResponseSchema, type CliCommandDbQueryColumn, CliCommandDbQueryColumnSchema, type CliCommandDbQueryPath, CliCommandDbQueryPathSchema, type CliCommandDbQueryRequest, CliCommandDbQueryRequestSchema, type CliCommandDbQueryRequestSchemaPath, CliCommandDbQueryRequestSchemaPathSchema, type CliCommandDbQueryRequestSchemaRequest, CliCommandDbQueryRequestSchemaRequestSchema, type CliCommandDbQueryResponse, CliCommandDbQueryResponseSchema, type CliCommandDbQueryResponseSchemaPath, CliCommandDbQueryResponseSchemaPathSchema, type CliCommandDbQueryResponseSchemaRequest, CliCommandDbQueryResponseSchemaRequestSchema, type CliCommandDbQueryViewerRequest, CliCommandDbQueryViewerRequestSchema, type CliCommandDbQueryViewerResponse, CliCommandDbQueryViewerResponseSchema, type CliCommandDbRequest, CliCommandDbRequestSchema, type CliCommandDbSpawnPath, CliCommandDbSpawnPathSchema, type CliCommandDbSpawnRequest, CliCommandDbSpawnRequestSchema, type CliCommandDbSpawnRequestSchemaPath, CliCommandDbSpawnRequestSchemaPathSchema, type CliCommandDbSpawnRequestSchemaRequest, CliCommandDbSpawnRequestSchemaRequestSchema, type CliCommandDbSpawnResponse, CliCommandDbSpawnResponseSchema, type CliCommandDbSpawnResponseSchemaPath, CliCommandDbSpawnResponseSchemaPathSchema, type CliCommandDbSpawnResponseSchemaRequest, CliCommandDbSpawnResponseSchemaRequestSchema, type CliCommandDbSpawnViewerRequest, CliCommandDbSpawnViewerRequestSchema, type CliCommandDbSpawnViewerResponse, CliCommandDbSpawnViewerResponseSchema, type CliCommandDbViewerRequest, CliCommandDbViewerRequestSchema, type CliCommandFunctionsExecuteFunctionSpec, CliCommandFunctionsExecuteFunctionSpecSchema, type CliCommandFunctionsExecuteProfileSpec, CliCommandFunctionsExecuteProfileSpecSchema, type CliCommandFunctionsExecuteRequest, CliCommandFunctionsExecuteRequestSchema, type CliCommandFunctionsExecuteStandardPath, CliCommandFunctionsExecuteStandardPathSchema, type CliCommandFunctionsExecuteStandardRequest, type CliCommandFunctionsExecuteStandardRequestDangerousAdvanced, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteStandardRequestInput, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, type CliCommandFunctionsExecuteStandardRequestSchemaPath, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, type CliCommandFunctionsExecuteStandardRequestSchemaRequest, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, type CliCommandFunctionsExecuteStandardResponseItem, CliCommandFunctionsExecuteStandardResponseItemSchema, type CliCommandFunctionsExecuteStandardResponseSchemaPath, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, type CliCommandFunctionsExecuteStandardResponseSchemaRequest, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, type CliCommandFunctionsExecuteStandardViewerRequest, CliCommandFunctionsExecuteStandardViewerRequestSchema, type CliCommandFunctionsExecuteStandardViewerResponse, type CliCommandFunctionsExecuteStandardViewerResponseItem, CliCommandFunctionsExecuteStandardViewerResponseItemSchema, CliCommandFunctionsExecuteStandardViewerResponseSchema, type CliCommandFunctionsExecuteSwissSystemPath, CliCommandFunctionsExecuteSwissSystemPathSchema, type CliCommandFunctionsExecuteSwissSystemRequest, type CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvanced, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, type CliCommandFunctionsExecuteSwissSystemRequestInput, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaPath, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemResponseItem, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaPath, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, type CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, type CliCommandFunctionsExecuteSwissSystemViewerRequest, CliCommandFunctionsExecuteSwissSystemViewerRequestSchema, type CliCommandFunctionsExecuteSwissSystemViewerResponse, type CliCommandFunctionsExecuteSwissSystemViewerResponseItem, CliCommandFunctionsExecuteSwissSystemViewerResponseItemSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseSchema, type CliCommandFunctionsExecuteViewerRequest, CliCommandFunctionsExecuteViewerRequestSchema, type CliCommandFunctionsGetPath, CliCommandFunctionsGetPathSchema, type CliCommandFunctionsGetRequest, CliCommandFunctionsGetRequestSchema, type CliCommandFunctionsGetRequestSchemaPath, CliCommandFunctionsGetRequestSchemaPathSchema, type CliCommandFunctionsGetRequestSchemaRequest, CliCommandFunctionsGetRequestSchemaRequestSchema, type CliCommandFunctionsGetResponse, CliCommandFunctionsGetResponseSchema, type CliCommandFunctionsGetResponseSchemaPath, CliCommandFunctionsGetResponseSchemaPathSchema, type CliCommandFunctionsGetResponseSchemaRequest, CliCommandFunctionsGetResponseSchemaRequestSchema, type CliCommandFunctionsGetViewerRequest, CliCommandFunctionsGetViewerRequestSchema, type CliCommandFunctionsGetViewerResponse, CliCommandFunctionsGetViewerResponseSchema, type CliCommandFunctionsListPath, CliCommandFunctionsListPathSchema, type CliCommandFunctionsListRequest, CliCommandFunctionsListRequestSchema, type CliCommandFunctionsListRequestSchemaPath, CliCommandFunctionsListRequestSchemaPathSchema, type CliCommandFunctionsListRequestSchemaRequest, CliCommandFunctionsListRequestSchemaRequestSchema, type CliCommandFunctionsListResponse, CliCommandFunctionsListResponseSchema, type CliCommandFunctionsListResponseSchemaPath, CliCommandFunctionsListResponseSchemaPathSchema, type CliCommandFunctionsListResponseSchemaRequest, CliCommandFunctionsListResponseSchemaRequestSchema, type CliCommandFunctionsListViewerRequest, CliCommandFunctionsListViewerRequestSchema, type CliCommandFunctionsListViewerResponse, CliCommandFunctionsListViewerResponseSchema, type CliCommandFunctionsProfilesGetPath, CliCommandFunctionsProfilesGetPathSchema, type CliCommandFunctionsProfilesGetRequest, CliCommandFunctionsProfilesGetRequestSchema, type CliCommandFunctionsProfilesGetRequestSchemaPath, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, type CliCommandFunctionsProfilesGetRequestSchemaRequest, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, type CliCommandFunctionsProfilesGetResponse, CliCommandFunctionsProfilesGetResponseSchema, type CliCommandFunctionsProfilesGetResponseSchemaPath, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, type CliCommandFunctionsProfilesGetResponseSchemaRequest, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, type CliCommandFunctionsProfilesGetViewerRequest, CliCommandFunctionsProfilesGetViewerRequestSchema, type CliCommandFunctionsProfilesGetViewerResponse, CliCommandFunctionsProfilesGetViewerResponseSchema, type CliCommandFunctionsProfilesListPath, CliCommandFunctionsProfilesListPathSchema, type CliCommandFunctionsProfilesListRequest, CliCommandFunctionsProfilesListRequestSchema, type CliCommandFunctionsProfilesListRequestSchemaPath, CliCommandFunctionsProfilesListRequestSchemaPathSchema, type CliCommandFunctionsProfilesListRequestSchemaRequest, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, type CliCommandFunctionsProfilesListResponse, CliCommandFunctionsProfilesListResponseSchema, type CliCommandFunctionsProfilesListResponseSchemaPath, CliCommandFunctionsProfilesListResponseSchemaPathSchema, type CliCommandFunctionsProfilesListResponseSchemaRequest, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, type CliCommandFunctionsProfilesListViewerRequest, CliCommandFunctionsProfilesListViewerRequestSchema, type CliCommandFunctionsProfilesListViewerResponse, CliCommandFunctionsProfilesListViewerResponseSchema, type CliCommandFunctionsProfilesPublishPath, CliCommandFunctionsProfilesPublishPathSchema, type CliCommandFunctionsProfilesPublishRequest, type CliCommandFunctionsProfilesPublishRequestBody, CliCommandFunctionsProfilesPublishRequestBodySchema, type CliCommandFunctionsProfilesPublishRequestPublishMessage, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, type CliCommandFunctionsProfilesPublishRequestSchemaPath, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, type CliCommandFunctionsProfilesPublishRequestSchemaRequest, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, type CliCommandFunctionsProfilesPublishResponse, CliCommandFunctionsProfilesPublishResponseSchema, type CliCommandFunctionsProfilesPublishResponseSchemaPath, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, type CliCommandFunctionsProfilesPublishResponseSchemaRequest, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, type CliCommandFunctionsProfilesPublishViewerRequest, CliCommandFunctionsProfilesPublishViewerRequestSchema, type CliCommandFunctionsProfilesPublishViewerResponse, CliCommandFunctionsProfilesPublishViewerResponseSchema, type CliCommandFunctionsProfilesRequest, CliCommandFunctionsProfilesRequestSchema, type CliCommandFunctionsProfilesViewerRequest, CliCommandFunctionsProfilesViewerRequestSchema, type CliCommandFunctionsPublishPath, CliCommandFunctionsPublishPathSchema, type CliCommandFunctionsPublishRequest, type CliCommandFunctionsPublishRequestBody, CliCommandFunctionsPublishRequestBodySchema, type CliCommandFunctionsPublishRequestPublishMessage, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, type CliCommandFunctionsPublishRequestSchemaPath, CliCommandFunctionsPublishRequestSchemaPathSchema, type CliCommandFunctionsPublishRequestSchemaRequest, CliCommandFunctionsPublishRequestSchemaRequestSchema, type CliCommandFunctionsPublishResponse, CliCommandFunctionsPublishResponseSchema, type CliCommandFunctionsPublishResponseSchemaPath, CliCommandFunctionsPublishResponseSchemaPathSchema, type CliCommandFunctionsPublishResponseSchemaRequest, CliCommandFunctionsPublishResponseSchemaRequestSchema, type CliCommandFunctionsPublishViewerRequest, CliCommandFunctionsPublishViewerRequestSchema, type CliCommandFunctionsPublishViewerResponse, CliCommandFunctionsPublishViewerResponseSchema, type CliCommandFunctionsRequest, CliCommandFunctionsRequestSchema, type CliCommandFunctionsViewerRequest, CliCommandFunctionsViewerRequestSchema, type CliCommandGetScope, CliCommandGetScopeSchema, type CliCommandKillAllPath, CliCommandKillAllPathSchema, type CliCommandKillAllRequest, CliCommandKillAllRequestSchema, type CliCommandKillAllRequestSchemaPath, CliCommandKillAllRequestSchemaPathSchema, type CliCommandKillAllRequestSchemaRequest, CliCommandKillAllRequestSchemaRequestSchema, type CliCommandKillAllResponse, CliCommandKillAllResponseSchema, type CliCommandKillAllResponseSchemaPath, CliCommandKillAllResponseSchemaPathSchema, type CliCommandKillAllResponseSchemaRequest, CliCommandKillAllResponseSchemaRequestSchema, type CliCommandKillAllViewerRequest, CliCommandKillAllViewerRequestSchema, type CliCommandKillAllViewerResponse, CliCommandKillAllViewerResponseSchema, type CliCommandLaboratoriesCreateEnvVar, CliCommandLaboratoriesCreateEnvVarSchema, type CliCommandLaboratoriesCreateKind, CliCommandLaboratoriesCreateKindSchema, type CliCommandLaboratoriesCreateMount, CliCommandLaboratoriesCreateMountSchema, type CliCommandLaboratoriesCreatePath, CliCommandLaboratoriesCreatePathSchema, type CliCommandLaboratoriesCreateRequest, CliCommandLaboratoriesCreateRequestSchema, type CliCommandLaboratoriesCreateRequestSchemaPath, CliCommandLaboratoriesCreateRequestSchemaPathSchema, type CliCommandLaboratoriesCreateRequestSchemaRequest, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, type CliCommandLaboratoriesCreateResponse, CliCommandLaboratoriesCreateResponseSchema, type CliCommandLaboratoriesCreateResponseSchemaPath, CliCommandLaboratoriesCreateResponseSchemaPathSchema, type CliCommandLaboratoriesCreateResponseSchemaRequest, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, type CliCommandLaboratoriesCreateViewerRequest, CliCommandLaboratoriesCreateViewerRequestSchema, type CliCommandLaboratoriesCreateViewerResponse, CliCommandLaboratoriesCreateViewerResponseSchema, type CliCommandLaboratoriesListPath, CliCommandLaboratoriesListPathSchema, type CliCommandLaboratoriesListRequest, CliCommandLaboratoriesListRequestSchema, type CliCommandLaboratoriesListRequestSchemaPath, CliCommandLaboratoriesListRequestSchemaPathSchema, type CliCommandLaboratoriesListRequestSchemaRequest, CliCommandLaboratoriesListRequestSchemaRequestSchema, type CliCommandLaboratoriesListResponseItem, CliCommandLaboratoriesListResponseItemSchema, type CliCommandLaboratoriesListResponseSchemaPath, CliCommandLaboratoriesListResponseSchemaPathSchema, type CliCommandLaboratoriesListResponseSchemaRequest, CliCommandLaboratoriesListResponseSchemaRequestSchema, type CliCommandLaboratoriesListViewerRequest, CliCommandLaboratoriesListViewerRequestSchema, type CliCommandLaboratoriesListViewerResponseItem, CliCommandLaboratoriesListViewerResponseItemSchema, type CliCommandLaboratoriesRequest, CliCommandLaboratoriesRequestSchema, type CliCommandLaboratoriesViewerRequest, CliCommandLaboratoriesViewerRequestSchema, type CliCommandMcpConfigAddressGetPath, CliCommandMcpConfigAddressGetPathSchema, type CliCommandMcpConfigAddressGetRequest, CliCommandMcpConfigAddressGetRequestSchema, type CliCommandMcpConfigAddressGetRequestSchemaPath, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, type CliCommandMcpConfigAddressGetRequestSchemaRequest, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressGetResponse, CliCommandMcpConfigAddressGetResponseSchema, type CliCommandMcpConfigAddressGetResponseSchemaPath, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, type CliCommandMcpConfigAddressGetResponseSchemaRequest, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressGetViewerRequest, CliCommandMcpConfigAddressGetViewerRequestSchema, type CliCommandMcpConfigAddressGetViewerResponse, CliCommandMcpConfigAddressGetViewerResponseSchema, type CliCommandMcpConfigAddressRequest, CliCommandMcpConfigAddressRequestSchema, type CliCommandMcpConfigAddressSetPath, CliCommandMcpConfigAddressSetPathSchema, type CliCommandMcpConfigAddressSetRequest, CliCommandMcpConfigAddressSetRequestSchema, type CliCommandMcpConfigAddressSetRequestSchemaPath, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, type CliCommandMcpConfigAddressSetRequestSchemaRequest, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, type CliCommandMcpConfigAddressSetResponseSchemaPath, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, type CliCommandMcpConfigAddressSetResponseSchemaRequest, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, type CliCommandMcpConfigAddressSetViewerRequest, CliCommandMcpConfigAddressSetViewerRequestSchema, type CliCommandMcpConfigAddressSetViewerResponse, CliCommandMcpConfigAddressSetViewerResponseSchema, type CliCommandMcpConfigAddressViewerRequest, CliCommandMcpConfigAddressViewerRequestSchema, type CliCommandMcpConfigGetPath, CliCommandMcpConfigGetPathSchema, type CliCommandMcpConfigGetRequest, CliCommandMcpConfigGetRequestSchema, type CliCommandMcpConfigGetRequestSchemaPath, CliCommandMcpConfigGetRequestSchemaPathSchema, type CliCommandMcpConfigGetRequestSchemaRequest, CliCommandMcpConfigGetRequestSchemaRequestSchema, type CliCommandMcpConfigGetResponse, CliCommandMcpConfigGetResponseSchema, type CliCommandMcpConfigGetResponseSchemaPath, CliCommandMcpConfigGetResponseSchemaPathSchema, type CliCommandMcpConfigGetResponseSchemaRequest, CliCommandMcpConfigGetResponseSchemaRequestSchema, type CliCommandMcpConfigGetViewerRequest, CliCommandMcpConfigGetViewerRequestSchema, type CliCommandMcpConfigGetViewerResponse, CliCommandMcpConfigGetViewerResponseSchema, type CliCommandMcpConfigPortGetPath, CliCommandMcpConfigPortGetPathSchema, type CliCommandMcpConfigPortGetRequest, CliCommandMcpConfigPortGetRequestSchema, type CliCommandMcpConfigPortGetRequestSchemaPath, CliCommandMcpConfigPortGetRequestSchemaPathSchema, type CliCommandMcpConfigPortGetRequestSchemaRequest, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, type CliCommandMcpConfigPortGetResponse, CliCommandMcpConfigPortGetResponseSchema, type CliCommandMcpConfigPortGetResponseSchemaPath, CliCommandMcpConfigPortGetResponseSchemaPathSchema, type CliCommandMcpConfigPortGetResponseSchemaRequest, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, type CliCommandMcpConfigPortGetViewerRequest, CliCommandMcpConfigPortGetViewerRequestSchema, type CliCommandMcpConfigPortGetViewerResponse, CliCommandMcpConfigPortGetViewerResponseSchema, type CliCommandMcpConfigPortRequest, CliCommandMcpConfigPortRequestSchema, type CliCommandMcpConfigPortSetPath, CliCommandMcpConfigPortSetPathSchema, type CliCommandMcpConfigPortSetRequest, CliCommandMcpConfigPortSetRequestSchema, type CliCommandMcpConfigPortSetRequestSchemaPath, CliCommandMcpConfigPortSetRequestSchemaPathSchema, type CliCommandMcpConfigPortSetRequestSchemaRequest, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, type CliCommandMcpConfigPortSetResponseSchemaPath, CliCommandMcpConfigPortSetResponseSchemaPathSchema, type CliCommandMcpConfigPortSetResponseSchemaRequest, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, type CliCommandMcpConfigPortSetViewerRequest, CliCommandMcpConfigPortSetViewerRequestSchema, type CliCommandMcpConfigPortSetViewerResponse, CliCommandMcpConfigPortSetViewerResponseSchema, type CliCommandMcpConfigPortViewerRequest, CliCommandMcpConfigPortViewerRequestSchema, type CliCommandMcpConfigRequest, CliCommandMcpConfigRequestSchema, type CliCommandMcpConfigViewerRequest, CliCommandMcpConfigViewerRequestSchema, type CliCommandMcpKillPath, CliCommandMcpKillPathSchema, type CliCommandMcpKillRequest, CliCommandMcpKillRequestSchema, type CliCommandMcpKillRequestSchemaPath, CliCommandMcpKillRequestSchemaPathSchema, type CliCommandMcpKillRequestSchemaRequest, CliCommandMcpKillRequestSchemaRequestSchema, type CliCommandMcpKillResponse, CliCommandMcpKillResponseSchema, type CliCommandMcpKillResponseSchemaPath, CliCommandMcpKillResponseSchemaPathSchema, type CliCommandMcpKillResponseSchemaRequest, CliCommandMcpKillResponseSchemaRequestSchema, type CliCommandMcpKillViewerRequest, CliCommandMcpKillViewerRequestSchema, type CliCommandMcpKillViewerResponse, CliCommandMcpKillViewerResponseSchema, type CliCommandMcpRequest, CliCommandMcpRequestSchema, type CliCommandMcpSpawnPath, CliCommandMcpSpawnPathSchema, type CliCommandMcpSpawnRequest, CliCommandMcpSpawnRequestSchema, type CliCommandMcpSpawnRequestSchemaPath, CliCommandMcpSpawnRequestSchemaPathSchema, type CliCommandMcpSpawnRequestSchemaRequest, CliCommandMcpSpawnRequestSchemaRequestSchema, type CliCommandMcpSpawnResponse, CliCommandMcpSpawnResponseSchema, type CliCommandMcpSpawnResponseSchemaPath, CliCommandMcpSpawnResponseSchemaPathSchema, type CliCommandMcpSpawnResponseSchemaRequest, CliCommandMcpSpawnResponseSchemaRequestSchema, type CliCommandMcpSpawnViewerRequest, CliCommandMcpSpawnViewerRequestSchema, type CliCommandMcpSpawnViewerResponse, CliCommandMcpSpawnViewerResponseSchema, type CliCommandMcpViewerRequest, CliCommandMcpViewerRequestSchema, type CliCommandOk, CliCommandOkSchema, type CliCommandPluginsGetPath, CliCommandPluginsGetPathSchema, type CliCommandPluginsGetRequest, CliCommandPluginsGetRequestSchema, type CliCommandPluginsGetRequestSchemaPath, CliCommandPluginsGetRequestSchemaPathSchema, type CliCommandPluginsGetRequestSchemaRequest, CliCommandPluginsGetRequestSchemaRequestSchema, type CliCommandPluginsGetResponseHttpMethod, CliCommandPluginsGetResponseHttpMethodSchema, type CliCommandPluginsGetResponseManifest, CliCommandPluginsGetResponseManifestSchema, type CliCommandPluginsGetResponseMcpServer, CliCommandPluginsGetResponseMcpServerSchema, type CliCommandPluginsGetResponseSchemaPath, CliCommandPluginsGetResponseSchemaPathSchema, type CliCommandPluginsGetResponseSchemaRequest, CliCommandPluginsGetResponseSchemaRequestSchema, type CliCommandPluginsGetResponseViewerRoute, CliCommandPluginsGetResponseViewerRouteSchema, type CliCommandPluginsGetViewerRequest, CliCommandPluginsGetViewerRequestSchema, type CliCommandPluginsGetViewerResponse, CliCommandPluginsGetViewerResponseSchema, type CliCommandPluginsInstallFilesystemPath, CliCommandPluginsInstallFilesystemPathSchema, type CliCommandPluginsInstallFilesystemRequest, CliCommandPluginsInstallFilesystemRequestSchema, type CliCommandPluginsInstallFilesystemRequestSchemaPath, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, type CliCommandPluginsInstallFilesystemRequestSchemaRequest, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, type CliCommandPluginsInstallFilesystemResponse, CliCommandPluginsInstallFilesystemResponseSchema, type CliCommandPluginsInstallFilesystemResponseSchemaPath, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, type CliCommandPluginsInstallFilesystemResponseSchemaRequest, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, type CliCommandPluginsInstallFilesystemViewerRequest, CliCommandPluginsInstallFilesystemViewerRequestSchema, type CliCommandPluginsInstallFilesystemViewerResponse, CliCommandPluginsInstallFilesystemViewerResponseSchema, type CliCommandPluginsInstallGithubPath, CliCommandPluginsInstallGithubPathSchema, type CliCommandPluginsInstallGithubRequest, CliCommandPluginsInstallGithubRequestSchema, type CliCommandPluginsInstallGithubRequestSchemaPath, CliCommandPluginsInstallGithubRequestSchemaPathSchema, type CliCommandPluginsInstallGithubRequestSchemaRequest, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, type CliCommandPluginsInstallGithubResponse, CliCommandPluginsInstallGithubResponseSchema, type CliCommandPluginsInstallGithubResponseSchemaPath, CliCommandPluginsInstallGithubResponseSchemaPathSchema, type CliCommandPluginsInstallGithubResponseSchemaRequest, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, type CliCommandPluginsInstallGithubViewerRequest, CliCommandPluginsInstallGithubViewerRequestSchema, type CliCommandPluginsInstallGithubViewerResponse, CliCommandPluginsInstallGithubViewerResponseSchema, type CliCommandPluginsInstallRequest, CliCommandPluginsInstallRequestSchema, type CliCommandPluginsInstallViewerRequest, CliCommandPluginsInstallViewerRequestSchema, type CliCommandPluginsListPath, CliCommandPluginsListPathSchema, type CliCommandPluginsListRequest, CliCommandPluginsListRequestSchema, type CliCommandPluginsListRequestSchemaPath, CliCommandPluginsListRequestSchemaPathSchema, type CliCommandPluginsListRequestSchemaRequest, CliCommandPluginsListRequestSchemaRequestSchema, type CliCommandPluginsListResponseSchemaPath, CliCommandPluginsListResponseSchemaPathSchema, type CliCommandPluginsListResponseSchemaRequest, CliCommandPluginsListResponseSchemaRequestSchema, type CliCommandPluginsListViewerRequest, CliCommandPluginsListViewerRequestSchema, type CliCommandPluginsListViewerResponseItem, CliCommandPluginsListViewerResponseItemSchema, type CliCommandPluginsLogsListPath, CliCommandPluginsLogsListPathSchema, type CliCommandPluginsLogsListRequest, CliCommandPluginsLogsListRequestSchema, type CliCommandPluginsLogsListRequestSchemaPath, CliCommandPluginsLogsListRequestSchemaPathSchema, type CliCommandPluginsLogsListRequestSchemaRequest, CliCommandPluginsLogsListRequestSchemaRequestSchema, type CliCommandPluginsLogsListResponseItem, CliCommandPluginsLogsListResponseItemSchema, type CliCommandPluginsLogsListResponseSchemaPath, CliCommandPluginsLogsListResponseSchemaPathSchema, type CliCommandPluginsLogsListResponseSchemaRequest, CliCommandPluginsLogsListResponseSchemaRequestSchema, type CliCommandPluginsLogsListViewerRequest, CliCommandPluginsLogsListViewerRequestSchema, type CliCommandPluginsLogsListViewerResponseItem, CliCommandPluginsLogsListViewerResponseItemSchema, type CliCommandPluginsLogsRequest, CliCommandPluginsLogsRequestSchema, type CliCommandPluginsRequest, CliCommandPluginsRequestSchema, type CliCommandPluginsRunMcp, CliCommandPluginsRunMcpSchema, type CliCommandPluginsRunMcpType, CliCommandPluginsRunMcpTypeSchema, type CliCommandPluginsRunPath, CliCommandPluginsRunPathSchema, type CliCommandPluginsRunRequest, CliCommandPluginsRunRequestSchema, type CliCommandPluginsRunRequestSchemaPath, CliCommandPluginsRunRequestSchemaPathSchema, type CliCommandPluginsRunRequestSchemaRequest, CliCommandPluginsRunRequestSchemaRequestSchema, type CliCommandPluginsRunResponseItem, CliCommandPluginsRunResponseItemSchema, type CliCommandPluginsRunResponseSchemaPath, CliCommandPluginsRunResponseSchemaPathSchema, type CliCommandPluginsRunResponseSchemaRequest, CliCommandPluginsRunResponseSchemaRequestSchema, type CliCommandPluginsRunViewerRequest, CliCommandPluginsRunViewerRequestSchema, type CliCommandPluginsRunViewerResponseItem, CliCommandPluginsRunViewerResponseItemSchema, type CliCommandPluginsViewerRequest, CliCommandPluginsViewerRequestSchema, type CliCommandPythonPath, CliCommandPythonPathSchema, type CliCommandPythonRequest, CliCommandPythonRequestSchema, type CliCommandPythonRequestSchemaPath, CliCommandPythonRequestSchemaPathSchema, type CliCommandPythonRequestSchemaRequest, CliCommandPythonRequestSchemaRequestSchema, type CliCommandPythonResponseSchemaPath, CliCommandPythonResponseSchemaPathSchema, type CliCommandPythonResponseSchemaRequest, CliCommandPythonResponseSchemaRequestSchema, type CliCommandPythonViewerRequest, CliCommandPythonViewerRequestSchema, type CliCommandPythonViewerResponse, CliCommandPythonViewerResponseSchema, type CliCommandRequest, type CliCommandRequestBase, CliCommandRequestBaseSchema, CliCommandRequestSchema, type CliCommandRootViewerRequest, CliCommandRootViewerRequestSchema, type CliCommandSetScope, CliCommandSetScopeSchema, type CliCommandSwarmsGetPath, CliCommandSwarmsGetPathSchema, type CliCommandSwarmsGetRequest, CliCommandSwarmsGetRequestSchema, type CliCommandSwarmsGetRequestSchemaPath, CliCommandSwarmsGetRequestSchemaPathSchema, type CliCommandSwarmsGetRequestSchemaRequest, CliCommandSwarmsGetRequestSchemaRequestSchema, type CliCommandSwarmsGetResponse, CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponseSchemaPath, CliCommandSwarmsGetResponseSchemaPathSchema, type CliCommandSwarmsGetResponseSchemaRequest, CliCommandSwarmsGetResponseSchemaRequestSchema, type CliCommandSwarmsGetViewerRequest, CliCommandSwarmsGetViewerRequestSchema, type CliCommandSwarmsGetViewerResponse, CliCommandSwarmsGetViewerResponseSchema, type CliCommandSwarmsListPath, CliCommandSwarmsListPathSchema, type CliCommandSwarmsListRequest, CliCommandSwarmsListRequestSchema, type CliCommandSwarmsListRequestSchemaPath, CliCommandSwarmsListRequestSchemaPathSchema, type CliCommandSwarmsListRequestSchemaRequest, CliCommandSwarmsListRequestSchemaRequestSchema, type CliCommandSwarmsListResponse, CliCommandSwarmsListResponseSchema, type CliCommandSwarmsListResponseSchemaPath, CliCommandSwarmsListResponseSchemaPathSchema, type CliCommandSwarmsListResponseSchemaRequest, CliCommandSwarmsListResponseSchemaRequestSchema, type CliCommandSwarmsListViewerRequest, CliCommandSwarmsListViewerRequestSchema, type CliCommandSwarmsListViewerResponse, type CliCommandSwarmsListViewerResponseItem, CliCommandSwarmsListViewerResponseItemSchema, CliCommandSwarmsListViewerResponseSchema, type CliCommandSwarmsPublishPath, CliCommandSwarmsPublishPathSchema, type CliCommandSwarmsPublishRequest, type CliCommandSwarmsPublishRequestBody, CliCommandSwarmsPublishRequestBodySchema, type CliCommandSwarmsPublishRequestPublishMessage, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, type CliCommandSwarmsPublishRequestSchemaPath, CliCommandSwarmsPublishRequestSchemaPathSchema, type CliCommandSwarmsPublishRequestSchemaRequest, CliCommandSwarmsPublishRequestSchemaRequestSchema, type CliCommandSwarmsPublishResponse, CliCommandSwarmsPublishResponseSchema, type CliCommandSwarmsPublishResponseSchemaPath, CliCommandSwarmsPublishResponseSchemaPathSchema, type CliCommandSwarmsPublishResponseSchemaRequest, CliCommandSwarmsPublishResponseSchemaRequestSchema, type CliCommandSwarmsPublishViewerRequest, CliCommandSwarmsPublishViewerRequestSchema, type CliCommandSwarmsPublishViewerResponse, CliCommandSwarmsPublishViewerResponseSchema, type CliCommandSwarmsRequest, CliCommandSwarmsRequestSchema, type CliCommandSwarmsViewerRequest, CliCommandSwarmsViewerRequestSchema, type CliCommandToolsGetExec, CliCommandToolsGetExecSchema, type CliCommandToolsGetPath, CliCommandToolsGetPathSchema, type CliCommandToolsGetRequest, CliCommandToolsGetRequestSchema, type CliCommandToolsGetRequestSchemaPath, CliCommandToolsGetRequestSchemaPathSchema, type CliCommandToolsGetRequestSchemaRequest, CliCommandToolsGetRequestSchemaRequestSchema, type CliCommandToolsGetResponseManifest, CliCommandToolsGetResponseManifestSchema, type CliCommandToolsGetResponseSchemaPath, CliCommandToolsGetResponseSchemaPathSchema, type CliCommandToolsGetResponseSchemaRequest, CliCommandToolsGetResponseSchemaRequestSchema, type CliCommandToolsGetViewerRequest, CliCommandToolsGetViewerRequestSchema, type CliCommandToolsGetViewerResponse, CliCommandToolsGetViewerResponseSchema, type CliCommandToolsInstallFilesystemPath, CliCommandToolsInstallFilesystemPathSchema, type CliCommandToolsInstallFilesystemRequest, CliCommandToolsInstallFilesystemRequestSchema, type CliCommandToolsInstallFilesystemRequestSchemaPath, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, type CliCommandToolsInstallFilesystemRequestSchemaRequest, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, type CliCommandToolsInstallFilesystemResponse, CliCommandToolsInstallFilesystemResponseSchema, type CliCommandToolsInstallFilesystemResponseSchemaPath, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, type CliCommandToolsInstallFilesystemResponseSchemaRequest, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, type CliCommandToolsInstallFilesystemViewerRequest, CliCommandToolsInstallFilesystemViewerRequestSchema, type CliCommandToolsInstallFilesystemViewerResponse, CliCommandToolsInstallFilesystemViewerResponseSchema, type CliCommandToolsInstallGithubPath, CliCommandToolsInstallGithubPathSchema, type CliCommandToolsInstallGithubRequest, CliCommandToolsInstallGithubRequestSchema, type CliCommandToolsInstallGithubRequestSchemaPath, CliCommandToolsInstallGithubRequestSchemaPathSchema, type CliCommandToolsInstallGithubRequestSchemaRequest, CliCommandToolsInstallGithubRequestSchemaRequestSchema, type CliCommandToolsInstallGithubResponse, CliCommandToolsInstallGithubResponseSchema, type CliCommandToolsInstallGithubResponseSchemaPath, CliCommandToolsInstallGithubResponseSchemaPathSchema, type CliCommandToolsInstallGithubResponseSchemaRequest, CliCommandToolsInstallGithubResponseSchemaRequestSchema, type CliCommandToolsInstallGithubViewerRequest, CliCommandToolsInstallGithubViewerRequestSchema, type CliCommandToolsInstallGithubViewerResponse, CliCommandToolsInstallGithubViewerResponseSchema, type CliCommandToolsInstallRequest, CliCommandToolsInstallRequestSchema, type CliCommandToolsInstallViewerRequest, CliCommandToolsInstallViewerRequestSchema, type CliCommandToolsListPath, CliCommandToolsListPathSchema, type CliCommandToolsListRequest, CliCommandToolsListRequestSchema, type CliCommandToolsListRequestSchemaPath, CliCommandToolsListRequestSchemaPathSchema, type CliCommandToolsListRequestSchemaRequest, CliCommandToolsListRequestSchemaRequestSchema, type CliCommandToolsListResponseSchemaPath, CliCommandToolsListResponseSchemaPathSchema, type CliCommandToolsListResponseSchemaRequest, CliCommandToolsListResponseSchemaRequestSchema, type CliCommandToolsListViewerRequest, CliCommandToolsListViewerRequestSchema, type CliCommandToolsListViewerResponseItem, CliCommandToolsListViewerResponseItemSchema, type CliCommandToolsRequest, CliCommandToolsRequestSchema, type CliCommandToolsRunPath, CliCommandToolsRunPathSchema, type CliCommandToolsRunRequest, CliCommandToolsRunRequestSchema, type CliCommandToolsRunRequestSchemaPath, CliCommandToolsRunRequestSchemaPathSchema, type CliCommandToolsRunRequestSchemaRequest, CliCommandToolsRunRequestSchemaRequestSchema, type CliCommandToolsRunResponseItem, CliCommandToolsRunResponseItemSchema, type CliCommandToolsRunResponseSchemaPath, CliCommandToolsRunResponseSchemaPathSchema, type CliCommandToolsRunResponseSchemaRequest, CliCommandToolsRunResponseSchemaRequestSchema, type CliCommandToolsRunViewerRequest, CliCommandToolsRunViewerRequestSchema, type CliCommandToolsRunViewerResponseItem, CliCommandToolsRunViewerResponseItemSchema, type CliCommandToolsViewerRequest, CliCommandToolsViewerRequestSchema, type CliCommandUpdatePath, CliCommandUpdatePathSchema, type CliCommandUpdateRequest, CliCommandUpdateRequestSchema, type CliCommandUpdateRequestSchemaPath, CliCommandUpdateRequestSchemaPathSchema, type CliCommandUpdateRequestSchemaRequest, CliCommandUpdateRequestSchemaRequestSchema, type CliCommandUpdateResponse, type CliCommandUpdateResponseItem, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, type CliCommandUpdateResponseSchemaPath, CliCommandUpdateResponseSchemaPathSchema, type CliCommandUpdateResponseSchemaRequest, CliCommandUpdateResponseSchemaRequestSchema, type CliCommandUpdateResponseSkipReason, CliCommandUpdateResponseSkipReasonSchema, type CliCommandUpdateViewerRequest, CliCommandUpdateViewerRequestSchema, type CliCommandUpdateViewerResponse, type CliCommandUpdateViewerResponseItem, CliCommandUpdateViewerResponseItemSchema, CliCommandUpdateViewerResponseSchema, type CliCommandViewerConfigAddressGetPath, CliCommandViewerConfigAddressGetPathSchema, type CliCommandViewerConfigAddressGetRequest, CliCommandViewerConfigAddressGetRequestSchema, type CliCommandViewerConfigAddressGetRequestSchemaPath, CliCommandViewerConfigAddressGetRequestSchemaPathSchema, type CliCommandViewerConfigAddressGetRequestSchemaRequest, CliCommandViewerConfigAddressGetRequestSchemaRequestSchema, type CliCommandViewerConfigAddressGetResponse, CliCommandViewerConfigAddressGetResponseSchema, type CliCommandViewerConfigAddressGetResponseSchemaPath, CliCommandViewerConfigAddressGetResponseSchemaPathSchema, type CliCommandViewerConfigAddressGetResponseSchemaRequest, CliCommandViewerConfigAddressGetResponseSchemaRequestSchema, type CliCommandViewerConfigAddressGetViewerRequest, CliCommandViewerConfigAddressGetViewerRequestSchema, type CliCommandViewerConfigAddressGetViewerResponse, CliCommandViewerConfigAddressGetViewerResponseSchema, type CliCommandViewerConfigAddressRequest, CliCommandViewerConfigAddressRequestSchema, type CliCommandViewerConfigAddressSetPath, CliCommandViewerConfigAddressSetPathSchema, type CliCommandViewerConfigAddressSetRequest, CliCommandViewerConfigAddressSetRequestSchema, type CliCommandViewerConfigAddressSetRequestSchemaPath, CliCommandViewerConfigAddressSetRequestSchemaPathSchema, type CliCommandViewerConfigAddressSetRequestSchemaRequest, CliCommandViewerConfigAddressSetRequestSchemaRequestSchema, type CliCommandViewerConfigAddressSetResponseSchemaPath, CliCommandViewerConfigAddressSetResponseSchemaPathSchema, type CliCommandViewerConfigAddressSetResponseSchemaRequest, CliCommandViewerConfigAddressSetResponseSchemaRequestSchema, type CliCommandViewerConfigAddressSetViewerRequest, CliCommandViewerConfigAddressSetViewerRequestSchema, type CliCommandViewerConfigAddressSetViewerResponse, CliCommandViewerConfigAddressSetViewerResponseSchema, type CliCommandViewerConfigAddressViewerRequest, CliCommandViewerConfigAddressViewerRequestSchema, type CliCommandViewerConfigGetPath, CliCommandViewerConfigGetPathSchema, type CliCommandViewerConfigGetRequest, CliCommandViewerConfigGetRequestSchema, type CliCommandViewerConfigGetRequestSchemaPath, CliCommandViewerConfigGetRequestSchemaPathSchema, type CliCommandViewerConfigGetRequestSchemaRequest, CliCommandViewerConfigGetRequestSchemaRequestSchema, type CliCommandViewerConfigGetResponse, CliCommandViewerConfigGetResponseSchema, type CliCommandViewerConfigGetResponseSchemaPath, CliCommandViewerConfigGetResponseSchemaPathSchema, type CliCommandViewerConfigGetResponseSchemaRequest, CliCommandViewerConfigGetResponseSchemaRequestSchema, type CliCommandViewerConfigGetViewerRequest, CliCommandViewerConfigGetViewerRequestSchema, type CliCommandViewerConfigGetViewerResponse, CliCommandViewerConfigGetViewerResponseSchema, type CliCommandViewerConfigRequest, CliCommandViewerConfigRequestSchema, type CliCommandViewerConfigSecretGetPath, CliCommandViewerConfigSecretGetPathSchema, type CliCommandViewerConfigSecretGetRequest, CliCommandViewerConfigSecretGetRequestSchema, type CliCommandViewerConfigSecretGetRequestSchemaPath, CliCommandViewerConfigSecretGetRequestSchemaPathSchema, type CliCommandViewerConfigSecretGetRequestSchemaRequest, CliCommandViewerConfigSecretGetRequestSchemaRequestSchema, type CliCommandViewerConfigSecretGetResponse, CliCommandViewerConfigSecretGetResponseSchema, type CliCommandViewerConfigSecretGetResponseSchemaPath, CliCommandViewerConfigSecretGetResponseSchemaPathSchema, type CliCommandViewerConfigSecretGetResponseSchemaRequest, CliCommandViewerConfigSecretGetResponseSchemaRequestSchema, type CliCommandViewerConfigSecretGetViewerRequest, CliCommandViewerConfigSecretGetViewerRequestSchema, type CliCommandViewerConfigSecretGetViewerResponse, CliCommandViewerConfigSecretGetViewerResponseSchema, type CliCommandViewerConfigSecretRequest, CliCommandViewerConfigSecretRequestSchema, type CliCommandViewerConfigSecretSetPath, CliCommandViewerConfigSecretSetPathSchema, type CliCommandViewerConfigSecretSetRequest, CliCommandViewerConfigSecretSetRequestSchema, type CliCommandViewerConfigSecretSetRequestSchemaPath, CliCommandViewerConfigSecretSetRequestSchemaPathSchema, type CliCommandViewerConfigSecretSetRequestSchemaRequest, CliCommandViewerConfigSecretSetRequestSchemaRequestSchema, type CliCommandViewerConfigSecretSetResponseSchemaPath, CliCommandViewerConfigSecretSetResponseSchemaPathSchema, type CliCommandViewerConfigSecretSetResponseSchemaRequest, CliCommandViewerConfigSecretSetResponseSchemaRequestSchema, type CliCommandViewerConfigSecretSetViewerRequest, CliCommandViewerConfigSecretSetViewerRequestSchema, type CliCommandViewerConfigSecretSetViewerResponse, CliCommandViewerConfigSecretSetViewerResponseSchema, type CliCommandViewerConfigSecretViewerRequest, CliCommandViewerConfigSecretViewerRequestSchema, type CliCommandViewerConfigSignatureGetPath, CliCommandViewerConfigSignatureGetPathSchema, type CliCommandViewerConfigSignatureGetRequest, CliCommandViewerConfigSignatureGetRequestSchema, type CliCommandViewerConfigSignatureGetRequestSchemaPath, CliCommandViewerConfigSignatureGetRequestSchemaPathSchema, type CliCommandViewerConfigSignatureGetRequestSchemaRequest, CliCommandViewerConfigSignatureGetRequestSchemaRequestSchema, type CliCommandViewerConfigSignatureGetResponse, CliCommandViewerConfigSignatureGetResponseSchema, type CliCommandViewerConfigSignatureGetResponseSchemaPath, CliCommandViewerConfigSignatureGetResponseSchemaPathSchema, type CliCommandViewerConfigSignatureGetResponseSchemaRequest, CliCommandViewerConfigSignatureGetResponseSchemaRequestSchema, type CliCommandViewerConfigSignatureGetViewerRequest, CliCommandViewerConfigSignatureGetViewerRequestSchema, type CliCommandViewerConfigSignatureGetViewerResponse, CliCommandViewerConfigSignatureGetViewerResponseSchema, type CliCommandViewerConfigSignatureRequest, CliCommandViewerConfigSignatureRequestSchema, type CliCommandViewerConfigSignatureSetPath, CliCommandViewerConfigSignatureSetPathSchema, type CliCommandViewerConfigSignatureSetRequest, CliCommandViewerConfigSignatureSetRequestSchema, type CliCommandViewerConfigSignatureSetRequestSchemaPath, CliCommandViewerConfigSignatureSetRequestSchemaPathSchema, type CliCommandViewerConfigSignatureSetRequestSchemaRequest, CliCommandViewerConfigSignatureSetRequestSchemaRequestSchema, type CliCommandViewerConfigSignatureSetResponseSchemaPath, CliCommandViewerConfigSignatureSetResponseSchemaPathSchema, type CliCommandViewerConfigSignatureSetResponseSchemaRequest, CliCommandViewerConfigSignatureSetResponseSchemaRequestSchema, type CliCommandViewerConfigSignatureSetViewerRequest, CliCommandViewerConfigSignatureSetViewerRequestSchema, type CliCommandViewerConfigSignatureSetViewerResponse, CliCommandViewerConfigSignatureSetViewerResponseSchema, type CliCommandViewerConfigSignatureViewerRequest, CliCommandViewerConfigSignatureViewerRequestSchema, type CliCommandViewerConfigViewerRequest, CliCommandViewerConfigViewerRequestSchema, type CliCommandViewerGenerateSecretSignaturePairPath, CliCommandViewerGenerateSecretSignaturePairPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaPath, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairResponse, CliCommandViewerGenerateSecretSignaturePairResponseSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaPath, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, type CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, type CliCommandViewerGenerateSecretSignaturePairViewerRequest, CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema, type CliCommandViewerGenerateSecretSignaturePairViewerResponse, CliCommandViewerGenerateSecretSignaturePairViewerResponseSchema, type CliCommandViewerKillPath, CliCommandViewerKillPathSchema, type CliCommandViewerKillRequest, CliCommandViewerKillRequestSchema, type CliCommandViewerKillRequestSchemaPath, CliCommandViewerKillRequestSchemaPathSchema, type CliCommandViewerKillRequestSchemaRequest, CliCommandViewerKillRequestSchemaRequestSchema, type CliCommandViewerKillResponse, CliCommandViewerKillResponseSchema, type CliCommandViewerKillResponseSchemaPath, CliCommandViewerKillResponseSchemaPathSchema, type CliCommandViewerKillResponseSchemaRequest, CliCommandViewerKillResponseSchemaRequestSchema, type CliCommandViewerKillViewerRequest, CliCommandViewerKillViewerRequestSchema, type CliCommandViewerKillViewerResponse, CliCommandViewerKillViewerResponseSchema, type CliCommandViewerRequest, CliCommandViewerRequestSchema, type CliCommandViewerSendPath, CliCommandViewerSendPathSchema, type CliCommandViewerSendRequest, CliCommandViewerSendRequestSchema, type CliCommandViewerSendRequestSchemaPath, CliCommandViewerSendRequestSchemaPathSchema, type CliCommandViewerSendRequestSchemaRequest, CliCommandViewerSendRequestSchemaRequestSchema, type CliCommandViewerSendResponseSchemaPath, CliCommandViewerSendResponseSchemaPathSchema, type CliCommandViewerSendResponseSchemaRequest, CliCommandViewerSendResponseSchemaRequestSchema, type CliCommandViewerSendViewerRequest, CliCommandViewerSendViewerRequestSchema, type CliCommandViewerSendViewerResponse, CliCommandViewerSendViewerResponseSchema, type CliCommandViewerSpawnPath, CliCommandViewerSpawnPathSchema, type CliCommandViewerSpawnRequest, CliCommandViewerSpawnRequestSchema, type CliCommandViewerSpawnRequestSchemaPath, CliCommandViewerSpawnRequestSchemaPathSchema, type CliCommandViewerSpawnRequestSchemaRequest, CliCommandViewerSpawnRequestSchemaRequestSchema, type CliCommandViewerSpawnResponse, CliCommandViewerSpawnResponseSchema, type CliCommandViewerSpawnResponseSchemaPath, CliCommandViewerSpawnResponseSchemaPathSchema, type CliCommandViewerSpawnResponseSchemaRequest, CliCommandViewerSpawnResponseSchemaRequestSchema, type CliCommandViewerSpawnViewerRequest, CliCommandViewerSpawnViewerRequestSchema, type CliCommandViewerSpawnViewerResponse, CliCommandViewerSpawnViewerResponseSchema, type CliCommandViewerViewerRequest, CliCommandViewerViewerRequestSchema, type CliError, CliErrorSchema, type CliErrorType, CliErrorTypeSchema, type CliLevel, CliLevelSchema, type CliPluginsCommand, CliPluginsCommandSchema, type CliPluginsCommandType, CliPluginsCommandTypeSchema, type CliPluginsOutput, CliPluginsOutputSchema, CliStream, type CommandExecutor, type ErrorErrorCreateParams, ErrorErrorCreateParamsSchema, type ErrorErrorCreateParamsStreaming, ErrorErrorCreateParamsStreamingSchema, type ErrorErrorCreateParamsUnary, ErrorErrorCreateParamsUnarySchema, type ErrorErrorResponse, ErrorErrorResponseSchema, type ErrorResponseError, ErrorResponseErrorSchema, type FunctionsAlphaInlineFunction, FunctionsAlphaInlineFunctionSchema, type FunctionsAlphaRemoteFunction, FunctionsAlphaRemoteFunctionSchema, type FunctionsAlphaScalarBranchTaskExpression, FunctionsAlphaScalarBranchTaskExpressionSchema, type FunctionsAlphaScalarInlineFunction, FunctionsAlphaScalarInlineFunctionSchema, type FunctionsAlphaScalarLeafTaskExpression, FunctionsAlphaScalarLeafTaskExpressionSchema, type FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpression, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarRemoteFunction, FunctionsAlphaScalarRemoteFunctionSchema, type FunctionsAlphaScalarScalarFunctionTaskExpression, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, type FunctionsAlphaScalarVectorCompletionTaskExpression, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorBranchTaskExpression, FunctionsAlphaVectorBranchTaskExpressionSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, type FunctionsAlphaVectorExpressionVectorFunctionInputValue, type FunctionsAlphaVectorExpressionVectorFunctionInputValueExpression, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, type FunctionsAlphaVectorInlineFunction, FunctionsAlphaVectorInlineFunctionSchema, type FunctionsAlphaVectorLeafTaskExpression, FunctionsAlphaVectorLeafTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpression, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpression, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, type FunctionsAlphaVectorRemoteFunction, FunctionsAlphaVectorRemoteFunctionSchema, type FunctionsAlphaVectorScalarFunctionTaskExpression, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, type FunctionsAlphaVectorVectorCompletionTaskExpression, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, type FunctionsAlphaVectorVectorFunctionTaskExpression, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, type FunctionsCheckScalarFieldsValidation, FunctionsCheckScalarFieldsValidationSchema, type FunctionsCheckVectorFieldsValidation, FunctionsCheckVectorFieldsValidationSchema, type FunctionsCompiledTask, FunctionsCompiledTaskSchema, type FunctionsExecutionsRequestFunctionExecutionCreateParams, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, type FunctionsExecutionsRequestReasoning, FunctionsExecutionsRequestReasoningSchema, type FunctionsExecutionsRequestStrategy, FunctionsExecutionsRequestStrategySchema, type FunctionsExecutionsResponseOutput, FunctionsExecutionsResponseOutputSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionChunk, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, type FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunk, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, type FunctionsExecutionsResponseStreamingInnerError, FunctionsExecutionsResponseStreamingInnerErrorSchema, type FunctionsExecutionsResponseStreamingObject, FunctionsExecutionsResponseStreamingObjectSchema, type FunctionsExecutionsResponseStreamingReasoningSummaryChunk, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, type FunctionsExecutionsResponseStreamingTaskChunk, FunctionsExecutionsResponseStreamingTaskChunkSchema, type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, type FunctionsExecutionsResponseUnaryFunctionExecution, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, type FunctionsExecutionsResponseUnaryFunctionExecutionTask, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, type FunctionsExecutionsResponseUnaryObject, FunctionsExecutionsResponseUnaryObjectSchema, type FunctionsExecutionsResponseUnaryReasoningSummary, FunctionsExecutionsResponseUnaryReasoningSummarySchema, type FunctionsExecutionsResponseUnaryTask, FunctionsExecutionsResponseUnaryTaskSchema, type FunctionsExecutionsResponseUnaryVectorCompletionTask, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, type FunctionsExpressionAnyOfInputSchema, FunctionsExpressionAnyOfInputSchemaSchema, type FunctionsExpressionArrayInputSchema, FunctionsExpressionArrayInputSchemaSchema, type FunctionsExpressionArrayInputSchemaType, FunctionsExpressionArrayInputSchemaTypeSchema, type FunctionsExpressionAudioInputSchema, FunctionsExpressionAudioInputSchemaSchema, type FunctionsExpressionAudioInputSchemaType, FunctionsExpressionAudioInputSchemaTypeSchema, type FunctionsExpressionBooleanInputSchema, FunctionsExpressionBooleanInputSchemaSchema, type FunctionsExpressionBooleanInputSchemaType, FunctionsExpressionBooleanInputSchemaTypeSchema, type FunctionsExpressionExpression, FunctionsExpressionExpressionSchema, type FunctionsExpressionFileInputSchema, FunctionsExpressionFileInputSchemaSchema, type FunctionsExpressionFileInputSchemaType, FunctionsExpressionFileInputSchemaTypeSchema, type FunctionsExpressionImageInputSchema, FunctionsExpressionImageInputSchemaSchema, type FunctionsExpressionImageInputSchemaType, FunctionsExpressionImageInputSchemaTypeSchema, type FunctionsExpressionInputSchema, FunctionsExpressionInputSchemaSchema, type FunctionsExpressionInputValue, type FunctionsExpressionInputValueExpression, type FunctionsExpressionInputValueExpressionObject, FunctionsExpressionInputValueExpressionSchema, type FunctionsExpressionInputValueObject, FunctionsExpressionInputValueSchema, type FunctionsExpressionIntegerInputSchema, FunctionsExpressionIntegerInputSchemaSchema, type FunctionsExpressionIntegerInputSchemaType, FunctionsExpressionIntegerInputSchemaTypeSchema, type FunctionsExpressionNumberInputSchema, FunctionsExpressionNumberInputSchemaSchema, type FunctionsExpressionNumberInputSchemaType, FunctionsExpressionNumberInputSchemaTypeSchema, type FunctionsExpressionObjectInputSchema, FunctionsExpressionObjectInputSchemaSchema, type FunctionsExpressionObjectInputSchemaType, FunctionsExpressionObjectInputSchemaTypeSchema, type FunctionsExpressionParams, FunctionsExpressionParamsSchema, type FunctionsExpressionSpecial, FunctionsExpressionSpecialSchema, type FunctionsExpressionStringInputSchema, FunctionsExpressionStringInputSchemaSchema, type FunctionsExpressionStringInputSchemaType, FunctionsExpressionStringInputSchemaTypeSchema, type FunctionsExpressionTaskOutput, FunctionsExpressionTaskOutputSchema, type FunctionsExpressionVideoInputSchema, FunctionsExpressionVideoInputSchemaSchema, type FunctionsExpressionVideoInputSchemaType, FunctionsExpressionVideoInputSchemaTypeSchema, type FunctionsFullFunction, FunctionsFullFunctionSchema, type FunctionsFullInlineFunction, type FunctionsFullInlineFunctionOrRemoteCommitOptional, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, type FunctionsFullRemoteFunction, FunctionsFullRemoteFunctionSchema, type FunctionsFunction, FunctionsFunctionSchema, type FunctionsFunctionType, FunctionsFunctionTypeSchema, type FunctionsInlineFunction, FunctionsInlineFunctionSchema, type FunctionsInlineProfile, type FunctionsInlineProfileOrRemoteCommitOptional, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, type FunctionsInlineTasksProfile, FunctionsInlineTasksProfileSchema, type FunctionsPlaceholderScalarFunctionTask, type FunctionsPlaceholderScalarFunctionTaskExpression, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, type FunctionsPlaceholderVectorFunctionTask, type FunctionsPlaceholderVectorFunctionTaskExpression, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, type FunctionsProfile, FunctionsProfileSchema, type FunctionsProfilesComputationsRequestDatasetItem, FunctionsProfilesComputationsRequestDatasetItemSchema, type FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParams, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, type FunctionsProfilesComputationsRequestTarget, FunctionsProfilesComputationsRequestTargetSchema, type FunctionsProfilesComputationsResponseFittingStats, FunctionsProfilesComputationsResponseFittingStatsSchema, type FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunk, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, type FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunk, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, type FunctionsProfilesComputationsResponseStreamingObject, FunctionsProfilesComputationsResponseStreamingObjectSchema, type FunctionsProfilesComputationsResponseUnaryFunctionExecution, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, type FunctionsProfilesComputationsResponseUnaryFunctionProfileComputation, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, type FunctionsProfilesComputationsResponseUnaryObject, FunctionsProfilesComputationsResponseUnaryObjectSchema, type FunctionsRemoteFunction, FunctionsRemoteFunctionSchema, type FunctionsRemoteProfile, FunctionsRemoteProfileSchema, type FunctionsRemoteTasksProfile, FunctionsRemoteTasksProfileSchema, type FunctionsScalarFunctionTask, type FunctionsScalarFunctionTaskExpression, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, type FunctionsTask, type FunctionsTaskExpression, FunctionsTaskExpressionSchema, type FunctionsTaskProfile, FunctionsTaskProfileSchema, FunctionsTaskSchema, type FunctionsVectorCompletionTask, type FunctionsVectorCompletionTaskExpression, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, type FunctionsVectorFunctionTask, type FunctionsVectorFunctionTaskExpression, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, type HttpViewerAgentCompletionCreateParams, HttpViewerAgentCompletionCreateParamsSchema, type HttpViewerAgentCompletionRequest, HttpViewerAgentCompletionRequestSchema, type HttpViewerFunctionExecutionCreateParams, HttpViewerFunctionExecutionCreateParamsSchema, type HttpViewerFunctionExecutionRequest, HttpViewerFunctionExecutionRequestSchema, type HttpViewerRequest, HttpViewerRequestSchema, type HttpViewerResponseError, HttpViewerResponseErrorSchema, type LaboratoriesClientLaboratory, LaboratoriesClientLaboratorySchema, type LaboratoriesClientLaboratoryType, LaboratoriesClientLaboratoryTypeSchema, type LaboratoriesLaboratory, LaboratoriesLaboratorySchema, type McpResourceListResourcesRequest, McpResourceListResourcesRequestSchema, type McpResourceReadResourceRequestParams, McpResourceReadResourceRequestParamsSchema, type McpToolCallToolRequestParams, McpToolCallToolRequestParamsSchema, type McpToolListToolsRequest, McpToolListToolsRequestSchema, type McpToolTaskMetadata, McpToolTaskMetadataSchema, ObjectiveAI, ObjectiveAIFetchError, type ObjectiveAIOptions, ObjectiveAIOptionsSchema, PluginCommandExecutor, type PrefixedUuid, PrefixedUuidSchema, type Remote, type RemotePath, type RemotePathCommitOptional, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, type RequestOptions, RequestOptionsSchema, Stream, type SwarmInlineSwarm, type SwarmInlineSwarmBase, type SwarmInlineSwarmBaseOrRemote, type SwarmInlineSwarmBaseOrRemoteCommitOptional, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, type SwarmRemoteSwarm, type SwarmRemoteSwarmBase, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, type SwarmSwarm, type SwarmSwarmBase, SwarmSwarmBaseSchema, SwarmSwarmSchema, type VectorCompletionsRequestVectorCompletionCreateParams, VectorCompletionsRequestVectorCompletionCreateParamsSchema, type VectorCompletionsRequestVectorCompletionCreateParamsStreaming, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, type VectorCompletionsRequestVectorCompletionCreateParamsUnary, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, type VectorCompletionsResponseStreamingAgentCompletionChunk, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, type VectorCompletionsResponseStreamingInnerError, VectorCompletionsResponseStreamingInnerErrorSchema, type VectorCompletionsResponseStreamingObject, VectorCompletionsResponseStreamingObjectSchema, type VectorCompletionsResponseStreamingVectorCompletionChunk, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, type VectorCompletionsResponseUnaryAgentCompletion, VectorCompletionsResponseUnaryAgentCompletionSchema, type VectorCompletionsResponseUnaryObject, VectorCompletionsResponseUnaryObjectSchema, type VectorCompletionsResponseUnaryVectorCompletion, VectorCompletionsResponseUnaryVectorCompletionSchema, type VectorCompletionsResponseVote, VectorCompletionsResponseVoteSchema, type VectorCompletionsVectorResponses, VectorCompletionsVectorResponsesSchema, ViewerCommandExecutor, type Weights, type WeightsEntry, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsLaboratoriesAttachExecute, agentsLaboratoriesAttachExecuteTransform, agentsLaboratoriesAttachRequestSchemaExecute, agentsLaboratoriesAttachRequestSchemaExecuteTransform, agentsLaboratoriesAttachResponseSchemaExecute, agentsLaboratoriesAttachResponseSchemaExecuteTransform, agentsLaboratoriesDetachExecute, agentsLaboratoriesDetachExecuteTransform, agentsLaboratoriesDetachRequestSchemaExecute, agentsLaboratoriesDetachRequestSchemaExecuteTransform, agentsLaboratoriesDetachResponseSchemaExecute, agentsLaboratoriesDetachResponseSchemaExecuteTransform, agentsLaboratoriesListExecute, agentsLaboratoriesListExecuteTransform, agentsLaboratoriesListRequestSchemaExecute, agentsLaboratoriesListRequestSchemaExecuteTransform, agentsLaboratoriesListResponseSchemaExecute, agentsLaboratoriesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsGetExecute, apiConfigMcpTimeoutMsGetExecuteTransform, apiConfigMcpTimeoutMsGetRequestSchemaExecute, apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsGetResponseSchemaExecute, apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsSetExecute, apiConfigMcpTimeoutMsSetExecuteTransform, apiConfigMcpTimeoutMsSetRequestSchemaExecute, apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsSetResponseSchemaExecute, apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerConfigAddressGetExecute, viewerConfigAddressGetExecuteTransform, viewerConfigAddressGetRequestSchemaExecute, viewerConfigAddressGetRequestSchemaExecuteTransform, viewerConfigAddressGetResponseSchemaExecute, viewerConfigAddressGetResponseSchemaExecuteTransform, viewerConfigAddressSetExecute, viewerConfigAddressSetExecuteTransform, viewerConfigAddressSetRequestSchemaExecute, viewerConfigAddressSetRequestSchemaExecuteTransform, viewerConfigAddressSetResponseSchemaExecute, viewerConfigAddressSetResponseSchemaExecuteTransform, viewerConfigGetExecute, viewerConfigGetExecuteTransform, viewerConfigGetRequestSchemaExecute, viewerConfigGetRequestSchemaExecuteTransform, viewerConfigGetResponseSchemaExecute, viewerConfigGetResponseSchemaExecuteTransform, viewerConfigSecretGetExecute, viewerConfigSecretGetExecuteTransform, viewerConfigSecretGetRequestSchemaExecute, viewerConfigSecretGetRequestSchemaExecuteTransform, viewerConfigSecretGetResponseSchemaExecute, viewerConfigSecretGetResponseSchemaExecuteTransform, viewerConfigSecretSetExecute, viewerConfigSecretSetExecuteTransform, viewerConfigSecretSetRequestSchemaExecute, viewerConfigSecretSetRequestSchemaExecuteTransform, viewerConfigSecretSetResponseSchemaExecute, viewerConfigSecretSetResponseSchemaExecuteTransform, viewerConfigSignatureGetExecute, viewerConfigSignatureGetExecuteTransform, viewerConfigSignatureGetRequestSchemaExecute, viewerConfigSignatureGetRequestSchemaExecuteTransform, viewerConfigSignatureGetResponseSchemaExecute, viewerConfigSignatureGetResponseSchemaExecuteTransform, viewerConfigSignatureSetExecute, viewerConfigSignatureSetExecuteTransform, viewerConfigSignatureSetRequestSchemaExecute, viewerConfigSignatureSetRequestSchemaExecuteTransform, viewerConfigSignatureSetResponseSchemaExecute, viewerConfigSignatureSetResponseSchemaExecuteTransform, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSendExecute, viewerSendExecuteTransform, viewerSendRequestSchemaExecute, viewerSendRequestSchemaExecuteTransform, viewerSendResponseSchemaExecute, viewerSendResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };

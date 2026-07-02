@@ -1,6 +1,6 @@
 import { JsonValueSchema } from './chunk-KPCAN2LQ.js';
 export { ViewerEventSchema, __resetForTests, listen } from './chunk-KPCAN2LQ.js';
-import z1785, { z } from 'zod';
+import z1784, { z } from 'zod';
 
 var AgentClaudeAgentSdkEffortSchema = z.union([z.literal("low").describe("Minimal output, concise responses.").meta({ "variantTitle": "Low" }), z.literal("medium").describe("Balanced output (default, normalized away during preparation).").meta({ "variantTitle": "Medium" }), z.literal("high").describe("Detailed output with thorough explanations.").meta({ "variantTitle": "High" }), z.literal("xhigh").describe("Extra-high effort, above `High` but below `Max`.").meta({ "variantTitle": "Xhigh" }), z.literal("max").describe("Maximum effort, most detailed output possible.").meta({ "variantTitle": "Max" })]).describe("The effort level for model output.\n\nThis setting hints to the model how detailed its responses should be.").meta({ title: "agent.claude_agent_sdk.Effort" });
 var AgentClaudeAgentSdkOutputModeSchema = z.literal("instruction").describe("The model is instructed via the prompt to output a specific key.\n\nThis is the default and most widely supported mode.").meta({ title: "agent.claude_agent_sdk.OutputMode" });
@@ -2110,10 +2110,10 @@ var AgentCompletionsResponseUnaryAgentCompletionSchema = z.object({
   usage: AgentCompletionsResponseUsageSchema
 }).describe("A complete agent completion response.").meta({ title: "agent.completions.response.unary.AgentCompletion" });
 var AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema = AgentCompletionsRequestAgentCompletionCreateParamsSchema.extend({
-  stream: z1785.literal(true)
+  stream: z1784.literal(true)
 });
 var AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema = AgentCompletionsRequestAgentCompletionCreateParamsSchema.extend({
-  stream: z1785.literal(false).optional().nullable()
+  stream: z1784.literal(false).optional().nullable()
 });
 function agentCompletionsCreateAgentCompletion(client, body, options) {
   if (body.stream) {
@@ -2466,7 +2466,16 @@ var CliCommandAgentsEnqueueResponseSchema = z.object({
   id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
 }).describe("The freshly parked queue row: its id and the target it's scoped\nto (exactly one of `agent_instance_hierarchy` / `agent_tag` is\nset).").meta({ title: "cli.command.agents.enqueue.Response" });
 var CliCommandAgentsEnqueueViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsEnqueueRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.enqueue.ViewerRequest" });
 var CliCommandAgentsEnqueueViewerResponseSchema = z.object({
@@ -2549,7 +2558,16 @@ var CliCommandAgentsGetRequestSchema = z.object({
 }).meta({ title: "cli.command.agents.get.Request" });
 var CliCommandAgentsGetResponseSchema = RemotePathSchema.and(z.object({})).describe("Response for `agents get` \u2014 an Agent base definition with its remote path.").meta({ title: "cli.command.agents.get.Response" });
 var CliCommandAgentsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.get.ViewerRequest" });
 var CliCommandAgentsGetViewerResponseSchema = z.object({
@@ -2643,7 +2661,16 @@ var CliCommandAgentsInstancesGetRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.instances.get.Request" });
 var CliCommandAgentsInstancesGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsInstancesGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.instances.get.ViewerRequest" });
 var CliCommandAgentsInstancesListResponseItemSchema = z.object({
@@ -2725,7 +2752,16 @@ var CliCommandAgentsInstancesListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.instances.list.Request" });
 var CliCommandAgentsInstancesListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsInstancesListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.instances.list.ViewerRequest" });
 var CliCommandAgentsInstancesListViewerResponseItemSchema = z.object({
@@ -2803,7 +2839,16 @@ var CliCommandAgentsLaboratoriesAttachResponseSchema = z.object({
   laboratory_id: z.string().describe("The laboratory id that was attached to the target.")
 }).describe("Confirmation \u2014 attach succeeded; echoes the laboratory id that was\nattached.").meta({ title: "cli.command.agents.laboratories.attach.Response" });
 var CliCommandAgentsLaboratoriesAttachViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLaboratoriesAttachRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.laboratories.attach.ViewerRequest" });
 var CliCommandAgentsLaboratoriesAttachViewerResponseSchema = z.object({
@@ -2889,7 +2934,16 @@ var CliCommandAgentsLaboratoriesDetachResponseSchema = z.object({
   laboratory_id: z.string().describe("The laboratory id that was detached from the target.")
 }).describe("Confirmation \u2014 detach succeeded; echoes the laboratory id that was\ndetached.").meta({ title: "cli.command.agents.laboratories.detach.Response" });
 var CliCommandAgentsLaboratoriesDetachViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLaboratoriesDetachRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.laboratories.detach.ViewerRequest" });
 var CliCommandAgentsLaboratoriesDetachViewerResponseSchema = z.object({
@@ -2974,7 +3028,16 @@ var CliCommandAgentsLaboratoriesListResponseItemSchema = z.object({
   id: z.string()
 }).describe("One attached laboratory id.").meta({ title: "cli.command.agents.laboratories.list.ResponseItem" });
 var CliCommandAgentsLaboratoriesListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLaboratoriesListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.laboratories.list.ViewerRequest" });
 var CliCommandAgentsLaboratoriesListViewerResponseItemSchema = z.object({
@@ -3047,7 +3110,16 @@ var CliCommandAgentsListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.list.Request" });
 var CliCommandAgentsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.list.ViewerRequest" });
 var CliCommandAgentsListViewerResponseItemSchema = z.object({
@@ -3217,7 +3289,16 @@ var CliCommandAgentsLogsListResponseItemSchema = z.union([z.object({
   type: z.literal("tool_response")
 }).describe("One tool call's response. Blocks are grouped per\n`tool_call_id` (in addition to `agent_instance_hierarchy` +\n`response_id`), so two responses in the same turn yield two\nblocks.").meta({ "variantTitle": "ToolResponse" })]).describe("One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender \u2260 producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself \u2014 their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `queued_at` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.").meta({ title: "cli.command.agents.logs.list.ResponseItem" });
 var CliCommandAgentsLogsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLogsListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.logs.list.ViewerRequest" });
 var CliCommandAgentsLogsListViewerResponseItemSchema = z.object({
@@ -3636,7 +3717,16 @@ var CliCommandAgentsLogsOpenResponseSchema = z.union([z.object({
   type: z.literal("file")
 })).meta({ "variantTitle": "File" })]).describe('Resolved payload for one `logs.messages."index"`. Tagged by\n`type`, snake_case discriminant. The MCP projection in\n[`CommandResponse::into_mcp`] hands media variants over as\n[`ContentBlock`]s and text as a bare JSON string \u2014 matching the\nexisting `agents queue read id` projection of `RichContentPart`.\nThe three request-blob variants render as JSONL with their full\ntyped `\u2026CreateParams` body so callers can introspect request\nmetadata.\n\n[`ContentBlock`]: crate::mcp::tool::ContentBlock').meta({ title: "cli.command.agents.logs.open.Response" });
 var CliCommandAgentsLogsOpenViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLogsOpenRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.logs.open.ViewerRequest" });
 var CliCommandAgentsLogsOpenViewerResponseSchema = z.object({
@@ -3728,7 +3818,16 @@ var CliCommandAgentsLogsSubscribeRequestSchema = z.object({
 }).meta({ title: "cli.command.agents.logs.subscribe.Request" });
 var CliCommandAgentsLogsSubscribeResponseItemSchema = z.union([CliCommandAgentsLogsListResponseItemSchema.meta({ "title": "cli.command.agents.logs.list.ResponseItem", "variantTitle": "Item" }), CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema.meta({ "title": "cli.command.agents.logs.subscribe.AgentsInactiveTag", "variantTitle": "AgentsInactive" })]).describe('Subscribe\'s wire shape. Either a real parts-grouped block\n(the EXACT same enum `read all` / `read pending` emit) OR\nthe literal string `"agents_inactive"`. `#[serde(untagged)]`\nso the `Item` arm passes through transparently \u2014 JSONL\nconsumers see either a block JSON object or a bare string.').meta({ title: "cli.command.agents.logs.subscribe.ResponseItem" });
 var CliCommandAgentsLogsSubscribeViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLogsSubscribeRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.logs.subscribe.ViewerRequest" });
 var CliCommandAgentsLogsSubscribeViewerResponseItemSchema = z.object({
@@ -3804,7 +3903,16 @@ var CliCommandAgentsLogsTokenUsageGetResponseSchema = z.object({
   total_tokens: z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().meta({ omitempty: true }).optional()
 }).describe("The current stored snapshot. `total_tokens` is `None` when no\nagent-completion usage has been recorded for this AIH yet.").meta({ title: "cli.command.agents.logs.token_usage.get.Response" });
 var CliCommandAgentsLogsTokenUsageGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLogsTokenUsageGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.logs.token_usage.get.ViewerRequest" });
 var CliCommandAgentsLogsTokenUsageGetViewerResponseSchema = z.object({
@@ -3895,7 +4003,16 @@ var CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema = z.object({
 // src/cli/command/agents/logs/token_usage/subscribe/responseItem.ts
 var CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema = z.union([CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema.meta({ "title": "cli.command.agents.logs.token_usage.subscribe.TokenUsage", "variantTitle": "Item" }), CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema.meta({ "title": "cli.command.agents.logs.token_usage.subscribe.AgentsInactiveTag", "variantTitle": "AgentsInactive" })]).describe('Subscribe\'s wire shape: either a token-usage snapshot (`Item`) or\nthe literal string `"agents_inactive"`. `#[serde(untagged)]` so\n`Item` passes through as a plain object and `AgentsInactive` as a\nbare string \u2014 the same convention as `agents logs subscribe`.').meta({ title: "cli.command.agents.logs.token_usage.subscribe.ResponseItem" });
 var CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsLogsTokenUsageSubscribeRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.logs.token_usage.subscribe.ViewerRequest" });
 var CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItemSchema = z.object({
@@ -3978,7 +4095,16 @@ var CliCommandAgentsMcpResourcesListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.mcp.resources.list.Request" });
 var CliCommandAgentsMcpResourcesListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMcpResourcesListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.mcp.resources.list.ViewerRequest" });
 async function agentsMcpResourcesListExecuteTransform(executor, request, transform) {
@@ -4053,7 +4179,16 @@ var CliCommandAgentsMcpResourcesReadRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.mcp.resources.read.Request" });
 var CliCommandAgentsMcpResourcesReadViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMcpResourcesReadRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.mcp.resources.read.ViewerRequest" });
 async function agentsMcpResourcesReadExecuteTransform(executor, request, transform) {
@@ -4124,7 +4259,16 @@ var CliCommandAgentsMcpServersListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.mcp.servers.list.Request" });
 var CliCommandAgentsMcpServersListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMcpServersListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.mcp.servers.list.ViewerRequest" });
 async function agentsMcpServersListExecuteTransform(executor, request, transform) {
@@ -4208,7 +4352,16 @@ var CliCommandAgentsMcpToolsCallRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.mcp.tools.call.Request" });
 var CliCommandAgentsMcpToolsCallViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMcpToolsCallRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.mcp.tools.call.ViewerRequest" });
 async function agentsMcpToolsCallExecuteTransform(executor, request, transform) {
@@ -4284,7 +4437,16 @@ var CliCommandAgentsMcpToolsListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.mcp.tools.list.Request" });
 var CliCommandAgentsMcpToolsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMcpToolsListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.mcp.tools.list.ViewerRequest" });
 async function agentsMcpToolsListExecuteTransform(executor, request, transform) {
@@ -4370,7 +4532,16 @@ var CliCommandAgentsMessageResponseSchema = z.union([z.object({
   type: z.literal("id")
 }).describe("The handler execed a detached `agents spawn` child (with the\nagent's lock transferred into it) and the child yielded its\n`Id` first item \u2014 the bare `agent_instance_hierarchy` the\nrunner just minted or resumed.").meta({ "variantTitle": "Id" })]).describe('Unary response. Exactly one of these per call. Internally tagged\nvia `type`; bare unit variant `Delivered` serializes as\n`{"type":"delivered"}`.').meta({ title: "cli.command.agents.message.Response" });
 var CliCommandAgentsMessageViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsMessageRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.message.ViewerRequest" });
 var CliCommandAgentsMessageViewerResponseSchema = z.object({
@@ -4474,7 +4645,16 @@ var CliCommandAgentsPublishResponseSchema = z.object({
   sha: z.string()
 }).meta({ title: "cli.command.agents.publish.Response" });
 var CliCommandAgentsPublishViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsPublishRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.publish.ViewerRequest" });
 var CliCommandAgentsPublishViewerResponseSchema = z.object({
@@ -4564,7 +4744,16 @@ var CliCommandAgentsQueueDeleteResponseSchema = z.object({
   key: z.string().nullable().describe("Idempotency token, if the dropped row had one.").meta({ omitempty: true }).optional()
 }).describe("What was deleted. Carries every column of the original\n`prompts` row so the caller can confirm the drop:\nexactly one of `agent_instance_hierarchy` / `agent_tag` is set\n(matching the original target), `enqueued_at` is the original\nunix-seconds timestamp, and `content` is the reconstructed\n`RichContent` body.").meta({ title: "cli.command.agents.queue.delete.Response" });
 var CliCommandAgentsQueueDeleteViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsQueueDeleteRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.queue.delete.ViewerRequest" });
 var CliCommandAgentsQueueDeleteViewerResponseSchema = z.object({
@@ -4688,7 +4877,16 @@ var CliCommandAgentsQueueDeliverValueResponseItemSchema = z.object({
 // src/cli/command/agents/queue/deliver/responseItem.ts
 var CliCommandAgentsQueueDeliverResponseItemSchema = z.union([CliCommandAgentsQueueDeliverValueResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.ValueResponseItem", "variantTitle": "Value" }), CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.AgentActiveResponseItem", "variantTitle": "AgentActive" }), CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.AgentSpawnedResponseItem", "variantTitle": "AgentSpawned" }), CliCommandAgentsQueueDeliverTagActiveResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.TagActiveResponseItem", "variantTitle": "TagActive" }), CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema.meta({ "title": "cli.command.agents.queue.deliver.TagSpawnedResponseItem", "variantTitle": "TagSpawned" }), CliCommandAgentsQueueDeliverAllAgentsActiveSchema.meta({ "title": "cli.command.agents.queue.deliver.AllAgentsActive", "variantTitle": "AllAgentsActive" })]).describe('One stream item from `agents queue deliver`. Untagged \u2014 the\nvariants are disjoint on the wire: `Value` requires `value`,\n`AgentActive` / `AgentSpawned` / `TagActive` / `TagSpawned` carry\ndistinct `type` markers, and `AllAgentsActive` is the bare string\n`"AllAgentsActive"`.').meta({ title: "cli.command.agents.queue.deliver.ResponseItem" });
 var CliCommandAgentsQueueDeliverViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsQueueDeliverRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.queue.deliver.ViewerRequest" });
 var CliCommandAgentsQueueDeliverViewerResponseItemSchema = z.object({
@@ -4783,7 +4981,16 @@ var CliCommandAgentsQueueListResponseItemSchema = z.union([z.object({
   sender_agent_instance_hierarchy: z.string()
 }).meta({ "variantTitle": "Tag" })]).describe("One pending `message_queue` row, with its content rows\ngrouped as `parts`. Two variants \u2014 direct AIH target or tag\ntarget \u2014 both flat (no nested `LookupState`).").meta({ title: "cli.command.agents.queue.list.ResponseItem" });
 var CliCommandAgentsQueueListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsQueueListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.queue.list.ViewerRequest" });
 var CliCommandAgentsQueueListViewerResponseItemSchema = z.object({
@@ -4855,7 +5062,16 @@ var CliCommandAgentsQueueOpenRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.queue.open.Request" });
 var CliCommandAgentsQueueOpenViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsQueueOpenRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.queue.open.ViewerRequest" });
 var CliCommandAgentsQueueOpenViewerResponseSchema = z.object({
@@ -4948,7 +5164,16 @@ var CliCommandAgentsSpawnRequestSchema = z.object({
 }).meta({ title: "cli.command.agents.spawn.Request" });
 var CliCommandAgentsSpawnResponseItemSchema = z.union([AgentCompletionsResponseStreamingAgentCompletionChunkSchema.meta({ "title": "agent.completions.response.streaming.AgentCompletionChunk", "variantTitle": "Chunk" }), z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.agents.spawn.ResponseItem" });
 var CliCommandAgentsSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.spawn.ViewerRequest" });
 var CliCommandAgentsSpawnViewerResponseSchema = z.object({
@@ -5092,7 +5317,16 @@ var CliCommandAgentsTagsApplyResponseSchema = z.union([z.object({
   tag_group_id: z.number().int().min(-9223372036854776e3).max(9223372036854776e3)
 }).meta({ "variantTitle": "Grouped" })]).describe('Wire shape mirrors the resolved source state:\n`{"by":"agent_tag","name":...,"agent_tag":...,"state":"bound"|"grouped", \u2026}`.').meta({ "variantTitle": "AgentTag" })]).describe("Apply response. Each variant carries the freshly-applied state\nso callers don't need a follow-up lookup.").meta({ title: "cli.command.agents.tags.apply.Response" });
 var CliCommandAgentsTagsApplyViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsTagsApplyRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.tags.apply.ViewerRequest" });
 var CliCommandAgentsTagsApplyViewerResponseSchema = z.object({
@@ -5209,7 +5443,16 @@ var CliCommandAgentsTagsLookupResponseSchema = z.union([z.object({
   by: z.literal("absent")
 }).describe('The looked-up tag is not registered. Hoisted to a top-level\nvariant (rather than as a `LookupState::Absent` nested in\n`Tag`) so the wire shape says "no such tag" instead of\n"the tag exists with state absent".').meta({ "variantTitle": "Absent" })]).meta({ title: "cli.command.agents.tags.lookup.Response" });
 var CliCommandAgentsTagsLookupViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsTagsLookupRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.tags.lookup.ViewerRequest" });
 var CliCommandAgentsTagsLookupViewerResponseSchema = z.object({
@@ -5277,7 +5520,16 @@ var CliCommandAgentsWaitRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.wait.Request" });
 var CliCommandAgentsWaitViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandAgentsWaitRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.agents.wait.ViewerRequest" });
 var CliCommandOkSchema = z.literal("Ok").describe('Success-only response shape. Wire form is the bare string `"Ok"` \u2014\na single-variant enum gives us a typed sentinel that serializes and\ndeserializes through serde as the static string. Used as `Response`\non every cli leaf whose only success signal is "it worked."').meta({ title: "cli.command.Ok" });
@@ -5370,7 +5622,16 @@ var CliCommandApiConfigAddressGetResponseSchema = z.object({
   address: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.address.get.Response" });
 var CliCommandApiConfigAddressGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigAddressGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.address.get.ViewerRequest" });
 var CliCommandApiConfigAddressGetViewerResponseSchema = z.object({
@@ -5456,7 +5717,16 @@ var CliCommandApiConfigAddressSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.address.set.Request" });
 var CliCommandApiConfigAddressSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigAddressSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.address.set.ViewerRequest" });
 var CliCommandApiConfigAddressSetViewerResponseSchema = z.object({
@@ -5543,7 +5813,16 @@ var CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema = z.object({
   backoff_max_elapsed_time_ms: z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.backoff_max_elapsed_time_ms.get.Response" });
 var CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.backoff_max_elapsed_time_ms.get.ViewerRequest" });
 var CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponseSchema = z.object({
@@ -5626,7 +5905,16 @@ var CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema = z.object({
   value: z.string().describe("The new MCP timeout in milliseconds, as a decimal integer string.\nCarried verbatim here; the cli handler parses it to a `u64`.")
 }).meta({ title: "cli.command.api.config.backoff_max_elapsed_time_ms.set.Request" });
 var CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.backoff_max_elapsed_time_ms.set.ViewerRequest" });
 var CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponseSchema = z.object({
@@ -5713,7 +6001,16 @@ var CliCommandApiConfigCommitAuthorEmailGetResponseSchema = z.object({
   commit_author_email: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.commit_author_email.get.Response" });
 var CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigCommitAuthorEmailGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.commit_author_email.get.ViewerRequest" });
 var CliCommandApiConfigCommitAuthorEmailGetViewerResponseSchema = z.object({
@@ -5796,7 +6093,16 @@ var CliCommandApiConfigCommitAuthorEmailSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.commit_author_email.set.Request" });
 var CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigCommitAuthorEmailSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.commit_author_email.set.ViewerRequest" });
 var CliCommandApiConfigCommitAuthorEmailSetViewerResponseSchema = z.object({
@@ -5883,7 +6189,16 @@ var CliCommandApiConfigCommitAuthorNameGetResponseSchema = z.object({
   commit_author_name: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.commit_author_name.get.Response" });
 var CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigCommitAuthorNameGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.commit_author_name.get.ViewerRequest" });
 var CliCommandApiConfigCommitAuthorNameGetViewerResponseSchema = z.object({
@@ -5966,7 +6281,16 @@ var CliCommandApiConfigCommitAuthorNameSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.commit_author_name.set.Request" });
 var CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigCommitAuthorNameSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.commit_author_name.set.ViewerRequest" });
 var CliCommandApiConfigCommitAuthorNameSetViewerResponseSchema = z.object({
@@ -6062,7 +6386,16 @@ var CliCommandApiConfigGetResponseSchema = z.object({
   x_title: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.get.Response" });
 var CliCommandApiConfigGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.get.ViewerRequest" });
 var CliCommandApiConfigGetViewerResponseSchema = z.object({
@@ -6147,7 +6480,16 @@ var CliCommandApiConfigGithubAuthorizationGetResponseSchema = z.object({
   github_authorization: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.github_authorization.get.Response" });
 var CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigGithubAuthorizationGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.github_authorization.get.ViewerRequest" });
 var CliCommandApiConfigGithubAuthorizationGetViewerResponseSchema = z.object({
@@ -6230,7 +6572,16 @@ var CliCommandApiConfigGithubAuthorizationSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.github_authorization.set.Request" });
 var CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigGithubAuthorizationSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.github_authorization.set.ViewerRequest" });
 var CliCommandApiConfigGithubAuthorizationSetViewerResponseSchema = z.object({
@@ -6317,7 +6668,16 @@ var CliCommandApiConfigHttpRefererGetResponseSchema = z.object({
   http_referer: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.http_referer.get.Response" });
 var CliCommandApiConfigHttpRefererGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigHttpRefererGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.http_referer.get.ViewerRequest" });
 var CliCommandApiConfigHttpRefererGetViewerResponseSchema = z.object({
@@ -6400,7 +6760,16 @@ var CliCommandApiConfigHttpRefererSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.http_referer.set.Request" });
 var CliCommandApiConfigHttpRefererSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigHttpRefererSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.http_referer.set.ViewerRequest" });
 var CliCommandApiConfigHttpRefererSetViewerResponseSchema = z.object({
@@ -6486,7 +6855,16 @@ var CliCommandApiConfigMcpAuthorizationAddRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.mcp_authorization.add.Request" });
 var CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpAuthorizationAddRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_authorization.add.ViewerRequest" });
 var CliCommandApiConfigMcpAuthorizationAddViewerResponseSchema = z.object({
@@ -6569,7 +6947,16 @@ var CliCommandApiConfigMcpAuthorizationDelRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.mcp_authorization.del.Request" });
 var CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpAuthorizationDelRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_authorization.del.ViewerRequest" });
 var CliCommandApiConfigMcpAuthorizationDelViewerResponseSchema = z.object({
@@ -6654,7 +7041,16 @@ var CliCommandApiConfigMcpAuthorizationGetResponseSchema = z.object({
   mcp_authorization: z.record(z.string(), z.string()).nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.mcp_authorization.get.Response" });
 var CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpAuthorizationGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_authorization.get.ViewerRequest" });
 var CliCommandApiConfigMcpAuthorizationGetViewerResponseSchema = z.object({
@@ -6741,7 +7137,16 @@ var CliCommandApiConfigMcpTimeoutMsGetResponseSchema = z.object({
   mcp_timeout_ms: z.number().int().min(0).max(18446744073709552e3).nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.mcp_timeout_ms.get.Response" });
 var CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpTimeoutMsGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_timeout_ms.get.ViewerRequest" });
 var CliCommandApiConfigMcpTimeoutMsGetViewerResponseSchema = z.object({
@@ -6824,7 +7229,16 @@ var CliCommandApiConfigMcpTimeoutMsSetRequestSchema = z.object({
   value: z.string().describe("The new MCP timeout in milliseconds, as a decimal integer string.\nCarried verbatim here; the cli handler parses it to a `u64`.")
 }).meta({ title: "cli.command.api.config.mcp_timeout_ms.set.Request" });
 var CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpTimeoutMsSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_timeout_ms.set.ViewerRequest" });
 var CliCommandApiConfigMcpTimeoutMsSetViewerResponseSchema = z.object({
@@ -6911,7 +7325,16 @@ var CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema = z.object({
   objectiveai_authorization: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.objectiveai_authorization.get.Response" });
 var CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.objectiveai_authorization.get.ViewerRequest" });
 var CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponseSchema = z.object({
@@ -6994,7 +7417,16 @@ var CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.objectiveai_authorization.set.Request" });
 var CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.objectiveai_authorization.set.ViewerRequest" });
 var CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponseSchema = z.object({
@@ -7081,7 +7513,16 @@ var CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema = z.object({
   openrouter_authorization: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.openrouter_authorization.get.Response" });
 var CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.openrouter_authorization.get.ViewerRequest" });
 var CliCommandApiConfigOpenrouterAuthorizationGetViewerResponseSchema = z.object({
@@ -7164,7 +7605,16 @@ var CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.openrouter_authorization.set.Request" });
 var CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.openrouter_authorization.set.ViewerRequest" });
 var CliCommandApiConfigOpenrouterAuthorizationSetViewerResponseSchema = z.object({
@@ -7251,7 +7701,16 @@ var CliCommandApiConfigUserAgentGetResponseSchema = z.object({
   user_agent: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.user_agent.get.Response" });
 var CliCommandApiConfigUserAgentGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigUserAgentGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.user_agent.get.ViewerRequest" });
 var CliCommandApiConfigUserAgentGetViewerResponseSchema = z.object({
@@ -7334,7 +7793,16 @@ var CliCommandApiConfigUserAgentSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.user_agent.set.Request" });
 var CliCommandApiConfigUserAgentSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigUserAgentSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.user_agent.set.ViewerRequest" });
 var CliCommandApiConfigUserAgentSetViewerResponseSchema = z.object({
@@ -7421,7 +7889,16 @@ var CliCommandApiConfigXTitleGetResponseSchema = z.object({
   x_title: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.api.config.x_title.get.Response" });
 var CliCommandApiConfigXTitleGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigXTitleGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.x_title.get.ViewerRequest" });
 var CliCommandApiConfigXTitleGetViewerResponseSchema = z.object({
@@ -7504,7 +7981,16 @@ var CliCommandApiConfigXTitleSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.api.config.x_title.set.Request" });
 var CliCommandApiConfigXTitleSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigXTitleSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.x_title.set.ViewerRequest" });
 var CliCommandApiConfigXTitleSetViewerResponseSchema = z.object({
@@ -7593,7 +8079,16 @@ var CliCommandApiKillResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.api.kill.Response" });
 var CliCommandApiKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiKillRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.kill.ViewerRequest" });
 var CliCommandApiKillViewerResponseSchema = z.object({
@@ -7677,7 +8172,16 @@ var CliCommandApiSpawnResponseSchema = z.object({
   listening: z.string()
 }).meta({ title: "cli.command.api.spawn.Response" });
 var CliCommandApiSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.spawn.ViewerRequest" });
 var CliCommandApiSpawnViewerResponseSchema = z.object({
@@ -7763,7 +8267,16 @@ var CliCommandDaemonKillResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.daemon.kill.Response" });
 var CliCommandDaemonKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDaemonKillRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.daemon.kill.ViewerRequest" });
 var CliCommandDaemonKillViewerResponseSchema = z.object({
@@ -7853,7 +8366,16 @@ var CliCommandDaemonSpawnResponseItemSchema = z.object({
   ok: z.boolean()
 }).describe("One daemon-spawn stream item. The foreground daemon emits this once\nit is ready (readiness handshake) and the launcher emits it once the\ndaemon is confirmed up.").meta({ title: "cli.command.daemon.spawn.ResponseItem" });
 var CliCommandDaemonSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDaemonSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.daemon.spawn.ViewerRequest" });
 var CliCommandDaemonSpawnViewerResponseItemSchema = z.object({
@@ -7930,7 +8452,16 @@ var CliCommandDbConfigAddressGetResponseSchema = z.object({
   address: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.db.config.address.get.Response" });
 var CliCommandDbConfigAddressGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigAddressGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.address.get.ViewerRequest" });
 var CliCommandDbConfigAddressGetViewerResponseSchema = z.object({
@@ -8013,7 +8544,16 @@ var CliCommandDbConfigAddressSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.db.config.address.set.Request" });
 var CliCommandDbConfigAddressSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigAddressSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.address.set.ViewerRequest" });
 var CliCommandDbConfigAddressSetViewerResponseSchema = z.object({
@@ -8100,7 +8640,16 @@ var CliCommandDbConfigDatabaseGetResponseSchema = z.object({
   database: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.db.config.database.get.Response" });
 var CliCommandDbConfigDatabaseGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigDatabaseGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.database.get.ViewerRequest" });
 var CliCommandDbConfigDatabaseGetViewerResponseSchema = z.object({
@@ -8183,7 +8732,16 @@ var CliCommandDbConfigDatabaseSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.db.config.database.set.Request" });
 var CliCommandDbConfigDatabaseSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigDatabaseSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.database.set.ViewerRequest" });
 var CliCommandDbConfigDatabaseSetViewerResponseSchema = z.object({
@@ -8273,7 +8831,16 @@ var CliCommandDbConfigGetResponseSchema = z.object({
   user: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.db.config.get.Response" });
 var CliCommandDbConfigGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.get.ViewerRequest" });
 var CliCommandDbConfigGetViewerResponseSchema = z.object({
@@ -8358,7 +8925,16 @@ var CliCommandDbConfigPasswordGetResponseSchema = z.object({
   password: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.db.config.password.get.Response" });
 var CliCommandDbConfigPasswordGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigPasswordGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.password.get.ViewerRequest" });
 var CliCommandDbConfigPasswordGetViewerResponseSchema = z.object({
@@ -8441,7 +9017,16 @@ var CliCommandDbConfigPasswordSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.db.config.password.set.Request" });
 var CliCommandDbConfigPasswordSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigPasswordSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.password.set.ViewerRequest" });
 var CliCommandDbConfigPasswordSetViewerResponseSchema = z.object({
@@ -8528,7 +9113,16 @@ var CliCommandDbConfigUserGetResponseSchema = z.object({
   user: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.db.config.user.get.Response" });
 var CliCommandDbConfigUserGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigUserGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.user.get.ViewerRequest" });
 var CliCommandDbConfigUserGetViewerResponseSchema = z.object({
@@ -8611,7 +9205,16 @@ var CliCommandDbConfigUserSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.db.config.user.set.Request" });
 var CliCommandDbConfigUserSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbConfigUserSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.config.user.set.ViewerRequest" });
 var CliCommandDbConfigUserSetViewerResponseSchema = z.object({
@@ -8700,7 +9303,16 @@ var CliCommandDbKillResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.db.kill.Response" });
 var CliCommandDbKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbKillRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.kill.ViewerRequest" });
 var CliCommandDbKillViewerResponseSchema = z.object({
@@ -8792,7 +9404,16 @@ var CliCommandDbQueryResponseSchema = z.object({
   truncated: z.boolean().describe('Always `false` in the current design. Reserved on the wire\nso a future "soft truncation" mode can be added without a\nshape break.')
 }).describe("Unary response from `db query`.").meta({ title: "cli.command.db.query.Response" });
 var CliCommandDbQueryViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbQueryRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.query.ViewerRequest" });
 var CliCommandDbQueryViewerResponseSchema = z.object({
@@ -8876,7 +9497,16 @@ var CliCommandDbSpawnResponseSchema = z.object({
   listening: z.string()
 }).meta({ title: "cli.command.db.spawn.Response" });
 var CliCommandDbSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandDbSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.db.spawn.ViewerRequest" });
 var CliCommandDbSpawnViewerResponseSchema = z.object({
@@ -9334,7 +9964,16 @@ var FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema = z.object(
 // src/cli/command/functions/execute/standard/responseItem.ts
 var CliCommandFunctionsExecuteStandardResponseItemSchema = z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.execute.standard.ResponseItem" });
 var CliCommandFunctionsExecuteStandardViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsExecuteStandardRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.execute.standard.ViewerRequest" });
 var CliCommandFunctionsExecuteStandardViewerResponseSchema = z.object({
@@ -9451,7 +10090,16 @@ var CliCommandFunctionsExecuteSwissSystemRequestSchema = z.object({
 }).meta({ title: "cli.command.functions.execute.swiss_system.Request" });
 var CliCommandFunctionsExecuteSwissSystemResponseItemSchema = z.union([FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema.meta({ "title": "functions.executions.response.streaming.FunctionExecutionChunk", "variantTitle": "Chunk" }), z.string().meta({ "variantTitle": "Id" })]).meta({ title: "cli.command.functions.execute.swiss_system.ResponseItem" });
 var CliCommandFunctionsExecuteSwissSystemViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsExecuteSwissSystemRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.execute.swiss_system.ViewerRequest" });
 var CliCommandFunctionsExecuteSwissSystemViewerResponseSchema = z.object({
@@ -9547,7 +10195,16 @@ var CliCommandFunctionsGetRequestSchema = z.object({
 }).meta({ title: "cli.command.functions.get.Request" });
 var CliCommandFunctionsGetResponseSchema = RemotePathSchema.and(z.object({})).describe("Response for `functions get` \u2014 a resolved Function with its remote path.").meta({ title: "cli.command.functions.get.Response" });
 var CliCommandFunctionsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.get.ViewerRequest" });
 var CliCommandFunctionsGetViewerResponseSchema = z.object({
@@ -9631,7 +10288,16 @@ var CliCommandFunctionsListResponseSchema = z.object({
   items: z.array(RemotePathSchema)
 }).meta({ title: "cli.command.functions.list.Response" });
 var CliCommandFunctionsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.list.ViewerRequest" });
 var CliCommandFunctionsListViewerResponseSchema = z.object({
@@ -9704,7 +10370,16 @@ var CliCommandFunctionsProfilesGetRequestSchema = z.object({
 }).meta({ title: "cli.command.functions.profiles.get.Request" });
 var CliCommandFunctionsProfilesGetResponseSchema = RemotePathSchema.and(z.object({})).describe("Response for `functions profiles get` \u2014 a resolved Profile with its remote path.").meta({ title: "cli.command.functions.profiles.get.Response" });
 var CliCommandFunctionsProfilesGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsProfilesGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.profiles.get.ViewerRequest" });
 var CliCommandFunctionsProfilesGetViewerResponseSchema = z.object({
@@ -9788,7 +10463,16 @@ var CliCommandFunctionsProfilesListResponseSchema = z.object({
   items: z.array(RemotePathSchema)
 }).meta({ title: "cli.command.functions.profiles.list.Response" });
 var CliCommandFunctionsProfilesListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsProfilesListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.profiles.list.ViewerRequest" });
 var CliCommandFunctionsProfilesListViewerResponseSchema = z.object({
@@ -9893,7 +10577,16 @@ var CliCommandFunctionsProfilesPublishResponseSchema = z.object({
   sha: z.string()
 }).meta({ title: "cli.command.functions.profiles.publish.Response" });
 var CliCommandFunctionsProfilesPublishViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsProfilesPublishRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.profiles.publish.ViewerRequest" });
 var CliCommandFunctionsProfilesPublishViewerResponseSchema = z.object({
@@ -10043,7 +10736,16 @@ var CliCommandFunctionsPublishResponseSchema = z.object({
   sha: z.string()
 }).meta({ title: "cli.command.functions.publish.Response" });
 var CliCommandFunctionsPublishViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandFunctionsPublishRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.functions.publish.ViewerRequest" });
 var CliCommandFunctionsPublishViewerResponseSchema = z.object({
@@ -10129,7 +10831,16 @@ var CliCommandKillAllResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.kill_all.Response" });
 var CliCommandKillAllViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandKillAllRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.kill_all.ViewerRequest" });
 var CliCommandKillAllViewerResponseSchema = z.object({
@@ -10234,7 +10945,16 @@ var CliCommandLaboratoriesCreateResponseSchema = z.object({
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema)
 }).describe("Echo of the created laboratory.").meta({ title: "cli.command.laboratories.create.Response" });
 var CliCommandLaboratoriesCreateViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandLaboratoriesCreateRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.laboratories.create.ViewerRequest" });
 var CliCommandLaboratoriesCreateViewerResponseSchema = z.object({
@@ -10323,7 +11043,16 @@ var CliCommandLaboratoriesListResponseItemSchema = z.object({
   mounts: z.array(CliCommandLaboratoriesCreateMountSchema)
 }).describe("One laboratory container, reconstructed from its `objectiveai.laboratory`\nlabel. Mirrors the `create` echo: `{ id, image, mounts, env, cwd }`.").meta({ title: "cli.command.laboratories.list.ResponseItem" });
 var CliCommandLaboratoriesListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandLaboratoriesListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.laboratories.list.ViewerRequest" });
 var CliCommandLaboratoriesListViewerResponseItemSchema = z.object({
@@ -10400,7 +11129,16 @@ var CliCommandMcpConfigAddressGetResponseSchema = z.object({
   address: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.mcp.config.address.get.Response" });
 var CliCommandMcpConfigAddressGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpConfigAddressGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.config.address.get.ViewerRequest" });
 var CliCommandMcpConfigAddressGetViewerResponseSchema = z.object({
@@ -10483,7 +11221,16 @@ var CliCommandMcpConfigAddressSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.mcp.config.address.set.Request" });
 var CliCommandMcpConfigAddressSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpConfigAddressSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.config.address.set.ViewerRequest" });
 var CliCommandMcpConfigAddressSetViewerResponseSchema = z.object({
@@ -10571,7 +11318,16 @@ var CliCommandMcpConfigGetResponseSchema = z.object({
   port: z.number().int().min(0).max(65535).nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.mcp.config.get.Response" });
 var CliCommandMcpConfigGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpConfigGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.config.get.ViewerRequest" });
 var CliCommandMcpConfigGetViewerResponseSchema = z.object({
@@ -10656,7 +11412,16 @@ var CliCommandMcpConfigPortGetResponseSchema = z.object({
   port: z.number().int().min(0).max(65535)
 }).meta({ title: "cli.command.mcp.config.port.get.Response" });
 var CliCommandMcpConfigPortGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpConfigPortGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.config.port.get.ViewerRequest" });
 var CliCommandMcpConfigPortGetViewerResponseSchema = z.object({
@@ -10739,7 +11504,16 @@ var CliCommandMcpConfigPortSetRequestSchema = z.object({
   value: z.number().int().min(0).max(65535)
 }).meta({ title: "cli.command.mcp.config.port.set.Request" });
 var CliCommandMcpConfigPortSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpConfigPortSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.config.port.set.ViewerRequest" });
 var CliCommandMcpConfigPortSetViewerResponseSchema = z.object({
@@ -10828,7 +11602,16 @@ var CliCommandMcpKillResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.mcp.kill.Response" });
 var CliCommandMcpKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpKillRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.kill.ViewerRequest" });
 var CliCommandMcpKillViewerResponseSchema = z.object({
@@ -10912,7 +11695,16 @@ var CliCommandMcpSpawnResponseSchema = z.object({
   listening: z.string()
 }).meta({ title: "cli.command.mcp.spawn.Response" });
 var CliCommandMcpSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.spawn.ViewerRequest" });
 var CliCommandMcpSpawnViewerResponseSchema = z.object({
@@ -11025,7 +11817,16 @@ var CliCommandPluginsGetResponseManifestSchema = z.object({
   viewer_url: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.plugins.get.ResponseManifest" });
 var CliCommandPluginsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsGetRequestSchema
 }).meta({ title: "cli.command.plugins.get.ViewerRequest" });
 var CliCommandPluginsGetViewerResponseSchema = z.object({
@@ -11109,7 +11910,16 @@ var CliCommandPluginsInstallFilesystemResponseSchema = z.object({
   instructions: z.string()
 }).meta({ title: "cli.command.plugins.install.filesystem.Response" });
 var CliCommandPluginsInstallFilesystemViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsInstallFilesystemRequestSchema
 }).meta({ title: "cli.command.plugins.install.filesystem.ViewerRequest" });
 var CliCommandPluginsInstallFilesystemViewerResponseSchema = z.object({
@@ -11197,7 +12007,16 @@ var CliCommandPluginsInstallGithubResponseSchema = z.object({
   installed: z.boolean()
 }).meta({ title: "cli.command.plugins.install.github.Response" });
 var CliCommandPluginsInstallGithubViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsInstallGithubRequestSchema
 }).meta({ title: "cli.command.plugins.install.github.ViewerRequest" });
 var CliCommandPluginsInstallGithubViewerResponseSchema = z.object({
@@ -11282,7 +12101,16 @@ var CliCommandPluginsListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.plugins.list.Request" });
 var CliCommandPluginsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsListRequestSchema
 }).meta({ title: "cli.command.plugins.list.ViewerRequest" });
 var CliCommandPluginsListViewerResponseItemSchema = z.object({
@@ -11368,7 +12196,16 @@ var CliCommandPluginsLogsListResponseItemSchema = z.object({
   version: z.string()
 }).describe("One captured stderr line from a `plugins run` invocation.").meta({ title: "cli.command.plugins.logs.list.ResponseItem" });
 var CliCommandPluginsLogsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsLogsListRequestSchema
 }).meta({ title: "cli.command.plugins.logs.list.ViewerRequest" });
 var CliCommandPluginsLogsListViewerResponseItemSchema = z.object({
@@ -11452,7 +12289,16 @@ var CliCommandPluginsRunRequestSchema = z.object({
 }).meta({ title: "cli.command.plugins.run.Request" });
 var CliCommandPluginsRunResponseItemSchema = z.union([CliCommandPluginsRunMcpSchema.meta({ "title": "cli.command.plugins.run.Mcp", "variantTitle": "Mcp" }), CliErrorSchema.meta({ "title": "cli.Error", "variantTitle": "Error" }), JsonValueSchema.meta({ "variantTitle": "Notification" })]).meta({ title: "cli.command.plugins.run.ResponseItem" });
 var CliCommandPluginsRunViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsRunRequestSchema
 }).meta({ title: "cli.command.plugins.run.ViewerRequest" });
 var CliCommandPluginsRunViewerResponseItemSchema = z.object({
@@ -11528,7 +12374,16 @@ var CliCommandPythonRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.python.Request" });
 var CliCommandPythonViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPythonRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.python.ViewerRequest" });
 var CliCommandPythonViewerResponseSchema = z.object({
@@ -11611,7 +12466,16 @@ var CliCommandSwarmsGetRequestSchema = z.object({
 }).meta({ title: "cli.command.swarms.get.Request" });
 var CliCommandSwarmsGetResponseSchema = RemotePathSchema.and(z.object({})).describe("Response for `swarms get` \u2014 a Swarm base definition with its remote path.").meta({ title: "cli.command.swarms.get.Response" });
 var CliCommandSwarmsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandSwarmsGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.swarms.get.ViewerRequest" });
 var CliCommandSwarmsGetViewerResponseSchema = z.object({
@@ -11695,7 +12559,16 @@ var CliCommandSwarmsListResponseSchema = z.object({
   items: z.array(RemotePathSchema)
 }).meta({ title: "cli.command.swarms.list.Response" });
 var CliCommandSwarmsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandSwarmsListRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.swarms.list.ViewerRequest" });
 var CliCommandSwarmsListViewerResponseSchema = z.object({
@@ -11794,7 +12667,16 @@ var CliCommandSwarmsPublishResponseSchema = z.object({
   sha: z.string()
 }).meta({ title: "cli.command.swarms.publish.Response" });
 var CliCommandSwarmsPublishViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandSwarmsPublishRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.swarms.publish.ViewerRequest" });
 var CliCommandSwarmsPublishViewerResponseSchema = z.object({
@@ -11887,7 +12769,16 @@ var CliCommandToolsGetResponseManifestSchema = z.object({
   version: z.string()
 }).describe("Wire response for `tools get` \u2014 a lean projection of the on-disk\nmanifest. `exec` is required (a tool always has a command). The\non-disk-only fields (`cli_zip`, `source`) are intentionally absent;\nthe CLI owns the full on-disk shape in its own `filesystem::tools`\nmanifest types.").meta({ title: "cli.command.tools.get.ResponseManifest" });
 var CliCommandToolsGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsGetRequestSchema
 }).meta({ title: "cli.command.tools.get.ViewerRequest" });
 var CliCommandToolsGetViewerResponseSchema = z.object({
@@ -11971,7 +12862,16 @@ var CliCommandToolsInstallFilesystemResponseSchema = z.object({
   instructions: z.string()
 }).meta({ title: "cli.command.tools.install.filesystem.Response" });
 var CliCommandToolsInstallFilesystemViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsInstallFilesystemRequestSchema
 }).meta({ title: "cli.command.tools.install.filesystem.ViewerRequest" });
 var CliCommandToolsInstallFilesystemViewerResponseSchema = z.object({
@@ -12059,7 +12959,16 @@ var CliCommandToolsInstallGithubResponseSchema = z.object({
   installed: z.boolean()
 }).meta({ title: "cli.command.tools.install.github.Response" });
 var CliCommandToolsInstallGithubViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsInstallGithubRequestSchema
 }).meta({ title: "cli.command.tools.install.github.ViewerRequest" });
 var CliCommandToolsInstallGithubViewerResponseSchema = z.object({
@@ -12144,7 +13053,16 @@ var CliCommandToolsListRequestSchema = z.object({
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.tools.list.Request" });
 var CliCommandToolsListViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsListRequestSchema
 }).meta({ title: "cli.command.tools.list.ViewerRequest" });
 var CliCommandToolsListViewerResponseItemSchema = z.object({
@@ -12220,7 +13138,16 @@ var CliCommandToolsRunRequestSchema = z.object({
 }).meta({ title: "cli.command.tools.run.Request" });
 var CliCommandToolsRunResponseItemSchema = z.union([z.string().meta({ "variantTitle": "Stdout" }), CliErrorSchema.meta({ "title": "cli.Error", "variantTitle": "Stderr" })]).meta({ title: "cli.command.tools.run.ResponseItem" });
 var CliCommandToolsRunViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsRunRequestSchema
 }).meta({ title: "cli.command.tools.run.ViewerRequest" });
 var CliCommandToolsRunViewerResponseItemSchema = z.object({
@@ -12323,7 +13250,16 @@ var CliCommandUpdateResponseSchema = z.object({
   items: z.array(CliCommandUpdateResponseItemSchema)
 }).describe("All-at-once view of an update run. Used only for schema generation\n(`response-schema`); the leaf's `execute` returns\n`Stream<ResponseItem>` rather than building a `Response`.").meta({ title: "cli.command.update.Response" });
 var CliCommandUpdateViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandUpdateRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.update.ViewerRequest" });
 var CliCommandUpdateViewerResponseSchema = z.object({
@@ -12403,7 +13339,16 @@ var CliCommandViewerConfigAddressGetResponseSchema = z.object({
   address: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.viewer.config.address.get.Response" });
 var CliCommandViewerConfigAddressGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigAddressGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.address.get.ViewerRequest" });
 var CliCommandViewerConfigAddressGetViewerResponseSchema = z.object({
@@ -12486,7 +13431,16 @@ var CliCommandViewerConfigAddressSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.viewer.config.address.set.Request" });
 var CliCommandViewerConfigAddressSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigAddressSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.address.set.ViewerRequest" });
 var CliCommandViewerConfigAddressSetViewerResponseSchema = z.object({
@@ -12575,7 +13529,16 @@ var CliCommandViewerConfigGetResponseSchema = z.object({
   signature: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.viewer.config.get.Response" });
 var CliCommandViewerConfigGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.get.ViewerRequest" });
 var CliCommandViewerConfigGetViewerResponseSchema = z.object({
@@ -12660,7 +13623,16 @@ var CliCommandViewerConfigSecretGetResponseSchema = z.object({
   secret: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.viewer.config.secret.get.Response" });
 var CliCommandViewerConfigSecretGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigSecretGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.secret.get.ViewerRequest" });
 var CliCommandViewerConfigSecretGetViewerResponseSchema = z.object({
@@ -12743,7 +13715,16 @@ var CliCommandViewerConfigSecretSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.viewer.config.secret.set.Request" });
 var CliCommandViewerConfigSecretSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigSecretSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.secret.set.ViewerRequest" });
 var CliCommandViewerConfigSecretSetViewerResponseSchema = z.object({
@@ -12830,7 +13811,16 @@ var CliCommandViewerConfigSignatureGetResponseSchema = z.object({
   signature: z.string().nullable().meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.viewer.config.signature.get.Response" });
 var CliCommandViewerConfigSignatureGetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigSignatureGetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.signature.get.ViewerRequest" });
 var CliCommandViewerConfigSignatureGetViewerResponseSchema = z.object({
@@ -12913,7 +13903,16 @@ var CliCommandViewerConfigSignatureSetRequestSchema = z.object({
   value: z.string()
 }).meta({ title: "cli.command.viewer.config.signature.set.Request" });
 var CliCommandViewerConfigSignatureSetViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerConfigSignatureSetRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.config.signature.set.ViewerRequest" });
 var CliCommandViewerConfigSignatureSetViewerResponseSchema = z.object({
@@ -13002,7 +14001,16 @@ var CliCommandViewerGenerateSecretSignaturePairResponseSchema = z.object({
   signature: z.string()
 }).meta({ title: "cli.command.viewer.generate_secret_signature_pair.Response" });
 var CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerGenerateSecretSignaturePairRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.generate_secret_signature_pair.ViewerRequest" });
 var CliCommandViewerGenerateSecretSignaturePairViewerResponseSchema = z.object({
@@ -13087,7 +14095,16 @@ var CliCommandViewerKillResponseSchema = z.object({
   killed: z.number().int().min(0).max(4294967295)
 }).meta({ title: "cli.command.viewer.kill.Response" });
 var CliCommandViewerKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerKillRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.kill.ViewerRequest" });
 var CliCommandViewerKillViewerResponseSchema = z.object({
@@ -13169,21 +14186,26 @@ var CliCommandViewerSendRequestSchema = z.object({
   python: z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
   timeout_seconds: z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.viewer.send.Request" });
-var CliCommandViewerSendResponseSchema = z.object({
-  body: JsonValueSchema,
-  status: z.number().int().min(0).max(65535)
-}).meta({ title: "cli.command.viewer.send.Response" });
 var CliCommandViewerSendViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerSendRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.send.ViewerRequest" });
 var CliCommandViewerSendViewerResponseSchema = z.object({
   id: z.string(),
   path_type: CliCommandViewerSendPathSchema,
-  value: CliCommandViewerSendResponseSchema
+  value: CliCommandOkSchema
 }).describe("Viewer-stream mirror of [`Response`]: the response (nested under\n`value`) plus the broadcast stream `id` and the originating request's\n`path_type`.").meta({ title: "cli.command.viewer.send.ViewerResponse" });
 async function viewerSendExecute(executor, request) {
-  const stream = new CliStream(executor.execute({ ...request, jq: void 0, python: void 0, path_type: "viewer/send" }), z.union([CliErrorSchema, CliCommandViewerSendResponseSchema]));
+  const stream = new CliStream(executor.execute({ ...request, jq: void 0, python: void 0, path_type: "viewer/send" }), z.union([CliErrorSchema, CliCommandOkSchema]));
   const first = await stream.first();
   if (first === void 0) {
     throw new Error("viewer send: cli produced no output before the end marker");
@@ -13258,7 +14280,16 @@ var CliCommandViewerSpawnResponseSchema = z.object({
   listening: z.string()
 }).meta({ title: "cli.command.viewer.spawn.Response" });
 var CliCommandViewerSpawnViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandViewerSpawnRequestSchema
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.viewer.spawn.ViewerRequest" });
 var CliCommandViewerSpawnViewerResponseSchema = z.object({
@@ -13318,10 +14349,10 @@ var ErrorErrorResponseSchema = z.object({
   ok: z.boolean().describe("Whether the request completed successfully.")
 }).describe("Response from the error endpoint.").meta({ title: "error.ErrorResponse" });
 var ErrorErrorCreateParamsStreamingSchema = ErrorErrorCreateParamsSchema.extend({
-  stream: z1785.literal(true)
+  stream: z1784.literal(true)
 });
 var ErrorErrorCreateParamsUnarySchema = ErrorErrorCreateParamsSchema.extend({
-  stream: z1785.literal(false).optional().nullable()
+  stream: z1784.literal(false).optional().nullable()
 });
 function errorCreateError(client, body, options) {
   if (body.stream) {
@@ -14269,10 +15300,10 @@ var VectorCompletionsResponseUnaryVectorCompletionSchema = z.object({
 }).describe("A complete vector completion response (non-streaming).\n\nContains the final scores, all votes from the swarm, and the underlying\nagent completions that produced those votes.").meta({ title: "vector.completions.response.unary.VectorCompletion" });
 var VectorCompletionsVectorResponsesSchema = z.array(AgentCompletionsMessageRichContentSchema).describe('The list of response options in a vector completion request.\n\nEach element is a [`RichContent`] value that an LLM can vote for.\nResponses can be plain text strings or multi-part content containing\ntext, images, audio, video, or files.\n\n# Minimum Length\n\nA vector completion requires at least 2 responses to vote between.\n\n# Examples\n\nPlain text responses:\n```json\n["Yes", "No", "Maybe"]\n```\n\nMultimodal responses:\n```json\n[\n  [{"type": "text", "text": "Option A"}, {"type": "image_url", "image_url": {"url": "https://example.com/a.png"}}],\n  [{"type": "text", "text": "Option B"}, {"type": "image_url", "image_url": {"url": "https://example.com/b.png"}}]\n]\n```').meta({ title: "vector.completions.VectorResponses" });
 var VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema = VectorCompletionsRequestVectorCompletionCreateParamsSchema.extend({
-  stream: z1785.literal(true)
+  stream: z1784.literal(true)
 });
 var VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema = VectorCompletionsRequestVectorCompletionCreateParamsSchema.extend({
-  stream: z1785.literal(false).optional().nullable()
+  stream: z1784.literal(false).optional().nullable()
 });
 function vectorCompletionsCreateVectorCompletion(client, body, options) {
   if (body.stream) {
@@ -14456,30 +15487,30 @@ function readEnv(env) {
   }
   return void 0;
 }
-var ObjectiveAIOptionsSchema = z1785.object({
-  address: z1785.string().nullish().describe(
+var ObjectiveAIOptionsSchema = z1784.object({
+  address: z1784.string().nullish().describe(
     "Base URL for the API. Falls back to OBJECTIVEAI_ADDRESS env var, then https://api.objectiveai.dev"
   ),
-  authorization: z1785.string().nullish().describe("API key for authentication. Falls back to OBJECTIVEAI_AUTHORIZATION env var."),
-  userAgent: z1785.string().nullish().describe("User-Agent header. Falls back to USER_AGENT env var."),
-  httpReferer: z1785.string().nullish().describe("HTTP-Referer header. Falls back to HTTP_REFERER env var."),
-  xTitle: z1785.string().nullish().describe("X-Title header. Falls back to X_TITLE env var."),
-  xGithubAuthorization: z1785.string().nullish().describe("X-GITHUB-AUTHORIZATION header for GitHub-hosted function/profile access."),
-  xOpenrouterAuthorization: z1785.string().nullish().describe("X-OPENROUTER-AUTHORIZATION header for BYOK (Bring Your Own Key) support."),
-  xMcpAuthorization: z1785.record(z1785.string(), z1785.string()).nullish().describe("X-MCP-AUTHORIZATION header (JSON-encoded map of MCP authorization headers)."),
-  xViewerSignature: z1785.string().nullish().describe("X-VIEWER-SIGNATURE header for viewer authentication."),
-  xViewerAddress: z1785.string().nullish().describe("X-VIEWER-ADDRESS header for viewer address."),
-  agentId: z1785.string().nullish().describe(
+  authorization: z1784.string().nullish().describe("API key for authentication. Falls back to OBJECTIVEAI_AUTHORIZATION env var."),
+  userAgent: z1784.string().nullish().describe("User-Agent header. Falls back to USER_AGENT env var."),
+  httpReferer: z1784.string().nullish().describe("HTTP-Referer header. Falls back to HTTP_REFERER env var."),
+  xTitle: z1784.string().nullish().describe("X-Title header. Falls back to X_TITLE env var."),
+  xGithubAuthorization: z1784.string().nullish().describe("X-GITHUB-AUTHORIZATION header for GitHub-hosted function/profile access."),
+  xOpenrouterAuthorization: z1784.string().nullish().describe("X-OPENROUTER-AUTHORIZATION header for BYOK (Bring Your Own Key) support."),
+  xMcpAuthorization: z1784.record(z1784.string(), z1784.string()).nullish().describe("X-MCP-AUTHORIZATION header (JSON-encoded map of MCP authorization headers)."),
+  xViewerSignature: z1784.string().nullish().describe("X-VIEWER-SIGNATURE header for viewer authentication."),
+  xViewerAddress: z1784.string().nullish().describe("X-VIEWER-ADDRESS header for viewer address."),
+  agentId: z1784.string().nullish().describe(
     "X-OBJECTIVEAI-AGENT-ID header. Falls back to OBJECTIVEAI_AGENT_ID env var."
   )
 }).describe("Options for the ObjectiveAI client.");
-var RequestOptionsSchema = z1785.object({
-  headers: z1785.union([
-    z1785.instanceof(Headers),
-    z1785.record(z1785.string(), z1785.string()),
-    z1785.array(z1785.tuple([z1785.string(), z1785.string()]))
+var RequestOptionsSchema = z1784.object({
+  headers: z1784.union([
+    z1784.instanceof(Headers),
+    z1784.record(z1784.string(), z1784.string()),
+    z1784.array(z1784.tuple([z1784.string(), z1784.string()]))
   ]).nullish().describe("Additional headers to include in the request."),
-  signal: z1785.instanceof(AbortSignal).nullish().describe("AbortSignal for cancelling the request.")
+  signal: z1784.instanceof(AbortSignal).nullish().describe("AbortSignal for cancelling the request.")
 }).describe("Options for individual requests.");
 var ObjectiveAI = class {
   constructor(options) {
@@ -14710,4 +15741,4 @@ function numberIsEmpty(value) {
   return value === null || value === void 0 || value === 0;
 }
 
-export { AgentAgentBaseSchema, AgentAgentSchema, AgentAgentWithFallbacksSchema, AgentAgentWithFallbacksWithCountSchema, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, AgentClaudeAgentSdkContinuationSchema, AgentClaudeAgentSdkEffortSchema, AgentClaudeAgentSdkOutputModeSchema, AgentClaudeAgentSdkUpstreamSchema, AgentClientObjectiveaiMcpEntrySchema, AgentClientObjectiveaiMcpHeadersSchema, AgentClientObjectiveaiMcpPluginEntrySchema, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, AgentCodexSdkContinuationSchema, AgentCodexSdkEffortSchema, AgentCodexSdkOutputModeSchema, AgentCodexSdkUpstreamSchema, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, AgentCompletionsMessageAssistantToolCallDeltaSchema, AgentCompletionsMessageAssistantToolCallExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, AgentCompletionsMessageAssistantToolCallTypeSchema, AgentCompletionsMessageFileSchema, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, AgentCompletionsMessageInputAudioSchema, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, AgentCompletionsMessagePipeAckSchema, AgentCompletionsMessageRichContentExpressionSchema, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, AgentCompletionsMessageToolResponseMetadataSchema, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, AgentCompletionsMessageVideoUrlSchema, AgentCompletionsRequestAgentCompletionCreateParamsSchema, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, AgentCompletionsRequestProviderDataCollectionSchema, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, AgentCompletionsRequestProviderSortSchema, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, AgentCompletionsResponseAssistantRoleSchema, AgentCompletionsResponseCompletionTokensDetailsSchema, AgentCompletionsResponseCostDetailsSchema, AgentCompletionsResponseFinishReasonSchema, AgentCompletionsResponseLogprobSchema, AgentCompletionsResponseLogprobsSchema, AgentCompletionsResponsePromptTokensDetailsSchema, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, AgentCompletionsResponseStreamingMessageChunkSchema, AgentCompletionsResponseStreamingObjectSchema, AgentCompletionsResponseToolResponseSchema, AgentCompletionsResponseToolRoleSchema, AgentCompletionsResponseTopLogprobSchema, AgentCompletionsResponseUnaryAgentCompletionSchema, AgentCompletionsResponseUnaryAssistantResponseSchema, AgentCompletionsResponseUnaryMessageSchema, AgentCompletionsResponseUnaryObjectSchema, AgentCompletionsResponseUpstreamUsageSchema, AgentCompletionsResponseUsageSchema, AgentContinuationSchema, AgentInlineAgentBaseSchema, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, AgentInlineAgentWithFallbacksSchema, AgentMcpServerSchema, AgentMockAgentBaseSchema, AgentMockAgentSchema, AgentMockCallSchema, AgentMockCallToolCallSchema, AgentMockContinuationSchema, AgentMockOutputModeSchema, AgentMockUpstreamSchema, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, AgentOpenrouterContextCompressionSchema, AgentOpenrouterContinuationSchema, AgentOpenrouterOutputModeSchema, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, AgentOpenrouterReasoningSummaryVerbositySchema, AgentOpenrouterStopSchema, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, AgentOpenrouterUpstreamSchema, AgentOpenrouterVerbositySchema, AgentOutputModeSchema, AgentRemoteAgentBaseSchema, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, AgentRemoteAgentWithFallbacksSchema, AgentUpstreamSchema, AuthApiKeyWithMetadataSchema, AuthCreateApiKeyRequestSchema, AuthCreateOpenRouterByokApiKeyRequestSchema, AuthDisableApiKeyRequestSchema, AuthGetCreditsResponseSchema, AuthGetOpenRouterByokApiKeyResponseSchema, AuthListApiKeyItemSchema, AuthListApiKeyResponseSchema, BinaryCommandExecutor, CliCommandAgentArgumentsSchema, CliCommandAgentsAgentRefSchema, CliCommandAgentsAgentSelectorSchema, CliCommandAgentsEnqueuePathSchema, CliCommandAgentsEnqueueRequestSchema, CliCommandAgentsEnqueueRequestSchemaPathSchema, CliCommandAgentsEnqueueRequestSchemaRequestSchema, CliCommandAgentsEnqueueResponseSchema, CliCommandAgentsEnqueueResponseSchemaPathSchema, CliCommandAgentsEnqueueResponseSchemaRequestSchema, CliCommandAgentsEnqueueViewerRequestSchema, CliCommandAgentsEnqueueViewerResponseSchema, CliCommandAgentsGetPathSchema, CliCommandAgentsGetRequestSchema, CliCommandAgentsGetRequestSchemaPathSchema, CliCommandAgentsGetRequestSchemaRequestSchema, CliCommandAgentsGetResponseSchema, CliCommandAgentsGetResponseSchemaPathSchema, CliCommandAgentsGetResponseSchemaRequestSchema, CliCommandAgentsGetViewerRequestSchema, CliCommandAgentsGetViewerResponseSchema, CliCommandAgentsInstancesGetPathSchema, CliCommandAgentsInstancesGetRequestSchema, CliCommandAgentsInstancesGetRequestSchemaPathSchema, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, CliCommandAgentsInstancesGetResponseSchemaPathSchema, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, CliCommandAgentsInstancesGetViewerRequestSchema, CliCommandAgentsInstancesGetViewerResponseItemSchema, CliCommandAgentsInstancesListPathSchema, CliCommandAgentsInstancesListRequestSchema, CliCommandAgentsInstancesListRequestSchemaPathSchema, CliCommandAgentsInstancesListRequestSchemaRequestSchema, CliCommandAgentsInstancesListResponseItemSchema, CliCommandAgentsInstancesListResponseSchemaPathSchema, CliCommandAgentsInstancesListResponseSchemaRequestSchema, CliCommandAgentsInstancesListViewerRequestSchema, CliCommandAgentsInstancesListViewerResponseItemSchema, CliCommandAgentsInstancesRequestSchema, CliCommandAgentsInstancesViewerRequestSchema, CliCommandAgentsLaboratoriesAttachPathSchema, CliCommandAgentsLaboratoriesAttachRequestSchema, CliCommandAgentsLaboratoriesAttachRequestSchemaPathSchema, CliCommandAgentsLaboratoriesAttachRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesAttachResponseSchema, CliCommandAgentsLaboratoriesAttachResponseSchemaPathSchema, CliCommandAgentsLaboratoriesAttachResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesAttachViewerRequestSchema, CliCommandAgentsLaboratoriesAttachViewerResponseSchema, CliCommandAgentsLaboratoriesDetachPathSchema, CliCommandAgentsLaboratoriesDetachRequestSchema, CliCommandAgentsLaboratoriesDetachRequestSchemaPathSchema, CliCommandAgentsLaboratoriesDetachRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesDetachResponseSchema, CliCommandAgentsLaboratoriesDetachResponseSchemaPathSchema, CliCommandAgentsLaboratoriesDetachResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesDetachViewerRequestSchema, CliCommandAgentsLaboratoriesDetachViewerResponseSchema, CliCommandAgentsLaboratoriesListPathSchema, CliCommandAgentsLaboratoriesListRequestSchema, CliCommandAgentsLaboratoriesListRequestSchemaPathSchema, CliCommandAgentsLaboratoriesListRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesListResponseItemSchema, CliCommandAgentsLaboratoriesListResponseSchemaPathSchema, CliCommandAgentsLaboratoriesListResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesListViewerRequestSchema, CliCommandAgentsLaboratoriesListViewerResponseItemSchema, CliCommandAgentsLaboratoriesRequestSchema, CliCommandAgentsLaboratoriesViewerRequestSchema, CliCommandAgentsListPathSchema, CliCommandAgentsListRequestSchema, CliCommandAgentsListRequestSchemaPathSchema, CliCommandAgentsListRequestSchemaRequestSchema, CliCommandAgentsListResponseSchemaPathSchema, CliCommandAgentsListResponseSchemaRequestSchema, CliCommandAgentsListViewerRequestSchema, CliCommandAgentsListViewerResponseItemSchema, CliCommandAgentsLogsListAssistantResponsePartSchema, CliCommandAgentsLogsListClientNotificationPartSchema, CliCommandAgentsLogsListClientNotificationPartTypeSchema, CliCommandAgentsLogsListPathSchema, CliCommandAgentsLogsListRequestSchema, CliCommandAgentsLogsListRequestSchemaPathSchema, CliCommandAgentsLogsListRequestSchemaRequestSchema, CliCommandAgentsLogsListResponseItemSchema, CliCommandAgentsLogsListResponseSchemaPathSchema, CliCommandAgentsLogsListResponseSchemaRequestSchema, CliCommandAgentsLogsListTargetSchema, CliCommandAgentsLogsListToolResponsePartSchema, CliCommandAgentsLogsListToolResponsePartTypeSchema, CliCommandAgentsLogsListViewerRequestSchema, CliCommandAgentsLogsListViewerResponseItemSchema, CliCommandAgentsLogsOpenPathSchema, CliCommandAgentsLogsOpenRequestSchema, CliCommandAgentsLogsOpenRequestSchemaPathSchema, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, CliCommandAgentsLogsOpenResponseSchema, CliCommandAgentsLogsOpenResponseSchemaPathSchema, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, CliCommandAgentsLogsOpenViewerRequestSchema, CliCommandAgentsLogsOpenViewerResponseSchema, CliCommandAgentsLogsRequestSchema, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, CliCommandAgentsLogsSubscribeKindFilterSchema, CliCommandAgentsLogsSubscribePathSchema, CliCommandAgentsLogsSubscribeRequestSchema, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, CliCommandAgentsLogsSubscribeResponseItemSchema, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, CliCommandAgentsLogsSubscribeViewerRequestSchema, CliCommandAgentsLogsSubscribeViewerResponseItemSchema, CliCommandAgentsLogsTokenUsageGetPathSchema, CliCommandAgentsLogsTokenUsageGetRequestSchema, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, CliCommandAgentsLogsTokenUsageGetResponseSchema, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, CliCommandAgentsLogsTokenUsageGetViewerRequestSchema, CliCommandAgentsLogsTokenUsageGetViewerResponseSchema, CliCommandAgentsLogsTokenUsageRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, CliCommandAgentsLogsTokenUsageSubscribePathSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItemSchema, CliCommandAgentsLogsTokenUsageViewerRequestSchema, CliCommandAgentsLogsViewerRequestSchema, CliCommandAgentsMcpRequestSchema, CliCommandAgentsMcpResourcesListPathSchema, CliCommandAgentsMcpResourcesListRequestSchema, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, CliCommandAgentsMcpResourcesListViewerRequestSchema, CliCommandAgentsMcpResourcesReadPathSchema, CliCommandAgentsMcpResourcesReadRequestSchema, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, CliCommandAgentsMcpResourcesReadViewerRequestSchema, CliCommandAgentsMcpResourcesRequestSchema, CliCommandAgentsMcpResourcesViewerRequestSchema, CliCommandAgentsMcpServersListPathSchema, CliCommandAgentsMcpServersListRequestSchema, CliCommandAgentsMcpServersListRequestSchemaPathSchema, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, CliCommandAgentsMcpServersListResponseSchemaPathSchema, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, CliCommandAgentsMcpServersListViewerRequestSchema, CliCommandAgentsMcpServersRequestSchema, CliCommandAgentsMcpToolsCallPathSchema, CliCommandAgentsMcpToolsCallRequestSchema, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, CliCommandAgentsMcpToolsCallViewerRequestSchema, CliCommandAgentsMcpToolsListPathSchema, CliCommandAgentsMcpToolsListRequestSchema, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, CliCommandAgentsMcpToolsListViewerRequestSchema, CliCommandAgentsMcpToolsRequestSchema, CliCommandAgentsMcpToolsViewerRequestSchema, CliCommandAgentsMcpViewerRequestSchema, CliCommandAgentsMessagePathSchema, CliCommandAgentsMessageRequestDangerousAdvancedSchema, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, CliCommandAgentsMessageRequestSchemaPathSchema, CliCommandAgentsMessageRequestSchemaRequestSchema, CliCommandAgentsMessageResponseSchema, CliCommandAgentsMessageResponseSchemaPathSchema, CliCommandAgentsMessageResponseSchemaRequestSchema, CliCommandAgentsMessageViewerRequestSchema, CliCommandAgentsMessageViewerResponseSchema, CliCommandAgentsPublishPathSchema, CliCommandAgentsPublishRequestBodySchema, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, CliCommandAgentsPublishRequestSchemaPathSchema, CliCommandAgentsPublishRequestSchemaRequestSchema, CliCommandAgentsPublishResponseSchema, CliCommandAgentsPublishResponseSchemaPathSchema, CliCommandAgentsPublishResponseSchemaRequestSchema, CliCommandAgentsPublishViewerRequestSchema, CliCommandAgentsPublishViewerResponseSchema, CliCommandAgentsQueueDeletePathSchema, CliCommandAgentsQueueDeleteRequestSchema, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, CliCommandAgentsQueueDeleteResponseSchema, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, CliCommandAgentsQueueDeleteViewerRequestSchema, CliCommandAgentsQueueDeleteViewerResponseSchema, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, CliCommandAgentsQueueDeliverPathSchema, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, CliCommandAgentsQueueDeliverResponseItemSchema, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, CliCommandAgentsQueueDeliverTagActiveTypeSchema, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, CliCommandAgentsQueueDeliverValueResponseItemSchema, CliCommandAgentsQueueDeliverViewerRequestSchema, CliCommandAgentsQueueDeliverViewerResponseItemSchema, CliCommandAgentsQueueListPathSchema, CliCommandAgentsQueueListQueuePartSchema, CliCommandAgentsQueueListRequestSchema, CliCommandAgentsQueueListRequestSchemaPathSchema, CliCommandAgentsQueueListRequestSchemaRequestSchema, CliCommandAgentsQueueListResponseItemSchema, CliCommandAgentsQueueListResponseSchemaPathSchema, CliCommandAgentsQueueListResponseSchemaRequestSchema, CliCommandAgentsQueueListViewerRequestSchema, CliCommandAgentsQueueListViewerResponseItemSchema, CliCommandAgentsQueueOpenPathSchema, CliCommandAgentsQueueOpenRequestSchema, CliCommandAgentsQueueOpenRequestSchemaPathSchema, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, CliCommandAgentsQueueOpenResponseSchemaPathSchema, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, CliCommandAgentsQueueOpenViewerRequestSchema, CliCommandAgentsQueueOpenViewerResponseSchema, CliCommandAgentsQueueRequestSchema, CliCommandAgentsQueueViewerRequestSchema, CliCommandAgentsRequestSchema, CliCommandAgentsSpawnPathSchema, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, CliCommandAgentsSpawnRequestSchemaPathSchema, CliCommandAgentsSpawnRequestSchemaRequestSchema, CliCommandAgentsSpawnResponseItemSchema, CliCommandAgentsSpawnResponseSchemaPathSchema, CliCommandAgentsSpawnResponseSchemaRequestSchema, CliCommandAgentsSpawnViewerRequestSchema, CliCommandAgentsSpawnViewerResponseItemSchema, CliCommandAgentsSpawnViewerResponseSchema, CliCommandAgentsTagsApplyAgentTagResolutionSchema, CliCommandAgentsTagsApplyPathSchema, CliCommandAgentsTagsApplyRequestSchema, CliCommandAgentsTagsApplyRequestSchemaPathSchema, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, CliCommandAgentsTagsApplyResponseSchema, CliCommandAgentsTagsApplyResponseSchemaPathSchema, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, CliCommandAgentsTagsApplyTargetSchema, CliCommandAgentsTagsApplyViewerRequestSchema, CliCommandAgentsTagsApplyViewerResponseSchema, CliCommandAgentsTagsLookupLookupStateSchema, CliCommandAgentsTagsLookupPathSchema, CliCommandAgentsTagsLookupRequestSchema, CliCommandAgentsTagsLookupRequestSchemaPathSchema, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, CliCommandAgentsTagsLookupResponseSchema, CliCommandAgentsTagsLookupResponseSchemaPathSchema, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, CliCommandAgentsTagsLookupViewerRequestSchema, CliCommandAgentsTagsLookupViewerResponseSchema, CliCommandAgentsTagsRequestSchema, CliCommandAgentsTagsViewerRequestSchema, CliCommandAgentsViewerRequestSchema, CliCommandAgentsWaitPathSchema, CliCommandAgentsWaitRequestSchema, CliCommandAgentsWaitRequestSchemaPathSchema, CliCommandAgentsWaitRequestSchemaRequestSchema, CliCommandAgentsWaitResponseSchemaPathSchema, CliCommandAgentsWaitResponseSchemaRequestSchema, CliCommandAgentsWaitViewerRequestSchema, CliCommandAgentsWaitViewerResponseSchema, CliCommandApiConfigAddressGetPathSchema, CliCommandApiConfigAddressGetRequestSchema, CliCommandApiConfigAddressGetRequestSchemaPathSchema, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, CliCommandApiConfigAddressGetResponseSchema, CliCommandApiConfigAddressGetResponseSchemaPathSchema, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, CliCommandApiConfigAddressGetViewerRequestSchema, CliCommandApiConfigAddressGetViewerResponseSchema, CliCommandApiConfigAddressRequestSchema, CliCommandApiConfigAddressSetPathSchema, CliCommandApiConfigAddressSetRequestSchema, CliCommandApiConfigAddressSetRequestSchemaPathSchema, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, CliCommandApiConfigAddressSetResponseSchemaPathSchema, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, CliCommandApiConfigAddressSetViewerRequestSchema, CliCommandApiConfigAddressSetViewerResponseSchema, CliCommandApiConfigAddressViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailGetPathSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailGetViewerResponseSchema, CliCommandApiConfigCommitAuthorEmailRequestSchema, CliCommandApiConfigCommitAuthorEmailSetPathSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailSetViewerResponseSchema, CliCommandApiConfigCommitAuthorEmailViewerRequestSchema, CliCommandApiConfigCommitAuthorNameGetPathSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema, CliCommandApiConfigCommitAuthorNameGetViewerResponseSchema, CliCommandApiConfigCommitAuthorNameRequestSchema, CliCommandApiConfigCommitAuthorNameSetPathSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema, CliCommandApiConfigCommitAuthorNameSetViewerResponseSchema, CliCommandApiConfigCommitAuthorNameViewerRequestSchema, CliCommandApiConfigGetPathSchema, CliCommandApiConfigGetRequestSchema, CliCommandApiConfigGetRequestSchemaPathSchema, CliCommandApiConfigGetRequestSchemaRequestSchema, CliCommandApiConfigGetResponseSchema, CliCommandApiConfigGetResponseSchemaPathSchema, CliCommandApiConfigGetResponseSchemaRequestSchema, CliCommandApiConfigGetViewerRequestSchema, CliCommandApiConfigGetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationGetPathSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema, CliCommandApiConfigGithubAuthorizationGetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationRequestSchema, CliCommandApiConfigGithubAuthorizationSetPathSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema, CliCommandApiConfigGithubAuthorizationSetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationViewerRequestSchema, CliCommandApiConfigHttpRefererGetPathSchema, CliCommandApiConfigHttpRefererGetRequestSchema, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, CliCommandApiConfigHttpRefererGetResponseSchema, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, CliCommandApiConfigHttpRefererGetViewerRequestSchema, CliCommandApiConfigHttpRefererGetViewerResponseSchema, CliCommandApiConfigHttpRefererRequestSchema, CliCommandApiConfigHttpRefererSetPathSchema, CliCommandApiConfigHttpRefererSetRequestSchema, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, CliCommandApiConfigHttpRefererSetViewerRequestSchema, CliCommandApiConfigHttpRefererSetViewerResponseSchema, CliCommandApiConfigHttpRefererViewerRequestSchema, CliCommandApiConfigMcpAuthorizationAddPathSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema, CliCommandApiConfigMcpAuthorizationAddViewerResponseSchema, CliCommandApiConfigMcpAuthorizationDelPathSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema, CliCommandApiConfigMcpAuthorizationDelViewerResponseSchema, CliCommandApiConfigMcpAuthorizationGetPathSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema, CliCommandApiConfigMcpAuthorizationGetViewerResponseSchema, CliCommandApiConfigMcpAuthorizationRequestSchema, CliCommandApiConfigMcpAuthorizationViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsGetPathSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsGetViewerResponseSchema, CliCommandApiConfigMcpTimeoutMsRequestSchema, CliCommandApiConfigMcpTimeoutMsSetPathSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsSetViewerResponseSchema, CliCommandApiConfigMcpTimeoutMsViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetViewerResponseSchema, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetViewerResponseSchema, CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema, CliCommandApiConfigRequestSchema, CliCommandApiConfigUserAgentGetPathSchema, CliCommandApiConfigUserAgentGetRequestSchema, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, CliCommandApiConfigUserAgentGetResponseSchema, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, CliCommandApiConfigUserAgentGetViewerRequestSchema, CliCommandApiConfigUserAgentGetViewerResponseSchema, CliCommandApiConfigUserAgentRequestSchema, CliCommandApiConfigUserAgentSetPathSchema, CliCommandApiConfigUserAgentSetRequestSchema, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, CliCommandApiConfigUserAgentSetViewerRequestSchema, CliCommandApiConfigUserAgentSetViewerResponseSchema, CliCommandApiConfigUserAgentViewerRequestSchema, CliCommandApiConfigViewerRequestSchema, CliCommandApiConfigXTitleGetPathSchema, CliCommandApiConfigXTitleGetRequestSchema, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, CliCommandApiConfigXTitleGetResponseSchema, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, CliCommandApiConfigXTitleGetViewerRequestSchema, CliCommandApiConfigXTitleGetViewerResponseSchema, CliCommandApiConfigXTitleRequestSchema, CliCommandApiConfigXTitleSetPathSchema, CliCommandApiConfigXTitleSetRequestSchema, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, CliCommandApiConfigXTitleSetViewerRequestSchema, CliCommandApiConfigXTitleSetViewerResponseSchema, CliCommandApiConfigXTitleViewerRequestSchema, CliCommandApiKillPathSchema, CliCommandApiKillRequestSchema, CliCommandApiKillRequestSchemaPathSchema, CliCommandApiKillRequestSchemaRequestSchema, CliCommandApiKillResponseSchema, CliCommandApiKillResponseSchemaPathSchema, CliCommandApiKillResponseSchemaRequestSchema, CliCommandApiKillViewerRequestSchema, CliCommandApiKillViewerResponseSchema, CliCommandApiRequestSchema, CliCommandApiSpawnPathSchema, CliCommandApiSpawnRequestSchema, CliCommandApiSpawnRequestSchemaPathSchema, CliCommandApiSpawnRequestSchemaRequestSchema, CliCommandApiSpawnResponseSchema, CliCommandApiSpawnResponseSchemaPathSchema, CliCommandApiSpawnResponseSchemaRequestSchema, CliCommandApiSpawnViewerRequestSchema, CliCommandApiSpawnViewerResponseSchema, CliCommandApiViewerRequestSchema, CliCommandDaemonKillPathSchema, CliCommandDaemonKillRequestSchema, CliCommandDaemonKillRequestSchemaPathSchema, CliCommandDaemonKillRequestSchemaRequestSchema, CliCommandDaemonKillResponseSchema, CliCommandDaemonKillResponseSchemaPathSchema, CliCommandDaemonKillResponseSchemaRequestSchema, CliCommandDaemonKillViewerRequestSchema, CliCommandDaemonKillViewerResponseSchema, CliCommandDaemonRequestSchema, CliCommandDaemonSpawnPathSchema, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, CliCommandDaemonSpawnRequestSchemaPathSchema, CliCommandDaemonSpawnRequestSchemaRequestSchema, CliCommandDaemonSpawnResponseItemSchema, CliCommandDaemonSpawnResponseSchemaPathSchema, CliCommandDaemonSpawnResponseSchemaRequestSchema, CliCommandDaemonSpawnViewerRequestSchema, CliCommandDaemonSpawnViewerResponseItemSchema, CliCommandDaemonViewerRequestSchema, CliCommandDbConfigAddressGetPathSchema, CliCommandDbConfigAddressGetRequestSchema, CliCommandDbConfigAddressGetRequestSchemaPathSchema, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, CliCommandDbConfigAddressGetResponseSchema, CliCommandDbConfigAddressGetResponseSchemaPathSchema, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, CliCommandDbConfigAddressGetViewerRequestSchema, CliCommandDbConfigAddressGetViewerResponseSchema, CliCommandDbConfigAddressRequestSchema, CliCommandDbConfigAddressSetPathSchema, CliCommandDbConfigAddressSetRequestSchema, CliCommandDbConfigAddressSetRequestSchemaPathSchema, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, CliCommandDbConfigAddressSetResponseSchemaPathSchema, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, CliCommandDbConfigAddressSetViewerRequestSchema, CliCommandDbConfigAddressSetViewerResponseSchema, CliCommandDbConfigAddressViewerRequestSchema, CliCommandDbConfigDatabaseGetPathSchema, CliCommandDbConfigDatabaseGetRequestSchema, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, CliCommandDbConfigDatabaseGetResponseSchema, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, CliCommandDbConfigDatabaseGetViewerRequestSchema, CliCommandDbConfigDatabaseGetViewerResponseSchema, CliCommandDbConfigDatabaseRequestSchema, CliCommandDbConfigDatabaseSetPathSchema, CliCommandDbConfigDatabaseSetRequestSchema, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, CliCommandDbConfigDatabaseSetViewerRequestSchema, CliCommandDbConfigDatabaseSetViewerResponseSchema, CliCommandDbConfigDatabaseViewerRequestSchema, CliCommandDbConfigGetPathSchema, CliCommandDbConfigGetRequestSchema, CliCommandDbConfigGetRequestSchemaPathSchema, CliCommandDbConfigGetRequestSchemaRequestSchema, CliCommandDbConfigGetResponseSchema, CliCommandDbConfigGetResponseSchemaPathSchema, CliCommandDbConfigGetResponseSchemaRequestSchema, CliCommandDbConfigGetViewerRequestSchema, CliCommandDbConfigGetViewerResponseSchema, CliCommandDbConfigPasswordGetPathSchema, CliCommandDbConfigPasswordGetRequestSchema, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, CliCommandDbConfigPasswordGetResponseSchema, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, CliCommandDbConfigPasswordGetViewerRequestSchema, CliCommandDbConfigPasswordGetViewerResponseSchema, CliCommandDbConfigPasswordRequestSchema, CliCommandDbConfigPasswordSetPathSchema, CliCommandDbConfigPasswordSetRequestSchema, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, CliCommandDbConfigPasswordSetViewerRequestSchema, CliCommandDbConfigPasswordSetViewerResponseSchema, CliCommandDbConfigPasswordViewerRequestSchema, CliCommandDbConfigRequestSchema, CliCommandDbConfigUserGetPathSchema, CliCommandDbConfigUserGetRequestSchema, CliCommandDbConfigUserGetRequestSchemaPathSchema, CliCommandDbConfigUserGetRequestSchemaRequestSchema, CliCommandDbConfigUserGetResponseSchema, CliCommandDbConfigUserGetResponseSchemaPathSchema, CliCommandDbConfigUserGetResponseSchemaRequestSchema, CliCommandDbConfigUserGetViewerRequestSchema, CliCommandDbConfigUserGetViewerResponseSchema, CliCommandDbConfigUserRequestSchema, CliCommandDbConfigUserSetPathSchema, CliCommandDbConfigUserSetRequestSchema, CliCommandDbConfigUserSetRequestSchemaPathSchema, CliCommandDbConfigUserSetRequestSchemaRequestSchema, CliCommandDbConfigUserSetResponseSchemaPathSchema, CliCommandDbConfigUserSetResponseSchemaRequestSchema, CliCommandDbConfigUserSetViewerRequestSchema, CliCommandDbConfigUserSetViewerResponseSchema, CliCommandDbConfigUserViewerRequestSchema, CliCommandDbConfigViewerRequestSchema, CliCommandDbKillPathSchema, CliCommandDbKillRequestSchema, CliCommandDbKillRequestSchemaPathSchema, CliCommandDbKillRequestSchemaRequestSchema, CliCommandDbKillResponseSchema, CliCommandDbKillResponseSchemaPathSchema, CliCommandDbKillResponseSchemaRequestSchema, CliCommandDbKillViewerRequestSchema, CliCommandDbKillViewerResponseSchema, CliCommandDbQueryColumnSchema, CliCommandDbQueryPathSchema, CliCommandDbQueryRequestSchema, CliCommandDbQueryRequestSchemaPathSchema, CliCommandDbQueryRequestSchemaRequestSchema, CliCommandDbQueryResponseSchema, CliCommandDbQueryResponseSchemaPathSchema, CliCommandDbQueryResponseSchemaRequestSchema, CliCommandDbQueryViewerRequestSchema, CliCommandDbQueryViewerResponseSchema, CliCommandDbRequestSchema, CliCommandDbSpawnPathSchema, CliCommandDbSpawnRequestSchema, CliCommandDbSpawnRequestSchemaPathSchema, CliCommandDbSpawnRequestSchemaRequestSchema, CliCommandDbSpawnResponseSchema, CliCommandDbSpawnResponseSchemaPathSchema, CliCommandDbSpawnResponseSchemaRequestSchema, CliCommandDbSpawnViewerRequestSchema, CliCommandDbSpawnViewerResponseSchema, CliCommandDbViewerRequestSchema, CliCommandFunctionsExecuteFunctionSpecSchema, CliCommandFunctionsExecuteProfileSpecSchema, CliCommandFunctionsExecuteRequestSchema, CliCommandFunctionsExecuteStandardPathSchema, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, CliCommandFunctionsExecuteStandardResponseItemSchema, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, CliCommandFunctionsExecuteStandardViewerRequestSchema, CliCommandFunctionsExecuteStandardViewerResponseItemSchema, CliCommandFunctionsExecuteStandardViewerResponseSchema, CliCommandFunctionsExecuteSwissSystemPathSchema, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, CliCommandFunctionsExecuteSwissSystemViewerRequestSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseItemSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseSchema, CliCommandFunctionsExecuteViewerRequestSchema, CliCommandFunctionsGetPathSchema, CliCommandFunctionsGetRequestSchema, CliCommandFunctionsGetRequestSchemaPathSchema, CliCommandFunctionsGetRequestSchemaRequestSchema, CliCommandFunctionsGetResponseSchema, CliCommandFunctionsGetResponseSchemaPathSchema, CliCommandFunctionsGetResponseSchemaRequestSchema, CliCommandFunctionsGetViewerRequestSchema, CliCommandFunctionsGetViewerResponseSchema, CliCommandFunctionsListPathSchema, CliCommandFunctionsListRequestSchema, CliCommandFunctionsListRequestSchemaPathSchema, CliCommandFunctionsListRequestSchemaRequestSchema, CliCommandFunctionsListResponseSchema, CliCommandFunctionsListResponseSchemaPathSchema, CliCommandFunctionsListResponseSchemaRequestSchema, CliCommandFunctionsListViewerRequestSchema, CliCommandFunctionsListViewerResponseSchema, CliCommandFunctionsProfilesGetPathSchema, CliCommandFunctionsProfilesGetRequestSchema, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, CliCommandFunctionsProfilesGetResponseSchema, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, CliCommandFunctionsProfilesGetViewerRequestSchema, CliCommandFunctionsProfilesGetViewerResponseSchema, CliCommandFunctionsProfilesListPathSchema, CliCommandFunctionsProfilesListRequestSchema, CliCommandFunctionsProfilesListRequestSchemaPathSchema, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, CliCommandFunctionsProfilesListResponseSchema, CliCommandFunctionsProfilesListResponseSchemaPathSchema, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, CliCommandFunctionsProfilesListViewerRequestSchema, CliCommandFunctionsProfilesListViewerResponseSchema, CliCommandFunctionsProfilesPublishPathSchema, CliCommandFunctionsProfilesPublishRequestBodySchema, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, CliCommandFunctionsProfilesPublishResponseSchema, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, CliCommandFunctionsProfilesPublishViewerRequestSchema, CliCommandFunctionsProfilesPublishViewerResponseSchema, CliCommandFunctionsProfilesRequestSchema, CliCommandFunctionsProfilesViewerRequestSchema, CliCommandFunctionsPublishPathSchema, CliCommandFunctionsPublishRequestBodySchema, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, CliCommandFunctionsPublishRequestSchemaPathSchema, CliCommandFunctionsPublishRequestSchemaRequestSchema, CliCommandFunctionsPublishResponseSchema, CliCommandFunctionsPublishResponseSchemaPathSchema, CliCommandFunctionsPublishResponseSchemaRequestSchema, CliCommandFunctionsPublishViewerRequestSchema, CliCommandFunctionsPublishViewerResponseSchema, CliCommandFunctionsRequestSchema, CliCommandFunctionsViewerRequestSchema, CliCommandGetScopeSchema, CliCommandKillAllPathSchema, CliCommandKillAllRequestSchema, CliCommandKillAllRequestSchemaPathSchema, CliCommandKillAllRequestSchemaRequestSchema, CliCommandKillAllResponseSchema, CliCommandKillAllResponseSchemaPathSchema, CliCommandKillAllResponseSchemaRequestSchema, CliCommandKillAllViewerRequestSchema, CliCommandKillAllViewerResponseSchema, CliCommandLaboratoriesCreateEnvVarSchema, CliCommandLaboratoriesCreateKindSchema, CliCommandLaboratoriesCreateMountSchema, CliCommandLaboratoriesCreatePathSchema, CliCommandLaboratoriesCreateRequestSchema, CliCommandLaboratoriesCreateRequestSchemaPathSchema, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, CliCommandLaboratoriesCreateResponseSchema, CliCommandLaboratoriesCreateResponseSchemaPathSchema, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, CliCommandLaboratoriesCreateViewerRequestSchema, CliCommandLaboratoriesCreateViewerResponseSchema, CliCommandLaboratoriesListPathSchema, CliCommandLaboratoriesListRequestSchema, CliCommandLaboratoriesListRequestSchemaPathSchema, CliCommandLaboratoriesListRequestSchemaRequestSchema, CliCommandLaboratoriesListResponseItemSchema, CliCommandLaboratoriesListResponseSchemaPathSchema, CliCommandLaboratoriesListResponseSchemaRequestSchema, CliCommandLaboratoriesListViewerRequestSchema, CliCommandLaboratoriesListViewerResponseItemSchema, CliCommandLaboratoriesRequestSchema, CliCommandLaboratoriesViewerRequestSchema, CliCommandMcpConfigAddressGetPathSchema, CliCommandMcpConfigAddressGetRequestSchema, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, CliCommandMcpConfigAddressGetResponseSchema, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, CliCommandMcpConfigAddressGetViewerRequestSchema, CliCommandMcpConfigAddressGetViewerResponseSchema, CliCommandMcpConfigAddressRequestSchema, CliCommandMcpConfigAddressSetPathSchema, CliCommandMcpConfigAddressSetRequestSchema, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, CliCommandMcpConfigAddressSetViewerRequestSchema, CliCommandMcpConfigAddressSetViewerResponseSchema, CliCommandMcpConfigAddressViewerRequestSchema, CliCommandMcpConfigGetPathSchema, CliCommandMcpConfigGetRequestSchema, CliCommandMcpConfigGetRequestSchemaPathSchema, CliCommandMcpConfigGetRequestSchemaRequestSchema, CliCommandMcpConfigGetResponseSchema, CliCommandMcpConfigGetResponseSchemaPathSchema, CliCommandMcpConfigGetResponseSchemaRequestSchema, CliCommandMcpConfigGetViewerRequestSchema, CliCommandMcpConfigGetViewerResponseSchema, CliCommandMcpConfigPortGetPathSchema, CliCommandMcpConfigPortGetRequestSchema, CliCommandMcpConfigPortGetRequestSchemaPathSchema, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, CliCommandMcpConfigPortGetResponseSchema, CliCommandMcpConfigPortGetResponseSchemaPathSchema, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, CliCommandMcpConfigPortGetViewerRequestSchema, CliCommandMcpConfigPortGetViewerResponseSchema, CliCommandMcpConfigPortRequestSchema, CliCommandMcpConfigPortSetPathSchema, CliCommandMcpConfigPortSetRequestSchema, CliCommandMcpConfigPortSetRequestSchemaPathSchema, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, CliCommandMcpConfigPortSetResponseSchemaPathSchema, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, CliCommandMcpConfigPortSetViewerRequestSchema, CliCommandMcpConfigPortSetViewerResponseSchema, CliCommandMcpConfigPortViewerRequestSchema, CliCommandMcpConfigRequestSchema, CliCommandMcpConfigViewerRequestSchema, CliCommandMcpKillPathSchema, CliCommandMcpKillRequestSchema, CliCommandMcpKillRequestSchemaPathSchema, CliCommandMcpKillRequestSchemaRequestSchema, CliCommandMcpKillResponseSchema, CliCommandMcpKillResponseSchemaPathSchema, CliCommandMcpKillResponseSchemaRequestSchema, CliCommandMcpKillViewerRequestSchema, CliCommandMcpKillViewerResponseSchema, CliCommandMcpRequestSchema, CliCommandMcpSpawnPathSchema, CliCommandMcpSpawnRequestSchema, CliCommandMcpSpawnRequestSchemaPathSchema, CliCommandMcpSpawnRequestSchemaRequestSchema, CliCommandMcpSpawnResponseSchema, CliCommandMcpSpawnResponseSchemaPathSchema, CliCommandMcpSpawnResponseSchemaRequestSchema, CliCommandMcpSpawnViewerRequestSchema, CliCommandMcpSpawnViewerResponseSchema, CliCommandMcpViewerRequestSchema, CliCommandOkSchema, CliCommandPluginsGetPathSchema, CliCommandPluginsGetRequestSchema, CliCommandPluginsGetRequestSchemaPathSchema, CliCommandPluginsGetRequestSchemaRequestSchema, CliCommandPluginsGetResponseHttpMethodSchema, CliCommandPluginsGetResponseManifestSchema, CliCommandPluginsGetResponseMcpServerSchema, CliCommandPluginsGetResponseSchemaPathSchema, CliCommandPluginsGetResponseSchemaRequestSchema, CliCommandPluginsGetResponseViewerRouteSchema, CliCommandPluginsGetViewerRequestSchema, CliCommandPluginsGetViewerResponseSchema, CliCommandPluginsInstallFilesystemPathSchema, CliCommandPluginsInstallFilesystemRequestSchema, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, CliCommandPluginsInstallFilesystemResponseSchema, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, CliCommandPluginsInstallFilesystemViewerRequestSchema, CliCommandPluginsInstallFilesystemViewerResponseSchema, CliCommandPluginsInstallGithubPathSchema, CliCommandPluginsInstallGithubRequestSchema, CliCommandPluginsInstallGithubRequestSchemaPathSchema, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, CliCommandPluginsInstallGithubResponseSchema, CliCommandPluginsInstallGithubResponseSchemaPathSchema, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, CliCommandPluginsInstallGithubViewerRequestSchema, CliCommandPluginsInstallGithubViewerResponseSchema, CliCommandPluginsInstallRequestSchema, CliCommandPluginsInstallViewerRequestSchema, CliCommandPluginsListPathSchema, CliCommandPluginsListRequestSchema, CliCommandPluginsListRequestSchemaPathSchema, CliCommandPluginsListRequestSchemaRequestSchema, CliCommandPluginsListResponseSchemaPathSchema, CliCommandPluginsListResponseSchemaRequestSchema, CliCommandPluginsListViewerRequestSchema, CliCommandPluginsListViewerResponseItemSchema, CliCommandPluginsLogsListPathSchema, CliCommandPluginsLogsListRequestSchema, CliCommandPluginsLogsListRequestSchemaPathSchema, CliCommandPluginsLogsListRequestSchemaRequestSchema, CliCommandPluginsLogsListResponseItemSchema, CliCommandPluginsLogsListResponseSchemaPathSchema, CliCommandPluginsLogsListResponseSchemaRequestSchema, CliCommandPluginsLogsListViewerRequestSchema, CliCommandPluginsLogsListViewerResponseItemSchema, CliCommandPluginsLogsRequestSchema, CliCommandPluginsRequestSchema, CliCommandPluginsRunMcpSchema, CliCommandPluginsRunMcpTypeSchema, CliCommandPluginsRunPathSchema, CliCommandPluginsRunRequestSchema, CliCommandPluginsRunRequestSchemaPathSchema, CliCommandPluginsRunRequestSchemaRequestSchema, CliCommandPluginsRunResponseItemSchema, CliCommandPluginsRunResponseSchemaPathSchema, CliCommandPluginsRunResponseSchemaRequestSchema, CliCommandPluginsRunViewerRequestSchema, CliCommandPluginsRunViewerResponseItemSchema, CliCommandPluginsViewerRequestSchema, CliCommandPythonPathSchema, CliCommandPythonRequestSchema, CliCommandPythonRequestSchemaPathSchema, CliCommandPythonRequestSchemaRequestSchema, CliCommandPythonResponseSchemaPathSchema, CliCommandPythonResponseSchemaRequestSchema, CliCommandPythonViewerRequestSchema, CliCommandPythonViewerResponseSchema, CliCommandRequestBaseSchema, CliCommandRequestSchema, CliCommandRootViewerRequestSchema, CliCommandSetScopeSchema, CliCommandSwarmsGetPathSchema, CliCommandSwarmsGetRequestSchema, CliCommandSwarmsGetRequestSchemaPathSchema, CliCommandSwarmsGetRequestSchemaRequestSchema, CliCommandSwarmsGetResponseSchema, CliCommandSwarmsGetResponseSchemaPathSchema, CliCommandSwarmsGetResponseSchemaRequestSchema, CliCommandSwarmsGetViewerRequestSchema, CliCommandSwarmsGetViewerResponseSchema, CliCommandSwarmsListPathSchema, CliCommandSwarmsListRequestSchema, CliCommandSwarmsListRequestSchemaPathSchema, CliCommandSwarmsListRequestSchemaRequestSchema, CliCommandSwarmsListResponseSchema, CliCommandSwarmsListResponseSchemaPathSchema, CliCommandSwarmsListResponseSchemaRequestSchema, CliCommandSwarmsListViewerRequestSchema, CliCommandSwarmsListViewerResponseItemSchema, CliCommandSwarmsListViewerResponseSchema, CliCommandSwarmsPublishPathSchema, CliCommandSwarmsPublishRequestBodySchema, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, CliCommandSwarmsPublishRequestSchemaPathSchema, CliCommandSwarmsPublishRequestSchemaRequestSchema, CliCommandSwarmsPublishResponseSchema, CliCommandSwarmsPublishResponseSchemaPathSchema, CliCommandSwarmsPublishResponseSchemaRequestSchema, CliCommandSwarmsPublishViewerRequestSchema, CliCommandSwarmsPublishViewerResponseSchema, CliCommandSwarmsRequestSchema, CliCommandSwarmsViewerRequestSchema, CliCommandToolsGetExecSchema, CliCommandToolsGetPathSchema, CliCommandToolsGetRequestSchema, CliCommandToolsGetRequestSchemaPathSchema, CliCommandToolsGetRequestSchemaRequestSchema, CliCommandToolsGetResponseManifestSchema, CliCommandToolsGetResponseSchemaPathSchema, CliCommandToolsGetResponseSchemaRequestSchema, CliCommandToolsGetViewerRequestSchema, CliCommandToolsGetViewerResponseSchema, CliCommandToolsInstallFilesystemPathSchema, CliCommandToolsInstallFilesystemRequestSchema, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, CliCommandToolsInstallFilesystemResponseSchema, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, CliCommandToolsInstallFilesystemViewerRequestSchema, CliCommandToolsInstallFilesystemViewerResponseSchema, CliCommandToolsInstallGithubPathSchema, CliCommandToolsInstallGithubRequestSchema, CliCommandToolsInstallGithubRequestSchemaPathSchema, CliCommandToolsInstallGithubRequestSchemaRequestSchema, CliCommandToolsInstallGithubResponseSchema, CliCommandToolsInstallGithubResponseSchemaPathSchema, CliCommandToolsInstallGithubResponseSchemaRequestSchema, CliCommandToolsInstallGithubViewerRequestSchema, CliCommandToolsInstallGithubViewerResponseSchema, CliCommandToolsInstallRequestSchema, CliCommandToolsInstallViewerRequestSchema, CliCommandToolsListPathSchema, CliCommandToolsListRequestSchema, CliCommandToolsListRequestSchemaPathSchema, CliCommandToolsListRequestSchemaRequestSchema, CliCommandToolsListResponseSchemaPathSchema, CliCommandToolsListResponseSchemaRequestSchema, CliCommandToolsListViewerRequestSchema, CliCommandToolsListViewerResponseItemSchema, CliCommandToolsRequestSchema, CliCommandToolsRunPathSchema, CliCommandToolsRunRequestSchema, CliCommandToolsRunRequestSchemaPathSchema, CliCommandToolsRunRequestSchemaRequestSchema, CliCommandToolsRunResponseItemSchema, CliCommandToolsRunResponseSchemaPathSchema, CliCommandToolsRunResponseSchemaRequestSchema, CliCommandToolsRunViewerRequestSchema, CliCommandToolsRunViewerResponseItemSchema, CliCommandToolsViewerRequestSchema, CliCommandUpdatePathSchema, CliCommandUpdateRequestSchema, CliCommandUpdateRequestSchemaPathSchema, CliCommandUpdateRequestSchemaRequestSchema, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, CliCommandUpdateResponseSchemaPathSchema, CliCommandUpdateResponseSchemaRequestSchema, CliCommandUpdateResponseSkipReasonSchema, CliCommandUpdateViewerRequestSchema, CliCommandUpdateViewerResponseItemSchema, CliCommandUpdateViewerResponseSchema, CliCommandViewerConfigAddressGetPathSchema, CliCommandViewerConfigAddressGetRequestSchema, CliCommandViewerConfigAddressGetRequestSchemaPathSchema, CliCommandViewerConfigAddressGetRequestSchemaRequestSchema, CliCommandViewerConfigAddressGetResponseSchema, CliCommandViewerConfigAddressGetResponseSchemaPathSchema, CliCommandViewerConfigAddressGetResponseSchemaRequestSchema, CliCommandViewerConfigAddressGetViewerRequestSchema, CliCommandViewerConfigAddressGetViewerResponseSchema, CliCommandViewerConfigAddressRequestSchema, CliCommandViewerConfigAddressSetPathSchema, CliCommandViewerConfigAddressSetRequestSchema, CliCommandViewerConfigAddressSetRequestSchemaPathSchema, CliCommandViewerConfigAddressSetRequestSchemaRequestSchema, CliCommandViewerConfigAddressSetResponseSchemaPathSchema, CliCommandViewerConfigAddressSetResponseSchemaRequestSchema, CliCommandViewerConfigAddressSetViewerRequestSchema, CliCommandViewerConfigAddressSetViewerResponseSchema, CliCommandViewerConfigAddressViewerRequestSchema, CliCommandViewerConfigGetPathSchema, CliCommandViewerConfigGetRequestSchema, CliCommandViewerConfigGetRequestSchemaPathSchema, CliCommandViewerConfigGetRequestSchemaRequestSchema, CliCommandViewerConfigGetResponseSchema, CliCommandViewerConfigGetResponseSchemaPathSchema, CliCommandViewerConfigGetResponseSchemaRequestSchema, CliCommandViewerConfigGetViewerRequestSchema, CliCommandViewerConfigGetViewerResponseSchema, CliCommandViewerConfigRequestSchema, CliCommandViewerConfigSecretGetPathSchema, CliCommandViewerConfigSecretGetRequestSchema, CliCommandViewerConfigSecretGetRequestSchemaPathSchema, CliCommandViewerConfigSecretGetRequestSchemaRequestSchema, CliCommandViewerConfigSecretGetResponseSchema, CliCommandViewerConfigSecretGetResponseSchemaPathSchema, CliCommandViewerConfigSecretGetResponseSchemaRequestSchema, CliCommandViewerConfigSecretGetViewerRequestSchema, CliCommandViewerConfigSecretGetViewerResponseSchema, CliCommandViewerConfigSecretRequestSchema, CliCommandViewerConfigSecretSetPathSchema, CliCommandViewerConfigSecretSetRequestSchema, CliCommandViewerConfigSecretSetRequestSchemaPathSchema, CliCommandViewerConfigSecretSetRequestSchemaRequestSchema, CliCommandViewerConfigSecretSetResponseSchemaPathSchema, CliCommandViewerConfigSecretSetResponseSchemaRequestSchema, CliCommandViewerConfigSecretSetViewerRequestSchema, CliCommandViewerConfigSecretSetViewerResponseSchema, CliCommandViewerConfigSecretViewerRequestSchema, CliCommandViewerConfigSignatureGetPathSchema, CliCommandViewerConfigSignatureGetRequestSchema, CliCommandViewerConfigSignatureGetRequestSchemaPathSchema, CliCommandViewerConfigSignatureGetRequestSchemaRequestSchema, CliCommandViewerConfigSignatureGetResponseSchema, CliCommandViewerConfigSignatureGetResponseSchemaPathSchema, CliCommandViewerConfigSignatureGetResponseSchemaRequestSchema, CliCommandViewerConfigSignatureGetViewerRequestSchema, CliCommandViewerConfigSignatureGetViewerResponseSchema, CliCommandViewerConfigSignatureRequestSchema, CliCommandViewerConfigSignatureSetPathSchema, CliCommandViewerConfigSignatureSetRequestSchema, CliCommandViewerConfigSignatureSetRequestSchemaPathSchema, CliCommandViewerConfigSignatureSetRequestSchemaRequestSchema, CliCommandViewerConfigSignatureSetResponseSchemaPathSchema, CliCommandViewerConfigSignatureSetResponseSchemaRequestSchema, CliCommandViewerConfigSignatureSetViewerRequestSchema, CliCommandViewerConfigSignatureSetViewerResponseSchema, CliCommandViewerConfigSignatureViewerRequestSchema, CliCommandViewerConfigViewerRequestSchema, CliCommandViewerGenerateSecretSignaturePairPathSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema, CliCommandViewerGenerateSecretSignaturePairViewerResponseSchema, CliCommandViewerKillPathSchema, CliCommandViewerKillRequestSchema, CliCommandViewerKillRequestSchemaPathSchema, CliCommandViewerKillRequestSchemaRequestSchema, CliCommandViewerKillResponseSchema, CliCommandViewerKillResponseSchemaPathSchema, CliCommandViewerKillResponseSchemaRequestSchema, CliCommandViewerKillViewerRequestSchema, CliCommandViewerKillViewerResponseSchema, CliCommandViewerRequestSchema, CliCommandViewerSendPathSchema, CliCommandViewerSendRequestSchema, CliCommandViewerSendRequestSchemaPathSchema, CliCommandViewerSendRequestSchemaRequestSchema, CliCommandViewerSendResponseSchema, CliCommandViewerSendResponseSchemaPathSchema, CliCommandViewerSendResponseSchemaRequestSchema, CliCommandViewerSendViewerRequestSchema, CliCommandViewerSendViewerResponseSchema, CliCommandViewerSpawnPathSchema, CliCommandViewerSpawnRequestSchema, CliCommandViewerSpawnRequestSchemaPathSchema, CliCommandViewerSpawnRequestSchemaRequestSchema, CliCommandViewerSpawnResponseSchema, CliCommandViewerSpawnResponseSchemaPathSchema, CliCommandViewerSpawnResponseSchemaRequestSchema, CliCommandViewerSpawnViewerRequestSchema, CliCommandViewerSpawnViewerResponseSchema, CliCommandViewerViewerRequestSchema, CliErrorSchema, CliErrorTypeSchema, CliLevelSchema, CliPluginsCommandSchema, CliPluginsCommandTypeSchema, CliPluginsOutputSchema, CliStream, ErrorErrorCreateParamsSchema, ErrorErrorCreateParamsStreamingSchema, ErrorErrorCreateParamsUnarySchema, ErrorErrorResponseSchema, ErrorResponseErrorSchema, FunctionsAlphaInlineFunctionSchema, FunctionsAlphaRemoteFunctionSchema, FunctionsAlphaScalarBranchTaskExpressionSchema, FunctionsAlphaScalarInlineFunctionSchema, FunctionsAlphaScalarLeafTaskExpressionSchema, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, FunctionsAlphaScalarRemoteFunctionSchema, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, FunctionsAlphaVectorBranchTaskExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, FunctionsAlphaVectorInlineFunctionSchema, FunctionsAlphaVectorLeafTaskExpressionSchema, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, FunctionsAlphaVectorRemoteFunctionSchema, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, FunctionsCheckScalarFieldsValidationSchema, FunctionsCheckVectorFieldsValidationSchema, FunctionsCompiledTaskSchema, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, FunctionsExecutionsRequestReasoningSchema, FunctionsExecutionsRequestStrategySchema, FunctionsExecutionsResponseOutputSchema, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, FunctionsExecutionsResponseStreamingInnerErrorSchema, FunctionsExecutionsResponseStreamingObjectSchema, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, FunctionsExecutionsResponseStreamingTaskChunkSchema, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, FunctionsExecutionsResponseUnaryObjectSchema, FunctionsExecutionsResponseUnaryReasoningSummarySchema, FunctionsExecutionsResponseUnaryTaskSchema, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, FunctionsExpressionAnyOfInputSchemaSchema, FunctionsExpressionArrayInputSchemaSchema, FunctionsExpressionArrayInputSchemaTypeSchema, FunctionsExpressionAudioInputSchemaSchema, FunctionsExpressionAudioInputSchemaTypeSchema, FunctionsExpressionBooleanInputSchemaSchema, FunctionsExpressionBooleanInputSchemaTypeSchema, FunctionsExpressionExpressionSchema, FunctionsExpressionFileInputSchemaSchema, FunctionsExpressionFileInputSchemaTypeSchema, FunctionsExpressionImageInputSchemaSchema, FunctionsExpressionImageInputSchemaTypeSchema, FunctionsExpressionInputSchemaSchema, FunctionsExpressionInputValueExpressionSchema, FunctionsExpressionInputValueSchema, FunctionsExpressionIntegerInputSchemaSchema, FunctionsExpressionIntegerInputSchemaTypeSchema, FunctionsExpressionNumberInputSchemaSchema, FunctionsExpressionNumberInputSchemaTypeSchema, FunctionsExpressionObjectInputSchemaSchema, FunctionsExpressionObjectInputSchemaTypeSchema, FunctionsExpressionParamsSchema, FunctionsExpressionSpecialSchema, FunctionsExpressionStringInputSchemaSchema, FunctionsExpressionStringInputSchemaTypeSchema, FunctionsExpressionTaskOutputSchema, FunctionsExpressionVideoInputSchemaSchema, FunctionsExpressionVideoInputSchemaTypeSchema, FunctionsFullFunctionSchema, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, FunctionsFullRemoteFunctionSchema, FunctionsFunctionSchema, FunctionsFunctionTypeSchema, FunctionsInlineFunctionSchema, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, FunctionsInlineTasksProfileSchema, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, FunctionsProfileSchema, FunctionsProfilesComputationsRequestDatasetItemSchema, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, FunctionsProfilesComputationsRequestTargetSchema, FunctionsProfilesComputationsResponseFittingStatsSchema, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, FunctionsProfilesComputationsResponseStreamingObjectSchema, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, FunctionsProfilesComputationsResponseUnaryObjectSchema, FunctionsRemoteFunctionSchema, FunctionsRemoteProfileSchema, FunctionsRemoteTasksProfileSchema, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, FunctionsTaskExpressionSchema, FunctionsTaskProfileSchema, FunctionsTaskSchema, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, HttpViewerAgentCompletionCreateParamsSchema, HttpViewerAgentCompletionRequestSchema, HttpViewerFunctionExecutionCreateParamsSchema, HttpViewerFunctionExecutionRequestSchema, HttpViewerRequestSchema, HttpViewerResponseErrorSchema, LaboratoriesClientLaboratorySchema, LaboratoriesClientLaboratoryTypeSchema, LaboratoriesLaboratorySchema, McpResourceListResourcesRequestSchema, McpResourceReadResourceRequestParamsSchema, McpToolCallToolRequestParamsSchema, McpToolListToolsRequestSchema, McpToolTaskMetadataSchema, ObjectiveAI, ObjectiveAIFetchError, ObjectiveAIOptionsSchema, PluginCommandExecutor, PrefixedUuidSchema, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, RequestOptionsSchema, Stream, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, SwarmSwarmBaseSchema, SwarmSwarmSchema, VectorCompletionsRequestVectorCompletionCreateParamsSchema, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, VectorCompletionsResponseStreamingInnerErrorSchema, VectorCompletionsResponseStreamingObjectSchema, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, VectorCompletionsResponseUnaryAgentCompletionSchema, VectorCompletionsResponseUnaryObjectSchema, VectorCompletionsResponseUnaryVectorCompletionSchema, VectorCompletionsResponseVoteSchema, VectorCompletionsVectorResponsesSchema, ViewerCommandExecutor, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsLaboratoriesAttachExecute, agentsLaboratoriesAttachExecuteTransform, agentsLaboratoriesAttachRequestSchemaExecute, agentsLaboratoriesAttachRequestSchemaExecuteTransform, agentsLaboratoriesAttachResponseSchemaExecute, agentsLaboratoriesAttachResponseSchemaExecuteTransform, agentsLaboratoriesDetachExecute, agentsLaboratoriesDetachExecuteTransform, agentsLaboratoriesDetachRequestSchemaExecute, agentsLaboratoriesDetachRequestSchemaExecuteTransform, agentsLaboratoriesDetachResponseSchemaExecute, agentsLaboratoriesDetachResponseSchemaExecuteTransform, agentsLaboratoriesListExecute, agentsLaboratoriesListExecuteTransform, agentsLaboratoriesListRequestSchemaExecute, agentsLaboratoriesListRequestSchemaExecuteTransform, agentsLaboratoriesListResponseSchemaExecute, agentsLaboratoriesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsGetExecute, apiConfigMcpTimeoutMsGetExecuteTransform, apiConfigMcpTimeoutMsGetRequestSchemaExecute, apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsGetResponseSchemaExecute, apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsSetExecute, apiConfigMcpTimeoutMsSetExecuteTransform, apiConfigMcpTimeoutMsSetRequestSchemaExecute, apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsSetResponseSchemaExecute, apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerConfigAddressGetExecute, viewerConfigAddressGetExecuteTransform, viewerConfigAddressGetRequestSchemaExecute, viewerConfigAddressGetRequestSchemaExecuteTransform, viewerConfigAddressGetResponseSchemaExecute, viewerConfigAddressGetResponseSchemaExecuteTransform, viewerConfigAddressSetExecute, viewerConfigAddressSetExecuteTransform, viewerConfigAddressSetRequestSchemaExecute, viewerConfigAddressSetRequestSchemaExecuteTransform, viewerConfigAddressSetResponseSchemaExecute, viewerConfigAddressSetResponseSchemaExecuteTransform, viewerConfigGetExecute, viewerConfigGetExecuteTransform, viewerConfigGetRequestSchemaExecute, viewerConfigGetRequestSchemaExecuteTransform, viewerConfigGetResponseSchemaExecute, viewerConfigGetResponseSchemaExecuteTransform, viewerConfigSecretGetExecute, viewerConfigSecretGetExecuteTransform, viewerConfigSecretGetRequestSchemaExecute, viewerConfigSecretGetRequestSchemaExecuteTransform, viewerConfigSecretGetResponseSchemaExecute, viewerConfigSecretGetResponseSchemaExecuteTransform, viewerConfigSecretSetExecute, viewerConfigSecretSetExecuteTransform, viewerConfigSecretSetRequestSchemaExecute, viewerConfigSecretSetRequestSchemaExecuteTransform, viewerConfigSecretSetResponseSchemaExecute, viewerConfigSecretSetResponseSchemaExecuteTransform, viewerConfigSignatureGetExecute, viewerConfigSignatureGetExecuteTransform, viewerConfigSignatureGetRequestSchemaExecute, viewerConfigSignatureGetRequestSchemaExecuteTransform, viewerConfigSignatureGetResponseSchemaExecute, viewerConfigSignatureGetResponseSchemaExecuteTransform, viewerConfigSignatureSetExecute, viewerConfigSignatureSetExecuteTransform, viewerConfigSignatureSetRequestSchemaExecute, viewerConfigSignatureSetRequestSchemaExecuteTransform, viewerConfigSignatureSetResponseSchemaExecute, viewerConfigSignatureSetResponseSchemaExecuteTransform, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSendExecute, viewerSendExecuteTransform, viewerSendRequestSchemaExecute, viewerSendRequestSchemaExecuteTransform, viewerSendResponseSchemaExecute, viewerSendResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };
+export { AgentAgentBaseSchema, AgentAgentSchema, AgentAgentWithFallbacksSchema, AgentAgentWithFallbacksWithCountSchema, AgentClaudeAgentSdkAgentBaseSchema, AgentClaudeAgentSdkAgentSchema, AgentClaudeAgentSdkContinuationSchema, AgentClaudeAgentSdkEffortSchema, AgentClaudeAgentSdkOutputModeSchema, AgentClaudeAgentSdkUpstreamSchema, AgentClientObjectiveaiMcpEntrySchema, AgentClientObjectiveaiMcpHeadersSchema, AgentClientObjectiveaiMcpPluginEntrySchema, AgentClientObjectiveaiMcpPluginMcpServerSchema, AgentClientObjectiveaiMcpSchema, AgentCodexSdkAgentBaseSchema, AgentCodexSdkAgentSchema, AgentCodexSdkContinuationSchema, AgentCodexSdkEffortSchema, AgentCodexSdkOutputModeSchema, AgentCodexSdkUpstreamSchema, AgentCompletionsMessageAssistantMessageExpressionSchema, AgentCompletionsMessageAssistantMessageSchema, AgentCompletionsMessageAssistantToolCallDeltaSchema, AgentCompletionsMessageAssistantToolCallExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionDeltaSchema, AgentCompletionsMessageAssistantToolCallFunctionExpressionSchema, AgentCompletionsMessageAssistantToolCallFunctionSchema, AgentCompletionsMessageAssistantToolCallSchema, AgentCompletionsMessageAssistantToolCallTypeSchema, AgentCompletionsMessageFileSchema, AgentCompletionsMessageImageUrlDetailSchema, AgentCompletionsMessageImageUrlSchema, AgentCompletionsMessageInputAudioSchema, AgentCompletionsMessageMessageExpressionSchema, AgentCompletionsMessageMessageSchema, AgentCompletionsMessagePipeAckSchema, AgentCompletionsMessageRichContentExpressionSchema, AgentCompletionsMessageRichContentPartExpressionSchema, AgentCompletionsMessageRichContentPartSchema, AgentCompletionsMessageRichContentSchema, AgentCompletionsMessageToolMessageExpressionSchema, AgentCompletionsMessageToolMessageSchema, AgentCompletionsMessageToolResponseMetadataSchema, AgentCompletionsMessageUserMessageExpressionSchema, AgentCompletionsMessageUserMessageSchema, AgentCompletionsMessageVideoUrlSchema, AgentCompletionsRequestAgentCompletionCreateParamsSchema, AgentCompletionsRequestAgentCompletionCreateParamsStreamingSchema, AgentCompletionsRequestAgentCompletionCreateParamsUnarySchema, AgentCompletionsRequestProviderDataCollectionSchema, AgentCompletionsRequestProviderMaxPriceSchema, AgentCompletionsRequestProviderSchema, AgentCompletionsRequestProviderSortSchema, AgentCompletionsRequestResponseFormatParamSchema, AgentCompletionsRequestResponseFormatSchema, AgentCompletionsResponseAssistantRoleSchema, AgentCompletionsResponseCompletionTokensDetailsSchema, AgentCompletionsResponseCostDetailsSchema, AgentCompletionsResponseFinishReasonSchema, AgentCompletionsResponseLogprobSchema, AgentCompletionsResponseLogprobsSchema, AgentCompletionsResponsePromptTokensDetailsSchema, AgentCompletionsResponseStreamingAgentCompletionChunkSchema, AgentCompletionsResponseStreamingAssistantResponseChunkSchema, AgentCompletionsResponseStreamingMessageChunkSchema, AgentCompletionsResponseStreamingObjectSchema, AgentCompletionsResponseToolResponseSchema, AgentCompletionsResponseToolRoleSchema, AgentCompletionsResponseTopLogprobSchema, AgentCompletionsResponseUnaryAgentCompletionSchema, AgentCompletionsResponseUnaryAssistantResponseSchema, AgentCompletionsResponseUnaryMessageSchema, AgentCompletionsResponseUnaryObjectSchema, AgentCompletionsResponseUpstreamUsageSchema, AgentCompletionsResponseUsageSchema, AgentContinuationSchema, AgentInlineAgentBaseSchema, AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema, AgentInlineAgentBaseWithFallbacksOrRemoteSchema, AgentInlineAgentBaseWithFallbacksOrRemoteWithCountSchema, AgentInlineAgentBaseWithFallbacksSchema, AgentInlineAgentSchema, AgentInlineAgentWithFallbacksSchema, AgentMcpServerSchema, AgentMockAgentBaseSchema, AgentMockAgentSchema, AgentMockCallSchema, AgentMockCallToolCallSchema, AgentMockContinuationSchema, AgentMockOutputModeSchema, AgentMockUpstreamSchema, AgentOpenrouterAgentBaseSchema, AgentOpenrouterAgentSchema, AgentOpenrouterContextCompressionSchema, AgentOpenrouterContinuationSchema, AgentOpenrouterOutputModeSchema, AgentOpenrouterProviderQuantizationSchema, AgentOpenrouterProviderSchema, AgentOpenrouterReasoningEffortSchema, AgentOpenrouterReasoningSchema, AgentOpenrouterReasoningSummaryVerbositySchema, AgentOpenrouterStopSchema, AgentOpenrouterSystemPromptRoleSchema, AgentOpenrouterSystemPromptSchema, AgentOpenrouterUpstreamSchema, AgentOpenrouterVerbositySchema, AgentOutputModeSchema, AgentRemoteAgentBaseSchema, AgentRemoteAgentBaseWithFallbacksSchema, AgentRemoteAgentSchema, AgentRemoteAgentWithFallbacksSchema, AgentUpstreamSchema, AuthApiKeyWithMetadataSchema, AuthCreateApiKeyRequestSchema, AuthCreateOpenRouterByokApiKeyRequestSchema, AuthDisableApiKeyRequestSchema, AuthGetCreditsResponseSchema, AuthGetOpenRouterByokApiKeyResponseSchema, AuthListApiKeyItemSchema, AuthListApiKeyResponseSchema, BinaryCommandExecutor, CliCommandAgentArgumentsSchema, CliCommandAgentsAgentRefSchema, CliCommandAgentsAgentSelectorSchema, CliCommandAgentsEnqueuePathSchema, CliCommandAgentsEnqueueRequestSchema, CliCommandAgentsEnqueueRequestSchemaPathSchema, CliCommandAgentsEnqueueRequestSchemaRequestSchema, CliCommandAgentsEnqueueResponseSchema, CliCommandAgentsEnqueueResponseSchemaPathSchema, CliCommandAgentsEnqueueResponseSchemaRequestSchema, CliCommandAgentsEnqueueViewerRequestSchema, CliCommandAgentsEnqueueViewerResponseSchema, CliCommandAgentsGetPathSchema, CliCommandAgentsGetRequestSchema, CliCommandAgentsGetRequestSchemaPathSchema, CliCommandAgentsGetRequestSchemaRequestSchema, CliCommandAgentsGetResponseSchema, CliCommandAgentsGetResponseSchemaPathSchema, CliCommandAgentsGetResponseSchemaRequestSchema, CliCommandAgentsGetViewerRequestSchema, CliCommandAgentsGetViewerResponseSchema, CliCommandAgentsInstancesGetPathSchema, CliCommandAgentsInstancesGetRequestSchema, CliCommandAgentsInstancesGetRequestSchemaPathSchema, CliCommandAgentsInstancesGetRequestSchemaRequestSchema, CliCommandAgentsInstancesGetResponseSchemaPathSchema, CliCommandAgentsInstancesGetResponseSchemaRequestSchema, CliCommandAgentsInstancesGetViewerRequestSchema, CliCommandAgentsInstancesGetViewerResponseItemSchema, CliCommandAgentsInstancesListPathSchema, CliCommandAgentsInstancesListRequestSchema, CliCommandAgentsInstancesListRequestSchemaPathSchema, CliCommandAgentsInstancesListRequestSchemaRequestSchema, CliCommandAgentsInstancesListResponseItemSchema, CliCommandAgentsInstancesListResponseSchemaPathSchema, CliCommandAgentsInstancesListResponseSchemaRequestSchema, CliCommandAgentsInstancesListViewerRequestSchema, CliCommandAgentsInstancesListViewerResponseItemSchema, CliCommandAgentsInstancesRequestSchema, CliCommandAgentsInstancesViewerRequestSchema, CliCommandAgentsLaboratoriesAttachPathSchema, CliCommandAgentsLaboratoriesAttachRequestSchema, CliCommandAgentsLaboratoriesAttachRequestSchemaPathSchema, CliCommandAgentsLaboratoriesAttachRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesAttachResponseSchema, CliCommandAgentsLaboratoriesAttachResponseSchemaPathSchema, CliCommandAgentsLaboratoriesAttachResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesAttachViewerRequestSchema, CliCommandAgentsLaboratoriesAttachViewerResponseSchema, CliCommandAgentsLaboratoriesDetachPathSchema, CliCommandAgentsLaboratoriesDetachRequestSchema, CliCommandAgentsLaboratoriesDetachRequestSchemaPathSchema, CliCommandAgentsLaboratoriesDetachRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesDetachResponseSchema, CliCommandAgentsLaboratoriesDetachResponseSchemaPathSchema, CliCommandAgentsLaboratoriesDetachResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesDetachViewerRequestSchema, CliCommandAgentsLaboratoriesDetachViewerResponseSchema, CliCommandAgentsLaboratoriesListPathSchema, CliCommandAgentsLaboratoriesListRequestSchema, CliCommandAgentsLaboratoriesListRequestSchemaPathSchema, CliCommandAgentsLaboratoriesListRequestSchemaRequestSchema, CliCommandAgentsLaboratoriesListResponseItemSchema, CliCommandAgentsLaboratoriesListResponseSchemaPathSchema, CliCommandAgentsLaboratoriesListResponseSchemaRequestSchema, CliCommandAgentsLaboratoriesListViewerRequestSchema, CliCommandAgentsLaboratoriesListViewerResponseItemSchema, CliCommandAgentsLaboratoriesRequestSchema, CliCommandAgentsLaboratoriesViewerRequestSchema, CliCommandAgentsListPathSchema, CliCommandAgentsListRequestSchema, CliCommandAgentsListRequestSchemaPathSchema, CliCommandAgentsListRequestSchemaRequestSchema, CliCommandAgentsListResponseSchemaPathSchema, CliCommandAgentsListResponseSchemaRequestSchema, CliCommandAgentsListViewerRequestSchema, CliCommandAgentsListViewerResponseItemSchema, CliCommandAgentsLogsListAssistantResponsePartSchema, CliCommandAgentsLogsListClientNotificationPartSchema, CliCommandAgentsLogsListClientNotificationPartTypeSchema, CliCommandAgentsLogsListPathSchema, CliCommandAgentsLogsListRequestSchema, CliCommandAgentsLogsListRequestSchemaPathSchema, CliCommandAgentsLogsListRequestSchemaRequestSchema, CliCommandAgentsLogsListResponseItemSchema, CliCommandAgentsLogsListResponseSchemaPathSchema, CliCommandAgentsLogsListResponseSchemaRequestSchema, CliCommandAgentsLogsListTargetSchema, CliCommandAgentsLogsListToolResponsePartSchema, CliCommandAgentsLogsListToolResponsePartTypeSchema, CliCommandAgentsLogsListViewerRequestSchema, CliCommandAgentsLogsListViewerResponseItemSchema, CliCommandAgentsLogsOpenPathSchema, CliCommandAgentsLogsOpenRequestSchema, CliCommandAgentsLogsOpenRequestSchemaPathSchema, CliCommandAgentsLogsOpenRequestSchemaRequestSchema, CliCommandAgentsLogsOpenResponseSchema, CliCommandAgentsLogsOpenResponseSchemaPathSchema, CliCommandAgentsLogsOpenResponseSchemaRequestSchema, CliCommandAgentsLogsOpenViewerRequestSchema, CliCommandAgentsLogsOpenViewerResponseSchema, CliCommandAgentsLogsRequestSchema, CliCommandAgentsLogsSubscribeAgentsInactiveTagSchema, CliCommandAgentsLogsSubscribeKindFilterSchema, CliCommandAgentsLogsSubscribePathSchema, CliCommandAgentsLogsSubscribeRequestSchema, CliCommandAgentsLogsSubscribeRequestSchemaPathSchema, CliCommandAgentsLogsSubscribeRequestSchemaRequestSchema, CliCommandAgentsLogsSubscribeResponseItemSchema, CliCommandAgentsLogsSubscribeResponseSchemaPathSchema, CliCommandAgentsLogsSubscribeResponseSchemaRequestSchema, CliCommandAgentsLogsSubscribeViewerRequestSchema, CliCommandAgentsLogsSubscribeViewerResponseItemSchema, CliCommandAgentsLogsTokenUsageGetPathSchema, CliCommandAgentsLogsTokenUsageGetRequestSchema, CliCommandAgentsLogsTokenUsageGetRequestSchemaPathSchema, CliCommandAgentsLogsTokenUsageGetRequestSchemaRequestSchema, CliCommandAgentsLogsTokenUsageGetResponseSchema, CliCommandAgentsLogsTokenUsageGetResponseSchemaPathSchema, CliCommandAgentsLogsTokenUsageGetResponseSchemaRequestSchema, CliCommandAgentsLogsTokenUsageGetViewerRequestSchema, CliCommandAgentsLogsTokenUsageGetViewerResponseSchema, CliCommandAgentsLogsTokenUsageRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeAgentsInactiveTagSchema, CliCommandAgentsLogsTokenUsageSubscribePathSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaPathSchema, CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseItemSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaPathSchema, CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeTokenUsageSchema, CliCommandAgentsLogsTokenUsageSubscribeViewerRequestSchema, CliCommandAgentsLogsTokenUsageSubscribeViewerResponseItemSchema, CliCommandAgentsLogsTokenUsageViewerRequestSchema, CliCommandAgentsLogsViewerRequestSchema, CliCommandAgentsMcpRequestSchema, CliCommandAgentsMcpResourcesListPathSchema, CliCommandAgentsMcpResourcesListRequestSchema, CliCommandAgentsMcpResourcesListRequestSchemaPathSchema, CliCommandAgentsMcpResourcesListRequestSchemaRequestSchema, CliCommandAgentsMcpResourcesListResponseSchemaPathSchema, CliCommandAgentsMcpResourcesListResponseSchemaRequestSchema, CliCommandAgentsMcpResourcesListViewerRequestSchema, CliCommandAgentsMcpResourcesReadPathSchema, CliCommandAgentsMcpResourcesReadRequestSchema, CliCommandAgentsMcpResourcesReadRequestSchemaPathSchema, CliCommandAgentsMcpResourcesReadRequestSchemaRequestSchema, CliCommandAgentsMcpResourcesReadResponseSchemaPathSchema, CliCommandAgentsMcpResourcesReadResponseSchemaRequestSchema, CliCommandAgentsMcpResourcesReadViewerRequestSchema, CliCommandAgentsMcpResourcesRequestSchema, CliCommandAgentsMcpResourcesViewerRequestSchema, CliCommandAgentsMcpServersListPathSchema, CliCommandAgentsMcpServersListRequestSchema, CliCommandAgentsMcpServersListRequestSchemaPathSchema, CliCommandAgentsMcpServersListRequestSchemaRequestSchema, CliCommandAgentsMcpServersListResponseSchemaPathSchema, CliCommandAgentsMcpServersListResponseSchemaRequestSchema, CliCommandAgentsMcpServersListViewerRequestSchema, CliCommandAgentsMcpServersRequestSchema, CliCommandAgentsMcpToolsCallPathSchema, CliCommandAgentsMcpToolsCallRequestSchema, CliCommandAgentsMcpToolsCallRequestSchemaPathSchema, CliCommandAgentsMcpToolsCallRequestSchemaRequestSchema, CliCommandAgentsMcpToolsCallResponseSchemaPathSchema, CliCommandAgentsMcpToolsCallResponseSchemaRequestSchema, CliCommandAgentsMcpToolsCallViewerRequestSchema, CliCommandAgentsMcpToolsListPathSchema, CliCommandAgentsMcpToolsListRequestSchema, CliCommandAgentsMcpToolsListRequestSchemaPathSchema, CliCommandAgentsMcpToolsListRequestSchemaRequestSchema, CliCommandAgentsMcpToolsListResponseSchemaPathSchema, CliCommandAgentsMcpToolsListResponseSchemaRequestSchema, CliCommandAgentsMcpToolsListViewerRequestSchema, CliCommandAgentsMcpToolsRequestSchema, CliCommandAgentsMcpToolsViewerRequestSchema, CliCommandAgentsMcpViewerRequestSchema, CliCommandAgentsMessagePathSchema, CliCommandAgentsMessageRequestDangerousAdvancedSchema, CliCommandAgentsMessageRequestMessageSchema, CliCommandAgentsMessageRequestSchema, CliCommandAgentsMessageRequestSchemaPathSchema, CliCommandAgentsMessageRequestSchemaRequestSchema, CliCommandAgentsMessageResponseSchema, CliCommandAgentsMessageResponseSchemaPathSchema, CliCommandAgentsMessageResponseSchemaRequestSchema, CliCommandAgentsMessageViewerRequestSchema, CliCommandAgentsMessageViewerResponseSchema, CliCommandAgentsPublishPathSchema, CliCommandAgentsPublishRequestBodySchema, CliCommandAgentsPublishRequestPublishMessageSchema, CliCommandAgentsPublishRequestSchema, CliCommandAgentsPublishRequestSchemaPathSchema, CliCommandAgentsPublishRequestSchemaRequestSchema, CliCommandAgentsPublishResponseSchema, CliCommandAgentsPublishResponseSchemaPathSchema, CliCommandAgentsPublishResponseSchemaRequestSchema, CliCommandAgentsPublishViewerRequestSchema, CliCommandAgentsPublishViewerResponseSchema, CliCommandAgentsQueueDeletePathSchema, CliCommandAgentsQueueDeleteRequestSchema, CliCommandAgentsQueueDeleteRequestSchemaPathSchema, CliCommandAgentsQueueDeleteRequestSchemaRequestSchema, CliCommandAgentsQueueDeleteResponseSchema, CliCommandAgentsQueueDeleteResponseSchemaPathSchema, CliCommandAgentsQueueDeleteResponseSchemaRequestSchema, CliCommandAgentsQueueDeleteViewerRequestSchema, CliCommandAgentsQueueDeleteViewerResponseSchema, CliCommandAgentsQueueDeliverAgentActiveResponseItemSchema, CliCommandAgentsQueueDeliverAgentActiveTypeSchema, CliCommandAgentsQueueDeliverAgentSpawnedResponseItemSchema, CliCommandAgentsQueueDeliverAgentSpawnedTypeSchema, CliCommandAgentsQueueDeliverAllAgentsActiveSchema, CliCommandAgentsQueueDeliverPathSchema, CliCommandAgentsQueueDeliverRequestDangerousAdvancedSchema, CliCommandAgentsQueueDeliverRequestSchema, CliCommandAgentsQueueDeliverRequestSchemaPathSchema, CliCommandAgentsQueueDeliverRequestSchemaRequestSchema, CliCommandAgentsQueueDeliverResponseItemSchema, CliCommandAgentsQueueDeliverResponseSchemaPathSchema, CliCommandAgentsQueueDeliverResponseSchemaRequestSchema, CliCommandAgentsQueueDeliverTagActiveResponseItemSchema, CliCommandAgentsQueueDeliverTagActiveTypeSchema, CliCommandAgentsQueueDeliverTagSpawnedResponseItemSchema, CliCommandAgentsQueueDeliverTagSpawnedTypeSchema, CliCommandAgentsQueueDeliverValueResponseItemSchema, CliCommandAgentsQueueDeliverViewerRequestSchema, CliCommandAgentsQueueDeliverViewerResponseItemSchema, CliCommandAgentsQueueListPathSchema, CliCommandAgentsQueueListQueuePartSchema, CliCommandAgentsQueueListRequestSchema, CliCommandAgentsQueueListRequestSchemaPathSchema, CliCommandAgentsQueueListRequestSchemaRequestSchema, CliCommandAgentsQueueListResponseItemSchema, CliCommandAgentsQueueListResponseSchemaPathSchema, CliCommandAgentsQueueListResponseSchemaRequestSchema, CliCommandAgentsQueueListViewerRequestSchema, CliCommandAgentsQueueListViewerResponseItemSchema, CliCommandAgentsQueueOpenPathSchema, CliCommandAgentsQueueOpenRequestSchema, CliCommandAgentsQueueOpenRequestSchemaPathSchema, CliCommandAgentsQueueOpenRequestSchemaRequestSchema, CliCommandAgentsQueueOpenResponseSchemaPathSchema, CliCommandAgentsQueueOpenResponseSchemaRequestSchema, CliCommandAgentsQueueOpenViewerRequestSchema, CliCommandAgentsQueueOpenViewerResponseSchema, CliCommandAgentsQueueRequestSchema, CliCommandAgentsQueueViewerRequestSchema, CliCommandAgentsRequestSchema, CliCommandAgentsSpawnPathSchema, CliCommandAgentsSpawnRequestDangerousAdvancedSchema, CliCommandAgentsSpawnRequestSchema, CliCommandAgentsSpawnRequestSchemaPathSchema, CliCommandAgentsSpawnRequestSchemaRequestSchema, CliCommandAgentsSpawnResponseItemSchema, CliCommandAgentsSpawnResponseSchemaPathSchema, CliCommandAgentsSpawnResponseSchemaRequestSchema, CliCommandAgentsSpawnViewerRequestSchema, CliCommandAgentsSpawnViewerResponseItemSchema, CliCommandAgentsSpawnViewerResponseSchema, CliCommandAgentsTagsApplyAgentTagResolutionSchema, CliCommandAgentsTagsApplyPathSchema, CliCommandAgentsTagsApplyRequestSchema, CliCommandAgentsTagsApplyRequestSchemaPathSchema, CliCommandAgentsTagsApplyRequestSchemaRequestSchema, CliCommandAgentsTagsApplyResponseSchema, CliCommandAgentsTagsApplyResponseSchemaPathSchema, CliCommandAgentsTagsApplyResponseSchemaRequestSchema, CliCommandAgentsTagsApplyTargetSchema, CliCommandAgentsTagsApplyViewerRequestSchema, CliCommandAgentsTagsApplyViewerResponseSchema, CliCommandAgentsTagsLookupLookupStateSchema, CliCommandAgentsTagsLookupPathSchema, CliCommandAgentsTagsLookupRequestSchema, CliCommandAgentsTagsLookupRequestSchemaPathSchema, CliCommandAgentsTagsLookupRequestSchemaRequestSchema, CliCommandAgentsTagsLookupResponseSchema, CliCommandAgentsTagsLookupResponseSchemaPathSchema, CliCommandAgentsTagsLookupResponseSchemaRequestSchema, CliCommandAgentsTagsLookupViewerRequestSchema, CliCommandAgentsTagsLookupViewerResponseSchema, CliCommandAgentsTagsRequestSchema, CliCommandAgentsTagsViewerRequestSchema, CliCommandAgentsViewerRequestSchema, CliCommandAgentsWaitPathSchema, CliCommandAgentsWaitRequestSchema, CliCommandAgentsWaitRequestSchemaPathSchema, CliCommandAgentsWaitRequestSchemaRequestSchema, CliCommandAgentsWaitResponseSchemaPathSchema, CliCommandAgentsWaitResponseSchemaRequestSchema, CliCommandAgentsWaitViewerRequestSchema, CliCommandAgentsWaitViewerResponseSchema, CliCommandApiConfigAddressGetPathSchema, CliCommandApiConfigAddressGetRequestSchema, CliCommandApiConfigAddressGetRequestSchemaPathSchema, CliCommandApiConfigAddressGetRequestSchemaRequestSchema, CliCommandApiConfigAddressGetResponseSchema, CliCommandApiConfigAddressGetResponseSchemaPathSchema, CliCommandApiConfigAddressGetResponseSchemaRequestSchema, CliCommandApiConfigAddressGetViewerRequestSchema, CliCommandApiConfigAddressGetViewerResponseSchema, CliCommandApiConfigAddressRequestSchema, CliCommandApiConfigAddressSetPathSchema, CliCommandApiConfigAddressSetRequestSchema, CliCommandApiConfigAddressSetRequestSchemaPathSchema, CliCommandApiConfigAddressSetRequestSchemaRequestSchema, CliCommandApiConfigAddressSetResponseSchemaPathSchema, CliCommandApiConfigAddressSetResponseSchemaRequestSchema, CliCommandApiConfigAddressSetViewerRequestSchema, CliCommandApiConfigAddressSetViewerResponseSchema, CliCommandApiConfigAddressViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsGetViewerResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaPathSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerRequestSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsSetViewerResponseSchema, CliCommandApiConfigBackoffMaxElapsedTimeMsViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailGetPathSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailGetViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailGetViewerResponseSchema, CliCommandApiConfigCommitAuthorEmailRequestSchema, CliCommandApiConfigCommitAuthorEmailSetPathSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorEmailSetViewerRequestSchema, CliCommandApiConfigCommitAuthorEmailSetViewerResponseSchema, CliCommandApiConfigCommitAuthorEmailViewerRequestSchema, CliCommandApiConfigCommitAuthorNameGetPathSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameGetViewerRequestSchema, CliCommandApiConfigCommitAuthorNameGetViewerResponseSchema, CliCommandApiConfigCommitAuthorNameRequestSchema, CliCommandApiConfigCommitAuthorNameSetPathSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchemaPathSchema, CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameSetResponseSchemaPathSchema, CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequestSchema, CliCommandApiConfigCommitAuthorNameSetViewerRequestSchema, CliCommandApiConfigCommitAuthorNameSetViewerResponseSchema, CliCommandApiConfigCommitAuthorNameViewerRequestSchema, CliCommandApiConfigGetPathSchema, CliCommandApiConfigGetRequestSchema, CliCommandApiConfigGetRequestSchemaPathSchema, CliCommandApiConfigGetRequestSchemaRequestSchema, CliCommandApiConfigGetResponseSchema, CliCommandApiConfigGetResponseSchemaPathSchema, CliCommandApiConfigGetResponseSchemaRequestSchema, CliCommandApiConfigGetViewerRequestSchema, CliCommandApiConfigGetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationGetPathSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationGetViewerRequestSchema, CliCommandApiConfigGithubAuthorizationGetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationRequestSchema, CliCommandApiConfigGithubAuthorizationSetPathSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigGithubAuthorizationSetViewerRequestSchema, CliCommandApiConfigGithubAuthorizationSetViewerResponseSchema, CliCommandApiConfigGithubAuthorizationViewerRequestSchema, CliCommandApiConfigHttpRefererGetPathSchema, CliCommandApiConfigHttpRefererGetRequestSchema, CliCommandApiConfigHttpRefererGetRequestSchemaPathSchema, CliCommandApiConfigHttpRefererGetRequestSchemaRequestSchema, CliCommandApiConfigHttpRefererGetResponseSchema, CliCommandApiConfigHttpRefererGetResponseSchemaPathSchema, CliCommandApiConfigHttpRefererGetResponseSchemaRequestSchema, CliCommandApiConfigHttpRefererGetViewerRequestSchema, CliCommandApiConfigHttpRefererGetViewerResponseSchema, CliCommandApiConfigHttpRefererRequestSchema, CliCommandApiConfigHttpRefererSetPathSchema, CliCommandApiConfigHttpRefererSetRequestSchema, CliCommandApiConfigHttpRefererSetRequestSchemaPathSchema, CliCommandApiConfigHttpRefererSetRequestSchemaRequestSchema, CliCommandApiConfigHttpRefererSetResponseSchemaPathSchema, CliCommandApiConfigHttpRefererSetResponseSchemaRequestSchema, CliCommandApiConfigHttpRefererSetViewerRequestSchema, CliCommandApiConfigHttpRefererSetViewerResponseSchema, CliCommandApiConfigHttpRefererViewerRequestSchema, CliCommandApiConfigMcpAuthorizationAddPathSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationAddResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationAddViewerRequestSchema, CliCommandApiConfigMcpAuthorizationAddViewerResponseSchema, CliCommandApiConfigMcpAuthorizationDelPathSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationDelResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema, CliCommandApiConfigMcpAuthorizationDelViewerResponseSchema, CliCommandApiConfigMcpAuthorizationGetPathSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigMcpAuthorizationGetViewerRequestSchema, CliCommandApiConfigMcpAuthorizationGetViewerResponseSchema, CliCommandApiConfigMcpAuthorizationRequestSchema, CliCommandApiConfigMcpAuthorizationViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsGetPathSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsGetViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsGetViewerResponseSchema, CliCommandApiConfigMcpTimeoutMsRequestSchema, CliCommandApiConfigMcpTimeoutMsSetPathSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaPathSchema, CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequestSchema, CliCommandApiConfigMcpTimeoutMsSetViewerRequestSchema, CliCommandApiConfigMcpTimeoutMsSetViewerResponseSchema, CliCommandApiConfigMcpTimeoutMsViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationGetViewerResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetViewerRequestSchema, CliCommandApiConfigObjectiveaiAuthorizationSetViewerResponseSchema, CliCommandApiConfigObjectiveaiAuthorizationViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationGetViewerResponseSchema, CliCommandApiConfigOpenrouterAuthorizationRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaPathSchema, CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetViewerRequestSchema, CliCommandApiConfigOpenrouterAuthorizationSetViewerResponseSchema, CliCommandApiConfigOpenrouterAuthorizationViewerRequestSchema, CliCommandApiConfigRequestSchema, CliCommandApiConfigUserAgentGetPathSchema, CliCommandApiConfigUserAgentGetRequestSchema, CliCommandApiConfigUserAgentGetRequestSchemaPathSchema, CliCommandApiConfigUserAgentGetRequestSchemaRequestSchema, CliCommandApiConfigUserAgentGetResponseSchema, CliCommandApiConfigUserAgentGetResponseSchemaPathSchema, CliCommandApiConfigUserAgentGetResponseSchemaRequestSchema, CliCommandApiConfigUserAgentGetViewerRequestSchema, CliCommandApiConfigUserAgentGetViewerResponseSchema, CliCommandApiConfigUserAgentRequestSchema, CliCommandApiConfigUserAgentSetPathSchema, CliCommandApiConfigUserAgentSetRequestSchema, CliCommandApiConfigUserAgentSetRequestSchemaPathSchema, CliCommandApiConfigUserAgentSetRequestSchemaRequestSchema, CliCommandApiConfigUserAgentSetResponseSchemaPathSchema, CliCommandApiConfigUserAgentSetResponseSchemaRequestSchema, CliCommandApiConfigUserAgentSetViewerRequestSchema, CliCommandApiConfigUserAgentSetViewerResponseSchema, CliCommandApiConfigUserAgentViewerRequestSchema, CliCommandApiConfigViewerRequestSchema, CliCommandApiConfigXTitleGetPathSchema, CliCommandApiConfigXTitleGetRequestSchema, CliCommandApiConfigXTitleGetRequestSchemaPathSchema, CliCommandApiConfigXTitleGetRequestSchemaRequestSchema, CliCommandApiConfigXTitleGetResponseSchema, CliCommandApiConfigXTitleGetResponseSchemaPathSchema, CliCommandApiConfigXTitleGetResponseSchemaRequestSchema, CliCommandApiConfigXTitleGetViewerRequestSchema, CliCommandApiConfigXTitleGetViewerResponseSchema, CliCommandApiConfigXTitleRequestSchema, CliCommandApiConfigXTitleSetPathSchema, CliCommandApiConfigXTitleSetRequestSchema, CliCommandApiConfigXTitleSetRequestSchemaPathSchema, CliCommandApiConfigXTitleSetRequestSchemaRequestSchema, CliCommandApiConfigXTitleSetResponseSchemaPathSchema, CliCommandApiConfigXTitleSetResponseSchemaRequestSchema, CliCommandApiConfigXTitleSetViewerRequestSchema, CliCommandApiConfigXTitleSetViewerResponseSchema, CliCommandApiConfigXTitleViewerRequestSchema, CliCommandApiKillPathSchema, CliCommandApiKillRequestSchema, CliCommandApiKillRequestSchemaPathSchema, CliCommandApiKillRequestSchemaRequestSchema, CliCommandApiKillResponseSchema, CliCommandApiKillResponseSchemaPathSchema, CliCommandApiKillResponseSchemaRequestSchema, CliCommandApiKillViewerRequestSchema, CliCommandApiKillViewerResponseSchema, CliCommandApiRequestSchema, CliCommandApiSpawnPathSchema, CliCommandApiSpawnRequestSchema, CliCommandApiSpawnRequestSchemaPathSchema, CliCommandApiSpawnRequestSchemaRequestSchema, CliCommandApiSpawnResponseSchema, CliCommandApiSpawnResponseSchemaPathSchema, CliCommandApiSpawnResponseSchemaRequestSchema, CliCommandApiSpawnViewerRequestSchema, CliCommandApiSpawnViewerResponseSchema, CliCommandApiViewerRequestSchema, CliCommandDaemonKillPathSchema, CliCommandDaemonKillRequestSchema, CliCommandDaemonKillRequestSchemaPathSchema, CliCommandDaemonKillRequestSchemaRequestSchema, CliCommandDaemonKillResponseSchema, CliCommandDaemonKillResponseSchemaPathSchema, CliCommandDaemonKillResponseSchemaRequestSchema, CliCommandDaemonKillViewerRequestSchema, CliCommandDaemonKillViewerResponseSchema, CliCommandDaemonRequestSchema, CliCommandDaemonSpawnPathSchema, CliCommandDaemonSpawnRequestDangerousAdvancedSchema, CliCommandDaemonSpawnRequestSchema, CliCommandDaemonSpawnRequestSchemaPathSchema, CliCommandDaemonSpawnRequestSchemaRequestSchema, CliCommandDaemonSpawnResponseItemSchema, CliCommandDaemonSpawnResponseSchemaPathSchema, CliCommandDaemonSpawnResponseSchemaRequestSchema, CliCommandDaemonSpawnViewerRequestSchema, CliCommandDaemonSpawnViewerResponseItemSchema, CliCommandDaemonViewerRequestSchema, CliCommandDbConfigAddressGetPathSchema, CliCommandDbConfigAddressGetRequestSchema, CliCommandDbConfigAddressGetRequestSchemaPathSchema, CliCommandDbConfigAddressGetRequestSchemaRequestSchema, CliCommandDbConfigAddressGetResponseSchema, CliCommandDbConfigAddressGetResponseSchemaPathSchema, CliCommandDbConfigAddressGetResponseSchemaRequestSchema, CliCommandDbConfigAddressGetViewerRequestSchema, CliCommandDbConfigAddressGetViewerResponseSchema, CliCommandDbConfigAddressRequestSchema, CliCommandDbConfigAddressSetPathSchema, CliCommandDbConfigAddressSetRequestSchema, CliCommandDbConfigAddressSetRequestSchemaPathSchema, CliCommandDbConfigAddressSetRequestSchemaRequestSchema, CliCommandDbConfigAddressSetResponseSchemaPathSchema, CliCommandDbConfigAddressSetResponseSchemaRequestSchema, CliCommandDbConfigAddressSetViewerRequestSchema, CliCommandDbConfigAddressSetViewerResponseSchema, CliCommandDbConfigAddressViewerRequestSchema, CliCommandDbConfigDatabaseGetPathSchema, CliCommandDbConfigDatabaseGetRequestSchema, CliCommandDbConfigDatabaseGetRequestSchemaPathSchema, CliCommandDbConfigDatabaseGetRequestSchemaRequestSchema, CliCommandDbConfigDatabaseGetResponseSchema, CliCommandDbConfigDatabaseGetResponseSchemaPathSchema, CliCommandDbConfigDatabaseGetResponseSchemaRequestSchema, CliCommandDbConfigDatabaseGetViewerRequestSchema, CliCommandDbConfigDatabaseGetViewerResponseSchema, CliCommandDbConfigDatabaseRequestSchema, CliCommandDbConfigDatabaseSetPathSchema, CliCommandDbConfigDatabaseSetRequestSchema, CliCommandDbConfigDatabaseSetRequestSchemaPathSchema, CliCommandDbConfigDatabaseSetRequestSchemaRequestSchema, CliCommandDbConfigDatabaseSetResponseSchemaPathSchema, CliCommandDbConfigDatabaseSetResponseSchemaRequestSchema, CliCommandDbConfigDatabaseSetViewerRequestSchema, CliCommandDbConfigDatabaseSetViewerResponseSchema, CliCommandDbConfigDatabaseViewerRequestSchema, CliCommandDbConfigGetPathSchema, CliCommandDbConfigGetRequestSchema, CliCommandDbConfigGetRequestSchemaPathSchema, CliCommandDbConfigGetRequestSchemaRequestSchema, CliCommandDbConfigGetResponseSchema, CliCommandDbConfigGetResponseSchemaPathSchema, CliCommandDbConfigGetResponseSchemaRequestSchema, CliCommandDbConfigGetViewerRequestSchema, CliCommandDbConfigGetViewerResponseSchema, CliCommandDbConfigPasswordGetPathSchema, CliCommandDbConfigPasswordGetRequestSchema, CliCommandDbConfigPasswordGetRequestSchemaPathSchema, CliCommandDbConfigPasswordGetRequestSchemaRequestSchema, CliCommandDbConfigPasswordGetResponseSchema, CliCommandDbConfigPasswordGetResponseSchemaPathSchema, CliCommandDbConfigPasswordGetResponseSchemaRequestSchema, CliCommandDbConfigPasswordGetViewerRequestSchema, CliCommandDbConfigPasswordGetViewerResponseSchema, CliCommandDbConfigPasswordRequestSchema, CliCommandDbConfigPasswordSetPathSchema, CliCommandDbConfigPasswordSetRequestSchema, CliCommandDbConfigPasswordSetRequestSchemaPathSchema, CliCommandDbConfigPasswordSetRequestSchemaRequestSchema, CliCommandDbConfigPasswordSetResponseSchemaPathSchema, CliCommandDbConfigPasswordSetResponseSchemaRequestSchema, CliCommandDbConfigPasswordSetViewerRequestSchema, CliCommandDbConfigPasswordSetViewerResponseSchema, CliCommandDbConfigPasswordViewerRequestSchema, CliCommandDbConfigRequestSchema, CliCommandDbConfigUserGetPathSchema, CliCommandDbConfigUserGetRequestSchema, CliCommandDbConfigUserGetRequestSchemaPathSchema, CliCommandDbConfigUserGetRequestSchemaRequestSchema, CliCommandDbConfigUserGetResponseSchema, CliCommandDbConfigUserGetResponseSchemaPathSchema, CliCommandDbConfigUserGetResponseSchemaRequestSchema, CliCommandDbConfigUserGetViewerRequestSchema, CliCommandDbConfigUserGetViewerResponseSchema, CliCommandDbConfigUserRequestSchema, CliCommandDbConfigUserSetPathSchema, CliCommandDbConfigUserSetRequestSchema, CliCommandDbConfigUserSetRequestSchemaPathSchema, CliCommandDbConfigUserSetRequestSchemaRequestSchema, CliCommandDbConfigUserSetResponseSchemaPathSchema, CliCommandDbConfigUserSetResponseSchemaRequestSchema, CliCommandDbConfigUserSetViewerRequestSchema, CliCommandDbConfigUserSetViewerResponseSchema, CliCommandDbConfigUserViewerRequestSchema, CliCommandDbConfigViewerRequestSchema, CliCommandDbKillPathSchema, CliCommandDbKillRequestSchema, CliCommandDbKillRequestSchemaPathSchema, CliCommandDbKillRequestSchemaRequestSchema, CliCommandDbKillResponseSchema, CliCommandDbKillResponseSchemaPathSchema, CliCommandDbKillResponseSchemaRequestSchema, CliCommandDbKillViewerRequestSchema, CliCommandDbKillViewerResponseSchema, CliCommandDbQueryColumnSchema, CliCommandDbQueryPathSchema, CliCommandDbQueryRequestSchema, CliCommandDbQueryRequestSchemaPathSchema, CliCommandDbQueryRequestSchemaRequestSchema, CliCommandDbQueryResponseSchema, CliCommandDbQueryResponseSchemaPathSchema, CliCommandDbQueryResponseSchemaRequestSchema, CliCommandDbQueryViewerRequestSchema, CliCommandDbQueryViewerResponseSchema, CliCommandDbRequestSchema, CliCommandDbSpawnPathSchema, CliCommandDbSpawnRequestSchema, CliCommandDbSpawnRequestSchemaPathSchema, CliCommandDbSpawnRequestSchemaRequestSchema, CliCommandDbSpawnResponseSchema, CliCommandDbSpawnResponseSchemaPathSchema, CliCommandDbSpawnResponseSchemaRequestSchema, CliCommandDbSpawnViewerRequestSchema, CliCommandDbSpawnViewerResponseSchema, CliCommandDbViewerRequestSchema, CliCommandFunctionsExecuteFunctionSpecSchema, CliCommandFunctionsExecuteProfileSpecSchema, CliCommandFunctionsExecuteRequestSchema, CliCommandFunctionsExecuteStandardPathSchema, CliCommandFunctionsExecuteStandardRequestDangerousAdvancedSchema, CliCommandFunctionsExecuteStandardRequestInputSchema, CliCommandFunctionsExecuteStandardRequestSchema, CliCommandFunctionsExecuteStandardRequestSchemaPathSchema, CliCommandFunctionsExecuteStandardRequestSchemaRequestSchema, CliCommandFunctionsExecuteStandardResponseItemSchema, CliCommandFunctionsExecuteStandardResponseSchemaPathSchema, CliCommandFunctionsExecuteStandardResponseSchemaRequestSchema, CliCommandFunctionsExecuteStandardViewerRequestSchema, CliCommandFunctionsExecuteStandardViewerResponseItemSchema, CliCommandFunctionsExecuteStandardViewerResponseSchema, CliCommandFunctionsExecuteSwissSystemPathSchema, CliCommandFunctionsExecuteSwissSystemRequestDangerousAdvancedSchema, CliCommandFunctionsExecuteSwissSystemRequestInputSchema, CliCommandFunctionsExecuteSwissSystemRequestSchema, CliCommandFunctionsExecuteSwissSystemRequestSchemaPathSchema, CliCommandFunctionsExecuteSwissSystemRequestSchemaRequestSchema, CliCommandFunctionsExecuteSwissSystemResponseItemSchema, CliCommandFunctionsExecuteSwissSystemResponseSchemaPathSchema, CliCommandFunctionsExecuteSwissSystemResponseSchemaRequestSchema, CliCommandFunctionsExecuteSwissSystemViewerRequestSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseItemSchema, CliCommandFunctionsExecuteSwissSystemViewerResponseSchema, CliCommandFunctionsExecuteViewerRequestSchema, CliCommandFunctionsGetPathSchema, CliCommandFunctionsGetRequestSchema, CliCommandFunctionsGetRequestSchemaPathSchema, CliCommandFunctionsGetRequestSchemaRequestSchema, CliCommandFunctionsGetResponseSchema, CliCommandFunctionsGetResponseSchemaPathSchema, CliCommandFunctionsGetResponseSchemaRequestSchema, CliCommandFunctionsGetViewerRequestSchema, CliCommandFunctionsGetViewerResponseSchema, CliCommandFunctionsListPathSchema, CliCommandFunctionsListRequestSchema, CliCommandFunctionsListRequestSchemaPathSchema, CliCommandFunctionsListRequestSchemaRequestSchema, CliCommandFunctionsListResponseSchema, CliCommandFunctionsListResponseSchemaPathSchema, CliCommandFunctionsListResponseSchemaRequestSchema, CliCommandFunctionsListViewerRequestSchema, CliCommandFunctionsListViewerResponseSchema, CliCommandFunctionsProfilesGetPathSchema, CliCommandFunctionsProfilesGetRequestSchema, CliCommandFunctionsProfilesGetRequestSchemaPathSchema, CliCommandFunctionsProfilesGetRequestSchemaRequestSchema, CliCommandFunctionsProfilesGetResponseSchema, CliCommandFunctionsProfilesGetResponseSchemaPathSchema, CliCommandFunctionsProfilesGetResponseSchemaRequestSchema, CliCommandFunctionsProfilesGetViewerRequestSchema, CliCommandFunctionsProfilesGetViewerResponseSchema, CliCommandFunctionsProfilesListPathSchema, CliCommandFunctionsProfilesListRequestSchema, CliCommandFunctionsProfilesListRequestSchemaPathSchema, CliCommandFunctionsProfilesListRequestSchemaRequestSchema, CliCommandFunctionsProfilesListResponseSchema, CliCommandFunctionsProfilesListResponseSchemaPathSchema, CliCommandFunctionsProfilesListResponseSchemaRequestSchema, CliCommandFunctionsProfilesListViewerRequestSchema, CliCommandFunctionsProfilesListViewerResponseSchema, CliCommandFunctionsProfilesPublishPathSchema, CliCommandFunctionsProfilesPublishRequestBodySchema, CliCommandFunctionsProfilesPublishRequestPublishMessageSchema, CliCommandFunctionsProfilesPublishRequestSchema, CliCommandFunctionsProfilesPublishRequestSchemaPathSchema, CliCommandFunctionsProfilesPublishRequestSchemaRequestSchema, CliCommandFunctionsProfilesPublishResponseSchema, CliCommandFunctionsProfilesPublishResponseSchemaPathSchema, CliCommandFunctionsProfilesPublishResponseSchemaRequestSchema, CliCommandFunctionsProfilesPublishViewerRequestSchema, CliCommandFunctionsProfilesPublishViewerResponseSchema, CliCommandFunctionsProfilesRequestSchema, CliCommandFunctionsProfilesViewerRequestSchema, CliCommandFunctionsPublishPathSchema, CliCommandFunctionsPublishRequestBodySchema, CliCommandFunctionsPublishRequestPublishMessageSchema, CliCommandFunctionsPublishRequestSchema, CliCommandFunctionsPublishRequestSchemaPathSchema, CliCommandFunctionsPublishRequestSchemaRequestSchema, CliCommandFunctionsPublishResponseSchema, CliCommandFunctionsPublishResponseSchemaPathSchema, CliCommandFunctionsPublishResponseSchemaRequestSchema, CliCommandFunctionsPublishViewerRequestSchema, CliCommandFunctionsPublishViewerResponseSchema, CliCommandFunctionsRequestSchema, CliCommandFunctionsViewerRequestSchema, CliCommandGetScopeSchema, CliCommandKillAllPathSchema, CliCommandKillAllRequestSchema, CliCommandKillAllRequestSchemaPathSchema, CliCommandKillAllRequestSchemaRequestSchema, CliCommandKillAllResponseSchema, CliCommandKillAllResponseSchemaPathSchema, CliCommandKillAllResponseSchemaRequestSchema, CliCommandKillAllViewerRequestSchema, CliCommandKillAllViewerResponseSchema, CliCommandLaboratoriesCreateEnvVarSchema, CliCommandLaboratoriesCreateKindSchema, CliCommandLaboratoriesCreateMountSchema, CliCommandLaboratoriesCreatePathSchema, CliCommandLaboratoriesCreateRequestSchema, CliCommandLaboratoriesCreateRequestSchemaPathSchema, CliCommandLaboratoriesCreateRequestSchemaRequestSchema, CliCommandLaboratoriesCreateResponseSchema, CliCommandLaboratoriesCreateResponseSchemaPathSchema, CliCommandLaboratoriesCreateResponseSchemaRequestSchema, CliCommandLaboratoriesCreateViewerRequestSchema, CliCommandLaboratoriesCreateViewerResponseSchema, CliCommandLaboratoriesListPathSchema, CliCommandLaboratoriesListRequestSchema, CliCommandLaboratoriesListRequestSchemaPathSchema, CliCommandLaboratoriesListRequestSchemaRequestSchema, CliCommandLaboratoriesListResponseItemSchema, CliCommandLaboratoriesListResponseSchemaPathSchema, CliCommandLaboratoriesListResponseSchemaRequestSchema, CliCommandLaboratoriesListViewerRequestSchema, CliCommandLaboratoriesListViewerResponseItemSchema, CliCommandLaboratoriesRequestSchema, CliCommandLaboratoriesViewerRequestSchema, CliCommandMcpConfigAddressGetPathSchema, CliCommandMcpConfigAddressGetRequestSchema, CliCommandMcpConfigAddressGetRequestSchemaPathSchema, CliCommandMcpConfigAddressGetRequestSchemaRequestSchema, CliCommandMcpConfigAddressGetResponseSchema, CliCommandMcpConfigAddressGetResponseSchemaPathSchema, CliCommandMcpConfigAddressGetResponseSchemaRequestSchema, CliCommandMcpConfigAddressGetViewerRequestSchema, CliCommandMcpConfigAddressGetViewerResponseSchema, CliCommandMcpConfigAddressRequestSchema, CliCommandMcpConfigAddressSetPathSchema, CliCommandMcpConfigAddressSetRequestSchema, CliCommandMcpConfigAddressSetRequestSchemaPathSchema, CliCommandMcpConfigAddressSetRequestSchemaRequestSchema, CliCommandMcpConfigAddressSetResponseSchemaPathSchema, CliCommandMcpConfigAddressSetResponseSchemaRequestSchema, CliCommandMcpConfigAddressSetViewerRequestSchema, CliCommandMcpConfigAddressSetViewerResponseSchema, CliCommandMcpConfigAddressViewerRequestSchema, CliCommandMcpConfigGetPathSchema, CliCommandMcpConfigGetRequestSchema, CliCommandMcpConfigGetRequestSchemaPathSchema, CliCommandMcpConfigGetRequestSchemaRequestSchema, CliCommandMcpConfigGetResponseSchema, CliCommandMcpConfigGetResponseSchemaPathSchema, CliCommandMcpConfigGetResponseSchemaRequestSchema, CliCommandMcpConfigGetViewerRequestSchema, CliCommandMcpConfigGetViewerResponseSchema, CliCommandMcpConfigPortGetPathSchema, CliCommandMcpConfigPortGetRequestSchema, CliCommandMcpConfigPortGetRequestSchemaPathSchema, CliCommandMcpConfigPortGetRequestSchemaRequestSchema, CliCommandMcpConfigPortGetResponseSchema, CliCommandMcpConfigPortGetResponseSchemaPathSchema, CliCommandMcpConfigPortGetResponseSchemaRequestSchema, CliCommandMcpConfigPortGetViewerRequestSchema, CliCommandMcpConfigPortGetViewerResponseSchema, CliCommandMcpConfigPortRequestSchema, CliCommandMcpConfigPortSetPathSchema, CliCommandMcpConfigPortSetRequestSchema, CliCommandMcpConfigPortSetRequestSchemaPathSchema, CliCommandMcpConfigPortSetRequestSchemaRequestSchema, CliCommandMcpConfigPortSetResponseSchemaPathSchema, CliCommandMcpConfigPortSetResponseSchemaRequestSchema, CliCommandMcpConfigPortSetViewerRequestSchema, CliCommandMcpConfigPortSetViewerResponseSchema, CliCommandMcpConfigPortViewerRequestSchema, CliCommandMcpConfigRequestSchema, CliCommandMcpConfigViewerRequestSchema, CliCommandMcpKillPathSchema, CliCommandMcpKillRequestSchema, CliCommandMcpKillRequestSchemaPathSchema, CliCommandMcpKillRequestSchemaRequestSchema, CliCommandMcpKillResponseSchema, CliCommandMcpKillResponseSchemaPathSchema, CliCommandMcpKillResponseSchemaRequestSchema, CliCommandMcpKillViewerRequestSchema, CliCommandMcpKillViewerResponseSchema, CliCommandMcpRequestSchema, CliCommandMcpSpawnPathSchema, CliCommandMcpSpawnRequestSchema, CliCommandMcpSpawnRequestSchemaPathSchema, CliCommandMcpSpawnRequestSchemaRequestSchema, CliCommandMcpSpawnResponseSchema, CliCommandMcpSpawnResponseSchemaPathSchema, CliCommandMcpSpawnResponseSchemaRequestSchema, CliCommandMcpSpawnViewerRequestSchema, CliCommandMcpSpawnViewerResponseSchema, CliCommandMcpViewerRequestSchema, CliCommandOkSchema, CliCommandPluginsGetPathSchema, CliCommandPluginsGetRequestSchema, CliCommandPluginsGetRequestSchemaPathSchema, CliCommandPluginsGetRequestSchemaRequestSchema, CliCommandPluginsGetResponseHttpMethodSchema, CliCommandPluginsGetResponseManifestSchema, CliCommandPluginsGetResponseMcpServerSchema, CliCommandPluginsGetResponseSchemaPathSchema, CliCommandPluginsGetResponseSchemaRequestSchema, CliCommandPluginsGetResponseViewerRouteSchema, CliCommandPluginsGetViewerRequestSchema, CliCommandPluginsGetViewerResponseSchema, CliCommandPluginsInstallFilesystemPathSchema, CliCommandPluginsInstallFilesystemRequestSchema, CliCommandPluginsInstallFilesystemRequestSchemaPathSchema, CliCommandPluginsInstallFilesystemRequestSchemaRequestSchema, CliCommandPluginsInstallFilesystemResponseSchema, CliCommandPluginsInstallFilesystemResponseSchemaPathSchema, CliCommandPluginsInstallFilesystemResponseSchemaRequestSchema, CliCommandPluginsInstallFilesystemViewerRequestSchema, CliCommandPluginsInstallFilesystemViewerResponseSchema, CliCommandPluginsInstallGithubPathSchema, CliCommandPluginsInstallGithubRequestSchema, CliCommandPluginsInstallGithubRequestSchemaPathSchema, CliCommandPluginsInstallGithubRequestSchemaRequestSchema, CliCommandPluginsInstallGithubResponseSchema, CliCommandPluginsInstallGithubResponseSchemaPathSchema, CliCommandPluginsInstallGithubResponseSchemaRequestSchema, CliCommandPluginsInstallGithubViewerRequestSchema, CliCommandPluginsInstallGithubViewerResponseSchema, CliCommandPluginsInstallRequestSchema, CliCommandPluginsInstallViewerRequestSchema, CliCommandPluginsListPathSchema, CliCommandPluginsListRequestSchema, CliCommandPluginsListRequestSchemaPathSchema, CliCommandPluginsListRequestSchemaRequestSchema, CliCommandPluginsListResponseSchemaPathSchema, CliCommandPluginsListResponseSchemaRequestSchema, CliCommandPluginsListViewerRequestSchema, CliCommandPluginsListViewerResponseItemSchema, CliCommandPluginsLogsListPathSchema, CliCommandPluginsLogsListRequestSchema, CliCommandPluginsLogsListRequestSchemaPathSchema, CliCommandPluginsLogsListRequestSchemaRequestSchema, CliCommandPluginsLogsListResponseItemSchema, CliCommandPluginsLogsListResponseSchemaPathSchema, CliCommandPluginsLogsListResponseSchemaRequestSchema, CliCommandPluginsLogsListViewerRequestSchema, CliCommandPluginsLogsListViewerResponseItemSchema, CliCommandPluginsLogsRequestSchema, CliCommandPluginsRequestSchema, CliCommandPluginsRunMcpSchema, CliCommandPluginsRunMcpTypeSchema, CliCommandPluginsRunPathSchema, CliCommandPluginsRunRequestSchema, CliCommandPluginsRunRequestSchemaPathSchema, CliCommandPluginsRunRequestSchemaRequestSchema, CliCommandPluginsRunResponseItemSchema, CliCommandPluginsRunResponseSchemaPathSchema, CliCommandPluginsRunResponseSchemaRequestSchema, CliCommandPluginsRunViewerRequestSchema, CliCommandPluginsRunViewerResponseItemSchema, CliCommandPluginsViewerRequestSchema, CliCommandPythonPathSchema, CliCommandPythonRequestSchema, CliCommandPythonRequestSchemaPathSchema, CliCommandPythonRequestSchemaRequestSchema, CliCommandPythonResponseSchemaPathSchema, CliCommandPythonResponseSchemaRequestSchema, CliCommandPythonViewerRequestSchema, CliCommandPythonViewerResponseSchema, CliCommandRequestBaseSchema, CliCommandRequestSchema, CliCommandRootViewerRequestSchema, CliCommandSetScopeSchema, CliCommandSwarmsGetPathSchema, CliCommandSwarmsGetRequestSchema, CliCommandSwarmsGetRequestSchemaPathSchema, CliCommandSwarmsGetRequestSchemaRequestSchema, CliCommandSwarmsGetResponseSchema, CliCommandSwarmsGetResponseSchemaPathSchema, CliCommandSwarmsGetResponseSchemaRequestSchema, CliCommandSwarmsGetViewerRequestSchema, CliCommandSwarmsGetViewerResponseSchema, CliCommandSwarmsListPathSchema, CliCommandSwarmsListRequestSchema, CliCommandSwarmsListRequestSchemaPathSchema, CliCommandSwarmsListRequestSchemaRequestSchema, CliCommandSwarmsListResponseSchema, CliCommandSwarmsListResponseSchemaPathSchema, CliCommandSwarmsListResponseSchemaRequestSchema, CliCommandSwarmsListViewerRequestSchema, CliCommandSwarmsListViewerResponseItemSchema, CliCommandSwarmsListViewerResponseSchema, CliCommandSwarmsPublishPathSchema, CliCommandSwarmsPublishRequestBodySchema, CliCommandSwarmsPublishRequestPublishMessageSchema, CliCommandSwarmsPublishRequestSchema, CliCommandSwarmsPublishRequestSchemaPathSchema, CliCommandSwarmsPublishRequestSchemaRequestSchema, CliCommandSwarmsPublishResponseSchema, CliCommandSwarmsPublishResponseSchemaPathSchema, CliCommandSwarmsPublishResponseSchemaRequestSchema, CliCommandSwarmsPublishViewerRequestSchema, CliCommandSwarmsPublishViewerResponseSchema, CliCommandSwarmsRequestSchema, CliCommandSwarmsViewerRequestSchema, CliCommandToolsGetExecSchema, CliCommandToolsGetPathSchema, CliCommandToolsGetRequestSchema, CliCommandToolsGetRequestSchemaPathSchema, CliCommandToolsGetRequestSchemaRequestSchema, CliCommandToolsGetResponseManifestSchema, CliCommandToolsGetResponseSchemaPathSchema, CliCommandToolsGetResponseSchemaRequestSchema, CliCommandToolsGetViewerRequestSchema, CliCommandToolsGetViewerResponseSchema, CliCommandToolsInstallFilesystemPathSchema, CliCommandToolsInstallFilesystemRequestSchema, CliCommandToolsInstallFilesystemRequestSchemaPathSchema, CliCommandToolsInstallFilesystemRequestSchemaRequestSchema, CliCommandToolsInstallFilesystemResponseSchema, CliCommandToolsInstallFilesystemResponseSchemaPathSchema, CliCommandToolsInstallFilesystemResponseSchemaRequestSchema, CliCommandToolsInstallFilesystemViewerRequestSchema, CliCommandToolsInstallFilesystemViewerResponseSchema, CliCommandToolsInstallGithubPathSchema, CliCommandToolsInstallGithubRequestSchema, CliCommandToolsInstallGithubRequestSchemaPathSchema, CliCommandToolsInstallGithubRequestSchemaRequestSchema, CliCommandToolsInstallGithubResponseSchema, CliCommandToolsInstallGithubResponseSchemaPathSchema, CliCommandToolsInstallGithubResponseSchemaRequestSchema, CliCommandToolsInstallGithubViewerRequestSchema, CliCommandToolsInstallGithubViewerResponseSchema, CliCommandToolsInstallRequestSchema, CliCommandToolsInstallViewerRequestSchema, CliCommandToolsListPathSchema, CliCommandToolsListRequestSchema, CliCommandToolsListRequestSchemaPathSchema, CliCommandToolsListRequestSchemaRequestSchema, CliCommandToolsListResponseSchemaPathSchema, CliCommandToolsListResponseSchemaRequestSchema, CliCommandToolsListViewerRequestSchema, CliCommandToolsListViewerResponseItemSchema, CliCommandToolsRequestSchema, CliCommandToolsRunPathSchema, CliCommandToolsRunRequestSchema, CliCommandToolsRunRequestSchemaPathSchema, CliCommandToolsRunRequestSchemaRequestSchema, CliCommandToolsRunResponseItemSchema, CliCommandToolsRunResponseSchemaPathSchema, CliCommandToolsRunResponseSchemaRequestSchema, CliCommandToolsRunViewerRequestSchema, CliCommandToolsRunViewerResponseItemSchema, CliCommandToolsViewerRequestSchema, CliCommandUpdatePathSchema, CliCommandUpdateRequestSchema, CliCommandUpdateRequestSchemaPathSchema, CliCommandUpdateRequestSchemaRequestSchema, CliCommandUpdateResponseItemSchema, CliCommandUpdateResponseSchema, CliCommandUpdateResponseSchemaPathSchema, CliCommandUpdateResponseSchemaRequestSchema, CliCommandUpdateResponseSkipReasonSchema, CliCommandUpdateViewerRequestSchema, CliCommandUpdateViewerResponseItemSchema, CliCommandUpdateViewerResponseSchema, CliCommandViewerConfigAddressGetPathSchema, CliCommandViewerConfigAddressGetRequestSchema, CliCommandViewerConfigAddressGetRequestSchemaPathSchema, CliCommandViewerConfigAddressGetRequestSchemaRequestSchema, CliCommandViewerConfigAddressGetResponseSchema, CliCommandViewerConfigAddressGetResponseSchemaPathSchema, CliCommandViewerConfigAddressGetResponseSchemaRequestSchema, CliCommandViewerConfigAddressGetViewerRequestSchema, CliCommandViewerConfigAddressGetViewerResponseSchema, CliCommandViewerConfigAddressRequestSchema, CliCommandViewerConfigAddressSetPathSchema, CliCommandViewerConfigAddressSetRequestSchema, CliCommandViewerConfigAddressSetRequestSchemaPathSchema, CliCommandViewerConfigAddressSetRequestSchemaRequestSchema, CliCommandViewerConfigAddressSetResponseSchemaPathSchema, CliCommandViewerConfigAddressSetResponseSchemaRequestSchema, CliCommandViewerConfigAddressSetViewerRequestSchema, CliCommandViewerConfigAddressSetViewerResponseSchema, CliCommandViewerConfigAddressViewerRequestSchema, CliCommandViewerConfigGetPathSchema, CliCommandViewerConfigGetRequestSchema, CliCommandViewerConfigGetRequestSchemaPathSchema, CliCommandViewerConfigGetRequestSchemaRequestSchema, CliCommandViewerConfigGetResponseSchema, CliCommandViewerConfigGetResponseSchemaPathSchema, CliCommandViewerConfigGetResponseSchemaRequestSchema, CliCommandViewerConfigGetViewerRequestSchema, CliCommandViewerConfigGetViewerResponseSchema, CliCommandViewerConfigRequestSchema, CliCommandViewerConfigSecretGetPathSchema, CliCommandViewerConfigSecretGetRequestSchema, CliCommandViewerConfigSecretGetRequestSchemaPathSchema, CliCommandViewerConfigSecretGetRequestSchemaRequestSchema, CliCommandViewerConfigSecretGetResponseSchema, CliCommandViewerConfigSecretGetResponseSchemaPathSchema, CliCommandViewerConfigSecretGetResponseSchemaRequestSchema, CliCommandViewerConfigSecretGetViewerRequestSchema, CliCommandViewerConfigSecretGetViewerResponseSchema, CliCommandViewerConfigSecretRequestSchema, CliCommandViewerConfigSecretSetPathSchema, CliCommandViewerConfigSecretSetRequestSchema, CliCommandViewerConfigSecretSetRequestSchemaPathSchema, CliCommandViewerConfigSecretSetRequestSchemaRequestSchema, CliCommandViewerConfigSecretSetResponseSchemaPathSchema, CliCommandViewerConfigSecretSetResponseSchemaRequestSchema, CliCommandViewerConfigSecretSetViewerRequestSchema, CliCommandViewerConfigSecretSetViewerResponseSchema, CliCommandViewerConfigSecretViewerRequestSchema, CliCommandViewerConfigSignatureGetPathSchema, CliCommandViewerConfigSignatureGetRequestSchema, CliCommandViewerConfigSignatureGetRequestSchemaPathSchema, CliCommandViewerConfigSignatureGetRequestSchemaRequestSchema, CliCommandViewerConfigSignatureGetResponseSchema, CliCommandViewerConfigSignatureGetResponseSchemaPathSchema, CliCommandViewerConfigSignatureGetResponseSchemaRequestSchema, CliCommandViewerConfigSignatureGetViewerRequestSchema, CliCommandViewerConfigSignatureGetViewerResponseSchema, CliCommandViewerConfigSignatureRequestSchema, CliCommandViewerConfigSignatureSetPathSchema, CliCommandViewerConfigSignatureSetRequestSchema, CliCommandViewerConfigSignatureSetRequestSchemaPathSchema, CliCommandViewerConfigSignatureSetRequestSchemaRequestSchema, CliCommandViewerConfigSignatureSetResponseSchemaPathSchema, CliCommandViewerConfigSignatureSetResponseSchemaRequestSchema, CliCommandViewerConfigSignatureSetViewerRequestSchema, CliCommandViewerConfigSignatureSetViewerResponseSchema, CliCommandViewerConfigSignatureViewerRequestSchema, CliCommandViewerConfigViewerRequestSchema, CliCommandViewerGenerateSecretSignaturePairPathSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchemaPathSchema, CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequestSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchemaPathSchema, CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequestSchema, CliCommandViewerGenerateSecretSignaturePairViewerRequestSchema, CliCommandViewerGenerateSecretSignaturePairViewerResponseSchema, CliCommandViewerKillPathSchema, CliCommandViewerKillRequestSchema, CliCommandViewerKillRequestSchemaPathSchema, CliCommandViewerKillRequestSchemaRequestSchema, CliCommandViewerKillResponseSchema, CliCommandViewerKillResponseSchemaPathSchema, CliCommandViewerKillResponseSchemaRequestSchema, CliCommandViewerKillViewerRequestSchema, CliCommandViewerKillViewerResponseSchema, CliCommandViewerRequestSchema, CliCommandViewerSendPathSchema, CliCommandViewerSendRequestSchema, CliCommandViewerSendRequestSchemaPathSchema, CliCommandViewerSendRequestSchemaRequestSchema, CliCommandViewerSendResponseSchemaPathSchema, CliCommandViewerSendResponseSchemaRequestSchema, CliCommandViewerSendViewerRequestSchema, CliCommandViewerSendViewerResponseSchema, CliCommandViewerSpawnPathSchema, CliCommandViewerSpawnRequestSchema, CliCommandViewerSpawnRequestSchemaPathSchema, CliCommandViewerSpawnRequestSchemaRequestSchema, CliCommandViewerSpawnResponseSchema, CliCommandViewerSpawnResponseSchemaPathSchema, CliCommandViewerSpawnResponseSchemaRequestSchema, CliCommandViewerSpawnViewerRequestSchema, CliCommandViewerSpawnViewerResponseSchema, CliCommandViewerViewerRequestSchema, CliErrorSchema, CliErrorTypeSchema, CliLevelSchema, CliPluginsCommandSchema, CliPluginsCommandTypeSchema, CliPluginsOutputSchema, CliStream, ErrorErrorCreateParamsSchema, ErrorErrorCreateParamsStreamingSchema, ErrorErrorCreateParamsUnarySchema, ErrorErrorResponseSchema, ErrorResponseErrorSchema, FunctionsAlphaInlineFunctionSchema, FunctionsAlphaRemoteFunctionSchema, FunctionsAlphaScalarBranchTaskExpressionSchema, FunctionsAlphaScalarInlineFunctionSchema, FunctionsAlphaScalarLeafTaskExpressionSchema, FunctionsAlphaScalarPlaceholderScalarFunctionTaskExpressionSchema, FunctionsAlphaScalarRemoteFunctionSchema, FunctionsAlphaScalarScalarFunctionTaskExpressionSchema, FunctionsAlphaScalarVectorCompletionTaskExpressionSchema, FunctionsAlphaVectorBranchTaskExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputSchemaSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueExpressionSchema, FunctionsAlphaVectorExpressionVectorFunctionInputValueSchema, FunctionsAlphaVectorInlineFunctionSchema, FunctionsAlphaVectorLeafTaskExpressionSchema, FunctionsAlphaVectorPlaceholderScalarFunctionTaskExpressionSchema, FunctionsAlphaVectorPlaceholderVectorFunctionTaskExpressionSchema, FunctionsAlphaVectorRemoteFunctionSchema, FunctionsAlphaVectorScalarFunctionTaskExpressionSchema, FunctionsAlphaVectorVectorCompletionTaskExpressionSchema, FunctionsAlphaVectorVectorFunctionTaskExpressionSchema, FunctionsCheckScalarFieldsValidationSchema, FunctionsCheckVectorFieldsValidationSchema, FunctionsCompiledTaskSchema, FunctionsExecutionsRequestFunctionExecutionCreateParamsSchema, FunctionsExecutionsRequestReasoningSchema, FunctionsExecutionsRequestStrategySchema, FunctionsExecutionsResponseOutputSchema, FunctionsExecutionsResponseStreamingFunctionExecutionChunkSchema, FunctionsExecutionsResponseStreamingFunctionExecutionTaskChunkSchema, FunctionsExecutionsResponseStreamingInnerErrorSchema, FunctionsExecutionsResponseStreamingObjectSchema, FunctionsExecutionsResponseStreamingReasoningSummaryChunkSchema, FunctionsExecutionsResponseStreamingTaskChunkSchema, FunctionsExecutionsResponseStreamingVectorCompletionTaskChunkSchema, FunctionsExecutionsResponseUnaryFunctionExecutionSchema, FunctionsExecutionsResponseUnaryFunctionExecutionTaskSchema, FunctionsExecutionsResponseUnaryObjectSchema, FunctionsExecutionsResponseUnaryReasoningSummarySchema, FunctionsExecutionsResponseUnaryTaskSchema, FunctionsExecutionsResponseUnaryVectorCompletionTaskSchema, FunctionsExpressionAnyOfInputSchemaSchema, FunctionsExpressionArrayInputSchemaSchema, FunctionsExpressionArrayInputSchemaTypeSchema, FunctionsExpressionAudioInputSchemaSchema, FunctionsExpressionAudioInputSchemaTypeSchema, FunctionsExpressionBooleanInputSchemaSchema, FunctionsExpressionBooleanInputSchemaTypeSchema, FunctionsExpressionExpressionSchema, FunctionsExpressionFileInputSchemaSchema, FunctionsExpressionFileInputSchemaTypeSchema, FunctionsExpressionImageInputSchemaSchema, FunctionsExpressionImageInputSchemaTypeSchema, FunctionsExpressionInputSchemaSchema, FunctionsExpressionInputValueExpressionSchema, FunctionsExpressionInputValueSchema, FunctionsExpressionIntegerInputSchemaSchema, FunctionsExpressionIntegerInputSchemaTypeSchema, FunctionsExpressionNumberInputSchemaSchema, FunctionsExpressionNumberInputSchemaTypeSchema, FunctionsExpressionObjectInputSchemaSchema, FunctionsExpressionObjectInputSchemaTypeSchema, FunctionsExpressionParamsSchema, FunctionsExpressionSpecialSchema, FunctionsExpressionStringInputSchemaSchema, FunctionsExpressionStringInputSchemaTypeSchema, FunctionsExpressionTaskOutputSchema, FunctionsExpressionVideoInputSchemaSchema, FunctionsExpressionVideoInputSchemaTypeSchema, FunctionsFullFunctionSchema, FunctionsFullInlineFunctionOrRemoteCommitOptionalSchema, FunctionsFullInlineFunctionSchema, FunctionsFullRemoteFunctionSchema, FunctionsFunctionSchema, FunctionsFunctionTypeSchema, FunctionsInlineFunctionSchema, FunctionsInlineProfileOrRemoteCommitOptionalSchema, FunctionsInlineProfileSchema, FunctionsInlineTasksProfileSchema, FunctionsPlaceholderScalarFunctionTaskExpressionSchema, FunctionsPlaceholderScalarFunctionTaskSchema, FunctionsPlaceholderVectorFunctionTaskExpressionSchema, FunctionsPlaceholderVectorFunctionTaskSchema, FunctionsProfileSchema, FunctionsProfilesComputationsRequestDatasetItemSchema, FunctionsProfilesComputationsRequestFunctionProfileComputationCreateParamsSchema, FunctionsProfilesComputationsRequestTargetSchema, FunctionsProfilesComputationsResponseFittingStatsSchema, FunctionsProfilesComputationsResponseStreamingFunctionExecutionChunkSchema, FunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkSchema, FunctionsProfilesComputationsResponseStreamingObjectSchema, FunctionsProfilesComputationsResponseUnaryFunctionExecutionSchema, FunctionsProfilesComputationsResponseUnaryFunctionProfileComputationSchema, FunctionsProfilesComputationsResponseUnaryObjectSchema, FunctionsRemoteFunctionSchema, FunctionsRemoteProfileSchema, FunctionsRemoteTasksProfileSchema, FunctionsScalarFunctionTaskExpressionSchema, FunctionsScalarFunctionTaskSchema, FunctionsTaskExpressionSchema, FunctionsTaskProfileSchema, FunctionsTaskSchema, FunctionsVectorCompletionTaskExpressionSchema, FunctionsVectorCompletionTaskSchema, FunctionsVectorFunctionTaskExpressionSchema, FunctionsVectorFunctionTaskSchema, HttpViewerAgentCompletionCreateParamsSchema, HttpViewerAgentCompletionRequestSchema, HttpViewerFunctionExecutionCreateParamsSchema, HttpViewerFunctionExecutionRequestSchema, HttpViewerRequestSchema, HttpViewerResponseErrorSchema, LaboratoriesClientLaboratorySchema, LaboratoriesClientLaboratoryTypeSchema, LaboratoriesLaboratorySchema, McpResourceListResourcesRequestSchema, McpResourceReadResourceRequestParamsSchema, McpToolCallToolRequestParamsSchema, McpToolListToolsRequestSchema, McpToolTaskMetadataSchema, ObjectiveAI, ObjectiveAIFetchError, ObjectiveAIOptionsSchema, PluginCommandExecutor, PrefixedUuidSchema, RemotePathCommitOptionalSchema, RemotePathSchema, RemoteSchema, RequestOptionsSchema, Stream, SwarmInlineSwarmBaseOrRemoteCommitOptionalSchema, SwarmInlineSwarmBaseOrRemoteSchema, SwarmInlineSwarmBaseSchema, SwarmInlineSwarmSchema, SwarmRemoteSwarmBaseSchema, SwarmRemoteSwarmSchema, SwarmSwarmBaseSchema, SwarmSwarmSchema, VectorCompletionsRequestVectorCompletionCreateParamsSchema, VectorCompletionsRequestVectorCompletionCreateParamsStreamingSchema, VectorCompletionsRequestVectorCompletionCreateParamsUnarySchema, VectorCompletionsResponseStreamingAgentCompletionChunkSchema, VectorCompletionsResponseStreamingInnerErrorSchema, VectorCompletionsResponseStreamingObjectSchema, VectorCompletionsResponseStreamingVectorCompletionChunkSchema, VectorCompletionsResponseUnaryAgentCompletionSchema, VectorCompletionsResponseUnaryObjectSchema, VectorCompletionsResponseUnaryVectorCompletionSchema, VectorCompletionsResponseVoteSchema, VectorCompletionsVectorResponsesSchema, ViewerCommandExecutor, WeightsEntrySchema, WeightsSchema, agentCompletionsCreateAgentCompletion, agentCompletionsMessageAssistantToolCallDeltaMerged, agentCompletionsMessageAssistantToolCallDeltaMergedList, agentCompletionsMessageAssistantToolCallFunctionDeltaMerged, agentCompletionsMessageRichContentMerged, agentCompletionsResponseCompletionTokensDetailsMerged, agentCompletionsResponseCostDetailsMerged, agentCompletionsResponseLogprobsMerged, agentCompletionsResponsePromptTokensDetailsMerged, agentCompletionsResponseStreamingAgentCompletionChunkMerged, agentCompletionsResponseStreamingAssistantResponseChunkMerged, agentCompletionsResponseStreamingMessageChunkMerged, agentCompletionsResponseStreamingMessageChunkMergedList, agentCompletionsResponseUpstreamUsageMerged, agentCompletionsResponseUsageMerged, agentsEnqueueExecute, agentsEnqueueExecuteTransform, agentsEnqueueRequestSchemaExecute, agentsEnqueueRequestSchemaExecuteTransform, agentsEnqueueResponseSchemaExecute, agentsEnqueueResponseSchemaExecuteTransform, agentsGetExecute, agentsGetExecuteTransform, agentsGetRequestSchemaExecute, agentsGetRequestSchemaExecuteTransform, agentsGetResponseSchemaExecute, agentsGetResponseSchemaExecuteTransform, agentsInstancesGetExecute, agentsInstancesGetExecuteTransform, agentsInstancesGetRequestSchemaExecute, agentsInstancesGetRequestSchemaExecuteTransform, agentsInstancesGetResponseSchemaExecute, agentsInstancesGetResponseSchemaExecuteTransform, agentsInstancesListExecute, agentsInstancesListExecuteTransform, agentsInstancesListRequestSchemaExecute, agentsInstancesListRequestSchemaExecuteTransform, agentsInstancesListResponseSchemaExecute, agentsInstancesListResponseSchemaExecuteTransform, agentsLaboratoriesAttachExecute, agentsLaboratoriesAttachExecuteTransform, agentsLaboratoriesAttachRequestSchemaExecute, agentsLaboratoriesAttachRequestSchemaExecuteTransform, agentsLaboratoriesAttachResponseSchemaExecute, agentsLaboratoriesAttachResponseSchemaExecuteTransform, agentsLaboratoriesDetachExecute, agentsLaboratoriesDetachExecuteTransform, agentsLaboratoriesDetachRequestSchemaExecute, agentsLaboratoriesDetachRequestSchemaExecuteTransform, agentsLaboratoriesDetachResponseSchemaExecute, agentsLaboratoriesDetachResponseSchemaExecuteTransform, agentsLaboratoriesListExecute, agentsLaboratoriesListExecuteTransform, agentsLaboratoriesListRequestSchemaExecute, agentsLaboratoriesListRequestSchemaExecuteTransform, agentsLaboratoriesListResponseSchemaExecute, agentsLaboratoriesListResponseSchemaExecuteTransform, agentsListExecute, agentsListExecuteTransform, agentsListRequestSchemaExecute, agentsListRequestSchemaExecuteTransform, agentsListResponseSchemaExecute, agentsListResponseSchemaExecuteTransform, agentsLogsListExecute, agentsLogsListExecuteTransform, agentsLogsListRequestSchemaExecute, agentsLogsListRequestSchemaExecuteTransform, agentsLogsListResponseSchemaExecute, agentsLogsListResponseSchemaExecuteTransform, agentsLogsOpenExecute, agentsLogsOpenExecuteTransform, agentsLogsOpenRequestSchemaExecute, agentsLogsOpenRequestSchemaExecuteTransform, agentsLogsOpenResponseSchemaExecute, agentsLogsOpenResponseSchemaExecuteTransform, agentsLogsSubscribeExecute, agentsLogsSubscribeExecuteTransform, agentsLogsSubscribeRequestSchemaExecute, agentsLogsSubscribeRequestSchemaExecuteTransform, agentsLogsSubscribeResponseSchemaExecute, agentsLogsSubscribeResponseSchemaExecuteTransform, agentsLogsTokenUsageGetExecute, agentsLogsTokenUsageGetExecuteTransform, agentsLogsTokenUsageGetRequestSchemaExecute, agentsLogsTokenUsageGetRequestSchemaExecuteTransform, agentsLogsTokenUsageGetResponseSchemaExecute, agentsLogsTokenUsageGetResponseSchemaExecuteTransform, agentsLogsTokenUsageSubscribeExecute, agentsLogsTokenUsageSubscribeExecuteTransform, agentsLogsTokenUsageSubscribeRequestSchemaExecute, agentsLogsTokenUsageSubscribeRequestSchemaExecuteTransform, agentsLogsTokenUsageSubscribeResponseSchemaExecute, agentsLogsTokenUsageSubscribeResponseSchemaExecuteTransform, agentsMcpResourcesListExecuteTransform, agentsMcpResourcesListRequestSchemaExecute, agentsMcpResourcesListRequestSchemaExecuteTransform, agentsMcpResourcesListResponseSchemaExecute, agentsMcpResourcesListResponseSchemaExecuteTransform, agentsMcpResourcesReadExecuteTransform, agentsMcpResourcesReadRequestSchemaExecute, agentsMcpResourcesReadRequestSchemaExecuteTransform, agentsMcpResourcesReadResponseSchemaExecute, agentsMcpResourcesReadResponseSchemaExecuteTransform, agentsMcpServersListExecuteTransform, agentsMcpServersListRequestSchemaExecute, agentsMcpServersListRequestSchemaExecuteTransform, agentsMcpServersListResponseSchemaExecute, agentsMcpServersListResponseSchemaExecuteTransform, agentsMcpToolsCallExecuteTransform, agentsMcpToolsCallRequestSchemaExecute, agentsMcpToolsCallRequestSchemaExecuteTransform, agentsMcpToolsCallResponseSchemaExecute, agentsMcpToolsCallResponseSchemaExecuteTransform, agentsMcpToolsListExecuteTransform, agentsMcpToolsListRequestSchemaExecute, agentsMcpToolsListRequestSchemaExecuteTransform, agentsMcpToolsListResponseSchemaExecute, agentsMcpToolsListResponseSchemaExecuteTransform, agentsMessageExecute, agentsMessageExecuteTransform, agentsMessageRequestSchemaExecute, agentsMessageRequestSchemaExecuteTransform, agentsMessageResponseSchemaExecute, agentsMessageResponseSchemaExecuteTransform, agentsPublishExecute, agentsPublishExecuteTransform, agentsPublishRequestSchemaExecute, agentsPublishRequestSchemaExecuteTransform, agentsPublishResponseSchemaExecute, agentsPublishResponseSchemaExecuteTransform, agentsQueueDeleteExecute, agentsQueueDeleteExecuteTransform, agentsQueueDeleteRequestSchemaExecute, agentsQueueDeleteRequestSchemaExecuteTransform, agentsQueueDeleteResponseSchemaExecute, agentsQueueDeleteResponseSchemaExecuteTransform, agentsQueueDeliverExecute, agentsQueueDeliverExecuteTransform, agentsQueueDeliverRequestSchemaExecute, agentsQueueDeliverRequestSchemaExecuteTransform, agentsQueueDeliverResponseSchemaExecute, agentsQueueDeliverResponseSchemaExecuteTransform, agentsQueueListExecute, agentsQueueListExecuteTransform, agentsQueueListRequestSchemaExecute, agentsQueueListRequestSchemaExecuteTransform, agentsQueueListResponseSchemaExecute, agentsQueueListResponseSchemaExecuteTransform, agentsQueueOpenExecute, agentsQueueOpenExecuteTransform, agentsQueueOpenRequestSchemaExecute, agentsQueueOpenRequestSchemaExecuteTransform, agentsQueueOpenResponseSchemaExecute, agentsQueueOpenResponseSchemaExecuteTransform, agentsSpawnExecute, agentsSpawnExecuteStreaming, agentsSpawnExecuteStreamingTransform, agentsSpawnExecuteTransform, agentsSpawnRequestSchemaExecute, agentsSpawnRequestSchemaExecuteTransform, agentsSpawnResponseSchemaExecute, agentsSpawnResponseSchemaExecuteTransform, agentsTagsApplyExecute, agentsTagsApplyExecuteTransform, agentsTagsApplyRequestSchemaExecute, agentsTagsApplyRequestSchemaExecuteTransform, agentsTagsApplyResponseSchemaExecute, agentsTagsApplyResponseSchemaExecuteTransform, agentsTagsLookupRequestSchemaExecute, agentsTagsLookupRequestSchemaExecuteTransform, agentsTagsLookupResponseSchemaExecute, agentsTagsLookupResponseSchemaExecuteTransform, agentsWaitExecute, agentsWaitExecuteTransform, agentsWaitRequestSchemaExecute, agentsWaitRequestSchemaExecuteTransform, agentsWaitResponseSchemaExecute, agentsWaitResponseSchemaExecuteTransform, apiConfigAddressGetExecute, apiConfigAddressGetExecuteTransform, apiConfigAddressGetRequestSchemaExecute, apiConfigAddressGetRequestSchemaExecuteTransform, apiConfigAddressGetResponseSchemaExecute, apiConfigAddressGetResponseSchemaExecuteTransform, apiConfigAddressSetExecute, apiConfigAddressSetExecuteTransform, apiConfigAddressSetRequestSchemaExecute, apiConfigAddressSetRequestSchemaExecuteTransform, apiConfigAddressSetResponseSchemaExecute, apiConfigAddressSetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetExecute, apiConfigBackoffMaxElapsedTimeMsGetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsGetResponseSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetExecute, apiConfigBackoffMaxElapsedTimeMsSetExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetRequestSchemaExecuteTransform, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecute, apiConfigBackoffMaxElapsedTimeMsSetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailGetExecute, apiConfigCommitAuthorEmailGetExecuteTransform, apiConfigCommitAuthorEmailGetRequestSchemaExecute, apiConfigCommitAuthorEmailGetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailGetResponseSchemaExecute, apiConfigCommitAuthorEmailGetResponseSchemaExecuteTransform, apiConfigCommitAuthorEmailSetExecute, apiConfigCommitAuthorEmailSetExecuteTransform, apiConfigCommitAuthorEmailSetRequestSchemaExecute, apiConfigCommitAuthorEmailSetRequestSchemaExecuteTransform, apiConfigCommitAuthorEmailSetResponseSchemaExecute, apiConfigCommitAuthorEmailSetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameGetExecute, apiConfigCommitAuthorNameGetExecuteTransform, apiConfigCommitAuthorNameGetRequestSchemaExecute, apiConfigCommitAuthorNameGetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameGetResponseSchemaExecute, apiConfigCommitAuthorNameGetResponseSchemaExecuteTransform, apiConfigCommitAuthorNameSetExecute, apiConfigCommitAuthorNameSetExecuteTransform, apiConfigCommitAuthorNameSetRequestSchemaExecute, apiConfigCommitAuthorNameSetRequestSchemaExecuteTransform, apiConfigCommitAuthorNameSetResponseSchemaExecute, apiConfigCommitAuthorNameSetResponseSchemaExecuteTransform, apiConfigGetExecute, apiConfigGetExecuteTransform, apiConfigGetRequestSchemaExecute, apiConfigGetRequestSchemaExecuteTransform, apiConfigGetResponseSchemaExecute, apiConfigGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationGetExecute, apiConfigGithubAuthorizationGetExecuteTransform, apiConfigGithubAuthorizationGetRequestSchemaExecute, apiConfigGithubAuthorizationGetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationGetResponseSchemaExecute, apiConfigGithubAuthorizationGetResponseSchemaExecuteTransform, apiConfigGithubAuthorizationSetExecute, apiConfigGithubAuthorizationSetExecuteTransform, apiConfigGithubAuthorizationSetRequestSchemaExecute, apiConfigGithubAuthorizationSetRequestSchemaExecuteTransform, apiConfigGithubAuthorizationSetResponseSchemaExecute, apiConfigGithubAuthorizationSetResponseSchemaExecuteTransform, apiConfigHttpRefererGetExecute, apiConfigHttpRefererGetExecuteTransform, apiConfigHttpRefererGetRequestSchemaExecute, apiConfigHttpRefererGetRequestSchemaExecuteTransform, apiConfigHttpRefererGetResponseSchemaExecute, apiConfigHttpRefererGetResponseSchemaExecuteTransform, apiConfigHttpRefererSetExecute, apiConfigHttpRefererSetExecuteTransform, apiConfigHttpRefererSetRequestSchemaExecute, apiConfigHttpRefererSetRequestSchemaExecuteTransform, apiConfigHttpRefererSetResponseSchemaExecute, apiConfigHttpRefererSetResponseSchemaExecuteTransform, apiConfigMcpAuthorizationAddExecute, apiConfigMcpAuthorizationAddExecuteTransform, apiConfigMcpAuthorizationAddRequestSchemaExecute, apiConfigMcpAuthorizationAddRequestSchemaExecuteTransform, apiConfigMcpAuthorizationAddResponseSchemaExecute, apiConfigMcpAuthorizationAddResponseSchemaExecuteTransform, apiConfigMcpAuthorizationDelExecute, apiConfigMcpAuthorizationDelExecuteTransform, apiConfigMcpAuthorizationDelRequestSchemaExecute, apiConfigMcpAuthorizationDelRequestSchemaExecuteTransform, apiConfigMcpAuthorizationDelResponseSchemaExecute, apiConfigMcpAuthorizationDelResponseSchemaExecuteTransform, apiConfigMcpAuthorizationGetExecute, apiConfigMcpAuthorizationGetExecuteTransform, apiConfigMcpAuthorizationGetRequestSchemaExecute, apiConfigMcpAuthorizationGetRequestSchemaExecuteTransform, apiConfigMcpAuthorizationGetResponseSchemaExecute, apiConfigMcpAuthorizationGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsGetExecute, apiConfigMcpTimeoutMsGetExecuteTransform, apiConfigMcpTimeoutMsGetRequestSchemaExecute, apiConfigMcpTimeoutMsGetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsGetResponseSchemaExecute, apiConfigMcpTimeoutMsGetResponseSchemaExecuteTransform, apiConfigMcpTimeoutMsSetExecute, apiConfigMcpTimeoutMsSetExecuteTransform, apiConfigMcpTimeoutMsSetRequestSchemaExecute, apiConfigMcpTimeoutMsSetRequestSchemaExecuteTransform, apiConfigMcpTimeoutMsSetResponseSchemaExecute, apiConfigMcpTimeoutMsSetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetExecute, apiConfigObjectiveaiAuthorizationGetExecuteTransform, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationGetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationGetResponseSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetExecute, apiConfigObjectiveaiAuthorizationSetExecuteTransform, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecute, apiConfigObjectiveaiAuthorizationSetRequestSchemaExecuteTransform, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecute, apiConfigObjectiveaiAuthorizationSetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetExecute, apiConfigOpenrouterAuthorizationGetExecuteTransform, apiConfigOpenrouterAuthorizationGetRequestSchemaExecute, apiConfigOpenrouterAuthorizationGetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationGetResponseSchemaExecute, apiConfigOpenrouterAuthorizationGetResponseSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetExecute, apiConfigOpenrouterAuthorizationSetExecuteTransform, apiConfigOpenrouterAuthorizationSetRequestSchemaExecute, apiConfigOpenrouterAuthorizationSetRequestSchemaExecuteTransform, apiConfigOpenrouterAuthorizationSetResponseSchemaExecute, apiConfigOpenrouterAuthorizationSetResponseSchemaExecuteTransform, apiConfigUserAgentGetExecute, apiConfigUserAgentGetExecuteTransform, apiConfigUserAgentGetRequestSchemaExecute, apiConfigUserAgentGetRequestSchemaExecuteTransform, apiConfigUserAgentGetResponseSchemaExecute, apiConfigUserAgentGetResponseSchemaExecuteTransform, apiConfigUserAgentSetExecute, apiConfigUserAgentSetExecuteTransform, apiConfigUserAgentSetRequestSchemaExecute, apiConfigUserAgentSetRequestSchemaExecuteTransform, apiConfigUserAgentSetResponseSchemaExecute, apiConfigUserAgentSetResponseSchemaExecuteTransform, apiConfigXTitleGetExecute, apiConfigXTitleGetExecuteTransform, apiConfigXTitleGetRequestSchemaExecute, apiConfigXTitleGetRequestSchemaExecuteTransform, apiConfigXTitleGetResponseSchemaExecute, apiConfigXTitleGetResponseSchemaExecuteTransform, apiConfigXTitleSetExecute, apiConfigXTitleSetExecuteTransform, apiConfigXTitleSetRequestSchemaExecute, apiConfigXTitleSetRequestSchemaExecuteTransform, apiConfigXTitleSetResponseSchemaExecute, apiConfigXTitleSetResponseSchemaExecuteTransform, apiKillExecute, apiKillExecuteTransform, apiKillRequestSchemaExecute, apiKillRequestSchemaExecuteTransform, apiKillResponseSchemaExecute, apiKillResponseSchemaExecuteTransform, apiSpawnExecute, apiSpawnExecuteTransform, apiSpawnRequestSchemaExecute, apiSpawnRequestSchemaExecuteTransform, apiSpawnResponseSchemaExecute, apiSpawnResponseSchemaExecuteTransform, authCreateApiKey, authCreateOpenrouterByokApiKey, authDeleteOpenrouterByokApiKey, authDisableApiKey, authGetCredits, authGetOpenrouterByokApiKey, authListApiKeys, daemonKillExecute, daemonKillExecuteTransform, daemonKillRequestSchemaExecute, daemonKillRequestSchemaExecuteTransform, daemonKillResponseSchemaExecute, daemonKillResponseSchemaExecuteTransform, daemonSpawnExecute, daemonSpawnExecuteTransform, daemonSpawnRequestSchemaExecute, daemonSpawnRequestSchemaExecuteTransform, daemonSpawnResponseSchemaExecute, daemonSpawnResponseSchemaExecuteTransform, dbConfigAddressGetExecute, dbConfigAddressGetExecuteTransform, dbConfigAddressGetRequestSchemaExecute, dbConfigAddressGetRequestSchemaExecuteTransform, dbConfigAddressGetResponseSchemaExecute, dbConfigAddressGetResponseSchemaExecuteTransform, dbConfigAddressSetExecute, dbConfigAddressSetExecuteTransform, dbConfigAddressSetRequestSchemaExecute, dbConfigAddressSetRequestSchemaExecuteTransform, dbConfigAddressSetResponseSchemaExecute, dbConfigAddressSetResponseSchemaExecuteTransform, dbConfigDatabaseGetExecute, dbConfigDatabaseGetExecuteTransform, dbConfigDatabaseGetRequestSchemaExecute, dbConfigDatabaseGetRequestSchemaExecuteTransform, dbConfigDatabaseGetResponseSchemaExecute, dbConfigDatabaseGetResponseSchemaExecuteTransform, dbConfigDatabaseSetExecute, dbConfigDatabaseSetExecuteTransform, dbConfigDatabaseSetRequestSchemaExecute, dbConfigDatabaseSetRequestSchemaExecuteTransform, dbConfigDatabaseSetResponseSchemaExecute, dbConfigDatabaseSetResponseSchemaExecuteTransform, dbConfigGetExecute, dbConfigGetExecuteTransform, dbConfigGetRequestSchemaExecute, dbConfigGetRequestSchemaExecuteTransform, dbConfigGetResponseSchemaExecute, dbConfigGetResponseSchemaExecuteTransform, dbConfigPasswordGetExecute, dbConfigPasswordGetExecuteTransform, dbConfigPasswordGetRequestSchemaExecute, dbConfigPasswordGetRequestSchemaExecuteTransform, dbConfigPasswordGetResponseSchemaExecute, dbConfigPasswordGetResponseSchemaExecuteTransform, dbConfigPasswordSetExecute, dbConfigPasswordSetExecuteTransform, dbConfigPasswordSetRequestSchemaExecute, dbConfigPasswordSetRequestSchemaExecuteTransform, dbConfigPasswordSetResponseSchemaExecute, dbConfigPasswordSetResponseSchemaExecuteTransform, dbConfigUserGetExecute, dbConfigUserGetExecuteTransform, dbConfigUserGetRequestSchemaExecute, dbConfigUserGetRequestSchemaExecuteTransform, dbConfigUserGetResponseSchemaExecute, dbConfigUserGetResponseSchemaExecuteTransform, dbConfigUserSetExecute, dbConfigUserSetExecuteTransform, dbConfigUserSetRequestSchemaExecute, dbConfigUserSetRequestSchemaExecuteTransform, dbConfigUserSetResponseSchemaExecute, dbConfigUserSetResponseSchemaExecuteTransform, dbKillExecute, dbKillExecuteTransform, dbKillRequestSchemaExecute, dbKillRequestSchemaExecuteTransform, dbKillResponseSchemaExecute, dbKillResponseSchemaExecuteTransform, dbQueryExecute, dbQueryExecuteTransform, dbQueryRequestSchemaExecute, dbQueryRequestSchemaExecuteTransform, dbQueryResponseSchemaExecute, dbQueryResponseSchemaExecuteTransform, dbSpawnExecute, dbSpawnExecuteTransform, dbSpawnRequestSchemaExecute, dbSpawnRequestSchemaExecuteTransform, dbSpawnResponseSchemaExecute, dbSpawnResponseSchemaExecuteTransform, errorCreateError, functionsExecuteStandardExecute, functionsExecuteStandardExecuteStreaming, functionsExecuteStandardExecuteStreamingTransform, functionsExecuteStandardExecuteTransform, functionsExecuteStandardRequestSchemaExecute, functionsExecuteStandardRequestSchemaExecuteTransform, functionsExecuteStandardResponseSchemaExecute, functionsExecuteStandardResponseSchemaExecuteTransform, functionsExecuteSwissSystemExecute, functionsExecuteSwissSystemExecuteStreaming, functionsExecuteSwissSystemExecuteStreamingTransform, functionsExecuteSwissSystemExecuteTransform, functionsExecuteSwissSystemRequestSchemaExecute, functionsExecuteSwissSystemRequestSchemaExecuteTransform, functionsExecuteSwissSystemResponseSchemaExecute, functionsExecuteSwissSystemResponseSchemaExecuteTransform, functionsExecutionsCreateFunctionExecution, functionsExecutionsResponseStreamingFunctionExecutionChunkMerged, functionsExecutionsResponseStreamingReasoningSummaryChunkMerged, functionsExecutionsResponseStreamingTaskChunkMerged, functionsExecutionsResponseStreamingTaskChunkMergedList, functionsExecutionsResponseStreamingVectorCompletionTaskChunkMerged, functionsGetExecute, functionsGetExecuteTransform, functionsGetRequestSchemaExecute, functionsGetRequestSchemaExecuteTransform, functionsGetResponseSchemaExecute, functionsGetResponseSchemaExecuteTransform, functionsListExecute, functionsListExecuteTransform, functionsListRequestSchemaExecute, functionsListRequestSchemaExecuteTransform, functionsListResponseSchemaExecute, functionsListResponseSchemaExecuteTransform, functionsProfilesComputationsComputeProfile, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMerged, functionsProfilesComputationsResponseStreamingFunctionExecutionChunkMergedList, functionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, functionsProfilesGetExecute, functionsProfilesGetExecuteTransform, functionsProfilesGetRequestSchemaExecute, functionsProfilesGetRequestSchemaExecuteTransform, functionsProfilesGetResponseSchemaExecute, functionsProfilesGetResponseSchemaExecuteTransform, functionsProfilesListExecute, functionsProfilesListExecuteTransform, functionsProfilesListRequestSchemaExecute, functionsProfilesListRequestSchemaExecuteTransform, functionsProfilesListResponseSchemaExecute, functionsProfilesListResponseSchemaExecuteTransform, functionsProfilesPublishExecute, functionsProfilesPublishExecuteTransform, functionsProfilesPublishRequestSchemaExecute, functionsProfilesPublishRequestSchemaExecuteTransform, functionsProfilesPublishResponseSchemaExecute, functionsProfilesPublishResponseSchemaExecuteTransform, functionsPublishExecute, functionsPublishExecuteTransform, functionsPublishRequestSchemaExecute, functionsPublishRequestSchemaExecuteTransform, functionsPublishResponseSchemaExecute, functionsPublishResponseSchemaExecuteTransform, isResponseError, killAllExecute, killAllExecuteTransform, killAllRequestSchemaExecute, killAllRequestSchemaExecuteTransform, killAllResponseSchemaExecute, killAllResponseSchemaExecuteTransform, laboratoriesCreateExecute, laboratoriesCreateExecuteTransform, laboratoriesCreateRequestSchemaExecute, laboratoriesCreateRequestSchemaExecuteTransform, laboratoriesCreateResponseSchemaExecute, laboratoriesCreateResponseSchemaExecuteTransform, laboratoriesListExecute, laboratoriesListExecuteTransform, laboratoriesListRequestSchemaExecute, laboratoriesListRequestSchemaExecuteTransform, laboratoriesListResponseSchemaExecute, laboratoriesListResponseSchemaExecuteTransform, mcpConfigAddressGetExecute, mcpConfigAddressGetExecuteTransform, mcpConfigAddressGetRequestSchemaExecute, mcpConfigAddressGetRequestSchemaExecuteTransform, mcpConfigAddressGetResponseSchemaExecute, mcpConfigAddressGetResponseSchemaExecuteTransform, mcpConfigAddressSetExecute, mcpConfigAddressSetExecuteTransform, mcpConfigAddressSetRequestSchemaExecute, mcpConfigAddressSetRequestSchemaExecuteTransform, mcpConfigAddressSetResponseSchemaExecute, mcpConfigAddressSetResponseSchemaExecuteTransform, mcpConfigGetExecute, mcpConfigGetExecuteTransform, mcpConfigGetRequestSchemaExecute, mcpConfigGetRequestSchemaExecuteTransform, mcpConfigGetResponseSchemaExecute, mcpConfigGetResponseSchemaExecuteTransform, mcpConfigPortGetExecute, mcpConfigPortGetExecuteTransform, mcpConfigPortGetRequestSchemaExecute, mcpConfigPortGetRequestSchemaExecuteTransform, mcpConfigPortGetResponseSchemaExecute, mcpConfigPortGetResponseSchemaExecuteTransform, mcpConfigPortSetExecute, mcpConfigPortSetExecuteTransform, mcpConfigPortSetRequestSchemaExecute, mcpConfigPortSetRequestSchemaExecuteTransform, mcpConfigPortSetResponseSchemaExecute, mcpConfigPortSetResponseSchemaExecuteTransform, mcpKillExecute, mcpKillExecuteTransform, mcpKillRequestSchemaExecute, mcpKillRequestSchemaExecuteTransform, mcpKillResponseSchemaExecute, mcpKillResponseSchemaExecuteTransform, mcpSpawnExecute, mcpSpawnExecuteTransform, mcpSpawnRequestSchemaExecute, mcpSpawnRequestSchemaExecuteTransform, mcpSpawnResponseSchemaExecute, mcpSpawnResponseSchemaExecuteTransform, merge, mergedNumberArray, mergedString, numberIsEmpty, pluginsGetExecute, pluginsGetExecuteTransform, pluginsGetRequestSchemaExecute, pluginsGetRequestSchemaExecuteTransform, pluginsGetResponseSchemaExecute, pluginsGetResponseSchemaExecuteTransform, pluginsInstallFilesystemExecute, pluginsInstallFilesystemExecuteTransform, pluginsInstallFilesystemRequestSchemaExecute, pluginsInstallFilesystemRequestSchemaExecuteTransform, pluginsInstallFilesystemResponseSchemaExecute, pluginsInstallFilesystemResponseSchemaExecuteTransform, pluginsInstallGithubExecute, pluginsInstallGithubExecuteTransform, pluginsInstallGithubRequestSchemaExecute, pluginsInstallGithubRequestSchemaExecuteTransform, pluginsInstallGithubResponseSchemaExecute, pluginsInstallGithubResponseSchemaExecuteTransform, pluginsListExecute, pluginsListExecuteTransform, pluginsListRequestSchemaExecute, pluginsListRequestSchemaExecuteTransform, pluginsListResponseSchemaExecute, pluginsListResponseSchemaExecuteTransform, pluginsLogsListExecute, pluginsLogsListExecuteTransform, pluginsLogsListRequestSchemaExecute, pluginsLogsListRequestSchemaExecuteTransform, pluginsLogsListResponseSchemaExecute, pluginsLogsListResponseSchemaExecuteTransform, pluginsRunExecute, pluginsRunExecuteTransform, pluginsRunRequestSchemaExecute, pluginsRunRequestSchemaExecuteTransform, pluginsRunResponseSchemaExecute, pluginsRunResponseSchemaExecuteTransform, pythonExecute, pythonExecuteTransform, pythonRequestSchemaExecute, pythonRequestSchemaExecuteTransform, pythonResponseSchemaExecute, pythonResponseSchemaExecuteTransform, swarmsGetExecute, swarmsGetExecuteTransform, swarmsGetRequestSchemaExecute, swarmsGetRequestSchemaExecuteTransform, swarmsGetResponseSchemaExecute, swarmsGetResponseSchemaExecuteTransform, swarmsListExecute, swarmsListExecuteTransform, swarmsListRequestSchemaExecute, swarmsListRequestSchemaExecuteTransform, swarmsListResponseSchemaExecute, swarmsListResponseSchemaExecuteTransform, swarmsPublishExecute, swarmsPublishExecuteTransform, swarmsPublishRequestSchemaExecute, swarmsPublishRequestSchemaExecuteTransform, swarmsPublishResponseSchemaExecute, swarmsPublishResponseSchemaExecuteTransform, toolsGetExecute, toolsGetExecuteTransform, toolsGetRequestSchemaExecute, toolsGetRequestSchemaExecuteTransform, toolsGetResponseSchemaExecute, toolsGetResponseSchemaExecuteTransform, toolsInstallFilesystemExecute, toolsInstallFilesystemExecuteTransform, toolsInstallFilesystemRequestSchemaExecute, toolsInstallFilesystemRequestSchemaExecuteTransform, toolsInstallFilesystemResponseSchemaExecute, toolsInstallFilesystemResponseSchemaExecuteTransform, toolsInstallGithubExecute, toolsInstallGithubExecuteTransform, toolsInstallGithubRequestSchemaExecute, toolsInstallGithubRequestSchemaExecuteTransform, toolsInstallGithubResponseSchemaExecute, toolsInstallGithubResponseSchemaExecuteTransform, toolsListExecute, toolsListExecuteTransform, toolsListRequestSchemaExecute, toolsListRequestSchemaExecuteTransform, toolsListResponseSchemaExecute, toolsListResponseSchemaExecuteTransform, toolsRunExecute, toolsRunExecuteTransform, toolsRunRequestSchemaExecute, toolsRunRequestSchemaExecuteTransform, toolsRunResponseSchemaExecute, toolsRunResponseSchemaExecuteTransform, updateExecute, updateExecuteTransform, updateRequestSchemaExecute, updateRequestSchemaExecuteTransform, updateResponseSchemaExecute, updateResponseSchemaExecuteTransform, vectorCompletionsCreateVectorCompletion, vectorCompletionsResponseStreamingAgentCompletionChunkMerged, vectorCompletionsResponseStreamingAgentCompletionChunkMergedList, vectorCompletionsResponseStreamingVectorCompletionChunkMerged, vectorCompletionsResponseVoteMergedList, viewerConfigAddressGetExecute, viewerConfigAddressGetExecuteTransform, viewerConfigAddressGetRequestSchemaExecute, viewerConfigAddressGetRequestSchemaExecuteTransform, viewerConfigAddressGetResponseSchemaExecute, viewerConfigAddressGetResponseSchemaExecuteTransform, viewerConfigAddressSetExecute, viewerConfigAddressSetExecuteTransform, viewerConfigAddressSetRequestSchemaExecute, viewerConfigAddressSetRequestSchemaExecuteTransform, viewerConfigAddressSetResponseSchemaExecute, viewerConfigAddressSetResponseSchemaExecuteTransform, viewerConfigGetExecute, viewerConfigGetExecuteTransform, viewerConfigGetRequestSchemaExecute, viewerConfigGetRequestSchemaExecuteTransform, viewerConfigGetResponseSchemaExecute, viewerConfigGetResponseSchemaExecuteTransform, viewerConfigSecretGetExecute, viewerConfigSecretGetExecuteTransform, viewerConfigSecretGetRequestSchemaExecute, viewerConfigSecretGetRequestSchemaExecuteTransform, viewerConfigSecretGetResponseSchemaExecute, viewerConfigSecretGetResponseSchemaExecuteTransform, viewerConfigSecretSetExecute, viewerConfigSecretSetExecuteTransform, viewerConfigSecretSetRequestSchemaExecute, viewerConfigSecretSetRequestSchemaExecuteTransform, viewerConfigSecretSetResponseSchemaExecute, viewerConfigSecretSetResponseSchemaExecuteTransform, viewerConfigSignatureGetExecute, viewerConfigSignatureGetExecuteTransform, viewerConfigSignatureGetRequestSchemaExecute, viewerConfigSignatureGetRequestSchemaExecuteTransform, viewerConfigSignatureGetResponseSchemaExecute, viewerConfigSignatureGetResponseSchemaExecuteTransform, viewerConfigSignatureSetExecute, viewerConfigSignatureSetExecuteTransform, viewerConfigSignatureSetRequestSchemaExecute, viewerConfigSignatureSetRequestSchemaExecuteTransform, viewerConfigSignatureSetResponseSchemaExecute, viewerConfigSignatureSetResponseSchemaExecuteTransform, viewerGenerateSecretSignaturePairExecute, viewerGenerateSecretSignaturePairExecuteTransform, viewerGenerateSecretSignaturePairRequestSchemaExecute, viewerGenerateSecretSignaturePairRequestSchemaExecuteTransform, viewerGenerateSecretSignaturePairResponseSchemaExecute, viewerGenerateSecretSignaturePairResponseSchemaExecuteTransform, viewerKillExecute, viewerKillExecuteTransform, viewerKillRequestSchemaExecute, viewerKillRequestSchemaExecuteTransform, viewerKillResponseSchemaExecute, viewerKillResponseSchemaExecuteTransform, viewerSendExecute, viewerSendExecuteTransform, viewerSendRequestSchemaExecute, viewerSendRequestSchemaExecuteTransform, viewerSendResponseSchemaExecute, viewerSendResponseSchemaExecuteTransform, viewerSpawnExecute, viewerSpawnExecuteTransform, viewerSpawnRequestSchemaExecute, viewerSpawnRequestSchemaExecuteTransform, viewerSpawnResponseSchemaExecute, viewerSpawnResponseSchemaExecuteTransform, wasmAgentCompletionsMessagePromptId, wasmAgentCompletionsResponseStreamingAgentCompletionChunkMerged, wasmAgentCompletionsResponseStreamingAgentCompletionChunkNormalized, wasmAgentCompletionsResponseStreamingAgentCompletionChunkToUnary, wasmAgentCompletionsResponseStreamingGenerateAgentCompletionChunk, wasmAgentCompletionsResponseStreamingNormalizeAgentCompletionForTests, wasmAgentValidateAgent, wasmFunctionsAlphaCheckBranchScalarFunction, wasmFunctionsAlphaCheckBranchVectorFunction, wasmFunctionsAlphaCheckLeafScalarFunction, wasmFunctionsAlphaCheckLeafVectorFunction, wasmFunctionsCheckCheckScalarFields, wasmFunctionsCheckCheckVectorFields, wasmFunctionsCompileFunctionInputMerge, wasmFunctionsCompileFunctionInputSplit, wasmFunctionsCompileFunctionOutputLength, wasmFunctionsCompileFunctionTasks, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkMerged, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkNormalized, wasmFunctionsExecutionsResponseStreamingFunctionExecutionChunkToUnary, wasmFunctionsExecutionsResponseStreamingGenerateFunctionExecutionChunk, wasmFunctionsExecutionsResponseStreamingNormalizeFunctionExecutionForTests, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkMerged, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkNormalized, wasmFunctionsProfilesComputationsResponseStreamingFunctionProfileComputationChunkToUnary, wasmFunctionsProfilesComputationsResponseStreamingGenerateFunctionProfileComputationChunk, wasmFunctionsProfilesComputationsResponseStreamingNormalizeFunctionProfileComputationForTests, wasmFunctionsValidateFunctionInput, wasmSwarmValidateSwarm, wasmVectorCompletionsResponseStreamingGenerateVectorCompletionChunk, wasmVectorCompletionsResponseStreamingNormalizeVectorCompletionForTests, wasmVectorCompletionsResponseStreamingVectorCompletionChunkMerged, wasmVectorCompletionsResponseStreamingVectorCompletionChunkNormalized, wasmVectorCompletionsResponseStreamingVectorCompletionChunkToUnary, wasmVectorCompletionsVectorResponseId };

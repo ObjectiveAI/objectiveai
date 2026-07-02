@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandApiConfigMcpAuthorizationDelRequestSchema } from "./request";
 
 export const CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandApiConfigMcpAuthorizationDelRequestSchema,
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.api.config.mcp_authorization.del.ViewerRequest" });
 export type CliCommandApiConfigMcpAuthorizationDelViewerRequest = z.infer<typeof CliCommandApiConfigMcpAuthorizationDelViewerRequestSchema>;

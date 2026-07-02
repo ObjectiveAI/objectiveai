@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandToolsInstallFilesystemRequestSchema } from "./request";
 
 export const CliCommandToolsInstallFilesystemViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandToolsInstallFilesystemRequestSchema,
 }).meta({ title: "cli.command.tools.install.filesystem.ViewerRequest" });
 export type CliCommandToolsInstallFilesystemViewerRequest = z.infer<typeof CliCommandToolsInstallFilesystemViewerRequestSchema>;

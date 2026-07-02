@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandMcpKillRequestSchema } from "./request";
 
 export const CliCommandMcpKillViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandMcpKillRequestSchema,
 }).describe("Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.").meta({ title: "cli.command.mcp.kill.ViewerRequest" });
 export type CliCommandMcpKillViewerRequest = z.infer<typeof CliCommandMcpKillViewerRequestSchema>;

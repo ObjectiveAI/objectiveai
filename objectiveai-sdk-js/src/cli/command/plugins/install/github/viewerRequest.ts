@@ -4,7 +4,16 @@ import { z } from "zod";
 import { CliCommandPluginsInstallGithubRequestSchema } from "./request";
 
 export const CliCommandPluginsInstallGithubViewerRequestSchema = z.object({
+  agent_full_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_instance_hierarchy: z.string().nullable().meta({ omitempty: true }).optional(),
+  agent_remote: z.string().nullable().meta({ omitempty: true }).optional(),
   id: z.string(),
+  plugin_owner: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_repository: z.string().nullable().meta({ omitempty: true }).optional(),
+  plugin_version: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_id: z.string().nullable().meta({ omitempty: true }).optional(),
+  response_ids: z.string().nullable().meta({ omitempty: true }).optional(),
   value: CliCommandPluginsInstallGithubRequestSchema,
 }).meta({ title: "cli.command.plugins.install.github.ViewerRequest" });
 export type CliCommandPluginsInstallGithubViewerRequest = z.infer<typeof CliCommandPluginsInstallGithubViewerRequestSchema>;
