@@ -154,6 +154,84 @@ pub enum ResponseItem {
     Viewer(super::viewer::Response),
 }
 
+/// Viewer-stream mirror of [`Request`] — the real command tiers only
+/// (schema-introspection variants excluded). Each variant wraps a tier's
+/// `ViewerRequest`; every leaf underneath carries its `path_type`, so the
+/// untagged enum stays discriminable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.ViewerRequest")]
+pub enum ViewerRequest {
+    #[schemars(title = "Agents")]
+    Agents(super::agents::ViewerRequest),
+    #[schemars(title = "Api")]
+    Api(super::api::ViewerRequest),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::ViewerRequest),
+    #[schemars(title = "Db")]
+    Db(super::db::ViewerRequest),
+    #[schemars(title = "Functions")]
+    Functions(super::functions::ViewerRequest),
+    #[schemars(title = "KillAll")]
+    KillAll(super::kill_all::ViewerRequest),
+    #[schemars(title = "Laboratories")]
+    Laboratories(super::laboratories::ViewerRequest),
+    #[schemars(title = "Mcp")]
+    Mcp(super::mcp::ViewerRequest),
+    #[schemars(title = "Plugins")]
+    Plugins(super::plugins::ViewerRequest),
+    #[schemars(title = "Python")]
+    Python(super::python::ViewerRequest),
+    #[schemars(title = "Swarms")]
+    Swarms(super::swarms::ViewerRequest),
+    #[schemars(title = "Tools")]
+    Tools(super::tools::ViewerRequest),
+    #[schemars(title = "Update")]
+    Update(super::update::ViewerRequest),
+    #[schemars(title = "Viewer")]
+    Viewer(super::viewer::ViewerRequest),
+}
+
+/// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
+/// aggregate: each variant wraps the tier's `ViewerResponseItem` (or a
+/// unary tier/leaf's `ViewerResponse`). Exempt from json-schema coverage:
+/// untagged response aggregate spanning the whole tree (TS7056), same as
+/// the base `ResponseItem`.
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.ViewerResponseItem")]
+pub enum ViewerResponseItem {
+    #[schemars(title = "Agents")]
+    Agents(super::agents::ViewerResponseItem),
+    #[schemars(title = "Api")]
+    Api(super::api::ViewerResponseItem),
+    #[schemars(title = "Daemon")]
+    Daemon(super::daemon::ViewerResponseItem),
+    #[schemars(title = "Db")]
+    Db(super::db::ViewerResponseItem),
+    #[schemars(title = "Functions")]
+    Functions(super::functions::ViewerResponseItem),
+    #[schemars(title = "KillAll")]
+    KillAll(super::kill_all::ViewerResponse),
+    #[schemars(title = "Laboratories")]
+    Laboratories(super::laboratories::ViewerResponseItem),
+    #[schemars(title = "Mcp")]
+    Mcp(super::mcp::ViewerResponseItem),
+    #[schemars(title = "Plugins")]
+    Plugins(super::plugins::ViewerResponseItem),
+    #[schemars(title = "Python")]
+    Python(super::python::ViewerResponse),
+    #[schemars(title = "Swarms")]
+    Swarms(super::swarms::ViewerResponseItem),
+    #[schemars(title = "Tools")]
+    Tools(super::tools::ViewerResponseItem),
+    #[schemars(title = "Update")]
+    Update(super::update::ViewerResponseItem),
+    #[schemars(title = "Viewer")]
+    Viewer(super::viewer::ViewerResponseItem),
+}
+
 #[cfg(feature = "mcp")]
 impl super::CommandResponse for ResponseItem {
     fn into_mcp(self) -> super::McpResponseItem {

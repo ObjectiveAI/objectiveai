@@ -51,6 +51,26 @@ impl CommandRequest for Request {
 /// [`RichContentPart`]: crate::agent::completions::message::RichContentPart
 pub type Response = crate::agent::completions::message::RichContentPart;
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.open.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`Response`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.open.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("id_required").required(true).args(["id"])))]
 pub struct Args {

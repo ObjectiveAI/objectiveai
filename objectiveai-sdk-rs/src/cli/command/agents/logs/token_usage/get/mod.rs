@@ -42,6 +42,26 @@ pub struct Response {
     pub total_tokens: Option<i64>,
 }
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.token_usage.get.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`Response`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.token_usage.get.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("aih_required").required(true).args(["agent_instance_hierarchy"])))]
 pub struct Args {

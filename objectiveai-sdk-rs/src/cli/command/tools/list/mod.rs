@@ -34,6 +34,21 @@ impl CommandRequest for Request {
 // list items deserialize as the same Rust type.
 pub use super::get::ResponseManifest as ResponseItem;
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.list.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.list.ViewerResponseItem")]
+pub struct ViewerResponseItem {
+    pub id: String,
+    pub path_type: Path,
+    pub value: ResponseItem,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     /// Skip the first N matching entries.

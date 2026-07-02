@@ -32,6 +32,21 @@ pub struct Response {
     pub instructions: String,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.install.filesystem.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.tools.install.filesystem.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     #[command(flatten)]

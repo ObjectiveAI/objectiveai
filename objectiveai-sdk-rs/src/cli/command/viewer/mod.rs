@@ -83,6 +83,47 @@ pub enum Response {
     SpawnResponseSchema(spawn::response_schema::Response),
 }
 
+/// Viewer-stream mirror of [`Request`] — the real command requests only
+/// (schema-introspection variants are excluded; the viewer streams
+/// actual command traffic). Untagged: each variant carries the leaf's
+/// `path_type`, so it stays discriminable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.viewer.ViewerRequest")]
+pub enum ViewerRequest {
+    #[schemars(title = "Config")]
+    Config(config::ViewerRequest),
+    #[schemars(title = "GenerateSecretSignaturePair")]
+    GenerateSecretSignaturePair(generate_secret_signature_pair::ViewerRequest),
+    #[schemars(title = "Kill")]
+    Kill(kill::ViewerRequest),
+    #[schemars(title = "Send")]
+    Send(send::ViewerRequest),
+    #[schemars(title = "Spawn")]
+    Spawn(spawn::ViewerRequest),
+}
+
+/// Viewer-stream mirror of [`Response`] — mirrors the base response
+/// aggregate: unary children carry their `ViewerResponse`, streaming
+/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
+/// untagged response aggregate (mirrors the base `Response`, TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.viewer.ViewerResponseItem")]
+pub enum ViewerResponseItem {
+    #[schemars(title = "Config")]
+    Config(config::ViewerResponseItem),
+    #[schemars(title = "GenerateSecretSignaturePair")]
+    GenerateSecretSignaturePair(generate_secret_signature_pair::ViewerResponse),
+    #[schemars(title = "Kill")]
+    Kill(kill::ViewerResponse),
+    #[schemars(title = "Send")]
+    Send(send::ViewerResponse),
+    #[schemars(title = "Spawn")]
+    Spawn(spawn::ViewerResponse),
+}
+
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {

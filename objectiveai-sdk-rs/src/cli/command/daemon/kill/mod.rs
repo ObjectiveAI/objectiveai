@@ -41,7 +41,7 @@ pub struct Response {
 
 /// Viewer-stream mirror of [`Request`]: the request (nested under
 /// `value`, `path_type` and all) plus the broadcast stream `id`.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.daemon.kill.ViewerRequest")]
 pub struct ViewerRequest {
     pub id: String,
@@ -51,7 +51,7 @@ pub struct ViewerRequest {
 /// Viewer-stream mirror of [`Response`]: the response (nested under
 /// `value`) plus the broadcast stream `id` and the originating request's
 /// `path_type`.
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.daemon.kill.ViewerResponse")]
 pub struct ViewerResponse {
     pub id: String,

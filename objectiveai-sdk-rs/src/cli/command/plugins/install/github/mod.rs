@@ -37,6 +37,21 @@ pub struct Response {
     pub installed: bool,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.github.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.install.github.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
 #[command(group(clap::ArgGroup::new("repository_required").required(true).args(["repository"])))]

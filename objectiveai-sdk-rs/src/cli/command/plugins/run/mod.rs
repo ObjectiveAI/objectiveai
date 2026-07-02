@@ -82,6 +82,21 @@ pub enum McpType {
     Mcp,
 }
 
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.run.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.plugins.run.ViewerResponseItem")]
+pub struct ViewerResponseItem {
+    pub id: String,
+    pub path_type: Path,
+    pub value: ResponseItem,
+}
+
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
 #[command(group(clap::ArgGroup::new("name_required").required(true).args(["name"])))]

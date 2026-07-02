@@ -39,6 +39,37 @@ pub struct Response {
 /// named type for the SDK code generators to reconstruct.
 pub type ResponseItem = crate::RemotePath;
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.list.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`Response`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.list.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
+/// Viewer-stream mirror of [`ResponseItem`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.swarms.list.ViewerResponseItem")]
+pub struct ViewerResponseItem {
+    pub id: String,
+    pub path_type: Path,
+    pub value: ResponseItem,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     #[command(flatten)]

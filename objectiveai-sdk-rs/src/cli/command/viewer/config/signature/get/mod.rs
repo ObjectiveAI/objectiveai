@@ -36,6 +36,26 @@ pub struct Response {
     pub signature: Option<String>,
 }
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.config.signature.get.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`Response`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.viewer.config.signature.get.ViewerResponse")]
+pub struct ViewerResponse {
+    pub id: String,
+    pub path_type: Path,
+    pub value: Response,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     /// Read the global config layer.

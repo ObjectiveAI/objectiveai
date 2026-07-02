@@ -50,7 +50,7 @@ pub enum ResponseItem {
 /// (schema-introspection variants are excluded; the viewer streams
 /// actual command traffic). Untagged: each variant carries the leaf's
 /// `path_type`, so it stays discriminable.
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.daemon.ViewerRequest")]
 pub enum ViewerRequest {
@@ -65,7 +65,7 @@ pub enum ViewerRequest {
 /// children their `ViewerResponseItem`. Exempt from json-schema coverage:
 /// untagged response aggregate (mirrors the base `ResponseItem`, TS7056).
 #[objectiveai_sdk_macros::json_schema_ignore]
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.daemon.ViewerResponseItem")]
 pub enum ViewerResponseItem {

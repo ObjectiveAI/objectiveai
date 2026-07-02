@@ -109,6 +109,26 @@ pub enum ResponseItem {
     },
 }
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.list.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`ResponseItem`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.queue.list.ViewerResponseItem")]
+pub struct ViewerResponseItem {
+    pub id: String,
+    pub path_type: Path,
+    pub value: ResponseItem,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     /// List pending (undelivered) queued prompts. Required: today

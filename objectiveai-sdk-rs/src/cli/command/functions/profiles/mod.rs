@@ -60,6 +60,39 @@ pub enum ResponseItem {
     PublishResponseSchema(publish::response_schema::Response),
 }
 
+/// Viewer-stream mirror of [`Request`] — the real command requests only
+/// (schema-introspection variants are excluded; the viewer streams
+/// actual command traffic). Untagged: each variant carries the leaf's
+/// `path_type`, so it stays discriminable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.functions.profiles.ViewerRequest")]
+pub enum ViewerRequest {
+    #[schemars(title = "Get")]
+    Get(get::ViewerRequest),
+    #[schemars(title = "List")]
+    List(list::ViewerRequest),
+    #[schemars(title = "Publish")]
+    Publish(publish::ViewerRequest),
+}
+
+/// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
+/// aggregate: unary children carry their `ViewerResponse`, streaming
+/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
+/// untagged response aggregate (mirrors the base `ResponseItem`, TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.functions.profiles.ViewerResponseItem")]
+pub enum ViewerResponseItem {
+    #[schemars(title = "Get")]
+    Get(get::ViewerResponse),
+    #[schemars(title = "List")]
+    List(list::ViewerResponse),
+    #[schemars(title = "Publish")]
+    Publish(publish::ViewerResponse),
+}
+
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {

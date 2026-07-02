@@ -140,6 +140,79 @@ pub enum Response {
     CommitAuthorEmail(commit_author_email::Response),
 }
 
+/// Viewer-stream mirror of [`Request`] — the real command requests only
+/// (schema-introspection variants are excluded; the viewer streams
+/// actual command traffic). Untagged: each variant carries the leaf's
+/// `path_type`, so it stays discriminable.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.api.config.ViewerRequest")]
+pub enum ViewerRequest {
+    #[schemars(title = "Get")]
+    Get(get::ViewerRequest),
+    #[schemars(title = "Address")]
+    Address(address::ViewerRequest),
+    #[schemars(title = "ObjectiveaiAuthorization")]
+    ObjectiveaiAuthorization(objectiveai_authorization::ViewerRequest),
+    #[schemars(title = "OpenrouterAuthorization")]
+    OpenrouterAuthorization(openrouter_authorization::ViewerRequest),
+    #[schemars(title = "GithubAuthorization")]
+    GithubAuthorization(github_authorization::ViewerRequest),
+    #[schemars(title = "McpAuthorization")]
+    McpAuthorization(mcp_authorization::ViewerRequest),
+    #[schemars(title = "McpTimeoutMs")]
+    McpTimeoutMs(mcp_timeout_ms::ViewerRequest),
+    #[schemars(title = "BackoffMaxElapsedTimeMs")]
+    BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::ViewerRequest),
+    #[schemars(title = "UserAgent")]
+    UserAgent(user_agent::ViewerRequest),
+    #[schemars(title = "HttpReferer")]
+    HttpReferer(http_referer::ViewerRequest),
+    #[schemars(title = "XTitle")]
+    XTitle(x_title::ViewerRequest),
+    #[schemars(title = "CommitAuthorName")]
+    CommitAuthorName(commit_author_name::ViewerRequest),
+    #[schemars(title = "CommitAuthorEmail")]
+    CommitAuthorEmail(commit_author_email::ViewerRequest),
+}
+
+/// Viewer-stream mirror of [`Response`] — mirrors the base response
+/// aggregate: unary children carry their `ViewerResponse`, streaming
+/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
+/// untagged response aggregate (mirrors the base `Response`, TS7056).
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(untagged)]
+#[schemars(rename = "cli.command.api.config.ViewerResponseItem")]
+pub enum ViewerResponseItem {
+    #[schemars(title = "Get")]
+    Get(get::ViewerResponse),
+    #[schemars(title = "Address")]
+    Address(address::ViewerResponseItem),
+    #[schemars(title = "ObjectiveaiAuthorization")]
+    ObjectiveaiAuthorization(objectiveai_authorization::ViewerResponseItem),
+    #[schemars(title = "OpenrouterAuthorization")]
+    OpenrouterAuthorization(openrouter_authorization::ViewerResponseItem),
+    #[schemars(title = "GithubAuthorization")]
+    GithubAuthorization(github_authorization::ViewerResponseItem),
+    #[schemars(title = "McpAuthorization")]
+    McpAuthorization(mcp_authorization::ViewerResponseItem),
+    #[schemars(title = "McpTimeoutMs")]
+    McpTimeoutMs(mcp_timeout_ms::ViewerResponseItem),
+    #[schemars(title = "BackoffMaxElapsedTimeMs")]
+    BackoffMaxElapsedTimeMs(backoff_max_elapsed_time_ms::ViewerResponseItem),
+    #[schemars(title = "UserAgent")]
+    UserAgent(user_agent::ViewerResponseItem),
+    #[schemars(title = "HttpReferer")]
+    HttpReferer(http_referer::ViewerResponseItem),
+    #[schemars(title = "XTitle")]
+    XTitle(x_title::ViewerResponseItem),
+    #[schemars(title = "CommitAuthorName")]
+    CommitAuthorName(commit_author_name::ViewerResponseItem),
+    #[schemars(title = "CommitAuthorEmail")]
+    CommitAuthorEmail(commit_author_email::ViewerResponseItem),
+}
+
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
