@@ -64,6 +64,26 @@ pub struct ResponseItem {
     pub ok: bool,
 }
 
+/// Viewer-stream mirror of [`Request`]: the request (nested under
+/// `value`, `path_type` and all) plus the broadcast stream `id`.
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.daemon.spawn.ViewerRequest")]
+pub struct ViewerRequest {
+    pub id: String,
+    pub value: Request,
+}
+
+/// Viewer-stream mirror of [`ResponseItem`]: the response (nested under
+/// `value`) plus the broadcast stream `id` and the originating request's
+/// `path_type`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.daemon.spawn.ViewerResponseItem")]
+pub struct ViewerResponseItem {
+    pub id: String,
+    pub path_type: Path,
+    pub value: ResponseItem,
+}
+
 #[derive(clap::Args)]
 pub struct Args {
     /// Raw JSON for `RequestDangerousAdvanced` (e.g. `{"foreground":true}`).
