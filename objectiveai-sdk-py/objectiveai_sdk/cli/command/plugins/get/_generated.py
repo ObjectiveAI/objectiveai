@@ -6,4 +6,6 @@ from .response_http_method import ResponseHttpMethod  # noqa: F401
 from .response_manifest import ResponseManifest  # noqa: F401
 from .response_mcp_server import ResponseMcpServer  # noqa: F401
 from .response_viewer_route import ResponseViewerRoute  # noqa: F401
+from .viewer_request import ViewerRequest  # noqa: F401
+from .viewer_response import ViewerResponse  # noqa: F401
 from ._execute import execute, execute_transform  # noqa: F401

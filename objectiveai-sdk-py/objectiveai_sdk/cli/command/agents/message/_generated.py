@@ -5,4 +5,6 @@ from .request import Request  # noqa: F401
 from .request_dangerous_advanced import RequestDangerousAdvanced  # noqa: F401
 from .request_message import RequestMessage, RequestMessageFile, RequestMessageInline, RequestMessagePythonFile, RequestMessagePythonInline, RequestMessageSimple  # noqa: F401
 from .response import Response, ResponseDelivered, ResponseId  # noqa: F401
+from .viewer_request import ViewerRequest  # noqa: F401
+from .viewer_response import ViewerResponse  # noqa: F401
 from ._execute import execute, execute_transform  # noqa: F401
