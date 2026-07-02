@@ -7,4 +7,6 @@ export * from "./request";
 export * from "./requestBody";
 export * from "./requestPublishMessage";
 export * from "./response";
+export * from "./viewerRequest";
+export * from "./viewerResponse";
 export * from "./execute";

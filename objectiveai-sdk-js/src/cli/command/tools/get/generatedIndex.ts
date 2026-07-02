@@ -6,4 +6,6 @@ export * from "./exec";
 export * from "./path";
 export * from "./request";
 export * from "./responseManifest";
+export * from "./viewerRequest";
+export * from "./viewerResponse";
 export * from "./execute";

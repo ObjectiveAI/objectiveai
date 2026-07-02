@@ -4,3 +4,4 @@ export * from "./config/index";
 export * from "./kill/index";
 export * from "./spawn/index";
 export * from "./request";
+export * from "./viewerRequest";

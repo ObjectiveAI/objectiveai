@@ -3,3 +3,4 @@
 export * from "./get/index";
 export * from "./set/index";
 export * from "./request";
+export * from "./viewerRequest";

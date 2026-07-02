@@ -4,3 +4,4 @@ export * from "./resources/index";
 export * from "./servers/index";
 export * from "./tools/index";
 export * from "./request";
+export * from "./viewerRequest";

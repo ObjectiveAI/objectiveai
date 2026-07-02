@@ -20,4 +20,5 @@ export * from "./getScope";
 export * from "./ok";
 export * from "./request";
 export * from "./requestBase";
+export * from "./rootViewerRequest";
 export * from "./setScope";

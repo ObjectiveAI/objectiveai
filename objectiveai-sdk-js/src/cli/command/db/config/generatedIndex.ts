@@ -6,3 +6,4 @@ export * from "./get/index";
 export * from "./password/index";
 export * from "./user/index";
 export * from "./request";
+export * from "./viewerRequest";

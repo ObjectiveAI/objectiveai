@@ -7,4 +7,6 @@ export * from "./request";
 export * from "./requestDangerousAdvanced";
 export * from "./requestMessage";
 export * from "./response";
+export * from "./viewerRequest";
+export * from "./viewerResponse";
 export * from "./execute";

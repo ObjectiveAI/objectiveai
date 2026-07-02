@@ -8,4 +8,6 @@ export * from "./responseHttpMethod";
 export * from "./responseManifest";
 export * from "./responseMcpServer";
 export * from "./responseViewerRoute";
+export * from "./viewerRequest";
+export * from "./viewerResponse";
 export * from "./execute";

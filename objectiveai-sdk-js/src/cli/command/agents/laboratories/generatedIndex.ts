@@ -4,3 +4,4 @@ export * from "./attach/index";
 export * from "./detach/index";
 export * from "./list/index";
 export * from "./request";
+export * from "./viewerRequest";
