@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.agents.mcp.tools.call.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`]: the request (nested under\n`value`, `path_type` and all) plus the broadcast stream `id`.",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "value": {
+      "$ref": "cli.command.agents.mcp.tools.call.Request"
+    }
+  }
+}

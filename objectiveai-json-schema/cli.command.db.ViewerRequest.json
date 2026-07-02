@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.db.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Config",
+      "$ref": "cli.command.db.config.ViewerRequest"
+    },
+    {
+      "title": "Kill",
+      "$ref": "cli.command.db.kill.ViewerRequest"
+    },
+    {
+      "title": "Query",
+      "$ref": "cli.command.db.query.ViewerRequest"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.db.spawn.ViewerRequest"
+    }
+  ]
+}

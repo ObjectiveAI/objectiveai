@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.agents.mcp.tools.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Call",
+      "$ref": "cli.command.agents.mcp.tools.call.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.mcp.tools.list.ViewerRequest"
+    }
+  ]
+}

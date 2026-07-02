@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.tools.install.filesystem.ViewerRequest",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "value": {
+      "$ref": "cli.command.tools.install.filesystem.Request"
+    }
+  }
+}

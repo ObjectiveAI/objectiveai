@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.plugins.logs.list.ViewerResponseItem",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.plugins.logs.list.Path"
+    },
+    "value": {
+      "$ref": "cli.command.plugins.logs.list.ResponseItem"
+    }
+  }
+}

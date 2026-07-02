@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.agents.queue.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Delete",
+      "$ref": "cli.command.agents.queue.delete.ViewerRequest"
+    },
+    {
+      "title": "Deliver",
+      "$ref": "cli.command.agents.queue.deliver.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.queue.list.ViewerRequest"
+    },
+    {
+      "title": "Open",
+      "$ref": "cli.command.agents.queue.open.ViewerRequest"
+    }
+  ]
+}

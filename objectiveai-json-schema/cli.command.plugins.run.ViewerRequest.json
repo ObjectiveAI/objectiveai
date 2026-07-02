@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.plugins.run.ViewerRequest",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "value": {
+      "$ref": "cli.command.plugins.run.Request"
+    }
+  }
+}

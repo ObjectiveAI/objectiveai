@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.plugins.get.ViewerResponse",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.plugins.get.Path"
+    },
+    "value": {
+      "anyOf": [
+        {
+          "$ref": "cli.command.plugins.get.ResponseManifest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  }
+}

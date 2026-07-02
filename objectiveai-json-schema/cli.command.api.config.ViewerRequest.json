@@ -1,0 +1,58 @@
+{
+  "title": "cli.command.api.config.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.api.config.get.ViewerRequest"
+    },
+    {
+      "title": "Address",
+      "$ref": "cli.command.api.config.address.ViewerRequest"
+    },
+    {
+      "title": "ObjectiveaiAuthorization",
+      "$ref": "cli.command.api.config.objectiveai_authorization.ViewerRequest"
+    },
+    {
+      "title": "OpenrouterAuthorization",
+      "$ref": "cli.command.api.config.openrouter_authorization.ViewerRequest"
+    },
+    {
+      "title": "GithubAuthorization",
+      "$ref": "cli.command.api.config.github_authorization.ViewerRequest"
+    },
+    {
+      "title": "McpAuthorization",
+      "$ref": "cli.command.api.config.mcp_authorization.ViewerRequest"
+    },
+    {
+      "title": "McpTimeoutMs",
+      "$ref": "cli.command.api.config.mcp_timeout_ms.ViewerRequest"
+    },
+    {
+      "title": "BackoffMaxElapsedTimeMs",
+      "$ref": "cli.command.api.config.backoff_max_elapsed_time_ms.ViewerRequest"
+    },
+    {
+      "title": "UserAgent",
+      "$ref": "cli.command.api.config.user_agent.ViewerRequest"
+    },
+    {
+      "title": "HttpReferer",
+      "$ref": "cli.command.api.config.http_referer.ViewerRequest"
+    },
+    {
+      "title": "XTitle",
+      "$ref": "cli.command.api.config.x_title.ViewerRequest"
+    },
+    {
+      "title": "CommitAuthorName",
+      "$ref": "cli.command.api.config.commit_author_name.ViewerRequest"
+    },
+    {
+      "title": "CommitAuthorEmail",
+      "$ref": "cli.command.api.config.commit_author_email.ViewerRequest"
+    }
+  ]
+}

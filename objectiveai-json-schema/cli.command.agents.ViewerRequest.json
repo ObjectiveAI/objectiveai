@@ -1,0 +1,58 @@
+{
+  "title": "cli.command.agents.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Enqueue",
+      "$ref": "cli.command.agents.enqueue.ViewerRequest"
+    },
+    {
+      "title": "Get",
+      "$ref": "cli.command.agents.get.ViewerRequest"
+    },
+    {
+      "title": "Instances",
+      "$ref": "cli.command.agents.instances.ViewerRequest"
+    },
+    {
+      "title": "Laboratories",
+      "$ref": "cli.command.agents.laboratories.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.list.ViewerRequest"
+    },
+    {
+      "title": "Logs",
+      "$ref": "cli.command.agents.logs.ViewerRequest"
+    },
+    {
+      "title": "Mcp",
+      "$ref": "cli.command.agents.mcp.ViewerRequest"
+    },
+    {
+      "title": "Message",
+      "$ref": "cli.command.agents.message.ViewerRequest"
+    },
+    {
+      "title": "Publish",
+      "$ref": "cli.command.agents.publish.ViewerRequest"
+    },
+    {
+      "title": "Queue",
+      "$ref": "cli.command.agents.queue.ViewerRequest"
+    },
+    {
+      "title": "Spawn",
+      "$ref": "cli.command.agents.spawn.ViewerRequest"
+    },
+    {
+      "title": "Tags",
+      "$ref": "cli.command.agents.tags.ViewerRequest"
+    },
+    {
+      "title": "Wait",
+      "$ref": "cli.command.agents.wait.ViewerRequest"
+    }
+  ]
+}

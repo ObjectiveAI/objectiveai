@@ -1,0 +1,14 @@
+{
+  "title": "cli.command.functions.execute.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Standard",
+      "$ref": "cli.command.functions.execute.standard.ViewerRequest"
+    },
+    {
+      "title": "SwissSystem",
+      "$ref": "cli.command.functions.execute.swiss_system.ViewerRequest"
+    }
+  ]
+}

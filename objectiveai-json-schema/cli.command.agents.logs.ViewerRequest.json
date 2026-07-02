@@ -1,0 +1,22 @@
+{
+  "title": "cli.command.agents.logs.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Open",
+      "$ref": "cli.command.agents.logs.open.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.logs.list.ViewerRequest"
+    },
+    {
+      "title": "Subscribe",
+      "$ref": "cli.command.agents.logs.subscribe.ViewerRequest"
+    },
+    {
+      "title": "TokenUsage",
+      "$ref": "cli.command.agents.logs.token_usage.ViewerRequest"
+    }
+  ]
+}

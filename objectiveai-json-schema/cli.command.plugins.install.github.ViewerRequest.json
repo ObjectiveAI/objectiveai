@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.plugins.install.github.ViewerRequest",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "value": {
+      "$ref": "cli.command.plugins.install.github.Request"
+    }
+  }
+}

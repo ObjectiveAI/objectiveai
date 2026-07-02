@@ -1,0 +1,15 @@
+{
+  "title": "cli.command.plugins.install.github.ViewerResponse",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string"
+    },
+    "path_type": {
+      "$ref": "cli.command.plugins.install.github.Path"
+    },
+    "value": {
+      "$ref": "cli.command.plugins.install.github.Response"
+    }
+  }
+}

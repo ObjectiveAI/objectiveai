@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.plugins.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.plugins.get.ViewerRequest"
+    },
+    {
+      "title": "Install",
+      "$ref": "cli.command.plugins.install.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.plugins.list.ViewerRequest"
+    },
+    {
+      "title": "Logs",
+      "$ref": "cli.command.plugins.logs.list.ViewerRequest"
+    },
+    {
+      "title": "Run",
+      "$ref": "cli.command.plugins.run.ViewerRequest"
+    }
+  ]
+}

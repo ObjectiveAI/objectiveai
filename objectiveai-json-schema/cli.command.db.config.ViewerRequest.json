@@ -1,0 +1,26 @@
+{
+  "title": "cli.command.db.config.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Get",
+      "$ref": "cli.command.db.config.get.ViewerRequest"
+    },
+    {
+      "title": "Address",
+      "$ref": "cli.command.db.config.address.ViewerRequest"
+    },
+    {
+      "title": "User",
+      "$ref": "cli.command.db.config.user.ViewerRequest"
+    },
+    {
+      "title": "Password",
+      "$ref": "cli.command.db.config.password.ViewerRequest"
+    },
+    {
+      "title": "Database",
+      "$ref": "cli.command.db.config.database.ViewerRequest"
+    }
+  ]
+}

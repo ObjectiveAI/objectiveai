@@ -1,0 +1,18 @@
+{
+  "title": "cli.command.agents.laboratories.ViewerRequest",
+  "description": "Viewer-stream mirror of [`Request`] — the real command requests only\n(schema-introspection variants are excluded; the viewer streams\nactual command traffic). Untagged: each variant carries the leaf's\n`path_type`, so it stays discriminable.",
+  "anyOf": [
+    {
+      "title": "Attach",
+      "$ref": "cli.command.agents.laboratories.attach.ViewerRequest"
+    },
+    {
+      "title": "Detach",
+      "$ref": "cli.command.agents.laboratories.detach.ViewerRequest"
+    },
+    {
+      "title": "List",
+      "$ref": "cli.command.agents.laboratories.list.ViewerRequest"
+    }
+  ]
+}
