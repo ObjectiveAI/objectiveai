@@ -1440,7 +1440,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::viewer::send::Request),
         schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Path),
         schemars::schema_for!(crate::cli::command::viewer::send::request_schema::Request),
-        schemars::schema_for!(crate::cli::command::viewer::send::Response),
         schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Path),
         schemars::schema_for!(crate::cli::command::viewer::send::response_schema::Request),
         schemars::schema_for!(crate::cli::command::viewer::spawn::Path),

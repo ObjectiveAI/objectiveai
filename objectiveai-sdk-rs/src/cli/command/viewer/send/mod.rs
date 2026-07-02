@@ -29,12 +29,11 @@ impl CommandRequest for Request {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.viewer.send.Response")]
-pub struct Response {
-    pub status: u16,
-    pub body: serde_json::Value,
-}
+/// `viewer send` no longer POSTs to the viewer over HTTP — the request
+/// is broadcast to the viewer over the daemon WebSocket instead — so it
+/// just acknowledges with the shared `Ok` sentinel and returns
+/// immediately.
+pub type Response = crate::cli::command::Ok;
 
 /// Viewer-stream mirror of [`Request`]: the request (nested under
 /// `value`, `path_type` and all) plus the broadcast stream `id`.
@@ -134,13 +133,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     ) -> Result<serde_json::Value, E::Error> {
     request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
-}
-
-#[cfg(feature = "mcp")]
-impl crate::cli::command::CommandResponse for Response {
-    fn into_mcp(self) -> crate::cli::command::McpResponseItem {
-        crate::cli::command::McpResponseItem::JSONL(serde_json::to_value(self).unwrap())
-    }
 }
 
 pub mod request_schema;

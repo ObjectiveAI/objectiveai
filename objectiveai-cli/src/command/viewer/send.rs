@@ -1,23 +1,17 @@
-//! `viewer send <path> <body>` — POST a JSON body to the viewer's HTTP
-//! server and return its `(status, body)`. Bypasses the SDK's
-//! fire-and-forget viewer client because callers want to see the
-//! response synchronously.
+//! `viewer send <path> <body>` — acknowledge and return immediately.
 //!
-//! Address/signature resolution lives in `Context::viewer_client()`
-//! (config `viewer.address`, else the `viewer spawn` flow's published
-//! lock URL; signature env `VIEWER_SIGNATURE`, else
-//! `viewer.signature`). Non-2xx status codes are not an error; the
-//! response is returned as-is with the status set on the `Response`.
+//! It no longer POSTs to the viewer's HTTP server: the request is
+//! broadcast to the viewer over the daemon WebSocket, so there's nothing
+//! to send synchronously here. The handler just returns the shared `Ok`
+//! sentinel.
 
 use objectiveai_sdk::cli::command::viewer::send::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let Request { path, body, .. } = request;
-    let (status, body) = ctx.viewer_client().await?.send(&path, &body).await?;
-    Ok(Response { status, body })
+pub async fn execute(_ctx: &Context, _request: Request) -> Result<Response, Error> {
+    Ok(Response::Ok)
 }
 
 pub mod request_schema {
