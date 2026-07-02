@@ -16,14 +16,16 @@
 //!   except to notice the client closing).
 //!
 //! Each producer connection is assigned a fresh `id`. Its first item is
-//! wrapped as [`StreamRequest`] `{id, value}`; every following item is
-//! wrapped as [`StreamResponse`] `{id, path, value}`, where `path` is the
-//! `path_type` string lifted off that connection's opening request. The
-//! `id` lets a consumer demultiplex concurrent producer streams; the
-//! `path` tags each response with the command that produced it.
+//! wrapped as the SDK [`ViewerRequest`] (`{id, value}`); every following
+//! item as [`ViewerResponseItem`] (`{id, path_type, value}`), where
+//! `path_type` is lifted off that connection's opening request. The `id`
+//! lets a consumer demultiplex concurrent producer streams; `path_type`
+//! tags each response with the command that produced it.
 //!
-//! Items are teed as opaque [`serde_json::Value`]s — the daemon never
-//! deserializes them into typed `Request`/`ResponseItem`, so it stays
+//! Frames are validated through the SDK Viewer types when the command is
+//! recognized and passed through raw otherwise (forward-compat). The
+//! underlying items stay opaque [`serde_json::Value`]s on the wire, so it
+//! stays
 //! forward-compatible with command shapes it predates.
 
 use std::path::{Path, PathBuf};
@@ -34,28 +36,11 @@ use interprocess::local_socket::GenericFilePath;
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
-use serde::{Deserialize, Serialize};
+use objectiveai_sdk::cli::command::{ViewerRequest, ViewerResponseItem};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::broadcast;
 
 use crate::websockets::mcp_listener::socks_dir;
-
-/// The opening item of a producer stream: the CLI request, wrapped with
-/// the stream's `id`. `value` is the raw request JSON as fed on the wire.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamRequest {
-    pub id: String,
-    pub value: serde_json::Value,
-}
-
-/// Every item after the first: a CLI response, wrapped with the stream's
-/// `id` and the `path` (`path_type`) lifted from the opening request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct StreamResponse {
-    pub id: String,
-    pub path: String,
-    pub value: serde_json::Value,
-}
 
 /// The fixed local-socket name for the daemon hub, identical on the
 /// listener and producer sides. Unix uses a filesystem socket under
@@ -118,9 +103,10 @@ pub fn spawn_socket_listener(tx: broadcast::Sender<String>, state_dir: PathBuf) 
 }
 
 /// Serve one producer connection: read newline-delimited JSON items,
-/// wrap the first as [`StreamRequest`] and the rest as [`StreamResponse`]
-/// (carrying the request's `path`), and broadcast each on `tx`. No writes
-/// back — the producer streams and closes with no ack. EOF ends the task.
+/// wrap the first as [`ViewerRequest`] and the rest as
+/// [`ViewerResponseItem`] (carrying the request's `path_type`), and
+/// broadcast each on `tx`. No writes back — the producer streams and
+/// closes with no ack. EOF ends the task.
 async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
     let (read_half, _write_half) = tokio::io::split(conn);
     let mut reader = BufReader::new(read_half);
@@ -154,16 +140,29 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
                     .unwrap_or("")
                     .to_string();
                 path = Some(p);
-                serde_json::to_string(&StreamRequest {
-                    id: id.clone(),
-                    value,
-                })
+                // Wrap as a `ViewerRequest` ({id, value}). Validate
+                // through the SDK type when the command is known; fall
+                // back to the raw envelope for forward-compat with
+                // commands this binary predates.
+                let envelope = serde_json::json!({ "id": id.clone(), "value": value });
+                match serde_json::from_value::<ViewerRequest>(envelope.clone()) {
+                    Ok(vr) => serde_json::to_string(&vr),
+                    Err(_) => Ok(envelope.to_string()),
+                }
             }
-            Some(p) => serde_json::to_string(&StreamResponse {
-                id: id.clone(),
-                path: p.clone(),
-                value,
-            }),
+            Some(p) => {
+                // Wrap as a `ViewerResponseItem` ({id, path_type, value}),
+                // same validate-or-passthrough treatment.
+                let envelope = serde_json::json!({
+                    "id": id.clone(),
+                    "path_type": p.clone(),
+                    "value": value,
+                });
+                match serde_json::from_value::<ViewerResponseItem>(envelope.clone()) {
+                    Ok(vri) => serde_json::to_string(&vri),
+                    Err(_) => Ok(envelope.to_string()),
+                }
+            }
         };
         if let Ok(frame) = frame {
             // A send error means no WebSocket clients are connected —
