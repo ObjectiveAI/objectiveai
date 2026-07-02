@@ -28,6 +28,7 @@
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
+pub mod daemon_auth;
 pub mod daemon_stream;
 pub mod mcp_listener;
 pub mod mcp_server;

@@ -82,6 +82,8 @@ struct EnvConfigBuilder {
     daemon_address: Option<String>,
     #[envconfig(from = "DAEMON_PORT")]
     daemon_port: Option<u16>,
+    #[envconfig(from = "DAEMON_SECRET")]
+    daemon_secret: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -108,6 +110,7 @@ impl EnvConfigBuilder {
             plugin_version: self.plugin_version,
             daemon_address: self.daemon_address,
             daemon_port: self.daemon_port,
+            daemon_secret: self.daemon_secret,
         }
     }
 }
@@ -131,6 +134,7 @@ pub struct ConfigBuilder {
     pub plugin_version: Option<String>,
     pub daemon_address: Option<String>,
     pub daemon_port: Option<u16>,
+    pub daemon_secret: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -174,6 +178,7 @@ impl ConfigBuilder {
                 .daemon_address
                 .unwrap_or_else(|| "127.0.0.1".to_string()),
             daemon_port: self.daemon_port.unwrap_or(0),
+            daemon_secret: self.daemon_secret,
         }
     }
 }
@@ -222,6 +227,11 @@ pub struct Config {
     /// Bind port for the resident daemon's broadcast WebSocket server
     /// (`DAEMON_PORT`); default `0` (OS-assigned).
     pub daemon_port: u16,
+    /// Optional shared secret for the daemon's broadcast WebSocket server
+    /// (`DAEMON_SECRET`). When set, connections must carry a valid
+    /// `sha256=<hex(SHA256(secret))>` signature header; when `None`, the
+    /// server is open. Mirrors the viewer's `VIEWER_SECRET` scheme.
+    pub daemon_secret: Option<String>,
 }
 
 /// What [`run`] yields, mirroring the two SDK root dispatch entry

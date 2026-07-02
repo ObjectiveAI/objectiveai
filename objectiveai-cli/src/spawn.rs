@@ -315,4 +315,15 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
     // foreground daemon inherits the launcher's configured listener.
     cmd.env("DAEMON_ADDRESS", &cfg.daemon_address);
     cmd.env("DAEMON_PORT", cfg.daemon_port.to_string());
+    // Optional daemon WebSocket auth secret — set when present, cleared
+    // otherwise so a child can't inherit a stale secret from the parent's
+    // startup environment.
+    match cfg.daemon_secret.as_deref() {
+        Some(v) => {
+            cmd.env("DAEMON_SECRET", v);
+        }
+        None => {
+            cmd.env_remove("DAEMON_SECRET");
+        }
+    }
 }

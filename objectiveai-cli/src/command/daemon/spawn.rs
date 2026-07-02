@@ -152,7 +152,10 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // pre-serialized frames; the sender clones they hold keep the channel
     // open for the daemon's whole life.
     let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
-    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone());
+    // Optional WS auth: when `DAEMON_SECRET` is set, gate upgrades on a
+    // valid signature header; when unset, the server is open.
+    let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
+    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone(), secret);
     crate::websockets::daemon_stream::spawn_socket_listener(
         tx.clone(),
         ctx.filesystem.state_dir(),

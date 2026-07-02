@@ -175,13 +175,25 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
 /// Serve the consumer side: an axum WebSocket server on `listener`,
 /// single root endpoint. Returns the serve task's handle. Each accepted
 /// client subscribes to `tx` and receives every future broadcast frame.
+/// When `secret` is `Some`, upgrades are gated by
+/// [`crate::websockets::daemon_auth`]; when `None`, the server is open.
 pub fn serve_ws(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
+    secret: Option<std::sync::Arc<String>>,
 ) -> tokio::task::JoinHandle<()> {
-    let app = axum::Router::new()
+    let mut app = axum::Router::new()
         .route("/", axum::routing::any(ws_handler))
         .with_state(tx);
+    // Optional auth: when a secret is configured, gate every upgrade on a
+    // valid `sha256=<hex(SHA256(secret))>` signature header; otherwise the
+    // server is open (no middleware layered).
+    if let Some(secret) = secret {
+        app = app.layer(axum::middleware::from_fn_with_state(
+            Some(secret),
+            crate::websockets::daemon_auth::signature_middleware,
+        ));
+    }
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })
