@@ -6,8 +6,9 @@
 //!
 //! Foreground (`foreground:true`): the resident daemon. Under a blocking
 //! init gate it binds the broadcast WebSocket listener and acquires the
-//! singleton lock (publishing the bound `address:port` as the lock
-//! content), brings up the [`crate::websockets::daemon_stream`] hub
+//! singleton lock (publishing the client-connect `ws://` URL as the lock
+//! content, like `objectiveai-api` publishes its `http://` URL), brings
+//! up the [`crate::websockets::daemon_stream`] hub
 //! (root WebSocket endpoint + fixed-name producer socket), then launches
 //! every `daemon: true` plugin via the SHARED plugin executor
 //! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
@@ -101,17 +102,32 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             return Err(Error::Spawn("daemon ws bind".into(), e));
         }
     };
+    // Build the client-connect URL published in the lock — a `ws://`
+    // URL, mirroring how `objectiveai-api` publishes its `http://` URL:
+    // a wildcard bind (`0.0.0.0` / `::`) maps to loopback so the
+    // published address is actually connectable.
     let bound = match ws_listener.local_addr() {
-        Ok(addr) => addr.to_string(),
+        Ok(addr) => {
+            let connect_ip = match addr.ip() {
+                std::net::IpAddr::V4(v4) if v4.is_unspecified() => {
+                    std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST)
+                }
+                std::net::IpAddr::V6(v6) if v6.is_unspecified() => {
+                    std::net::IpAddr::V6(std::net::Ipv6Addr::LOCALHOST)
+                }
+                ip => ip,
+            };
+            format!("ws://{}", std::net::SocketAddr::new(connect_ip, addr.port()))
+        }
         Err(e) => {
             let _ = init.release();
             return Err(Error::Spawn("daemon ws local_addr".into(), e));
         }
     };
 
-    // Publish the bound `address:port` as the lock content (the `api` /
-    // `viewer` spawn convention), so a caller reading the lock discovers
-    // where to connect.
+    // Publish the client-connect `ws://` URL as the lock content (the
+    // `api` / `viewer` spawn convention), so a caller reading the lock
+    // discovers exactly where to connect.
     let claim = match objectiveai_sdk::lockfile::try_acquire(
         &lock_dir,
         super::DAEMON_LOCK_KEY,
