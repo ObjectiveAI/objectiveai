@@ -10,7 +10,7 @@
       "$ref": "cli.command.viewer.send.Path"
     },
     "value": {
-      "$ref": "cli.command.viewer.send.Response"
+      "$ref": "cli.command.Ok"
     }
   }
 }
