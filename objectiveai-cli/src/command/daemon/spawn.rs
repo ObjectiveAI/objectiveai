@@ -5,8 +5,11 @@
 //! foreground daemon if it isn't held, re-check on child exit.
 //!
 //! Foreground (`foreground:true`): the resident daemon. Under a blocking
-//! init gate it acquires the singleton lock, then launches every
-//! `daemon: true` plugin via the SHARED plugin executor
+//! init gate it binds the broadcast WebSocket listener and acquires the
+//! singleton lock (publishing the bound `address:port` as the lock
+//! content), brings up the [`crate::websockets::daemon_stream`] hub
+//! (root WebSocket endpoint + fixed-name producer socket), then launches
+//! every `daemon: true` plugin via the SHARED plugin executor
 //! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
 //! plugin gets the full bidirectional protocol (it can execute nested
 //! commands, exactly like `plugins run` and the conduit's `mcp begin`).
@@ -82,21 +85,62 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     .await
     .map_err(lock_err)?;
 
+    // Bind the broadcast WebSocket listener BEFORE claiming the
+    // singleton, so its real (post-`:0`) address can be published as the
+    // lock content. Binding happens under the init gate, which
+    // serializes startup — at most one foreground races here at a time.
+    let ws_listener = match tokio::net::TcpListener::bind((
+        ctx.config.daemon_address.as_str(),
+        ctx.config.daemon_port,
+    ))
+    .await
+    {
+        Ok(listener) => listener,
+        Err(e) => {
+            let _ = init.release();
+            return Err(Error::Spawn("daemon ws bind".into(), e));
+        }
+    };
+    let bound = match ws_listener.local_addr() {
+        Ok(addr) => addr.to_string(),
+        Err(e) => {
+            let _ = init.release();
+            return Err(Error::Spawn("daemon ws local_addr".into(), e));
+        }
+    };
+
+    // Publish the bound `address:port` as the lock content (the `api` /
+    // `viewer` spawn convention), so a caller reading the lock discovers
+    // where to connect.
     let claim = match objectiveai_sdk::lockfile::try_acquire(
         &lock_dir,
         super::DAEMON_LOCK_KEY,
-        "ready",
+        &bound,
     )
     .await
     {
-        // A sibling daemon already holds the lock — bow out.
+        // A sibling daemon already holds the lock — drop our listener and
+        // bow out.
         None => {
+            drop(ws_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
         }
         Some(claim) => claim,
     };
     init.release().map_err(lock_err)?;
+
+    // Bring up the broadcast hub: producer streams fed into the
+    // fixed-name local socket fan out to every connected WebSocket client
+    // of the root endpoint. Both listeners share one broadcast channel of
+    // pre-serialized frames; the sender clones they hold keep the channel
+    // open for the daemon's whole life.
+    let (tx, _rx) = tokio::sync::broadcast::channel::<String>(1024);
+    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone());
+    crate::websockets::daemon_stream::spawn_socket_listener(
+        tx.clone(),
+        ctx.filesystem.state_dir(),
+    );
 
     // Launch every daemon plugin under the SHARED plugin executor, run
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed

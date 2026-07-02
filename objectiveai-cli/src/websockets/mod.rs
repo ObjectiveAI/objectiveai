@@ -20,9 +20,14 @@
 //! - [`mcp_listener`] — per-`response_id` local-socket MCP endpoint
 //!   that forwards ops to the API over the chunk-stream WS; spawned
 //!   the first time a chunk surfaces a given agent-completion id.
+//! - [`daemon_stream`] — the resident daemon's broadcast hub: a
+//!   fixed-name local socket that producers feed CLI request/response
+//!   streams into, fanned out to every client of the root WebSocket
+//!   server.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
+pub mod daemon_stream;
 pub mod mcp_listener;
 pub mod mcp_server;

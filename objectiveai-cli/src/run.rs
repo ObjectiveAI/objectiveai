@@ -78,6 +78,10 @@ struct EnvConfigBuilder {
     plugin_repository: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_PLUGIN_VERSION")]
     plugin_version: Option<String>,
+    #[envconfig(from = "DAEMON_ADDRESS")]
+    daemon_address: Option<String>,
+    #[envconfig(from = "DAEMON_PORT")]
+    daemon_port: Option<u16>,
 }
 
 impl EnvConfigBuilder {
@@ -102,6 +106,8 @@ impl EnvConfigBuilder {
             plugin_owner: self.plugin_owner,
             plugin_repository: self.plugin_repository,
             plugin_version: self.plugin_version,
+            daemon_address: self.daemon_address,
+            daemon_port: self.daemon_port,
         }
     }
 }
@@ -123,6 +129,8 @@ pub struct ConfigBuilder {
     pub plugin_owner: Option<String>,
     pub plugin_repository: Option<String>,
     pub plugin_version: Option<String>,
+    pub daemon_address: Option<String>,
+    pub daemon_port: Option<u16>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -162,6 +170,10 @@ impl ConfigBuilder {
             plugin_owner: self.plugin_owner,
             plugin_repository: self.plugin_repository,
             plugin_version: self.plugin_version,
+            daemon_address: self
+                .daemon_address
+                .unwrap_or_else(|| "127.0.0.1".to_string()),
+            daemon_port: self.daemon_port.unwrap_or(0),
         }
     }
 }
@@ -204,6 +216,12 @@ pub struct Config {
     pub plugin_owner: Option<String>,
     pub plugin_repository: Option<String>,
     pub plugin_version: Option<String>,
+    /// Bind address for the resident daemon's broadcast WebSocket
+    /// server (`DAEMON_ADDRESS`); default `127.0.0.1`.
+    pub daemon_address: String,
+    /// Bind port for the resident daemon's broadcast WebSocket server
+    /// (`DAEMON_PORT`); default `0` (OS-assigned).
+    pub daemon_port: u16,
 }
 
 /// What [`run`] yields, mirroring the two SDK root dispatch entry

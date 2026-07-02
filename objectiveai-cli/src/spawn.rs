@@ -310,4 +310,9 @@ pub fn apply_config_env(cmd: &mut Command, cfg: &crate::Config) {
             cmd.env_remove("OBJECTIVEAI_PLUGIN_VERSION");
         }
     }
+    // Resident-daemon broadcast WebSocket bind address/port. Always
+    // projected (both carry resolved defaults), so the re-exec'd
+    // foreground daemon inherits the launcher's configured listener.
+    cmd.env("DAEMON_ADDRESS", &cfg.daemon_address);
+    cmd.env("DAEMON_PORT", cfg.daemon_port.to_string());
 }
