@@ -1277,7 +1277,6 @@ MODULES = [
     'objectiveai_sdk.cli.command.viewer.send.request',
     'objectiveai_sdk.cli.command.viewer.send.request_schema.path',
     'objectiveai_sdk.cli.command.viewer.send.request_schema.request',
-    'objectiveai_sdk.cli.command.viewer.send.response',
     'objectiveai_sdk.cli.command.viewer.send.response_schema.path',
     'objectiveai_sdk.cli.command.viewer.send.response_schema.request',
     'objectiveai_sdk.cli.command.viewer.send.viewer_request',
