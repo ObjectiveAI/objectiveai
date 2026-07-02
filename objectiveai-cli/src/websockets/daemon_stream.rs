@@ -5,19 +5,21 @@
 //!
 //! - **Producer side** — a fixed-name local socket (`<state>/socks/daemon.sock`
 //!   on Unix; a namespaced pipe on Windows). A producer connects, streams
-//!   one CLI **request** line followed by that request's CLI **response**
-//!   lines (newline-delimited JSON, no ack), then closes. `interprocess`
-//!   inserts no framing of its own, so the trailing `\n` is the only
-//!   delimiter — the same wire shape as [`crate::websockets::mcp_listener`].
+//!   its agent/plugin **context** object, then one CLI **request** line,
+//!   then that request's CLI **response** lines (newline-delimited JSON,
+//!   no ack), then closes. `interprocess` inserts no framing of its own,
+//!   so the trailing `\n` is the only delimiter — the same wire shape as
+//!   [`crate::websockets::mcp_listener`].
 //! - **Consumer side** — an [`axum`] WebSocket server bound to the
 //!   daemon's configured `address:port`, single root endpoint (`/`).
 //!   Every client that connects immediately begins receiving future
 //!   frames; it is a pure push channel (inbound messages are ignored
 //!   except to notice the client closing).
 //!
-//! Each producer connection is assigned a fresh `id`. Its first item is
-//! wrapped as the SDK [`RootViewerRequest`] (`{id, value}`); every
-//! following item as [`RootViewerResponseItem`] (`{id, path_type, value}`), where
+//! Each producer connection is assigned a fresh `id`. The request is
+//! wrapped as the SDK [`RootViewerRequest`] (`{…context, id, value}` —
+//! the producer's context fields stamped alongside `id`); every following
+//! item as [`RootViewerResponseItem`] (`{id, path_type, value}`), where
 //! `path_type` is lifted off that connection's opening request. The `id`
 //! lets a consumer demultiplex concurrent producer streams; `path_type`
 //! tags each response with the command that produced it.
@@ -102,18 +104,43 @@ pub fn spawn_socket_listener(tx: broadcast::Sender<String>, state_dir: PathBuf) 
     });
 }
 
-/// Serve one producer connection: read newline-delimited JSON items,
-/// wrap the first as [`RootViewerRequest`] and the rest as
-/// [`RootViewerResponseItem`] (carrying the request's `path_type`), and
-/// broadcast each on `tx`. No writes back — the producer streams and
-/// closes with no ack. EOF ends the task.
+/// Serve one producer connection. The producer's FIRST line is its
+/// agent/plugin **context** object (the fields the request wrapper
+/// carries — `agent_instance_hierarchy`, `response_id`, `plugin_*`, …);
+/// the SECOND line is the CLI request; the rest are CLI responses. The
+/// request is broadcast as a [`RootViewerRequest`] (`{…context, id,
+/// value}`), each response as a [`RootViewerResponseItem`] (`{id,
+/// path_type, value}`). No writes back — the producer streams and closes
+/// with no ack. EOF ends the task.
 async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
     let (read_half, _write_half) = tokio::io::split(conn);
     let mut reader = BufReader::new(read_half);
     let id = uuid::Uuid::new_v4().to_string();
+    let mut line = String::new();
+
+    // First line: the producer's context object. Absent / malformed /
+    // non-object → empty context (the wrapper's context fields are all
+    // optional). Fields the wrapper doesn't declare (e.g. mcp_session_id)
+    // are dropped when the envelope deserializes.
+    let context: serde_json::Map<String, serde_json::Value> = loop {
+        line.clear();
+        match reader.read_line(&mut line).await {
+            Ok(0) => return, // producer closed before sending anything
+            Ok(_) => {}
+            Err(_) => return,
+        }
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        break match serde_json::from_str::<serde_json::Value>(trimmed) {
+            Ok(serde_json::Value::Object(map)) => map,
+            _ => serde_json::Map::new(),
+        };
+    };
+
     // `None` until the opening request is read; then holds its `path`.
     let mut path: Option<String> = None;
-    let mut line = String::new();
     loop {
         line.clear();
         match reader.read_line(&mut line).await {
@@ -132,19 +159,23 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
         };
         let frame = match &path {
             None => {
-                // First item = the CLI request. Lift its `path_type`
-                // (the shared command-path string) to tag every response.
+                // First item after the context = the CLI request. Lift
+                // its `path_type` (the shared command-path string) to tag
+                // every response.
                 let p = value
                     .get("path_type")
                     .and_then(|v| v.as_str())
                     .unwrap_or("")
                     .to_string();
                 path = Some(p);
-                // Wrap as a `RootViewerRequest` ({id, value}). Validate
-                // through the SDK type when the command is known; fall
-                // back to the raw envelope for forward-compat with
+                // Wrap as a `RootViewerRequest` (`{…context, id, value}`).
+                // Validate through the SDK type when the command is known;
+                // fall back to the raw envelope for forward-compat with
                 // commands this binary predates.
-                let envelope = serde_json::json!({ "id": id.clone(), "value": value });
+                let mut envelope = context.clone();
+                envelope.insert("id".to_string(), serde_json::json!(id.clone()));
+                envelope.insert("value".to_string(), value);
+                let envelope = serde_json::Value::Object(envelope);
                 match serde_json::from_value::<RootViewerRequest>(envelope.clone()) {
                     Ok(vr) => serde_json::to_string(&vr),
                     Err(_) => Ok(envelope.to_string()),
@@ -235,17 +266,22 @@ async fn pump(mut socket: axum::extract::ws::WebSocket, tx: broadcast::Sender<St
     }
 }
 
-/// Producer/test helper: connect to the daemon socket, stream `request`
-/// then each of `responses` as newline-delimited JSON, and close. The
-/// inverse of [`handle_feed`].
+/// Producer/test helper: connect to the daemon socket, stream the
+/// `context` object, then `request`, then each of `responses` as
+/// newline-delimited JSON, and close. The inverse of [`handle_feed`].
+/// `context` carries the producer's agent/plugin fields
+/// (`agent_instance_hierarchy`, `response_id`, `plugin_*`, …) that the
+/// request wrapper is stamped with.
 pub async fn feed_socket(
     state_dir: &Path,
+    context: &serde_json::Value,
     request: &serde_json::Value,
     responses: &[serde_json::Value],
 ) -> std::io::Result<()> {
     let name = socket_name(state_dir)?;
     let conn = LocalSocketStream::connect(name).await?;
     let (_read_half, mut write_half) = tokio::io::split(conn);
+    write_line(&mut write_half, context).await?;
     write_line(&mut write_half, request).await?;
     for response in responses {
         write_line(&mut write_half, response).await?;
