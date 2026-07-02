@@ -16,8 +16,8 @@
 //!   except to notice the client closing).
 //!
 //! Each producer connection is assigned a fresh `id`. Its first item is
-//! wrapped as the SDK [`ViewerRequest`] (`{id, value}`); every following
-//! item as [`ViewerResponseItem`] (`{id, path_type, value}`), where
+//! wrapped as the SDK [`RootViewerRequest`] (`{id, value}`); every
+//! following item as [`RootViewerResponseItem`] (`{id, path_type, value}`), where
 //! `path_type` is lifted off that connection's opening request. The `id`
 //! lets a consumer demultiplex concurrent producer streams; `path_type`
 //! tags each response with the command that produced it.
@@ -36,7 +36,7 @@ use interprocess::local_socket::GenericFilePath;
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
-use objectiveai_sdk::cli::command::{ViewerRequest, ViewerResponseItem};
+use objectiveai_sdk::cli::command::{RootViewerRequest, RootViewerResponseItem};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::broadcast;
 
@@ -103,8 +103,8 @@ pub fn spawn_socket_listener(tx: broadcast::Sender<String>, state_dir: PathBuf) 
 }
 
 /// Serve one producer connection: read newline-delimited JSON items,
-/// wrap the first as [`ViewerRequest`] and the rest as
-/// [`ViewerResponseItem`] (carrying the request's `path_type`), and
+/// wrap the first as [`RootViewerRequest`] and the rest as
+/// [`RootViewerResponseItem`] (carrying the request's `path_type`), and
 /// broadcast each on `tx`. No writes back — the producer streams and
 /// closes with no ack. EOF ends the task.
 async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
@@ -140,25 +140,25 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
                     .unwrap_or("")
                     .to_string();
                 path = Some(p);
-                // Wrap as a `ViewerRequest` ({id, value}). Validate
+                // Wrap as a `RootViewerRequest` ({id, value}). Validate
                 // through the SDK type when the command is known; fall
                 // back to the raw envelope for forward-compat with
                 // commands this binary predates.
                 let envelope = serde_json::json!({ "id": id.clone(), "value": value });
-                match serde_json::from_value::<ViewerRequest>(envelope.clone()) {
+                match serde_json::from_value::<RootViewerRequest>(envelope.clone()) {
                     Ok(vr) => serde_json::to_string(&vr),
                     Err(_) => Ok(envelope.to_string()),
                 }
             }
             Some(p) => {
-                // Wrap as a `ViewerResponseItem` ({id, path_type, value}),
-                // same validate-or-passthrough treatment.
+                // Wrap as a `RootViewerResponseItem` ({id, path_type,
+                // value}), same validate-or-passthrough treatment.
                 let envelope = serde_json::json!({
                     "id": id.clone(),
                     "path_type": p.clone(),
                     "value": value,
                 });
-                match serde_json::from_value::<ViewerResponseItem>(envelope.clone()) {
+                match serde_json::from_value::<RootViewerResponseItem>(envelope.clone()) {
                     Ok(vri) => serde_json::to_string(&vri),
                     Err(_) => Ok(envelope.to_string()),
                 }

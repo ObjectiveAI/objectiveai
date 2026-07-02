@@ -41,17 +41,11 @@ pub enum ResponseItem {
     ListResponseSchema(list::response_schema::Response),
 }
 
-/// Viewer-stream mirror of [`Request`] — the real command requests only
-/// (schema-introspection variants are excluded; the viewer streams
-/// actual command traffic). Untagged: each variant carries the leaf's
-/// `path_type`, so it stays discriminable.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.plugins.logs.ViewerRequest")]
-pub enum ViewerRequest {
-    #[schemars(title = "List")]
-    List(list::ViewerRequest),
-}
+/// Viewer-stream mirror of [`Request`]. This aggregate has a single real
+/// command child (`list`), so it is a transparent alias to that leaf's
+/// `ViewerRequest` rather than a single-variant untagged enum (which the
+/// schema builder flattens to a bare alias anyway, breaking JS codegen).
+pub type ViewerRequest = list::ViewerRequest;
 
 /// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
 /// aggregate: unary children carry their `ViewerResponse`, streaming

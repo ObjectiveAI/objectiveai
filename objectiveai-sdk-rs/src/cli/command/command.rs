@@ -158,10 +158,15 @@ pub enum ResponseItem {
 /// (schema-introspection variants excluded). Each variant wraps a tier's
 /// `ViewerRequest`; every leaf underneath carries its `path_type`, so the
 /// untagged enum stays discriminable.
+///
+/// Named `RootViewerRequest` (not `ViewerRequest`): the flat codegen name
+/// would collapse `cli.command.ViewerRequest` and `cli.command.viewer.Request`
+/// to the same PascalCase identifier, so the root wrapper carries the `Root`
+/// prefix to stay distinct and shippable.
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.ViewerRequest")]
-pub enum ViewerRequest {
+#[schemars(rename = "cli.command.RootViewerRequest")]
+pub enum RootViewerRequest {
     #[schemars(title = "Agents")]
     Agents(super::agents::ViewerRequest),
     #[schemars(title = "Api")]
@@ -194,14 +199,15 @@ pub enum ViewerRequest {
 
 /// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
 /// aggregate: each variant wraps the tier's `ViewerResponseItem` (or a
-/// unary tier/leaf's `ViewerResponse`). Exempt from json-schema coverage:
-/// untagged response aggregate spanning the whole tree (TS7056), same as
-/// the base `ResponseItem`.
+/// unary tier/leaf's `ViewerResponse`). Named `RootViewerResponseItem` to
+/// match [`RootViewerRequest`]. Exempt from json-schema coverage: untagged
+/// response aggregate spanning the whole tree (TS7056), same as the base
+/// `ResponseItem`.
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
-#[schemars(rename = "cli.command.ViewerResponseItem")]
-pub enum ViewerResponseItem {
+#[schemars(rename = "cli.command.RootViewerResponseItem")]
+pub enum RootViewerResponseItem {
     #[schemars(title = "Agents")]
     Agents(super::agents::ViewerResponseItem),
     #[schemars(title = "Api")]
