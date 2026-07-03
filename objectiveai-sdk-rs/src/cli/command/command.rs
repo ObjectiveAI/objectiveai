@@ -238,6 +238,26 @@ pub enum RootViewerResponseItem {
     Viewer(super::viewer::ViewerResponseItem),
 }
 
+/// Viewer-stream terminator — the daemon broadcasts exactly one per
+/// stream `id` when the producer's feed closes, marking that run's
+/// frame stream complete. Named to match [`RootViewerRequest`].
+///
+/// Consumer discrimination across the three broadcast frame shapes: a
+/// request frame has no top-level `path_type`; a response frame has
+/// `path_type` + `value`; the terminator has `path_type` and
+/// `end: true` (and no `value`).
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.RootViewerEnd")]
+pub struct RootViewerEnd {
+    /// The broadcast stream id this terminator closes.
+    pub id: String,
+    /// The originating request's `path_type`, mirroring the id's
+    /// response frames.
+    pub path_type: String,
+    /// Always `true` — the terminator marker.
+    pub end: bool,
+}
+
 #[cfg(feature = "mcp")]
 impl super::CommandResponse for ResponseItem {
     fn into_mcp(self) -> super::McpResponseItem {

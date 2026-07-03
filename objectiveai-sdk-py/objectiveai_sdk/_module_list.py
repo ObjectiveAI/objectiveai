@@ -1090,6 +1090,7 @@ MODULES = [
     'objectiveai_sdk.cli.command.python.viewer_response',
     'objectiveai_sdk.cli.command.request',
     'objectiveai_sdk.cli.command.request_base',
+    'objectiveai_sdk.cli.command.root_viewer_end',
     'objectiveai_sdk.cli.command.root_viewer_request',
     'objectiveai_sdk.cli.command.set_scope',
     'objectiveai_sdk.cli.command.swarms.get.path',

@@ -1,4 +1,11 @@
 export * from "./generatedIndex";
+// The typed run receiver: `PluginRunListener` + `RunStream` +
+// `RunContext` (hand-written) and the generated `PluginRun` envelope
+// union + `RUN_ENVELOPE_MAP` (install-run-envelope.cjs). The
+// pluginRuns → index `listen` import is a benign cycle: `listen` is a
+// hoisted function declaration.
+export * from "./pluginRuns";
+export * from "./runEnvelope";
 
 /**
  * @objectiveai/sdk/viewer

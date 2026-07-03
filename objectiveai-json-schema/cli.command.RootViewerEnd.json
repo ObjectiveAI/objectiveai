@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.RootViewerEnd",
+  "description": "Viewer-stream terminator — the daemon broadcasts exactly one per\nstream `id` when the producer's feed closes, marking that run's\nframe stream complete. Named to match [`RootViewerRequest`].\n\nConsumer discrimination across the three broadcast frame shapes: a\nrequest frame has no top-level `path_type`; a response frame has\n`path_type` + `value`; the terminator has `path_type` and\n`end: true` (and no `value`).",
+  "type": "object",
+  "properties": {
+    "end": {
+      "description": "Always `true` — the terminator marker.",
+      "type": "boolean"
+    },
+    "id": {
+      "description": "The broadcast stream id this terminator closes.",
+      "type": "string"
+    },
+    "path_type": {
+      "description": "The originating request's `path_type`, mirroring the id's\nresponse frames.",
+      "type": "string"
+    }
+  }
+}

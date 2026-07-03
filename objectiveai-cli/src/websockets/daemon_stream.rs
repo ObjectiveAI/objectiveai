@@ -23,7 +23,9 @@
 //! wrapped as the SDK [`RootViewerRequest`] (`{…context, id, value}` —
 //! the producer's context fields stamped alongside `id`); every following
 //! item as [`RootViewerResponseItem`] (`{id, path_type, value}`), where
-//! `path_type` is lifted off that connection's opening request. The `id`
+//! `path_type` is lifted off that connection's opening request; and when
+//! the producer's feed closes, one [`RootViewerEnd`]
+//! (`{id, path_type, end: true}`) marks that stream complete. The `id`
 //! lets a consumer demultiplex concurrent producer streams; `path_type`
 //! tags each response with the command that produced it.
 //!
@@ -41,7 +43,7 @@ use interprocess::local_socket::GenericFilePath;
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
-use objectiveai_sdk::cli::command::{RootViewerRequest, RootViewerResponseItem};
+use objectiveai_sdk::cli::command::{RootViewerEnd, RootViewerRequest, RootViewerResponseItem};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::broadcast;
 
@@ -206,6 +208,22 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
         if let Ok(frame) = frame {
             // A send error means no WebSocket clients are connected —
             // nothing to fan out to. Drop the frame.
+            let _ = tx.send(frame);
+        }
+    }
+
+    // Feed closed (EOF or read error): the run is complete. Broadcast
+    // exactly one terminator for the id so consumers can end that
+    // stream — but only when a request frame was announced (a producer
+    // that closed before sending its request broadcast nothing worth
+    // terminating).
+    if let Some(path_type) = path {
+        let end = RootViewerEnd {
+            id,
+            path_type,
+            end: true,
+        };
+        if let Ok(frame) = serde_json::to_string(&end) {
             let _ = tx.send(frame);
         }
     }

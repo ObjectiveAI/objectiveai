@@ -88,6 +88,11 @@ function responseFrame(id: string, value: unknown = { hello: "world" }) {
   return { id, path_type: "plugins/run", value };
 }
 
+/** A broadcast terminator frame for the run `id`. */
+function endFrame(id: string) {
+  return { id, path_type: "plugins/run", end: true };
+}
+
 /** The exact postMessage payload the bridge must deliver for `frame`. */
 function delivered(frame: unknown) {
   return {
@@ -242,6 +247,39 @@ describe("plugin-bridge daemon-frame routing", () => {
       destination: "objectiveai",
       value: requestFrame("run-2", "alpha"),
     });
+
+    expect(a.spy).not.toHaveBeenCalled();
+  });
+
+  it("delivers the terminator to the owner, then evicts the id", () => {
+    const a = makeTab(bridge, "alpha");
+
+    const req = requestFrame("run-1", "alpha");
+    const res = responseFrame("run-1");
+    const end = endFrame("run-1");
+    bus.emit("objectiveai", daemonEvent(req));
+    bus.emit("objectiveai", daemonEvent(res));
+    bus.emit("objectiveai", daemonEvent(end));
+    expect(payloads(a)).toEqual([
+      delivered(req),
+      delivered(res),
+      delivered(end),
+    ]);
+
+    // The id is gone: anything after the terminator is dropped.
+    bus.emit("objectiveai", daemonEvent(responseFrame("run-1")));
+    bus.emit("objectiveai", daemonEvent(endFrame("run-1")));
+    expect(payloads(a)).toEqual([
+      delivered(req),
+      delivered(res),
+      delivered(end),
+    ]);
+  });
+
+  it("drops a terminator with an unknown id", () => {
+    const a = makeTab(bridge, "alpha");
+
+    bus.emit("objectiveai", daemonEvent(endFrame("never-seen")));
 
     expect(a.spy).not.toHaveBeenCalled();
   });

@@ -1329,6 +1329,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::python::response_schema::Path),
         schemars::schema_for!(crate::cli::command::python::response_schema::Request),
         schemars::schema_for!(crate::cli::command::Request),
+        schemars::schema_for!(crate::cli::command::RootViewerEnd),
         schemars::schema_for!(crate::cli::command::RootViewerRequest),
         schemars::schema_for!(crate::cli::command::laboratories::Request),
         schemars::schema_for!(crate::cli::command::laboratories::create::EnvVar),

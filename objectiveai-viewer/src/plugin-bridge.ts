@@ -158,21 +158,26 @@ async function subscribeToPluginEvents(pluginName: string): Promise<void> {
 //
 // The Rust side forwards every daemon WebSocket frame raw as an
 // `inbound` event on the `"objectiveai"` channel with
-// `sub_type: "daemon"`. Frames come in two shapes:
+// `sub_type: "daemon"`. Frames come in three shapes:
 //
-//   - request:  `{…context, id, value: <cli Request>}` (no top-level
+//   - request:    `{…context, id, value: <cli Request>}` (no top-level
 //     `path_type`; the request's own `path_type` is inside `value`)
-//   - response: `{id, path_type, value: <response item>}`
+//   - response:   `{id, path_type, value: <response item>}`
+//   - terminator: `{id, path_type, end: true}` — exactly one per id,
+//     when the producer's run completes
 //
 // A `plugins/run` request frame whose plugin (`value.name`) has an
 // open tab is forwarded into that tab's iframe as a
 // `sub_type: "plugins_run"` plugin-event, and its stream `id` is
 // remembered so the run's subsequent response frames route to the
-// same iframe. Frames with no matching tab are dropped.
+// same iframe. The terminator is forwarded like any response frame
+// and then evicts the id — nothing more can arrive for it. Frames
+// with no matching tab are dropped.
 
 type DaemonFrame = {
   id?: string;
   path_type?: string;
+  end?: boolean;
   value?: { path_type?: string; name?: string } & Record<string, unknown>;
 };
 
@@ -208,9 +213,15 @@ async function ensureDaemonListener(): Promise<void> {
       }
       daemonRunOwners.set(frame.id, owner);
     } else {
-      // Response frame: route by remembered stream id.
+      // Response or terminator frame: route by remembered stream id.
       owner = daemonRunOwners.get(frame.id);
       if (!owner) return;
+      // The terminator is the id's last frame — evict now (the 1024
+      // cap above stays as a backstop for runs whose terminator never
+      // arrived, e.g. a daemon restart mid-run).
+      if (frame.end === true) {
+        daemonRunOwners.delete(frame.id);
+      }
     }
 
     const handle = iframes.get(owner);

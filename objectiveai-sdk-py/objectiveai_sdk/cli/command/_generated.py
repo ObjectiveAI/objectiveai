@@ -5,5 +5,6 @@ from .get_scope import GetScope  # noqa: F401
 from .ok import Ok  # noqa: F401
 from .request import Request, RequestAgents, RequestApi, RequestDaemon, RequestDb, RequestFunctions, RequestKillAll, RequestKillAllRequestSchema, RequestKillAllResponseSchema, RequestLaboratories, RequestMcp, RequestPlugins, RequestPython, RequestPythonRequestSchema, RequestPythonResponseSchema, RequestSwarms, RequestTools, RequestUpdate, RequestUpdateRequestSchema, RequestUpdateResponseSchema, RequestViewer  # noqa: F401
 from .request_base import RequestBase  # noqa: F401
+from .root_viewer_end import RootViewerEnd  # noqa: F401
 from .root_viewer_request import RootViewerRequest, RootViewerRequestAgents, RootViewerRequestApi, RootViewerRequestDaemon, RootViewerRequestDb, RootViewerRequestFunctions, RootViewerRequestKillAll, RootViewerRequestLaboratories, RootViewerRequestMcp, RootViewerRequestPlugins, RootViewerRequestPython, RootViewerRequestSwarms, RootViewerRequestTools, RootViewerRequestUpdate, RootViewerRequestViewer  # noqa: F401
 from .set_scope import SetScope  # noqa: F401
