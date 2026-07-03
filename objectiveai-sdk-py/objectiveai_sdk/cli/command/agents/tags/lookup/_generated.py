@@ -4,5 +4,3 @@ from .lookup_state import LookupState, LookupStateBound, LookupStateGrouped  # n
 from .path import Path  # noqa: F401
 from .request import Request, RequestAgentInstanceHierarchy, RequestTag  # noqa: F401
 from .response import Response, ResponseAbsent, ResponseAgentInstanceHierarchy, ResponseTag, ResponseTagBound, ResponseTagGrouped  # noqa: F401
-from .viewer_request import ViewerRequest  # noqa: F401
-from .viewer_response import ViewerResponse  # noqa: F401

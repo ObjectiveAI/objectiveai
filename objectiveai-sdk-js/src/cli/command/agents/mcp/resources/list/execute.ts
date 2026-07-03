@@ -6,6 +6,17 @@ import { CliStream } from "../../../../cliStream";
 import { type CommandExecutor } from "../../../../executor";
 import { CliErrorSchema, type CliError } from "../../../../../error";
 import { JsonValueSchema, type JsonValue } from "../../../../../../jsonValue";
+import { McpResourceListResourcesResultSchema, type McpResourceListResourcesResult } from "../../../../../../mcp/resource/listResourcesResult";
+
+/** `agents mcp resources list execute` — unary; first stream item, rest discarded. */
+export async function agentsMcpResourcesListExecute(executor: CommandExecutor, request: Omit<CliCommandAgentsMcpResourcesListRequest, "path_type">): Promise<CliError | McpResourceListResourcesResult> {
+  const stream = new CliStream(executor.execute({ ...request, jq: undefined, python: undefined, path_type: "agents/mcp/resources/list" }), z.union([CliErrorSchema, McpResourceListResourcesResultSchema]));
+  const first = await stream.first();
+  if (first === undefined) {
+    throw new Error("agents mcp resources list: cli produced no output before the end marker");
+  }
+  return first;
+}
 
 /** `agents mcp resources list execute_transform` — unary; first stream item, rest discarded. */
 export async function agentsMcpResourcesListExecuteTransform(executor: CommandExecutor, request: Omit<CliCommandAgentsMcpResourcesListRequest, "path_type">, transform: { jq: string } | { python: string }): Promise<CliError | JsonValue> {

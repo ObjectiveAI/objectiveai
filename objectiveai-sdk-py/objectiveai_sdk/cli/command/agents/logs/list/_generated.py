@@ -9,6 +9,4 @@ from .response_item import ResponseItem, ResponseItemAgentCompletionRequest, Res
 from .target import Target, TargetDirect, TargetMe, TargetTag  # noqa: F401
 from .tool_response_part import ToolResponsePart  # noqa: F401
 from .tool_response_part_type import ToolResponsePartType  # noqa: F401
-from .viewer_request import ViewerRequest  # noqa: F401
-from .viewer_response_item import ViewerResponseItem  # noqa: F401
 from ._execute import execute, execute_transform  # noqa: F401

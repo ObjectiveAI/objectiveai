@@ -1,0 +1,13 @@
+{
+  "title": "mcp.ListServersResult",
+  "description": "The proxy's connected upstream MCP servers and their metadata.",
+  "type": "object",
+  "properties": {
+    "servers": {
+      "type": "array",
+      "items": {
+        "$ref": "mcp.Server"
+      }
+    }
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "title": "mcp.TasksRequestsCapability",
+  "description": "Task creation capabilities scoped to request types.",
+  "type": "object",
+  "properties": {
+    "tools": {
+      "description": "Task support for tool-related requests.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksToolsCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

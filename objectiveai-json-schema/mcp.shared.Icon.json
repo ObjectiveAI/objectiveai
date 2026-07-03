@@ -1,0 +1,50 @@
+{
+  "title": "mcp.shared.Icon",
+  "description": "An icon that can be displayed in a user interface.",
+  "type": "object",
+  "properties": {
+    "mimeType": {
+      "description": "MIME type for the icon.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "sizes": {
+      "description": "Sizes at which the icon can be used (e.g., \"48x48\", \"96x96\", \"any\").",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "src": {
+      "description": "URL or data URI for the icon.",
+      "type": "string"
+    },
+    "theme": {
+      "description": "Theme this icon is intended for.",
+      "anyOf": [
+        {
+          "$ref": "mcp.shared.IconTheme"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "title": "mcp.ResourcesCapability",
+  "description": "Capabilities for resources.",
+  "type": "object",
+  "properties": {
+    "listChanged": {
+      "description": "Whether the server emits notifications when the resource list changes.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "subscribe": {
+      "description": "Whether the server supports resource subscriptions.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

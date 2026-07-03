@@ -1,0 +1,76 @@
+{
+  "title": "mcp.tool.ContentBlock",
+  "description": "A content block that can be used in prompts and tool results.",
+  "anyOf": [
+    {
+      "title": "Text",
+      "description": "Text content.",
+      "type": "object",
+      "$ref": "mcp.tool.TextContent",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Image",
+      "description": "Image content (base64-encoded).",
+      "type": "object",
+      "$ref": "mcp.tool.ImageContent",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "image"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Audio",
+      "description": "Audio content (base64-encoded).",
+      "type": "object",
+      "$ref": "mcp.tool.AudioContent",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "audio"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ResourceLink",
+      "description": "A resource link.",
+      "type": "object",
+      "$ref": "mcp.tool.ResourceLink",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "resource_link"
+          ]
+        }
+      }
+    },
+    {
+      "title": "EmbeddedResource",
+      "description": "An embedded resource.",
+      "type": "object",
+      "$ref": "mcp.tool.EmbeddedResource",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "resource"
+          ]
+        }
+      }
+    }
+  ]
+}

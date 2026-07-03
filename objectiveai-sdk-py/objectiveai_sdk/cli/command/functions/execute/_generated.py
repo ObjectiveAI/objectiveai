@@ -3,4 +3,3 @@
 from .function_spec import FunctionSpec, FunctionSpecFile, FunctionSpecPythonFile, FunctionSpecPythonInline, FunctionSpecResolved  # noqa: F401
 from .profile_spec import ProfileSpec, ProfileSpecFile, ProfileSpecPythonFile, ProfileSpecPythonInline, ProfileSpecResolved  # noqa: F401
 from .request import Request, RequestStandard, RequestStandardRequestSchema, RequestStandardResponseSchema, RequestSwissSystem, RequestSwissSystemRequestSchema, RequestSwissSystemResponseSchema  # noqa: F401
-from .viewer_request import ViewerRequest, ViewerRequestStandard, ViewerRequestSwissSystem  # noqa: F401
