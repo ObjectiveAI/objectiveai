@@ -1,7 +1,6 @@
 pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
-pub mod send;
 pub mod spawn;
 
 #[derive(clap::Subcommand)]
@@ -12,7 +11,6 @@ pub enum Command {
     },
     GenerateSecretSignaturePair(generate_secret_signature_pair::Command),
     Kill(kill::Command),
-    Send(send::Command),
     Spawn(spawn::Command),
 }
 
@@ -34,12 +32,6 @@ pub enum Request {
     KillRequestSchema(kill::request_schema::Request),
     #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Request),
-    #[schemars(title = "Send")]
-    Send(send::Request),
-    #[schemars(title = "SendRequestSchema")]
-    SendRequestSchema(send::request_schema::Request),
-    #[schemars(title = "SendResponseSchema")]
-    SendResponseSchema(send::response_schema::Request),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
     #[schemars(title = "SpawnRequestSchema")]
@@ -69,12 +61,6 @@ pub enum Response {
     KillRequestSchema(kill::request_schema::Response),
     #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Response),
-    #[schemars(title = "Send")]
-    Send(send::Response),
-    #[schemars(title = "SendRequestSchema")]
-    SendRequestSchema(send::request_schema::Response),
-    #[schemars(title = "SendResponseSchema")]
-    SendResponseSchema(send::response_schema::Response),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Response),
     #[schemars(title = "SpawnRequestSchema")]
@@ -97,8 +83,6 @@ pub enum ViewerRequest {
     GenerateSecretSignaturePair(generate_secret_signature_pair::ViewerRequest),
     #[schemars(title = "Kill")]
     Kill(kill::ViewerRequest),
-    #[schemars(title = "Send")]
-    Send(send::ViewerRequest),
     #[schemars(title = "Spawn")]
     Spawn(spawn::ViewerRequest),
 }
@@ -118,8 +102,6 @@ pub enum ViewerResponseItem {
     GenerateSecretSignaturePair(generate_secret_signature_pair::ViewerResponse),
     #[schemars(title = "Kill")]
     Kill(kill::ViewerResponse),
-    #[schemars(title = "Send")]
-    Send(send::ViewerResponse),
     #[schemars(title = "Spawn")]
     Spawn(spawn::ViewerResponse),
 }
@@ -135,9 +117,6 @@ impl crate::cli::command::CommandResponse for Response {
             Response::Kill(v) => v.into_mcp(),
             Response::KillRequestSchema(v) => v.into_mcp(),
             Response::KillResponseSchema(v) => v.into_mcp(),
-            Response::Send(v) => v.into_mcp(),
-            Response::SendRequestSchema(v) => v.into_mcp(),
-            Response::SendResponseSchema(v) => v.into_mcp(),
             Response::Spawn(v) => v.into_mcp(),
             Response::SpawnRequestSchema(v) => v.into_mcp(),
             Response::SpawnResponseSchema(v) => v.into_mcp(),
@@ -165,13 +144,6 @@ impl TryFrom<Command> for Request {
                 Some(kill::Schema::ResponseSchema(args)) =>
                     Ok(Request::KillResponseSchema(kill::response_schema::Request::try_from(args)?)),
             },
-            Command::Send(cmd) => match cmd.schema {
-                None => Ok(Request::Send(send::Request::try_from(cmd.args)?)),
-                Some(send::Schema::RequestSchema(args)) =>
-                    Ok(Request::SendRequestSchema(send::request_schema::Request::try_from(args)?)),
-                Some(send::Schema::ResponseSchema(args)) =>
-                    Ok(Request::SendResponseSchema(send::response_schema::Request::try_from(args)?)),
-            },
             Command::Spawn(cmd) => match cmd.schema {
                 None => Ok(Request::Spawn(spawn::Request::try_from(cmd.args)?)),
                 Some(spawn::Schema::RequestSchema(args)) =>
@@ -193,9 +165,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Kill(inner) => inner.request_base(),
             Request::KillRequestSchema(inner) => inner.request_base(),
             Request::KillResponseSchema(inner) => inner.request_base(),
-            Request::Send(inner) => inner.request_base(),
-            Request::SendRequestSchema(inner) => inner.request_base(),
-            Request::SendResponseSchema(inner) => inner.request_base(),
             Request::Spawn(inner) => inner.request_base(),
             Request::SpawnRequestSchema(inner) => inner.request_base(),
             Request::SpawnResponseSchema(inner) => inner.request_base(),
@@ -211,9 +180,6 @@ impl crate::cli::command::CommandRequest for Request {
             Request::Kill(inner) => inner.request_base_mut(),
             Request::KillRequestSchema(inner) => inner.request_base_mut(),
             Request::KillResponseSchema(inner) => inner.request_base_mut(),
-            Request::Send(inner) => inner.request_base_mut(),
-            Request::SendRequestSchema(inner) => inner.request_base_mut(),
-            Request::SendResponseSchema(inner) => inner.request_base_mut(),
             Request::Spawn(inner) => inner.request_base_mut(),
             Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
             Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
@@ -272,24 +238,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let value = kill::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::KillResponseSchema(value),
-                )))
-            }
-            Request::Send(req) => {
-                let value = send::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::Send(value),
-                )))
-            }
-            Request::SendRequestSchema(req) => {
-                let value = send::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::SendRequestSchema(value),
-                )))
-            }
-            Request::SendResponseSchema(req) => {
-                let value = send::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::SendResponseSchema(value),
                 )))
             }
             Request::Spawn(req) => {
@@ -353,18 +301,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             }
             Request::KillResponseSchema(req) => {
                 let value = kill::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::Send(req) => {
-                let value = send::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::SendRequestSchema(req) => {
-                let value = send::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::SendResponseSchema(req) => {
-                let value = send::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
             Request::Spawn(req) => {

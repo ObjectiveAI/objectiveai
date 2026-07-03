@@ -13,7 +13,6 @@ use crate::error::Error;
 pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
-pub mod send;
 pub mod spawn;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<Response, Error>> + Send>>;
@@ -53,18 +52,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::KillResponseSchema(req) => {
             let value = kill::response_schema::execute(ctx, req).await?;
             once(Ok(Response::KillResponseSchema(value)))
-        }
-        Request::Send(req) => {
-            let value = send::execute(ctx, req).await?;
-            once(Ok(Response::Send(value)))
-        }
-        Request::SendRequestSchema(req) => {
-            let value = send::request_schema::execute(ctx, req).await?;
-            once(Ok(Response::SendRequestSchema(value)))
-        }
-        Request::SendResponseSchema(req) => {
-            let value = send::response_schema::execute(ctx, req).await?;
-            once(Ok(Response::SendResponseSchema(value)))
         }
         Request::Spawn(req) => {
             let value = spawn::execute(ctx, req).await?;

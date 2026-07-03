@@ -2,8 +2,8 @@
 //!
 //! `Context` is constructed once in `main.rs` (or by a programmatic
 //! embedder) — synchronously and infallibly, no IO — then borrowed
-//! into the command tree. The three service clients are LAZY: the
-//! first `api_client()` / `viewer_client()` / `db_client()` call
+//! into the command tree. The service clients are LAZY: the
+//! first `api_client()` / `db_client()` call
 //! resolves the server's address (on-disk config, else the matching
 //! spawn flow, which itself short-circuits to the lock-published URL
 //! when the server is already up), builds the client, and memoizes it
@@ -26,7 +26,6 @@ use crate::db;
 use crate::filesystem;
 use crate::plugin_path::PluginPath;
 use crate::run::Config;
-use crate::viewer_client::ViewerClient;
 
 #[derive(Clone)]
 pub struct Context {
@@ -38,9 +37,6 @@ pub struct Context {
     pub plugin: Option<PluginPath>,
     /// Lazily-built API `HttpClient` — see [`Context::api_client`].
     api: Arc<OnceCell<HttpClient>>,
-    /// Lazily-built viewer client — see [`Context::viewer_client`].
-    /// No per-request identity; always shared across clones.
-    viewer: Arc<OnceCell<ViewerClient>>,
     /// Lazily-connected db handle (pool + admin coordinates) — see
     /// [`Context::db_handle`]. No per-request identity; always
     /// shared across clones.
@@ -93,7 +89,6 @@ impl Context {
             filesystem,
             plugin,
             api: Arc::new(OnceCell::new()),
-            viewer: Arc::new(OnceCell::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
             podman: Arc::new(OnceCell::new()),
@@ -247,31 +242,6 @@ impl Context {
             .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
             .await?;
         Ok(config.api().get_mcp_timeout_ms())
-    }
-
-    /// The synchronous-response viewer client, built on first use and
-    /// memoized.
-    ///
-    /// Address resolution mirrors [`Self::api_client`]:
-    /// `viewer.address` from the merged config view when set, else
-    /// the `viewer spawn` flow. Signature: env `VIEWER_SIGNATURE`,
-    /// else `viewer.signature` from the same view.
-    pub async fn viewer_client(&self) -> Result<&ViewerClient, crate::error::Error> {
-        self.viewer
-            .get_or_try_init(|| async {
-                let mut config = self
-                    .filesystem
-                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
-                    .await?;
-                let address = match config.viewer().get_address() {
-                    Some(a) => ensure_scheme(a),
-                    None => crate::command::viewer::spawn::spawn(self).await?,
-                };
-                let signature = env("VIEWER_SIGNATURE")
-                    .or_else(|| config.viewer().get_signature().map(String::from));
-                Ok(ViewerClient::new(address, signature))
-            })
-            .await
     }
 
     /// The db pool, connected on first use and memoized — the

@@ -2,26 +2,19 @@
 //! background.
 //!
 //! The viewer is per-state: its lock lives at
-//! `<dir>/state/<state>/locks` key `viewer`, and the lock contents are
-//! the server's client-connect URL. If the lock is already held the
-//! viewer is already up and its published URL is returned as-is.
+//! `<dir>/state/<state>/locks` key `viewer`. The viewer is a WebSocket
+//! CLIENT of the daemon's broadcast (not a server), so the lock content
+//! is a plain readiness marker, not a URL. If the lock is already held
+//! the viewer is already up.
 
 use objectiveai_sdk::cli::command::viewer::spawn::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-/// The spawn flow itself, callable in-process (used by
-/// `Context::viewer_client()` as well as the `viewer spawn` command).
-/// Idempotent and cheap when the viewer is already up: a try_read of
-/// the lock returns the published URL without spawning.
+/// The spawn flow itself. Idempotent and cheap when the viewer is
+/// already up: a try_read of the lock returns without spawning.
 pub async fn spawn(ctx: &Context) -> Result<String, Error> {
-    let mut config = ctx
-        .filesystem
-        .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
-        .await?;
-    let secret = config.viewer().get_secret().map(String::from);
-
     let bin = if cfg!(windows) {
         "objectiveai-viewer.exe"
     } else {
@@ -30,25 +23,33 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
+    // Derive the daemon WS auth signature from the cli's DAEMON_SECRET
+    // (env-sourced): `sha256=<hex(SHA256(secret))>` — the same one-way
+    // math as `generate_viewer_secret_signature_pair`. The viewer sends
+    // it verbatim as `X-DAEMON-SIGNATURE` on its WebSocket upgrades.
+    let daemon_signature = ctx.config.daemon_secret.as_deref().map(|secret| {
+        use sha2::{Digest, Sha256};
+        let hash = Sha256::digest(secret.as_bytes());
+        format!(
+            "sha256={}",
+            hash.iter().map(|b| format!("{:02x}", b)).collect::<String>()
+        )
+    });
+
     // The child inherits the cli's environment; every env key the
     // viewer's config reads (`EnvConfigBuilder` in
-    // `objectiveai-viewer/src-tauri/src/run.rs`: ADDRESS, PORT,
-    // VIEWER_SECRET, SUPPRESS_OUTPUT, OBJECTIVEAI_DIR,
-    // OBJECTIVEAI_STATE) is either set explicitly here or scrubbed,
-    // so the spawning shell's settings can't leak in. ADDRESS/PORT
-    // are always scrubbed — the viewer defaults to 127.0.0.1 on an
-    // ephemeral port and publishes the bound URL in its lock. The
-    // secret comes from on-disk config, scrubbed when unset so the
-    // viewer falls back to its own default.
+    // `objectiveai-viewer/src-tauri/src/run.rs`: DAEMON_SIGNATURE,
+    // SUPPRESS_OUTPUT, OBJECTIVEAI_DIR, OBJECTIVEAI_STATE) is set
+    // explicitly here when known. DAEMON_SIGNATURE is derived from
+    // DAEMON_SECRET when the cli has one; otherwise any inherited
+    // DAEMON_SIGNATURE from the invoking shell is left as-is (the
+    // spawner may know the signature without the secret).
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
-        cmd.env_remove("ADDRESS");
-        cmd.env_remove("PORT");
-        cmd.env_remove("VIEWER_SECRET");
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
             .env("SUPPRESS_OUTPUT", "true");
-        if let Some(secret) = secret {
-            cmd.env("VIEWER_SECRET", secret);
+        if let Some(signature) = daemon_signature {
+            cmd.env("DAEMON_SIGNATURE", signature);
         }
     })
     .await
