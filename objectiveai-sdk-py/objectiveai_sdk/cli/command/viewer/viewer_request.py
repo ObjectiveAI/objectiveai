@@ -6,7 +6,6 @@ from pydantic import ConfigDict, RootModel
 from objectiveai_sdk.cli.command.viewer.config.viewer_request import ViewerRequest as CliCommandViewerConfigViewerRequest
 from objectiveai_sdk.cli.command.viewer.generate_secret_signature_pair.viewer_request import ViewerRequest as CliCommandViewerGenerateSecretSignaturePairViewerRequest
 from objectiveai_sdk.cli.command.viewer.kill.viewer_request import ViewerRequest as CliCommandViewerKillViewerRequest
-from objectiveai_sdk.cli.command.viewer.send.viewer_request import ViewerRequest as CliCommandViewerSendViewerRequest
 from objectiveai_sdk.cli.command.viewer.spawn.viewer_request import ViewerRequest as CliCommandViewerSpawnViewerRequest
 
 
@@ -28,12 +27,6 @@ class ViewerRequestKill(RootModel):
     root: CliCommandViewerKillViewerRequest
 
 
-class ViewerRequestSend(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Send'})
-
-    root: CliCommandViewerSendViewerRequest
-
-
 class ViewerRequestSpawn(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Spawn'})
 
@@ -47,5 +40,5 @@ actual command traffic). Untagged: each variant carries the leaf's
 `path_type`, so it stays discriminable."""
     model_config = ConfigDict(title='cli.command.viewer.ViewerRequest')
 
-    root: Union[ViewerRequestConfig, ViewerRequestGenerateSecretSignaturePair, ViewerRequestKill, ViewerRequestSend, ViewerRequestSpawn]
+    root: Union[ViewerRequestConfig, ViewerRequestGenerateSecretSignaturePair, ViewerRequestKill, ViewerRequestSpawn]
 

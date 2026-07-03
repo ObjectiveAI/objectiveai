@@ -10,9 +10,6 @@ from objectiveai_sdk.cli.command.viewer.generate_secret_signature_pair.response_
 from objectiveai_sdk.cli.command.viewer.kill.request import Request as CliCommandViewerKillRequest
 from objectiveai_sdk.cli.command.viewer.kill.request_schema.request import Request as CliCommandViewerKillRequestSchemaRequest
 from objectiveai_sdk.cli.command.viewer.kill.response_schema.request import Request as CliCommandViewerKillResponseSchemaRequest
-from objectiveai_sdk.cli.command.viewer.send.request import Request as CliCommandViewerSendRequest
-from objectiveai_sdk.cli.command.viewer.send.request_schema.request import Request as CliCommandViewerSendRequestSchemaRequest
-from objectiveai_sdk.cli.command.viewer.send.response_schema.request import Request as CliCommandViewerSendResponseSchemaRequest
 from objectiveai_sdk.cli.command.viewer.spawn.request import Request as CliCommandViewerSpawnRequest
 from objectiveai_sdk.cli.command.viewer.spawn.request_schema.request import Request as CliCommandViewerSpawnRequestSchemaRequest
 from objectiveai_sdk.cli.command.viewer.spawn.response_schema.request import Request as CliCommandViewerSpawnResponseSchemaRequest
@@ -60,24 +57,6 @@ class RequestKillResponseSchema(RootModel):
     root: CliCommandViewerKillResponseSchemaRequest
 
 
-class RequestSend(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Send'})
-
-    root: CliCommandViewerSendRequest
-
-
-class RequestSendRequestSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SendRequestSchema'})
-
-    root: CliCommandViewerSendRequestSchemaRequest
-
-
-class RequestSendResponseSchema(RootModel):
-    model_config = ConfigDict(json_schema_extra={'_variant_title': 'SendResponseSchema'})
-
-    root: CliCommandViewerSendResponseSchemaRequest
-
-
 class RequestSpawn(RootModel):
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Spawn'})
 
@@ -99,5 +78,5 @@ class RequestSpawnResponseSchema(RootModel):
 class Request(RootModel):
     model_config = ConfigDict(title='cli.command.viewer.Request')
 
-    root: Union[RequestConfig, RequestGenerateSecretSignaturePair, RequestGenerateSecretSignaturePairRequestSchema, RequestGenerateSecretSignaturePairResponseSchema, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSend, RequestSendRequestSchema, RequestSendResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
+    root: Union[RequestConfig, RequestGenerateSecretSignaturePair, RequestGenerateSecretSignaturePairRequestSchema, RequestGenerateSecretSignaturePairResponseSchema, RequestKill, RequestKillRequestSchema, RequestKillResponseSchema, RequestSpawn, RequestSpawnRequestSchema, RequestSpawnResponseSchema]
 
