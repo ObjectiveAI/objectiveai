@@ -15,6 +15,15 @@ use crate::error::Error;
 /// The spawn flow itself. Idempotent and cheap when the viewer is
 /// already up: a try_read of the lock returns without spawning.
 pub async fn spawn(ctx: &Context) -> Result<String, Error> {
+    // The viewer requires the daemon's ws:// connect URL. `run`'s
+    // producer tee ensured the daemon and recorded the address on the
+    // ctx before this handler ran; if it's absent the daemon couldn't
+    // be spawned, and a viewer without a daemon is useless — error out.
+    let daemon_address = ctx
+        .daemon_address()
+        .ok_or(Error::DaemonAddressUnavailable)?
+        .to_string();
+
     let bin = if cfg!(windows) {
         "objectiveai-viewer.exe"
     } else {
@@ -38,16 +47,21 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
 
     // The child inherits the cli's environment; every env key the
     // viewer's config reads (`EnvConfigBuilder` in
-    // `objectiveai-viewer/src-tauri/src/run.rs`: DAEMON_SIGNATURE,
-    // SUPPRESS_OUTPUT, OBJECTIVEAI_DIR, OBJECTIVEAI_STATE) is set
-    // explicitly here when known. DAEMON_SIGNATURE is derived from
-    // DAEMON_SECRET when the cli has one; otherwise any inherited
-    // DAEMON_SIGNATURE from the invoking shell is left as-is (the
-    // spawner may know the signature without the secret).
+    // `objectiveai-viewer/src-tauri/src/run.rs`: DAEMON_ADDRESS,
+    // DAEMON_SIGNATURE, SUPPRESS_OUTPUT, OBJECTIVEAI_DIR,
+    // OBJECTIVEAI_STATE) is set explicitly here when known.
+    // DAEMON_ADDRESS is the daemon's full ws:// connect URL (always
+    // set — required above; note it shadows any inherited value, which
+    // in the cli's namespace would be a bind address, a different
+    // semantic). DAEMON_SIGNATURE is derived from DAEMON_SECRET when
+    // the cli has one; otherwise any inherited DAEMON_SIGNATURE from
+    // the invoking shell is left as-is (the spawner may know the
+    // signature without the secret).
     crate::spawn::spawn_until_lock_published(&exe, &lock_dir, "viewer", |cmd| {
         cmd.env("OBJECTIVEAI_DIR", ctx.filesystem.dir())
             .env("OBJECTIVEAI_STATE", ctx.filesystem.state())
-            .env("SUPPRESS_OUTPUT", "true");
+            .env("SUPPRESS_OUTPUT", "true")
+            .env("DAEMON_ADDRESS", &daemon_address);
         if let Some(signature) = daemon_signature {
             cmd.env("DAEMON_SIGNATURE", signature);
         }

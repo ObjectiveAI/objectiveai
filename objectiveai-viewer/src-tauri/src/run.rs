@@ -26,6 +26,8 @@ fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
 
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
+    #[envconfig(from = "DAEMON_ADDRESS")]
+    daemon_address: Option<String>,
     #[envconfig(from = "DAEMON_SIGNATURE")]
     daemon_signature: Option<String>,
     #[envconfig(from = "SUPPRESS_OUTPUT")]
@@ -39,6 +41,7 @@ struct EnvConfigBuilder {
 impl EnvConfigBuilder {
     pub fn build(self) -> ConfigBuilder {
         ConfigBuilder {
+            daemon_address: self.daemon_address,
             daemon_signature: self.daemon_signature,
             suppress_output: self
                 .suppress_output
@@ -51,6 +54,7 @@ impl EnvConfigBuilder {
 
 #[derive(Default)]
 pub struct ConfigBuilder {
+    pub daemon_address: Option<String>,
     pub daemon_signature: Option<String>,
     pub suppress_output: Option<bool>,
     pub objectiveai_dir: Option<String>,
@@ -75,6 +79,7 @@ impl Envconfig for ConfigBuilder {
 impl ConfigBuilder {
     pub fn build(self) -> Config {
         Config {
+            daemon_address: self.daemon_address,
             daemon_signature: self.daemon_signature,
             suppress_output: self.suppress_output.unwrap_or(false),
             // Layout root (OBJECTIVEAI_DIR). Same default as the api.
@@ -92,6 +97,11 @@ impl ConfigBuilder {
 }
 
 pub struct Config {
+    /// The daemon's `ws://` connect URL (`DAEMON_ADDRESS`). REQUIRED —
+    /// [`run`] errors out when unset. Provided by `objectiveai viewer
+    /// spawn`, which resolves it from the daemon it just ensured.
+    /// `Option` only so `ConfigBuilder::build` stays infallible.
+    pub daemon_address: Option<String>,
     /// Optional daemon WebSocket auth header value
     /// (`DAEMON_SIGNATURE`): the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>` sent verbatim as
@@ -217,6 +227,15 @@ pub fn serve(
 /// Sets up and serves the viewer. Returns the exit code from Tauri's event loop.
 /// The caller should use `std::process::exit(code)` with the returned value.
 pub async fn run(config: Config) -> std::io::Result<i32> {
+    // The daemon address is the viewer's one data source — refuse to
+    // start without it rather than sitting dark.
+    let daemon_address = config.daemon_address.clone().ok_or_else(|| {
+        std::io::Error::other(
+            "DAEMON_ADDRESS is not set — start the viewer via `objectiveai viewer spawn`, \
+             which passes the daemon's ws:// address",
+        )
+    })?;
+
     let lock_dir = config
         .objectiveai_dir
         .join("state")
@@ -241,14 +260,11 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     }
 
     // The event bus's producer: connect to the daemon's broadcast
-    // WebSocket (spawning the daemon first if it isn't up) and forward
-    // every frame to the JS side. Its own executor instance —
-    // `BinaryExecutor` isn't Clone, and the shell's copy is managed by
-    // Tauri.
+    // WebSocket at the address the spawner handed us and forward every
+    // frame to the JS side.
     crate::daemon_ws::spawn_client(
         events_tx.clone(),
-        make_executor(&config),
-        lock_dir,
+        daemon_address,
         config.daemon_signature.clone(),
     );
 

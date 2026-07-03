@@ -431,8 +431,13 @@ async fn start_tee(
         return None;
     }
     // Idempotent: `spawn` returns immediately if the daemon already holds
-    // its lock; otherwise it spawns it once and waits for readiness.
-    let _ = crate::command::daemon::spawn::spawn(ctx).await;
+    // its lock; otherwise it spawns it once and waits for readiness. The
+    // returned lock content is the daemon's published `ws://` URL —
+    // record it on the ctx so later handlers (notably `viewer spawn`)
+    // can hand it to daemon WebSocket consumers.
+    if let Ok(url) = crate::command::daemon::spawn::spawn(ctx).await {
+        ctx.set_daemon_address(url);
+    }
     let mut feed =
         crate::websockets::daemon_stream::connect_feed(&ctx.filesystem.state_dir())
             .await

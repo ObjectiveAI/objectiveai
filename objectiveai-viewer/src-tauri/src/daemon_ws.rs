@@ -8,79 +8,40 @@
 //! sub_type: "daemon", value: <frame> }` — the frontend discriminates
 //! and routes (e.g. `plugins/run` frames to the matching plugin tab).
 //!
-//! Connection lifecycle, per loop iteration:
-//! 1. Ensure the daemon is up: drive `objectiveai daemon spawn`
-//!    through the [`BinaryExecutor`] (idempotent — a no-op when the
-//!    daemon already holds its lock).
-//! 2. Read the daemon's lock for its published `ws://` URL. The daemon
-//!    binds its listeners BEFORE publishing, so a present lock means
-//!    the endpoint is connectable.
-//! 3. Connect, attaching `X-DAEMON-SIGNATURE` when the viewer was
-//!    started with a `DAEMON_SIGNATURE` (the pre-derived
-//!    `sha256=<hex(SHA256(DAEMON_SECRET))>` — optional; without it the
-//!    daemon must be running unauthenticated).
-//! 4. Pump frames until the connection drops, then sleep briefly and
-//!    start over — the viewer stays live across daemon restarts.
-
-use std::path::PathBuf;
+//! The daemon's `ws://` connect URL arrives via the REQUIRED
+//! `DAEMON_ADDRESS` env (set by `objectiveai viewer spawn`, which
+//! ensures the daemon is running before spawning the viewer) — the
+//! viewer does no daemon discovery or spawning of its own. Auth is the
+//! optional `DAEMON_SIGNATURE` (the pre-derived
+//! `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim as
+//! `X-DAEMON-SIGNATURE` on each upgrade.
+//!
+//! On disconnect the client sleeps briefly and reconnects to the SAME
+//! address. Note: a daemon restart binds a fresh ephemeral port, so
+//! reconnection can only succeed while the original daemon is alive —
+//! restart the viewer (via `viewer spawn`) to pick up a new daemon.
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
-use objectiveai_sdk::cli::command::daemon::spawn as daemon_spawn;
 use objectiveai_sdk::viewer::{Event, EventSender};
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::Message;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::HeaderValue;
 
-/// Lock key the daemon publishes its `ws://` URL under — mirrors
-/// `objectiveai-cli`'s `command::daemon::DAEMON_LOCK_KEY` (the viewer
-/// cannot import the cli crate, so the constant is duplicated here).
-const DAEMON_LOCK_KEY: &str = "plugins-daemon";
-
 /// Spawn the resident client task. Best-effort forever-loop: any
-/// failure (spawn, lock read, connect, mid-stream drop) falls through
-/// to a short sleep and a fresh attempt. Exits only when the event bus
-/// receiver is gone (the viewer is shutting down).
-pub(crate) fn spawn_client(
-    tx: EventSender,
-    executor: BinaryExecutor,
-    lock_dir: PathBuf,
-    signature: Option<String>,
-) {
+/// failure (connect, mid-stream drop) falls through to a short sleep
+/// and a fresh attempt against the same address. Exits only when the
+/// event bus receiver is gone (the viewer is shutting down).
+pub(crate) fn spawn_client(tx: EventSender, address: String, signature: Option<String>) {
     tokio::spawn(async move {
         loop {
-            ensure_daemon(&executor).await;
-
-            if let Ok(Some(url)) =
-                objectiveai_sdk::lockfile::try_read(&lock_dir, DAEMON_LOCK_KEY).await
-            {
-                if pump(&tx, &url, signature.as_deref()).await.is_err() {
-                    // Receiver gone: the viewer is shutting down.
-                    return;
-                }
+            if pump(&tx, &address, signature.as_deref()).await.is_err() {
+                // Receiver gone: the viewer is shutting down.
+                return;
             }
-
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         }
     });
-}
-
-/// Drive `daemon spawn` to completion through the cli binary.
-/// Idempotent on the daemon side; errors are swallowed (the connect
-/// below is the real health check).
-async fn ensure_daemon(executor: &BinaryExecutor) {
-    let request = daemon_spawn::Request {
-        path_type: daemon_spawn::Path::DaemonSpawn,
-        dangerous_advanced: None,
-        base: Default::default(),
-    };
-    let agent_arguments = crate::cli_command::viewer_agent_arguments();
-    if let Ok(mut stream) =
-        daemon_spawn::execute(executor, request, Some(&agent_arguments)).await
-    {
-        while let Some(_item) = stream.next().await {}
-    }
 }
 
 /// One connection: upgrade (with the optional signature header) and

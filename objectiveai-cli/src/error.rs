@@ -74,10 +74,10 @@ pub enum Error {
     },
     #[error("whitelist regex error: {0}")]
     WhitelistRegex(regex::Error),
-    #[error("viewer path must start with `/`, got {0:?}")]
-    ViewerPathMissingSlash(String),
-    #[error("viewer http error: {0}")]
-    ViewerSendHttp(String),
+    #[error(
+        "daemon address unavailable: the daemon could not be spawned or its lock could not be read"
+    )]
+    DaemonAddressUnavailable,
     #[error("updater: {0}")]
     Updater(String),
     #[error("instance runner: {0}")]

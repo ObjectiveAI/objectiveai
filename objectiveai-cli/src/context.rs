@@ -37,6 +37,12 @@ pub struct Context {
     pub plugin: Option<PluginPath>,
     /// Lazily-built API `HttpClient` — see [`Context::api_client`].
     api: Arc<OnceCell<HttpClient>>,
+    /// The daemon's published `ws://` connect URL, stored by `run`'s
+    /// producer tee right after it ensures the daemon is up (the
+    /// daemon spawn returns the lock content). Empty when the daemon
+    /// couldn't be spawned. Shared across clones; first set wins. See
+    /// [`Context::set_daemon_address`] / [`Context::daemon_address`].
+    daemon_address: Arc<std::sync::OnceLock<String>>,
     /// Lazily-connected db handle (pool + admin coordinates) — see
     /// [`Context::db_handle`]. No per-request identity; always
     /// shared across clones.
@@ -89,6 +95,7 @@ impl Context {
             filesystem,
             plugin,
             api: Arc::new(OnceCell::new()),
+            daemon_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
             podman: Arc::new(OnceCell::new()),
@@ -96,6 +103,21 @@ impl Context {
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
+    }
+
+    /// Record the daemon's published `ws://` connect URL. Called by
+    /// `run`'s producer tee once the daemon is confirmed up. First set
+    /// wins; later calls are no-ops.
+    pub fn set_daemon_address(&self, url: String) {
+        let _ = self.daemon_address.set(url);
+    }
+
+    /// The daemon's published `ws://` connect URL, when `run`'s
+    /// producer tee successfully ensured the daemon this run. `None`
+    /// means the daemon couldn't be spawned (or this context never
+    /// went through `run`).
+    pub fn daemon_address(&self) -> Option<&str> {
+        self.daemon_address.get().map(String::as_str)
     }
 
     /// Derive a clone with `objectiveai.execute` inside the embedded
