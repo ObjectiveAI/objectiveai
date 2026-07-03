@@ -25,26 +25,27 @@
 //! root stream does NOT stop the pump — envelopes already yielded
 //! keep their nested streams flowing until the connection ends.
 //!
-//! Precision caveat: frames pass through a `serde_json::Value`
-//! intermediate before the typed deserialization, and without
-//! serde_json's `arbitrary_precision` feature that routes numbers
-//! through `f64` — high-precision `Decimal` fields can lose digits.
-//! Known follow-up: parse frames with a `&RawValue` `value` field and
-//! deserialize `T` straight from the raw text.
+//! Frames are parsed as a borrowed envelope whose `value` stays a
+//! [`serde_json::value::RawValue`] — deserializing the actual body is
+//! DEFERRED until the dispatch knows exactly what type it is, then it
+//! parses straight from the wire text. No `serde_json::Value`
+//! intermediate, so high-precision numbers (`Decimal` scores and the
+//! like) never round-trip through `f64`.
 
 use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
 use futures::{Stream, StreamExt};
+use serde_json::value::RawValue;
 use tokio_tungstenite::tungstenite;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 use tokio_tungstenite::tungstenite::http::HeaderValue;
 
 use crate::cli::command::AgentArguments;
 
-use super::run::{RunFeed, open_run};
 use super::Run;
+use super::run::{RunFeed, open_run};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -129,6 +130,56 @@ impl Stream for WebSocketListener {
     }
 }
 
+/// Borrowed view of one broadcast frame. `value` stays a
+/// [`RawValue`] — the actual body is deserialized later, straight
+/// from this text, once the dispatch knows exactly what type it is.
+/// The remaining fields are the cheap discriminators plus the
+/// producer's context. Not a shipped wire schema — the daemon's
+/// `RootViewerRequest`/`RootViewerResponseItem`/`RootViewerEnd` are;
+/// this is their borrowed superset for zero-copy dispatch.
+#[objectiveai_sdk_macros::json_schema_ignore]
+#[derive(serde::Deserialize)]
+struct Frame<'a> {
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    path_type: Option<String>,
+    #[serde(default)]
+    end: Option<bool>,
+    #[serde(default, borrow)]
+    value: Option<&'a RawValue>,
+    #[serde(default)]
+    agent_instance_hierarchy: Option<String>,
+    #[serde(default)]
+    agent_id: Option<String>,
+    #[serde(default)]
+    agent_full_id: Option<String>,
+    #[serde(default)]
+    agent_remote: Option<String>,
+    #[serde(default)]
+    response_id: Option<String>,
+    #[serde(default)]
+    response_ids: Option<String>,
+}
+
+impl Frame<'_> {
+    /// The producer's identity off the request frame's context fields.
+    /// `mcp_session_id` is never teed onto the broadcast, so it's
+    /// always `None`; the frame's `plugin_*` coordinates are not agent
+    /// arguments and are dropped.
+    fn agent_arguments(&mut self) -> AgentArguments {
+        AgentArguments {
+            agent_instance_hierarchy: self.agent_instance_hierarchy.take(),
+            agent_id: self.agent_id.take(),
+            agent_full_id: self.agent_full_id.take(),
+            agent_remote: self.agent_remote.take(),
+            response_id: self.response_id.take(),
+            response_ids: self.response_ids.take(),
+            mcp_session_id: None,
+        }
+    }
+}
+
 /// The distribution task: read broadcast frames, open a [`Run`] per
 /// request frame, feed its response frames, close it on the
 /// terminator. Runs until the connection ends — deliberately not tied
@@ -143,46 +194,40 @@ async fn pump(
     loop {
         match ws.next().await {
             Some(Ok(tungstenite::Message::Text(text))) => {
-                let Ok(frame) = serde_json::from_str::<serde_json::Value>(&text) else {
+                let Ok(mut frame) = serde_json::from_str::<Frame>(&text) else {
                     continue;
                 };
-                let Some(id) = frame.get("id").and_then(|i| i.as_str()) else {
+                let Some(id) = frame.id.take() else {
                     continue;
                 };
-                if frame.get("path_type").is_none() {
+                if frame.path_type.is_none() {
                     // Request frame: open the run and yield its envelope.
                     // An unrecognized `path_type` (or a request these
                     // types predate) opens nothing — the run is skipped
                     // and, with its id untracked, its frames drop below.
-                    let Some(request) = frame.get("value") else {
+                    let Some(request) = frame.value else {
                         continue;
                     };
-                    let path_type = request
-                        .get("path_type")
-                        .and_then(|p| p.as_str())
-                        .unwrap_or("")
-                        .to_string();
-                    let agent_arguments = extract_agent_arguments(&frame);
-                    let Some((run, feed)) = open_run(&path_type, request.clone(), agent_arguments)
-                    else {
+                    let agent_arguments = frame.agent_arguments();
+                    let Some((run, feed)) = open_run(request, agent_arguments) else {
                         continue;
                     };
-                    feeds.insert(id.to_string(), feed);
+                    feeds.insert(id, feed);
                     // Root receiver gone: keep pumping for the nested
                     // streams already handed out.
                     let _ = tx.send(Ok(run));
-                } else if frame.get("end").and_then(|e| e.as_bool()) == Some(true) {
+                } else if frame.end == Some(true) {
                     // Terminator: exactly one per id — the run is done.
-                    if let Some(feed) = feeds.remove(id) {
+                    if let Some(feed) = feeds.remove(&id) {
                         feed.close();
                     }
-                } else if let Some(feed) = feeds.get_mut(id) {
-                    // Response frame for a known run.
-                    let value = frame
-                        .get("value")
-                        .cloned()
-                        .unwrap_or(serde_json::Value::Null);
-                    feed.push(value);
+                } else if let Some(feed) = feeds.get_mut(&id) {
+                    // Response frame for a known run: hand the raw body
+                    // to the feed, which deserializes it as its exact
+                    // item type.
+                    if let Some(value) = frame.value {
+                        feed.push(value);
+                    }
                 }
             }
             // Control / non-text frames: not part of the frame stream
@@ -200,28 +245,6 @@ async fn pump(
     // end).
     for (_, feed) in feeds.drain() {
         feed.close();
-    }
-}
-
-/// The producer's identity off a request frame's context fields.
-/// `mcp_session_id` is never teed onto the broadcast, so it's always
-/// `None`; the frame's `plugin_*` coordinates are not agent arguments
-/// and are dropped.
-fn extract_agent_arguments(frame: &serde_json::Value) -> AgentArguments {
-    let field = |name: &str| {
-        frame
-            .get(name)
-            .and_then(|v| v.as_str())
-            .map(str::to_string)
-    };
-    AgentArguments {
-        agent_instance_hierarchy: field("agent_instance_hierarchy"),
-        agent_id: field("agent_id"),
-        agent_full_id: field("agent_full_id"),
-        agent_remote: field("agent_remote"),
-        response_id: field("response_id"),
-        response_ids: field("response_ids"),
-        mcp_session_id: None,
     }
 }
 
@@ -289,24 +312,27 @@ impl<T> Stream for ResponseItemStream<T> {
     }
 }
 
-/// Error-first per-frame decode — the same order as the executors'
-/// `Line<T>`: `cli::Error`'s `type:"error"` constant short-circuits
-/// every non-error wire shape, then `T` is the fallthrough, and a
-/// value that is neither becomes a synthesized error carrying the raw
-/// value.
+/// Error-first per-frame decode, straight from the raw wire text (no
+/// `serde_json::Value` intermediate — deferred until the exact target
+/// type is known, so precision survives). The same order as the
+/// executors' `Line<T>`: `cli::Error`'s `type:"error"` constant
+/// short-circuits every non-error wire shape, then `T` is the
+/// fallthrough, and a value that is neither becomes a synthesized
+/// error carrying the raw text.
 pub(crate) fn decode_item<T: serde::de::DeserializeOwned>(
-    value: serde_json::Value,
+    value: &RawValue,
 ) -> Result<T, crate::cli::Error> {
-    if let Ok(error) = serde_json::from_value::<crate::cli::Error>(value.clone()) {
+    if let Ok(error) = serde_json::from_str::<crate::cli::Error>(value.get()) {
         return Err(error);
     }
-    match serde_json::from_value::<T>(value.clone()) {
+    match serde_json::from_str::<T>(value.get()) {
         Ok(item) => Ok(item),
         Err(_) => Err(crate::cli::Error {
             r#type: crate::cli::ErrorType::Error,
             level: Some(crate::cli::Level::Error),
             fatal: None,
-            message: value,
+            message: serde_json::from_str::<serde_json::Value>(value.get())
+                .unwrap_or_else(|_| serde_json::Value::String(value.get().to_string())),
         }),
     }
 }

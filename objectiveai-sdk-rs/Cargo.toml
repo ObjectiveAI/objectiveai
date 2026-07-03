@@ -34,7 +34,7 @@ objectiveai-sdk-macros = { version = "2.2.9", path = "../objectiveai-sdk-rs-macr
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde_json = { version = "1.0.149", features = ["preserve_order", "raw_value"] }
 twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_128", "alloc"] }
 rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 jmespath = { version = "0.5.0" }
