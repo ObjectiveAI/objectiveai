@@ -1,11 +1,14 @@
 export * from "./generatedIndex";
-// The typed run receiver: `PluginRunListener` + `RunStream` +
-// `RunContext` (hand-written) and the generated `PluginRun` envelope
-// union + `RUN_ENVELOPE_MAP` (install-run-envelope.cjs). The
-// pluginRuns → index `listen` import is a benign cycle: `listen` is a
-// hoisted function declaration.
+// The typed run receivers: `RunListener` (the Rust WebSocketListener
+// mirror over the plugin-event bus) and `PluginRunListener` (the
+// original plugin-scoped listener, pending refactor onto RunListener),
+// plus `RunStream`/`RunContext` (hand-written) and the generated
+// `Run`/`PluginRun` unions + `RUN_ENVELOPE_MAP`
+// (install-run-envelope.cjs). The listeners' → index `listen` imports
+// are benign cycles: `listen` is a hoisted function declaration.
 export * from "./pluginRuns";
 export * from "./runEnvelope";
+export * from "./runListener";
 
 /**
  * @objectiveai/sdk/viewer

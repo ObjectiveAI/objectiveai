@@ -42,53 +42,6 @@ pub struct Response {
     pub inner: crate::functions::RemoteProfile,
 }
 
-/// Viewer-stream mirror of [`Request`]: the request (nested under
-/// `value`, `path_type` and all) plus the broadcast stream `id`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.profiles.get.ViewerRequest")]
-pub struct ViewerRequest {
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_full_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_remote: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_ids: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_version: Option<String>,
-    pub value: Request,
-}
-
-/// Viewer-stream mirror of [`Response`]: the response (nested under
-/// `value`) plus the broadcast stream `id` and the originating request's
-/// `path_type`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.profiles.get.ViewerResponse")]
-pub struct ViewerResponse {
-    pub id: String,
-    pub path_type: Path,
-    pub value: Response,
-}
-
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
@@ -164,6 +117,5 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 }
 
 pub mod request_schema;
-
 
 pub mod response_schema;

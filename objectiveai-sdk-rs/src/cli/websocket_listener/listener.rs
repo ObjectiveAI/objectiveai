@@ -3,10 +3,13 @@
 //! side.
 //!
 //! The daemon broadcasts every CLI run as one request frame
-//! (`{…context, id, value: <leaf Request>}` — no top-level
-//! `path_type`), then that run's response frames
-//! (`{id, path_type, value: <item>}`), then exactly one terminator
-//! (`{id, path_type, end: true}`, the SDK `RootViewerEnd`).
+//! (`{…context, id, value: <leaf Request>}`), then that run's response
+//! frames (bare `{id, value}` wrappers — no type tag; the opening
+//! request already told us how to deserialize the id's items), then
+//! exactly one terminator (`{id, end: true}`, the SDK
+//! [`super::ListenerEnd`]). The `id` is the whole routing story: terminator
+//! by `end: true`, response when the id is already open, request
+//! otherwise.
 //!
 //! [`WebSocketListener`] IS a `Stream`: it yields one [`Run`] envelope
 //! per announced run, discriminated over the run's REQUEST — each
@@ -134,16 +137,14 @@ impl Stream for WebSocketListener {
 /// [`RawValue`] — the actual body is deserialized later, straight
 /// from this text, once the dispatch knows exactly what type it is.
 /// The remaining fields are the cheap discriminators plus the
-/// producer's context. Not a shipped wire schema — the daemon's
-/// `RootViewerRequest`/`RootViewerResponseItem`/`RootViewerEnd` are;
-/// this is their borrowed superset for zero-copy dispatch.
+/// producer's context. A borrowed superset of the wire vocabulary
+/// (`ListenerRequest`/`ListenerResponse`/`ListenerEnd` in
+/// `super::wire`) for zero-copy dispatch.
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(serde::Deserialize)]
 struct Frame<'a> {
     #[serde(default)]
     id: Option<String>,
-    #[serde(default)]
-    path_type: Option<String>,
     #[serde(default)]
     end: Option<bool>,
     #[serde(default, borrow)]
@@ -191,6 +192,10 @@ async fn pump(
     tx: tokio::sync::mpsc::UnboundedSender<Result<Run, Error>>,
 ) {
     let mut feeds: HashMap<String, RunFeed> = HashMap::new();
+    // Ids whose run was skipped (unrecognized / undeserializable
+    // request): remembered so their tag-less response frames aren't
+    // re-probed as requests.
+    let mut skipped: std::collections::HashSet<String> = std::collections::HashSet::new();
     loop {
         match ws.next().await {
             Some(Ok(tungstenite::Message::Text(text))) => {
@@ -200,34 +205,42 @@ async fn pump(
                 let Some(id) = frame.id.take() else {
                     continue;
                 };
-                if frame.path_type.is_none() {
+                // Frames carry no type tag: the id is the whole routing
+                // story. Terminator by its `end: true` marker; response
+                // when the id is already open (or skipped); request
+                // otherwise.
+                if frame.end == Some(true) {
+                    // Terminator: exactly one per id — the run is done.
+                    if let Some(feed) = feeds.remove(&id) {
+                        feed.close();
+                    }
+                    skipped.remove(&id);
+                } else if let Some(feed) = feeds.get_mut(&id) {
+                    // Response frame for a known run: hand the raw body
+                    // to the feed, which deserializes it as its exact
+                    // item type (known from the opening request).
+                    if let Some(value) = frame.value {
+                        feed.push(value);
+                    }
+                } else if skipped.contains(&id) {
+                    // Response frame for a run we chose not to open.
+                } else {
                     // Request frame: open the run and yield its envelope.
                     // An unrecognized `path_type` (or a request these
                     // types predate) opens nothing — the run is skipped
-                    // and, with its id untracked, its frames drop below.
+                    // and its later frames drop above.
                     let Some(request) = frame.value else {
                         continue;
                     };
                     let agent_arguments = frame.agent_arguments();
                     let Some((run, feed)) = open_run(request, agent_arguments) else {
+                        skipped.insert(id);
                         continue;
                     };
                     feeds.insert(id, feed);
                     // Root receiver gone: keep pumping for the nested
                     // streams already handed out.
                     let _ = tx.send(Ok(run));
-                } else if frame.end == Some(true) {
-                    // Terminator: exactly one per id — the run is done.
-                    if let Some(feed) = feeds.remove(&id) {
-                        feed.close();
-                    }
-                } else if let Some(feed) = feeds.get_mut(&id) {
-                    // Response frame for a known run: hand the raw body
-                    // to the feed, which deserializes it as its exact
-                    // item type.
-                    if let Some(value) = frame.value {
-                        feed.push(value);
-                    }
                 }
             }
             // Control / non-text frames: not part of the frame stream

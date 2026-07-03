@@ -158,25 +158,27 @@ async function subscribeToPluginEvents(pluginName: string): Promise<void> {
 //
 // The Rust side forwards every daemon WebSocket frame raw as an
 // `inbound` event on the `"objectiveai"` channel with
-// `sub_type: "daemon"`. Frames come in three shapes:
+// `sub_type: "daemon"`. Frames carry no type tag — the `id` is the
+// whole routing story. Three shapes:
 //
-//   - request:    `{…context, id, value: <cli Request>}` (no top-level
-//     `path_type`; the request's own `path_type` is inside `value`)
-//   - response:   `{id, path_type, value: <response item>}`
-//   - terminator: `{id, path_type, end: true}` — exactly one per id,
-//     when the producer's run completes
+//   - request:    `{…context, id, value: <cli Request>}` (the
+//     request's `path_type` is inside `value`)
+//   - response:   `{id, value: <response item>}` — a bare wrapper;
+//     the id's opening request already said what the items are
+//   - terminator: `{id, end: true}` — exactly one per id, when the
+//     producer's run completes
 //
-// A `plugins/run` request frame whose plugin (`value.name`) has an
-// open tab is forwarded into that tab's iframe as a
-// `sub_type: "plugins_run"` plugin-event, and its stream `id` is
-// remembered so the run's subsequent response frames route to the
-// same iframe. The terminator is forwarded like any response frame
-// and then evicts the id — nothing more can arrive for it. Frames
-// with no matching tab are dropped.
+// Discrimination: `end: true` ⇒ terminator; a remembered id ⇒
+// response; otherwise a request frame. A `plugins/run` request frame
+// whose plugin (`value.name`) has an open tab is forwarded into that
+// tab's iframe as a `sub_type: "plugins_run"` plugin-event, and its
+// stream `id` is remembered so the run's subsequent response frames
+// route to the same iframe. The terminator is forwarded like any
+// response frame and then evicts the id — nothing more can arrive
+// for it. Frames with no matching tab are dropped.
 
 type DaemonFrame = {
   id?: string;
-  path_type?: string;
   end?: boolean;
   value?: { path_type?: string; name?: string } & Record<string, unknown>;
 };
@@ -200,9 +202,21 @@ async function ensureDaemonListener(): Promise<void> {
     }
 
     let owner: string | undefined;
-    if (frame.path_type === undefined) {
-      // Request frame: route plugins/run to the plugin's tab (if any)
-      // and remember the stream id for its responses.
+    if (frame.end === true) {
+      // Terminator: the id's last frame — forward to the owner and
+      // evict (the 1024 cap below stays as a backstop for runs whose
+      // terminator never arrived, e.g. a daemon restart mid-run).
+      owner = daemonRunOwners.get(frame.id);
+      if (!owner) return;
+      daemonRunOwners.delete(frame.id);
+    } else if (daemonRunOwners.has(frame.id)) {
+      // Response frame: route by remembered stream id.
+      owner = daemonRunOwners.get(frame.id);
+    } else {
+      // Unremembered id: only a plugins/run REQUEST frame (the
+      // request's own path_type rides inside `value`) opens a route —
+      // anything else (responses for runs we never routed, foreign
+      // commands) is dropped.
       if (frame.value?.path_type !== "plugins/run") return;
       if (typeof frame.value.name !== "string") return;
       owner = frame.value.name;
@@ -212,17 +226,8 @@ async function ensureDaemonListener(): Promise<void> {
         if (oldest !== undefined) daemonRunOwners.delete(oldest);
       }
       daemonRunOwners.set(frame.id, owner);
-    } else {
-      // Response or terminator frame: route by remembered stream id.
-      owner = daemonRunOwners.get(frame.id);
-      if (!owner) return;
-      // The terminator is the id's last frame — evict now (the 1024
-      // cap above stays as a backstop for runs whose terminator never
-      // arrived, e.g. a daemon restart mid-run).
-      if (frame.end === true) {
-        daemonRunOwners.delete(frame.id);
-      }
     }
+    if (!owner) return;
 
     const handle = iframes.get(owner);
     if (!handle) return;

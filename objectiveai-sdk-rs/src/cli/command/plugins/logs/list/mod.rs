@@ -62,48 +62,6 @@ pub struct ResponseItem {
     pub line: String,
 }
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.logs.list.ViewerRequest")]
-pub struct ViewerRequest {
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_full_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_remote: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_ids: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_version: Option<String>,
-    pub value: Request,
-}
-
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.logs.list.ViewerResponseItem")]
-pub struct ViewerResponseItem {
-    pub id: String,
-    pub path_type: Path,
-    pub value: ResponseItem,
-}
-
 #[derive(clap::Args)]
 #[command(group(clap::ArgGroup::new("owner_required").required(true).args(["owner"])))]
 #[command(group(clap::ArgGroup::new("name_required").required(true).args(["name"])))]

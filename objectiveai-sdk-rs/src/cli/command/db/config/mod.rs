@@ -68,47 +68,6 @@ pub enum Response {
     Database(database::Response),
 }
 
-/// Viewer-stream mirror of [`Request`] — the real command requests only
-/// (schema-introspection variants are excluded; the viewer streams
-/// actual command traffic). Untagged: each variant carries the leaf's
-/// `path_type`, so it stays discriminable.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.db.config.ViewerRequest")]
-pub enum ViewerRequest {
-    #[schemars(title = "Get")]
-    Get(get::ViewerRequest),
-    #[schemars(title = "Address")]
-    Address(address::ViewerRequest),
-    #[schemars(title = "User")]
-    User(user::ViewerRequest),
-    #[schemars(title = "Password")]
-    Password(password::ViewerRequest),
-    #[schemars(title = "Database")]
-    Database(database::ViewerRequest),
-}
-
-/// Viewer-stream mirror of [`Response`] — mirrors the base response
-/// aggregate: unary children carry their `ViewerResponse`, streaming
-/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
-/// untagged response aggregate (mirrors the base `Response`, TS7056).
-#[objectiveai_sdk_macros::json_schema_ignore]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.db.config.ViewerResponseItem")]
-pub enum ViewerResponseItem {
-    #[schemars(title = "Get")]
-    Get(get::ViewerResponse),
-    #[schemars(title = "Address")]
-    Address(address::ViewerResponseItem),
-    #[schemars(title = "User")]
-    User(user::ViewerResponseItem),
-    #[schemars(title = "Password")]
-    Password(password::ViewerResponseItem),
-    #[schemars(title = "Database")]
-    Database(database::ViewerResponseItem),
-}
-
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {

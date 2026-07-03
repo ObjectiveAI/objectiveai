@@ -396,7 +396,7 @@ fn should_tee(request: &objectiveai_sdk::cli::command::Request) -> bool {
 }
 
 /// The producer's agent/plugin context object — exactly the fields the
-/// leaf `ViewerRequest` wrappers carry. `None`s are omitted.
+/// `ListenerRequest<T>` wrapper carries. `None`s are omitted.
 fn tee_context(config: &Config) -> serde_json::Value {
     let mut map = serde_json::Map::new();
     map.insert(

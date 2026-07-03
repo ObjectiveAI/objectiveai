@@ -4,9 +4,10 @@
  *
  * The host bridge forwards a plugin's `plugins/run` daemon frames into
  * its iframe as `plugins_run` plugin-events. Each run arrives as one
- * request frame (`{…context, id, value: <Request>}`), then response
- * frames (`{id, path_type, value: <item>}`), then exactly one
- * terminator (`{id, path_type, end: true}`). [`PluginRunListener`]
+ * request frame (`{…context, id, value: <Request>}`), then bare
+ * `{id, value: <item>}` response frames (no type tag — the id is the
+ * routing), then exactly one terminator (`{id, end: true}`).
+ * [`PluginRunListener`]
  * turns that wire into typed [`PluginRun`] envelopes
  * (`{request, context, response}`), where `response` mirrors the
  * return type of the request's generated execute function — a
@@ -222,18 +223,20 @@ export class PluginRunListener {
     if (typeof frame !== "object" || frame === null) return;
     const f = frame as {
       id?: unknown;
-      path_type?: unknown;
       end?: unknown;
       value?: unknown;
     };
     if (typeof f.id !== "string") return;
 
-    if (f.path_type === undefined) {
-      this.#onRequestFrame(f.id, frame as Record<string, unknown>);
-    } else if (f.end === true) {
+    // Frames carry no type tag — the id is the whole routing story:
+    // terminator by `end: true`, response when the id is live,
+    // request otherwise.
+    if (f.end === true) {
       this.#onEndFrame(f.id);
-    } else {
+    } else if (this.#live.has(f.id)) {
       this.#onResponseFrame(f.id, f.value);
+    } else {
+      this.#onRequestFrame(f.id, frame as Record<string, unknown>);
     }
   }
 
@@ -246,7 +249,11 @@ export class PluginRunListener {
       python?: unknown;
       dangerous_advanced?: { stream?: unknown } | null;
     };
-    const pathType = typeof req.path_type === "string" ? req.path_type : "";
+    // A request always carries its `path_type`. Tag-less frames that
+    // reach here without one (e.g. a response for a run this listener
+    // attached too late to see announced) are not requests — drop.
+    if (typeof req.path_type !== "string") return;
+    const pathType = req.path_type;
     const context = extractContext(id, frame);
 
     // Resolve the run's mode + validator off the request. Unknown

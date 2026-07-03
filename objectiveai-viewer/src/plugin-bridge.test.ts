@@ -83,14 +83,15 @@ function requestFrame(id: string, name: string, pathType = "plugins/run") {
   };
 }
 
-/** A broadcast response frame for the run `id`. */
+/** A broadcast response frame for the run `id` — a bare `{id, value}`
+ * wrapper (responses carry no type tag; the id is the routing). */
 function responseFrame(id: string, value: unknown = { hello: "world" }) {
-  return { id, path_type: "plugins/run", value };
+  return { id, value };
 }
 
 /** A broadcast terminator frame for the run `id`. */
 function endFrame(id: string) {
-  return { id, path_type: "plugins/run", end: true };
+  return { id, end: true };
 }
 
 /** The exact postMessage payload the bridge must deliver for `frame`. */

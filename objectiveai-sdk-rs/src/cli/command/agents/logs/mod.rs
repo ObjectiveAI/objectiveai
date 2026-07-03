@@ -83,43 +83,6 @@ pub enum ResponseItem {
     TokenUsage(token_usage::ResponseItem),
 }
 
-/// Viewer-stream mirror of [`Request`] — the real command requests only
-/// (schema-introspection variants are excluded; the viewer streams
-/// actual command traffic). Untagged: each variant carries the leaf's
-/// `path_type`, so it stays discriminable.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.logs.ViewerRequest")]
-pub enum ViewerRequest {
-    #[schemars(title = "Open")]
-    Open(open::ViewerRequest),
-    #[schemars(title = "List")]
-    List(list::ViewerRequest),
-    #[schemars(title = "Subscribe")]
-    Subscribe(subscribe::ViewerRequest),
-    #[schemars(title = "TokenUsage")]
-    TokenUsage(token_usage::ViewerRequest),
-}
-
-/// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
-/// aggregate: unary children carry their `ViewerResponse`, streaming
-/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
-/// untagged response aggregate (mirrors the base `ResponseItem`, TS7056).
-#[objectiveai_sdk_macros::json_schema_ignore]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.logs.ViewerResponseItem")]
-pub enum ViewerResponseItem {
-    #[schemars(title = "Open")]
-    Open(open::ViewerResponse),
-    #[schemars(title = "List")]
-    List(list::ViewerResponseItem),
-    #[schemars(title = "Subscribe")]
-    Subscribe(subscribe::ViewerResponseItem),
-    #[schemars(title = "TokenUsage")]
-    TokenUsage(token_usage::ViewerResponseItem),
-}
-
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {

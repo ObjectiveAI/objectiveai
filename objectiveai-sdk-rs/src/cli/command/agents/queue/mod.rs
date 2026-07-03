@@ -95,43 +95,6 @@ pub enum ResponseItem {
     OpenResponseSchema(open::response_schema::Response),
 }
 
-/// Viewer-stream mirror of [`Request`] — the real command requests only
-/// (schema-introspection variants are excluded; the viewer streams
-/// actual command traffic). Untagged: each variant carries the leaf's
-/// `path_type`, so it stays discriminable.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.queue.ViewerRequest")]
-pub enum ViewerRequest {
-    #[schemars(title = "Delete")]
-    Delete(delete::ViewerRequest),
-    #[schemars(title = "Deliver")]
-    Deliver(deliver::ViewerRequest),
-    #[schemars(title = "List")]
-    List(list::ViewerRequest),
-    #[schemars(title = "Open")]
-    Open(open::ViewerRequest),
-}
-
-/// Viewer-stream mirror of [`ResponseItem`] — mirrors the base response
-/// aggregate: unary children carry their `ViewerResponse`, streaming
-/// children their `ViewerResponseItem`. Exempt from json-schema coverage:
-/// untagged response aggregate (mirrors the base `ResponseItem`, TS7056).
-#[objectiveai_sdk_macros::json_schema_ignore]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(untagged)]
-#[schemars(rename = "cli.command.agents.queue.ViewerResponseItem")]
-pub enum ViewerResponseItem {
-    #[schemars(title = "Delete")]
-    Delete(delete::ViewerResponse),
-    #[schemars(title = "Deliver")]
-    Deliver(deliver::ViewerResponseItem),
-    #[schemars(title = "List")]
-    List(list::ViewerResponseItem),
-    #[schemars(title = "Open")]
-    Open(open::ViewerResponse),
-}
-
 #[cfg(feature = "mcp")]
 impl crate::cli::command::CommandResponse for ResponseItem {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {

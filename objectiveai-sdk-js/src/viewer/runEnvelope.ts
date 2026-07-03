@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { type RunContext, type RunEnvelopeSpec, type RunStream } from "./pluginRuns";
 import { AgentCompletionsMessageRichContentPartSchema, type AgentCompletionsMessageRichContentPart } from "../agent/completions/message/richContentPart";
+import { type CliCommandAgentArguments } from "../cli/command/agentArguments";
 import { type CliCommandAgentsEnqueueRequest } from "../cli/command/agents/enqueue/request";
 import { type CliCommandAgentsEnqueueRequestSchemaRequest } from "../cli/command/agents/enqueue/request_schema/request";
 import { CliCommandAgentsEnqueueResponseSchema, type CliCommandAgentsEnqueueResponse } from "../cli/command/agents/enqueue/response";
@@ -345,6 +346,7 @@ import { type CliCommandPluginsRunResponseSchemaRequest } from "../cli/command/p
 import { type CliCommandPythonRequest } from "../cli/command/python/request";
 import { type CliCommandPythonRequestSchemaRequest } from "../cli/command/python/request_schema/request";
 import { type CliCommandPythonResponseSchemaRequest } from "../cli/command/python/response_schema/request";
+import { type CliCommandRequest } from "../cli/command/request";
 import { type CliCommandSwarmsGetRequest } from "../cli/command/swarms/get/request";
 import { type CliCommandSwarmsGetRequestSchemaRequest } from "../cli/command/swarms/get/request_schema/request";
 import { CliCommandSwarmsGetResponseSchema, type CliCommandSwarmsGetResponse } from "../cli/command/swarms/get/response";
@@ -3147,6 +3149,2738 @@ export type PluginRun =
   | ViewerSpawnRequestSchemaRunEnvelope
   | ViewerSpawnResponseSchemaRunEnvelope
   | UnknownRunEnvelope;
+
+/** `agents enqueue` — unary. */
+export type AgentsEnqueueRun = {
+  request: CliCommandAgentsEnqueueRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsEnqueueResponse>;
+};
+
+/** `agents enqueue request_schema` — unary. */
+export type AgentsEnqueueRequestSchemaRun = {
+  request: CliCommandAgentsEnqueueRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents enqueue response_schema` — unary. */
+export type AgentsEnqueueResponseSchemaRun = {
+  request: CliCommandAgentsEnqueueResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents get` — unary. */
+export type AgentsGetRun = {
+  request: CliCommandAgentsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsGetResponse>;
+};
+
+/** `agents get request_schema` — unary. */
+export type AgentsGetRequestSchemaRun = {
+  request: CliCommandAgentsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents get response_schema` — unary. */
+export type AgentsGetResponseSchemaRun = {
+  request: CliCommandAgentsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents instances get` — streaming. */
+export type AgentsInstancesGetRun = {
+  request: CliCommandAgentsInstancesGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsInstancesListResponseItem>;
+};
+
+/** `agents instances get request_schema` — unary. */
+export type AgentsInstancesGetRequestSchemaRun = {
+  request: CliCommandAgentsInstancesGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents instances get response_schema` — unary. */
+export type AgentsInstancesGetResponseSchemaRun = {
+  request: CliCommandAgentsInstancesGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents instances list` — streaming. */
+export type AgentsInstancesListRun = {
+  request: CliCommandAgentsInstancesListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsInstancesListResponseItem>;
+};
+
+/** `agents instances list request_schema` — unary. */
+export type AgentsInstancesListRequestSchemaRun = {
+  request: CliCommandAgentsInstancesListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents instances list response_schema` — unary. */
+export type AgentsInstancesListResponseSchemaRun = {
+  request: CliCommandAgentsInstancesListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories attach` — unary. */
+export type AgentsLaboratoriesAttachRun = {
+  request: CliCommandAgentsLaboratoriesAttachRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsLaboratoriesAttachResponse>;
+};
+
+/** `agents laboratories attach request_schema` — unary. */
+export type AgentsLaboratoriesAttachRequestSchemaRun = {
+  request: CliCommandAgentsLaboratoriesAttachRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories attach response_schema` — unary. */
+export type AgentsLaboratoriesAttachResponseSchemaRun = {
+  request: CliCommandAgentsLaboratoriesAttachResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories detach` — unary. */
+export type AgentsLaboratoriesDetachRun = {
+  request: CliCommandAgentsLaboratoriesDetachRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsLaboratoriesDetachResponse>;
+};
+
+/** `agents laboratories detach request_schema` — unary. */
+export type AgentsLaboratoriesDetachRequestSchemaRun = {
+  request: CliCommandAgentsLaboratoriesDetachRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories detach response_schema` — unary. */
+export type AgentsLaboratoriesDetachResponseSchemaRun = {
+  request: CliCommandAgentsLaboratoriesDetachResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories list` — streaming. */
+export type AgentsLaboratoriesListRun = {
+  request: CliCommandAgentsLaboratoriesListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsLaboratoriesListResponseItem>;
+};
+
+/** `agents laboratories list request_schema` — unary. */
+export type AgentsLaboratoriesListRequestSchemaRun = {
+  request: CliCommandAgentsLaboratoriesListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents laboratories list response_schema` — unary. */
+export type AgentsLaboratoriesListResponseSchemaRun = {
+  request: CliCommandAgentsLaboratoriesListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents list` — streaming. */
+export type AgentsListRun = {
+  request: CliCommandAgentsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | RemotePath>;
+};
+
+/** `agents list request_schema` — unary. */
+export type AgentsListRequestSchemaRun = {
+  request: CliCommandAgentsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents list response_schema` — unary. */
+export type AgentsListResponseSchemaRun = {
+  request: CliCommandAgentsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs list` — streaming. */
+export type AgentsLogsListRun = {
+  request: CliCommandAgentsLogsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsLogsListResponseItem>;
+};
+
+/** `agents logs list request_schema` — unary. */
+export type AgentsLogsListRequestSchemaRun = {
+  request: CliCommandAgentsLogsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs list response_schema` — unary. */
+export type AgentsLogsListResponseSchemaRun = {
+  request: CliCommandAgentsLogsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs open` — unary. */
+export type AgentsLogsOpenRun = {
+  request: CliCommandAgentsLogsOpenRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsLogsOpenResponse>;
+};
+
+/** `agents logs open request_schema` — unary. */
+export type AgentsLogsOpenRequestSchemaRun = {
+  request: CliCommandAgentsLogsOpenRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs open response_schema` — unary. */
+export type AgentsLogsOpenResponseSchemaRun = {
+  request: CliCommandAgentsLogsOpenResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs subscribe` — streaming. */
+export type AgentsLogsSubscribeRun = {
+  request: CliCommandAgentsLogsSubscribeRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsLogsSubscribeResponseItem>;
+};
+
+/** `agents logs subscribe request_schema` — unary. */
+export type AgentsLogsSubscribeRequestSchemaRun = {
+  request: CliCommandAgentsLogsSubscribeRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs subscribe response_schema` — unary. */
+export type AgentsLogsSubscribeResponseSchemaRun = {
+  request: CliCommandAgentsLogsSubscribeResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs token_usage get` — unary. */
+export type AgentsLogsTokenUsageGetRun = {
+  request: CliCommandAgentsLogsTokenUsageGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsLogsTokenUsageGetResponse>;
+};
+
+/** `agents logs token_usage get request_schema` — unary. */
+export type AgentsLogsTokenUsageGetRequestSchemaRun = {
+  request: CliCommandAgentsLogsTokenUsageGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs token_usage get response_schema` — unary. */
+export type AgentsLogsTokenUsageGetResponseSchemaRun = {
+  request: CliCommandAgentsLogsTokenUsageGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs token_usage subscribe` — streaming. */
+export type AgentsLogsTokenUsageSubscribeRun = {
+  request: CliCommandAgentsLogsTokenUsageSubscribeRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsLogsTokenUsageSubscribeResponseItem>;
+};
+
+/** `agents logs token_usage subscribe request_schema` — unary. */
+export type AgentsLogsTokenUsageSubscribeRequestSchemaRun = {
+  request: CliCommandAgentsLogsTokenUsageSubscribeRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents logs token_usage subscribe response_schema` — unary. */
+export type AgentsLogsTokenUsageSubscribeResponseSchemaRun = {
+  request: CliCommandAgentsLogsTokenUsageSubscribeResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp resources list request_schema` — unary. */
+export type AgentsMcpResourcesListRequestSchemaRun = {
+  request: CliCommandAgentsMcpResourcesListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp resources list response_schema` — unary. */
+export type AgentsMcpResourcesListResponseSchemaRun = {
+  request: CliCommandAgentsMcpResourcesListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp resources read request_schema` — unary. */
+export type AgentsMcpResourcesReadRequestSchemaRun = {
+  request: CliCommandAgentsMcpResourcesReadRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp resources read response_schema` — unary. */
+export type AgentsMcpResourcesReadResponseSchemaRun = {
+  request: CliCommandAgentsMcpResourcesReadResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp servers list request_schema` — unary. */
+export type AgentsMcpServersListRequestSchemaRun = {
+  request: CliCommandAgentsMcpServersListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp servers list response_schema` — unary. */
+export type AgentsMcpServersListResponseSchemaRun = {
+  request: CliCommandAgentsMcpServersListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp tools call request_schema` — unary. */
+export type AgentsMcpToolsCallRequestSchemaRun = {
+  request: CliCommandAgentsMcpToolsCallRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp tools call response_schema` — unary. */
+export type AgentsMcpToolsCallResponseSchemaRun = {
+  request: CliCommandAgentsMcpToolsCallResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp tools list request_schema` — unary. */
+export type AgentsMcpToolsListRequestSchemaRun = {
+  request: CliCommandAgentsMcpToolsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents mcp tools list response_schema` — unary. */
+export type AgentsMcpToolsListResponseSchemaRun = {
+  request: CliCommandAgentsMcpToolsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents message` — unary. */
+export type AgentsMessageRun = {
+  request: CliCommandAgentsMessageRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsMessageResponse>;
+};
+
+/** `agents message request_schema` — unary. */
+export type AgentsMessageRequestSchemaRun = {
+  request: CliCommandAgentsMessageRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents message response_schema` — unary. */
+export type AgentsMessageResponseSchemaRun = {
+  request: CliCommandAgentsMessageResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents publish` — unary. */
+export type AgentsPublishRun = {
+  request: CliCommandAgentsPublishRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsPublishResponse>;
+};
+
+/** `agents publish request_schema` — unary. */
+export type AgentsPublishRequestSchemaRun = {
+  request: CliCommandAgentsPublishRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents publish response_schema` — unary. */
+export type AgentsPublishResponseSchemaRun = {
+  request: CliCommandAgentsPublishResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue delete` — unary. */
+export type AgentsQueueDeleteRun = {
+  request: CliCommandAgentsQueueDeleteRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsQueueDeleteResponse>;
+};
+
+/** `agents queue delete request_schema` — unary. */
+export type AgentsQueueDeleteRequestSchemaRun = {
+  request: CliCommandAgentsQueueDeleteRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue delete response_schema` — unary. */
+export type AgentsQueueDeleteResponseSchemaRun = {
+  request: CliCommandAgentsQueueDeleteResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue deliver` — streaming. */
+export type AgentsQueueDeliverRun = {
+  request: CliCommandAgentsQueueDeliverRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsQueueDeliverResponseItem>;
+};
+
+/** `agents queue deliver request_schema` — unary. */
+export type AgentsQueueDeliverRequestSchemaRun = {
+  request: CliCommandAgentsQueueDeliverRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue deliver response_schema` — unary. */
+export type AgentsQueueDeliverResponseSchemaRun = {
+  request: CliCommandAgentsQueueDeliverResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue list` — streaming. */
+export type AgentsQueueListRun = {
+  request: CliCommandAgentsQueueListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsQueueListResponseItem>;
+};
+
+/** `agents queue list request_schema` — unary. */
+export type AgentsQueueListRequestSchemaRun = {
+  request: CliCommandAgentsQueueListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue list response_schema` — unary. */
+export type AgentsQueueListResponseSchemaRun = {
+  request: CliCommandAgentsQueueListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue open` — unary. */
+export type AgentsQueueOpenRun = {
+  request: CliCommandAgentsQueueOpenRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | AgentCompletionsMessageRichContentPart>;
+};
+
+/** `agents queue open request_schema` — unary. */
+export type AgentsQueueOpenRequestSchemaRun = {
+  request: CliCommandAgentsQueueOpenRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents queue open response_schema` — unary. */
+export type AgentsQueueOpenResponseSchemaRun = {
+  request: CliCommandAgentsQueueOpenResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents spawn` — unary form. */
+export type AgentsSpawnRun = {
+  request: CliCommandAgentsSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | string>;
+};
+
+/** `agents spawn` — streaming form (`dangerous_advanced.stream: true`). */
+export type AgentsSpawnStreamingRun = {
+  request: CliCommandAgentsSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandAgentsSpawnResponseItem>;
+};
+
+/** `agents spawn request_schema` — unary. */
+export type AgentsSpawnRequestSchemaRun = {
+  request: CliCommandAgentsSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents spawn response_schema` — unary. */
+export type AgentsSpawnResponseSchemaRun = {
+  request: CliCommandAgentsSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents tags apply` — unary. */
+export type AgentsTagsApplyRun = {
+  request: CliCommandAgentsTagsApplyRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandAgentsTagsApplyResponse>;
+};
+
+/** `agents tags apply request_schema` — unary. */
+export type AgentsTagsApplyRequestSchemaRun = {
+  request: CliCommandAgentsTagsApplyRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents tags apply response_schema` — unary. */
+export type AgentsTagsApplyResponseSchemaRun = {
+  request: CliCommandAgentsTagsApplyResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents tags lookup request_schema` — unary. */
+export type AgentsTagsLookupRequestSchemaRun = {
+  request: CliCommandAgentsTagsLookupRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents tags lookup response_schema` — unary. */
+export type AgentsTagsLookupResponseSchemaRun = {
+  request: CliCommandAgentsTagsLookupResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents wait` — unary. */
+export type AgentsWaitRun = {
+  request: CliCommandAgentsWaitRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `agents wait request_schema` — unary. */
+export type AgentsWaitRequestSchemaRun = {
+  request: CliCommandAgentsWaitRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `agents wait response_schema` — unary. */
+export type AgentsWaitResponseSchemaRun = {
+  request: CliCommandAgentsWaitResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config address get` — unary. */
+export type ApiConfigAddressGetRun = {
+  request: CliCommandApiConfigAddressGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigAddressGetResponse>;
+};
+
+/** `api config address get request_schema` — unary. */
+export type ApiConfigAddressGetRequestSchemaRun = {
+  request: CliCommandApiConfigAddressGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config address get response_schema` — unary. */
+export type ApiConfigAddressGetResponseSchemaRun = {
+  request: CliCommandApiConfigAddressGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config address set` — unary. */
+export type ApiConfigAddressSetRun = {
+  request: CliCommandApiConfigAddressSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config address set request_schema` — unary. */
+export type ApiConfigAddressSetRequestSchemaRun = {
+  request: CliCommandApiConfigAddressSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config address set response_schema` — unary. */
+export type ApiConfigAddressSetResponseSchemaRun = {
+  request: CliCommandApiConfigAddressSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config backoff_max_elapsed_time_ms get` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsGetRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponse>;
+};
+
+/** `api config backoff_max_elapsed_time_ms get request_schema` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config backoff_max_elapsed_time_ms get response_schema` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config backoff_max_elapsed_time_ms set` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsSetRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config backoff_max_elapsed_time_ms set request_schema` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config backoff_max_elapsed_time_ms set response_schema` — unary. */
+export type ApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRun = {
+  request: CliCommandApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_email get` — unary. */
+export type ApiConfigCommitAuthorEmailGetRun = {
+  request: CliCommandApiConfigCommitAuthorEmailGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigCommitAuthorEmailGetResponse>;
+};
+
+/** `api config commit_author_email get request_schema` — unary. */
+export type ApiConfigCommitAuthorEmailGetRequestSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorEmailGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_email get response_schema` — unary. */
+export type ApiConfigCommitAuthorEmailGetResponseSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorEmailGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_email set` — unary. */
+export type ApiConfigCommitAuthorEmailSetRun = {
+  request: CliCommandApiConfigCommitAuthorEmailSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config commit_author_email set request_schema` — unary. */
+export type ApiConfigCommitAuthorEmailSetRequestSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorEmailSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_email set response_schema` — unary. */
+export type ApiConfigCommitAuthorEmailSetResponseSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorEmailSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_name get` — unary. */
+export type ApiConfigCommitAuthorNameGetRun = {
+  request: CliCommandApiConfigCommitAuthorNameGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigCommitAuthorNameGetResponse>;
+};
+
+/** `api config commit_author_name get request_schema` — unary. */
+export type ApiConfigCommitAuthorNameGetRequestSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorNameGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_name get response_schema` — unary. */
+export type ApiConfigCommitAuthorNameGetResponseSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorNameGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_name set` — unary. */
+export type ApiConfigCommitAuthorNameSetRun = {
+  request: CliCommandApiConfigCommitAuthorNameSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config commit_author_name set request_schema` — unary. */
+export type ApiConfigCommitAuthorNameSetRequestSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorNameSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config commit_author_name set response_schema` — unary. */
+export type ApiConfigCommitAuthorNameSetResponseSchemaRun = {
+  request: CliCommandApiConfigCommitAuthorNameSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config get` — unary. */
+export type ApiConfigGetRun = {
+  request: CliCommandApiConfigGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigGetResponse>;
+};
+
+/** `api config get request_schema` — unary. */
+export type ApiConfigGetRequestSchemaRun = {
+  request: CliCommandApiConfigGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config get response_schema` — unary. */
+export type ApiConfigGetResponseSchemaRun = {
+  request: CliCommandApiConfigGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config github_authorization get` — unary. */
+export type ApiConfigGithubAuthorizationGetRun = {
+  request: CliCommandApiConfigGithubAuthorizationGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigGithubAuthorizationGetResponse>;
+};
+
+/** `api config github_authorization get request_schema` — unary. */
+export type ApiConfigGithubAuthorizationGetRequestSchemaRun = {
+  request: CliCommandApiConfigGithubAuthorizationGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config github_authorization get response_schema` — unary. */
+export type ApiConfigGithubAuthorizationGetResponseSchemaRun = {
+  request: CliCommandApiConfigGithubAuthorizationGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config github_authorization set` — unary. */
+export type ApiConfigGithubAuthorizationSetRun = {
+  request: CliCommandApiConfigGithubAuthorizationSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config github_authorization set request_schema` — unary. */
+export type ApiConfigGithubAuthorizationSetRequestSchemaRun = {
+  request: CliCommandApiConfigGithubAuthorizationSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config github_authorization set response_schema` — unary. */
+export type ApiConfigGithubAuthorizationSetResponseSchemaRun = {
+  request: CliCommandApiConfigGithubAuthorizationSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config http_referer get` — unary. */
+export type ApiConfigHttpRefererGetRun = {
+  request: CliCommandApiConfigHttpRefererGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigHttpRefererGetResponse>;
+};
+
+/** `api config http_referer get request_schema` — unary. */
+export type ApiConfigHttpRefererGetRequestSchemaRun = {
+  request: CliCommandApiConfigHttpRefererGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config http_referer get response_schema` — unary. */
+export type ApiConfigHttpRefererGetResponseSchemaRun = {
+  request: CliCommandApiConfigHttpRefererGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config http_referer set` — unary. */
+export type ApiConfigHttpRefererSetRun = {
+  request: CliCommandApiConfigHttpRefererSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config http_referer set request_schema` — unary. */
+export type ApiConfigHttpRefererSetRequestSchemaRun = {
+  request: CliCommandApiConfigHttpRefererSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config http_referer set response_schema` — unary. */
+export type ApiConfigHttpRefererSetResponseSchemaRun = {
+  request: CliCommandApiConfigHttpRefererSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization add` — unary. */
+export type ApiConfigMcpAuthorizationAddRun = {
+  request: CliCommandApiConfigMcpAuthorizationAddRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config mcp_authorization add request_schema` — unary. */
+export type ApiConfigMcpAuthorizationAddRequestSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationAddRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization add response_schema` — unary. */
+export type ApiConfigMcpAuthorizationAddResponseSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationAddResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization del` — unary. */
+export type ApiConfigMcpAuthorizationDelRun = {
+  request: CliCommandApiConfigMcpAuthorizationDelRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config mcp_authorization del request_schema` — unary. */
+export type ApiConfigMcpAuthorizationDelRequestSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationDelRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization del response_schema` — unary. */
+export type ApiConfigMcpAuthorizationDelResponseSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationDelResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization get` — unary. */
+export type ApiConfigMcpAuthorizationGetRun = {
+  request: CliCommandApiConfigMcpAuthorizationGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigMcpAuthorizationGetResponse>;
+};
+
+/** `api config mcp_authorization get request_schema` — unary. */
+export type ApiConfigMcpAuthorizationGetRequestSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_authorization get response_schema` — unary. */
+export type ApiConfigMcpAuthorizationGetResponseSchemaRun = {
+  request: CliCommandApiConfigMcpAuthorizationGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_timeout_ms get` — unary. */
+export type ApiConfigMcpTimeoutMsGetRun = {
+  request: CliCommandApiConfigMcpTimeoutMsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigMcpTimeoutMsGetResponse>;
+};
+
+/** `api config mcp_timeout_ms get request_schema` — unary. */
+export type ApiConfigMcpTimeoutMsGetRequestSchemaRun = {
+  request: CliCommandApiConfigMcpTimeoutMsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_timeout_ms get response_schema` — unary. */
+export type ApiConfigMcpTimeoutMsGetResponseSchemaRun = {
+  request: CliCommandApiConfigMcpTimeoutMsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_timeout_ms set` — unary. */
+export type ApiConfigMcpTimeoutMsSetRun = {
+  request: CliCommandApiConfigMcpTimeoutMsSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config mcp_timeout_ms set request_schema` — unary. */
+export type ApiConfigMcpTimeoutMsSetRequestSchemaRun = {
+  request: CliCommandApiConfigMcpTimeoutMsSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config mcp_timeout_ms set response_schema` — unary. */
+export type ApiConfigMcpTimeoutMsSetResponseSchemaRun = {
+  request: CliCommandApiConfigMcpTimeoutMsSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config objectiveai_authorization get` — unary. */
+export type ApiConfigObjectiveaiAuthorizationGetRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigObjectiveaiAuthorizationGetResponse>;
+};
+
+/** `api config objectiveai_authorization get request_schema` — unary. */
+export type ApiConfigObjectiveaiAuthorizationGetRequestSchemaRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config objectiveai_authorization get response_schema` — unary. */
+export type ApiConfigObjectiveaiAuthorizationGetResponseSchemaRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config objectiveai_authorization set` — unary. */
+export type ApiConfigObjectiveaiAuthorizationSetRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config objectiveai_authorization set request_schema` — unary. */
+export type ApiConfigObjectiveaiAuthorizationSetRequestSchemaRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config objectiveai_authorization set response_schema` — unary. */
+export type ApiConfigObjectiveaiAuthorizationSetResponseSchemaRun = {
+  request: CliCommandApiConfigObjectiveaiAuthorizationSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config openrouter_authorization get` — unary. */
+export type ApiConfigOpenrouterAuthorizationGetRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigOpenrouterAuthorizationGetResponse>;
+};
+
+/** `api config openrouter_authorization get request_schema` — unary. */
+export type ApiConfigOpenrouterAuthorizationGetRequestSchemaRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config openrouter_authorization get response_schema` — unary. */
+export type ApiConfigOpenrouterAuthorizationGetResponseSchemaRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config openrouter_authorization set` — unary. */
+export type ApiConfigOpenrouterAuthorizationSetRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config openrouter_authorization set request_schema` — unary. */
+export type ApiConfigOpenrouterAuthorizationSetRequestSchemaRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config openrouter_authorization set response_schema` — unary. */
+export type ApiConfigOpenrouterAuthorizationSetResponseSchemaRun = {
+  request: CliCommandApiConfigOpenrouterAuthorizationSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config user_agent get` — unary. */
+export type ApiConfigUserAgentGetRun = {
+  request: CliCommandApiConfigUserAgentGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigUserAgentGetResponse>;
+};
+
+/** `api config user_agent get request_schema` — unary. */
+export type ApiConfigUserAgentGetRequestSchemaRun = {
+  request: CliCommandApiConfigUserAgentGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config user_agent get response_schema` — unary. */
+export type ApiConfigUserAgentGetResponseSchemaRun = {
+  request: CliCommandApiConfigUserAgentGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config user_agent set` — unary. */
+export type ApiConfigUserAgentSetRun = {
+  request: CliCommandApiConfigUserAgentSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config user_agent set request_schema` — unary. */
+export type ApiConfigUserAgentSetRequestSchemaRun = {
+  request: CliCommandApiConfigUserAgentSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config user_agent set response_schema` — unary. */
+export type ApiConfigUserAgentSetResponseSchemaRun = {
+  request: CliCommandApiConfigUserAgentSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config x_title get` — unary. */
+export type ApiConfigXTitleGetRun = {
+  request: CliCommandApiConfigXTitleGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiConfigXTitleGetResponse>;
+};
+
+/** `api config x_title get request_schema` — unary. */
+export type ApiConfigXTitleGetRequestSchemaRun = {
+  request: CliCommandApiConfigXTitleGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config x_title get response_schema` — unary. */
+export type ApiConfigXTitleGetResponseSchemaRun = {
+  request: CliCommandApiConfigXTitleGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config x_title set` — unary. */
+export type ApiConfigXTitleSetRun = {
+  request: CliCommandApiConfigXTitleSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `api config x_title set request_schema` — unary. */
+export type ApiConfigXTitleSetRequestSchemaRun = {
+  request: CliCommandApiConfigXTitleSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api config x_title set response_schema` — unary. */
+export type ApiConfigXTitleSetResponseSchemaRun = {
+  request: CliCommandApiConfigXTitleSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api kill` — unary. */
+export type ApiKillRun = {
+  request: CliCommandApiKillRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiKillResponse>;
+};
+
+/** `api kill request_schema` — unary. */
+export type ApiKillRequestSchemaRun = {
+  request: CliCommandApiKillRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api kill response_schema` — unary. */
+export type ApiKillResponseSchemaRun = {
+  request: CliCommandApiKillResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api spawn` — unary. */
+export type ApiSpawnRun = {
+  request: CliCommandApiSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandApiSpawnResponse>;
+};
+
+/** `api spawn request_schema` — unary. */
+export type ApiSpawnRequestSchemaRun = {
+  request: CliCommandApiSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `api spawn response_schema` — unary. */
+export type ApiSpawnResponseSchemaRun = {
+  request: CliCommandApiSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `daemon kill` — unary. */
+export type DaemonKillRun = {
+  request: CliCommandDaemonKillRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDaemonKillResponse>;
+};
+
+/** `daemon kill request_schema` — unary. */
+export type DaemonKillRequestSchemaRun = {
+  request: CliCommandDaemonKillRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `daemon kill response_schema` — unary. */
+export type DaemonKillResponseSchemaRun = {
+  request: CliCommandDaemonKillResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `daemon spawn` — streaming. */
+export type DaemonSpawnRun = {
+  request: CliCommandDaemonSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandDaemonSpawnResponseItem>;
+};
+
+/** `daemon spawn request_schema` — unary. */
+export type DaemonSpawnRequestSchemaRun = {
+  request: CliCommandDaemonSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `daemon spawn response_schema` — unary. */
+export type DaemonSpawnResponseSchemaRun = {
+  request: CliCommandDaemonSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config address get` — unary. */
+export type DbConfigAddressGetRun = {
+  request: CliCommandDbConfigAddressGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbConfigAddressGetResponse>;
+};
+
+/** `db config address get request_schema` — unary. */
+export type DbConfigAddressGetRequestSchemaRun = {
+  request: CliCommandDbConfigAddressGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config address get response_schema` — unary. */
+export type DbConfigAddressGetResponseSchemaRun = {
+  request: CliCommandDbConfigAddressGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config address set` — unary. */
+export type DbConfigAddressSetRun = {
+  request: CliCommandDbConfigAddressSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `db config address set request_schema` — unary. */
+export type DbConfigAddressSetRequestSchemaRun = {
+  request: CliCommandDbConfigAddressSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config address set response_schema` — unary. */
+export type DbConfigAddressSetResponseSchemaRun = {
+  request: CliCommandDbConfigAddressSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config database get` — unary. */
+export type DbConfigDatabaseGetRun = {
+  request: CliCommandDbConfigDatabaseGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbConfigDatabaseGetResponse>;
+};
+
+/** `db config database get request_schema` — unary. */
+export type DbConfigDatabaseGetRequestSchemaRun = {
+  request: CliCommandDbConfigDatabaseGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config database get response_schema` — unary. */
+export type DbConfigDatabaseGetResponseSchemaRun = {
+  request: CliCommandDbConfigDatabaseGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config database set` — unary. */
+export type DbConfigDatabaseSetRun = {
+  request: CliCommandDbConfigDatabaseSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `db config database set request_schema` — unary. */
+export type DbConfigDatabaseSetRequestSchemaRun = {
+  request: CliCommandDbConfigDatabaseSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config database set response_schema` — unary. */
+export type DbConfigDatabaseSetResponseSchemaRun = {
+  request: CliCommandDbConfigDatabaseSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config get` — unary. */
+export type DbConfigGetRun = {
+  request: CliCommandDbConfigGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbConfigGetResponse>;
+};
+
+/** `db config get request_schema` — unary. */
+export type DbConfigGetRequestSchemaRun = {
+  request: CliCommandDbConfigGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config get response_schema` — unary. */
+export type DbConfigGetResponseSchemaRun = {
+  request: CliCommandDbConfigGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config password get` — unary. */
+export type DbConfigPasswordGetRun = {
+  request: CliCommandDbConfigPasswordGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbConfigPasswordGetResponse>;
+};
+
+/** `db config password get request_schema` — unary. */
+export type DbConfigPasswordGetRequestSchemaRun = {
+  request: CliCommandDbConfigPasswordGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config password get response_schema` — unary. */
+export type DbConfigPasswordGetResponseSchemaRun = {
+  request: CliCommandDbConfigPasswordGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config password set` — unary. */
+export type DbConfigPasswordSetRun = {
+  request: CliCommandDbConfigPasswordSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `db config password set request_schema` — unary. */
+export type DbConfigPasswordSetRequestSchemaRun = {
+  request: CliCommandDbConfigPasswordSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config password set response_schema` — unary. */
+export type DbConfigPasswordSetResponseSchemaRun = {
+  request: CliCommandDbConfigPasswordSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config user get` — unary. */
+export type DbConfigUserGetRun = {
+  request: CliCommandDbConfigUserGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbConfigUserGetResponse>;
+};
+
+/** `db config user get request_schema` — unary. */
+export type DbConfigUserGetRequestSchemaRun = {
+  request: CliCommandDbConfigUserGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config user get response_schema` — unary. */
+export type DbConfigUserGetResponseSchemaRun = {
+  request: CliCommandDbConfigUserGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config user set` — unary. */
+export type DbConfigUserSetRun = {
+  request: CliCommandDbConfigUserSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `db config user set request_schema` — unary. */
+export type DbConfigUserSetRequestSchemaRun = {
+  request: CliCommandDbConfigUserSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db config user set response_schema` — unary. */
+export type DbConfigUserSetResponseSchemaRun = {
+  request: CliCommandDbConfigUserSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db kill` — unary. */
+export type DbKillRun = {
+  request: CliCommandDbKillRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbKillResponse>;
+};
+
+/** `db kill request_schema` — unary. */
+export type DbKillRequestSchemaRun = {
+  request: CliCommandDbKillRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db kill response_schema` — unary. */
+export type DbKillResponseSchemaRun = {
+  request: CliCommandDbKillResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db query` — unary. */
+export type DbQueryRun = {
+  request: CliCommandDbQueryRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbQueryResponse>;
+};
+
+/** `db query request_schema` — unary. */
+export type DbQueryRequestSchemaRun = {
+  request: CliCommandDbQueryRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db query response_schema` — unary. */
+export type DbQueryResponseSchemaRun = {
+  request: CliCommandDbQueryResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db spawn` — unary. */
+export type DbSpawnRun = {
+  request: CliCommandDbSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandDbSpawnResponse>;
+};
+
+/** `db spawn request_schema` — unary. */
+export type DbSpawnRequestSchemaRun = {
+  request: CliCommandDbSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `db spawn response_schema` — unary. */
+export type DbSpawnResponseSchemaRun = {
+  request: CliCommandDbSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions execute standard` — unary form. */
+export type FunctionsExecuteStandardRun = {
+  request: CliCommandFunctionsExecuteStandardRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | string>;
+};
+
+/** `functions execute standard` — streaming form (`dangerous_advanced.stream: true`). */
+export type FunctionsExecuteStandardStreamingRun = {
+  request: CliCommandFunctionsExecuteStandardRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandFunctionsExecuteStandardResponseItem>;
+};
+
+/** `functions execute standard request_schema` — unary. */
+export type FunctionsExecuteStandardRequestSchemaRun = {
+  request: CliCommandFunctionsExecuteStandardRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions execute standard response_schema` — unary. */
+export type FunctionsExecuteStandardResponseSchemaRun = {
+  request: CliCommandFunctionsExecuteStandardResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions execute swiss_system` — unary form. */
+export type FunctionsExecuteSwissSystemRun = {
+  request: CliCommandFunctionsExecuteSwissSystemRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | string>;
+};
+
+/** `functions execute swiss_system` — streaming form (`dangerous_advanced.stream: true`). */
+export type FunctionsExecuteSwissSystemStreamingRun = {
+  request: CliCommandFunctionsExecuteSwissSystemRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandFunctionsExecuteSwissSystemResponseItem>;
+};
+
+/** `functions execute swiss_system request_schema` — unary. */
+export type FunctionsExecuteSwissSystemRequestSchemaRun = {
+  request: CliCommandFunctionsExecuteSwissSystemRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions execute swiss_system response_schema` — unary. */
+export type FunctionsExecuteSwissSystemResponseSchemaRun = {
+  request: CliCommandFunctionsExecuteSwissSystemResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions get` — unary. */
+export type FunctionsGetRun = {
+  request: CliCommandFunctionsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandFunctionsGetResponse>;
+};
+
+/** `functions get request_schema` — unary. */
+export type FunctionsGetRequestSchemaRun = {
+  request: CliCommandFunctionsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions get response_schema` — unary. */
+export type FunctionsGetResponseSchemaRun = {
+  request: CliCommandFunctionsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions list` — streaming. */
+export type FunctionsListRun = {
+  request: CliCommandFunctionsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | RemotePath>;
+};
+
+/** `functions list request_schema` — unary. */
+export type FunctionsListRequestSchemaRun = {
+  request: CliCommandFunctionsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions list response_schema` — unary. */
+export type FunctionsListResponseSchemaRun = {
+  request: CliCommandFunctionsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles get` — unary. */
+export type FunctionsProfilesGetRun = {
+  request: CliCommandFunctionsProfilesGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandFunctionsProfilesGetResponse>;
+};
+
+/** `functions profiles get request_schema` — unary. */
+export type FunctionsProfilesGetRequestSchemaRun = {
+  request: CliCommandFunctionsProfilesGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles get response_schema` — unary. */
+export type FunctionsProfilesGetResponseSchemaRun = {
+  request: CliCommandFunctionsProfilesGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles list` — streaming. */
+export type FunctionsProfilesListRun = {
+  request: CliCommandFunctionsProfilesListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | RemotePath>;
+};
+
+/** `functions profiles list request_schema` — unary. */
+export type FunctionsProfilesListRequestSchemaRun = {
+  request: CliCommandFunctionsProfilesListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles list response_schema` — unary. */
+export type FunctionsProfilesListResponseSchemaRun = {
+  request: CliCommandFunctionsProfilesListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles publish` — unary. */
+export type FunctionsProfilesPublishRun = {
+  request: CliCommandFunctionsProfilesPublishRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandFunctionsProfilesPublishResponse>;
+};
+
+/** `functions profiles publish request_schema` — unary. */
+export type FunctionsProfilesPublishRequestSchemaRun = {
+  request: CliCommandFunctionsProfilesPublishRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions profiles publish response_schema` — unary. */
+export type FunctionsProfilesPublishResponseSchemaRun = {
+  request: CliCommandFunctionsProfilesPublishResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions publish` — unary. */
+export type FunctionsPublishRun = {
+  request: CliCommandFunctionsPublishRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandFunctionsPublishResponse>;
+};
+
+/** `functions publish request_schema` — unary. */
+export type FunctionsPublishRequestSchemaRun = {
+  request: CliCommandFunctionsPublishRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `functions publish response_schema` — unary. */
+export type FunctionsPublishResponseSchemaRun = {
+  request: CliCommandFunctionsPublishResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `kill_all` — unary. */
+export type KillAllRun = {
+  request: CliCommandKillAllRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandKillAllResponse>;
+};
+
+/** `kill_all request_schema` — unary. */
+export type KillAllRequestSchemaRun = {
+  request: CliCommandKillAllRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `kill_all response_schema` — unary. */
+export type KillAllResponseSchemaRun = {
+  request: CliCommandKillAllResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `laboratories create` — unary. */
+export type LaboratoriesCreateRun = {
+  request: CliCommandLaboratoriesCreateRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandLaboratoriesCreateResponse>;
+};
+
+/** `laboratories create request_schema` — unary. */
+export type LaboratoriesCreateRequestSchemaRun = {
+  request: CliCommandLaboratoriesCreateRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `laboratories create response_schema` — unary. */
+export type LaboratoriesCreateResponseSchemaRun = {
+  request: CliCommandLaboratoriesCreateResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `laboratories list` — streaming. */
+export type LaboratoriesListRun = {
+  request: CliCommandLaboratoriesListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandLaboratoriesListResponseItem>;
+};
+
+/** `laboratories list request_schema` — unary. */
+export type LaboratoriesListRequestSchemaRun = {
+  request: CliCommandLaboratoriesListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `laboratories list response_schema` — unary. */
+export type LaboratoriesListResponseSchemaRun = {
+  request: CliCommandLaboratoriesListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config address get` — unary. */
+export type McpConfigAddressGetRun = {
+  request: CliCommandMcpConfigAddressGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandMcpConfigAddressGetResponse>;
+};
+
+/** `mcp config address get request_schema` — unary. */
+export type McpConfigAddressGetRequestSchemaRun = {
+  request: CliCommandMcpConfigAddressGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config address get response_schema` — unary. */
+export type McpConfigAddressGetResponseSchemaRun = {
+  request: CliCommandMcpConfigAddressGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config address set` — unary. */
+export type McpConfigAddressSetRun = {
+  request: CliCommandMcpConfigAddressSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `mcp config address set request_schema` — unary. */
+export type McpConfigAddressSetRequestSchemaRun = {
+  request: CliCommandMcpConfigAddressSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config address set response_schema` — unary. */
+export type McpConfigAddressSetResponseSchemaRun = {
+  request: CliCommandMcpConfigAddressSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config get` — unary. */
+export type McpConfigGetRun = {
+  request: CliCommandMcpConfigGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandMcpConfigGetResponse>;
+};
+
+/** `mcp config get request_schema` — unary. */
+export type McpConfigGetRequestSchemaRun = {
+  request: CliCommandMcpConfigGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config get response_schema` — unary. */
+export type McpConfigGetResponseSchemaRun = {
+  request: CliCommandMcpConfigGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config port get` — unary. */
+export type McpConfigPortGetRun = {
+  request: CliCommandMcpConfigPortGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandMcpConfigPortGetResponse>;
+};
+
+/** `mcp config port get request_schema` — unary. */
+export type McpConfigPortGetRequestSchemaRun = {
+  request: CliCommandMcpConfigPortGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config port get response_schema` — unary. */
+export type McpConfigPortGetResponseSchemaRun = {
+  request: CliCommandMcpConfigPortGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config port set` — unary. */
+export type McpConfigPortSetRun = {
+  request: CliCommandMcpConfigPortSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `mcp config port set request_schema` — unary. */
+export type McpConfigPortSetRequestSchemaRun = {
+  request: CliCommandMcpConfigPortSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp config port set response_schema` — unary. */
+export type McpConfigPortSetResponseSchemaRun = {
+  request: CliCommandMcpConfigPortSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp kill` — unary. */
+export type McpKillRun = {
+  request: CliCommandMcpKillRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandMcpKillResponse>;
+};
+
+/** `mcp kill request_schema` — unary. */
+export type McpKillRequestSchemaRun = {
+  request: CliCommandMcpKillRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp kill response_schema` — unary. */
+export type McpKillResponseSchemaRun = {
+  request: CliCommandMcpKillResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp spawn` — unary. */
+export type McpSpawnRun = {
+  request: CliCommandMcpSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandMcpSpawnResponse>;
+};
+
+/** `mcp spawn request_schema` — unary. */
+export type McpSpawnRequestSchemaRun = {
+  request: CliCommandMcpSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `mcp spawn response_schema` — unary. */
+export type McpSpawnResponseSchemaRun = {
+  request: CliCommandMcpSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins get` — unary. */
+export type PluginsGetRun = {
+  request: CliCommandPluginsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandPluginsGetResponseManifest | null>;
+};
+
+/** `plugins get request_schema` — unary. */
+export type PluginsGetRequestSchemaRun = {
+  request: CliCommandPluginsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins get response_schema` — unary. */
+export type PluginsGetResponseSchemaRun = {
+  request: CliCommandPluginsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins install filesystem` — unary. */
+export type PluginsInstallFilesystemRun = {
+  request: CliCommandPluginsInstallFilesystemRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandPluginsInstallFilesystemResponse>;
+};
+
+/** `plugins install filesystem request_schema` — unary. */
+export type PluginsInstallFilesystemRequestSchemaRun = {
+  request: CliCommandPluginsInstallFilesystemRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins install filesystem response_schema` — unary. */
+export type PluginsInstallFilesystemResponseSchemaRun = {
+  request: CliCommandPluginsInstallFilesystemResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins install github` — unary. */
+export type PluginsInstallGithubRun = {
+  request: CliCommandPluginsInstallGithubRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandPluginsInstallGithubResponse>;
+};
+
+/** `plugins install github request_schema` — unary. */
+export type PluginsInstallGithubRequestSchemaRun = {
+  request: CliCommandPluginsInstallGithubRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins install github response_schema` — unary. */
+export type PluginsInstallGithubResponseSchemaRun = {
+  request: CliCommandPluginsInstallGithubResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins list` — streaming. */
+export type PluginsListRun = {
+  request: CliCommandPluginsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandPluginsGetResponseManifest>;
+};
+
+/** `plugins list request_schema` — unary. */
+export type PluginsListRequestSchemaRun = {
+  request: CliCommandPluginsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins list response_schema` — unary. */
+export type PluginsListResponseSchemaRun = {
+  request: CliCommandPluginsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins logs list` — streaming. */
+export type PluginsLogsListRun = {
+  request: CliCommandPluginsLogsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandPluginsLogsListResponseItem>;
+};
+
+/** `plugins logs list request_schema` — unary. */
+export type PluginsLogsListRequestSchemaRun = {
+  request: CliCommandPluginsLogsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins logs list response_schema` — unary. */
+export type PluginsLogsListResponseSchemaRun = {
+  request: CliCommandPluginsLogsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins run` — streaming. */
+export type PluginsRunRun = {
+  request: CliCommandPluginsRunRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandPluginsRunResponseItem>;
+};
+
+/** `plugins run request_schema` — unary. */
+export type PluginsRunRequestSchemaRun = {
+  request: CliCommandPluginsRunRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `plugins run response_schema` — unary. */
+export type PluginsRunResponseSchemaRun = {
+  request: CliCommandPluginsRunResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `python` — unary. */
+export type PythonRun = {
+  request: CliCommandPythonRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `python request_schema` — unary. */
+export type PythonRequestSchemaRun = {
+  request: CliCommandPythonRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `python response_schema` — unary. */
+export type PythonResponseSchemaRun = {
+  request: CliCommandPythonResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms get` — unary. */
+export type SwarmsGetRun = {
+  request: CliCommandSwarmsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandSwarmsGetResponse>;
+};
+
+/** `swarms get request_schema` — unary. */
+export type SwarmsGetRequestSchemaRun = {
+  request: CliCommandSwarmsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms get response_schema` — unary. */
+export type SwarmsGetResponseSchemaRun = {
+  request: CliCommandSwarmsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms list` — streaming. */
+export type SwarmsListRun = {
+  request: CliCommandSwarmsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | RemotePath>;
+};
+
+/** `swarms list request_schema` — unary. */
+export type SwarmsListRequestSchemaRun = {
+  request: CliCommandSwarmsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms list response_schema` — unary. */
+export type SwarmsListResponseSchemaRun = {
+  request: CliCommandSwarmsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms publish` — unary. */
+export type SwarmsPublishRun = {
+  request: CliCommandSwarmsPublishRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandSwarmsPublishResponse>;
+};
+
+/** `swarms publish request_schema` — unary. */
+export type SwarmsPublishRequestSchemaRun = {
+  request: CliCommandSwarmsPublishRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `swarms publish response_schema` — unary. */
+export type SwarmsPublishResponseSchemaRun = {
+  request: CliCommandSwarmsPublishResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools get` — unary. */
+export type ToolsGetRun = {
+  request: CliCommandToolsGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandToolsGetResponseManifest | null>;
+};
+
+/** `tools get request_schema` — unary. */
+export type ToolsGetRequestSchemaRun = {
+  request: CliCommandToolsGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools get response_schema` — unary. */
+export type ToolsGetResponseSchemaRun = {
+  request: CliCommandToolsGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools install filesystem` — unary. */
+export type ToolsInstallFilesystemRun = {
+  request: CliCommandToolsInstallFilesystemRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandToolsInstallFilesystemResponse>;
+};
+
+/** `tools install filesystem request_schema` — unary. */
+export type ToolsInstallFilesystemRequestSchemaRun = {
+  request: CliCommandToolsInstallFilesystemRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools install filesystem response_schema` — unary. */
+export type ToolsInstallFilesystemResponseSchemaRun = {
+  request: CliCommandToolsInstallFilesystemResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools install github` — unary. */
+export type ToolsInstallGithubRun = {
+  request: CliCommandToolsInstallGithubRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandToolsInstallGithubResponse>;
+};
+
+/** `tools install github request_schema` — unary. */
+export type ToolsInstallGithubRequestSchemaRun = {
+  request: CliCommandToolsInstallGithubRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools install github response_schema` — unary. */
+export type ToolsInstallGithubResponseSchemaRun = {
+  request: CliCommandToolsInstallGithubResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools list` — streaming. */
+export type ToolsListRun = {
+  request: CliCommandToolsListRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandToolsGetResponseManifest>;
+};
+
+/** `tools list request_schema` — unary. */
+export type ToolsListRequestSchemaRun = {
+  request: CliCommandToolsListRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools list response_schema` — unary. */
+export type ToolsListResponseSchemaRun = {
+  request: CliCommandToolsListResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools run` — streaming. */
+export type ToolsRunRun = {
+  request: CliCommandToolsRunRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandToolsRunResponseItem>;
+};
+
+/** `tools run request_schema` — unary. */
+export type ToolsRunRequestSchemaRun = {
+  request: CliCommandToolsRunRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `tools run response_schema` — unary. */
+export type ToolsRunResponseSchemaRun = {
+  request: CliCommandToolsRunResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `update` — streaming. */
+export type UpdateRun = {
+  request: CliCommandUpdateRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<CliError | CliCommandUpdateResponseItem>;
+};
+
+/** `update request_schema` — unary. */
+export type UpdateRequestSchemaRun = {
+  request: CliCommandUpdateRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `update response_schema` — unary. */
+export type UpdateResponseSchemaRun = {
+  request: CliCommandUpdateResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config address get` — unary. */
+export type ViewerConfigAddressGetRun = {
+  request: CliCommandViewerConfigAddressGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerConfigAddressGetResponse>;
+};
+
+/** `viewer config address get request_schema` — unary. */
+export type ViewerConfigAddressGetRequestSchemaRun = {
+  request: CliCommandViewerConfigAddressGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config address get response_schema` — unary. */
+export type ViewerConfigAddressGetResponseSchemaRun = {
+  request: CliCommandViewerConfigAddressGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config address set` — unary. */
+export type ViewerConfigAddressSetRun = {
+  request: CliCommandViewerConfigAddressSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `viewer config address set request_schema` — unary. */
+export type ViewerConfigAddressSetRequestSchemaRun = {
+  request: CliCommandViewerConfigAddressSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config address set response_schema` — unary. */
+export type ViewerConfigAddressSetResponseSchemaRun = {
+  request: CliCommandViewerConfigAddressSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config get` — unary. */
+export type ViewerConfigGetRun = {
+  request: CliCommandViewerConfigGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerConfigGetResponse>;
+};
+
+/** `viewer config get request_schema` — unary. */
+export type ViewerConfigGetRequestSchemaRun = {
+  request: CliCommandViewerConfigGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config get response_schema` — unary. */
+export type ViewerConfigGetResponseSchemaRun = {
+  request: CliCommandViewerConfigGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config secret get` — unary. */
+export type ViewerConfigSecretGetRun = {
+  request: CliCommandViewerConfigSecretGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerConfigSecretGetResponse>;
+};
+
+/** `viewer config secret get request_schema` — unary. */
+export type ViewerConfigSecretGetRequestSchemaRun = {
+  request: CliCommandViewerConfigSecretGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config secret get response_schema` — unary. */
+export type ViewerConfigSecretGetResponseSchemaRun = {
+  request: CliCommandViewerConfigSecretGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config secret set` — unary. */
+export type ViewerConfigSecretSetRun = {
+  request: CliCommandViewerConfigSecretSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `viewer config secret set request_schema` — unary. */
+export type ViewerConfigSecretSetRequestSchemaRun = {
+  request: CliCommandViewerConfigSecretSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config secret set response_schema` — unary. */
+export type ViewerConfigSecretSetResponseSchemaRun = {
+  request: CliCommandViewerConfigSecretSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config signature get` — unary. */
+export type ViewerConfigSignatureGetRun = {
+  request: CliCommandViewerConfigSignatureGetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerConfigSignatureGetResponse>;
+};
+
+/** `viewer config signature get request_schema` — unary. */
+export type ViewerConfigSignatureGetRequestSchemaRun = {
+  request: CliCommandViewerConfigSignatureGetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config signature get response_schema` — unary. */
+export type ViewerConfigSignatureGetResponseSchemaRun = {
+  request: CliCommandViewerConfigSignatureGetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config signature set` — unary. */
+export type ViewerConfigSignatureSetRun = {
+  request: CliCommandViewerConfigSignatureSetRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandOk>;
+};
+
+/** `viewer config signature set request_schema` — unary. */
+export type ViewerConfigSignatureSetRequestSchemaRun = {
+  request: CliCommandViewerConfigSignatureSetRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer config signature set response_schema` — unary. */
+export type ViewerConfigSignatureSetResponseSchemaRun = {
+  request: CliCommandViewerConfigSignatureSetResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer generate_secret_signature_pair` — unary. */
+export type ViewerGenerateSecretSignaturePairRun = {
+  request: CliCommandViewerGenerateSecretSignaturePairRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerGenerateSecretSignaturePairResponse>;
+};
+
+/** `viewer generate_secret_signature_pair request_schema` — unary. */
+export type ViewerGenerateSecretSignaturePairRequestSchemaRun = {
+  request: CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer generate_secret_signature_pair response_schema` — unary. */
+export type ViewerGenerateSecretSignaturePairResponseSchemaRun = {
+  request: CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer kill` — unary. */
+export type ViewerKillRun = {
+  request: CliCommandViewerKillRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerKillResponse>;
+};
+
+/** `viewer kill request_schema` — unary. */
+export type ViewerKillRequestSchemaRun = {
+  request: CliCommandViewerKillRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer kill response_schema` — unary. */
+export type ViewerKillResponseSchemaRun = {
+  request: CliCommandViewerKillResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer spawn` — unary. */
+export type ViewerSpawnRun = {
+  request: CliCommandViewerSpawnRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | CliCommandViewerSpawnResponse>;
+};
+
+/** `viewer spawn request_schema` — unary. */
+export type ViewerSpawnRequestSchemaRun = {
+  request: CliCommandViewerSpawnRequestSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** `viewer spawn response_schema` — unary. */
+export type ViewerSpawnResponseSchemaRun = {
+  request: CliCommandViewerSpawnResponseSchemaRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: Promise<CliError | JsonValue>;
+};
+
+/** A run whose request carries a jq/python output transform: its
+ * items are post-transform JSON with no static shape, so they stay
+ * raw (the request itself is the typed root aggregate). */
+export type TransformedRun = {
+  request: CliCommandRequest;
+  agentArguments: CliCommandAgentArguments;
+  response: RunStream<JsonValue>;
+};
+
+/** One daemon-broadcast run — the mirror of the Rust SDK's
+ * `cli::websocket_listener::Run`, consumed by `RunListener`.
+ * Discriminated purely off the request: narrow on
+ * `run.request.path_type` to type `run.response` — a `Promise` for
+ * unary leaves, a `RunStream` for streaming leaves (multi-variant
+ * leaves narrow further via the request's
+ * `dangerous_advanced.stream` flag). No unknown fallback: a run
+ * this build's types predate is skipped by the listener. */
+export type Run =
+  | AgentsEnqueueRun
+  | AgentsEnqueueRequestSchemaRun
+  | AgentsEnqueueResponseSchemaRun
+  | AgentsGetRun
+  | AgentsGetRequestSchemaRun
+  | AgentsGetResponseSchemaRun
+  | AgentsInstancesGetRun
+  | AgentsInstancesGetRequestSchemaRun
+  | AgentsInstancesGetResponseSchemaRun
+  | AgentsInstancesListRun
+  | AgentsInstancesListRequestSchemaRun
+  | AgentsInstancesListResponseSchemaRun
+  | AgentsLaboratoriesAttachRun
+  | AgentsLaboratoriesAttachRequestSchemaRun
+  | AgentsLaboratoriesAttachResponseSchemaRun
+  | AgentsLaboratoriesDetachRun
+  | AgentsLaboratoriesDetachRequestSchemaRun
+  | AgentsLaboratoriesDetachResponseSchemaRun
+  | AgentsLaboratoriesListRun
+  | AgentsLaboratoriesListRequestSchemaRun
+  | AgentsLaboratoriesListResponseSchemaRun
+  | AgentsListRun
+  | AgentsListRequestSchemaRun
+  | AgentsListResponseSchemaRun
+  | AgentsLogsListRun
+  | AgentsLogsListRequestSchemaRun
+  | AgentsLogsListResponseSchemaRun
+  | AgentsLogsOpenRun
+  | AgentsLogsOpenRequestSchemaRun
+  | AgentsLogsOpenResponseSchemaRun
+  | AgentsLogsSubscribeRun
+  | AgentsLogsSubscribeRequestSchemaRun
+  | AgentsLogsSubscribeResponseSchemaRun
+  | AgentsLogsTokenUsageGetRun
+  | AgentsLogsTokenUsageGetRequestSchemaRun
+  | AgentsLogsTokenUsageGetResponseSchemaRun
+  | AgentsLogsTokenUsageSubscribeRun
+  | AgentsLogsTokenUsageSubscribeRequestSchemaRun
+  | AgentsLogsTokenUsageSubscribeResponseSchemaRun
+  | AgentsMcpResourcesListRequestSchemaRun
+  | AgentsMcpResourcesListResponseSchemaRun
+  | AgentsMcpResourcesReadRequestSchemaRun
+  | AgentsMcpResourcesReadResponseSchemaRun
+  | AgentsMcpServersListRequestSchemaRun
+  | AgentsMcpServersListResponseSchemaRun
+  | AgentsMcpToolsCallRequestSchemaRun
+  | AgentsMcpToolsCallResponseSchemaRun
+  | AgentsMcpToolsListRequestSchemaRun
+  | AgentsMcpToolsListResponseSchemaRun
+  | AgentsMessageRun
+  | AgentsMessageRequestSchemaRun
+  | AgentsMessageResponseSchemaRun
+  | AgentsPublishRun
+  | AgentsPublishRequestSchemaRun
+  | AgentsPublishResponseSchemaRun
+  | AgentsQueueDeleteRun
+  | AgentsQueueDeleteRequestSchemaRun
+  | AgentsQueueDeleteResponseSchemaRun
+  | AgentsQueueDeliverRun
+  | AgentsQueueDeliverRequestSchemaRun
+  | AgentsQueueDeliverResponseSchemaRun
+  | AgentsQueueListRun
+  | AgentsQueueListRequestSchemaRun
+  | AgentsQueueListResponseSchemaRun
+  | AgentsQueueOpenRun
+  | AgentsQueueOpenRequestSchemaRun
+  | AgentsQueueOpenResponseSchemaRun
+  | AgentsSpawnRun
+  | AgentsSpawnStreamingRun
+  | AgentsSpawnRequestSchemaRun
+  | AgentsSpawnResponseSchemaRun
+  | AgentsTagsApplyRun
+  | AgentsTagsApplyRequestSchemaRun
+  | AgentsTagsApplyResponseSchemaRun
+  | AgentsTagsLookupRequestSchemaRun
+  | AgentsTagsLookupResponseSchemaRun
+  | AgentsWaitRun
+  | AgentsWaitRequestSchemaRun
+  | AgentsWaitResponseSchemaRun
+  | ApiConfigAddressGetRun
+  | ApiConfigAddressGetRequestSchemaRun
+  | ApiConfigAddressGetResponseSchemaRun
+  | ApiConfigAddressSetRun
+  | ApiConfigAddressSetRequestSchemaRun
+  | ApiConfigAddressSetResponseSchemaRun
+  | ApiConfigBackoffMaxElapsedTimeMsGetRun
+  | ApiConfigBackoffMaxElapsedTimeMsGetRequestSchemaRun
+  | ApiConfigBackoffMaxElapsedTimeMsGetResponseSchemaRun
+  | ApiConfigBackoffMaxElapsedTimeMsSetRun
+  | ApiConfigBackoffMaxElapsedTimeMsSetRequestSchemaRun
+  | ApiConfigBackoffMaxElapsedTimeMsSetResponseSchemaRun
+  | ApiConfigCommitAuthorEmailGetRun
+  | ApiConfigCommitAuthorEmailGetRequestSchemaRun
+  | ApiConfigCommitAuthorEmailGetResponseSchemaRun
+  | ApiConfigCommitAuthorEmailSetRun
+  | ApiConfigCommitAuthorEmailSetRequestSchemaRun
+  | ApiConfigCommitAuthorEmailSetResponseSchemaRun
+  | ApiConfigCommitAuthorNameGetRun
+  | ApiConfigCommitAuthorNameGetRequestSchemaRun
+  | ApiConfigCommitAuthorNameGetResponseSchemaRun
+  | ApiConfigCommitAuthorNameSetRun
+  | ApiConfigCommitAuthorNameSetRequestSchemaRun
+  | ApiConfigCommitAuthorNameSetResponseSchemaRun
+  | ApiConfigGetRun
+  | ApiConfigGetRequestSchemaRun
+  | ApiConfigGetResponseSchemaRun
+  | ApiConfigGithubAuthorizationGetRun
+  | ApiConfigGithubAuthorizationGetRequestSchemaRun
+  | ApiConfigGithubAuthorizationGetResponseSchemaRun
+  | ApiConfigGithubAuthorizationSetRun
+  | ApiConfigGithubAuthorizationSetRequestSchemaRun
+  | ApiConfigGithubAuthorizationSetResponseSchemaRun
+  | ApiConfigHttpRefererGetRun
+  | ApiConfigHttpRefererGetRequestSchemaRun
+  | ApiConfigHttpRefererGetResponseSchemaRun
+  | ApiConfigHttpRefererSetRun
+  | ApiConfigHttpRefererSetRequestSchemaRun
+  | ApiConfigHttpRefererSetResponseSchemaRun
+  | ApiConfigMcpAuthorizationAddRun
+  | ApiConfigMcpAuthorizationAddRequestSchemaRun
+  | ApiConfigMcpAuthorizationAddResponseSchemaRun
+  | ApiConfigMcpAuthorizationDelRun
+  | ApiConfigMcpAuthorizationDelRequestSchemaRun
+  | ApiConfigMcpAuthorizationDelResponseSchemaRun
+  | ApiConfigMcpAuthorizationGetRun
+  | ApiConfigMcpAuthorizationGetRequestSchemaRun
+  | ApiConfigMcpAuthorizationGetResponseSchemaRun
+  | ApiConfigMcpTimeoutMsGetRun
+  | ApiConfigMcpTimeoutMsGetRequestSchemaRun
+  | ApiConfigMcpTimeoutMsGetResponseSchemaRun
+  | ApiConfigMcpTimeoutMsSetRun
+  | ApiConfigMcpTimeoutMsSetRequestSchemaRun
+  | ApiConfigMcpTimeoutMsSetResponseSchemaRun
+  | ApiConfigObjectiveaiAuthorizationGetRun
+  | ApiConfigObjectiveaiAuthorizationGetRequestSchemaRun
+  | ApiConfigObjectiveaiAuthorizationGetResponseSchemaRun
+  | ApiConfigObjectiveaiAuthorizationSetRun
+  | ApiConfigObjectiveaiAuthorizationSetRequestSchemaRun
+  | ApiConfigObjectiveaiAuthorizationSetResponseSchemaRun
+  | ApiConfigOpenrouterAuthorizationGetRun
+  | ApiConfigOpenrouterAuthorizationGetRequestSchemaRun
+  | ApiConfigOpenrouterAuthorizationGetResponseSchemaRun
+  | ApiConfigOpenrouterAuthorizationSetRun
+  | ApiConfigOpenrouterAuthorizationSetRequestSchemaRun
+  | ApiConfigOpenrouterAuthorizationSetResponseSchemaRun
+  | ApiConfigUserAgentGetRun
+  | ApiConfigUserAgentGetRequestSchemaRun
+  | ApiConfigUserAgentGetResponseSchemaRun
+  | ApiConfigUserAgentSetRun
+  | ApiConfigUserAgentSetRequestSchemaRun
+  | ApiConfigUserAgentSetResponseSchemaRun
+  | ApiConfigXTitleGetRun
+  | ApiConfigXTitleGetRequestSchemaRun
+  | ApiConfigXTitleGetResponseSchemaRun
+  | ApiConfigXTitleSetRun
+  | ApiConfigXTitleSetRequestSchemaRun
+  | ApiConfigXTitleSetResponseSchemaRun
+  | ApiKillRun
+  | ApiKillRequestSchemaRun
+  | ApiKillResponseSchemaRun
+  | ApiSpawnRun
+  | ApiSpawnRequestSchemaRun
+  | ApiSpawnResponseSchemaRun
+  | DaemonKillRun
+  | DaemonKillRequestSchemaRun
+  | DaemonKillResponseSchemaRun
+  | DaemonSpawnRun
+  | DaemonSpawnRequestSchemaRun
+  | DaemonSpawnResponseSchemaRun
+  | DbConfigAddressGetRun
+  | DbConfigAddressGetRequestSchemaRun
+  | DbConfigAddressGetResponseSchemaRun
+  | DbConfigAddressSetRun
+  | DbConfigAddressSetRequestSchemaRun
+  | DbConfigAddressSetResponseSchemaRun
+  | DbConfigDatabaseGetRun
+  | DbConfigDatabaseGetRequestSchemaRun
+  | DbConfigDatabaseGetResponseSchemaRun
+  | DbConfigDatabaseSetRun
+  | DbConfigDatabaseSetRequestSchemaRun
+  | DbConfigDatabaseSetResponseSchemaRun
+  | DbConfigGetRun
+  | DbConfigGetRequestSchemaRun
+  | DbConfigGetResponseSchemaRun
+  | DbConfigPasswordGetRun
+  | DbConfigPasswordGetRequestSchemaRun
+  | DbConfigPasswordGetResponseSchemaRun
+  | DbConfigPasswordSetRun
+  | DbConfigPasswordSetRequestSchemaRun
+  | DbConfigPasswordSetResponseSchemaRun
+  | DbConfigUserGetRun
+  | DbConfigUserGetRequestSchemaRun
+  | DbConfigUserGetResponseSchemaRun
+  | DbConfigUserSetRun
+  | DbConfigUserSetRequestSchemaRun
+  | DbConfigUserSetResponseSchemaRun
+  | DbKillRun
+  | DbKillRequestSchemaRun
+  | DbKillResponseSchemaRun
+  | DbQueryRun
+  | DbQueryRequestSchemaRun
+  | DbQueryResponseSchemaRun
+  | DbSpawnRun
+  | DbSpawnRequestSchemaRun
+  | DbSpawnResponseSchemaRun
+  | FunctionsExecuteStandardRun
+  | FunctionsExecuteStandardStreamingRun
+  | FunctionsExecuteStandardRequestSchemaRun
+  | FunctionsExecuteStandardResponseSchemaRun
+  | FunctionsExecuteSwissSystemRun
+  | FunctionsExecuteSwissSystemStreamingRun
+  | FunctionsExecuteSwissSystemRequestSchemaRun
+  | FunctionsExecuteSwissSystemResponseSchemaRun
+  | FunctionsGetRun
+  | FunctionsGetRequestSchemaRun
+  | FunctionsGetResponseSchemaRun
+  | FunctionsListRun
+  | FunctionsListRequestSchemaRun
+  | FunctionsListResponseSchemaRun
+  | FunctionsProfilesGetRun
+  | FunctionsProfilesGetRequestSchemaRun
+  | FunctionsProfilesGetResponseSchemaRun
+  | FunctionsProfilesListRun
+  | FunctionsProfilesListRequestSchemaRun
+  | FunctionsProfilesListResponseSchemaRun
+  | FunctionsProfilesPublishRun
+  | FunctionsProfilesPublishRequestSchemaRun
+  | FunctionsProfilesPublishResponseSchemaRun
+  | FunctionsPublishRun
+  | FunctionsPublishRequestSchemaRun
+  | FunctionsPublishResponseSchemaRun
+  | KillAllRun
+  | KillAllRequestSchemaRun
+  | KillAllResponseSchemaRun
+  | LaboratoriesCreateRun
+  | LaboratoriesCreateRequestSchemaRun
+  | LaboratoriesCreateResponseSchemaRun
+  | LaboratoriesListRun
+  | LaboratoriesListRequestSchemaRun
+  | LaboratoriesListResponseSchemaRun
+  | McpConfigAddressGetRun
+  | McpConfigAddressGetRequestSchemaRun
+  | McpConfigAddressGetResponseSchemaRun
+  | McpConfigAddressSetRun
+  | McpConfigAddressSetRequestSchemaRun
+  | McpConfigAddressSetResponseSchemaRun
+  | McpConfigGetRun
+  | McpConfigGetRequestSchemaRun
+  | McpConfigGetResponseSchemaRun
+  | McpConfigPortGetRun
+  | McpConfigPortGetRequestSchemaRun
+  | McpConfigPortGetResponseSchemaRun
+  | McpConfigPortSetRun
+  | McpConfigPortSetRequestSchemaRun
+  | McpConfigPortSetResponseSchemaRun
+  | McpKillRun
+  | McpKillRequestSchemaRun
+  | McpKillResponseSchemaRun
+  | McpSpawnRun
+  | McpSpawnRequestSchemaRun
+  | McpSpawnResponseSchemaRun
+  | PluginsGetRun
+  | PluginsGetRequestSchemaRun
+  | PluginsGetResponseSchemaRun
+  | PluginsInstallFilesystemRun
+  | PluginsInstallFilesystemRequestSchemaRun
+  | PluginsInstallFilesystemResponseSchemaRun
+  | PluginsInstallGithubRun
+  | PluginsInstallGithubRequestSchemaRun
+  | PluginsInstallGithubResponseSchemaRun
+  | PluginsListRun
+  | PluginsListRequestSchemaRun
+  | PluginsListResponseSchemaRun
+  | PluginsLogsListRun
+  | PluginsLogsListRequestSchemaRun
+  | PluginsLogsListResponseSchemaRun
+  | PluginsRunRun
+  | PluginsRunRequestSchemaRun
+  | PluginsRunResponseSchemaRun
+  | PythonRun
+  | PythonRequestSchemaRun
+  | PythonResponseSchemaRun
+  | SwarmsGetRun
+  | SwarmsGetRequestSchemaRun
+  | SwarmsGetResponseSchemaRun
+  | SwarmsListRun
+  | SwarmsListRequestSchemaRun
+  | SwarmsListResponseSchemaRun
+  | SwarmsPublishRun
+  | SwarmsPublishRequestSchemaRun
+  | SwarmsPublishResponseSchemaRun
+  | ToolsGetRun
+  | ToolsGetRequestSchemaRun
+  | ToolsGetResponseSchemaRun
+  | ToolsInstallFilesystemRun
+  | ToolsInstallFilesystemRequestSchemaRun
+  | ToolsInstallFilesystemResponseSchemaRun
+  | ToolsInstallGithubRun
+  | ToolsInstallGithubRequestSchemaRun
+  | ToolsInstallGithubResponseSchemaRun
+  | ToolsListRun
+  | ToolsListRequestSchemaRun
+  | ToolsListResponseSchemaRun
+  | ToolsRunRun
+  | ToolsRunRequestSchemaRun
+  | ToolsRunResponseSchemaRun
+  | UpdateRun
+  | UpdateRequestSchemaRun
+  | UpdateResponseSchemaRun
+  | ViewerConfigAddressGetRun
+  | ViewerConfigAddressGetRequestSchemaRun
+  | ViewerConfigAddressGetResponseSchemaRun
+  | ViewerConfigAddressSetRun
+  | ViewerConfigAddressSetRequestSchemaRun
+  | ViewerConfigAddressSetResponseSchemaRun
+  | ViewerConfigGetRun
+  | ViewerConfigGetRequestSchemaRun
+  | ViewerConfigGetResponseSchemaRun
+  | ViewerConfigSecretGetRun
+  | ViewerConfigSecretGetRequestSchemaRun
+  | ViewerConfigSecretGetResponseSchemaRun
+  | ViewerConfigSecretSetRun
+  | ViewerConfigSecretSetRequestSchemaRun
+  | ViewerConfigSecretSetResponseSchemaRun
+  | ViewerConfigSignatureGetRun
+  | ViewerConfigSignatureGetRequestSchemaRun
+  | ViewerConfigSignatureGetResponseSchemaRun
+  | ViewerConfigSignatureSetRun
+  | ViewerConfigSignatureSetRequestSchemaRun
+  | ViewerConfigSignatureSetResponseSchemaRun
+  | ViewerGenerateSecretSignaturePairRun
+  | ViewerGenerateSecretSignaturePairRequestSchemaRun
+  | ViewerGenerateSecretSignaturePairResponseSchemaRun
+  | ViewerKillRun
+  | ViewerKillRequestSchemaRun
+  | ViewerKillResponseSchemaRun
+  | ViewerSpawnRun
+  | ViewerSpawnRequestSchemaRun
+  | ViewerSpawnResponseSchemaRun
+  | TransformedRun;
 
 /** Runtime `path_type → {mode, schemas}` table for the listener:
  * items/responses validate as `CliError | <leaf type>` — the same

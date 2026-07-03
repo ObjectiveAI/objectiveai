@@ -3,13 +3,12 @@
 // from the Rust SDK's CLI command tree.
 //
 // The daemon broadcasts every CLI run as one request frame
-// (`{…context, id, value: <Request>}`) followed by response frames
-// (`{id, path_type, value: <item>}`) and one terminator
-// (`{id, path_type, end: true}`). The viewer routes a plugin's
-// `plugins/run` frames into its iframe; the `PluginRunListener`
-// (src/viewer/pluginRuns.ts) turns those frames into typed envelopes
-// `{request, context, response}` — and THIS script generates the
-// type-level and runtime knowledge it needs:
+// (`{…context, id, value: <Request>}`) followed by bare
+// `{id, value: <item>}` response frames (no type tag — the id is the
+// routing) and one terminator (`{id, end: true}`). The viewer routes a
+// plugin's `plugins/run` frames into its iframe; the two listeners in
+// this subpath turn those frames into typed envelopes — and THIS
+// script generates the type-level and runtime knowledge they need:
 //
 //   - one envelope type per leaf command, keyed by the request's
 //     `path_type` literal: unary leaves pair the request with a
@@ -20,10 +19,19 @@
 //     `execute_streaming` gated on `dangerous_advanced.stream: true`,
 //     e.g. `agents spawn`) emit BOTH envelope shapes; the runtime
 //     picks per-request off the stream flag;
-//   - `PluginRun`, the discriminated union of every envelope plus an
+//   - `PluginRun`, the `{request, context, response}` union consumed
+//     by `PluginRunListener` (src/viewer/pluginRuns.ts), plus an
 //     unknown-path_type fallback (`RunStream<JsonValue>`);
+//   - `Run`, the `{request, agentArguments, response}` union consumed
+//     by `RunListener` (src/viewer/runListener.ts) — the mirror of the
+//     Rust SDK's `cli::websocket_listener::Run`: per-leaf variants, a
+//     `TransformedRun` fallback for jq/python requests, NO unknown
+//     fallback (unknown runs are skipped), and no validation — the
+//     types are structural claims over the wire, discriminated purely
+//     off the request's path;
 //   - `RUN_ENVELOPE_MAP`, the runtime `path_type → {mode, schemas}`
-//     table the listener validates frames with.
+//     table (RunListener uses only `mode`; PluginRunListener also
+//     validates with the schemas).
 //
 // Discovery mirrors scripts/install-command-execute.cjs (same scope
 // detection, same `Path` discriminator + schema-module rules, same
@@ -328,14 +336,18 @@ function main() {
     if (!imports.has(p)) imports.set(p, new Set());
     imports.get(p).add(name);
   };
-  const envelopeTypes = []; // emitted type alias blocks
+  const envelopeTypes = []; // emitted type alias blocks (PluginRun side)
   const envelopeNames = []; // names for the PluginRun union
+  const runTypes = []; // emitted type alias blocks (Run side)
+  const runNames = []; // names for the Run union
   const mapEntries = []; // "path": { mode, … } lines
 
   addImport(errorModule.srcRelative, `${errorModule.pascal}Schema`);
   addImport(errorModule.srcRelative, `type ${errorModule.pascal}`);
   addImport("jsonValue", "JsonValueSchema");
   addImport("jsonValue", "type JsonValue");
+  addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
+  addImport("cli/command/request", "type CliCommandRequest");
 
   for (const key of [...scopeByKey.keys()].sort()) {
     const scopeSegments = key.split("/");
@@ -433,6 +445,21 @@ function main() {
       // Multi-variant leaf: a unary primary + a streaming twin gated on
       // `dangerous_advanced.stream: true`. Two envelope shapes; the
       // listener picks per-request off that flag.
+      runTypes.push(
+        `/** \`${docPath}\` — unary form. */\n` +
+          `export type ${baseName}Run = {\n` +
+          `  request: ${requestModule.pascal};\n` +
+          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  response: Promise<${primaryPayload.tsType}>;\n` +
+          `};\n`,
+        `/** \`${docPath}\` — streaming form (\`dangerous_advanced.stream: true\`). */\n` +
+          `export type ${baseName}StreamingRun = {\n` +
+          `  request: ${requestModule.pascal};\n` +
+          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  response: RunStream<${twinPayload.tsType}>;\n` +
+          `};\n`,
+      );
+      runNames.push(`${baseName}Run`, `${baseName}StreamingRun`);
       const streamName = `${baseName}StreamingRunEnvelope`;
       const unaryName = `${baseName}RunEnvelope`;
       envelopeTypes.push(
@@ -458,6 +485,15 @@ function main() {
           `  },`,
       );
     } else if (primaryPayload.streaming) {
+      runTypes.push(
+        `/** \`${docPath}\` — streaming. */\n` +
+          `export type ${baseName}Run = {\n` +
+          `  request: ${requestModule.pascal};\n` +
+          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  response: RunStream<${primaryPayload.tsType}>;\n` +
+          `};\n`,
+      );
+      runNames.push(`${baseName}Run`);
       const name = `${baseName}RunEnvelope`;
       envelopeTypes.push(
         `/** \`${docPath}\` — streaming. */\n` +
@@ -475,6 +511,15 @@ function main() {
           `  },`,
       );
     } else {
+      runTypes.push(
+        `/** \`${docPath}\` — unary. */\n` +
+          `export type ${baseName}Run = {\n` +
+          `  request: ${requestModule.pascal};\n` +
+          `  agentArguments: CliCommandAgentArguments;\n` +
+          `  response: Promise<${primaryPayload.tsType}>;\n` +
+          `};\n`,
+      );
+      runNames.push(`${baseName}Run`);
       const name = `${baseName}RunEnvelope`;
       envelopeTypes.push(
         `/** \`${docPath}\` — unary. */\n` +
@@ -514,6 +559,29 @@ function main() {
     "  response: RunStream<JsonValue>;\n" +
     "};\n";
 
+  const transformedRunBlock =
+    "/** A run whose request carries a jq/python output transform: its\n" +
+    " * items are post-transform JSON with no static shape, so they stay\n" +
+    " * raw (the request itself is the typed root aggregate). */\n" +
+    "export type TransformedRun = {\n" +
+    "  request: CliCommandRequest;\n" +
+    "  agentArguments: CliCommandAgentArguments;\n" +
+    "  response: RunStream<JsonValue>;\n" +
+    "};\n";
+
+  const runUnionBlock =
+    "/** One daemon-broadcast run — the mirror of the Rust SDK's\n" +
+    " * `cli::websocket_listener::Run`, consumed by `RunListener`.\n" +
+    " * Discriminated purely off the request: narrow on\n" +
+    " * `run.request.path_type` to type `run.response` — a `Promise` for\n" +
+    " * unary leaves, a `RunStream` for streaming leaves (multi-variant\n" +
+    " * leaves narrow further via the request's\n" +
+    " * `dangerous_advanced.stream` flag). No unknown fallback: a run\n" +
+    " * this build's types predate is skipped by the listener. */\n" +
+    "export type Run =\n" +
+    runNames.map((n) => `  | ${n}`).join("\n") +
+    "\n  | TransformedRun;\n";
+
   const unionBlock =
     "/** One daemon-broadcast run, typed off its request's `path_type`.\n" +
     " * Narrow on `run.request.path_type` to type `run.response` — a\n" +
@@ -542,13 +610,19 @@ function main() {
     "\n" +
     unionBlock +
     "\n" +
+    runTypes.join("\n") +
+    "\n" +
+    transformedRunBlock +
+    "\n" +
+    runUnionBlock +
+    "\n" +
     mapBlock;
   const outAbs = path.join(SRC_DIR, OUT_FILE_SRC_REL);
   fs.mkdirSync(path.dirname(outAbs), { recursive: true });
   fs.writeFileSync(outAbs, content);
 
   console.log(
-    `install-run-envelope: generated ${envelopeNames.length} envelope type(s) across ${mapEntries.length} path(s)`,
+    `install-run-envelope: generated ${envelopeNames.length} envelope + ${runNames.length} run type(s) across ${mapEntries.length} path(s)`,
   );
   if (skipped.length > 0) {
     console.warn(`install-run-envelope: SKIPPED ${skipped.length} scope(s):`);

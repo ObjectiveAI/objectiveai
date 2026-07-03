@@ -31,7 +31,8 @@ MIME types are guessed by `mime_guess::from_path(...).first_or_octet_stream()`. 
 The host connects to the CLI daemon's broadcast WebSocket and watches every CLI run on the machine. When a `plugins/run` request targets your plugin and your tab is open, the run is forwarded into your iframe as `plugins_run` events:
 
 - First the **request frame**: `{…context, id, value: <the plugins/run Request>}`.
-- Then one **response frame** per stream item: `{id, path_type: "plugins/run", value: <item>}`.
+- Then one **response frame** per stream item: the bare `{id, value: <item>}` wrapper (no type tag — the id is the routing).
+- Finally one **terminator**: `{id, end: true}`.
 
 The `id` is the same across a run's frames, so a plugin can follow multiple concurrent runs. Frames for plugins without an open tab are dropped — plugins observe live activity, they don't replay history.
 
@@ -67,7 +68,7 @@ import { listen } from "@objectiveai/viewer-sdk";
 const unlisten = listen("plugins_run", (frame) => {
   // frame is the raw daemon frame: a request frame
   // ({…context, id, value}) or a response frame
-  // ({id, path_type, value}).
+  // ({id, value}), then the {id, end: true} terminator.
   console.log("run frame:", frame);
 });
 

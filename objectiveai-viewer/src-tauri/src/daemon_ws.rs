@@ -1,12 +1,13 @@
 //! Daemon WebSocket client — the viewer's one data source.
 //!
 //! The viewer is not a server: it consumes the CLI daemon's broadcast
-//! WebSocket, which carries every CLI run as a `RootViewerRequest`
-//! frame (`{…context, id, value}`) followed by `RootViewerResponseItem`
-//! frames (`{id, path_type, value}`). Every frame is forwarded raw to
-//! the JS side as `Event::Inbound { destination: "objectiveai",
-//! sub_type: "daemon", value: <frame> }` — the frontend discriminates
-//! and routes (e.g. `plugins/run` frames to the matching plugin tab).
+//! WebSocket, which carries every CLI run as a `ListenerRequest<T>`
+//! frame (`{…context, id, value}`) followed by bare `{id, value}`
+//! response frames and one `{id, end: true}` terminator. Every frame
+//! is forwarded raw to the JS side as `Event::Inbound { destination:
+//! "objectiveai", sub_type: "daemon", value: <frame> }` — the frontend
+//! discriminates by id state and routes (e.g. `plugins/run` frames to
+//! the matching plugin tab).
 //!
 //! The daemon's `ws://` connect URL arrives via the REQUIRED
 //! `DAEMON_ADDRESS` env (set by `objectiveai viewer spawn`, which

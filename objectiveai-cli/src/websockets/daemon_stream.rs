@@ -20,20 +20,21 @@
 //!   streams never carry broadcast frames.
 //!
 //! Each producer connection is assigned a fresh `id`. The request is
-//! wrapped as the SDK [`RootViewerRequest`] (`{…context, id, value}` —
-//! the producer's context fields stamped alongside `id`); every following
-//! item as [`RootViewerResponseItem`] (`{id, path_type, value}`), where
-//! `path_type` is lifted off that connection's opening request; and when
-//! the producer's feed closes, one [`RootViewerEnd`]
-//! (`{id, path_type, end: true}`) marks that stream complete. The `id`
-//! lets a consumer demultiplex concurrent producer streams; `path_type`
-//! tags each response with the command that produced it.
+//! wrapped as the SDK's generic `ListenerRequest<T>` shape
+//! (`{…context, id, value}` — the producer's context fields stamped
+//! alongside `id`); every following item as the bare
+//! `ListenerResponse<T>` `{id, value}` wrapper (no type tag — a
+//! consumer already knows how to deserialize each id's items from its
+//! opening request); and when the producer's feed closes, one
+//! [`ListenerEnd`] (`{id, end: true}`) marks that stream complete.
+//! The `id` is the whole routing story: it demultiplexes concurrent
+//! producer streams and discriminates the frame shapes (terminator by
+//! `end: true`; response when the id is already announced; request
+//! otherwise).
 //!
-//! Frames are validated through the SDK Viewer types when the command is
-//! recognized and passed through raw otherwise (forward-compat). The
-//! underlying items stay opaque [`serde_json::Value`]s on the wire, so it
-//! stays
-//! forward-compatible with command shapes it predates.
+//! Frames are constructed raw — the underlying items stay opaque
+//! [`serde_json::Value`]s on the wire, so the hub is forward-compatible
+//! with command shapes it predates.
 
 use std::path::Path;
 
@@ -43,7 +44,7 @@ use interprocess::local_socket::GenericFilePath;
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
-use objectiveai_sdk::cli::command::{RootViewerEnd, RootViewerRequest, RootViewerResponseItem};
+use objectiveai_sdk::cli::websocket_listener::ListenerEnd;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::broadcast;
 
@@ -118,10 +119,10 @@ pub fn serve_socket_listener(
 /// agent/plugin **context** object (the fields the request wrapper
 /// carries — `agent_instance_hierarchy`, `response_id`, `plugin_*`, …);
 /// the SECOND line is the CLI request; the rest are CLI responses. The
-/// request is broadcast as a [`RootViewerRequest`] (`{…context, id,
-/// value}`), each response as a [`RootViewerResponseItem`] (`{id,
-/// path_type, value}`). No writes back — the producer streams and closes
-/// with no ack. EOF ends the task.
+/// request is broadcast as the `ListenerRequest<T>` shape (`{…context,
+/// id, value}`), each response as the bare `ListenerResponse<T>`
+/// `{id, value}` wrapper. No writes back — the producer streams and
+/// closes with no ack. EOF ends the task.
 async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
     let (read_half, _write_half) = tokio::io::split(conn);
     let mut reader = BufReader::new(read_half);
@@ -149,8 +150,8 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
         };
     };
 
-    // `None` until the opening request is read; then holds its `path`.
-    let mut path: Option<String> = None;
+    // `false` until the opening request is read and announced.
+    let mut announced = false;
     loop {
         line.clear();
         match reader.read_line(&mut line).await {
@@ -167,49 +168,31 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
             // Skip a malformed line rather than tearing down the stream.
             Err(_) => continue,
         };
-        let frame = match &path {
-            None => {
-                // First item after the context = the CLI request. Lift
-                // its `path_type` (the shared command-path string) to tag
-                // every response.
-                let p = value
-                    .get("path_type")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("")
-                    .to_string();
-                path = Some(p);
-                // Wrap as a `RootViewerRequest` (`{…context, id, value}`).
-                // Validate through the SDK type when the command is known;
-                // fall back to the raw envelope for forward-compat with
-                // commands this binary predates.
-                let mut envelope = context.clone();
-                envelope.insert("id".to_string(), serde_json::json!(id.clone()));
-                envelope.insert("value".to_string(), value);
-                let envelope = serde_json::Value::Object(envelope);
-                match serde_json::from_value::<RootViewerRequest>(envelope.clone()) {
-                    Ok(vr) => serde_json::to_string(&vr),
-                    Err(_) => Ok(envelope.to_string()),
-                }
-            }
-            Some(p) => {
-                // Wrap as a `RootViewerResponseItem` ({id, path_type,
-                // value}), same validate-or-passthrough treatment.
-                let envelope = serde_json::json!({
-                    "id": id.clone(),
-                    "path_type": p.clone(),
-                    "value": value,
-                });
-                match serde_json::from_value::<RootViewerResponseItem>(envelope.clone()) {
-                    Ok(vri) => serde_json::to_string(&vri),
-                    Err(_) => Ok(envelope.to_string()),
-                }
-            }
+        let frame = if !announced {
+            // First item after the context = the CLI request. Wrap as
+            // the `ListenerRequest<T>` shape — the raw context object
+            // with `id` and `value` stamped in (constructed raw so the
+            // hub stays forward-compatible with command shapes this
+            // binary predates).
+            announced = true;
+            let mut envelope = context.clone();
+            envelope.insert("id".to_string(), serde_json::json!(id.clone()));
+            envelope.insert("value".to_string(), value);
+            serde_json::Value::Object(envelope).to_string()
+        } else {
+            // Every following item is a response: the bare
+            // `ListenerResponse<T>` `{id, value}` wrapper. No type tag
+            // — consumers already know how to deserialize this id's
+            // items from its opening request.
+            serde_json::json!({
+                "id": id.clone(),
+                "value": value,
+            })
+            .to_string()
         };
-        if let Ok(frame) = frame {
-            // A send error means no WebSocket clients are connected —
-            // nothing to fan out to. Drop the frame.
-            let _ = tx.send(frame);
-        }
+        // A send error means no WebSocket clients are connected —
+        // nothing to fan out to. Drop the frame.
+        let _ = tx.send(frame);
     }
 
     // Feed closed (EOF or read error): the run is complete. Broadcast
@@ -217,12 +200,8 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
     // stream — but only when a request frame was announced (a producer
     // that closed before sending its request broadcast nothing worth
     // terminating).
-    if let Some(path_type) = path {
-        let end = RootViewerEnd {
-            id,
-            path_type,
-            end: true,
-        };
+    if announced {
+        let end = ListenerEnd { id, end: true };
         if let Ok(frame) = serde_json::to_string(&end) {
             let _ = tx.send(frame);
         }

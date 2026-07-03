@@ -102,64 +102,6 @@ pub enum ResponseItem {
 /// single bare id string.
 pub type Response = String;
 
-/// Viewer-stream mirror of [`Request`]: the request (nested under
-/// `value`, `path_type` and all) plus the broadcast stream `id`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.execute.swiss_system.ViewerRequest")]
-pub struct ViewerRequest {
-    pub id: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_instance_hierarchy: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_full_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub agent_remote: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_id: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub response_ids: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_owner: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_repository: Option<String>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    pub plugin_version: Option<String>,
-    pub value: Request,
-}
-
-/// Viewer-stream mirror of [`Response`]: the response (nested under
-/// `value`) plus the broadcast stream `id` and the originating request's
-/// `path_type`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.execute.swiss_system.ViewerResponse")]
-pub struct ViewerResponse {
-    pub id: String,
-    pub path_type: Path,
-    pub value: Response,
-}
-
-/// Viewer-stream mirror of [`ResponseItem`]: the response (nested under
-/// `value`) plus the broadcast stream `id` and the originating request's
-/// `path_type`.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.functions.execute.swiss_system.ViewerResponseItem")]
-pub struct ViewerResponseItem {
-    pub id: String,
-    pub path_type: Path,
-    pub value: ResponseItem,
-}
-
 /// Exactly-one-of `--input-inline | --input-file | --input-python-inline
 /// | --input-python-file`. See
 /// `super::standard::InputArgs` for the group-id rationale.
@@ -342,6 +284,5 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 }
 
 pub mod request_schema;
-
 
 pub mod response_schema;
