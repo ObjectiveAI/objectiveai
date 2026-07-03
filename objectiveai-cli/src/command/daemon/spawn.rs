@@ -125,9 +125,24 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         }
     };
 
+    // Bind the producer socket BEFORE publishing the lock, so a held lock
+    // guarantees the socket is already listening — a producer then either
+    // connects on the first try or the daemon is dead (no connect retry).
+    let state_dir = ctx.filesystem.state_dir();
+    let socket_listener =
+        match crate::websockets::daemon_stream::bind_socket_listener(&state_dir) {
+            Ok(listener) => listener,
+            Err(e) => {
+                drop(ws_listener);
+                let _ = init.release();
+                return Err(Error::Spawn("daemon socket bind".into(), e));
+            }
+        };
+
     // Publish the client-connect `ws://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
-    // discovers exactly where to connect.
+    // discovers exactly where to connect. Published only now that BOTH the
+    // WebSocket listener and the producer socket are up.
     let claim = match objectiveai_sdk::lockfile::try_acquire(
         &lock_dir,
         super::DAEMON_LOCK_KEY,
@@ -135,10 +150,11 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     )
     .await
     {
-        // A sibling daemon already holds the lock — drop our listener and
+        // A sibling daemon already holds the lock — drop our listeners and
         // bow out.
         None => {
             drop(ws_listener);
+            drop(socket_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
         }
@@ -156,10 +172,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // valid signature header; when unset, the server is open.
     let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
     crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone(), secret);
-    crate::websockets::daemon_stream::spawn_socket_listener(
-        tx.clone(),
-        ctx.filesystem.state_dir(),
-    );
+    crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
 
     // Launch every daemon plugin under the SHARED plugin executor, run
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed

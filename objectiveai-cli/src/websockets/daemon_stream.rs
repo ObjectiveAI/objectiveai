@@ -30,7 +30,7 @@
 //! stays
 //! forward-compatible with command shapes it predates.
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 #[cfg(unix)]
 use interprocess::local_socket::GenericFilePath;
@@ -71,28 +71,33 @@ fn socket_name(state_dir: &Path) -> std::io::Result<Name<'static>> {
     format!("objectiveai-{state:016x}-daemon.sock").to_ns_name::<GenericNamespaced>()
 }
 
-/// Spawn the fan-in listener: bind the fixed-name local socket and, for
-/// every producer connection, drive [`handle_feed`], teeing its wrapped
-/// items onto `tx`. Detached and best-effort — any bind failure simply
-/// means no producer socket; the daemon is otherwise unaffected.
-pub fn spawn_socket_listener(tx: broadcast::Sender<String>, state_dir: PathBuf) {
+/// Bind the fixed-name producer socket, returning the bound listener.
+/// Binding is **synchronous** so the daemon can publish its lock only
+/// AFTER the socket is listening: a held daemon lock then guarantees the
+/// socket is up, so a producer either connects on the first try or the
+/// daemon is dead — no connect retry needed. `try_overwrite` clears a
+/// stale socket file left by a crashed predecessor (the singleton daemon
+/// lock guarantees no live peer).
+pub fn bind_socket_listener(
+    state_dir: &Path,
+) -> std::io::Result<interprocess::local_socket::tokio::Listener> {
+    // Ensure the socks dir exists for the Unix filesystem socket; harmless
+    // on Windows (which uses a namespaced pipe name).
+    let _ = std::fs::create_dir_all(socks_dir(state_dir));
+    let name = socket_name(state_dir)?;
+    ListenerOptions::new()
+        .name(name)
+        .try_overwrite(true)
+        .create_tokio()
+}
+
+/// Spawn the accept loop on a pre-bound producer socket: one
+/// [`handle_feed`] task per connection, fanning wrapped items onto `tx`.
+pub fn serve_socket_listener(
+    listener: interprocess::local_socket::tokio::Listener,
+    tx: broadcast::Sender<String>,
+) {
     tokio::spawn(async move {
-        // Ensure the socks dir exists for the Unix filesystem socket;
-        // harmless on Windows (which uses a namespaced pipe name).
-        let _ = tokio::fs::create_dir_all(socks_dir(&state_dir)).await;
-        let Ok(name) = socket_name(&state_dir) else {
-            return;
-        };
-        // `try_overwrite` clears a stale socket file left by a crashed
-        // predecessor; the singleton daemon lock guarantees no live peer.
-        let listener = match ListenerOptions::new()
-            .name(name)
-            .try_overwrite(true)
-            .create_tokio()
-        {
-            Ok(l) => l,
-            Err(_) => return,
-        };
         loop {
             let conn = match listener.accept().await {
                 Ok(conn) => conn,
@@ -318,26 +323,14 @@ impl FeedWriter {
     }
 }
 
-/// Connect to the daemon socket for incremental feeding. Retries briefly:
-/// the daemon binds its socket listener shortly AFTER it publishes its
-/// lock, so a connect right after the first `daemon spawn` can race the
-/// bind. Gives up (returns the last error) after ~500ms.
+/// Connect to the daemon socket for incremental feeding. A single
+/// attempt, no retry: the daemon publishes its lock only after this socket
+/// is listening (see [`bind_socket_listener`]), so if the caller reached
+/// here after the daemon is up, the socket is up — a connect failure means
+/// the daemon is dead, not merely starting.
 pub async fn connect_feed(state_dir: &Path) -> std::io::Result<FeedWriter> {
-    let mut attempt = 0u32;
-    loop {
-        let name = socket_name(state_dir)?;
-        match LocalSocketStream::connect(name).await {
-            Ok(conn) => {
-                let (_read_half, write) = tokio::io::split(conn);
-                return Ok(FeedWriter { write });
-            }
-            Err(e) => {
-                attempt += 1;
-                if attempt >= 20 {
-                    return Err(e);
-                }
-                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-            }
-        }
-    }
+    let name = socket_name(state_dir)?;
+    let conn = LocalSocketStream::connect(name).await?;
+    let (_read_half, write) = tokio::io::split(conn);
+    Ok(FeedWriter { write })
 }
