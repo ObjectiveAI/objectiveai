@@ -14,7 +14,6 @@ fn base_manifest() -> Manifest {
         cli_zip: CliZip::default(),
         viewer_zip: None,
         viewer_url: None,
-        viewer_routes: vec![],
         mcp_servers: Vec::new(),
         daemon: false,
     }
@@ -258,33 +257,11 @@ fn manifest_with_viewer_fields_roundtrip() {
     let m = Manifest {
         description: "viewer plugin".to_string(),
         viewer_zip: Some("psyops-viewer.zip".to_string()),
-        viewer_routes: vec![
-            ViewerRoute {
-                path: "/say".to_string(),
-                method: HttpMethod::Post,
-                r#type: "say_request".to_string(),
-            },
-            ViewerRoute {
-                path: "/status".to_string(),
-                method: HttpMethod::Get,
-                r#type: "status_request".to_string(),
-            },
-        ],
         ..base_manifest()
     };
     let json = serde_json::to_value(&m).unwrap();
-    let back: Manifest = serde_json::from_value(json.clone()).unwrap();
+    let back: Manifest = serde_json::from_value(json).unwrap();
     assert_eq!(back.viewer_zip.as_deref(), Some("psyops-viewer.zip"));
-    assert_eq!(back.viewer_routes.len(), 2);
-    assert_eq!(back.viewer_routes[0].path, "/say");
-    assert_eq!(back.viewer_routes[0].method, HttpMethod::Post);
-    assert_eq!(back.viewer_routes[0].r#type, "say_request");
-    assert_eq!(back.viewer_routes[1].method, HttpMethod::Get);
-
-    // The two viewer routes should serialize methods as uppercase strings.
-    let routes_json = json.get("viewer_routes").unwrap();
-    assert_eq!(routes_json[0]["method"], "POST");
-    assert_eq!(routes_json[1]["method"], "GET");
 }
 
 #[test]
@@ -294,7 +271,6 @@ fn manifest_omits_viewer_fields_when_absent() {
     let obj = json.as_object().unwrap();
     assert!(!obj.contains_key("viewer_zip"));
     assert!(!obj.contains_key("viewer_url"));
-    assert!(!obj.contains_key("viewer_routes"));
 }
 
 #[test]
@@ -307,7 +283,24 @@ fn manifest_deserializes_without_viewer_fields() {
     let m: Manifest = serde_json::from_value(json).unwrap();
     assert!(m.viewer_zip.is_none());
     assert!(m.viewer_url.is_none());
-    assert!(m.viewer_routes.is_empty());
+}
+
+#[test]
+fn manifest_ignores_legacy_viewer_routes_key() {
+    // `viewer_routes` was removed from the manifest schema; manifests
+    // authored against older versions still parse — the key is simply
+    // dropped (Manifest doesn't deny unknown fields).
+    let json = serde_json::json!({
+        "owner": "wiggidy", "name": "p", "version": "1.0.0", "description": "x",
+        "exec": { "windows": [], "linux": [], "macos": [] },
+        "cli_zip": {},
+        "viewer_routes": [
+            { "path": "/say", "method": "POST", "type": "say_request" }
+        ]
+    });
+    let m: Manifest = serde_json::from_value(json).unwrap();
+    let back = serde_json::to_value(&m).unwrap();
+    assert!(!back.as_object().unwrap().contains_key("viewer_routes"));
 }
 
 #[test]
@@ -336,23 +329,6 @@ fn manifest_with_mcp_servers_roundtrip() {
     assert!(back.mcp_servers[0].authorization);
     assert_eq!(back.mcp_servers[1].name, "weather");
     assert!(!back.mcp_servers[1].authorization);
-}
-
-#[test]
-fn http_method_serializes_uppercase() {
-    let cases = [
-        (HttpMethod::Get, "\"GET\""),
-        (HttpMethod::Post, "\"POST\""),
-        (HttpMethod::Put, "\"PUT\""),
-        (HttpMethod::Patch, "\"PATCH\""),
-        (HttpMethod::Delete, "\"DELETE\""),
-    ];
-    for (m, expected) in cases {
-        let got = serde_json::to_string(&m).unwrap();
-        assert_eq!(got, expected);
-        let back: HttpMethod = serde_json::from_str(&got).unwrap();
-        assert_eq!(back, m);
-    }
 }
 
 #[test]
@@ -477,9 +453,7 @@ fn manifest_with_viewer_url_serde_roundtrip() {
 
 #[test]
 fn manifest_converts_to_sdk_response_manifest() {
-    use objectiveai_sdk::cli::command::plugins::get::{
-        ResponseHttpMethod, ResponseManifest,
-    };
+    use objectiveai_sdk::cli::command::plugins::get::ResponseManifest;
     let m = Manifest {
         owner: "wiggidy".to_string(),
         name: "psyops".to_string(),
@@ -496,11 +470,6 @@ fn manifest_converts_to_sdk_response_manifest() {
         },
         viewer_zip: Some("v.zip".to_string()),
         viewer_url: None,
-        viewer_routes: vec![ViewerRoute {
-            path: "/say".to_string(),
-            method: HttpMethod::Post,
-            r#type: "say_request".to_string(),
-        }],
         mcp_servers: vec![McpServer {
             name: "search".to_string(),
             authorization: true,
@@ -517,10 +486,6 @@ fn manifest_converts_to_sdk_response_manifest() {
     assert_eq!(r.exec, exec);
     // viewer_zip is dropped; viewer_url carries over (here it's None).
     assert!(r.viewer_url.is_none());
-    assert_eq!(r.viewer_routes.len(), 1);
-    assert_eq!(r.viewer_routes[0].path, "/say");
-    assert_eq!(r.viewer_routes[0].method, ResponseHttpMethod::Post);
-    assert_eq!(r.viewer_routes[0].r#type, "say_request");
     assert_eq!(r.mcp_servers.len(), 1);
     assert_eq!(r.mcp_servers[0].name, "search");
     assert!(r.mcp_servers[0].authorization);

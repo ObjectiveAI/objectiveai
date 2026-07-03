@@ -5,7 +5,7 @@ Plugins extend ObjectiveAI with a CLI binary, a viewer UI tab, or both. They liv
 For component-specific details after reading this overview:
 
 - **[CLI plugins reference](objectiveai-cli/PLUGINS.md)** — installing, listing, getting, and running plugins from the command line; the JSONL dispatch protocol; on-disk layout.
-- **[Viewer plugins reference](objectiveai-viewer/PLUGINS.md)** — the GUI surface: tabs, viewer routes, the event envelope, the TypeScript SDK, the iframe + postMessage bridge.
+- **[Viewer plugins reference](objectiveai-viewer/PLUGINS.md)** — the GUI surface: tabs, the event envelope, the TypeScript SDK, the iframe + postMessage bridge.
 
 ## What a plugin is
 
@@ -56,10 +56,6 @@ Plugins are **content-addressed by repository** — the name a plugin lives unde
 
   "viewer_zip": "my-plugin-viewer.zip",
 
-  "viewer_routes": [
-    { "path": "/echo", "method": "POST", "type": "echo_request" }
-  ],
-
   "mobile_ready": false
 }
 ```
@@ -74,7 +70,6 @@ Field-by-field:
 | `exec` | object | Per-OS argv (`windows` / `linux` / `macos`, each an array: program + leading args). The host appends the run's args and executes with CWD = the plugin's `cli/` folder; relative program paths resolve against it, bare names use PATH lookup. Omit for viewer-only plugins. |
 | `cli_zip` | string | Asset filename for the cli bundle — a zip extracted into `cli/` at install time. Omit when the exec needs nothing on disk (e.g. it invokes a PATH-resolved program). |
 | `viewer_zip` | string | Asset filename for the UI bundle. Omit if the plugin is CLI-only. |
-| `viewer_routes` | array | HTTP routes the viewer exposes on this plugin's behalf. See [Viewer plugins reference](objectiveai-viewer/PLUGINS.md). |
 | `mobile_ready` | bool | Opt-in flag for iOS/Android viewer builds. Future feature; default false. |
 
 The canonical schema lives in [`objectiveai-rs/src/filesystem/plugins/manifest.rs`](objectiveai-rs/src/filesystem/plugins/manifest.rs).
@@ -130,4 +125,4 @@ For the full set of flags and behaviour (errors, transactional semantics, what g
 ## Where to go next
 
 - **[CLI plugins reference](objectiveai-cli/PLUGINS.md)** — installing, listing, getting, running plugins; the JSONL dispatch protocol; on-disk layout.
-- **[Viewer plugins reference](objectiveai-viewer/PLUGINS.md)** — building a UI tab: viewer bundle, viewer routes, the event envelope, the SDK, the iframe + postMessage bridge.
+- **[Viewer plugins reference](objectiveai-viewer/PLUGINS.md)** — building a UI tab: viewer bundle, the event envelope, the SDK, the iframe + postMessage bridge.

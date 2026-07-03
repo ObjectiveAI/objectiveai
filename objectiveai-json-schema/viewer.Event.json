@@ -4,7 +4,7 @@
   "anyOf": [
     {
       "title": "Inbound",
-      "description": "Host → iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (built-ins: `agent_completions` /\n`functions_executions`; plugins: whatever they declared in\ntheir manifest's `viewer_routes[i].type`).",
+      "description": "Host → iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (e.g. `daemon` for raw daemon-broadcast frames on\nthe `\"objectiveai\"` channel; the JS bridge repackages routed\n`plugins/run` frames as `plugins_run` for plugin iframes).",
       "type": "object",
       "properties": {
         "destination": {

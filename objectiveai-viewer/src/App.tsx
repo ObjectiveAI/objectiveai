@@ -357,8 +357,8 @@ function App() {
             shown (the rest are display:none). Keeping plugin iframes
             mounted means their JS keeps running and the bridge keeps
             their per-plugin Tauri subscription alive, so a plugin
-            receives its `viewer_routes` notifications regardless of
-            which tab is focused. */}
+            receives its routed daemon-stream events (`plugins_run`)
+            regardless of which tab is focused. */}
         <div
           className={cn(
             "flex-col",

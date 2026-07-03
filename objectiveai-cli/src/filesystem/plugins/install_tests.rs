@@ -653,6 +653,8 @@ async fn install_extracts_viewer_zip_when_present() {
         "exec": exec_json(),
         "cli_zip": cli_zip_json(),
         "viewer_zip": "v.zip",
+        // Legacy key from the removed viewer-routes feature: old
+        // manifests still install; the key is ignored on parse.
         "viewer_routes": [
             { "path": "/say", "method": "POST", "type": "say_request" }
         ]
@@ -719,7 +721,6 @@ async fn install_extracts_viewer_zip_when_present() {
     )
     .unwrap();
     assert_eq!(persisted.viewer_zip.as_deref(), Some("v.zip"));
-    assert_eq!(persisted.viewer_routes.len(), 1);
 
     cleanup(&base);
 }
@@ -794,10 +795,7 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
         "description": "url-viewer plugin",
         "exec": exec_json(),
         "cli_zip": {},
-        "viewer_url": "https://plugin.example.com/index.html",
-        "viewer_routes": [
-            { "path": "/say", "method": "POST", "type": "say_request" }
-        ]
+        "viewer_url": "https://plugin.example.com/index.html"
     });
 
     Mock::given(method("GET"))
@@ -837,7 +835,6 @@ async fn install_skips_viewer_zip_download_when_viewer_url_set() {
         Some("https://plugin.example.com/index.html")
     );
     assert!(persisted.viewer_zip.is_none());
-    assert_eq!(persisted.viewer_routes.len(), 1);
     assert!(persisted.has_viewer());
 
     cleanup(&base);

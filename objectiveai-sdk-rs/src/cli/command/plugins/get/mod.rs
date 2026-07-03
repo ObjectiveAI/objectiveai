@@ -48,8 +48,6 @@ pub struct ResponseManifest {
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub viewer_routes: Vec<ResponseViewerRoute>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<ResponseMcpServer>,
 }
 
@@ -67,25 +65,6 @@ impl ResponseManifest {
             self.version.replace('.', "-")
         )
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.get.ResponseViewerRoute")]
-pub struct ResponseViewerRoute {
-    pub path: String,
-    pub method: ResponseHttpMethod,
-    pub r#type: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "UPPERCASE")]
-#[schemars(rename = "cli.command.plugins.get.ResponseHttpMethod")]
-pub enum ResponseHttpMethod {
-    Get,
-    Post,
-    Put,
-    Patch,
-    Delete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]

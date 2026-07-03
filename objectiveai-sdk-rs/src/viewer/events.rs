@@ -1,7 +1,6 @@
-//! Event bus. Built-in axum routes, dynamic plugin routes, and the
-//! cli_command stream all fan into the same enum; the viewer's
-//! `serve()` emits each variant as-is under the `destination` Tauri
-//! channel name.
+//! Event bus. The daemon WebSocket client and the cli_command stream
+//! fan into the same enum; the viewer's `serve()` emits each variant
+//! as-is under the `destination` Tauri channel name.
 //!
 //! Channel-name namespacing: `"objectiveai"` is reserved as the
 //! built-in destination; plugin repositories named "objectiveai"
@@ -28,9 +27,9 @@ use tokio::sync::mpsc;
 pub enum Event {
     /// Host → iframe. Carries data into the plugin (the existing
     /// path). `sub_type` is the snake_case discriminator the plugin
-    /// listens on (built-ins: `agent_completions` /
-    /// `functions_executions`; plugins: whatever they declared in
-    /// their manifest's `viewer_routes[i].type`).
+    /// listens on (e.g. `daemon` for raw daemon-broadcast frames on
+    /// the `"objectiveai"` channel; the JS bridge repackages routed
+    /// `plugins/run` frames as `plugins_run` for plugin iframes).
     #[schemars(title = "Inbound")]
     Inbound {
         destination: String,

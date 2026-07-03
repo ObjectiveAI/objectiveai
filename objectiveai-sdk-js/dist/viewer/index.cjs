@@ -113,7 +113,7 @@ var ViewerEventSchema = zod.z.union([zod.z.object({
   sub_type: zod.z.string(),
   type: zod.z.literal("inbound"),
   value: JsonValueSchema
-}).describe("Host \u2192 iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (built-ins: `agent_completions` /\n`functions_executions`; plugins: whatever they declared in\ntheir manifest's `viewer_routes[i].type`).").meta({ "variantTitle": "Inbound" }), zod.z.object({
+}).describe('Host \u2192 iframe. Carries data into the plugin (the existing\npath). `sub_type` is the snake_case discriminator the plugin\nlistens on (e.g. `daemon` for raw daemon-broadcast frames on\nthe `"objectiveai"` channel; the JS bridge repackages routed\n`plugins/run` frames as `plugins_run` for plugin iframes).').meta({ "variantTitle": "Inbound" }), zod.z.object({
   destination: zod.z.string(),
   type: zod.z.literal("cli_command"),
   value: JsonValueSchema

@@ -33,10 +33,7 @@ impl CommandRequest for Request {
 // `ResponseManifest` is the canonical definition. Re-export here so
 // list items deserialize as the same Rust type the bare-naked
 // dispatcher already constructs.
-pub use super::get::{
-    ResponseHttpMethod, ResponseManifest as ResponseItem, ResponseMcpServer,
-    ResponseViewerRoute,
-};
+pub use super::get::{ResponseManifest as ResponseItem, ResponseMcpServer};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.plugins.list.ViewerRequest")]

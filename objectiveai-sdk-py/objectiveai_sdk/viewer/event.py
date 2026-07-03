@@ -9,9 +9,9 @@ from pydantic import BaseModel, ConfigDict, Field, RootModel
 class EventInbound(BaseModel):
     """Host → iframe. Carries data into the plugin (the existing
 path). `sub_type` is the snake_case discriminator the plugin
-listens on (built-ins: `agent_completions` /
-`functions_executions`; plugins: whatever they declared in
-their manifest's `viewer_routes[i].type`)."""
+listens on (e.g. `daemon` for raw daemon-broadcast frames on
+the `"objectiveai"` channel; the JS bridge repackages routed
+`plugins/run` frames as `plugins_run` for plugin iframes)."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Inbound'})
 
     destination: str

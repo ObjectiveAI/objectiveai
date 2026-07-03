@@ -21,9 +21,8 @@ type ViewerEvent = z.infer<typeof ViewerEventSchema>;
  * an unsubscribe function.
  *
  * `sub_type` matches the `sub_type` field of the `Event::Inbound`
- * emitted by the Rust host — the string the plugin author
- * registered in their manifest's `viewer_routes` entry, or one of
- * the built-in event names (e.g. `agent_completions`).
+ * emitted by the Rust host — e.g. `plugins_run` for daemon-stream
+ * run frames the host routes to this plugin's tab.
  *
  * In iframe context the events come from the host's bridge; in
  * standalone-dev context they come from `@tauri-apps/api`'s `listen`.
