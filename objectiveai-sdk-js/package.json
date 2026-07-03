@@ -10,7 +10,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "shx rm -rf dist && node ./scripts/install-zod.cjs && node ./scripts/install-command-execute.cjs && node ./scripts/install-run-envelope.cjs && node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
+    "build": "shx rm -rf dist && node ./scripts/install-zod.cjs && node ./scripts/install-command-execute.cjs && node ./scripts/install-listener-execution.cjs && node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
     "test": "node tests/test-cjs.cjs && node tests/test-esm.mjs && tsc --noEmit && vitest run",
     "start": "node dist/index.js"
   },
