@@ -79,7 +79,6 @@ pub struct ViewerRequest {
 /// Viewer-stream mirror of [`Response`]: the response (nested under
 /// `value`) plus the broadcast stream `id` and the originating request's
 /// `path_type`.
-#[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[schemars(rename = "cli.command.agents.mcp.resources.list.ViewerResponse")]
 pub struct ViewerResponse {

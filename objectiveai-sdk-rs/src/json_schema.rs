@@ -769,11 +769,16 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::cli::command::agents::mcp::ViewerRequest),
         schemars::schema_for!(crate::cli::command::agents::mcp::resources::ViewerRequest),
         schemars::schema_for!(crate::cli::command::agents::mcp::resources::list::ViewerRequest),
+        schemars::schema_for!(crate::cli::command::agents::mcp::resources::list::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::mcp::resources::read::ViewerRequest),
+        schemars::schema_for!(crate::cli::command::agents::mcp::resources::read::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::mcp::servers::list::ViewerRequest),
+        schemars::schema_for!(crate::cli::command::agents::mcp::servers::list::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::mcp::tools::ViewerRequest),
         schemars::schema_for!(crate::cli::command::agents::mcp::tools::call::ViewerRequest),
+        schemars::schema_for!(crate::cli::command::agents::mcp::tools::call::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::mcp::tools::list::ViewerRequest),
+        schemars::schema_for!(crate::cli::command::agents::mcp::tools::list::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::message::ViewerRequest),
         schemars::schema_for!(crate::cli::command::agents::message::ViewerResponse),
         schemars::schema_for!(crate::cli::command::agents::publish::ViewerRequest),
@@ -1468,17 +1473,64 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
         schemars::schema_for!(crate::http::viewer::ResponseError),
     ]);
 
-    // MCP request-param types embedded by the `agents mcp tools|resources`
-    // command leaves (their typed `params` field). Their result
-    // counterparts stay unregistered — only these inputs surface in the
-    // generated command request types.
+    // The MCP types the `agents mcp tools|resources|servers` command
+    // leaves put on the wire: the request-param types embedded in their
+    // typed `params` fields, plus those five leaves' RESULT types and
+    // the results' full `$ref` closure — so the per-language SDK
+    // codegen can generate typed execute functions (and run envelopes)
+    // for them. The broader `src/mcp/` protocol surface stays
+    // unregistered (exempt from coverage; documented by the MCP spec)
+    // — this is the minimum shipped subset. Note `mcp.Server` also
+    // references `laboratories::Laboratory`, registered above.
     #[cfg(feature = "mcp")]
     schemas.extend([
+        schemars::schema_for!(crate::mcp::initialize_result::CompletionsCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::Implementation),
+        schemars::schema_for!(crate::mcp::initialize_result::InitializeResult),
+        schemars::schema_for!(crate::mcp::initialize_result::LoggingCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::PromptsCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::ResourcesCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::ServerCapabilities),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksCancelCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksListCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksRequestsCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCallCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::TasksToolsCapability),
+        schemars::schema_for!(crate::mcp::initialize_result::ToolsCapability),
         schemars::schema_for!(crate::mcp::resource::ListResourcesRequest),
+        schemars::schema_for!(crate::mcp::resource::ListResourcesResult),
         schemars::schema_for!(crate::mcp::resource::ReadResourceRequestParams),
+        schemars::schema_for!(crate::mcp::resource::ReadResourceResult),
+        schemars::schema_for!(crate::mcp::resource::Resource),
+        schemars::schema_for!(crate::mcp::server::ListServersResult),
+        schemars::schema_for!(crate::mcp::server::Plugin),
+        schemars::schema_for!(crate::mcp::server::Server),
+        schemars::schema_for!(crate::mcp::shared::Annotations),
+        schemars::schema_for!(crate::mcp::shared::BlobResourceContents),
+        schemars::schema_for!(crate::mcp::shared::Icon),
+        schemars::schema_for!(crate::mcp::shared::IconTheme),
+        schemars::schema_for!(crate::mcp::shared::ResourceContents),
+        schemars::schema_for!(crate::mcp::shared::ResourceContentsUnion),
+        schemars::schema_for!(crate::mcp::shared::Role),
+        schemars::schema_for!(crate::mcp::shared::TextResourceContents),
+        schemars::schema_for!(crate::mcp::tool::AudioContent),
         schemars::schema_for!(crate::mcp::tool::CallToolRequestParams),
+        schemars::schema_for!(crate::mcp::tool::CallToolResult),
+        schemars::schema_for!(crate::mcp::tool::ContentBlock),
+        schemars::schema_for!(crate::mcp::tool::EmbeddedResource),
+        schemars::schema_for!(crate::mcp::tool::ImageContent),
         schemars::schema_for!(crate::mcp::tool::ListToolsRequest),
+        schemars::schema_for!(crate::mcp::tool::ListToolsResult),
+        schemars::schema_for!(crate::mcp::tool::ResourceLink),
         schemars::schema_for!(crate::mcp::tool::TaskMetadata),
+        schemars::schema_for!(crate::mcp::tool::TaskSupport),
+        schemars::schema_for!(crate::mcp::tool::TextContent),
+        schemars::schema_for!(crate::mcp::tool::Tool),
+        schemars::schema_for!(crate::mcp::tool::ToolAnnotations),
+        schemars::schema_for!(crate::mcp::tool::ToolExecution),
+        schemars::schema_for!(crate::mcp::tool::ToolSchemaObject),
+        schemars::schema_for!(crate::mcp::tool::ToolSchemaType),
     ]);
 
     schemas

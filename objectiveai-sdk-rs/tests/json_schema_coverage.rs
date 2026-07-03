@@ -25,12 +25,17 @@ fn module_prefix(path: &str) -> String {
 /// every coverage test in this file. Neither the MCP protocol types
 /// (`src/mcp/`) nor the API↔CLI envelope shape used by the
 /// `objectiveai-mcp` plugin runner (`src/client_objectiveai_mcp/`)
-/// ship in the published schema set: their `JsonRpcResult<R>::Ok` arm
-/// schemas `R = ()` as bare `{"type":"null"}`, which downstream Go /
-/// TS / Python SDK generators can't reconstruct, and the broader MCP
-/// wire types are documented externally by the MCP spec. The wire
-/// structs still derive JsonSchema (locally documenting), they just
-/// don't ship in `json_schemas()` and aren't checked for global
+/// are REQUIRED in the published schema set: their
+/// `JsonRpcResult<R>::Ok` arm schemas `R = ()` as bare
+/// `{"type":"null"}`, which downstream Go / TS / Python SDK
+/// generators can't reconstruct, and the broader MCP wire types are
+/// documented externally by the MCP spec. A minimum subset IS shipped
+/// (allowed — only `expected − actual` is checked): the request
+/// params + result types (and their `$ref` closure) that the
+/// `agents mcp` command leaves put on the wire, so the per-language
+/// codegen can type those five leaves' execute functions. Everything
+/// else still derives JsonSchema (locally documenting) without
+/// shipping in `json_schemas()` and isn't checked for global
 /// coverage.
 fn is_skipped_module(relative: &str) -> bool {
     relative.starts_with("src/mcp/")
