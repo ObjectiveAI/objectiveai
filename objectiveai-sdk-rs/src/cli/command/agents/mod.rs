@@ -703,7 +703,7 @@ pub enum ListenerExecution {
     PublishRequestSchema(publish::request_schema::ListenerExecution),
     PublishResponseSchema(publish::response_schema::ListenerExecution),
     Queue(queue::ListenerExecution),
-    Spawn(spawn::ListenerExecution),
+    Spawn(spawn::ListenerExecutionVariant),
     SpawnRequestSchema(spawn::request_schema::ListenerExecution),
     SpawnResponseSchema(spawn::response_schema::ListenerExecution),
     Tags(tags::ListenerExecution),

@@ -452,10 +452,10 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 /// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
-    Standard(standard::ListenerExecution),
+    Standard(standard::ListenerExecutionVariant),
     StandardRequestSchema(standard::request_schema::ListenerExecution),
     StandardResponseSchema(standard::response_schema::ListenerExecution),
-    SwissSystem(swiss_system::ListenerExecution),
+    SwissSystem(swiss_system::ListenerExecutionVariant),
     SwissSystemRequestSchema(swiss_system::request_schema::ListenerExecution),
     SwissSystemResponseSchema(swiss_system::response_schema::ListenerExecution),
 }

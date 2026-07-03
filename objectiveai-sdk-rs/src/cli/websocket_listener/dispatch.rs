@@ -543,15 +543,16 @@ pub(crate) fn open_run(
         }
         "agents/spawn" => {
             let parsed = serde_json::from_str::<crate::cli::command::agents::spawn::Request>(request.get()).ok()?;
-            let (response, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
-                let (stream, feed) = stream_feed::<crate::cli::command::agents::spawn::ResponseItem>();
-                (crate::cli::command::agents::spawn::ListenerExecutionResponse::Streaming(stream), feed)
+            let (variant, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
+                let (response, feed) = stream_feed::<crate::cli::command::agents::spawn::ResponseItem>();
+                let execution = crate::cli::command::agents::spawn::ListenerExecutionStreaming { request: parsed, agent_arguments, response };
+                (crate::cli::command::agents::spawn::ListenerExecutionVariant::Streaming(execution), feed)
             } else {
-                let (unary, feed) = unary_feed::<crate::cli::command::agents::spawn::Response>(path_type);
-                (crate::cli::command::agents::spawn::ListenerExecutionResponse::Unary(unary), feed)
+                let (response, feed) = unary_feed::<crate::cli::command::agents::spawn::Response>(path_type);
+                let execution = crate::cli::command::agents::spawn::ListenerExecution { request: parsed, agent_arguments, response };
+                (crate::cli::command::agents::spawn::ListenerExecutionVariant::Execution(execution), feed)
             };
-            let execution = crate::cli::command::agents::spawn::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Spawn(execution)), feed))
+            Some((crate::cli::command::ListenerExecution::Agents(crate::cli::command::agents::ListenerExecution::Spawn(variant)), feed))
         }
         "agents/spawn/request_schema" => {
             let parsed = serde_json::from_str::<crate::cli::command::agents::spawn::request_schema::Request>(request.get()).ok()?;
@@ -1377,15 +1378,16 @@ pub(crate) fn open_run(
         }
         "functions/execute/standard" => {
             let parsed = serde_json::from_str::<crate::cli::command::functions::execute::standard::Request>(request.get()).ok()?;
-            let (response, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
-                let (stream, feed) = stream_feed::<crate::cli::command::functions::execute::standard::ResponseItem>();
-                (crate::cli::command::functions::execute::standard::ListenerExecutionResponse::Streaming(stream), feed)
+            let (variant, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
+                let (response, feed) = stream_feed::<crate::cli::command::functions::execute::standard::ResponseItem>();
+                let execution = crate::cli::command::functions::execute::standard::ListenerExecutionStreaming { request: parsed, agent_arguments, response };
+                (crate::cli::command::functions::execute::standard::ListenerExecutionVariant::Streaming(execution), feed)
             } else {
-                let (unary, feed) = unary_feed::<crate::cli::command::functions::execute::standard::Response>(path_type);
-                (crate::cli::command::functions::execute::standard::ListenerExecutionResponse::Unary(unary), feed)
+                let (response, feed) = unary_feed::<crate::cli::command::functions::execute::standard::Response>(path_type);
+                let execution = crate::cli::command::functions::execute::standard::ListenerExecution { request: parsed, agent_arguments, response };
+                (crate::cli::command::functions::execute::standard::ListenerExecutionVariant::Execution(execution), feed)
             };
-            let execution = crate::cli::command::functions::execute::standard::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Functions(crate::cli::command::functions::ListenerExecution::Execute(crate::cli::command::functions::execute::ListenerExecution::Standard(execution))), feed))
+            Some((crate::cli::command::ListenerExecution::Functions(crate::cli::command::functions::ListenerExecution::Execute(crate::cli::command::functions::execute::ListenerExecution::Standard(variant))), feed))
         }
         "functions/execute/standard/request_schema" => {
             let parsed = serde_json::from_str::<crate::cli::command::functions::execute::standard::request_schema::Request>(request.get()).ok()?;
@@ -1401,15 +1403,16 @@ pub(crate) fn open_run(
         }
         "functions/execute/swiss_system" => {
             let parsed = serde_json::from_str::<crate::cli::command::functions::execute::swiss_system::Request>(request.get()).ok()?;
-            let (response, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
-                let (stream, feed) = stream_feed::<crate::cli::command::functions::execute::swiss_system::ResponseItem>();
-                (crate::cli::command::functions::execute::swiss_system::ListenerExecutionResponse::Streaming(stream), feed)
+            let (variant, feed) = if parsed.dangerous_advanced.as_ref().and_then(|a| a.stream) == Some(true) {
+                let (response, feed) = stream_feed::<crate::cli::command::functions::execute::swiss_system::ResponseItem>();
+                let execution = crate::cli::command::functions::execute::swiss_system::ListenerExecutionStreaming { request: parsed, agent_arguments, response };
+                (crate::cli::command::functions::execute::swiss_system::ListenerExecutionVariant::Streaming(execution), feed)
             } else {
-                let (unary, feed) = unary_feed::<crate::cli::command::functions::execute::swiss_system::Response>(path_type);
-                (crate::cli::command::functions::execute::swiss_system::ListenerExecutionResponse::Unary(unary), feed)
+                let (response, feed) = unary_feed::<crate::cli::command::functions::execute::swiss_system::Response>(path_type);
+                let execution = crate::cli::command::functions::execute::swiss_system::ListenerExecution { request: parsed, agent_arguments, response };
+                (crate::cli::command::functions::execute::swiss_system::ListenerExecutionVariant::Execution(execution), feed)
             };
-            let execution = crate::cli::command::functions::execute::swiss_system::ListenerExecution { request: parsed, agent_arguments, response };
-            Some((crate::cli::command::ListenerExecution::Functions(crate::cli::command::functions::ListenerExecution::Execute(crate::cli::command::functions::execute::ListenerExecution::SwissSystem(execution))), feed))
+            Some((crate::cli::command::ListenerExecution::Functions(crate::cli::command::functions::ListenerExecution::Execute(crate::cli::command::functions::execute::ListenerExecution::SwissSystem(variant))), feed))
         }
         "functions/execute/swiss_system/request_schema" => {
             let parsed = serde_json::from_str::<crate::cli::command::functions::execute::swiss_system::request_schema::Request>(request.get()).ok()?;

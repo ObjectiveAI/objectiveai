@@ -287,22 +287,38 @@ pub mod request_schema;
 
 pub mod response_schema;
 
-/// One `/listen` broadcast run of `functions execute swiss_system`: the actual
-/// [`Request`], the producer's
+/// One `/listen` broadcast run of `functions execute swiss_system` in its unary
+/// form (the plain `execute`): the actual [`Request`], the
+/// producer's
 /// [`AgentArguments`](crate::cli::command::AgentArguments), and the
-/// response — in whichever of the leaf's two forms the request
-/// selected. See [`crate::cli::websocket_listener`].
+/// unary response future. See [`crate::cli::websocket_listener`].
 #[cfg(feature = "cli-listener")]
 pub struct ListenerExecution {
     pub request: Request,
     pub agent_arguments: crate::cli::command::AgentArguments,
-    pub response: ListenerExecutionResponse,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
 }
 
-/// The dual-form leaf's response: unary by default, streaming when
-/// the request set `dangerous_advanced.stream: true`.
+/// One `/listen` broadcast run of `functions execute swiss_system` in its
+/// streaming form (`execute_streaming` — the request set
+/// `dangerous_advanced.stream: true`): the actual [`Request`], the
+/// producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
 #[cfg(feature = "cli-listener")]
-pub enum ListenerExecutionResponse {
-    Unary(crate::cli::websocket_listener::UnaryResponse<Response>),
-    Streaming(crate::cli::websocket_listener::ResponseItemStream<ResponseItem>),
+pub struct ListenerExecutionStreaming {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}
+
+/// This leaf's multiple listener executions — one variant per
+/// execute fn (`Execution` for the plain `execute`, `Streaming`
+/// for `execute_streaming`), discriminated per request off
+/// `dangerous_advanced.stream`. The branch enum's single variant
+/// for this leaf wraps this.
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecutionVariant {
+    Execution(ListenerExecution),
+    Streaming(ListenerExecutionStreaming),
 }
