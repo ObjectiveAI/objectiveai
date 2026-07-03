@@ -103,6 +103,7 @@ export function registerIframe(
   const targetOrigin = deriveTargetOrigin(src);
   iframes.set(pluginName, { pluginName, iframe, targetOrigin });
   void subscribeToPluginEvents(pluginName);
+  void ensureDaemonListener();
   ensureReverseListener();
 }
 
@@ -151,6 +152,79 @@ async function subscribeToPluginEvents(pluginName: string): Promise<void> {
     }
   });
   tauriUnlisteners.set(pluginName, unlisten);
+}
+
+// ── Daemon stream: plugins/run frame routing ──────────────────────
+//
+// The Rust side forwards every daemon WebSocket frame raw as an
+// `inbound` event on the `"objectiveai"` channel with
+// `sub_type: "daemon"`. Frames come in two shapes:
+//
+//   - request:  `{…context, id, value: <cli Request>}` (no top-level
+//     `path_type`; the request's own `path_type` is inside `value`)
+//   - response: `{id, path_type, value: <response item>}`
+//
+// A `plugins/run` request frame whose plugin (`value.name`) has an
+// open tab is forwarded into that tab's iframe as a
+// `sub_type: "plugins_run"` plugin-event, and its stream `id` is
+// remembered so the run's subsequent response frames route to the
+// same iframe. Frames with no matching tab are dropped.
+
+type DaemonFrame = {
+  id?: string;
+  path_type?: string;
+  value?: { path_type?: string; name?: string } & Record<string, unknown>;
+};
+
+let daemonListenerStarted = false;
+/** Stream id -> plugin name, for routing a run's response frames. */
+const daemonRunOwners = new Map<string, string>();
+/** Cap the id map so a long-lived viewer doesn't grow unboundedly. */
+const DAEMON_RUN_OWNERS_MAX = 1024;
+
+async function ensureDaemonListener(): Promise<void> {
+  if (daemonListenerStarted) return;
+  daemonListenerStarted = true;
+  await safeListen<EventPayload>("objectiveai", (event) => {
+    const payload = event.payload;
+    if (!payload || payload.type !== "inbound") return;
+    if (payload.sub_type !== "daemon") return;
+    const frame = payload.value as DaemonFrame | null;
+    if (!frame || typeof frame !== "object" || typeof frame.id !== "string") {
+      return;
+    }
+
+    let owner: string | undefined;
+    if (frame.path_type === undefined) {
+      // Request frame: route plugins/run to the plugin's tab (if any)
+      // and remember the stream id for its responses.
+      if (frame.value?.path_type !== "plugins/run") return;
+      if (typeof frame.value.name !== "string") return;
+      owner = frame.value.name;
+      if (!iframes.has(owner)) return;
+      if (daemonRunOwners.size >= DAEMON_RUN_OWNERS_MAX) {
+        const oldest = daemonRunOwners.keys().next().value;
+        if (oldest !== undefined) daemonRunOwners.delete(oldest);
+      }
+      daemonRunOwners.set(frame.id, owner);
+    } else {
+      // Response frame: route by remembered stream id.
+      owner = daemonRunOwners.get(frame.id);
+      if (!owner) return;
+    }
+
+    const handle = iframes.get(owner);
+    if (!handle) return;
+    handle.iframe.contentWindow?.postMessage(
+      {
+        kind: "plugin-event",
+        type: "inbound",
+        sub_type: "plugins_run",
+        value: frame,
+      },
+      handle.targetOrigin,
+    );
+  });
 }
 
 // ── Reverse channel: iframe -> host postMessages ──────────────────

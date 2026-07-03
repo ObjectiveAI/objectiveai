@@ -1,22 +1,19 @@
-//! Plugin glue: dynamic axum route registration, Tauri commands the
-//! React shell calls to discover installed plugins, and the custom
-//! `plugin://` URI scheme handler that serves plugin UI bundles out
-//! of `<plugins_dir>/<name>/viewer/`.
+//! Plugin glue: Tauri commands the React shell calls to discover
+//! installed plugins, and the custom `plugin://` URI scheme handler
+//! that serves plugin UI bundles out of `<plugins_dir>/<name>/viewer/`.
 //!
 //! Plugin discovery goes through the cli binary: [`list_all_plugins`]
 //! drives the SDK's typed `plugins list` leaf over a
 //! [`BinaryExecutor`], the same executor `cli_run` uses.
+//!
+//! Plugin data delivery is a frontend concern now: the JS side routes
+//! daemon-stream `plugins/run` frames to the matching plugin tab —
+//! there are no viewer-side HTTP routes anymore.
 
-use axum::Json;
-use axum::http::StatusCode;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::binary::BinaryExecutor;
 use objectiveai_sdk::cli::command::plugins::list as plugins_list;
-use objectiveai_sdk::cli::command::plugins::list::{
-    ResponseHttpMethod, ResponseItem as PluginManifest, ResponseViewerRoute,
-};
-
-use objectiveai_sdk::viewer::{Event, EventSender};
+use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
 
 /// `<objectiveai_dir>/bin/plugins` — the root the `plugin://` URI
 /// scheme serves assets from (plugins are machine-wide, shared by
@@ -55,47 +52,6 @@ pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginMan
         }
     }
     plugins
-}
-
-/// Register one plugin viewer route on the given axum router. The
-/// route lands at `/plugin/<plugin>/<route.path>`; a hit emits an
-/// `Event::Plugin` carrying the manifest-declared `type` tag and the
-/// request body. Body-less requests (GET, or POST with no body) yield
-/// `Value::Null` as the request value.
-pub(crate) fn register_plugin_route(
-    app: axum::Router,
-    tx: EventSender,
-    plugin: String,
-    route: ResponseViewerRoute,
-) -> axum::Router {
-    let full_path = format!("/plugin/{plugin}{}", route.path);
-    let r#type = route.r#type.clone();
-    let method = route.method;
-    let plugin_for_handler = plugin.clone();
-
-    let handler = move |body: Option<Json<serde_json::Value>>| {
-        let tx = tx.clone();
-        let plugin = plugin_for_handler.clone();
-        let sub_type = r#type.clone();
-        async move {
-            let value = body.map(|Json(v)| v).unwrap_or(serde_json::Value::Null);
-            let _ = tx.send(Event::Inbound {
-                destination: plugin,
-                sub_type,
-                value,
-            });
-            StatusCode::OK
-        }
-    };
-
-    let method_router = match method {
-        ResponseHttpMethod::Get => axum::routing::get(handler),
-        ResponseHttpMethod::Post => axum::routing::post(handler),
-        ResponseHttpMethod::Put => axum::routing::put(handler),
-        ResponseHttpMethod::Patch => axum::routing::patch(handler),
-        ResponseHttpMethod::Delete => axum::routing::delete(handler),
-    };
-    app.route(&full_path, method_router)
 }
 
 /// Percent-encode characters in a plugin name that would change the
@@ -141,8 +97,9 @@ pub(crate) struct ViewerPluginInfo {
 /// `viewer_url`, or an extracted on-disk bundle (an `index.html` under
 /// `<plugins_dir>/<owner>/<name>/<version>/viewer/`). The get response
 /// no longer carries `viewer_zip`, so bundle presence is read from
-/// disk. Plugins with only `viewer_routes` and no viewer source still
-/// have their axum routes registered at startup but don't get a tab.
+/// disk. Plugins without a viewer source don't get a tab (and, with no
+/// tab, daemon-stream `plugins/run` frames for them have nowhere to
+/// route on the JS side).
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
     executor: tauri::State<'_, BinaryExecutor>,

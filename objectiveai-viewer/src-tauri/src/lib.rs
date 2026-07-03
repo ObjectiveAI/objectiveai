@@ -1,11 +1,8 @@
 mod cli_command;
+mod daemon_ws;
 mod plugins;
-#[cfg(test)]
-mod plugins_tests;
 mod run;
-mod signature;
 
-pub use plugins::*;
 pub use run::*;
 
 /// Internal command bodies exposed for integration testing. Off the
