@@ -15,7 +15,6 @@ type CliCommandViewerViewerRequest struct {
 	Config *CliCommandViewerConfigViewerRequest 
 	GenerateSecretSignaturePair *CliCommandViewerGenerateSecretSignaturePairViewerRequest 
 	Kill *CliCommandViewerKillViewerRequest 
-	Send *CliCommandViewerSendViewerRequest 
 	Spawn *CliCommandViewerSpawnViewerRequest 
 }
 
@@ -28,9 +27,6 @@ func (v CliCommandViewerViewerRequest) MarshalJSON() ([]byte, error) {
 	}
 	if v.Kill != nil {
 		return json.Marshal(v.Kill)
-	}
-	if v.Send != nil {
-		return json.Marshal(v.Send)
 	}
 	if v.Spawn != nil {
 		return json.Marshal(v.Spawn)
@@ -73,17 +69,6 @@ func (v *CliCommandViewerViewerRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandViewerSendViewerRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandViewerViewerRequest{}
-			candidate.Send = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandViewerSpawnViewerRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandViewerViewerRequest{}
@@ -102,7 +87,6 @@ func (v CliCommandViewerViewerRequest) Validate() error {
 	if v.Config != nil { count++ }
 	if v.GenerateSecretSignaturePair != nil { count++ }
 	if v.Kill != nil { count++ }
-	if v.Send != nil { count++ }
 	if v.Spawn != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandViewerViewerRequest: exactly one variant must be set, got %d", count)
