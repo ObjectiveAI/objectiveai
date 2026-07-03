@@ -349,6 +349,14 @@ pub fn run(
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
 
+    // Producer tee: before executing, ensure the resident daemon is up
+    // (idempotent — no respawn if already running) and open a feed of
+    // this run's request + stream items into its broadcast socket. Wholly
+    // best-effort: any failure yields `None` and the command runs
+    // unaffected. The daemon foreground itself is skipped (see
+    // `should_tee`).
+    let feed = start_tee(&ctx, &request).await;
+
     // Drive the request through the in-process executor, picking the
     // SDK root dispatch entry by whether the request carries an output
     // transform. The executor applies the transform / token / timeout
@@ -362,12 +370,108 @@ pub fn run(
             let stream =
                 objectiveai_sdk::cli::command::execute_transform(&executor, request, transform, None)
                     .await?;
-            Ok(RunStream::ExecuteTransform(stream))
+            Ok(RunStream::ExecuteTransform(tee_stream(stream, feed)))
         }
         None => {
             let stream = objectiveai_sdk::cli::command::execute(&executor, request, None).await?;
-            Ok(RunStream::Execute(stream))
+            Ok(RunStream::Execute(tee_stream(stream, feed)))
         }
     }
+    })
+}
+
+/// Whether this run should be teed into the daemon broadcast socket.
+/// Everything is teed EXCEPT the resident daemon's own foreground process
+/// (`daemon spawn --foreground`): its socket isn't bound and its lock
+/// isn't published yet when the tee runs, so teeing it would
+/// deadlock / fork-bomb daemon startup. Every real command — including the
+/// `daemon spawn` launcher, `daemon kill`, and `kill_all` — is teed.
+fn should_tee(request: &objectiveai_sdk::cli::command::Request) -> bool {
+    use objectiveai_sdk::cli::command::{Request, daemon};
+    !matches!(
+        request,
+        Request::Daemon(daemon::Request::Spawn(r))
+            if r.dangerous_advanced.as_ref().and_then(|a| a.foreground) == Some(true)
+    )
+}
+
+/// The producer's agent/plugin context object — exactly the fields the
+/// leaf `ViewerRequest` wrappers carry. `None`s are omitted.
+fn tee_context(config: &Config) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "agent_instance_hierarchy".to_string(),
+        serde_json::Value::String(config.agent_instance_hierarchy.clone()),
+    );
+    for (key, value) in [
+        ("agent_id", &config.agent_id),
+        ("agent_full_id", &config.agent_full_id),
+        ("agent_remote", &config.agent_remote),
+        ("response_id", &config.response_id),
+        ("response_ids", &config.response_ids),
+        ("plugin_owner", &config.plugin_owner),
+        ("plugin_repository", &config.plugin_repository),
+        ("plugin_version", &config.plugin_version),
+    ] {
+        if let Some(val) = value {
+            map.insert(key.to_string(), serde_json::Value::String(val.clone()));
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+/// Ensure the daemon is up and open a feed, writing the producer context
+/// then the request. Best-effort: returns `None` (no teeing) on any
+/// failure or for a non-teed request.
+async fn start_tee(
+    ctx: &Context,
+    request: &objectiveai_sdk::cli::command::Request,
+) -> Option<crate::websockets::daemon_stream::FeedWriter> {
+    if !should_tee(request) {
+        return None;
+    }
+    // Idempotent: `spawn` returns immediately if the daemon already holds
+    // its lock; otherwise it spawns it once and waits for readiness.
+    let _ = crate::command::daemon::spawn::spawn(ctx).await;
+    let mut feed =
+        crate::websockets::daemon_stream::connect_feed(&ctx.filesystem.state_dir())
+            .await
+            .ok()?;
+    feed.write(&tee_context(&ctx.config)).await.ok()?;
+    let request_json = serde_json::to_value(request).ok()?;
+    feed.write(&request_json).await.ok()?;
+    Some(feed)
+}
+
+/// Wrap a result stream so each `Ok` item is also written to the daemon
+/// feed as it passes through. Best-effort: the first write error stops
+/// further sends but never disturbs the items yielded downstream. When
+/// the stream ends the `FeedWriter` drops, closing the socket (daemon EOF).
+fn tee_stream<T>(
+    stream: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
+    feed: Option<crate::websockets::daemon_stream::FeedWriter>,
+) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>
+where
+    T: serde::Serialize + Send + 'static,
+{
+    let Some(mut feed) = feed else {
+        return stream;
+    };
+    Box::pin(async_stream::stream! {
+        use futures::StreamExt;
+        let mut inner = stream;
+        let mut alive = true;
+        while let Some(item) = inner.next().await {
+            if alive {
+                if let Ok(value) = &item {
+                    if let Ok(json) = serde_json::to_value(value) {
+                        if feed.write(&json).await.is_err() {
+                            alive = false;
+                        }
+                    }
+                }
+            }
+            yield item;
+        }
     })
 }

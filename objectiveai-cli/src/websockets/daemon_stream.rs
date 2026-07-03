@@ -301,3 +301,43 @@ async fn write_line<W: AsyncWriteExt + Unpin>(
     write_half.write_all(b"\n").await?;
     Ok(())
 }
+
+/// Incremental producer handle: holds the daemon socket's write half so a
+/// producer can stream items one at a time as they arrive (unlike
+/// [`feed_socket`], which sends everything at once). Dropping it closes
+/// the write half, so the daemon reads EOF and finalizes the stream.
+pub struct FeedWriter {
+    write: tokio::io::WriteHalf<LocalSocketStream>,
+}
+
+impl FeedWriter {
+    /// Write one JSON value as a newline-delimited, flushed line.
+    pub async fn write(&mut self, value: &serde_json::Value) -> std::io::Result<()> {
+        write_line(&mut self.write, value).await?;
+        self.write.flush().await
+    }
+}
+
+/// Connect to the daemon socket for incremental feeding. Retries briefly:
+/// the daemon binds its socket listener shortly AFTER it publishes its
+/// lock, so a connect right after the first `daemon spawn` can race the
+/// bind. Gives up (returns the last error) after ~500ms.
+pub async fn connect_feed(state_dir: &Path) -> std::io::Result<FeedWriter> {
+    let mut attempt = 0u32;
+    loop {
+        let name = socket_name(state_dir)?;
+        match LocalSocketStream::connect(name).await {
+            Ok(conn) => {
+                let (_read_half, write) = tokio::io::split(conn);
+                return Ok(FeedWriter { write });
+            }
+            Err(e) => {
+                attempt += 1;
+                if attempt >= 20 {
+                    return Err(e);
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+            }
+        }
+    }
+}
