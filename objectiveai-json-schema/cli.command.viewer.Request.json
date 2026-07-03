@@ -30,18 +30,6 @@
       "$ref": "cli.command.viewer.kill.response_schema.Request"
     },
     {
-      "title": "Send",
-      "$ref": "cli.command.viewer.send.Request"
-    },
-    {
-      "title": "SendRequestSchema",
-      "$ref": "cli.command.viewer.send.request_schema.Request"
-    },
-    {
-      "title": "SendResponseSchema",
-      "$ref": "cli.command.viewer.send.response_schema.Request"
-    },
-    {
       "title": "Spawn",
       "$ref": "cli.command.viewer.spawn.Request"
     },

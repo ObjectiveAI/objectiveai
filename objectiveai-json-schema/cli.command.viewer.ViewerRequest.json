@@ -15,10 +15,6 @@
       "$ref": "cli.command.viewer.kill.ViewerRequest"
     },
     {
-      "title": "Send",
-      "$ref": "cli.command.viewer.send.ViewerRequest"
-    },
-    {
       "title": "Spawn",
       "$ref": "cli.command.viewer.spawn.ViewerRequest"
     }
