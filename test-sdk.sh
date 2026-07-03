@@ -1,15 +1,17 @@
 #!/usr/bin/env bash
-# test-sdk.sh — run the language-SDK test suites (go, py, js) in parallel.
+# test-sdk.sh — run the language-SDK test suites (go, py, js) plus the
+# viewer frontend suite, in parallel.
 #
-# Each SDK owns its test.sh; this just invokes all three concurrently,
-# capturing each one's output to
-# .logs/tests/<sdk>-tests-<timestamp>.txt, waits for them, and
+# Each suite owns its <dir>/test.sh; this just invokes them all
+# concurrently, capturing each one's output to
+# .logs/tests/<suite>-tests-<timestamp>.txt, waits for them, and
 # aggregates exit codes: 0 iff all passed, 1 if any failed.
 #
-# These are the SDKs' offline UNIT tests (merge/push, schema roundtrip,
-# coverage) — they need no server. The HTTP/snapshot tests that required a
-# running server moved to the integration suite as standalone importer
-# projects under tests/objectiveai-sdk-*-tests (run by test-integration.sh).
+# These are offline UNIT tests (merge/push, schema roundtrip, coverage,
+# plugin-bridge routing) — they need no server. The HTTP/snapshot tests
+# that required a running server moved to the integration suite as
+# standalone importer projects under tests/objectiveai-sdk-*-tests (run
+# by test-integration.sh).
 #
 # Usage:
 #   bash test-sdk.sh
@@ -23,9 +25,9 @@ mkdir -p "$LOG_DIR"
 # One timestamp for the whole run, so a run's logs sort together.
 TIMESTAMP="$(date +%Y%m%d-%H%M%S)"
 
-SDKS=(objectiveai-sdk-go objectiveai-sdk-py objectiveai-sdk-js)
+SDKS=(objectiveai-sdk-go objectiveai-sdk-py objectiveai-sdk-js objectiveai-viewer)
 
-echo "test-sdk: running ${#SDKS[@]} SDK suite(s) -> $LOG_DIR"
+echo "test-sdk: running ${#SDKS[@]} suite(s) -> $LOG_DIR"
 
 # Launch one suite per SDK, all in parallel.
 pids=()

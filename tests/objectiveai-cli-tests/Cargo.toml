@@ -20,6 +20,9 @@ tokio = { version = "1.50.0", features = ["full"] }
 tokio-stream = { version = "0.1.18", features = ["io-util", "sync"] }
 futures = "0.3.32"
 axum = "0.8.8"
+# WS client for daemon_broadcast_e2e - connects to the daemon's
+# broadcast endpoint the way the viewer does.
+tokio-tungstenite = "0.24"
 insta = { version = "1.40", features = ["json"] }
 uuid = { version = "1.22", features = ["v4"] }
 wiremock = "0.6"
