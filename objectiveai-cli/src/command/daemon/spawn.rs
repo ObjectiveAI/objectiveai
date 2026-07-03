@@ -64,6 +64,29 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
                 .arg("--dangerous-advanced")
                 .arg("{\"foreground\":true}");
             crate::spawn::apply_config_env(cmd, &ctx.config);
+            // The resident daemon is a per-state singleton service, not
+            // part of any agent's lineage. Since the producer tee makes
+            // ANY command auto-spawn it, scrub the transient identity
+            // `apply_config_env` just stamped — otherwise whichever
+            // command happens to spawn it first leaks its agent/plugin
+            // identity into the long-lived daemon (and into everything
+            // the daemon itself spawns). The daemon then boots with the
+            // defaults (`agent_instance_hierarchy` = "cli", the rest
+            // unset).
+            for var in [
+                "OBJECTIVEAI_AGENT_INSTANCE_HIERARCHY",
+                "OBJECTIVEAI_AGENT_ID",
+                "OBJECTIVEAI_AGENT_FULL_ID",
+                "OBJECTIVEAI_AGENT_REMOTE",
+                "OBJECTIVEAI_RESPONSE_ID",
+                "OBJECTIVEAI_RESPONSE_IDS",
+                "OBJECTIVEAI_PLUGIN_OWNER",
+                "OBJECTIVEAI_PLUGIN_REPOSITORY",
+                "OBJECTIVEAI_PLUGIN_VERSION",
+            ] {
+                cmd.env_remove(var);
+            }
+            cmd.env_remove(objectiveai_sdk::mcp::MCP_SESSION_ID_ENV);
         },
     )
     .await

@@ -316,21 +316,48 @@ pub struct FeedWriter {
 }
 
 impl FeedWriter {
-    /// Write one JSON value as a newline-delimited, flushed line.
+    /// Write one JSON value as a newline-delimited, flushed line. The
+    /// line and its `\n` go out in a single buffer (one write per item —
+    /// this sits behind every teed stream item).
     pub async fn write(&mut self, value: &serde_json::Value) -> std::io::Result<()> {
-        write_line(&mut self.write, value).await?;
+        let mut line = serde_json::to_vec(value)
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidData, e))?;
+        line.push(b'\n');
+        self.write.write_all(&line).await?;
         self.write.flush().await
     }
 }
 
-/// Connect to the daemon socket for incremental feeding. A single
-/// attempt, no retry: the daemon publishes its lock only after this socket
-/// is listening (see [`bind_socket_listener`]), so if the caller reached
-/// here after the daemon is up, the socket is up — a connect failure means
-/// the daemon is dead, not merely starting.
+/// Connect to the daemon socket for incremental feeding.
+///
+/// No daemon-liveness retry: the daemon publishes its lock only after
+/// this socket is listening (see [`bind_socket_listener`]), so if the
+/// caller reached here after `daemon spawn` returned, the socket is up —
+/// a refused/absent socket means the daemon is dead, and that fails
+/// immediately.
+///
+/// The ONE retried error is Windows `ERROR_PIPE_BUSY` (231): named-pipe
+/// listeners expose a finite number of instances and re-post one right
+/// after each accept, so under concurrent producers a connect can land in
+/// the instant every instance is taken. That state means the daemon is
+/// ALIVE (a live listener is mid-accept) — the opposite of dead — so a
+/// brief bounded retry is correct there and only there. Unix never
+/// produces this code (connects queue in the listen backlog).
 pub async fn connect_feed(state_dir: &Path) -> std::io::Result<FeedWriter> {
-    let name = socket_name(state_dir)?;
-    let conn = LocalSocketStream::connect(name).await?;
-    let (_read_half, write) = tokio::io::split(conn);
-    Ok(FeedWriter { write })
+    const ERROR_PIPE_BUSY: i32 = 231;
+    let mut attempts = 0u32;
+    loop {
+        let name = socket_name(state_dir)?;
+        match LocalSocketStream::connect(name).await {
+            Ok(conn) => {
+                let (_read_half, write) = tokio::io::split(conn);
+                return Ok(FeedWriter { write });
+            }
+            Err(e) if e.raw_os_error() == Some(ERROR_PIPE_BUSY) && attempts < 20 => {
+                attempts += 1;
+                tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+            }
+            Err(e) => return Err(e),
+        }
+    }
 }

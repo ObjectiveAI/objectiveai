@@ -443,10 +443,18 @@ async fn start_tee(
     Some(feed)
 }
 
-/// Wrap a result stream so each `Ok` item is also written to the daemon
-/// feed as it passes through. Best-effort: the first write error stops
-/// further sends but never disturbs the items yielded downstream. When
-/// the stream ends the `FeedWriter` drops, closing the socket (daemon EOF).
+/// Wrap a result stream so every item is also fed to the daemon as it
+/// passes through — `Ok` items as their JSON, `Err` items as the same
+/// `cli::Error` line shape `main.rs` prints, so the teed stream mirrors
+/// stdout faithfully.
+///
+/// Socket writes never sit in the command's output path: items go through
+/// a bounded channel to a background writer task, so a slow or wedged
+/// daemon can't stall the command. Best-effort throughout — a full queue
+/// or a write error kills the tee (permanently, no gap-then-resume) and
+/// the command is unaffected. When the stream ends the sender drops, the
+/// writer drains the queue, and the `FeedWriter` drop closes the socket
+/// (daemon EOF).
 fn tee_stream<T>(
     stream: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
     feed: Option<crate::websockets::daemon_stream::FeedWriter>,
@@ -457,21 +465,46 @@ where
     let Some(mut feed) = feed else {
         return stream;
     };
+    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(1024);
+    tokio::spawn(async move {
+        while let Some(value) = rx.recv().await {
+            if feed.write(&value).await.is_err() {
+                // Daemon gone: stop consuming, so the sender side sees a
+                // closed channel and stops serializing.
+                break;
+            }
+        }
+        // `feed` drops here → socket closes → the daemon reads EOF.
+    });
     Box::pin(async_stream::stream! {
         use futures::StreamExt;
         let mut inner = stream;
-        let mut alive = true;
+        let mut tx = Some(tx);
         while let Some(item) = inner.next().await {
-            if alive {
-                if let Ok(value) = &item {
-                    if let Ok(json) = serde_json::to_value(value) {
-                        if feed.write(&json).await.is_err() {
-                            alive = false;
-                        }
+            if let Some(sender) = &tx {
+                let json = match &item {
+                    Ok(value) => serde_json::to_value(value).ok(),
+                    // Mirror `main.rs::write_error_line`'s payload so the
+                    // teed stream matches what the command printed.
+                    Err(e) => serde_json::to_value(objectiveai_sdk::cli::Error {
+                        r#type: objectiveai_sdk::cli::ErrorType::Error,
+                        level: Some(objectiveai_sdk::cli::Level::Error),
+                        fatal: None,
+                        message: e.output_message(),
+                    })
+                    .ok(),
+                };
+                if let Some(json) = json {
+                    if sender.try_send(json).is_err() {
+                        // Full (daemon can't keep up / wedged) or closed
+                        // (write error): kill the tee for the rest of the
+                        // run rather than yield a gapped stream.
+                        tx = None;
                     }
                 }
             }
             yield item;
         }
+        // `tx` drops → the writer task drains, then closes the socket.
     })
 }
