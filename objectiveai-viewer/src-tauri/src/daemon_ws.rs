@@ -48,6 +48,9 @@ pub(crate) fn spawn_client(tx: EventSender, address: String, signature: Option<S
 /// forward every text frame to the event bus until the socket drops.
 /// `Err(())` means the event bus is closed — stop entirely.
 async fn pump(tx: &EventSender, url: &str, signature: Option<&str>) -> Result<(), ()> {
+    // The broadcast lives on the daemon's `/listen` route; `url` is
+    // the published base ws:// address.
+    let url = format!("{url}/listen");
     let Ok(mut request) = url.into_client_request() else {
         return Ok(());
     };

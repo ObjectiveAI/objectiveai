@@ -8,8 +8,8 @@
 //! init gate it binds the broadcast WebSocket listener and acquires the
 //! singleton lock (publishing the client-connect `ws://` URL as the lock
 //! content, like `objectiveai-api` publishes its `http://` URL), brings
-//! up the [`crate::websockets::daemon_stream`] hub
-//! (root WebSocket endpoint + fixed-name producer socket), then launches
+//! up the [`crate::websockets::daemon_stream`] hub (`/listen` broadcast +
+//! `/execute` in-process runner + fixed-name producer socket), then launches
 //! every `daemon: true` plugin via the SHARED plugin executor
 //! (`plugins::run::execute`) as `<exec> daemon begin` — so each resident
 //! plugin gets the full bidirectional protocol (it can execute nested
@@ -194,7 +194,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // Optional WS auth: when `DAEMON_SECRET` is set, gate upgrades on a
     // valid signature header; when unset, the server is open.
     let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
-    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone(), secret);
+    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone(), secret, ctx.clone());
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
 
     // Launch every daemon plugin under the SHARED plugin executor, run

@@ -82,8 +82,9 @@ async fn plugins_run_broadcast_frame_contract() {
     assert!(url.starts_with("ws://"), "lock content should be a ws:// URL, got {url:?}");
 
     // Connect BEFORE producing, the way the viewer does, so no frame
-    // of our run can be missed.
-    let (mut ws, _response) = tokio_tungstenite::connect_async(&url)
+    // of our run can be missed. The broadcast lives on the `/listen`
+    // route; the lock content is the base ws:// address.
+    let (mut ws, _response) = tokio_tungstenite::connect_async(format!("{url}/listen"))
         .await
         .expect("WS connect to the daemon broadcast should succeed");
 

@@ -11,10 +11,13 @@
 //!   so the trailing `\n` is the only delimiter — the same wire shape as
 //!   [`crate::websockets::mcp_listener`].
 //! - **Consumer side** — an [`axum`] WebSocket server bound to the
-//!   daemon's configured `address:port`, single root endpoint (`/`).
-//!   Every client that connects immediately begins receiving future
-//!   frames; it is a pure push channel (inbound messages are ignored
-//!   except to notice the client closing).
+//!   daemon's configured `address:port`. The broadcast lives on the
+//!   `/listen` route: every client that connects immediately begins
+//!   receiving future frames; it is a pure push channel (inbound
+//!   messages are ignored except to notice the client closing). The
+//!   sibling `/execute` route ([`crate::websockets::daemon_execute`])
+//!   runs commands in-process, one connection per command — its
+//!   streams never carry broadcast frames.
 //!
 //! Each producer connection is assigned a fresh `id`. The request is
 //! wrapped as the SDK [`RootViewerRequest`] (`{…context, id, value}` —
@@ -208,19 +211,42 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
     }
 }
 
-/// Serve the consumer side: an axum WebSocket server on `listener`,
-/// single root endpoint. Returns the serve task's handle. Each accepted
-/// client subscribes to `tx` and receives every future broadcast frame.
-/// When `secret` is `Some`, upgrades are gated by
+/// Shared state for the daemon's WebSocket routes: the broadcast
+/// sender `/listen` subscribers drain, and the resident
+/// [`crate::context::Context`] that `/execute` runs commands against.
+#[derive(Clone)]
+pub(crate) struct DaemonWsState {
+    pub(crate) tx: broadcast::Sender<String>,
+    pub(crate) ctx: crate::context::Context,
+}
+
+/// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
+/// separated:
+///
+/// - **`/listen`** — the broadcast: each client receives every future
+///   frame. Pure push; inbound messages are never treated as requests.
+/// - **`/execute`** — connection-per-command execution
+///   ([`crate::websockets::daemon_execute`]): the client's request runs
+///   in-process against `ctx`, and its items stream back on that socket
+///   only — never onto the broadcast. (The run's tee still lands on
+///   `/listen` like any other CLI activity, via the producer socket.)
+///
+/// When `secret` is `Some`, upgrades on BOTH routes are gated by
 /// [`crate::websockets::daemon_auth`]; when `None`, the server is open.
+/// Returns the serve task's handle.
 pub fn serve_ws(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
     secret: Option<std::sync::Arc<String>>,
+    ctx: crate::context::Context,
 ) -> tokio::task::JoinHandle<()> {
     let mut app = axum::Router::new()
-        .route("/", axum::routing::any(ws_handler))
-        .with_state(tx);
+        .route("/listen", axum::routing::any(listen_handler))
+        .route(
+            "/execute",
+            axum::routing::any(crate::websockets::daemon_execute::execute_handler),
+        )
+        .with_state(DaemonWsState { tx, ctx });
     // Optional auth: when a secret is configured, gate every upgrade on a
     // valid `sha256=<hex(SHA256(secret))>` signature header; otherwise the
     // server is open (no middleware layered).
@@ -235,12 +261,12 @@ pub fn serve_ws(
     })
 }
 
-/// Root endpoint: upgrade to WebSocket and pump broadcast frames.
-async fn ws_handler(
-    axum::extract::State(tx): axum::extract::State<broadcast::Sender<String>>,
+/// `/listen`: upgrade to WebSocket and pump broadcast frames.
+async fn listen_handler(
+    axum::extract::State(state): axum::extract::State<DaemonWsState>,
     ws: axum::extract::ws::WebSocketUpgrade,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |socket| pump(socket, tx))
+    ws.on_upgrade(move |socket| pump(socket, state.tx))
 }
 
 /// Forward every broadcast frame to one client until it disconnects.

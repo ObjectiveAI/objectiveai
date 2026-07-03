@@ -22,13 +22,17 @@
 //!   the first time a chunk surfaces a given agent-completion id.
 //! - [`daemon_stream`] — the resident daemon's broadcast hub: a
 //!   fixed-name local socket that producers feed CLI request/response
-//!   streams into, fanned out to every client of the root WebSocket
-//!   server.
+//!   streams into, fanned out to every client of the WebSocket
+//!   server's `/listen` route.
+//! - [`daemon_execute`] — the daemon's `/execute` WebSocket route:
+//!   connection-per-command in-process execution for remote consumers
+//!   (the SDK's `WebSocketExecutor`, notably the viewer).
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
 pub mod daemon_auth;
+pub mod daemon_execute;
 pub mod daemon_stream;
 pub mod mcp_listener;
 pub mod mcp_server;

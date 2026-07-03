@@ -687,6 +687,7 @@ MODULES = [
     'objectiveai_sdk.cli.command.api.spawn.viewer_request',
     'objectiveai_sdk.cli.command.api.spawn.viewer_response',
     'objectiveai_sdk.cli.command.api.viewer_request',
+    'objectiveai_sdk.cli.command.command_executor.execute_envelope',
     'objectiveai_sdk.cli.command.daemon.kill.path',
     'objectiveai_sdk.cli.command.daemon.kill.request',
     'objectiveai_sdk.cli.command.daemon.kill.request_schema.path',

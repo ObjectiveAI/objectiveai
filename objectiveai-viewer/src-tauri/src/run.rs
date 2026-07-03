@@ -10,7 +10,7 @@
 //! (content `"ready"`), no longer a connect URL.
 
 use envconfig::Envconfig;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tauri::Emitter;
@@ -115,17 +115,19 @@ pub struct Config {
     pub objectiveai_state: String,
 }
 
-/// One cli-binary executor, stamped with the layout coordinates so
-/// every spawned child resolves the same tree the viewer serves
-/// `plugin://` assets from — even when the viewer's own config came
-/// from a programmatic `ConfigBuilder` rather than the env.
-fn make_executor(config: &Config) -> BinaryExecutor {
-    BinaryExecutor::new(Some(config.objectiveai_dir.clone()))
-        .env(
-            "OBJECTIVEAI_DIR",
-            config.objectiveai_dir.to_string_lossy().into_owned(),
-        )
-        .env("OBJECTIVEAI_STATE", config.objectiveai_state.clone())
+/// One WebSocket executor for everything the viewer runs through the
+/// CLI: `cli_execute` dispatches from plugin iframes and
+/// `list_plugins_with_viewer` from the shell. Commands travel to the
+/// daemon's `/execute` route and run in-process there — the viewer
+/// never spawns the cli binary, so it can live on a different machine
+/// than the CLI. `daemon_address` is the daemon's published base
+/// `ws://` URL (the same one the `/listen` client uses).
+pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> WebSocketExecutor {
+    let executor = WebSocketExecutor::new(format!("{daemon_address}/execute"));
+    match signature {
+        Some(signature) => executor.signature(signature),
+        None => executor,
+    }
 }
 
 /// Build the event bus and the shell's supporting state. No IO — the
@@ -137,18 +139,11 @@ pub fn setup(
 ) -> (
     objectiveai_sdk::viewer::EventSender,
     EventReceiver,
-    BinaryExecutor,
     PathBuf,
 ) {
     let (tx, rx) = mpsc::unbounded_channel::<Event>();
-
-    // One executor for everything the viewer runs through the cli
-    // binary: `cli_run` dispatches from plugin iframes and
-    // `list_plugins_with_viewer` from the shell.
-    let executor = make_executor(config);
     let plugins_dir = crate::plugins::plugins_dir(&config.objectiveai_dir);
-
-    (tx, rx, executor, plugins_dir)
+    (tx, rx, plugins_dir)
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -165,7 +160,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 pub fn serve(
     events_tx: objectiveai_sdk::viewer::EventSender,
     mut rx: EventReceiver,
-    executor: BinaryExecutor,
+    executor: WebSocketExecutor,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
@@ -241,7 +236,8 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         .join("state")
         .join(&config.objectiveai_state)
         .join("locks");
-    let (events_tx, rx, executor, plugins_dir) = setup(&config);
+    let (events_tx, rx, plugins_dir) = setup(&config);
+    let executor = make_executor(&daemon_address, config.daemon_signature.as_deref());
 
     // There is only ever ONE viewer per STATE (unlike the api, which
     // is one per OBJECTIVEAI_DIR): claim key "viewer" in

@@ -2,16 +2,16 @@
 //! installed plugins, and the custom `plugin://` URI scheme handler
 //! that serves plugin UI bundles out of `<plugins_dir>/<name>/viewer/`.
 //!
-//! Plugin discovery goes through the cli binary: [`list_all_plugins`]
-//! drives the SDK's typed `plugins list` leaf over a
-//! [`BinaryExecutor`], the same executor `cli_run` uses.
+//! Plugin discovery goes through the daemon: [`list_all_plugins`]
+//! drives the SDK's typed `plugins list` leaf over the
+//! [`WebSocketExecutor`], the same executor `cli_execute` uses.
 //!
 //! Plugin data delivery is a frontend concern now: the JS side routes
 //! daemon-stream `plugins/run` frames to the matching plugin tab —
 //! there are no viewer-side HTTP routes anymore.
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
 use objectiveai_sdk::cli::command::plugins::list as plugins_list;
 use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
 
@@ -29,7 +29,7 @@ pub(crate) fn plugins_dir(objectiveai_dir: &std::path::Path) -> std::path::PathB
 /// purpose: a missing binary or a malformed line is logged to stderr
 /// and yields an empty/partial list rather than failing viewer
 /// startup — a viewer with zero plugin tabs is still a working viewer.
-pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginManifest> {
+pub(crate) async fn list_all_plugins(executor: &WebSocketExecutor) -> Vec<PluginManifest> {
     let request = plugins_list::Request {
         path_type: plugins_list::Path::PluginsList,
         offset: None,
@@ -102,7 +102,7 @@ pub(crate) struct ViewerPluginInfo {
 /// route on the JS side).
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
-    executor: tauri::State<'_, BinaryExecutor>,
+    executor: tauri::State<'_, WebSocketExecutor>,
     plugins_dir: tauri::State<'_, PluginsDir>,
 ) -> Result<Vec<ViewerPluginInfo>, String> {
     let plugins = list_all_plugins(executor.inner()).await;

@@ -1,14 +1,17 @@
-//! Tauri command `cli_execute` — spawns the objectiveai cli binary
-//! via the SDK's [`BinaryExecutor`] and forwards each stdout JSONL
-//! line to the iframe that invoked the cli as an
+//! Tauri command `cli_execute` — runs a CLI command against the
+//! daemon over WebSocket via the SDK's [`WebSocketExecutor`] and
+//! forwards each stream item to the iframe that invoked the cli as an
 //! [`Event::CliCommand`](objectiveai_sdk::viewer::Event) event,
 //! terminated by a synthetic `{"type":"end"}` marker.
 //!
+//! The viewer never spawns the cli binary: commands travel to the
+//! daemon's `/execute` route and run in-process there, which is what
+//! lets the viewer live on a different machine than the CLI.
+//!
 //! `cli_execute` takes a typed
-//! [`Request`](objectiveai_sdk::cli::command::Request) as serde JSON
-//! and lowers it to argv via `into_command()` — the canonical
-//! Request→argv mapping lives in Rust, never in JS, and there is
-//! deliberately NO raw-argv Tauri command (the argv-level
+//! [`Request`](objectiveai_sdk::cli::command::Request) as serde JSON —
+//! the canonical request shape lives in Rust, never in JS, and there
+//! is deliberately NO raw-argv Tauri command (the request-level
 //! [`cli_run_impl`] is internal plumbing + test surface only).
 //!
 //! The plugin-bridge resolves the originating iframe (via
@@ -17,14 +20,14 @@
 //! never sets `destination` itself.
 
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::binary::{BinaryExecutor, Error as BinaryError};
+use objectiveai_sdk::cli::command::websocket::{Error as WsError, WebSocketExecutor};
 use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor};
 use objectiveai_sdk::viewer::{Event, EventSender};
 
-/// Per-call identity stamped on every cli child the viewer spawns:
-/// instance hierarchy `"Viewer"`, every other field `None` so the
-/// executor `env_remove`s it and nothing leaks from the viewer's own
-/// environment.
+/// Per-call identity sent in every execute envelope: instance
+/// hierarchy `"Viewer"`, every other field `None` so the daemon
+/// clears rather than inherits it — nothing leaks from the daemon's
+/// own environment into a viewer-initiated run.
 pub(crate) fn viewer_agent_arguments() -> AgentArguments {
     AgentArguments {
         agent_instance_hierarchy: Some("Viewer".to_string()),
@@ -34,18 +37,17 @@ pub(crate) fn viewer_agent_arguments() -> AgentArguments {
 
 /// Run a typed [`Request`](objectiveai_sdk::cli::command::Request)
 /// (sent by the JS SDK's generated viewer execute functions as serde
-/// JSON). Deserializes it and lowers it to argv via `into_command()`,
-/// then runs the cli binary through [`cli_run_impl`]. A request that
+/// JSON) through the daemon's `/execute` route. A request that
 /// doesn't deserialize still resolves the iframe's iterator: one
 /// error envelope, then the end marker.
 ///
-/// Returns immediately after spawning the child + forwarder task; the
-/// iframe sees output asynchronously via the events channel. When the
-/// child's stdout closes, a final `{"type":"end"}` event is emitted —
-/// the JS async iterator terminates only on that marker.
+/// Returns immediately after opening the connection + forwarder task;
+/// the iframe sees output asynchronously via the events channel. When
+/// the daemon closes the stream, a final `{"type":"end"}` event is
+/// emitted — the JS async iterator terminates only on that marker.
 #[tauri::command]
 pub async fn cli_execute(
-    executor: tauri::State<'_, BinaryExecutor>,
+    executor: tauri::State<'_, WebSocketExecutor>,
     events_tx: tauri::State<'_, EventSender>,
     request: serde_json::Value,
     origin: String,
@@ -56,7 +58,7 @@ pub async fn cli_execute(
 /// Tauri-free body of [`cli_execute`], mirroring [`cli_run_impl`].
 #[doc(hidden)]
 pub async fn cli_execute_impl(
-    executor: &BinaryExecutor,
+    executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: serde_json::Value,
     origin: String,
@@ -85,19 +87,19 @@ pub async fn cli_execute_impl(
 }
 
 /// Run core shared by [`cli_execute`] (which deserializes the JSON
-/// request first) and the integration tests (which construct a
-/// `BinaryExecutor::from_path(...)` aimed at a test-built cli). The
-/// `BinaryExecutor` serializes the request and invokes the cli as
-/// `objectiveai --request <json>`. NOT exposed as a Tauri command.
+/// request first) and the integration tests (which aim a
+/// `WebSocketExecutor` at a test daemon). The executor sends the
+/// request in its execute envelope to the daemon's `/execute` route.
+/// NOT exposed as a Tauri command.
 #[doc(hidden)]
 pub async fn cli_run_impl(
-    executor: &BinaryExecutor,
+    executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: objectiveai_sdk::cli::command::Request,
     origin: String,
 ) -> Result<(), String> {
-    // Spawn the child before detaching the forwarder so the executor
-    // borrow doesn't have to live inside the 'static task.
+    // Open the connection before detaching the forwarder so the
+    // executor borrow doesn't have to live inside the 'static task.
     let agent_arguments = viewer_agent_arguments();
     let stream = executor
         .execute::<objectiveai_sdk::cli::command::Request, serde_json::Value>(
@@ -142,13 +144,13 @@ pub async fn cli_run_impl(
     Ok(())
 }
 
-/// Project a [`BinaryError`] onto the cli's JSONL error envelope. A
-/// `Cli` error IS the envelope the cli printed (`type:"error"`) — it
-/// re-serializes unchanged; everything else (spawn / io / decode) is
-/// synthesized into the same wire shape.
-fn error_value(e: BinaryError) -> serde_json::Value {
+/// Project a [`WsError`] onto the cli's JSONL error envelope. A `Cli`
+/// error IS the envelope the daemon sent (`type:"error"`) — it
+/// re-serializes unchanged; everything else (connect / transport /
+/// decode) is synthesized into the same wire shape.
+fn error_value(e: WsError) -> serde_json::Value {
     match e {
-        BinaryError::Cli(err) => serde_json::to_value(&err).unwrap_or_else(|_| {
+        WsError::Cli(err) => serde_json::to_value(&err).unwrap_or_else(|_| {
             serde_json::json!({
                 "type": "error",
                 "level": "error",
