@@ -154,7 +154,7 @@ export class PluginRunListener {
   #retained: PluginRun[] = [];
   #live = new Map<string, LiveRun>();
   #subscribers = new Set<(run: PluginRun) => void>();
-  #unlisten: () => void;
+  #unlisten: () => void = () => {};
 
   constructor() {
     if (PluginRunListener.#instance) {
@@ -211,7 +211,10 @@ export class PluginRunListener {
 
   /** Reset the singleton (tests only). */
   static __resetForTests(): void {
-    PluginRunListener.#instance?.#unlisten?.();
+    const instance = PluginRunListener.#instance;
+    if (instance) {
+      instance.#unlisten();
+    }
     PluginRunListener.#instance = undefined;
   }
 
