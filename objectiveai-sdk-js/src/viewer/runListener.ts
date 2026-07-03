@@ -26,8 +26,77 @@
 
 import { listen } from "./index";
 import { RUN_ENVELOPE_MAP, type Run } from "./runEnvelope";
-import { RunStream } from "./pluginRuns";
 import { type CliCommandAgentArguments } from "../cli/command/agentArguments";
+
+/** One `path_type`'s runtime knowledge in the generated map. */
+export type RunEnvelopeSpec = {
+  /**
+   * `stream` / `unary`, or `both` for multi-variant leaves (a unary
+   * primary plus a streaming twin gated on
+   * `dangerous_advanced.stream: true` — resolved per request).
+   */
+  mode: "stream" | "unary" | "both";
+};
+
+/**
+ * Replay-buffer async-iterable for one run's streaming response.
+ * Items are retained for the run's lifetime (runs are bounded by the
+ * terminator frame), so any number of consumers can iterate — each
+ * replays the buffer, then follows live until the terminator ends the
+ * stream.
+ */
+export class RunStream<T> implements AsyncIterable<T> {
+  #items: T[] = [];
+  #done = false;
+  #waiters: Array<() => void> = [];
+
+  /** Items received so far (live view; do not mutate). */
+  get items(): readonly T[] {
+    return this.#items;
+  }
+
+  /** Whether the run's terminator has arrived. */
+  get done(): boolean {
+    return this.#done;
+  }
+
+  /** @internal — feed side. */
+  _push(item: T): void {
+    if (this.#done) return;
+    this.#items.push(item);
+    this.#wake();
+  }
+
+  /** @internal — feed side. */
+  _end(): void {
+    this.#done = true;
+    this.#wake();
+  }
+
+  #wake(): void {
+    const waiters = this.#waiters;
+    this.#waiters = [];
+    for (const wake of waiters) wake();
+  }
+
+  async *[Symbol.asyncIterator](): AsyncIterator<T> {
+    let i = 0;
+    for (;;) {
+      while (i < this.#items.length) {
+        yield this.#items[i++];
+      }
+      if (this.#done) return;
+      await new Promise<void>((resolve) => this.#waiters.push(resolve));
+    }
+  }
+
+  /** Every item, resolved once the run's terminator arrives. */
+  async toArray(): Promise<T[]> {
+    const out: T[] = [];
+    for await (const item of this) out.push(item);
+    return out;
+  }
+}
 
 /** A run's live feed-side handles, keyed by broadcast id. */
 type LiveFeed = {

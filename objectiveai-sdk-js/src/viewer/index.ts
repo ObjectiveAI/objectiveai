@@ -1,12 +1,9 @@
 export * from "./generatedIndex";
-// The typed run receivers: `RunListener` (the Rust WebSocketListener
-// mirror over the plugin-event bus) and `PluginRunListener` (the
-// original plugin-scoped listener, pending refactor onto RunListener),
-// plus `RunStream`/`RunContext` (hand-written) and the generated
-// `Run`/`PluginRun` unions + `RUN_ENVELOPE_MAP`
-// (install-run-envelope.cjs). The listeners' → index `listen` imports
-// are benign cycles: `listen` is a hoisted function declaration.
-export * from "./pluginRuns";
+// The typed run receiver: `RunListener` (the Rust WebSocketListener
+// mirror over the plugin-event bus) + `RunStream` (hand-written) and
+// the generated `Run` union + `RUN_ENVELOPE_MAP`
+// (install-run-envelope.cjs). The listener's → index `listen` import
+// is a benign cycle: `listen` is a hoisted function declaration.
 export * from "./runEnvelope";
 export * from "./runListener";
 
