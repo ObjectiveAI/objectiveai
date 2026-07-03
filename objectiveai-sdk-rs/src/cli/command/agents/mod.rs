@@ -678,3 +678,36 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
         };
     Ok(stream)
 }
+
+/// `/listen` mirror of [`Request`]: one variant per child, wrapping
+/// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecution {
+    Enqueue(enqueue::ListenerExecution),
+    EnqueueRequestSchema(enqueue::request_schema::ListenerExecution),
+    EnqueueResponseSchema(enqueue::response_schema::ListenerExecution),
+    Get(get::ListenerExecution),
+    GetRequestSchema(get::request_schema::ListenerExecution),
+    GetResponseSchema(get::response_schema::ListenerExecution),
+    Instances(instances::ListenerExecution),
+    Laboratories(laboratories::ListenerExecution),
+    List(list::ListenerExecution),
+    ListRequestSchema(list::request_schema::ListenerExecution),
+    ListResponseSchema(list::response_schema::ListenerExecution),
+    Logs(logs::ListenerExecution),
+    Mcp(mcp::ListenerExecution),
+    Message(message::ListenerExecution),
+    MessageRequestSchema(message::request_schema::ListenerExecution),
+    MessageResponseSchema(message::response_schema::ListenerExecution),
+    Publish(publish::ListenerExecution),
+    PublishRequestSchema(publish::request_schema::ListenerExecution),
+    PublishResponseSchema(publish::response_schema::ListenerExecution),
+    Queue(queue::ListenerExecution),
+    Spawn(spawn::ListenerExecution),
+    SpawnRequestSchema(spawn::request_schema::ListenerExecution),
+    SpawnResponseSchema(spawn::response_schema::ListenerExecution),
+    Tags(tags::ListenerExecution),
+    Wait(wait::ListenerExecution),
+    WaitRequestSchema(wait::request_schema::ListenerExecution),
+    WaitResponseSchema(wait::response_schema::ListenerExecution),
+}

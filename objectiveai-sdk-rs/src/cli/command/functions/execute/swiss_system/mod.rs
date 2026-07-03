@@ -286,3 +286,23 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 pub mod request_schema;
 
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `functions execute swiss_system`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response — in whichever of the leaf's two forms the request
+/// selected. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: ListenerExecutionResponse,
+}
+
+/// The dual-form leaf's response: unary by default, streaming when
+/// the request set `dangerous_advanced.stream: true`.
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecutionResponse {
+    Unary(crate::cli::websocket_listener::UnaryResponse<Response>),
+    Streaming(crate::cli::websocket_listener::ResponseItemStream<ResponseItem>),
+}

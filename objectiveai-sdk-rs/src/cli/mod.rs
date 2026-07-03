@@ -1,6 +1,6 @@
 pub mod command;
 mod error;
-#[cfg(feature = "cli-executor")]
+#[cfg(feature = "cli-listener")]
 pub mod websocket_listener;
 pub mod plugins;
 

@@ -11,7 +11,7 @@
 //! by `end: true`, response when the id is already open, request
 //! otherwise.
 //!
-//! [`WebSocketListener`] IS a `Stream`: it yields one [`Run`] envelope
+//! [`WebSocketListener`] IS a `Stream`: it yields one [`ListenerExecution`] envelope
 //! per announced run, discriminated over the run's REQUEST — each
 //! variant carries the actual leaf request, the producer's
 //! [`AgentArguments`], and the response as either a
@@ -47,8 +47,8 @@ use tokio_tungstenite::tungstenite::http::HeaderValue;
 
 use crate::cli::command::AgentArguments;
 
-use super::Run;
-use super::run::{RunFeed, open_run};
+use crate::cli::command::ListenerExecution;
+use super::dispatch::{RunFeed, open_run};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -102,7 +102,7 @@ impl WebSocketListenerBuilder {
             .await
             .map_err(Error::Connect)?;
 
-        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<Run, Error>>();
+        let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<ListenerExecution, Error>>();
         tokio::spawn(pump(ws, tx));
         Ok(WebSocketListener { rx })
     }
@@ -111,7 +111,7 @@ impl WebSocketListenerBuilder {
 /// The root run stream — see the module docs. Construct via
 /// [`WebSocketListener::new`].
 pub struct WebSocketListener {
-    rx: tokio::sync::mpsc::UnboundedReceiver<Result<Run, Error>>,
+    rx: tokio::sync::mpsc::UnboundedReceiver<Result<ListenerExecution, Error>>,
 }
 
 impl WebSocketListener {
@@ -126,7 +126,7 @@ impl WebSocketListener {
 }
 
 impl Stream for WebSocketListener {
-    type Item = Result<Run, Error>;
+    type Item = Result<ListenerExecution, Error>;
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.rx.poll_recv(cx)
@@ -181,7 +181,7 @@ impl Frame<'_> {
     }
 }
 
-/// The distribution task: read broadcast frames, open a [`Run`] per
+/// The distribution task: read broadcast frames, open a [`ListenerExecution`] per
 /// request frame, feed its response frames, close it on the
 /// terminator. Runs until the connection ends — deliberately not tied
 /// to the root stream's lifetime (see module docs).
@@ -189,7 +189,7 @@ async fn pump(
     mut ws: tokio_tungstenite::WebSocketStream<
         tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
     >,
-    tx: tokio::sync::mpsc::UnboundedSender<Result<Run, Error>>,
+    tx: tokio::sync::mpsc::UnboundedSender<Result<ListenerExecution, Error>>,
 ) {
     let mut feeds: HashMap<String, RunFeed> = HashMap::new();
     // Ids whose run was skipped (unrecognized / undeserializable

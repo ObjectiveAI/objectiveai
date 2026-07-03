@@ -124,3 +124,14 @@ impl crate::cli::command::CommandResponse for Response {
 pub mod request_schema;
 
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `mcp config address get`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}
