@@ -1,5 +1,5 @@
-//! Daemon `/listen` client — the viewer's one data source, built on
-//! the SDK's typed
+//! Daemon `/listen` client — the main viewer UI's data source, built
+//! on the SDK's typed
 //! [`WebSocketListener`](objectiveai_sdk::cli::websocket_listener::WebSocketListener).
 //!
 //! The viewer is not a server: it consumes the CLI daemon's broadcast
@@ -17,9 +17,11 @@
 //!
 //! Frame `id`s are minted fresh per run (the typed envelope doesn't
 //! carry the daemon's broadcast id; consumers only need per-run
-//! consistency). For now every frame is destined to the main viewer
-//! UI only — nothing is emitted to plugin destinations from this
-//! passthrough (plugin delivery of `plugins/run` comes later).
+//! consistency). Every frame from THIS client is destined to the main
+//! viewer UI only; plugin delivery of `plugins/run` runs is the
+//! separate [`crate::viewer_plugin_listener`] client's job — its own
+//! daemon connection, fully independent of this one (the daemon
+//! broadcasts to every connected socket).
 //!
 //! The daemon's base `ws://` URL arrives via the REQUIRED
 //! `DAEMON_ADDRESS` env (set by `objectiveai viewer spawn`, which
@@ -39,7 +41,7 @@
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::ListenerExecution;
 use objectiveai_sdk::cli::websocket_listener::WebSocketListener;
-use objectiveai_sdk::viewer::{Event, EventSender};
+use objectiveai_sdk::viewer::{Destination, Event, EventSender};
 
 use crate::serialize::{SerializedListenerResponse, into_serialized};
 
@@ -59,17 +61,29 @@ pub(crate) fn spawn_client(tx: EventSender, address: String, signature: Option<S
     });
 }
 
-/// One connection: run the typed listener until its stream ends,
-/// re-packaging every run for the JS side. `Err(())` means the event
-/// bus is closed — stop entirely.
-async fn pump(tx: &EventSender, url: &str, signature: Option<&str>) -> Result<(), ()> {
-    // The broadcast lives on the daemon's `/listen` route; `url` is
-    // the published base ws:// address.
+/// Connect one [`WebSocketListener`] to the daemon's `/listen` route.
+/// Shared with [`crate::viewer_plugin_listener`] — each caller gets
+/// its OWN connection (the daemon broadcasts to every socket), so the
+/// two clients never share state or interfere.
+pub(crate) async fn connect(
+    url: &str,
+    signature: Option<&str>,
+) -> Result<
+    WebSocketListener,
+    objectiveai_sdk::cli::websocket_listener::Error,
+> {
     let mut builder = WebSocketListener::new(format!("{url}/listen"));
     if let Some(signature) = signature {
         builder = builder.signature(signature);
     }
-    let Ok(mut listener) = builder.connect().await else {
+    builder.connect().await
+}
+
+/// One connection: run the typed listener until its stream ends,
+/// re-packaging every run for the main viewer UI. `Err(())` means the
+/// event bus is closed — stop entirely.
+async fn pump(tx: &EventSender, url: &str, signature: Option<&str>) -> Result<(), ()> {
+    let Ok(mut listener) = connect(url, signature).await else {
         return Ok(());
     };
     while let Some(item) = listener.next().await {
@@ -78,15 +92,20 @@ async fn pump(tx: &EventSender, url: &str, signature: Option<&str>) -> Result<()
             // fall through to the reconnect loop.
             break;
         };
-        emit_run(tx, execution)?;
+        emit_run(tx, execution, Destination::Objectiveai)?;
     }
     Ok(())
 }
 
-/// Re-package one run into the standard envelope: emit its request
-/// frame now, then spawn a task draining its response into
-/// `{id, value}` frames and the final `{id, end: true}` terminator.
-fn emit_run(tx: &EventSender, execution: ListenerExecution) -> Result<(), ()> {
+/// Re-package one run into the standard envelope for `destination`:
+/// emit its request frame now, then spawn a task draining its
+/// response into `{id, value}` frames and the final `{id, end: true}`
+/// terminator. Shared with [`crate::viewer_plugin_listener`].
+pub(crate) fn emit_run(
+    tx: &EventSender,
+    execution: ListenerExecution,
+    destination: Destination,
+) -> Result<(), ()> {
     let serialized = into_serialized(execution);
     let id = uuid::Uuid::new_v4().to_string();
 
@@ -98,7 +117,7 @@ fn emit_run(tx: &EventSender, execution: ListenerExecution) -> Result<(), ()> {
     };
     frame.insert("id".to_string(), serde_json::json!(id.clone()));
     frame.insert("value".to_string(), serialized.request);
-    send(tx, serde_json::Value::Object(frame))?;
+    send(tx, &destination, serde_json::Value::Object(frame))?;
 
     // Response frames + terminator, driven independently per run so a
     // slow stream never stalls the listener.
@@ -112,7 +131,7 @@ fn emit_run(tx: &EventSender, execution: ListenerExecution) -> Result<(), ()> {
                         serde_json::to_value(&error).unwrap_or(serde_json::Value::Null)
                     }
                 };
-                let _ = send(&tx, serde_json::json!({ "id": id, "value": value }));
+                let _ = send(&tx, &destination, serde_json::json!({ "id": id, "value": value }));
             }
             SerializedListenerResponse::Stream(mut items) => {
                 while let Some(item) = items.next().await {
@@ -122,21 +141,23 @@ fn emit_run(tx: &EventSender, execution: ListenerExecution) -> Result<(), ()> {
                             serde_json::to_value(&error).unwrap_or(serde_json::Value::Null)
                         }
                     };
-                    if send(&tx, serde_json::json!({ "id": id, "value": value })).is_err() {
+                    if send(&tx, &destination, serde_json::json!({ "id": id, "value": value }))
+                        .is_err()
+                    {
                         return;
                     }
                 }
             }
         }
-        let _ = send(&tx, serde_json::json!({ "id": id, "end": true }));
+        let _ = send(&tx, &destination, serde_json::json!({ "id": id, "end": true }));
     });
     Ok(())
 }
 
 /// One daemon frame onto the JS event bus.
-fn send(tx: &EventSender, frame: serde_json::Value) -> Result<(), ()> {
+fn send(tx: &EventSender, destination: &Destination, frame: serde_json::Value) -> Result<(), ()> {
     tx.send(Event::Inbound {
-        destination: objectiveai_sdk::viewer::Destination::Objectiveai,
+        destination: destination.clone(),
         value: frame,
     })
     .map_err(|_| ())

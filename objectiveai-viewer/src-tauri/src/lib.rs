@@ -3,6 +3,7 @@ mod daemon_ws;
 mod serialize;
 mod plugins;
 mod run;
+mod viewer_plugin_listener;
 
 pub use run::*;
 

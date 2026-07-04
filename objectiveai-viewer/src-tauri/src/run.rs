@@ -266,10 +266,18 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         ));
     }
 
-    // The event bus's producer: connect to the daemon's broadcast
-    // WebSocket at the address the spawner handed us and forward every
-    // frame to the JS side.
+    // The event bus's producers: two independent connections to the
+    // daemon's broadcast WebSocket at the address the spawner handed
+    // us (the daemon feeds every connected socket). The main
+    // passthrough forwards every frame to the main viewer UI; the
+    // viewer plugin listener forwards `plugins/run` runs to their
+    // target plugin's destination.
     crate::daemon_ws::spawn_client(
+        events_tx.clone(),
+        daemon_address.clone(),
+        config.daemon_signature.clone(),
+    );
+    crate::viewer_plugin_listener::spawn_client(
         events_tx.clone(),
         daemon_address,
         config.daemon_signature.clone(),
