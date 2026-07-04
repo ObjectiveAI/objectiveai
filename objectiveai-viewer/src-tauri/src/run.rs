@@ -129,13 +129,13 @@ pub struct Config {
     pub objectiveai_state: String,
 }
 
-/// One WebSocket executor for everything the viewer runs through the
-/// CLI: `cli_execute` dispatches from plugin iframes and
-/// `list_plugins_with_viewer` from the shell. Commands travel to the
-/// daemon's `/execute` route and run in-process there — the viewer
-/// never spawns the cli binary, so it can live on a different machine
-/// than the CLI. `daemon_address` is the daemon's published base
-/// `ws://` URL (the same one the `/listen` client uses).
+/// The one Rust-side WebSocket executor: `list_plugins_with_viewer`
+/// discovers plugins through it at startup. Everything else is
+/// JS-native. Commands travel to the daemon's `/execute` route and
+/// run in-process there — the viewer never spawns the cli binary, so
+/// it can live on a different machine than the CLI. `daemon_address`
+/// is the daemon's published base `ws://` URL (the same one the JS
+/// frontend connects to).
 pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> WebSocketExecutor {
     let executor = WebSocketExecutor::new(format!("{daemon_address}/execute"));
     match signature {
