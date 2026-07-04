@@ -1,57 +1,62 @@
-//! Event bus. The daemon WebSocket client and the cli_command stream
-//! fan into the same enum; the viewer's `serve()` emits each variant
-//! as-is under the `destination` Tauri channel name.
+//! Event bus. The daemon `/listen` passthrough and the viewer-executor
+//! response stream fan into the same enum; the viewer's `serve()`
+//! emits each event on the Tauri channel its [`Destination`] maps to
+//! (`"objectiveai"` for [`Destination::Objectiveai`], the shared
+//! `"plugin"` channel for [`Destination::Plugin`]).
 //!
-//! Channel-name namespacing: `"objectiveai"` is reserved as the
-//! built-in destination; plugin repositories named "objectiveai"
-//! are refused at install time (see
-//! `filesystem::install::InstallError::ReservedRepositoryName`), so
-//! a plugin can't shadow built-in events.
+//! The JS side does no routing beyond delivering plugin-destined
+//! events to the matching plugin iframe — the destination carries the
+//! plugin's full coordinates, so there is nothing to infer.
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
+/// Where an event is delivered: the main ObjectiveAI viewer UI, or one
+/// plugin's iframe (identified by its full install coordinates).
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "viewer.Destination")]
+pub enum Destination {
+    /// The main viewer UI.
+    Objectiveai,
+    /// One plugin's iframe.
+    Plugin {
+        owner: String,
+        name: String,
+        version: String,
+    },
+}
+
 /// Every event the viewer emits to the JS side. Serde-tagged on
-/// `type` so the JS bridge can pattern-match and decide how to
-/// repackage each variant for the destination iframe.
-///
-/// `destination` is `"objectiveai"` for built-in events, or the
-/// plugin's repository name otherwise. For `CliCommand` it's the
-/// repository name of whichever iframe invoked the CLI — the bridge
-/// derives it from `MessageEvent.source`, the plugin author never
-/// sets it.
+/// `type` so the JS side can pattern-match each variant.
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "viewer.Event")]
 pub enum Event {
-    /// Host → iframe. Carries data into the plugin (the existing
-    /// path). `sub_type` is the snake_case discriminator the plugin
-    /// listens on (e.g. `daemon` for raw daemon-broadcast frames on
-    /// the `"objectiveai"` channel; the JS bridge repackages routed
-    /// `plugins/run` frames as `plugins_run` for plugin iframes).
+    /// Host → JS. Data for the destination — today that's the daemon
+    /// `/listen` passthrough (standard broadcast envelope frames),
+    /// destined to the main viewer UI. Nothing is emitted to plugin
+    /// destinations on this variant yet.
     #[schemars(title = "Inbound")]
     Inbound {
-        destination: String,
-        sub_type: String,
+        destination: Destination,
         value: serde_json::Value,
     },
-    /// Host → iframe. One stdout JSONL line from an objectiveai cli
-    /// binary the host spawned for an `invokeCli` this iframe
-    /// started, terminated by a synthetic `{"type":"end"}` line. No
-    /// sub_type — a single invocation produces a single stream of
-    /// lines.
+    /// Host → JS. One response line from a viewer-executor invocation
+    /// the destination itself started, terminated by a synthetic
+    /// `{"type":"end"}` line — whoever runs a request gets its own
+    /// response back, main UI and plugins alike.
     #[schemars(title = "CliCommand")]
     CliCommand {
-        destination: String,
+        destination: Destination,
         value: serde_json::Value,
     },
 }
 
 impl Event {
-    /// Tauri channel the event fans out on — the repository name of
-    /// the receiving iframe (or `"objectiveai"` for built-ins).
-    pub fn destination(&self) -> &str {
+    /// The event's delivery target.
+    pub fn destination(&self) -> &Destination {
         match self {
             Event::Inbound { destination, .. } => destination,
             Event::CliCommand { destination, .. } => destination,
@@ -68,28 +73,21 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn inbound_serializes_with_tag_and_sub_type() {
+    fn inbound_serializes_with_tag_and_destination() {
         let e = Event::Inbound {
-            destination: "objectiveai".to_string(),
-            sub_type: "agent_completions".to_string(),
+            destination: Destination::Objectiveai,
             value: json!({"id": "abc"}),
         };
         let s = serde_json::to_string(&e).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["type"], "inbound");
         assert_eq!(v["destination"], "objectiveai");
-        assert_eq!(v["sub_type"], "agent_completions");
         assert_eq!(v["value"], json!({"id": "abc"}));
 
         let back: Event = serde_json::from_str(&s).unwrap();
         match back {
-            Event::Inbound {
-                destination,
-                sub_type,
-                value,
-            } => {
-                assert_eq!(destination, "objectiveai");
-                assert_eq!(sub_type, "agent_completions");
+            Event::Inbound { destination, value } => {
+                assert_eq!(destination, Destination::Objectiveai);
                 assert_eq!(value, json!({"id": "abc"}));
             }
             _ => panic!("expected Inbound"),
@@ -97,31 +95,30 @@ mod tests {
     }
 
     #[test]
-    fn cli_command_serializes_with_tag_and_no_sub_type() {
+    fn plugin_destination_carries_full_coordinates() {
         let e = Event::CliCommand {
-            destination: "my_plugin".to_string(),
-            value: json!({"type": "notification", "value": {"x": 1}}),
+            destination: Destination::Plugin {
+                owner: "objectiveai".to_string(),
+                name: "hello".to_string(),
+                version: "0.0.1".to_string(),
+            },
+            value: json!({"type": "end"}),
         };
         let s = serde_json::to_string(&e).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["type"], "cli_command");
-        assert_eq!(v["destination"], "my_plugin");
-        assert!(v.get("sub_type").is_none());
-        assert_eq!(v["value"]["type"], "notification");
-    }
+        assert_eq!(v["destination"]["plugin"]["owner"], "objectiveai");
+        assert_eq!(v["destination"]["plugin"]["name"], "hello");
+        assert_eq!(v["destination"]["plugin"]["version"], "0.0.1");
 
-    #[test]
-    fn destination_accessor() {
-        let i = Event::Inbound {
-            destination: "d1".to_string(),
-            sub_type: "s".to_string(),
-            value: json!(null),
-        };
-        let c = Event::CliCommand {
-            destination: "d2".to_string(),
-            value: json!(null),
-        };
-        assert_eq!(i.destination(), "d1");
-        assert_eq!(c.destination(), "d2");
+        let back: Event = serde_json::from_str(&s).unwrap();
+        assert_eq!(
+            back.destination(),
+            &Destination::Plugin {
+                owner: "objectiveai".to_string(),
+                name: "hello".to_string(),
+                version: "0.0.1".to_string(),
+            },
+        );
     }
 }

@@ -4478,7 +4478,7 @@ dependencies = [
  "tauri",
  "tauri-build",
  "tokio",
- "tokio-tungstenite 0.24.0",
+ "uuid",
 ]
 
 [[package]]

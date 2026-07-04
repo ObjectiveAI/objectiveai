@@ -1,5 +1,6 @@
 mod cli_command;
 mod daemon_ws;
+mod serialize;
 mod plugins;
 mod run;
 

@@ -1181,6 +1181,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
 
     #[cfg(feature = "viewer")]
     schemas.extend([
+        schemars::schema_for!(crate::viewer::Destination),
         schemars::schema_for!(crate::viewer::Event),
     ]);
 

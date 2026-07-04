@@ -278,7 +278,9 @@ function ObjectiveAIView() {
 const OBJECTIVEAI_TAB_ID = "objectiveai";
 
 export interface ViewerPluginInfo {
+  owner: string;
   name: string;
+  version: string;
   iframe_src: string;
 }
 

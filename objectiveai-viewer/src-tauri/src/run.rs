@@ -189,6 +189,17 @@ pub fn serve(
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
             tauri::async_runtime::spawn(async move {
+                // The Tauri channel an event fans out on: two channels
+                // total — the main UI's, and one shared plugin channel
+                // (the payload's destination carries the plugin's full
+                // coordinates; the JS side just delivers it to the
+                // matching iframe).
+                fn channel(event: &objectiveai_sdk::viewer::Event) -> &'static str {
+                    match event.destination() {
+                        objectiveai_sdk::viewer::Destination::Objectiveai => "objectiveai",
+                        objectiveai_sdk::viewer::Destination::Plugin { .. } => "plugin",
+                    }
+                }
                 // Buffer events until the frontend signals it is listening.
                 let mut buffer = Vec::new();
                 loop {
@@ -205,11 +216,11 @@ pub fn serve(
                 }
                 // Drain buffered events.
                 for event in buffer {
-                    let _ = handle.emit(event.destination(), &event);
+                    let _ = handle.emit(channel(&event), &event);
                 }
                 // Forward remaining events directly.
                 while let Some(event) = rx.recv().await {
-                    let _ = handle.emit(event.destination(), &event);
+                    let _ = handle.emit(channel(&event), &event);
                 }
             });
             Ok(())

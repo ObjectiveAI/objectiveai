@@ -6,9 +6,9 @@
 //! drives the SDK's typed `plugins list` leaf over the
 //! [`WebSocketExecutor`], the same executor `cli_execute` uses.
 //!
-//! Plugin data delivery is a frontend concern now: the JS side routes
-//! daemon-stream `plugins/run` frames to the matching plugin tab —
-//! there are no viewer-side HTTP routes anymore.
+//! Plugin data delivery: for now nothing is emitted to plugin
+//! destinations except their own viewer-executor responses —
+//! `plugins/run` delivery to plugin tabs comes later.
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
@@ -83,8 +83,12 @@ pub(crate) struct PluginsDir(pub(crate) std::path::PathBuf);
 /// just renders the URL.
 #[derive(serde::Serialize, Clone, Debug)]
 pub(crate) struct ViewerPluginInfo {
+    /// Plugin owner (GitHub `<owner>` segment).
+    pub owner: String,
     /// Plugin name (== repository name == tab label).
     pub name: String,
+    /// Plugin version.
+    pub version: String,
     /// Iframe `src=` to load. For on-disk-bundle plugins this is the
     /// `plugin://localhost/<owner>/<name>/<version>/index.html` URL
     /// served by [`serve_plugin_asset`]; for `viewer_url` plugins this
@@ -114,7 +118,9 @@ pub(crate) async fn list_plugins_with_viewer(
             // bundle on disk at the plugin's version folder.
             if let Some(url) = p.viewer_url.as_deref() {
                 return Some(ViewerPluginInfo {
+                    owner: p.owner,
                     name: p.name,
+                    version: p.version,
                     iframe_src: url.to_string(),
                 });
             }
@@ -134,7 +140,9 @@ pub(crate) async fn list_plugins_with_viewer(
                 percent_encode_plugin_name(&p.version),
             );
             Some(ViewerPluginInfo {
+                owner: p.owner,
                 name: p.name,
+                version: p.version,
                 iframe_src,
             })
         })

@@ -13,9 +13,14 @@ export function PluginPane({ info }: PluginPaneProps): ReactElement {
   useEffect(() => {
     const iframe = ref.current;
     if (!iframe) return;
-    registerIframe(info.name, iframe, info.iframe_src);
-    return () => unregisterIframe(info.name);
-  }, [info.name, info.iframe_src]);
+    const coords = {
+      owner: info.owner,
+      name: info.name,
+      version: info.version,
+    };
+    registerIframe(coords, iframe, info.iframe_src);
+    return () => unregisterIframe(coords);
+  }, [info.owner, info.name, info.version, info.iframe_src]);
 
   return (
     <iframe

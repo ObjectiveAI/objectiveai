@@ -14,15 +14,16 @@
 //! is deliberately NO raw-argv Tauri command (the request-level
 //! [`cli_run_impl`] is internal plumbing + test surface only).
 //!
-//! The plugin-bridge resolves the originating iframe (via
-//! `MessageEvent.source`) and passes its repository name as `origin`,
-//! which becomes the `destination` on every emitted event. The plugin
-//! never sets `destination` itself.
+//! Whoever runs a request gets its own response back: the caller
+//! passes its [`Destination`] (the main UI, or a plugin's full
+//! coordinates — the plugin-bridge resolves those from
+//! `MessageEvent.source`; a plugin never claims an identity itself),
+//! and every emitted event carries it.
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::websocket::{Error as WsError, WebSocketExecutor};
 use objectiveai_sdk::cli::command::{AgentArguments, CommandExecutor};
-use objectiveai_sdk::viewer::{Event, EventSender};
+use objectiveai_sdk::viewer::{Destination, Event, EventSender};
 
 /// Per-call identity sent in every execute envelope: instance
 /// hierarchy `"Viewer"`, every other field `None` so the daemon
@@ -50,9 +51,15 @@ pub async fn cli_execute(
     executor: tauri::State<'_, WebSocketExecutor>,
     events_tx: tauri::State<'_, EventSender>,
     request: serde_json::Value,
-    origin: String,
+    destination: Destination,
 ) -> Result<(), String> {
-    cli_execute_impl(executor.inner(), events_tx.inner().clone(), request, origin).await
+    cli_execute_impl(
+        executor.inner(),
+        events_tx.inner().clone(),
+        request,
+        destination,
+    )
+    .await
 }
 
 /// Tauri-free body of [`cli_execute`], mirroring [`cli_run_impl`].
@@ -61,14 +68,14 @@ pub async fn cli_execute_impl(
     executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: serde_json::Value,
-    origin: String,
+    destination: Destination,
 ) -> Result<(), String> {
     let request: objectiveai_sdk::cli::command::Request =
         match serde_json::from_value(request) {
             Ok(request) => request,
             Err(e) => {
                 let _ = events_tx.send(Event::CliCommand {
-                    destination: origin.clone(),
+                    destination: destination.clone(),
                     value: serde_json::json!({
                         "type": "error",
                         "level": "error",
@@ -77,13 +84,13 @@ pub async fn cli_execute_impl(
                     }),
                 });
                 let _ = events_tx.send(Event::CliCommand {
-                    destination: origin,
+                    destination,
                     value: serde_json::json!({ "type": "end" }),
                 });
                 return Ok(());
             }
         };
-    cli_run_impl(executor, events_tx, request, origin).await
+    cli_run_impl(executor, events_tx, request, destination).await
 }
 
 /// Run core shared by [`cli_execute`] (which deserializes the JSON
@@ -96,7 +103,7 @@ pub async fn cli_run_impl(
     executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: objectiveai_sdk::cli::command::Request,
-    origin: String,
+    destination: Destination,
 ) -> Result<(), String> {
     // Open the connection before detaching the forwarder so the
     // executor borrow doesn't have to live inside the 'static task.
@@ -116,7 +123,7 @@ pub async fn cli_run_impl(
                         Err(e) => error_value(e),
                     };
                     let event = Event::CliCommand {
-                        destination: origin.clone(),
+                        destination: destination.clone(),
                         value,
                     };
                     if events_tx.send(event).is_err() {
@@ -128,7 +135,7 @@ pub async fn cli_run_impl(
             }
             Err(e) => {
                 let _ = events_tx.send(Event::CliCommand {
-                    destination: origin.clone(),
+                    destination: destination.clone(),
                     value: error_value(e),
                 });
             }
@@ -137,7 +144,7 @@ pub async fn cli_run_impl(
         // always emit it last, even after an error, so the iframe's
         // async iterator never hangs.
         let _ = events_tx.send(Event::CliCommand {
-            destination: origin,
+            destination,
             value: serde_json::json!({ "type": "end" }),
         });
     });
