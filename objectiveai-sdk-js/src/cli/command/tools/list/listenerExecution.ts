@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../agentArguments";
 import { type CliCommandToolsGetResponseManifest } from "../get/responseManifest";
 import { type CliCommandToolsListRequest } from "./request";
 import { type CliError } from "../../../error";
-import { type ResponseItemStream } from "../../../../viewer/runListener";
+import { type ResponseItemStream } from "../../../../viewer/viewerListener";
 
 /** One `/listen` broadcast run of `tools list`: the actual request, the producer's agent arguments, and the response-item stream. */
 export type CliCommandToolsListListenerExecution = {

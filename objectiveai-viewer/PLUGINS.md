@@ -46,7 +46,7 @@ The Rust definition lives in [`objectiveai-sdk-rs/src/viewer/events.rs`](../obje
 
 ## The TypeScript SDK
 
-Plugin UIs use [`@objectiveai/viewer-sdk`](../objectiveai-viewer-sdk/) (workspace package; npm publication pending). To run commands, use the `ViewerCommandExecutor` (from `@objectiveai/sdk`) with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. Inbound host→plugin data delivery (e.g. `plugins/run` runs) is not emitted yet; the `RunListener` in `@objectiveai/sdk/viewer` is the receiving surface it will arrive on.
+Plugin UIs use [`@objectiveai/viewer-sdk`](../objectiveai-viewer-sdk/) (workspace package; npm publication pending). To run commands, use the `ViewerCommandExecutor` (from `@objectiveai/sdk`) with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. Inbound host→plugin data delivery (e.g. `plugins/run` runs) is not emitted yet; the receiving surface will arrive with it. (The `ViewerListener` in `@objectiveai/sdk/viewer` is NOT that surface — it is main-viewer-only, consuming the daemon broadcast that plugins never receive, and throws if constructed inside a plugin iframe.)
 
 The SDK detects context:
 

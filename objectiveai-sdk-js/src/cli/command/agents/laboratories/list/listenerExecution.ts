@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../../agentArguments";
 import { type CliCommandAgentsLaboratoriesListRequest } from "./request";
 import { type CliCommandAgentsLaboratoriesListResponseItem } from "./responseItem";
 import { type CliError } from "../../../../error";
-import { type ResponseItemStream } from "../../../../../viewer/runListener";
+import { type ResponseItemStream } from "../../../../../viewer/viewerListener";
 
 /** One `/listen` broadcast run of `agents laboratories list`: the actual request, the producer's agent arguments, and the response-item stream. */
 export type CliCommandAgentsLaboratoriesListListenerExecution = {

@@ -1,21 +1,29 @@
 /**
- * Typed run listener — the JS mirror of the Rust SDK's
- * `cli::websocket_listener::WebSocketListener`, fed by the viewer's
- * inbound plugin-event bus instead of a raw WebSocket.
+ * Typed broadcast listener for the MAIN VIEWER — the JS mirror of the
+ * Rust SDK's `cli::websocket_listener::WebSocketListener`, fed by the
+ * viewer host's `"objectiveai"` Tauri channel instead of a raw
+ * WebSocket.
  *
  * The daemon broadcasts every CLI run as one request frame
  * (`{…context, id, value: <Request>}`), then bare `{id, value: <item>}`
  * response frames (no type tag — the id is the whole routing story),
- * then exactly one terminator (`{id, end: true}`). The host routes a
- * plugin's frames into its iframe; [`RunListener`] turns them into the
- * generated [`CliCommandListenerExecution`] tree — the mirror of the
- * Rust `cli::command::ListenerExecution` — and IS a stream of that
- * root union: `{request, agentArguments, response}` per run,
- * discriminated purely off the request's path. Unary leaves pair the
- * request with a `Promise`, streaming leaves with a
- * [`ResponseItemStream`]; multi-variant leaves narrow further via the
- * request's `dangerous_advanced.stream` flag, matching their
+ * then exactly one terminator (`{id, end: true}`). The viewer's Rust
+ * side is a pure passthrough: each broadcast frame arrives as an
+ * `inbound`-typed event on the `"objectiveai"` channel.
+ * [`ViewerListener`] turns those frames into the generated
+ * [`CliCommandListenerExecution`] tree — the mirror of the Rust
+ * `cli::command::ListenerExecution` — and IS a stream of that root
+ * union: `{request, agentArguments, response}` per run, discriminated
+ * purely off the request's path. Unary leaves pair the request with a
+ * `Promise`, streaming leaves with a [`ResponseItemStream`];
+ * multi-variant leaves narrow further via the request's
+ * `dangerous_advanced.stream` flag, matching their
  * `…ListenerExecutionVariant` union.
+ *
+ * MAIN VIEWER ONLY: the daemon broadcast is never delivered to plugin
+ * iframes, so constructing a [`ViewerListener`] inside one throws.
+ * (Plugins run commands with `ViewerCommandExecutor`, which works in
+ * both contexts.)
  *
  * Delivery is LIVE-ONLY — the listener multiplexes but never retains.
  * A subscriber (root iterator or response-stream iterator) receives
@@ -37,7 +45,6 @@
  * same per-scope conventions as the generated execute functions.
  */
 
-import { listen } from "./index";
 import {
   CLI_COMMAND_LISTENER_EXECUTION_MODES,
   type CliCommandListenerExecution,
@@ -146,15 +153,24 @@ type LiveFeed = {
   settled?: boolean;
 };
 
+/** The `"objectiveai"` channel's event payload shape (the serde JSON
+ * of the Rust host's `viewer::Event`), as far as the listener cares:
+ * `inbound` events carry one daemon broadcast frame in `value`. */
+type ObjectiveaiChannelPayload = {
+  type?: unknown;
+  value?: unknown;
+};
+
 /**
- * The singleton run listener. Constructing it always returns the one
- * shared instance (lazily saved on first construction — including its
- * `subType`, which defaults to `"plugins_run"`, the sub_type the host
- * bridge routes a plugin's daemon frames under). The listener IS a
- * stream of the root [`CliCommandListenerExecution`] union:
+ * The singleton main-viewer listener. Constructing it always returns
+ * the one shared instance (lazily saved on first construction), and it
+ * "just works": the transport — the host's `"objectiveai"` Tauri
+ * channel — attaches automatically. Constructing it inside a plugin
+ * iframe throws (see the module docs). The listener IS a stream of the
+ * root [`CliCommandListenerExecution`] union:
  *
  * ```ts
- * for await (const run of new RunListener()) {
+ * for await (const run of new ViewerListener()) {
  *   if (run.request.path_type === "plugins/run") {
  *     for await (const item of run.response) { … }
  *   }
@@ -168,26 +184,58 @@ type LiveFeed = {
  * live-only: subscribe to it before yielding back to the event loop
  * or its early frames are dropped.
  */
-export class RunListener {
-  static #instance: RunListener | undefined;
+export class ViewerListener {
+  static #instance: ViewerListener | undefined;
 
   #live = new Map<string, LiveFeed>();
   #skipped = new Set<string>();
   #subscribers = new Set<(run: CliCommandListenerExecution) => void>();
-  #unlisten: () => void = () => {};
+  #stopped = false;
+  #unlisten: (() => void) | null = null;
 
-  constructor(options?: { subType?: string }) {
-    if (RunListener.#instance) {
+  constructor() {
+    if (ViewerListener.#instance) {
       // The saved singleton — constructing again hands it back.
-      return RunListener.#instance;
+      return ViewerListener.#instance;
     }
-    RunListener.#instance = this;
-    this.#unlisten = listen<unknown>(
-      options?.subType ?? "plugins_run",
-      (frame) => {
-        this.#onFrame(frame);
-      },
-    );
+    if (typeof window !== "undefined" && window.parent !== window) {
+      throw new Error(
+        "ViewerListener is main-viewer-only: the daemon broadcast is never " +
+          "delivered to plugin iframes. (To run commands from a plugin, use " +
+          "ViewerCommandExecutor.)",
+      );
+    }
+    ViewerListener.#instance = this;
+    void this.#attach();
+  }
+
+  /** Subscribe to the host's `"objectiveai"` Tauri channel and feed
+   * every `inbound` event's broadcast frame into the routing. */
+  async #attach(): Promise<void> {
+    try {
+      const { listen } = await import("@tauri-apps/api/event");
+      if (this.#stopped) return;
+      const unlisten = await listen<ObjectiveaiChannelPayload>(
+        "objectiveai",
+        (event) => {
+          const payload = event.payload;
+          if (!payload || typeof payload !== "object") return;
+          if (payload.type !== "inbound") return;
+          this.#onFrame(payload.value);
+        },
+      );
+      if (this.#stopped) {
+        unlisten();
+        return;
+      }
+      this.#unlisten = unlisten;
+    } catch {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "@objectiveai/sdk/viewer ViewerListener: @tauri-apps/api is " +
+          "unavailable; no runs will arrive.",
+      );
+    }
   }
 
   /**
@@ -240,11 +288,12 @@ export class RunListener {
 
   /** Reset the singleton (tests only). */
   static __resetForTests(): void {
-    const instance = RunListener.#instance;
+    const instance = ViewerListener.#instance;
     if (instance) {
-      instance.#unlisten();
+      instance.#stopped = true;
+      instance.#unlisten?.();
     }
-    RunListener.#instance = undefined;
+    ViewerListener.#instance = undefined;
   }
 
   #onFrame(frame: unknown): void {
