@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../../agentArguments";
 import { type CliCommandFunctionsExecuteStandardRequest } from "./request";
 import { type CliCommandFunctionsExecuteStandardResponseItem } from "./responseItem";
 import { type CliError } from "../../../../error";
-import { type ResponseItemStream } from "../../../../../viewer/viewerListener";
+import { type ResponseItemStream } from "../../../../websocketListener";
 
 /** One `/listen` broadcast run of `functions execute standard` in its unary form (the plain `execute`). */
 export type CliCommandFunctionsExecuteStandardListenerExecution = {

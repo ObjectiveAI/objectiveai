@@ -61,7 +61,7 @@ describe("listen in iframe context", () => {
     expect(calls).toEqual([]);
   });
 
-  it("ignores cli_command events (they go through ViewerCommandExecutor, not listen)", () => {
+  it("ignores cli_command events (they go through ViewerPluginExecutor, not listen)", () => {
     const calls: unknown[] = [];
     listen("my_event", (v) => calls.push(v));
     ctx.deliver({

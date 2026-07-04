@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../../agentArguments";
 import { type CliCommandFunctionsExecuteSwissSystemRequest } from "./request";
 import { type CliCommandFunctionsExecuteSwissSystemResponseItem } from "./responseItem";
 import { type CliError } from "../../../../error";
-import { type ResponseItemStream } from "../../../../../viewer/viewerListener";
+import { type ResponseItemStream } from "../../../../websocketListener";
 
 /** One `/listen` broadcast run of `functions execute swiss_system` in its unary form (the plain `execute`). */
 export type CliCommandFunctionsExecuteSwissSystemListenerExecution = {

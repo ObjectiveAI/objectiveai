@@ -1,11 +1,9 @@
 export * from "./generatedIndex";
-// The typed run receiver: `ViewerListener` (the Rust WebSocketListener
-// mirror over the host's "objectiveai" Tauri channel — main viewer
-// only) + `ResponseItemStream` (hand-written); it yields the generated
-// `CliCommandListenerExecution` tree (install-listener-execution.cjs —
-// per-scope listenerExecution.ts modules under cli/command, surfaced
-// via the scopes' generatedIndex barrels like the execute functions).
-export * from "./viewerListener";
+// The typed run receiver lives in the cli surface now:
+// `WebSocketListener` (src/cli/websocketListener.ts) — a NATIVE
+// WebSocket mirror of the Rust SDK's `cli::websocket_listener` —
+// yields the generated `CliCommandListenerExecution` tree. This
+// viewer subpath keeps only the plugin-iframe surfaces.
 
 /**
  * @objectiveai/sdk/viewer
@@ -27,7 +25,7 @@ export * from "./viewerListener";
  * The plugin author writes the same code in both contexts.
  *
  * To invoke the objectiveai CLI on the host from an iframe, use
- * `ViewerCommandExecutor` (from `@objectiveai/sdk`) with the generated
+ * `ViewerPluginExecutor` (from `@objectiveai/sdk`) with the generated
  * command functions — that transport posts `cli-execute` messages to the
  * host bridge and streams the `cli_command` responses back.
  */

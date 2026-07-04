@@ -1,16 +1,19 @@
 export * from "./binary";
 export * from "./plugin";
-export * from "./viewer";
+export * from "./viewerPlugin";
+export * from "./websocket";
 
 import type { BinaryCommandExecutor } from "./binary";
 import type { PluginCommandExecutor } from "./plugin";
-import type { ViewerCommandExecutor } from "./viewer";
+import type { ViewerPluginExecutor } from "./viewerPlugin";
+import type { WebSocketExecutor } from "./websocket";
 
 /**
- * Any of the three CLI command executors. The generated per-command execute
+ * Any of the CLI command executors. The generated per-command execute
  * functions accept one of these and call `.execute(request)` on it.
  */
 export type CommandExecutor =
   | BinaryCommandExecutor
   | PluginCommandExecutor
-  | ViewerCommandExecutor;
+  | ViewerPluginExecutor
+  | WebSocketExecutor;

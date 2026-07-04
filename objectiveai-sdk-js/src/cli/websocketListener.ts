@@ -1,16 +1,18 @@
 /**
- * Typed broadcast listener for the MAIN VIEWER — the JS mirror of the
- * Rust SDK's `cli::websocket_listener::WebSocketListener`, fed by the
- * viewer host's `"objectiveai"` Tauri channel instead of a raw
- * WebSocket.
+ * Typed consumer of the cli daemon's `/listen` broadcast over a
+ * NATIVE WebSocket — the JS mirror of the Rust SDK's
+ * `cli::websocket_listener::WebSocketListener`, identical in
+ * construction and semantics: connect to the daemon's published
+ * `/listen` URL (optional signature auth), receive one envelope per
+ * announced run, reconnection is the caller's loop. Usable anywhere a
+ * `WebSocket` can reach the daemon — the main viewer window, Node
+ * 22+, any browser context with network access.
  *
  * The daemon broadcasts every CLI run as one request frame
  * (`{…context, id, value: <Request>}`), then bare `{id, value: <item>}`
  * response frames (no type tag — the id is the whole routing story),
- * then exactly one terminator (`{id, end: true}`). The viewer's Rust
- * side is a pure passthrough: each broadcast frame arrives as an
- * `inbound`-typed event on the `"objectiveai"` channel.
- * [`ViewerListener`] turns those frames into the generated
+ * then exactly one terminator (`{id, end: true}`).
+ * [`WebSocketListener`] turns those frames into the generated
  * [`CliCommandListenerExecution`] tree — the mirror of the Rust
  * `cli::command::ListenerExecution` — and IS a stream of that root
  * union: `{request, agentArguments, response}` per run, discriminated
@@ -20,10 +22,12 @@
  * `dangerous_advanced.stream` flag, matching their
  * `…ListenerExecutionVariant` union.
  *
- * MAIN VIEWER ONLY: the daemon broadcast is never delivered to plugin
- * iframes, so constructing a [`ViewerListener`] inside one throws.
- * (Plugins run commands with `ViewerCommandExecutor`, which works in
- * both contexts.)
+ * Auth is the first-message preamble shared by every daemon WebSocket
+ * route (headers are never used — browser WebSocket clients can't set
+ * them): the connection's first outbound text frame is
+ * `{"signature": "sha256=<hex>"}` (or `{"signature": null}`); a
+ * secret-bearing daemon closes the connection on a missing/invalid
+ * signature.
  *
  * Delivery is LIVE-ONLY — the listener multiplexes but never retains.
  * A subscriber (root iterator or response-stream iterator) receives
@@ -31,6 +35,12 @@
  * nobody is subscribed is dropped. Buffering, if wanted, is the
  * caller's to implement — a long-lived viewer sees unboundedly many
  * runs, so retention here would be a memory leak.
+ *
+ * Rust-parity lifecycle: one listener = one connection. When the
+ * socket closes (daemon exit, network drop, [`WebSocketListener.close`]),
+ * every open run's feed closes (unary responses settle with the
+ * synthesized "run ended" error, streams end) and every root iterator
+ * ENDS.
  *
  * No validation: the types are structural claims over the wire; frame
  * bodies pass through as-is (in-band `CliError` lines arrive as items
@@ -48,7 +58,7 @@
 import {
   CLI_COMMAND_LISTENER_EXECUTION_MODES,
   type CliCommandListenerExecution,
-} from "../cli/command/listenerExecution";
+} from "./command/listenerExecution";
 
 /** One live subscriber: a per-iterator pending queue's feed side. */
 type Subscriber<T> = {
@@ -153,24 +163,24 @@ type LiveFeed = {
   settled?: boolean;
 };
 
-/** The `"objectiveai"` channel's event payload shape (the serde JSON
- * of the Rust host's `viewer::Event`), as far as the listener cares:
- * `inbound` events carry one daemon broadcast frame in `value`. */
-type ObjectiveaiChannelPayload = {
-  type?: unknown;
-  value?: unknown;
-};
+export interface WebSocketListenerOptions {
+  /** The pre-derived `sha256=<hex(SHA256(DAEMON_SECRET))>`, sent
+   * verbatim in the auth preamble. Without it the daemon must be
+   * running without a secret. */
+  signature?: string | null;
+}
 
 /**
- * The singleton main-viewer listener. Constructing it always returns
- * the one shared instance (lazily saved on first construction), and it
- * "just works": the transport — the host's `"objectiveai"` Tauri
- * channel — attaches automatically. Constructing it inside a plugin
- * iframe throws (see the module docs). The listener IS a stream of the
- * root [`CliCommandListenerExecution`] union:
+ * The connected `/listen` consumer — construct via
+ * [`WebSocketListener.connect`]. IS a stream of the root
+ * [`CliCommandListenerExecution`] union:
  *
  * ```ts
- * for await (const run of new ViewerListener()) {
+ * const listener = await WebSocketListener.connect(
+ *   "ws://127.0.0.1:49152/listen",
+ *   { signature },
+ * );
+ * for await (const run of listener) {
  *   if (run.request.path_type === "plugins/run") {
  *     for await (const item of run.response) { … }
  *   }
@@ -182,87 +192,115 @@ type ObjectiveaiChannelPayload = {
  * `response` never rides the root stream — it lives inside each
  * envelope, as a `Promise` or a [`ResponseItemStream`], and is itself
  * live-only: subscribe to it before yielding back to the event loop
- * or its early frames are dropped.
+ * or its early frames are dropped. Every iterator ends when the
+ * connection does; reconnection is the caller's loop.
  */
-export class ViewerListener {
-  static #instance: ViewerListener | undefined;
-
+export class WebSocketListener {
+  #ws: WebSocket;
+  #closed = false;
   #live = new Map<string, LiveFeed>();
   #skipped = new Set<string>();
-  #subscribers = new Set<(run: CliCommandListenerExecution) => void>();
-  #stopped = false;
-  #unlisten: (() => void) | null = null;
+  #subscribers = new Set<Subscriber<CliCommandListenerExecution>>();
 
-  constructor() {
-    if (ViewerListener.#instance) {
-      // The saved singleton — constructing again hands it back.
-      return ViewerListener.#instance;
-    }
-    if (typeof window !== "undefined" && window.parent !== window) {
-      throw new Error(
-        "ViewerListener is main-viewer-only: the daemon broadcast is never " +
-          "delivered to plugin iframes. (To run commands from a plugin, use " +
-          "ViewerCommandExecutor.)",
-      );
-    }
-    ViewerListener.#instance = this;
-    void this.#attach();
-  }
-
-  /** Subscribe to the host's `"objectiveai"` Tauri channel and feed
-   * every `inbound` event's broadcast frame into the routing. */
-  async #attach(): Promise<void> {
-    try {
-      const { listen } = await import("@tauri-apps/api/event");
-      if (this.#stopped) return;
-      const unlisten = await listen<ObjectiveaiChannelPayload>(
-        "objectiveai",
-        (event) => {
-          const payload = event.payload;
-          if (!payload || typeof payload !== "object") return;
-          if (payload.type !== "inbound") return;
-          this.#onFrame(payload.value);
-        },
-      );
-      if (this.#stopped) {
-        unlisten();
+  private constructor(ws: WebSocket) {
+    this.#ws = ws;
+    ws.onmessage = (event: MessageEvent) => {
+      if (typeof event.data !== "string") return;
+      let frame: unknown;
+      try {
+        frame = JSON.parse(event.data);
+      } catch {
         return;
       }
-      this.#unlisten = unlisten;
-    } catch {
-      // eslint-disable-next-line no-console
-      console.warn(
-        "@objectiveai/sdk/viewer ViewerListener: @tauri-apps/api is " +
-          "unavailable; no runs will arrive.",
-      );
-    }
+      this.#onFrame(frame);
+    };
+    ws.onclose = () => this.#onClose();
+  }
+
+  /**
+   * Open the connection, send the auth preamble, and resolve once the
+   * socket is established (rejects when the daemon is unreachable or
+   * closes during the handshake — e.g. it refused the auth).
+   * `url` is the daemon's full `/listen` URL.
+   */
+  static connect(
+    url: string,
+    options?: WebSocketListenerOptions,
+  ): Promise<WebSocketListener> {
+    return new Promise((resolve, reject) => {
+      let ws: WebSocket;
+      try {
+        ws = new WebSocket(url);
+      } catch (e) {
+        reject(new Error(`connect daemon listen websocket: ${String(e)}`));
+        return;
+      }
+      ws.onopen = () => {
+        // The auth preamble — always the connection's first text
+        // frame, `{"signature": null}` against a secretless daemon.
+        ws.send(JSON.stringify({ signature: options?.signature ?? null }));
+        resolve(new WebSocketListener(ws));
+      };
+      ws.onclose = (event: CloseEvent) => {
+        reject(
+          new Error(
+            `connect daemon listen websocket: connection closed` +
+              `${event.code ? ` (code ${event.code})` : ""}`,
+          ),
+        );
+      };
+    });
+  }
+
+  /** Drop the connection: every open run's feed closes and every root
+   * iterator ends. */
+  close(): void {
+    if (this.#closed) return;
+    this.#ws.close();
+    // The browser fires onclose asynchronously; end deterministically.
+    this.#onClose();
   }
 
   /**
    * Iterate the runs announced from this call onward. Multiple
-   * iterators are independent; `return()`/`break` detaches cleanly.
+   * iterators are independent; `return()`/`break` detaches cleanly;
+   * every iterator ends when the connection does.
    */
   runs(): AsyncIterableIterator<CliCommandListenerExecution> {
     const queue: CliCommandListenerExecution[] = [];
+    let ended = this.#closed;
     let wake: (() => void) | null = null;
-    const push = (run: CliCommandListenerExecution) => {
-      queue.push(run);
-      wake?.();
+    const subscriber: Subscriber<CliCommandListenerExecution> = {
+      push: (run) => {
+        queue.push(run);
+        wake?.();
+      },
+      end: () => {
+        ended = true;
+        wake?.();
+      },
     };
-    this.#subscribers.add(push);
-    const detach = () => this.#subscribers.delete(push);
+    if (!ended) {
+      this.#subscribers.add(subscriber);
+    }
+    const detach = () => this.#subscribers.delete(subscriber);
     return {
       next: async (): Promise<IteratorResult<CliCommandListenerExecution>> => {
-        while (queue.length === 0) {
+        for (;;) {
+          if (queue.length > 0) {
+            return {
+              value: queue.shift() as CliCommandListenerExecution,
+              done: false,
+            };
+          }
+          if (ended) {
+            return { value: undefined, done: true };
+          }
           await new Promise<void>((resolve) => {
             wake = resolve;
           });
           wake = null;
         }
-        return {
-          value: queue.shift() as CliCommandListenerExecution,
-          done: false,
-        };
       },
       return: async (): Promise<
         IteratorResult<CliCommandListenerExecution>
@@ -286,14 +324,21 @@ export class ViewerListener {
     return this.runs();
   }
 
-  /** Reset the singleton (tests only). */
-  static __resetForTests(): void {
-    const instance = ViewerListener.#instance;
-    if (instance) {
-      instance.#stopped = true;
-      instance.#unlisten?.();
+  /** Connection over: close every still-open run (unresolved unary
+   * responses settle with the synthesized "run ended" error; streams
+   * end) and end every root iterator. */
+  #onClose(): void {
+    if (this.#closed) return;
+    this.#closed = true;
+    for (const id of [...this.#live.keys()]) {
+      this.#onEnd(id);
     }
-    ViewerListener.#instance = undefined;
+    this.#skipped.clear();
+    const subscribers = [...this.#subscribers];
+    this.#subscribers.clear();
+    for (const subscriber of subscribers) {
+      subscriber.end();
+    }
   }
 
   #onFrame(frame: unknown): void {
@@ -374,7 +419,7 @@ export class ViewerListener {
       response,
     } as CliCommandListenerExecution;
     for (const subscriber of [...this.#subscribers]) {
-      subscriber(envelope);
+      subscriber.push(envelope);
     }
   }
 

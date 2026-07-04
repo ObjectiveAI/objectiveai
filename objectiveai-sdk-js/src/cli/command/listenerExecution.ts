@@ -24,7 +24,7 @@ import { type CliCommandUpdateResponseSchemaListenerExecution } from "./update/r
 import { type CliCommandViewerListenerExecution } from "./viewer/listenerExecution";
 import { type CliError } from "../error";
 import { type JsonValue } from "../../jsonValue";
-import { type ResponseItemStream } from "../../viewer/viewerListener";
+import { type ResponseItemStream } from "../websocketListener";
 
 /** A run whose request carries a jq/python output transform: its items are post-transform JSON with no static shape, so they stay raw (the request itself is the typed root aggregate). */
 export type CliCommandListenerExecutionTransformed = {
@@ -33,7 +33,7 @@ export type CliCommandListenerExecutionTransformed = {
   response: ResponseItemStream<CliError | JsonValue>;
 };
 
-/** One daemon-broadcast run — the root of the JS `ListenerExecution` tree (the mirror of the Rust SDK's `cli::command::ListenerExecution`), yielded by the viewer `ViewerListener`. Narrow on `run.request.path_type`; multi-variant leaves narrow further via the request's `dangerous_advanced.stream` flag. Runs this build's types predate are skipped by the listener — no unknown fallback. */
+/** One daemon-broadcast run — the root of the JS `ListenerExecution` tree (the mirror of the Rust SDK's `cli::command::ListenerExecution`), yielded by the `WebSocketListener`. Narrow on `run.request.path_type`; multi-variant leaves narrow further via the request's `dangerous_advanced.stream` flag. Runs this build's types predate are skipped by the listener — no unknown fallback. */
 export type CliCommandListenerExecution =
   | CliCommandAgentsListenerExecution
   | CliCommandApiListenerExecution
@@ -57,7 +57,7 @@ export type CliCommandListenerExecution =
   | CliCommandViewerListenerExecution
   | CliCommandListenerExecutionTransformed;
 
-/** Runtime `path_type → mode` table for the viewer `ViewerListener`. No validation — the types are structural claims over the wire. */
+/** Runtime `path_type → mode` table for the `WebSocketListener`. No validation — the types are structural claims over the wire. */
 export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unary" | "stream" | "both">> = {
   "agents/enqueue": "unary",
   "agents/enqueue/request_schema": "unary",

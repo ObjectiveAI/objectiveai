@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../agentArguments";
 import { type CliCommandAgentsSpawnRequest } from "./request";
 import { type CliCommandAgentsSpawnResponseItem } from "./responseItem";
 import { type CliError } from "../../../error";
-import { type ResponseItemStream } from "../../../../viewer/viewerListener";
+import { type ResponseItemStream } from "../../../websocketListener";
 
 /** One `/listen` broadcast run of `agents spawn` in its unary form (the plain `execute`). */
 export type CliCommandAgentsSpawnListenerExecution = {

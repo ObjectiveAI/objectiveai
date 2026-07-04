@@ -26,7 +26,7 @@
 // `src/cli/command/listenerExecution.ts` carries the root union
 // (`CliCommandListenerExecution`), the `Transformed` fallback member,
 // and the runtime `path_type → mode` table
-// (`CLI_COMMAND_LISTENER_EXECUTION_MODES`) the viewer `ViewerListener`
+// (`CLI_COMMAND_LISTENER_EXECUTION_MODES`) the `WebSocketListener`
 // dispatches with. Unknown runs have no fallback — the listener skips
 // them, mirroring the Rust dispatch.
 //
@@ -459,7 +459,7 @@ function main() {
     addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
     addImport(requestModule.srcRelative, `type ${requestModule.pascal}`);
     if (primaryPayload.streaming || twinPayload) {
-      addImport("viewer/viewerListener", "type ResponseItemStream");
+      addImport("cli/websocketListener", "type ResponseItemStream");
     }
 
     const docPath = scopeSegments.join(" ");
@@ -598,7 +598,7 @@ function main() {
       addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
       addImport("cli/command/request", "type CliCommandRequest");
       addImport("jsonValue", "type JsonValue");
-      addImport("viewer/viewerListener", "type ResponseItemStream");
+      addImport("cli/websocketListener", "type ResponseItemStream");
       extraBlock =
         `/** A run whose request carries a jq/python output transform: its items are post-transform JSON with no static shape, so they stay raw (the request itself is the typed root aggregate). */\n` +
         `export type ${name}Transformed = {\n` +
@@ -609,14 +609,14 @@ function main() {
       extraMember = `\n  | ${name}Transformed`;
       modesBlock =
         "\n" +
-        `/** Runtime \`path_type → mode\` table for the viewer \`ViewerListener\`. No validation — the types are structural claims over the wire. */\n` +
+        `/** Runtime \`path_type → mode\` table for the viewer \`WebSocketListener\`. No validation — the types are structural claims over the wire. */\n` +
         `export const CLI_COMMAND_LISTENER_EXECUTION_MODES: Readonly<Record<string, "unary" | "stream" | "both">> = {\n` +
         modeEntries.join("\n") +
         "\n};\n";
     }
     const unionDoc =
       branchKey === ""
-        ? `/** One daemon-broadcast run — the root of the JS \`ListenerExecution\` tree (the mirror of the Rust SDK's \`cli::command::ListenerExecution\`), yielded by the viewer \`ViewerListener\`. Narrow on \`run.request.path_type\`; multi-variant leaves narrow further via the request's \`dangerous_advanced.stream\` flag. Runs this build's types predate are skipped by the listener — no unknown fallback. */`
+        ? `/** One daemon-broadcast run — the root of the JS \`ListenerExecution\` tree (the mirror of the Rust SDK's \`cli::command::ListenerExecution\`), yielded by the viewer \`WebSocketListener\`. Narrow on \`run.request.path_type\`; multi-variant leaves narrow further via the request's \`dangerous_advanced.stream\` flag. Runs this build's types predate are skipped by the listener — no unknown fallback. */`
         : `/** \`/listen\` mirror of \`${docPath}\`'s request aggregate: one member per child listener execution. */`;
     const body =
       unionDoc +

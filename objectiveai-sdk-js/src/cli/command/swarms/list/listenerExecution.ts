@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../agentArguments";
 import { type CliCommandSwarmsListRequest } from "./request";
 import { type CliError } from "../../../error";
 import { type RemotePath } from "../../../../remotePath";
-import { type ResponseItemStream } from "../../../../viewer/viewerListener";
+import { type ResponseItemStream } from "../../../websocketListener";
 
 /** One `/listen` broadcast run of `swarms list`: the actual request, the producer's agent arguments, and the response-item stream. */
 export type CliCommandSwarmsListListenerExecution = {

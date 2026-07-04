@@ -4,7 +4,7 @@ import { type CliCommandAgentArguments } from "../../../agentArguments";
 import { type CliCommandAgentsInstancesGetRequest } from "./request";
 import { type CliCommandAgentsInstancesListResponseItem } from "../list/responseItem";
 import { type CliError } from "../../../../error";
-import { type ResponseItemStream } from "../../../../../viewer/viewerListener";
+import { type ResponseItemStream } from "../../../../websocketListener";
 
 /** One `/listen` broadcast run of `agents instances get`: the actual request, the producer's agent arguments, and the response-item stream. */
 export type CliCommandAgentsInstancesGetListenerExecution = {
