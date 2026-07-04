@@ -4,16 +4,21 @@ import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   AgentCompletionsResponseStreamingAgentCompletionChunkSchema,
   ErrorResponseErrorSchema,
-  ViewerEventSchema,
   agentCompletionsResponseStreamingAgentCompletionChunkMerged,
   type AgentCompletionsMessageMessage,
   type AgentCompletionsMessageRichContent,
   type AgentCompletionsMessageRichContentPart,
   type RemotePathCommitOptional,
-  type ViewerEvent,
 } from "@objectiveai/sdk";
 import { buildAgentCompletionRequest } from "./buildAgentCompletionRequest";
 import type { PanelTab, PanelTabCompletionEntry, PanelTabEntry } from "../RightOverlayPanel";
+
+/** The per-origin event shape the dead `cli_run` transport used to
+ * emit. STALE: nothing emits these anymore (the command is gone) —
+ * the chat transport gets rewired onto `WebSocketExecutor` in the UI
+ * refactor. Local structural stand-in for the deleted SDK
+ * `ViewerEvent` type so this compiles meanwhile. */
+type ChatEvent = { type?: string; value?: unknown };
 
 interface UseAgentChat {
   sendMessage: (tabId: string) => void;
@@ -27,10 +32,10 @@ export function useAgentChat(
       const params = { response_id: responseId, content };
       const origin = `agent-completion-notify-${crypto.randomUUID()}`;
       let unlisten: UnlistenFn | undefined;
-      unlisten = await listen<ViewerEvent>(origin, (ev) => {
-        const ce = ViewerEventSchema.safeParse(ev.payload);
-        if (!ce.success || ce.data.type !== "cli_command") return;
-        const line = ce.data.value as { type?: string };
+      unlisten = await listen<ChatEvent>(origin, (ev) => {
+        const ce = ev.payload;
+        if (!ce || ce.type !== "cli_command") return;
+        const line = ce.value as { type?: string };
         if (line?.type === "end") unlisten?.();
       });
       invoke("cli_run", {
@@ -56,10 +61,10 @@ export function useAgentChat(
       const request = buildAgentCompletionRequest(agent, messages, continuation);
 
       let unlisten: UnlistenFn | undefined;
-      unlisten = await listen<ViewerEvent>(origin, (ev) => {
-        const ce = ViewerEventSchema.safeParse(ev.payload);
-        if (!ce.success || ce.data.type !== "cli_command") return;
-        const line = ce.data.value as { type?: string; value?: unknown };
+      unlisten = await listen<ChatEvent>(origin, (ev) => {
+        const ce = ev.payload;
+        if (!ce || ce.type !== "cli_command") return;
+        const line = ce.value as { type?: string; value?: unknown };
 
         if (line.type === "notification") {
           const parsed = AgentCompletionsResponseStreamingAgentCompletionChunkSchema

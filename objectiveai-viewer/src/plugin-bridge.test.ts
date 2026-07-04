@@ -218,6 +218,34 @@ describe("plugin-bridge cli-execute", () => {
     ]);
   });
 
+  it("deliverInbound posts the inbound envelope to the registered iframe only", () => {
+    const a = makeTab(bridge, ALPHA);
+    const b = makeTab(bridge, BETA);
+
+    bridge.deliverInbound(ALPHA, { id: "run-1", value: { path_type: "plugins/run" } });
+    bridge.deliverInbound(ALPHA, { id: "run-1", end: true });
+
+    expect(payloads(a)).toEqual([
+      {
+        kind: "plugin-event",
+        type: "inbound",
+        value: { id: "run-1", value: { path_type: "plugins/run" } },
+      },
+      { kind: "plugin-event", type: "inbound", value: { id: "run-1", end: true } },
+    ]);
+    expect(b.spy).not.toHaveBeenCalled();
+  });
+
+  it("deliverInbound drops unregistered coordinates silently", () => {
+    const a = makeTab(bridge, ALPHA);
+
+    bridge.deliverInbound(BETA, { id: "run-1", value: {} });
+    bridge.unregisterIframe(ALPHA);
+    bridge.deliverInbound(ALPHA, { id: "run-2", value: {} });
+
+    expect(a.spy).not.toHaveBeenCalled();
+  });
+
   it("drops cli-execute messages without an invocation id", async () => {
     const a = makeTab(bridge, ALPHA);
 

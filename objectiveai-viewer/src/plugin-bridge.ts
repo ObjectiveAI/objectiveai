@@ -92,6 +92,24 @@ export function unregisterIframe(coords: PluginCoords): void {
   iframes.delete(coordsKey(coords));
 }
 
+/**
+ * Deliver one inbound frame (a standard broadcast-envelope frame of a
+ * `plugins/run` run targeting `coords`) into the registered iframe as
+ * a `{kind: "plugin-event", type: "inbound", value}` postMessage —
+ * the wire the SDK's `ViewerPluginListener` consumes. Best-effort:
+ * unregistered coordinates drop silently (delivery is live-only).
+ * The daemon-listener wrapper is the caller; it never touches
+ * windows itself.
+ */
+export function deliverInbound(coords: PluginCoords, frame: unknown): void {
+  const handle = iframes.get(coordsKey(coords));
+  if (!handle) return;
+  handle.iframe.contentWindow?.postMessage(
+    { kind: "plugin-event", type: "inbound", value: frame },
+    handle.targetOrigin,
+  );
+}
+
 // ── The host's daemon executor (lazy, shared) ─────────────────────
 
 let executorPromise: Promise<WebSocketExecutor> | null = null;

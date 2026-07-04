@@ -10,9 +10,9 @@
  * postMessages, where `<frame>` is one standard broadcast-envelope
  * frame — the request (`{…context, id, value: <plugins/run Request>}`),
  * then `{id, value: <item>}` per response item, then exactly one
- * terminator (`{id, end: true}`) — with the daemon's broadcast run
- * `id` preserved. [`ViewerPluginListener`] parses that stream and IS
- * an async-iterable of [`ViewerPluginRun`]s:
+ * terminator (`{id, end: true}`) — with a host-minted per-run `id`.
+ * [`ViewerPluginListener`] parses that stream and IS an
+ * async-iterable of [`ViewerPluginRun`]s:
  *
  * ```ts
  * const listener = new ViewerPluginListener();
@@ -28,21 +28,19 @@
  * FIXED-TYPE: unlike [`WebSocketListener`]'s full generated tree,
  * every run here is a `plugins/run` — the host only ever routes this
  * plugin's own runs. (A defensive skipped-id set silently drops any
- * other `path_type`, should the host ever send one.) `run.id` is the
- * daemon's broadcast run id: stable across the run's frames and
- * unique per run — correlate concurrent runs by it.
+ * other `path_type`, should the host ever send one.) `run.id` is
+ * host-minted: stable across the run's frames and unique per run —
+ * correlate concurrent runs by it.
  *
  * PLUGIN ONLY: constructing this in the main viewer window throws —
  * there is no host above it to deliver plugin events (the main
  * viewer consumes the full broadcast with `WebSocketListener`).
  *
  * Delivery is LIVE-ONLY, like every listener surface: an iterator
- * receives runs announced after it subscribes; nothing is retained.
- * `close()` detaches from the window, ends every open response
- * stream and every root iterator.
- *
- * NOTE: the host does not emit inbound frames yet — this listener
- * goes live when the host-side plugins/run routing lands.
+ * receives runs announced after it subscribes; nothing is retained
+ * (a plugin that mounts mid-run misses that run). `close()` detaches
+ * from the window, ends every open response stream and every root
+ * iterator.
  */
 
 import { type CliCommandAgentArguments } from "./command/agentArguments";
@@ -53,8 +51,8 @@ import { ResponseItemStream } from "./websocketListener";
 
 /** One `plugins/run` run the host delivered to this plugin. */
 export type ViewerPluginRun = {
-  /** The daemon's broadcast run id — stable across the run's frames,
-   * unique per run; correlate concurrent runs by it. */
+  /** Host-minted per-run id — stable across the run's frames, unique
+   * per run; correlate concurrent runs by it. */
   id: string;
   request: CliCommandPluginsRunRequest;
   agentArguments: CliCommandAgentArguments;

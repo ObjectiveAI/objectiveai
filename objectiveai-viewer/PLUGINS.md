@@ -8,7 +8,7 @@ When the viewer starts up, it reads the persisted manifests in `<plugins_dir>/*.
 
 Clicking a plugin tab mounts a sandboxed `<iframe>` pointed at the plugin's UI bundle, served by the host through a custom `plugin://` URI scheme. Each iframe is allow-listed to talk back to the host via a postMessage bridge.
 
-The viewer's data path is JS-native: the main viewer's frontend connects to the CLI daemon directly over native WebSockets (`/listen` and `/execute`); the Rust side holds no daemon stream and only hands the frontend the daemon address + auth signature via the `daemon_config` Tauri command. Plugins never see those credentials — their only channel is the postMessage bridge with the host window. For now, the only events delivered into a plugin's iframe are the responses to requests the plugin itself runs through the plugin executor (`plugins/run` delivery to plugin tabs comes later).
+The viewer's data path is JS-native: the main viewer's frontend connects to the CLI daemon directly over native WebSockets (`/listen` and `/execute`); the Rust side holds no daemon stream and only hands the frontend the daemon address + auth signature via the `daemon_config` Tauri command. Plugins never see those credentials — their only channel is the postMessage bridge with the host window. A plugin's iframe receives the responses to requests it runs through the plugin executor, plus every `plugins/run` run targeting it (forwarded from the host's broadcast connection).
 
 ## The viewer bundle
 
@@ -39,13 +39,13 @@ Every message the host posts into a plugin's iframe uses this shape:
 }
 ```
 
-`type` is `cli_command` (one response line from a plugin-executor invocation THIS plugin started, carrying the invocation `id` the plugin minted — concurrent invocations demux by it — and terminated by a synthetic `{"type":"end"}` line) or `inbound` (host data for the plugin — nothing is emitted on it yet; `plugins/run` delivery comes later).
+`type` is `cli_command` (one response line from a plugin-executor invocation THIS plugin started, carrying the invocation `id` the plugin minted — concurrent invocations demux by it — and terminated by a synthetic `{"type":"end"}` line) or `inbound` (host data for the plugin).
 
-When `plugins/run` delivery lands, each `inbound` event's `value` will be one standard broadcast-envelope frame of a `plugins/run` run targeting this plugin — the request (`{…context, id, value: <Request>}`), then `{id, value: <item>}` per response item, then the terminator (`{id, end: true}`) — with the daemon's broadcast run `id` preserved. The SDK's `ViewerPluginListener` already speaks this contract.
+Each `inbound` event's `value` is one standard broadcast-envelope frame of a `plugins/run` run targeting this plugin — the request (`{…context, id, value: <Request>}`), then `{id, value: <item>}` per response item, then the terminator (`{id, end: true}`) — with a host-minted per-run `id`. The host's daemon-listener wrapper watches the full broadcast and forwards each `plugins/run` run to its target plugin's tab; the SDK's `ViewerPluginListener` consumes this contract.
 
 ## The TypeScript SDK
 
-Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. To receive the plugin's own `plugins/run` runs, use the `ViewerPluginListener` — an async-iterable of `{id, request, agentArguments, response}` runs (the `id` is the daemon's broadcast run id; `response` streams the run's items). Both are plugin-only and throw outside an iframe; in the main viewer, use `WebSocketExecutor`/`WebSocketListener` (the daemon is directly reachable there). NOTE: the host does not emit inbound data yet — the listener goes live when the `plugins/run` routing lands host-side.
+Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. To receive the plugin's own `plugins/run` runs, use the `ViewerPluginListener` — an async-iterable of `{id, request, agentArguments, response}` runs (the `id` is host-minted per run; `response` streams the run's items). Both are plugin-only and throw outside an iframe; in the main viewer, use `WebSocketExecutor`/`WebSocketListener` (the daemon is directly reachable there).
 
 `ViewerPluginExecutor` detects context by `window.parent !== window` — inside the host viewer's iframe it talks postMessage with the host; anywhere else it throws (there is no host to serve the request). Plugin authors develop against the real host and ship the built `dist/` as `<repo>-viewer.zip`.
 

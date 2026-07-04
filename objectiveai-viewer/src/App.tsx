@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect, useDeferredValue, type ReactNode } from "
 import cn from "classnames";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
+import { startDaemonListener } from "./daemon-listener";
 import { useEntries } from "./hooks/useEntries";
 import { useApiCalls } from "./hooks/useApiCalls";
 import { useCollapseState } from "./hooks/useCollapseState";
@@ -287,6 +288,13 @@ export interface ViewerPluginInfo {
 function App() {
   const [plugins, setPlugins] = useState<ViewerPluginInfo[]>([]);
   const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
+
+  // The app's one daemon broadcast connection — routing (daemonRuns
+  // subscribers) + plugins/run forwarding into plugin iframes.
+  // Idempotent, so StrictMode's double effect is harmless.
+  useEffect(() => {
+    startDaemonListener();
+  }, []);
 
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [panelTabs, setPanelTabs] = useState<PanelTab[]>([]);
