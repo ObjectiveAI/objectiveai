@@ -80,7 +80,7 @@ The canonical schema lives in [`objectiveai-rs/src/filesystem/plugins/manifest.r
 
 2. **Build a CLI program** that speaks the JSONL protocol on stdin/stdout, and declare how to launch it in the manifest's `exec`. See the [CLI plugins reference](objectiveai-cli/PLUGINS.md) for the wire format. The smallest possible compliant plugin lives at [`.objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli/`](.objectiveai/bin/plugins/objectiveai/hello/0.0.1/cli/) (~10 lines of Rust, exec'd via `cargo run`).
 
-3. **(Optional) Build a viewer bundle.** A static `dist/` from your favourite frontend stack (vite, plain HTML, anything). Use [`@objectiveai/viewer-sdk`](objectiveai-viewer-sdk/)'s `listen()` to receive events from the host. See the [viewer plugins reference](objectiveai-viewer/PLUGINS.md).
+3. **(Optional) Build a viewer bundle.** A static `dist/` from your favourite frontend stack (vite, plain HTML, anything). Use `ViewerPluginExecutor` (from `@objectiveai/sdk`) to run commands on the host; inbound host→plugin data delivery arrives later. See the [viewer plugins reference](objectiveai-viewer/PLUGINS.md).
 
 4. **Write `objectiveai.json`** at your repo root with the fields above.
 

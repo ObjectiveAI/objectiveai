@@ -8,7 +8,6 @@
 /// gates in this file:
 ///
 /// - every `crate::cli::*` schema lives behind `feature = "cli"`,
-/// - every `crate::viewer::*` schema behind `feature = "viewer"`,
 /// - every `crate::http::*` schema behind `feature = "http"`,
 /// - all remaining (core) schemas are always present.
 ///
@@ -1178,22 +1177,6 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
     #[cfg(feature = "cli-listener")]
     schemas.extend([
         schemars::schema_for!(crate::cli::websocket_listener::ListenerEnd),
-    ]);
-
-    #[cfg(feature = "viewer")]
-    schemas.extend([
-        schemars::schema_for!(crate::viewer::Destination),
-        schemars::schema_for!(crate::viewer::Event),
-    ]);
-
-    #[cfg(feature = "http")]
-    schemas.extend([
-        schemars::schema_for!(crate::http::viewer::AgentCompletionCreateParams),
-        schemars::schema_for!(crate::http::viewer::AgentCompletionRequest),
-        schemars::schema_for!(crate::http::viewer::FunctionExecutionCreateParams),
-        schemars::schema_for!(crate::http::viewer::FunctionExecutionRequest),
-        schemars::schema_for!(crate::http::viewer::Request),
-        schemars::schema_for!(crate::http::viewer::ResponseError),
     ]);
 
     // The MCP types the `agents mcp tools|resources|servers` command

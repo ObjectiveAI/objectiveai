@@ -356,10 +356,7 @@ impl Context {
 /// SDK's `env` feature is still enabled in `Cargo.toml`, but every
 /// value we pass in is already resolved (Some/None) so the SDK never
 /// reaches its own env fallback — the precedence chain is ours.
-///
-/// The viewer-mirror headers (`x_viewer_signature`,
-/// `x_viewer_address`) are deliberately not set — viewer discovery is
-/// lock-based now and the API client no longer carries them.
+
 ///
 /// Sourcing `agent_instance_hierarchy` and `mcp_session_id` from
 /// `cli_config` is deliberate: those are env-populated at startup by
@@ -412,8 +409,6 @@ fn build_http_client(
         x_github_authorization,
         x_openrouter_authorization,
         x_mcp_authorization,
-        None::<String>,
-        None::<String>,
         agent_instance_hierarchy,
         mcp_session_id,
     )

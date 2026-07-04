@@ -85,6 +85,3 @@ pub mod client_objectiveai_mcp;
 
 #[cfg(feature = "cli")]
 pub mod cli;
-
-#[cfg(feature = "viewer")]
-pub mod viewer;

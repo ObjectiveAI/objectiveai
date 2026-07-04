@@ -43,14 +43,9 @@ Every message the host posts into a plugin's iframe uses this shape:
 
 ## The TypeScript SDK
 
-Plugin UIs use [`@objectiveai/viewer-sdk`](../objectiveai-viewer-sdk/) (workspace package; npm publication pending). To run commands, use the `ViewerPluginExecutor` (from `@objectiveai/sdk`) with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. It is plugin-only and throws outside an iframe; in the main viewer, use `WebSocketExecutor` (the daemon is directly reachable there). Inbound host→plugin data delivery (e.g. `plugins/run` runs) is not emitted yet; the receiving surface will arrive with it. (The `WebSocketListener` in `@objectiveai/sdk` is NOT that surface — it consumes the daemon broadcast directly and plugins have no daemon credentials.)
+Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. It is plugin-only and throws outside an iframe; in the main viewer, use `WebSocketExecutor` (the daemon is directly reachable there). Inbound host→plugin data delivery (e.g. `plugins/run` runs) is not emitted yet; the receiving surface will arrive with it. (The `WebSocketListener` in `@objectiveai/sdk` is NOT that surface — it consumes the daemon broadcast directly and plugins have no daemon credentials.)
 
-The SDK detects context:
-
-- **Production** (inside the host viewer's iframe): `window.parent !== window`, so the SDK subscribes to `postMessage` from `window.parent` and dispatches matching `plugin-event` messages to your handler.
-- **Dev** (your plugin running in its own standalone Tauri shell): `window.parent === window`, so the SDK falls through to `@tauri-apps/api`'s `listen`. You get the same surface; only the transport differs.
-
-Plugin authors can develop their plugin as a normal Tauri app locally (their `src-tauri` backend can emit events themselves for development), then ship the built `dist/` as `<repo>-viewer.zip`. The SDK shim is the only thing they need to use to make their plugin work in both contexts.
+`ViewerPluginExecutor` detects context by `window.parent !== window` — inside the host viewer's iframe it talks postMessage with the host; anywhere else it throws (there is no host to serve the request). Plugin authors develop against the real host and ship the built `dist/` as `<repo>-viewer.zip`.
 
 ## The postMessage bridge
 
@@ -92,8 +87,8 @@ The CLI fixture at [`objectiveai-cli/test-fixtures/hello-plugin/`](../objectivea
   // messages into this iframe — today that's the `cli_command`
   // responses to requests this plugin runs through the plugin
   // executor.
-  // @objectiveai/viewer-sdk wraps this protocol; you can also use
-  // postMessage directly:
+  // @objectiveai/sdk's ViewerPluginExecutor wraps this protocol;
+  // you can also use postMessage directly:
   window.addEventListener("message", (e) => {
     if (e.data?.kind !== "plugin-event") return;
     document.querySelector("p").textContent =

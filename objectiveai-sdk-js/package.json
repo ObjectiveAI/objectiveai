@@ -59,11 +59,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./viewer": {
-      "types": "./dist/viewer/index.d.ts",
-      "import": "./dist/viewer/index.js",
-      "require": "./dist/viewer/index.cjs"
     }
   },
   "files": [

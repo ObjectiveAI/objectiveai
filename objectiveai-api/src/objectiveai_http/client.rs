@@ -80,10 +80,6 @@ impl Client {
                 .or_else(|| self.x_openrouter_authorization.clone()),
             x_mcp_authorization: ctx_mcp_authorization
                 .or_else(|| self.x_mcp_authorization.clone()),
-            // The api no longer reads or forwards viewer headers; the
-            // SDK HttpClient keeps the fields for other consumers.
-            x_viewer_signature: None,
-            x_viewer_address: None,
             agent_instance_hierarchy: ctx.agent_instance_hierarchy().map(|s| Arc::new(s.to_string())),
             // No MCP session id surfaces through the per-request
             // `ctx` here. The api server's outgoing-MCP path stamps

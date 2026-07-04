@@ -11,11 +11,9 @@ use envconfig::Envconfig;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::Emitter;
-use tokio::sync::{Notify, mpsc};
+use tokio::sync::Notify;
 
 use crate::plugins::serve_plugin_asset;
-use objectiveai_sdk::viewer::{Event, EventReceiver};
 
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
@@ -144,20 +142,9 @@ pub fn make_executor(daemon_address: &str, signature: Option<&str>) -> WebSocket
     }
 }
 
-/// Build the event bus and the shell's supporting state. No IO — the
-/// daemon WebSocket client (the bus's producer) is spawned separately
-/// by [`run`], so embedders can drive `setup` + `serve` with synthetic
-/// events only.
-pub fn setup(
-    config: &Config,
-) -> (
-    objectiveai_sdk::viewer::EventSender,
-    EventReceiver,
-    PathBuf,
-) {
-    let (tx, rx) = mpsc::unbounded_channel::<Event>();
-    let plugins_dir = crate::plugins::plugins_dir(&config.objectiveai_dir);
-    (tx, rx, plugins_dir)
+/// Resolve the shell's supporting state. No IO.
+pub fn setup(config: &Config) -> PathBuf {
+    crate::plugins::plugins_dir(&config.objectiveai_dir)
 }
 
 /// A function that exits the viewer's event loop with the given exit code.
@@ -172,21 +159,20 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 ///
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
-    events_tx: objectiveai_sdk::viewer::EventSender,
-    mut rx: EventReceiver,
     executor: WebSocketExecutor,
     daemon_config_state: DaemonConfig,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
+    // `viewer_ready`'s readiness marker. Nothing consumes the
+    // notification today (the JS frontend talks to the daemon
+    // directly); the command is kept as a startup signal for later.
     let ready = Arc::new(Notify::new());
-    let ready_for_task = ready.clone();
 
     let plugins_dir_for_protocol = plugins_dir.clone();
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
-        .manage(events_tx)
         .manage(daemon_config_state)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
@@ -199,46 +185,10 @@ pub fn serve(
     ]);
     builder
         .setup(move |tauri_app| {
-            let handle = tauri_app.handle().clone();
             if let Some(tx) = exiter_tx {
-                let exit_handle = handle.clone();
+                let exit_handle = tauri_app.handle().clone();
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
             }
-            tauri::async_runtime::spawn(async move {
-                // The Tauri channel an event fans out on: two channels
-                // total — the main UI's, and one shared plugin channel
-                // (the payload's destination carries the plugin's full
-                // coordinates; the JS side just delivers it to the
-                // matching iframe).
-                fn channel(event: &objectiveai_sdk::viewer::Event) -> &'static str {
-                    match event.destination() {
-                        objectiveai_sdk::viewer::Destination::Objectiveai => "objectiveai",
-                        objectiveai_sdk::viewer::Destination::Plugin { .. } => "plugin",
-                    }
-                }
-                // Buffer events until the frontend signals it is listening.
-                let mut buffer = Vec::new();
-                loop {
-                    tokio::select! {
-                        biased;
-                        _ = ready_for_task.notified() => break,
-                        event = rx.recv() => {
-                            match event {
-                                Some(e) => buffer.push(e),
-                                None => return,
-                            }
-                        }
-                    }
-                }
-                // Drain buffered events.
-                for event in buffer {
-                    let _ = handle.emit(channel(&event), &event);
-                }
-                // Forward remaining events directly.
-                while let Some(event) = rx.recv().await {
-                    let _ = handle.emit(channel(&event), &event);
-                }
-            });
             Ok(())
         })
         .build(tauri::generate_context!())
@@ -263,7 +213,7 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         .join("state")
         .join(&config.objectiveai_state)
         .join("locks");
-    let (events_tx, rx, plugins_dir) = setup(&config);
+    let plugins_dir = setup(&config);
     let executor = make_executor(&daemon_address, config.daemon_signature.as_deref());
 
     // There is only ever ONE viewer per STATE (unlike the api, which
@@ -290,12 +240,5 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         signature: config.daemon_signature.clone(),
     };
 
-    Ok(serve(
-        events_tx,
-        rx,
-        executor,
-        daemon_config_state,
-        plugins_dir,
-        None,
-    ))
+    Ok(serve(executor, daemon_config_state, plugins_dir, None))
 }
