@@ -39,22 +39,19 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures::{Stream, StreamExt};
+use futures::{SinkExt, Stream, StreamExt};
 use serde_json::value::RawValue;
 use tokio_tungstenite::tungstenite;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
-use tokio_tungstenite::tungstenite::http::HeaderValue;
 
 use crate::cli::command::AgentArguments;
+use crate::cli::command::command_executor::websocket::AuthEnvelope;
 
 use crate::cli::command::ListenerExecution;
 use super::dispatch::{RunFeed, open_run};
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    /// The signature value isn't a valid HTTP header value.
-    #[error("daemon signature is not a valid header value")]
-    Signature,
     /// The URL failed to build into a client upgrade request, or the
     /// connection/upgrade itself failed.
     #[error("connect daemon listen websocket: {0}")]
@@ -71,36 +68,43 @@ pub struct WebSocketListenerBuilder {
     /// Full connect URL of the daemon's listen route, e.g.
     /// `ws://127.0.0.1:49152/listen`.
     url: String,
-    /// Optional auth header value, sent verbatim as
-    /// `X-DAEMON-SIGNATURE` on the upgrade.
+    /// Optional auth signature, sent in the [`AuthEnvelope`] preamble
+    /// right after connecting.
     signature: Option<String>,
 }
 
 impl WebSocketListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim as
-    /// `X-DAEMON-SIGNATURE`. Without it the daemon must be running
-    /// without a secret.
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim in the
+    /// [`AuthEnvelope`] preamble — the connection's first text frame,
+    /// the same shape every daemon route expects. Without it the
+    /// daemon must be running without a secret.
     pub fn signature(mut self, signature: impl Into<String>) -> Self {
         self.signature = Some(signature.into());
         self
     }
 
-    /// Upgrade and start the pump. The returned [`WebSocketListener`]
-    /// is the root envelope stream.
+    /// Upgrade, send the auth preamble, and start the pump. The
+    /// returned [`WebSocketListener`] is the root envelope stream.
     pub async fn connect(self) -> Result<WebSocketListener, Error> {
-        let mut upgrade = self
+        let upgrade = self
             .url
             .as_str()
             .into_client_request()
             .map_err(Error::Connect)?;
-        if let Some(signature) = &self.signature {
-            let value = HeaderValue::from_str(signature).map_err(|_| Error::Signature)?;
-            upgrade.headers_mut().insert("X-DAEMON-SIGNATURE", value);
-        }
-        let (ws, _response) = tokio_tungstenite::connect_async(upgrade)
+        let (mut ws, _response) = tokio_tungstenite::connect_async(upgrade)
             .await
             .map_err(Error::Connect)?;
+
+        // The auth preamble — always the connection's first text
+        // frame, `{"signature": null}` against a secretless daemon.
+        let auth = serde_json::to_string(&AuthEnvelope {
+            signature: self.signature,
+        })
+        .expect("AuthEnvelope serialization is infallible");
+        ws.send(tungstenite::Message::Text(auth.into()))
+            .await
+            .map_err(Error::Ws)?;
 
         let (tx, rx) = tokio::sync::mpsc::unbounded_channel::<Result<ListenerExecution, Error>>();
         tokio::spawn(pump(ws, tx));

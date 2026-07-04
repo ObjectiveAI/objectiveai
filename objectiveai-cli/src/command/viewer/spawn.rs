@@ -34,8 +34,9 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
 
     // Derive the daemon WS auth signature from the cli's DAEMON_SECRET
     // (env-sourced): `sha256=<hex(SHA256(secret))>` — the same one-way
-    // math as `generate_viewer_secret_signature_pair`. The viewer sends
-    // it verbatim as `X-DAEMON-SIGNATURE` on its WebSocket upgrades.
+    // math as `generate_viewer_secret_signature_pair`. Clients send it
+    // verbatim in the first-message auth preamble (the SDK
+    // `AuthEnvelope`) on every daemon WebSocket connection.
     let daemon_signature = ctx.config.daemon_secret.as_deref().map(|secret| {
         use sha2::{Digest, Sha256};
         let hash = Sha256::digest(secret.as_bytes());

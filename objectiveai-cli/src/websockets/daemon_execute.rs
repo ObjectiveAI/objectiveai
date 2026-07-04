@@ -1,9 +1,12 @@
 //! The resident daemon's `/execute` WebSocket route — the server side
 //! of [`objectiveai_sdk::cli::command::WebSocketExecutor`].
 //!
-//! Connection-per-command: the client sends ONE text message (the SDK
-//! [`ExecuteEnvelope`] — a `cli::command::Request` as serde JSON plus
-//! an optional [`AgentArguments`] identity override), then only reads.
+//! Connection-per-command: the client sends the auth preamble (the
+//! SDK `AuthEnvelope`, verified by
+//! [`crate::websockets::daemon_auth::authenticate`]), then ONE text
+//! message (the SDK [`ExecuteEnvelope`] — a `cli::command::Request` as
+//! serde JSON plus an optional [`AgentArguments`] identity override),
+//! then only reads.
 //! The daemon runs the request IN-PROCESS via the re-entrant
 //! [`crate::run`] (the same path `plugins run` uses for nested plugin
 //! commands) against a clone of its resident [`Context`] with the
@@ -34,20 +37,27 @@ use objectiveai_sdk::cli::command::command_executor::websocket::ExecuteEnvelope;
 use crate::context::Context;
 use crate::error::Error;
 
-/// `/execute`: upgrade and run one command over the socket.
+/// `/execute`: upgrade, consume the auth preamble, and run one
+/// command over the socket.
 pub(crate) async fn execute_handler(
     axum::extract::State(state): axum::extract::State<
         crate::websockets::daemon_stream::DaemonWsState,
     >,
     ws: axum::extract::ws::WebSocketUpgrade,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |socket| handle_execute(socket, state.ctx))
+    ws.on_upgrade(move |mut socket| async move {
+        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref()).await
+        {
+            return;
+        }
+        handle_execute(socket, state.ctx).await;
+    })
 }
 
 /// Drive one command: read the envelope, run in-process, stream the
-/// items back, close.
+/// items back, close. The auth preamble has already been consumed.
 async fn handle_execute(mut socket: WebSocket, ctx: Context) {
-    // The first text message is the envelope; anything else before it
+    // The next text message is the envelope; anything else before it
     // (ping/pong/binary) is ignored. Client gone before sending → done.
     let envelope = loop {
         match socket.recv().await {

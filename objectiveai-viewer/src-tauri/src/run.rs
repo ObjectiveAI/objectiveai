@@ -102,11 +102,11 @@ pub struct Config {
     /// spawn`, which resolves it from the daemon it just ensured.
     /// `Option` only so `ConfigBuilder::build` stays infallible.
     pub daemon_address: Option<String>,
-    /// Optional daemon WebSocket auth header value
+    /// Optional daemon WebSocket auth signature
     /// (`DAEMON_SIGNATURE`): the pre-derived
-    /// `sha256=<hex(SHA256(DAEMON_SECRET))>` sent verbatim as
-    /// `X-DAEMON-SIGNATURE` on every upgrade. `None` = connect
-    /// unauthenticated (the daemon must be open).
+    /// `sha256=<hex(SHA256(DAEMON_SECRET))>` sent verbatim in the
+    /// first-message auth preamble on every connection. `None` =
+    /// connect unauthenticated (the daemon must be open).
     pub daemon_signature: Option<String>,
     pub suppress_output: bool,
     /// Layout root (`OBJECTIVEAI_DIR`); default `~/.objectiveai`.

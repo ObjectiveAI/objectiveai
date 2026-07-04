@@ -1171,6 +1171,7 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
 
     #[cfg(feature = "cli-executor")]
     schemas.extend([
+        schemars::schema_for!(crate::cli::command::command_executor::websocket::AuthEnvelope),
         schemars::schema_for!(crate::cli::command::command_executor::websocket::ExecuteEnvelope),
     ]);
 

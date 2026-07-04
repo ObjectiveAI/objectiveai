@@ -1,59 +1,63 @@
-//! Optional auth for the daemon's broadcast WebSocket server.
+//! Optional first-message auth for the daemon's WebSocket server.
 //!
-//! Identical strategy to the viewer's (`objectiveai-viewer`'s
-//! `signature.rs`): a client authenticates by sending one of
-//! `X-DAEMON-SIGNATURE` / `DAEMON-SIGNATURE` / `X-OBJECTIVEAI-SIGNATURE`
-//! / `OBJECTIVEAI-SIGNATURE` containing `sha256=<hex>`, where `<hex>` is
-//! `SHA256(secret)`. The middleware short-circuits with `401` when the
-//! signature is missing or doesn't match. Knowing the signature does not
-//! reveal the secret (preimage resistance).
+//! Headers are never used (browser WebSocket clients can't set them):
+//! EVERY connection's first text frame must be the SDK
+//! [`AuthEnvelope`] — `{"signature": "sha256=<hex>"}` where `<hex>` is
+//! `SHA256(secret)`, or `{"signature": null}` when the client has
+//! none. Both routes (`/listen`, `/execute`) consume this preamble
+//! unconditionally, so the protocol is uniform whether or not the
+//! daemon holds a secret:
 //!
-//! Optional: when the daemon's `DAEMON_SECRET` is unset the middleware is
-//! never layered (open server); this module only runs when a secret is
-//! present, so `secret` here is always `Some`.
+//! - secret configured: a missing/invalid signature closes the
+//!   connection without a word;
+//! - no secret: the envelope is consumed and its value ignored.
+//!
+//! Knowing the signature does not reveal the secret (preimage
+//! resistance).
 
 use std::sync::Arc;
 
-use axum::extract::State;
-use axum::http::StatusCode;
-use axum::middleware::Next;
+use axum::extract::ws::{Message, WebSocket};
+use objectiveai_sdk::cli::command::command_executor::websocket::AuthEnvelope;
 use subtle::ConstantTimeEq;
 
-/// Reject the WebSocket-upgrade request with `401` unless it carries a
-/// signature header matching `sha256=<hex(SHA256(secret))>`. The upgrade
-/// is a bodyless GET, so — unlike the viewer's HTTP middleware — there's
-/// no request body to buffer and rebuild; the headers are inspected in
-/// place and the request passes through untouched on success.
-pub(crate) async fn signature_middleware(
-    State(secret): State<Option<Arc<String>>>,
-    request: axum::extract::Request,
-    next: Next,
-) -> Result<axum::response::Response, StatusCode> {
-    let Some(secret) = &secret else {
-        // Should not happen (the layer is only added when a secret is
-        // configured), but treat a missing secret as an open server.
-        return Ok(next.run(request).await);
+/// Consume the connection's auth preamble: read frames until the
+/// first text frame (control frames are ignored), parse it as an
+/// [`AuthEnvelope`], and verify it against `secret` when one is
+/// configured. Returns `true` when the connection may proceed; on any
+/// failure — client gone, unparseable preamble, missing or invalid
+/// signature — the socket is closed and `false` returned.
+pub(crate) async fn authenticate(socket: &mut WebSocket, secret: Option<&Arc<String>>) -> bool {
+    let text = loop {
+        match socket.recv().await {
+            Some(Ok(Message::Text(text))) => break text,
+            Some(Ok(Message::Close(_))) | Some(Err(_)) | None => return false,
+            Some(Ok(_)) => continue,
+        }
     };
-    let headers = request.headers();
-    let signature = headers
-        .get("X-DAEMON-SIGNATURE")
-        .or_else(|| headers.get("DAEMON-SIGNATURE"))
-        .or_else(|| headers.get("X-OBJECTIVEAI-SIGNATURE"))
-        .or_else(|| headers.get("OBJECTIVEAI-SIGNATURE"))
-        .and_then(|v| v.to_str().ok())
-        .ok_or(StatusCode::UNAUTHORIZED)?;
-    if !verify_signature(secret, signature) {
-        return Err(StatusCode::UNAUTHORIZED);
+    let Ok(envelope) = serde_json::from_str::<AuthEnvelope>(&text) else {
+        let _ = socket.send(Message::Close(None)).await;
+        return false;
+    };
+    if let Some(secret) = secret {
+        let verified = envelope
+            .signature
+            .as_deref()
+            .is_some_and(|signature| verify_signature(secret, signature));
+        if !verified {
+            let _ = socket.send(Message::Close(None)).await;
+            return false;
+        }
     }
-    Ok(next.run(request).await)
+    true
 }
 
-/// `true` iff `signature_header` is `sha256=<hex(SHA256(secret))>`. The
+/// `true` iff `signature` is `sha256=<hex(SHA256(secret))>`. The
 /// signature is a static, pre-computed value; the comparison is
-/// constant-time to avoid leaking it. Identical math to the viewer's
-/// `verify_signature` and `generate_viewer_secret_signature_pair`.
-fn verify_signature(secret: &str, signature_header: &str) -> bool {
-    let Some(hex_sig) = signature_header.strip_prefix("sha256=") else {
+/// constant-time to avoid leaking it. Identical math to the cli's
+/// `generate_viewer_secret_signature_pair`.
+fn verify_signature(secret: &str, signature: &str) -> bool {
+    let Some(hex_sig) = signature.strip_prefix("sha256=") else {
         return false;
     };
     let Ok(sig_bytes) = hex::decode(hex_sig) else {

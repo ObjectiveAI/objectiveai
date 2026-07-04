@@ -209,61 +209,66 @@ async fn handle_feed(conn: LocalSocketStream, tx: broadcast::Sender<String>) {
 }
 
 /// Shared state for the daemon's WebSocket routes: the broadcast
-/// sender `/listen` subscribers drain, and the resident
-/// [`crate::context::Context`] that `/execute` runs commands against.
+/// sender `/listen` subscribers drain, the resident
+/// [`crate::context::Context`] that `/execute` runs commands against,
+/// and the optional secret every connection's auth preamble is
+/// verified against.
 #[derive(Clone)]
 pub(crate) struct DaemonWsState {
     pub(crate) tx: broadcast::Sender<String>,
     pub(crate) ctx: crate::context::Context,
+    pub(crate) secret: Option<std::sync::Arc<String>>,
 }
 
 /// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
 /// separated:
 ///
 /// - **`/listen`** — the broadcast: each client receives every future
-///   frame. Pure push; inbound messages are never treated as requests.
+///   frame. Pure push; after the auth preamble, inbound messages are
+///   never treated as requests.
 /// - **`/execute`** — connection-per-command execution
 ///   ([`crate::websockets::daemon_execute`]): the client's request runs
 ///   in-process against `ctx`, and its items stream back on that socket
 ///   only — never onto the broadcast. (The run's tee still lands on
 ///   `/listen` like any other CLI activity, via the producer socket.)
 ///
-/// When `secret` is `Some`, upgrades on BOTH routes are gated by
-/// [`crate::websockets::daemon_auth`]; when `None`, the server is open.
-/// Returns the serve task's handle.
+/// EVERY connection on both routes starts with the first-message auth
+/// preamble ([`crate::websockets::daemon_auth::authenticate`]): the
+/// first text frame must be the SDK `AuthEnvelope`. When `secret` is
+/// `Some`, a missing/invalid signature closes the connection; when
+/// `None`, the envelope is consumed and ignored. Headers are never
+/// used. Returns the serve task's handle.
 pub fn serve_ws(
     listener: tokio::net::TcpListener,
     tx: broadcast::Sender<String>,
     secret: Option<std::sync::Arc<String>>,
     ctx: crate::context::Context,
 ) -> tokio::task::JoinHandle<()> {
-    let mut app = axum::Router::new()
+    let app = axum::Router::new()
         .route("/listen", axum::routing::any(listen_handler))
         .route(
             "/execute",
             axum::routing::any(crate::websockets::daemon_execute::execute_handler),
         )
-        .with_state(DaemonWsState { tx, ctx });
-    // Optional auth: when a secret is configured, gate every upgrade on a
-    // valid `sha256=<hex(SHA256(secret))>` signature header; otherwise the
-    // server is open (no middleware layered).
-    if let Some(secret) = secret {
-        app = app.layer(axum::middleware::from_fn_with_state(
-            Some(secret),
-            crate::websockets::daemon_auth::signature_middleware,
-        ));
-    }
+        .with_state(DaemonWsState { tx, ctx, secret });
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })
 }
 
-/// `/listen`: upgrade to WebSocket and pump broadcast frames.
+/// `/listen`: upgrade to WebSocket, consume the auth preamble, and
+/// pump broadcast frames.
 async fn listen_handler(
     axum::extract::State(state): axum::extract::State<DaemonWsState>,
     ws: axum::extract::ws::WebSocketUpgrade,
 ) -> axum::response::Response {
-    ws.on_upgrade(move |socket| pump(socket, state.tx))
+    ws.on_upgrade(move |mut socket| async move {
+        if !crate::websockets::daemon_auth::authenticate(&mut socket, state.secret.as_ref()).await
+        {
+            return;
+        }
+        pump(socket, state.tx).await;
+    })
 }
 
 /// Forward every broadcast frame to one client until it disconnects.
