@@ -16,12 +16,11 @@ dotenv = "0.15.0"
 envconfig = "0.11.1"
 futures = "0.3.32"
 mime_guess = "2.0.5"
-objectiveai-sdk = { version = "2.2.9", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "cli-listener", "mcp", "viewer", "lockfile"] }
+objectiveai-sdk = { version = "2.2.9", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "mcp", "viewer", "lockfile"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
 tauri = { version = "2.10.3", features = [] }
 tokio = { version = "1.50.0", features = ["full"] }
-uuid = { version = "1.22", features = ["v4"] }
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }

@@ -3,58 +3,60 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 /**
- * Delivery tests for the plugin bridge.
- *
- * The Rust side emits plugin-destined events on the shared `"plugin"`
- * Tauri channel, each payload carrying the plugin's FULL coordinates
- * in `destination.plugin`. The bridge does no routing beyond delivery:
- * the property under test is that a plugin's iframe receives exactly
- * the events destined to its coordinates — and nothing else — and
- * that the reverse `cli-execute` path stamps the originating iframe's
- * coordinates as the destination (a plugin never claims an identity
- * itself).
+ * Bridge tests: plugin iframes post `cli-execute` requests; the host
+ * resolves the originating iframe by window identity, runs the
+ * request through its JS-native WebSocketExecutor (mocked — nothing
+ * connects), and posts every line + the synthetic end marker back
+ * into that iframe. Daemon config comes from the mocked Rust
+ * `daemon_config` command.
  */
 
-// ── lib/tauri mock: a controllable in-memory bus + invoke capture ───
+// ── mocks: lib/tauri invoke + the SDK executor ─────────────────────
 
-const bus = vi.hoisted(() => {
-  const listeners = new Map<
-    string,
-    Array<(event: { payload: unknown }) => void>
-  >();
-  const invokes: Array<{ cmd: string; args: unknown }> = [];
-  return {
-    listeners,
-    invokes,
-    emit(channel: string, payload: unknown): void {
-      for (const handler of listeners.get(channel) ?? []) {
-        handler({ payload });
-      }
-    },
-    reset(): void {
-      listeners.clear();
-      invokes.length = 0;
-    },
-  };
-});
+const harness = vi.hoisted(() => ({
+  daemonConfig: {
+    address: "ws://127.0.0.1:4242",
+    signature: "sha256=abc",
+  } as { address: string; signature: string | null } | null,
+  /** Constructor args of every WebSocketExecutor the bridge built. */
+  constructed: [] as Array<{ url: string; options: unknown }>,
+  /** Requests passed to execute(), in order. */
+  executed: [] as unknown[],
+  /** Script for the next execute() calls: arrays of lines to yield,
+   * or an Error to throw. */
+  plans: [] as Array<unknown[] | Error>,
+  reset(): void {
+    harness.daemonConfig = {
+      address: "ws://127.0.0.1:4242",
+      signature: "sha256=abc",
+    };
+    harness.constructed.length = 0;
+    harness.executed.length = 0;
+    harness.plans.length = 0;
+  },
+}));
 
 vi.mock("./lib/tauri", () => ({
-  tauriListen: async (
-    channel: string,
-    handler: (event: { payload: unknown }) => void,
-  ): Promise<() => void> => {
-    const handlers = bus.listeners.get(channel) ?? [];
-    handlers.push(handler);
-    bus.listeners.set(channel, handlers);
-    return () => {
-      const current = bus.listeners.get(channel) ?? [];
-      const i = current.indexOf(handler);
-      if (i !== -1) current.splice(i, 1);
-    };
+  tauriInvoke: async (cmd: string) => {
+    if (cmd !== "daemon_config") throw new Error(`unexpected invoke: ${cmd}`);
+    if (!harness.daemonConfig) throw new Error("daemon_config unavailable");
+    return harness.daemonConfig;
   },
-  tauriInvoke: async (cmd: string, args: unknown) => {
-    bus.invokes.push({ cmd, args });
-    return undefined;
+}));
+
+vi.mock("@objectiveai/sdk", () => ({
+  WebSocketExecutor: class {
+    constructor(url: string, options: unknown) {
+      harness.constructed.push({ url, options });
+    }
+    execute(request: unknown): AsyncIterable<unknown> {
+      harness.executed.push(request);
+      const plan = harness.plans.shift() ?? [];
+      return (async function* () {
+        if (plan instanceof Error) throw plan;
+        for (const line of plan) yield line;
+      })();
+    }
   },
 }));
 
@@ -80,148 +82,143 @@ function makeTab(
 
 const ALPHA = { owner: "objectiveai", name: "alpha", version: "0.0.1" };
 const BETA = { owner: "objectiveai", name: "beta", version: "0.0.1" };
-/** Same name as ALPHA, different owner — coordinates must be exact. */
-const ALPHA_FORK = { owner: "fork", name: "alpha", version: "0.0.1" };
-
-/** A plugin-channel event payload. `cli_command` events carry the
- * caller-minted invocation id. */
-function pluginEvent(
-  type: "inbound" | "cli_command",
-  coords: { owner: string; name: string; version: string },
-  value: unknown,
-  id = "invocation-1",
-) {
-  return type === "cli_command"
-    ? { type, destination: { plugin: coords }, id, value }
-    : { type, destination: { plugin: coords }, value };
-}
 
 /** First-arg payloads of every postMessage a tab received. */
 function payloads(tab: { spy: { mock: { calls: unknown[][] } } }): unknown[] {
   return tab.spy.mock.calls.map((call: unknown[]) => call[0]);
 }
 
-describe("plugin-bridge delivery", () => {
+/** Post a cli-execute message as if from `tab`'s iframe. */
+function execFrom(
+  tab: { iframe: HTMLIFrameElement },
+  id: string,
+  request: unknown,
+): void {
+  window.dispatchEvent(
+    new MessageEvent("message", {
+      data: { kind: "cli-execute", id, request },
+      source: tab.iframe.contentWindow,
+    }),
+  );
+}
+
+/** Let the async run-and-post pipeline settle. */
+async function settle() {
+  await new Promise((r) => setTimeout(r, 0));
+}
+
+describe("plugin-bridge cli-execute", () => {
   let bridge: Bridge;
 
   beforeEach(async () => {
     // The bridge holds module-level state — re-import a fresh copy.
     vi.resetModules();
-    bus.reset();
+    harness.reset();
     document.body.innerHTML = "";
     bridge = await import("./plugin-bridge");
-    await Promise.resolve();
   });
 
-  it("delivers cli_command events to the destination's iframe only", () => {
+  it("builds the executor from daemon_config and runs the request", async () => {
     const a = makeTab(bridge, ALPHA);
-    const b = makeTab(bridge, BETA);
-
-    bus.emit("plugin", pluginEvent("cli_command", ALPHA, { hello: "world" }));
-    bus.emit("plugin", pluginEvent("cli_command", ALPHA, { type: "end" }));
-
-    expect(payloads(a)).toEqual([
-      {
-        kind: "plugin-event",
-        type: "cli_command",
-        id: "invocation-1",
-        value: { hello: "world" },
-      },
-      {
-        kind: "plugin-event",
-        type: "cli_command",
-        id: "invocation-1",
-        value: { type: "end" },
-      },
-    ]);
-    expect(b.spy).not.toHaveBeenCalled();
-  });
-
-  it("delivers inbound events the same way", () => {
-    const a = makeTab(bridge, ALPHA);
-
-    bus.emit("plugin", pluginEvent("inbound", ALPHA, { some: "data" }));
-
-    expect(payloads(a)).toEqual([
-      { kind: "plugin-event", type: "inbound", value: { some: "data" } },
-    ]);
-  });
-
-  it("matches on FULL coordinates, not just the name", () => {
-    const a = makeTab(bridge, ALPHA);
-    const fork = makeTab(bridge, ALPHA_FORK);
-
-    bus.emit("plugin", pluginEvent("cli_command", ALPHA_FORK, { n: 1 }));
-
-    expect(a.spy).not.toHaveBeenCalled();
-    expect(payloads(fork)).toEqual([
-      {
-        kind: "plugin-event",
-        type: "cli_command",
-        id: "invocation-1",
-        value: { n: 1 },
-      },
-    ]);
-  });
-
-  it("drops events for unregistered coordinates", () => {
-    const a = makeTab(bridge, ALPHA);
-
-    bus.emit("plugin", pluginEvent("cli_command", BETA, { n: 1 }));
-    bus.emit("plugin", {
-      type: "cli_command",
-      destination: "objectiveai",
-      value: { n: 2 },
-    });
-    bus.emit("plugin", { type: "cli_command", value: { n: 3 } });
-    bus.emit("plugin", null);
-    bus.emit("plugin", { type: "other", destination: { plugin: ALPHA } });
-
-    expect(a.spy).not.toHaveBeenCalled();
-  });
-
-  it("stops delivering after unregister", () => {
-    const a = makeTab(bridge, ALPHA);
-
-    bus.emit("plugin", pluginEvent("cli_command", ALPHA, { n: 1 }));
-    bridge.unregisterIframe(ALPHA);
-    bus.emit("plugin", pluginEvent("cli_command", ALPHA, { n: 2 }));
-
-    expect(payloads(a)).toEqual([
-      {
-        kind: "plugin-event",
-        type: "cli_command",
-        id: "invocation-1",
-        value: { n: 1 },
-      },
-    ]);
-  });
-
-  it("stamps the originating iframe's coordinates on cli-execute", () => {
-    const a = makeTab(bridge, ALPHA);
-    makeTab(bridge, BETA);
-
     const request = { path_type: "plugins/list" };
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { kind: "cli-execute", id: "invocation-7", request },
-        source: a.iframe.contentWindow,
-      }),
-    );
+    harness.plans.push([{ n: 1 }]);
 
-    expect(bus.invokes).toEqual([
+    execFrom(a, "invocation-7", request);
+    await settle();
+
+    expect(harness.constructed).toEqual([
       {
-        cmd: "cli_execute",
-        args: {
-          request,
-          id: "invocation-7",
-          destination: { plugin: ALPHA },
+        url: "ws://127.0.0.1:4242/execute",
+        options: {
+          signature: "sha256=abc",
+          agentArguments: { agent_instance_hierarchy: "Viewer" },
         },
       },
     ]);
+    expect(harness.executed).toEqual([request]);
   });
 
-  it("drops cli-execute messages without an invocation id", () => {
+  it("posts every line with the invocation id, then the end marker", async () => {
+    const a = makeTab(bridge, ALPHA);
+    harness.plans.push([{ n: 1 }, { n: 2 }]);
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    await settle();
+
+    expect(payloads(a)).toEqual([
+      { kind: "plugin-event", type: "cli_command", id: "invocation-1", value: { n: 1 } },
+      { kind: "plugin-event", type: "cli_command", id: "invocation-1", value: { n: 2 } },
+      { kind: "plugin-event", type: "cli_command", id: "invocation-1", value: { type: "end" } },
+    ]);
+  });
+
+  it("responses reach the originating iframe only", async () => {
+    const a = makeTab(bridge, ALPHA);
+    const b = makeTab(bridge, BETA);
+    harness.plans.push([{ from: "a" }]);
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    await settle();
+
+    expect(payloads(a)).toHaveLength(2); // line + end
+    expect(b.spy).not.toHaveBeenCalled();
+  });
+
+  it("constructs the executor once across invocations", async () => {
+    const a = makeTab(bridge, ALPHA);
+    harness.plans.push([], []);
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    execFrom(a, "invocation-2", { path_type: "plugins/list" });
+    await settle();
+
+    expect(harness.constructed).toHaveLength(1);
+    expect(harness.executed).toHaveLength(2);
+  });
+
+  it("surfaces an executor failure as one error line, then the end marker", async () => {
+    const a = makeTab(bridge, ALPHA);
+    harness.plans.push(new Error("daemon unreachable"));
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    await settle();
+
+    const posted = payloads(a);
+    expect(posted).toHaveLength(2);
+    expect(posted[0]).toMatchObject({
+      kind: "plugin-event",
+      type: "cli_command",
+      id: "invocation-1",
+      value: { type: "error", message: expect.stringContaining("daemon unreachable") },
+    });
+    expect(posted[1]).toMatchObject({ value: { type: "end" } });
+  });
+
+  it("surfaces a daemon_config failure as error + end, and recovers later", async () => {
+    const a = makeTab(bridge, ALPHA);
+    harness.daemonConfig = null;
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    await settle();
+
+    const posted = payloads(a);
+    expect(posted).toHaveLength(2);
+    expect(posted[0]).toMatchObject({ value: { type: "error" } });
+    expect(posted[1]).toMatchObject({ value: { type: "end" } });
+
+    // The failed config fetch doesn't poison later invocations.
+    harness.reset();
+    harness.plans.push([{ ok: true }]);
+    a.spy.mockClear();
+    execFrom(a, "invocation-2", { path_type: "plugins/list" });
+    await settle();
+    expect(payloads(a)).toEqual([
+      { kind: "plugin-event", type: "cli_command", id: "invocation-2", value: { ok: true } },
+      { kind: "plugin-event", type: "cli_command", id: "invocation-2", value: { type: "end" } },
+    ]);
+  });
+
+  it("drops cli-execute messages without an invocation id", async () => {
     const a = makeTab(bridge, ALPHA);
 
     window.dispatchEvent(
@@ -230,11 +227,13 @@ describe("plugin-bridge delivery", () => {
         source: a.iframe.contentWindow,
       }),
     );
+    await settle();
 
-    expect(bus.invokes).toEqual([]);
+    expect(harness.executed).toEqual([]);
+    expect(a.spy).not.toHaveBeenCalled();
   });
 
-  it("drops cli-execute messages from unknown windows", () => {
+  it("drops cli-execute messages from unknown windows", async () => {
     makeTab(bridge, ALPHA);
 
     window.dispatchEvent(
@@ -247,13 +246,27 @@ describe("plugin-bridge delivery", () => {
         source: null,
       }),
     );
-    window.dispatchEvent(
-      new MessageEvent("message", {
-        data: { kind: "cli-execute" },
-        source: null,
-      }),
-    );
+    await settle();
 
-    expect(bus.invokes).toEqual([]);
+    expect(harness.executed).toEqual([]);
+  });
+
+  it("stops delivering after unregister (the run is dropped)", async () => {
+    const a = makeTab(bridge, ALPHA);
+    harness.plans.push([{ n: 1 }]);
+
+    execFrom(a, "invocation-1", { path_type: "plugins/list" });
+    bridge.unregisterIframe(ALPHA);
+    // The in-flight run still posts into the (now-unregistered)
+    // iframe's window — delivery is by window handle — but NEW
+    // executions from it are refused.
+    await settle();
+    harness.plans.push([{ n: 2 }]);
+    a.spy.mockClear();
+    execFrom(a, "invocation-2", { path_type: "plugins/list" });
+    await settle();
+
+    expect(harness.executed).toHaveLength(1);
+    expect(a.spy).not.toHaveBeenCalled();
   });
 });

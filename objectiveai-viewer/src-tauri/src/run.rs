@@ -1,13 +1,11 @@
-//! Viewer lifecycle: env config, the event bus, the Tauri shell, and
-//! the daemon WebSocket client.
+//! Viewer lifecycle: env config, the event bus, and the Tauri shell.
 //!
-//! The viewer is a WebSocket CLIENT of the CLI daemon's broadcast —
-//! not a server. It holds no listener and exposes no routes: the
-//! [`crate::daemon_ws`] task connects to the daemon's published
-//! `ws://` endpoint (optional `DAEMON_SIGNATURE` auth) and forwards
-//! every frame onto the same mpsc event bus the Tauri shell drains to
-//! the JS side. The `"viewer"` lock is a per-state singleton marker
-//! (content `"ready"`), no longer a connect URL.
+//! The Rust side holds NO daemon stream: the JS frontend connects to
+//! the daemon's published `ws://` endpoint directly (native
+//! WebSockets to `/listen` and `/execute`), and the Rust side only
+//! hands it the variables it needs via the [`daemon_config`] command
+//! (address + optional first-message auth signature). The `"viewer"`
+//! lock is a per-state singleton marker (content `"ready"`).
 
 use envconfig::Envconfig;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
@@ -22,6 +20,22 @@ use objectiveai_sdk::viewer::{Event, EventReceiver};
 #[tauri::command]
 fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
+}
+
+/// The variables the JS frontend needs to reach the daemon itself:
+/// the published base `ws://` address and the optional first-message
+/// auth signature. The frontend appends `/listen` / `/execute` and
+/// connects with native WebSockets — no daemon traffic flows through
+/// the Rust side.
+#[derive(Clone, serde::Serialize)]
+pub struct DaemonConfig {
+    pub address: String,
+    pub signature: Option<String>,
+}
+
+#[tauri::command]
+fn daemon_config(state: tauri::State<'_, DaemonConfig>) -> DaemonConfig {
+    state.inner().clone()
 }
 
 #[derive(Envconfig)]
@@ -161,6 +175,7 @@ pub fn serve(
     events_tx: objectiveai_sdk::viewer::EventSender,
     mut rx: EventReceiver,
     executor: WebSocketExecutor,
+    daemon_config_state: DaemonConfig,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
@@ -172,14 +187,15 @@ pub fn serve(
         .manage(ready)
         .manage(executor)
         .manage(events_tx)
+        .manage(daemon_config_state)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
         });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
+        daemon_config,
         crate::plugins::list_plugins_with_viewer,
-        crate::cli_command::cli_execute,
     ]);
     builder
         .setup(move |tauri_app| {
@@ -266,22 +282,20 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         ));
     }
 
-    // The event bus's producers: two independent connections to the
-    // daemon's broadcast WebSocket at the address the spawner handed
-    // us (the daemon feeds every connected socket). The main
-    // passthrough forwards every frame to the main viewer UI; the
-    // viewer plugin listener forwards `plugins/run` runs to their
-    // target plugin's destination.
-    crate::daemon_ws::spawn_client(
-        events_tx.clone(),
-        daemon_address.clone(),
-        config.daemon_signature.clone(),
-    );
-    crate::viewer_plugin_listener::spawn_client(
-        events_tx.clone(),
-        daemon_address,
-        config.daemon_signature.clone(),
-    );
+    // No Rust-side daemon streams: the JS frontend connects to the
+    // daemon directly with native WebSockets, using the variables the
+    // `daemon_config` command hands it.
+    let daemon_config_state = DaemonConfig {
+        address: daemon_address,
+        signature: config.daemon_signature.clone(),
+    };
 
-    Ok(serve(events_tx, rx, executor, plugins_dir, None))
+    Ok(serve(
+        events_tx,
+        rx,
+        executor,
+        daemon_config_state,
+        plugins_dir,
+        None,
+    ))
 }

@@ -1,41 +1,35 @@
 /**
- * Host-side bridge between plugin iframes and Tauri.
+ * Host-side bridge between plugin iframes and the daemon.
  *
- * The Rust side emits every event on one of two Tauri channels, keyed
- * by the event's `destination`:
+ * Plugins never see daemon credentials and never touch Tauri: their
+ * ONLY channel is postMessage with this host window. The reverse
+ * direction (iframe → host) carries `cli-execute` (a typed
+ * `cli::command::Request` as serde JSON — there is no raw-argv path)
+ * plus the invocation `id` the iframe minted. This module catches it,
+ * resolves the originating iframe via `MessageEvent.source` (a plugin
+ * never claims an identity itself; unregistered windows are dropped),
+ * runs the request through the host's own JS-native
+ * [`WebSocketExecutor`] against the daemon's `/execute` route — the
+ * daemon address + auth signature come from the Rust `daemon_config`
+ * Tauri command, fetched once — and posts every response line back
+ * into THAT iframe as
+ * `{kind: "plugin-event", type: "cli_command", id, value}`, finishing
+ * with the synthetic `{"type":"end"}` marker the SDK's
+ * `ViewerPluginExecutor` terminates on. The `id` rides every line, so
+ * concurrent invocations from one plugin demux cleanly.
  *
- *   - `"objectiveai"` — events for the main viewer UI (this bridge
- *     never touches them);
- *   - `"plugin"` — events for plugin iframes; the payload's
- *     `destination.plugin` carries the plugin's FULL coordinates
- *     (`owner`/`name`/`version`).
+ * Failures (daemon config unavailable, connect refused) surface as
+ * one in-band `{"type":"error",…}` line, then the end marker — the
+ * iframe's iterator always terminates.
  *
- * This bridge does no routing beyond delivery: it subscribes to the
- * `"plugin"` channel once and posts each event into the matching
- * registered iframe as a `{kind: "plugin-event", type, value}`
- * postMessage. Two event types flow host → iframe today:
- *
- *   - `cli_command` — one response line from a viewer-executor
- *     invocation THIS plugin started, terminated by a synthetic
- *     `{"type":"end"}` line (whoever runs a request gets its own
- *     response back);
- *   - `inbound` — reserved; nothing is emitted to plugin destinations
- *     on it yet (`plugins/run` delivery comes later).
- *
- * The reverse direction (iframe → host) carries `cli-execute` (a
- * typed `cli::command::Request` as serde JSON — there is no raw-argv
- * path) plus the invocation `id` the iframe minted. This module
- * catches it, resolves the originating iframe via
- * `MessageEvent.source`, and dispatches the `cli_execute` Tauri
- * command with the plugin's full coordinates as the `destination` —
- * a plugin never claims an identity itself. The `id` rides every
- * response event back, so concurrent invocations from one plugin
- * demux cleanly. Messages from unknown windows (or without an id)
- * are dropped.
+ * Host → iframe `inbound` data delivery (e.g. `plugins/run` runs)
+ * does not exist yet; it returns with the deferred plugins/run
+ * routing, JS-native like everything else here.
  */
-import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
+import { WebSocketExecutor } from "@objectiveai/sdk";
+import { tauriInvoke } from "./lib/tauri";
 
-/** A plugin's full install coordinates — the identity events route by. */
+/** A plugin's full install coordinates — the identity of a tab. */
 export type PluginCoords = {
   owner: string;
   name: string;
@@ -51,17 +45,6 @@ type IframeHandle = {
    * `deriveTargetOrigin` for why nothing stricter can deliver.
    */
   targetOrigin: string;
-};
-
-type PluginDestination = { plugin: PluginCoords };
-
-type EventPayload = {
-  type: "inbound" | "cli_command";
-  destination: PluginDestination | "objectiveai";
-  /** cli_command only: the caller-minted invocation id — rides every
-   * response line so concurrent invocations demux in the iframe. */
-  id?: string;
-  value: unknown;
 };
 
 const iframes = new Map<string, IframeHandle>();
@@ -93,7 +76,7 @@ function deriveTargetOrigin(_src: string): string {
   return "*";
 }
 
-/** Register a plugin iframe so the bridge can deliver its events. */
+/** Register a plugin iframe so the bridge can serve its executions. */
 export function registerIframe(
   coords: PluginCoords,
   iframe: HTMLIFrameElement,
@@ -101,7 +84,6 @@ export function registerIframe(
 ): void {
   const targetOrigin = deriveTargetOrigin(src);
   iframes.set(coordsKey(coords), { coords, iframe, targetOrigin });
-  void ensurePluginListener();
   ensureReverseListener();
 }
 
@@ -110,39 +92,32 @@ export function unregisterIframe(coords: PluginCoords): void {
   iframes.delete(coordsKey(coords));
 }
 
-// ── Host → iframe: the shared "plugin" channel ─────────────────────
+// ── The host's daemon executor (lazy, shared) ─────────────────────
 
-let pluginListenerStarted = false;
+let executorPromise: Promise<WebSocketExecutor> | null = null;
 
-async function ensurePluginListener(): Promise<void> {
-  if (pluginListenerStarted) return;
-  pluginListenerStarted = true;
-  await safeListen<EventPayload>("plugin", (event) => {
-    const payload = event.payload;
-    if (!payload || typeof payload !== "object") return;
-    if (payload.type !== "inbound" && payload.type !== "cli_command") return;
-    const destination = payload.destination;
-    if (
-      !destination ||
-      typeof destination !== "object" ||
-      !("plugin" in destination)
-    ) {
-      return;
-    }
-    const handle = iframes.get(coordsKey(destination.plugin));
-    if (!handle) return;
-    handle.iframe.contentWindow?.postMessage(
-      payload.type === "cli_command"
-        ? {
-            kind: "plugin-event",
-            type: payload.type,
-            id: payload.id,
-            value: payload.value,
-          }
-        : { kind: "plugin-event", type: payload.type, value: payload.value },
-      handle.targetOrigin,
-    );
-  });
+/** The daemon config handed over by the Rust side, fetched once. */
+async function daemonExecutor(): Promise<WebSocketExecutor> {
+  if (!executorPromise) {
+    executorPromise = (async () => {
+      const config = await tauriInvoke<{
+        address: string;
+        signature: string | null;
+      }>("daemon_config");
+      if (!config) {
+        throw new Error("daemon_config unavailable (not running under Tauri)");
+      }
+      return new WebSocketExecutor(`${config.address}/execute`, {
+        signature: config.signature,
+        agentArguments: { agent_instance_hierarchy: "Viewer" },
+      });
+    })();
+    // A failed fetch shouldn't poison every later invocation.
+    executorPromise.catch(() => {
+      executorPromise = null;
+    });
+  }
+  return executorPromise;
 }
 
 // ── Reverse channel: iframe -> host postMessages ──────────────────
@@ -168,29 +143,52 @@ function onIframeMessage(event: MessageEvent): void {
 
   if (msg.kind === "cli-execute") {
     // Typed request: serde JSON of the SDK's `cli::command::Request`.
-    // The Rust side runs it through the daemon's /execute route, then
-    // streams cli_command events back to this plugin's destination —
-    // fire-and-forget. There is deliberately no raw-argv invocation
-    // path. The invocation id is REQUIRED: it's what lets the iframe
-    // demux concurrent runs.
+    // The invocation id is REQUIRED: it's what lets the iframe demux
+    // concurrent runs.
     if (msg.request === undefined || msg.request === null) return;
     if (typeof msg.id !== "string" || msg.id.length === 0) return;
-    const coords = findPluginByWindow(event.source);
-    if (!coords) return;
-    void tauriInvoke("cli_execute", {
-      request: msg.request,
-      id: msg.id,
-      destination: { plugin: coords },
-    });
+    const handle = findPluginByWindow(event.source);
+    if (!handle) return;
+    void runForIframe(handle, msg.id, msg.request);
   }
+}
+
+/** Run one plugin-requested execution against the daemon and post
+ * every line — then the synthetic end marker — back into the
+ * originating iframe. Delivery best-effort: if the iframe vanished
+ * mid-run (tab closed), posts go nowhere and the run is dropped. */
+async function runForIframe(
+  handle: IframeHandle,
+  id: string,
+  request: unknown,
+): Promise<void> {
+  const post = (value: unknown) => {
+    handle.iframe.contentWindow?.postMessage(
+      { kind: "plugin-event", type: "cli_command", id, value },
+      handle.targetOrigin,
+    );
+  };
+  try {
+    const executor = await daemonExecutor();
+    for await (const line of executor.execute(
+      request as Parameters<WebSocketExecutor["execute"]>[0],
+    )) {
+      post(line);
+    }
+  } catch (e) {
+    post({ type: "error", level: "error", fatal: null, message: String(e) });
+  }
+  // The host-synthesized terminator the SDK's ViewerPluginExecutor
+  // ends on.
+  post({ type: "end" });
 }
 
 function findPluginByWindow(
   source: MessageEventSource | null,
-): PluginCoords | null {
+): IframeHandle | null {
   if (!source) return null;
   for (const handle of iframes.values()) {
-    if (handle.iframe.contentWindow === source) return handle.coords;
+    if (handle.iframe.contentWindow === source) return handle;
   }
   return null;
 }

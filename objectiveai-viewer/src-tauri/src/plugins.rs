@@ -4,16 +4,27 @@
 //!
 //! Plugin discovery goes through the daemon: [`list_all_plugins`]
 //! drives the SDK's typed `plugins list` leaf over the
-//! [`WebSocketExecutor`], the same executor `cli_execute` uses.
-//!
-//! Plugin data delivery: for now nothing is emitted to plugin
-//! destinations except their own viewer-executor responses —
-//! `plugins/run` delivery to plugin tabs comes later.
+//! [`WebSocketExecutor`] — the one piece of daemon traffic still
+//! initiated from Rust (everything else is JS-native; plugin
+//! cli-executions run through the host bridge's own JS
+//! `WebSocketExecutor`, and `plugins/run` delivery to plugin tabs
+//! comes later).
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
 use objectiveai_sdk::cli::command::plugins::list as plugins_list;
 use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
+
+/// Per-call identity for shell-initiated cli runs: instance
+/// hierarchy `"Viewer"`, every other field `None` so the daemon
+/// clears rather than inherits it — nothing leaks from the daemon's
+/// own environment into a viewer-initiated run.
+pub(crate) fn viewer_agent_arguments() -> objectiveai_sdk::cli::command::AgentArguments {
+    objectiveai_sdk::cli::command::AgentArguments {
+        agent_instance_hierarchy: Some("Viewer".to_string()),
+        ..Default::default()
+    }
+}
 
 /// `<objectiveai_dir>/bin/plugins` — the root the `plugin://` URI
 /// scheme serves assets from (plugins are machine-wide, shared by
@@ -36,7 +47,7 @@ pub(crate) async fn list_all_plugins(executor: &WebSocketExecutor) -> Vec<Plugin
         limit: None,
         base: Default::default(),
     };
-    let agent_arguments = crate::cli_command::viewer_agent_arguments();
+    let agent_arguments = viewer_agent_arguments();
     let mut stream = match plugins_list::execute(executor, request, Some(&agent_arguments)).await {
         Ok(stream) => stream,
         Err(e) => {
