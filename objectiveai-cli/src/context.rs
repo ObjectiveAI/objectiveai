@@ -120,6 +120,21 @@ impl Context {
         self.daemon_address.get().map(String::as_str)
     }
 
+    /// Effective daemon WebSocket auth secret: the `DAEMON_SECRET`
+    /// env wins; when unset, fall back to the on-disk config's
+    /// `viewer.secret` (Final view). `None` = the daemon serves open
+    /// and clients connect unauthenticated.
+    pub async fn daemon_secret(&self) -> Result<Option<String>, crate::error::Error> {
+        if let Some(secret) = &self.config.daemon_secret {
+            return Ok(Some(secret.clone()));
+        }
+        let mut config = self
+            .filesystem
+            .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
+            .await?;
+        Ok(config.viewer().get_secret().map(String::from))
+    }
+
     /// Derive a clone with `objectiveai.execute` inside the embedded
     /// python gated to raise instead of dispatch. Used by the `python`
     /// command's `--no-objectiveai` flag and automatically by the

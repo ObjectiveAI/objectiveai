@@ -32,12 +32,13 @@ pub async fn spawn(ctx: &Context) -> Result<String, Error> {
     let exe = ctx.filesystem.bin_dir().join(bin);
     let lock_dir = ctx.filesystem.state_dir().join("locks");
 
-    // Derive the daemon WS auth signature from the cli's DAEMON_SECRET
-    // (env-sourced): `sha256=<hex(SHA256(secret))>` — the same one-way
-    // math as `generate_viewer_secret_signature_pair`. Clients send it
+    // Derive the daemon WS auth signature from the effective secret
+    // (`DAEMON_SECRET` env, else the on-disk `viewer.secret`):
+    // `sha256=<hex(SHA256(secret))>` — the same one-way math as
+    // `generate_viewer_secret_signature_pair`. Clients send it
     // verbatim in the first-message auth preamble (the SDK
     // `AuthEnvelope`) on every daemon WebSocket connection.
-    let daemon_signature = ctx.config.daemon_secret.as_deref().map(|secret| {
+    let daemon_signature = ctx.daemon_secret().await?.as_deref().map(|secret| {
         use sha2::{Digest, Sha256};
         let hash = Sha256::digest(secret.as_bytes());
         format!(
