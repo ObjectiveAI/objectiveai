@@ -46,10 +46,14 @@ pub enum Event {
     /// Host → JS. One response line from a viewer-executor invocation
     /// the destination itself started, terminated by a synthetic
     /// `{"type":"end"}` line — whoever runs a request gets its own
-    /// response back, main UI and plugins alike.
+    /// response back, main UI and plugins alike. `id` is the
+    /// invocation id the CALLER minted when it posted the request:
+    /// it rides every response line, so concurrent invocations from
+    /// one destination demux cleanly.
     #[schemars(title = "CliCommand")]
     CliCommand {
         destination: Destination,
+        id: String,
         value: serde_json::Value,
     },
 }
@@ -102,11 +106,13 @@ mod tests {
                 name: "hello".to_string(),
                 version: "0.0.1".to_string(),
             },
+            id: "invocation-1".to_string(),
             value: json!({"type": "end"}),
         };
         let s = serde_json::to_string(&e).unwrap();
         let v: serde_json::Value = serde_json::from_str(&s).unwrap();
         assert_eq!(v["type"], "cli_command");
+        assert_eq!(v["id"], "invocation-1");
         assert_eq!(v["destination"]["plugin"]["owner"], "objectiveai");
         assert_eq!(v["destination"]["plugin"]["name"], "hello");
         assert_eq!(v["destination"]["plugin"]["version"], "0.0.1");

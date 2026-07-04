@@ -17,8 +17,10 @@
 //! Whoever runs a request gets its own response back: the caller
 //! passes its [`Destination`] (the main UI, or a plugin's full
 //! coordinates — the plugin-bridge resolves those from
-//! `MessageEvent.source`; a plugin never claims an identity itself),
-//! and every emitted event carries it.
+//! `MessageEvent.source`; a plugin never claims an identity itself)
+//! plus the invocation `id` it minted, and every emitted event
+//! carries both — concurrent invocations from one destination demux
+//! by `id`.
 
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::websocket::{Error as WsError, WebSocketExecutor};
@@ -51,12 +53,14 @@ pub async fn cli_execute(
     executor: tauri::State<'_, WebSocketExecutor>,
     events_tx: tauri::State<'_, EventSender>,
     request: serde_json::Value,
+    id: String,
     destination: Destination,
 ) -> Result<(), String> {
     cli_execute_impl(
         executor.inner(),
         events_tx.inner().clone(),
         request,
+        id,
         destination,
     )
     .await
@@ -68,6 +72,7 @@ pub async fn cli_execute_impl(
     executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: serde_json::Value,
+    id: String,
     destination: Destination,
 ) -> Result<(), String> {
     let request: objectiveai_sdk::cli::command::Request =
@@ -76,6 +81,7 @@ pub async fn cli_execute_impl(
             Err(e) => {
                 let _ = events_tx.send(Event::CliCommand {
                     destination: destination.clone(),
+                    id: id.clone(),
                     value: serde_json::json!({
                         "type": "error",
                         "level": "error",
@@ -85,12 +91,13 @@ pub async fn cli_execute_impl(
                 });
                 let _ = events_tx.send(Event::CliCommand {
                     destination,
+                    id,
                     value: serde_json::json!({ "type": "end" }),
                 });
                 return Ok(());
             }
         };
-    cli_run_impl(executor, events_tx, request, destination).await
+    cli_run_impl(executor, events_tx, request, id, destination).await
 }
 
 /// Run core shared by [`cli_execute`] (which deserializes the JSON
@@ -103,6 +110,7 @@ pub async fn cli_run_impl(
     executor: &WebSocketExecutor,
     events_tx: EventSender,
     request: objectiveai_sdk::cli::command::Request,
+    id: String,
     destination: Destination,
 ) -> Result<(), String> {
     // Open the connection before detaching the forwarder so the
@@ -124,6 +132,7 @@ pub async fn cli_run_impl(
                     };
                     let event = Event::CliCommand {
                         destination: destination.clone(),
+                        id: id.clone(),
                         value,
                     };
                     if events_tx.send(event).is_err() {
@@ -136,6 +145,7 @@ pub async fn cli_run_impl(
             Err(e) => {
                 let _ = events_tx.send(Event::CliCommand {
                     destination: destination.clone(),
+                    id: id.clone(),
                     value: error_value(e),
                 });
             }
@@ -145,6 +155,7 @@ pub async fn cli_run_impl(
         // async iterator never hangs.
         let _ = events_tx.send(Event::CliCommand {
             destination,
+            id,
             value: serde_json::json!({ "type": "end" }),
         });
     });

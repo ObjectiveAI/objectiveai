@@ -24,11 +24,14 @@
  *
  * The reverse direction (iframe → host) carries `cli-execute` (a
  * typed `cli::command::Request` as serde JSON — there is no raw-argv
- * path). This module catches it, resolves the originating iframe via
+ * path) plus the invocation `id` the iframe minted. This module
+ * catches it, resolves the originating iframe via
  * `MessageEvent.source`, and dispatches the `cli_execute` Tauri
  * command with the plugin's full coordinates as the `destination` —
- * a plugin never claims an identity itself. Messages from unknown
- * windows are dropped.
+ * a plugin never claims an identity itself. The `id` rides every
+ * response event back, so concurrent invocations from one plugin
+ * demux cleanly. Messages from unknown windows (or without an id)
+ * are dropped.
  */
 import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
 
@@ -55,6 +58,9 @@ type PluginDestination = { plugin: PluginCoords };
 type EventPayload = {
   type: "inbound" | "cli_command";
   destination: PluginDestination | "objectiveai";
+  /** cli_command only: the caller-minted invocation id — rides every
+   * response line so concurrent invocations demux in the iframe. */
+  id?: string;
   value: unknown;
 };
 
@@ -126,7 +132,14 @@ async function ensurePluginListener(): Promise<void> {
     const handle = iframes.get(coordsKey(destination.plugin));
     if (!handle) return;
     handle.iframe.contentWindow?.postMessage(
-      { kind: "plugin-event", type: payload.type, value: payload.value },
+      payload.type === "cli_command"
+        ? {
+            kind: "plugin-event",
+            type: payload.type,
+            id: payload.id,
+            value: payload.value,
+          }
+        : { kind: "plugin-event", type: payload.type, value: payload.value },
       handle.targetOrigin,
     );
   });
@@ -147,6 +160,7 @@ function onIframeMessage(event: MessageEvent): void {
   const msg = event.data as
     | {
         kind?: string;
+        id?: unknown;
         request?: unknown;
       }
     | null;
@@ -157,12 +171,15 @@ function onIframeMessage(event: MessageEvent): void {
     // The Rust side runs it through the daemon's /execute route, then
     // streams cli_command events back to this plugin's destination —
     // fire-and-forget. There is deliberately no raw-argv invocation
-    // path.
+    // path. The invocation id is REQUIRED: it's what lets the iframe
+    // demux concurrent runs.
     if (msg.request === undefined || msg.request === null) return;
+    if (typeof msg.id !== "string" || msg.id.length === 0) return;
     const coords = findPluginByWindow(event.source);
     if (!coords) return;
     void tauriInvoke("cli_execute", {
       request: msg.request,
+      id: msg.id,
       destination: { plugin: coords },
     });
   }

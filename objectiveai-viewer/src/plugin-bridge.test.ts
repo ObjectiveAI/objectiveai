@@ -83,13 +83,17 @@ const BETA = { owner: "objectiveai", name: "beta", version: "0.0.1" };
 /** Same name as ALPHA, different owner — coordinates must be exact. */
 const ALPHA_FORK = { owner: "fork", name: "alpha", version: "0.0.1" };
 
-/** A plugin-channel event payload. */
+/** A plugin-channel event payload. `cli_command` events carry the
+ * caller-minted invocation id. */
 function pluginEvent(
   type: "inbound" | "cli_command",
   coords: { owner: string; name: string; version: string },
   value: unknown,
+  id = "invocation-1",
 ) {
-  return { type, destination: { plugin: coords }, value };
+  return type === "cli_command"
+    ? { type, destination: { plugin: coords }, id, value }
+    : { type, destination: { plugin: coords }, value };
 }
 
 /** First-arg payloads of every postMessage a tab received. */
@@ -117,8 +121,18 @@ describe("plugin-bridge delivery", () => {
     bus.emit("plugin", pluginEvent("cli_command", ALPHA, { type: "end" }));
 
     expect(payloads(a)).toEqual([
-      { kind: "plugin-event", type: "cli_command", value: { hello: "world" } },
-      { kind: "plugin-event", type: "cli_command", value: { type: "end" } },
+      {
+        kind: "plugin-event",
+        type: "cli_command",
+        id: "invocation-1",
+        value: { hello: "world" },
+      },
+      {
+        kind: "plugin-event",
+        type: "cli_command",
+        id: "invocation-1",
+        value: { type: "end" },
+      },
     ]);
     expect(b.spy).not.toHaveBeenCalled();
   });
@@ -141,7 +155,12 @@ describe("plugin-bridge delivery", () => {
 
     expect(a.spy).not.toHaveBeenCalled();
     expect(payloads(fork)).toEqual([
-      { kind: "plugin-event", type: "cli_command", value: { n: 1 } },
+      {
+        kind: "plugin-event",
+        type: "cli_command",
+        id: "invocation-1",
+        value: { n: 1 },
+      },
     ]);
   });
 
@@ -169,7 +188,12 @@ describe("plugin-bridge delivery", () => {
     bus.emit("plugin", pluginEvent("cli_command", ALPHA, { n: 2 }));
 
     expect(payloads(a)).toEqual([
-      { kind: "plugin-event", type: "cli_command", value: { n: 1 } },
+      {
+        kind: "plugin-event",
+        type: "cli_command",
+        id: "invocation-1",
+        value: { n: 1 },
+      },
     ]);
   });
 
@@ -180,7 +204,7 @@ describe("plugin-bridge delivery", () => {
     const request = { path_type: "plugins/list" };
     window.dispatchEvent(
       new MessageEvent("message", {
-        data: { kind: "cli-execute", request },
+        data: { kind: "cli-execute", id: "invocation-7", request },
         source: a.iframe.contentWindow,
       }),
     );
@@ -188,9 +212,26 @@ describe("plugin-bridge delivery", () => {
     expect(bus.invokes).toEqual([
       {
         cmd: "cli_execute",
-        args: { request, destination: { plugin: ALPHA } },
+        args: {
+          request,
+          id: "invocation-7",
+          destination: { plugin: ALPHA },
+        },
       },
     ]);
+  });
+
+  it("drops cli-execute messages without an invocation id", () => {
+    const a = makeTab(bridge, ALPHA);
+
+    window.dispatchEvent(
+      new MessageEvent("message", {
+        data: { kind: "cli-execute", request: { path_type: "plugins/list" } },
+        source: a.iframe.contentWindow,
+      }),
+    );
+
+    expect(bus.invokes).toEqual([]);
   });
 
   it("drops cli-execute messages from unknown windows", () => {
@@ -198,7 +239,11 @@ describe("plugin-bridge delivery", () => {
 
     window.dispatchEvent(
       new MessageEvent("message", {
-        data: { kind: "cli-execute", request: { path_type: "plugins/list" } },
+        data: {
+          kind: "cli-execute",
+          id: "invocation-1",
+          request: { path_type: "plugins/list" },
+        },
         source: null,
       }),
     );

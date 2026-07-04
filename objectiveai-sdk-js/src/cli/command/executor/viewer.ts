@@ -3,7 +3,20 @@ import type { CliCommandRequest } from "../request";
 interface CliCommandMessage {
   kind: "plugin-event";
   type: "cli_command";
+  /** The invocation id this line belongs to — minted by the executor
+   * when it posted the request; the host echoes it on every line. */
+  id: string;
   value: unknown;
+}
+
+let nextInvocation = 0;
+
+/** A per-invocation id, unique within this iframe's lifetime (a
+ * counter plus a random suffix so ids also never collide across an
+ * iframe reload mid-run). */
+function invocationId(): string {
+  nextInvocation += 1;
+  return `invocation-${nextInvocation}-${Math.random().toString(36).slice(2)}`;
 }
 
 /**
@@ -11,9 +24,13 @@ interface CliCommandMessage {
  * AsyncIterable over `cli_command` event values from the host, terminating
  * on the host's synthetic `{"type":"end"}` marker. The `post` callback fires
  * the actual request to the host exactly once, after the message listener is
- * attached (so no line can be missed).
+ * attached (so no line can be missed). Only lines carrying THIS invocation's
+ * `id` are consumed — concurrent invocations demux cleanly.
  */
-function cliCommandIterable(post: () => void): AsyncIterable<unknown> {
+function cliCommandIterable(
+  id: string,
+  post: () => void,
+): AsyncIterable<unknown> {
   return {
     [Symbol.asyncIterator]() {
       const queue: unknown[] = [];
@@ -25,6 +42,8 @@ function cliCommandIterable(post: () => void): AsyncIterable<unknown> {
         const msg = event.data as CliCommandMessage | null;
         if (!msg || typeof msg !== "object") return;
         if (msg.kind !== "plugin-event" || msg.type !== "cli_command") return;
+        // Demux: this iterator only consumes its own invocation's lines.
+        if (msg.id !== id) return;
         queue.push(msg.value);
         // End-of-stream signal: the HOST synthesizes {"type":"end"}
         // when the spawned cli's stdout closes — the cli itself never
@@ -98,23 +117,22 @@ function cliCommandIterable(post: () => void): AsyncIterable<unknown> {
  * event, terminated by the host's synthetic `{"type":"end"}` marker.
  *
  * The plugin author never specifies a destination — the host bridge derives
- * it from the iframe's identity. Run invocations sequentially (`await` each
- * stream to completion before starting the next); concurrent invocations from
- * the same iframe produce interleaved streams this transport cannot demux
- * (there is no per-invocation tag on `cli_command` events).
+ * it from the iframe's identity. Concurrent invocations are fully supported:
+ * every invocation mints its own id, the host echoes it on each response
+ * line, and each iterator consumes only its own lines.
  *
- * Requires the objectiveai cli to be installed on the host
- * (`~/.objectiveai/objectiveai`). When the spawn fails the host streams back
- * a `{"type":"error",…}` envelope followed by `{"type":"end"}`, so the stream
+ * When the request fails host-side, the host streams back a
+ * `{"type":"error",…}` envelope followed by `{"type":"end"}`, so the stream
  * still terminates. Outside an iframe (standalone dev) it warns and yields
  * nothing.
  */
 export class ViewerCommandExecutor {
   execute(request: CliCommandRequest): AsyncIterable<unknown> {
-    return cliCommandIterable(() => {
+    const id = invocationId();
+    return cliCommandIterable(id, () => {
       // The bridge derives `destination` from event.source — caller never
-      // sets it.
-      window.parent.postMessage({ kind: "cli-execute", request }, "*");
+      // sets it. The id is this invocation's demux key.
+      window.parent.postMessage({ kind: "cli-execute", id, request }, "*");
     });
   }
 }
