@@ -12683,6 +12683,161 @@ function extractAgentArguments(frame) {
   }
   return agentArguments;
 }
+
+// src/cli/viewerPluginListener.ts
+var _closed2, _live2, _skipped2, _subscribers3, _onMessage, _ViewerPluginListener_instances, onFrame_fn2, onRequest_fn2;
+var ViewerPluginListener = class {
+  constructor() {
+    __privateAdd(this, _ViewerPluginListener_instances);
+    __privateAdd(this, _closed2, false);
+    __privateAdd(this, _live2, /* @__PURE__ */ new Map());
+    __privateAdd(this, _skipped2, /* @__PURE__ */ new Set());
+    __privateAdd(this, _subscribers3, /* @__PURE__ */ new Set());
+    __privateAdd(this, _onMessage);
+    if (typeof window === "undefined" || window.parent === window) {
+      throw new Error(
+        "ViewerPluginListener is plugin-only: it receives the plugins/run frames the host viewer delivers into this plugin's iframe, and there is no host above the main viewer window. (In the main viewer, use WebSocketListener for the full daemon broadcast.)"
+      );
+    }
+    __privateSet(this, _onMessage, (event) => {
+      const msg = event.data;
+      if (!msg || typeof msg !== "object") return;
+      if (msg.kind !== "plugin-event") return;
+      if (msg.type !== "inbound") return;
+      __privateMethod(this, _ViewerPluginListener_instances, onFrame_fn2).call(this, msg.value);
+    });
+    window.addEventListener("message", __privateGet(this, _onMessage));
+  }
+  /** Detach from the window: every open response stream ends and
+   * every root iterator ends. */
+  close() {
+    if (__privateGet(this, _closed2)) return;
+    __privateSet(this, _closed2, true);
+    window.removeEventListener("message", __privateGet(this, _onMessage));
+    for (const stream of __privateGet(this, _live2).values()) {
+      stream._end();
+    }
+    __privateGet(this, _live2).clear();
+    __privateGet(this, _skipped2).clear();
+    const subscribers = [...__privateGet(this, _subscribers3)];
+    __privateGet(this, _subscribers3).clear();
+    for (const subscriber of subscribers) {
+      subscriber.end();
+    }
+  }
+  /**
+   * Iterate the runs delivered from this call onward. Multiple
+   * iterators are independent; `return()`/`break` detaches cleanly;
+   * every iterator ends on [`ViewerPluginListener.close`].
+   */
+  runs() {
+    const queue = [];
+    let ended = __privateGet(this, _closed2);
+    let wake = null;
+    const subscriber = {
+      push: (run) => {
+        queue.push(run);
+        wake?.();
+      },
+      end: () => {
+        ended = true;
+        wake?.();
+      }
+    };
+    if (!ended) {
+      __privateGet(this, _subscribers3).add(subscriber);
+    }
+    const detach = () => __privateGet(this, _subscribers3).delete(subscriber);
+    return {
+      next: async () => {
+        for (; ; ) {
+          if (queue.length > 0) {
+            return { value: queue.shift(), done: false };
+          }
+          if (ended) {
+            return { value: void 0, done: true };
+          }
+          await new Promise((resolve) => {
+            wake = resolve;
+          });
+          wake = null;
+        }
+      },
+      return: async () => {
+        detach();
+        return { value: void 0, done: true };
+      },
+      throw: async (e) => {
+        detach();
+        throw e;
+      },
+      [Symbol.asyncIterator]() {
+        return this;
+      }
+    };
+  }
+  [Symbol.asyncIterator]() {
+    return this.runs();
+  }
+};
+_closed2 = new WeakMap();
+_live2 = new WeakMap();
+_skipped2 = new WeakMap();
+_subscribers3 = new WeakMap();
+_onMessage = new WeakMap();
+_ViewerPluginListener_instances = new WeakSet();
+onFrame_fn2 = function(frame) {
+  if (typeof frame !== "object" || frame === null) return;
+  const f = frame;
+  if (typeof f.id !== "string") return;
+  if (f.end === true) {
+    __privateGet(this, _skipped2).delete(f.id);
+    const stream = __privateGet(this, _live2).get(f.id);
+    if (stream) {
+      __privateGet(this, _live2).delete(f.id);
+      stream._end();
+    }
+  } else if (__privateGet(this, _live2).has(f.id)) {
+    __privateGet(this, _live2).get(f.id)._push(f.value);
+  } else if (__privateGet(this, _skipped2).has(f.id)) ; else {
+    __privateMethod(this, _ViewerPluginListener_instances, onRequest_fn2).call(this, f.id, frame);
+  }
+};
+onRequest_fn2 = function(id, frame) {
+  const request = frame["value"];
+  if (typeof request !== "object" || request === null || request.path_type !== "plugins/run") {
+    __privateGet(this, _skipped2).add(id);
+    return;
+  }
+  const response = new ResponseItemStream();
+  __privateGet(this, _live2).set(id, response);
+  const run = {
+    id,
+    request,
+    agentArguments: extractAgentArguments2(frame),
+    response
+  };
+  for (const subscriber of [...__privateGet(this, _subscribers3)]) {
+    subscriber.push(run);
+  }
+};
+function extractAgentArguments2(frame) {
+  const agentArguments = {};
+  for (const key of [
+    "agent_instance_hierarchy",
+    "agent_id",
+    "agent_full_id",
+    "agent_remote",
+    "response_id",
+    "response_ids"
+  ]) {
+    const value = frame[key];
+    if (typeof value === "string" || value === null) {
+      agentArguments[key] = value;
+    }
+  }
+  return agentArguments;
+}
 var ErrorErrorCreateParamsSchema = z1462.z.object({
   seed: z1462.z.number().int().min(-9223372036854776e3).max(9223372036854776e3).nullable().describe("Random seed for deterministic error generation.").meta({ omitempty: true }).optional(),
   stream: z1462.z.boolean().nullable().describe("Whether to stream the response.").meta({ omitempty: true }).optional()
@@ -15205,6 +15360,7 @@ exports.VectorCompletionsResponseUnaryVectorCompletionSchema = VectorCompletions
 exports.VectorCompletionsResponseVoteSchema = VectorCompletionsResponseVoteSchema;
 exports.VectorCompletionsVectorResponsesSchema = VectorCompletionsVectorResponsesSchema;
 exports.ViewerPluginExecutor = ViewerPluginExecutor;
+exports.ViewerPluginListener = ViewerPluginListener;
 exports.WebSocketExecutor = WebSocketExecutor;
 exports.WebSocketListener = WebSocketListener;
 exports.WeightsEntrySchema = WeightsEntrySchema;
