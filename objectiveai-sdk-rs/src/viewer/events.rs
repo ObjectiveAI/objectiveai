@@ -19,8 +19,10 @@ use tokio::sync::mpsc;
 #[schemars(rename = "viewer.Destination")]
 pub enum Destination {
     /// The main viewer UI.
+    #[schemars(title = "Objectiveai")]
     Objectiveai,
     /// One plugin's iframe.
+    #[schemars(title = "Plugin")]
     Plugin {
         owner: String,
         name: String,

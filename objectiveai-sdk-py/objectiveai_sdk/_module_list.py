@@ -555,6 +555,7 @@ MODULES = [
     'objectiveai_sdk.cli.command.api.spawn.response',
     'objectiveai_sdk.cli.command.api.spawn.response_schema.path',
     'objectiveai_sdk.cli.command.api.spawn.response_schema.request',
+    'objectiveai_sdk.cli.command.command_executor.auth_envelope',
     'objectiveai_sdk.cli.command.command_executor.execute_envelope',
     'objectiveai_sdk.cli.command.daemon.kill.path',
     'objectiveai_sdk.cli.command.daemon.kill.request',
@@ -1194,5 +1195,6 @@ MODULES = [
     'objectiveai_sdk.vector.completions.response.unary.vector_completion',
     'objectiveai_sdk.vector.completions.response.vote',
     'objectiveai_sdk.vector.completions.vector_responses',
+    'objectiveai_sdk.viewer.destination',
     'objectiveai_sdk.viewer.event',
 ]

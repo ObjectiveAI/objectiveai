@@ -4,45 +4,40 @@ from __future__ import annotations
 from typing import Literal, Union
 from objectiveai_sdk.json_value import JsonValue
 from pydantic import BaseModel, ConfigDict, Field, RootModel
+from objectiveai_sdk.viewer.destination import Destination
 
 
 class EventInbound(BaseModel):
-    """Host → iframe. Carries data into the plugin (the existing
-path). `sub_type` is the snake_case discriminator the plugin
-listens on (e.g. `daemon` for raw daemon-broadcast frames on
-the `"objectiveai"` channel; the JS bridge repackages routed
-`plugins/run` frames as `plugins_run` for plugin iframes)."""
+    """Host → JS. Data for the destination — today that's the daemon
+`/listen` passthrough (standard broadcast envelope frames),
+destined to the main viewer UI. Nothing is emitted to plugin
+destinations on this variant yet."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'Inbound'})
 
-    destination: str
-    sub_type: str
+    destination: Destination
     type_: Literal['inbound'] = Field(..., alias='type')
     value: JsonValue
 
 
 class EventCliCommand(BaseModel):
-    """Host → iframe. One stdout JSONL line from an objectiveai cli
-binary the host spawned for an `invokeCli` this iframe
-started, terminated by a synthetic `{"type":"end"}` line. No
-sub_type — a single invocation produces a single stream of
-lines."""
+    """Host → JS. One response line from a viewer-executor invocation
+the destination itself started, terminated by a synthetic
+`{"type":"end"}` line — whoever runs a request gets its own
+response back, main UI and plugins alike. `id` is the
+invocation id the CALLER minted when it posted the request:
+it rides every response line, so concurrent invocations from
+one destination demux cleanly."""
     model_config = ConfigDict(json_schema_extra={'_variant_title': 'CliCommand'})
 
-    destination: str
+    destination: Destination
+    id: str
     type_: Literal['cli_command'] = Field(..., alias='type')
     value: JsonValue
 
 
 class Event(RootModel):
     """Every event the viewer emits to the JS side. Serde-tagged on
-`type` so the JS bridge can pattern-match and decide how to
-repackage each variant for the destination iframe.
-
-`destination` is `"objectiveai"` for built-in events, or the
-plugin's repository name otherwise. For `CliCommand` it's the
-repository name of whichever iframe invoked the CLI — the bridge
-derives it from `MessageEvent.source`, the plugin author never
-sets it."""
+`type` so the JS side can pattern-match each variant."""
     model_config = ConfigDict(title='viewer.Event')
 
     root: Union[EventInbound, EventCliCommand]
