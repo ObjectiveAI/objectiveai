@@ -17,6 +17,13 @@
  * request's `dangerous_advanced.stream` flag, matching their
  * `…ListenerExecutionVariant` union.
  *
+ * Delivery is LIVE-ONLY — the listener multiplexes but never retains.
+ * A subscriber (root iterator or response-stream iterator) receives
+ * only what arrives after it subscribes; anything delivered while
+ * nobody is subscribed is dropped. Buffering, if wanted, is the
+ * caller's to implement — a long-lived viewer sees unboundedly many
+ * runs, so retention here would be a memory leak.
+ *
  * No validation: the types are structural claims over the wire; frame
  * bodies pass through as-is (in-band `CliError` lines arrive as items
  * of the same union the execute functions yield). A run whose
@@ -36,23 +43,24 @@ import {
   type CliCommandListenerExecution,
 } from "../cli/command/listenerExecution";
 
+/** One live subscriber: a per-iterator pending queue's feed side. */
+type Subscriber<T> = {
+  push: (item: T) => void;
+  end: () => void;
+};
+
 /**
- * Replay-buffer async-iterable for one run's streaming response — the
- * JS mirror of the Rust `websocket_listener::ResponseItemStream`.
- * Items are retained for the run's lifetime (runs are bounded by the
- * terminator frame), so any number of consumers can iterate — each
- * replays the buffer, then follows live until the terminator ends the
- * stream.
+ * Live-only async-iterable for one run's streaming response — the JS
+ * mirror of the Rust `websocket_listener::ResponseItemStream`. Items
+ * fan out to every CURRENT iterator; nothing is retained, so an
+ * iterator sees only items pushed after it subscribed (subscription
+ * happens when the iterator is created), and items pushed while no
+ * iterator exists are dropped. Each iterator's undelivered items queue
+ * only until that iterator consumes them or detaches.
  */
 export class ResponseItemStream<T> implements AsyncIterable<T> {
-  #items: T[] = [];
   #done = false;
-  #waiters: Array<() => void> = [];
-
-  /** Items received so far (live view; do not mutate). */
-  get items(): readonly T[] {
-    return this.#items;
-  }
+  #subscribers = new Set<Subscriber<T>>();
 
   /** Whether the run's terminator has arrived. */
   get done(): boolean {
@@ -62,34 +70,67 @@ export class ResponseItemStream<T> implements AsyncIterable<T> {
   /** @internal — feed side. */
   _push(item: T): void {
     if (this.#done) return;
-    this.#items.push(item);
-    this.#wake();
+    for (const subscriber of [...this.#subscribers]) {
+      subscriber.push(item);
+    }
   }
 
   /** @internal — feed side. */
   _end(): void {
+    if (this.#done) return;
     this.#done = true;
-    this.#wake();
-  }
-
-  #wake(): void {
-    const waiters = this.#waiters;
-    this.#waiters = [];
-    for (const wake of waiters) wake();
-  }
-
-  async *[Symbol.asyncIterator](): AsyncIterator<T> {
-    let i = 0;
-    for (;;) {
-      while (i < this.#items.length) {
-        yield this.#items[i++];
-      }
-      if (this.#done) return;
-      await new Promise<void>((resolve) => this.#waiters.push(resolve));
+    const subscribers = [...this.#subscribers];
+    this.#subscribers.clear();
+    for (const subscriber of subscribers) {
+      subscriber.end();
     }
   }
 
-  /** Every item, resolved once the run's terminator arrives. */
+  [Symbol.asyncIterator](): AsyncIterator<T> {
+    const queue: T[] = [];
+    let ended = this.#done;
+    let wake: (() => void) | null = null;
+    const subscriber: Subscriber<T> = {
+      push: (item) => {
+        queue.push(item);
+        wake?.();
+      },
+      end: () => {
+        ended = true;
+        wake?.();
+      },
+    };
+    if (!ended) {
+      this.#subscribers.add(subscriber);
+    }
+    const detach = () => this.#subscribers.delete(subscriber);
+    return {
+      next: async (): Promise<IteratorResult<T>> => {
+        for (;;) {
+          if (queue.length > 0) {
+            return { value: queue.shift() as T, done: false };
+          }
+          if (ended) {
+            return { value: undefined, done: true };
+          }
+          await new Promise<void>((resolve) => {
+            wake = resolve;
+          });
+          wake = null;
+        }
+      },
+      return: async (): Promise<IteratorResult<T>> => {
+        detach();
+        return { value: undefined, done: true };
+      },
+      throw: async (e?: unknown): Promise<IteratorResult<T>> => {
+        detach();
+        throw e;
+      },
+    };
+  }
+
+  /** Every item from subscription (now) until the run's terminator. */
   async toArray(): Promise<T[]> {
     const out: T[] = [];
     for await (const item of this) out.push(item);
@@ -104,9 +145,6 @@ type LiveFeed = {
   resolve?: (value: unknown) => void;
   settled?: boolean;
 };
-
-/** Envelope retention cap — oldest runs drop off first. */
-const RETAINED_RUNS_MAX = 256;
 
 /**
  * The singleton run listener. Constructing it always returns the one
@@ -123,15 +161,16 @@ const RETAINED_RUNS_MAX = 256;
  * }
  * ```
  *
- * Envelopes are retained (capped) from construction onward; every
- * iterator replays the retained envelopes, then follows live. The
- * nested `response` never rides the root stream — it lives inside
- * each envelope, as a `Promise` or a [`ResponseItemStream`].
+ * Delivery is live-only: an iterator receives runs announced after it
+ * was created; nothing is retained (see the module docs). The nested
+ * `response` never rides the root stream — it lives inside each
+ * envelope, as a `Promise` or a [`ResponseItemStream`], and is itself
+ * live-only: subscribe to it before yielding back to the event loop
+ * or its early frames are dropped.
  */
 export class RunListener {
   static #instance: RunListener | undefined;
 
-  #retained: CliCommandListenerExecution[] = [];
   #live = new Map<string, LiveFeed>();
   #skipped = new Set<string>();
   #subscribers = new Set<(run: CliCommandListenerExecution) => void>();
@@ -152,12 +191,11 @@ export class RunListener {
   }
 
   /**
-   * Iterate the runs: retained envelopes first (up to
-   * {@link RETAINED_RUNS_MAX}), then live as they arrive. Multiple
+   * Iterate the runs announced from this call onward. Multiple
    * iterators are independent; `return()`/`break` detaches cleanly.
    */
   runs(): AsyncIterableIterator<CliCommandListenerExecution> {
-    const queue: CliCommandListenerExecution[] = [...this.#retained];
+    const queue: CliCommandListenerExecution[] = [];
     let wake: (() => void) | null = null;
     const push = (run: CliCommandListenerExecution) => {
       queue.push(run);
@@ -286,10 +324,6 @@ export class RunListener {
       agentArguments,
       response,
     } as CliCommandListenerExecution;
-    this.#retained.push(envelope);
-    if (this.#retained.length > RETAINED_RUNS_MAX) {
-      this.#retained.shift();
-    }
     for (const subscriber of [...this.#subscribers]) {
       subscriber(envelope);
     }
