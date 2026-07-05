@@ -36,7 +36,7 @@ pub fn spawn(ctx: Context) -> McpServerHandle {
         objectiveai_dir: ctx.filesystem.dir().clone(),
         objectiveai_state: ctx.filesystem.state().to_string(),
     };
-    let executor = CliCommandExecutor::new(ctx);
+    let executor = CliCommandExecutor::new(ctx, None);
     tokio::spawn(async move {
         match objectiveai_mcp::setup(config, executor).await {
             Ok((listener, app)) => {

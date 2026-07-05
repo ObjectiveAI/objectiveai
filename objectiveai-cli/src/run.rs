@@ -357,24 +357,71 @@ pub fn run(
     // `should_tee`).
     let feed = start_tee(&ctx, &request).await;
 
+    // Decouple broadcast writes from stream yielding: the executor
+    // sends each PRE-transform item into an UNBOUNDED channel (a send
+    // never blocks, never drops), and a spawned writer task drains it
+    // onto the producer socket. `run` owns the writer's lifecycle: the
+    // stream it returns awaits the writer's completion after the
+    // command finishes, so a program exit can never truncate in-flight
+    // socket writes.
+    let (tee_tx, tee_writer) = match feed {
+        Some(mut feed) => {
+            let (tx, mut rx) =
+                tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
+            let writer = tokio::spawn(async move {
+                while let Some(value) = rx.recv().await {
+                    if feed.write(&value).await.is_err() {
+                        // Daemon gone: stop consuming; remaining sends
+                        // fail and the executor's tee goes quiet.
+                        break;
+                    }
+                }
+                // `feed` drops here → socket closes → the daemon reads
+                // EOF and broadcasts the run's terminator.
+            });
+            (Some(tx), Some(writer))
+        }
+        None => (None, None),
+    };
+
     // Drive the request through the in-process executor, picking the
     // SDK root dispatch entry by whether the request carries an output
-    // transform. The executor applies the transform / token / timeout
-    // adapters; `execute_transform` additionally sets the transform on
-    // the leaf request and yields the post-transform JSON, whereas
-    // `execute` yields the typed root items.
+    // transform. The executor tees the PRE-transform items to the
+    // broadcast and applies the transform / token / timeout adapters;
+    // `execute_transform` additionally sets the transform on the leaf
+    // request and yields the post-transform JSON, whereas `execute`
+    // yields the typed root items.
     let transform = request.request_base().transform();
-    let executor = crate::executor::CliCommandExecutor::new(ctx);
+    let executor = crate::executor::CliCommandExecutor::new(ctx, tee_tx);
     match transform {
         Some(transform) => {
             let stream =
                 objectiveai_sdk::cli::command::execute_transform(&executor, request, transform, None)
-                    .await?;
-            Ok(RunStream::ExecuteTransform(tee_stream(stream, feed)))
+                    .await;
+            drop(executor);
+            match stream {
+                Ok(stream) => Ok(RunStream::ExecuteTransform(await_tee_completion(
+                    stream, tee_writer,
+                ))),
+                Err(e) => {
+                    settle_tee(tee_writer).await;
+                    Err(e)
+                }
+            }
         }
         None => {
-            let stream = objectiveai_sdk::cli::command::execute(&executor, request, None).await?;
-            Ok(RunStream::Execute(tee_stream(stream, feed)))
+            let stream =
+                objectiveai_sdk::cli::command::execute(&executor, request, None).await;
+            drop(executor);
+            match stream {
+                Ok(stream) => {
+                    Ok(RunStream::Execute(await_tee_completion(stream, tee_writer)))
+                }
+                Err(e) => {
+                    settle_tee(tee_writer).await;
+                    Err(e)
+                }
+            }
         }
     }
     })
@@ -448,68 +495,41 @@ async fn start_tee(
     Some(feed)
 }
 
-/// Wrap a result stream so every item is also fed to the daemon as it
-/// passes through — `Ok` items as their JSON, `Err` items as the same
-/// `cli::Error` line shape `main.rs` prints, so the teed stream mirrors
-/// stdout faithfully.
-///
-/// Socket writes never sit in the command's output path: items go through
-/// a bounded channel to a background writer task, so a slow or wedged
-/// daemon can't stall the command. Best-effort throughout — a full queue
-/// or a write error kills the tee (permanently, no gap-then-resume) and
-/// the command is unaffected. When the stream ends the sender drops, the
-/// writer drains the queue, and the `FeedWriter` drop closes the socket
-/// (daemon EOF).
-fn tee_stream<T>(
+/// Wrap the command stream so that, after it completes, the run
+/// AWAITS the broadcast writer task before ending — the consumer
+/// (main.rs stdout drain, the daemon's `/execute` drain) cannot
+/// finish until every queued socket write has landed, so process
+/// exit never truncates the broadcast. The inner stream (which holds
+/// the executor's tee sender) is dropped first, closing the channel
+/// so the writer drains out and exits.
+fn await_tee_completion<T>(
     stream: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
-    feed: Option<crate::websockets::daemon_stream::FeedWriter>,
+    writer: Option<tokio::task::JoinHandle<()>>,
 ) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>
 where
-    T: serde::Serialize + Send + 'static,
+    T: Send + 'static,
 {
-    let Some(mut feed) = feed else {
+    let Some(writer) = writer else {
         return stream;
     };
-    let (tx, mut rx) = tokio::sync::mpsc::channel::<serde_json::Value>(1024);
-    tokio::spawn(async move {
-        while let Some(value) = rx.recv().await {
-            if feed.write(&value).await.is_err() {
-                // Daemon gone: stop consuming, so the sender side sees a
-                // closed channel and stops serializing.
-                break;
-            }
-        }
-        // `feed` drops here → socket closes → the daemon reads EOF.
-    });
     Box::pin(async_stream::stream! {
         use futures::StreamExt;
         let mut inner = stream;
-        let mut tx = Some(tx);
         while let Some(item) = inner.next().await {
-            if let Some(sender) = &tx {
-                let json = match &item {
-                    Ok(value) => serde_json::to_value(value).ok(),
-                    // Mirror `main.rs::write_error_line`'s payload so the
-                    // teed stream matches what the command printed.
-                    Err(e) => serde_json::to_value(objectiveai_sdk::cli::Error {
-                        r#type: objectiveai_sdk::cli::ErrorType::Error,
-                        level: Some(objectiveai_sdk::cli::Level::Error),
-                        fatal: None,
-                        message: e.output_message(),
-                    })
-                    .ok(),
-                };
-                if let Some(json) = json {
-                    if sender.try_send(json).is_err() {
-                        // Full (daemon can't keep up / wedged) or closed
-                        // (write error): kill the tee for the rest of the
-                        // run rather than yield a gapped stream.
-                        tx = None;
-                    }
-                }
-            }
             yield item;
         }
-        // `tx` drops → the writer task drains, then closes the socket.
+        // Drop the inner stream first: it owns the tee sender, and the
+        // writer only finishes once every sender is gone.
+        drop(inner);
+        let _ = writer.await;
     })
+}
+
+/// Early-error path: the run failed before producing a stream. Drop
+/// nothing extra (the executor and its sender are already gone at the
+/// call sites) — just wait for the writer to flush and exit.
+async fn settle_tee(writer: Option<tokio::task::JoinHandle<()>>) {
+    if let Some(writer) = writer {
+        let _ = writer.await;
+    }
 }

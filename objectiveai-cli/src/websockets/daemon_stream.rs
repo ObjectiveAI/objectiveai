@@ -35,6 +35,11 @@
 //! Frames are constructed raw — the underlying items stay opaque
 //! [`serde_json::Value`]s on the wire, so the hub is forward-compatible
 //! with command shapes it predates.
+//!
+//! Broadcast items are always the PRE-transform, leaf-typed response
+//! items: the producer tee sits below the executor's jq/python
+//! transform adapters, so `/listen` consumers see every execution's
+//! typed activity even when the command's own output is transformed.
 
 use std::path::Path;
 

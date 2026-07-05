@@ -28,11 +28,21 @@ use crate::error::Error;
 /// `CommandRequest` through the CLI's local root dispatcher.
 pub struct CliCommandExecutor {
     ctx: Context,
+    /// Broadcast tee: every PRE-transform response item is serialized
+    /// and sent here (unbounded — a send never blocks stream
+    /// yielding); the writer task `run()` spawned drains it onto the
+    /// daemon's producer socket, and `run()` awaits that writer's
+    /// completion before its returned stream finishes. `None` = this
+    /// execution is not broadcast (nested/internal executors).
+    tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
 }
 
 impl CliCommandExecutor {
-    pub fn new(ctx: Context) -> Self {
-        Self { ctx }
+    pub fn new(
+        ctx: Context,
+        tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
+    ) -> Self {
+        Self { ctx, tee }
     }
 }
 
@@ -172,6 +182,16 @@ impl CommandExecutor for CliCommandExecutor {
         // ResponseItem`, else a serde round-trip).
         let mut stream: Self::Stream<T> = Box::pin(ConvertStream::new(source));
 
+        // Broadcast tee: mirror the typed PRE-transform items onto the
+        // daemon's broadcast — the `/listen` wire always carries the
+        // leaf-typed items, never transformed output. Sits below the
+        // transform/token/timeout adapters, so the caps still bound
+        // the broadcast (a stopped downstream stops pulling through
+        // the tee).
+        if let Some(tee) = self.tee.clone() {
+            stream = Box::pin(TeeStream::new(stream, tee));
+        }
+
         // Conditional: an output transform — each item is run through
         // the transform and its (non-null) output replaces it; a null
         // output skips the item. Comes BEFORE the token budget so the
@@ -225,6 +245,65 @@ impl CommandExecutor for CliCommandExecutor {
             Some(item) => item,
             None => Err(Error::EmptyStream),
         }
+    }
+}
+
+/// Pass-through adapter that mirrors every item onto the broadcast
+/// tee. `Ok` items serialize as their JSON; `Err` items serialize as
+/// the structured `{type:"error",...}` line (the same payload
+/// `main.rs::write_error_line` prints). Sends are unbounded and never
+/// block; a send failure (the writer task is gone — daemon down)
+/// permanently disables the tee for this execution, never the
+/// command.
+struct TeeStream<T> {
+    inner: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
+    tee: Option<tokio::sync::mpsc::UnboundedSender<Value>>,
+}
+
+impl<T> TeeStream<T> {
+    fn new(
+        inner: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
+        tee: tokio::sync::mpsc::UnboundedSender<Value>,
+    ) -> Self {
+        Self {
+            inner,
+            tee: Some(tee),
+        }
+    }
+}
+
+impl<T> Stream for TeeStream<T>
+where
+    T: serde::Serialize,
+{
+    type Item = Result<T, Error>;
+
+    fn poll_next(
+        self: Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        let this = self.get_mut();
+        let poll = this.inner.as_mut().poll_next(cx);
+        if let std::task::Poll::Ready(Some(item)) = &poll {
+            if let Some(tee) = &this.tee {
+                let json = match item {
+                    Ok(value) => serde_json::to_value(value).ok(),
+                    Err(e) => serde_json::to_value(objectiveai_sdk::cli::Error {
+                        r#type: objectiveai_sdk::cli::ErrorType::Error,
+                        level: Some(objectiveai_sdk::cli::Level::Error),
+                        fatal: None,
+                        message: e.output_message(),
+                    })
+                    .ok(),
+                };
+                if let Some(json) = json {
+                    if tee.send(json).is_err() {
+                        this.tee = None;
+                    }
+                }
+            }
+        }
+        poll
     }
 }
 
