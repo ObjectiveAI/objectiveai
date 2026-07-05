@@ -3,21 +3,22 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 /**
- * Tests for the singleton daemon-listener wrapper: the daemon_config
- * connect, in-app fan-out via daemonRuns(), plugins/run forwarding
- * through the bridge's deliverInbound, and the reconnect loop. All
- * infra is mocked — the SDK listener, the tauri invoke, and the
- * bridge delivery.
+ * Tests for the autonomous daemon-listener singleton: the
+ * daemon_config connect, the typed execution-handler registry (root
+ * callbacks per path, nested item callbacks over one shared drain),
+ * error isolation, the built-in plugins/run forwarding, and the
+ * reconnect loop. All infra is mocked — the SDK listener, the tauri
+ * invoke, and the bridge delivery.
  */
 
 // ── mocks ───────────────────────────────────────────────────────────
 
 const harness = vi.hoisted(() => {
   type FakeListener = {
-    runs: unknown[];
+    executions: unknown[];
     wake: (() => void) | null;
     ended: boolean;
-    push(run: unknown): void;
+    push(execution: unknown): void;
     end(): void;
   };
   const h = {
@@ -30,11 +31,11 @@ const harness = vi.hoisted(() => {
     delivered: [] as Array<{ coords: unknown; frame: unknown }>,
     newListener(): FakeListener {
       const listener: FakeListener = {
-        runs: [],
+        executions: [],
         wake: null,
         ended: false,
-        push(run: unknown) {
-          listener.runs.push(run);
+        push(execution: unknown) {
+          listener.executions.push(execution);
           listener.wake?.();
         },
         end() {
@@ -79,8 +80,8 @@ vi.mock("@objectiveai/sdk", () => ({
       return {
         async *[Symbol.asyncIterator]() {
           for (;;) {
-            while (listener.runs.length > 0) {
-              yield listener.runs.shift();
+            while (listener.executions.length > 0) {
+              yield listener.executions.shift();
             }
             if (listener.ended) return;
             await new Promise<void>((resolve) => {
@@ -96,12 +97,14 @@ vi.mock("@objectiveai/sdk", () => ({
 
 // ── fixtures ────────────────────────────────────────────────────────
 
-/** A minimal live-only response stream stand-in (subscribe-then-push). */
-function fakeResponseStream() {
+/** A controllable live-only response stream. Counts its iterator
+ * subscriptions so tests can assert the shared single drain. */
+function fakeResponse() {
   const pending: unknown[] = [];
   let done = false;
   let wake: (() => void) | null = null;
-  return {
+  const stream = {
+    subscriptions: 0,
     push(item: unknown) {
       pending.push(item);
       wake?.();
@@ -111,6 +114,7 @@ function fakeResponseStream() {
       wake?.();
     },
     async *[Symbol.asyncIterator]() {
+      stream.subscriptions += 1;
       for (;;) {
         while (pending.length > 0) yield pending.shift();
         if (done) return;
@@ -121,22 +125,17 @@ function fakeResponseStream() {
       }
     },
   };
+  return stream;
 }
 
-function pluginsRun(name: string) {
-  const response = fakeResponseStream();
+function execution(
+  pathType: string,
+  extra: Record<string, unknown>,
+  response: unknown,
+) {
   return {
-    run: {
-      request: {
-        path_type: "plugins/run",
-        owner: "objectiveai",
-        name,
-        version: "0.0.1",
-        args: [],
-      },
-      agentArguments: { agent_id: "agent-a" },
-      response,
-    },
+    request: { path_type: pathType, ...extra },
+    agentArguments: { agent_id: "agent-a" },
     response,
   };
 }
@@ -145,7 +144,9 @@ async function settle() {
   await new Promise((r) => setTimeout(r, 0));
 }
 
-describe("daemon-listener", () => {
+type PathType = import("./daemon-listener").PathType;
+
+describe("daemon-listener registry", () => {
   let mod: typeof import("./daemon-listener");
 
   beforeEach(async () => {
@@ -180,13 +181,152 @@ describe("daemon-listener", () => {
     expect(harness.connects).toHaveLength(0);
   });
 
-  it("forwards a plugins/run run as the three-frame envelope with one minted id", async () => {
+  it("fires the registered root handler per matching execution, before any item", async () => {
+    const seen: unknown[] = [];
+    mod.registerExecutionHandler("agents/list" as PathType, (e) => {
+      seen.push(e);
+    });
     mod.startDaemonListener();
     await settle();
-    const { run, response } = pluginsRun("alpha");
-    harness.listeners[0].push(run);
+
+    const listed = execution("agents/list", {}, fakeResponse());
+    const other = execution("swarms/list", {}, fakeResponse());
+    harness.listeners[0].push(listed);
+    harness.listeners[0].push(other);
     await settle();
 
+    expect(seen).toEqual([listed]);
+  });
+
+  it("drives a returned bare-function callback over each item, and drains once for many handlers", async () => {
+    const first: unknown[] = [];
+    const second: unknown[] = [];
+    let ended = 0;
+    mod.registerExecutionHandler("agents/list" as PathType, () => {
+      return (item: unknown) => first.push(item);
+    });
+    mod.registerExecutionHandler("agents/list" as PathType, () => ({
+      onItem: (item: unknown) => second.push(item),
+      onEnd: () => {
+        ended += 1;
+      },
+    }));
+    mod.startDaemonListener();
+    await settle();
+
+    const response = fakeResponse();
+    harness.listeners[0].push(execution("agents/list", {}, response));
+    await settle();
+    response.push({ n: 1 });
+    response.push({ n: 2 });
+    response.end();
+    await settle();
+
+    expect(first).toEqual([{ n: 1 }, { n: 2 }]);
+    expect(second).toEqual([{ n: 1 }, { n: 2 }]);
+    expect(ended).toBe(1);
+    // One shared drain — never one iterator per handler.
+    expect(response.subscriptions).toBe(1);
+  });
+
+  it("normalizes unary Promise responses to one item + end", async () => {
+    const items: unknown[] = [];
+    let ended = 0;
+    mod.registerExecutionHandler("agents/get" as PathType, () => ({
+      onItem: (item: unknown) => items.push(item),
+      onEnd: () => {
+        ended += 1;
+      },
+    }));
+    mod.startDaemonListener();
+    await settle();
+
+    harness.listeners[0].push(
+      execution("agents/get", {}, Promise.resolve({ agent: "a" })),
+    );
+    await settle();
+
+    expect(items).toEqual([{ agent: "a" }]);
+    expect(ended).toBe(1);
+  });
+
+  it("does not drain an execution nobody attached to", async () => {
+    mod.registerExecutionHandler("agents/list" as PathType, () => {
+      // Observed the envelope, declined the items.
+    });
+    mod.startDaemonListener();
+    await settle();
+
+    const response = fakeResponse();
+    harness.listeners[0].push(execution("agents/list", {}, response));
+    // An execution with NO handler at all is also untouched.
+    const unhandled = fakeResponse();
+    harness.listeners[0].push(execution("swarms/list", {}, unhandled));
+    await settle();
+
+    expect(response.subscriptions).toBe(0);
+    expect(unhandled.subscriptions).toBe(0);
+  });
+
+  it("isolates throwing handlers and item callbacks", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    const survived: unknown[] = [];
+    mod.registerExecutionHandler("agents/list" as PathType, () => {
+      throw new Error("root boom");
+    });
+    mod.registerExecutionHandler("agents/list" as PathType, () => ({
+      onItem: () => {
+        throw new Error("item boom");
+      },
+    }));
+    mod.registerExecutionHandler("agents/list" as PathType, () => ({
+      onItem: (item: unknown) => survived.push(item),
+    }));
+    mod.startDaemonListener();
+    await settle();
+
+    const response = fakeResponse();
+    harness.listeners[0].push(execution("agents/list", {}, response));
+    await settle();
+    response.push({ n: 1 });
+    response.end();
+    await settle();
+
+    expect(survived).toEqual([{ n: 1 }]);
+    expect(errors).toHaveBeenCalled();
+    errors.mockRestore();
+  });
+
+  it("unregister detaches the handler", async () => {
+    const seen: unknown[] = [];
+    const unregister = mod.registerExecutionHandler(
+      "agents/list" as PathType,
+      (e) => {
+        seen.push(e);
+      },
+    );
+    mod.startDaemonListener();
+    await settle();
+
+    unregister();
+    harness.listeners[0].push(execution("agents/list", {}, fakeResponse()));
+    await settle();
+    expect(seen).toEqual([]);
+  });
+
+  it("forwards plugins/run executions as the three-frame envelope with one minted id", async () => {
+    mod.startDaemonListener();
+    await settle();
+
+    const response = fakeResponse();
+    harness.listeners[0].push(
+      execution(
+        "plugins/run",
+        { owner: "objectiveai", name: "alpha", version: "0.0.1", args: [] },
+        response,
+      ),
+    );
+    await settle();
     response.push({ hello: "world" });
     response.push({ type: "mcp", url: "http://x" });
     response.end();
@@ -198,84 +338,22 @@ describe("daemon-listener", () => {
     for (const d of frames) expect(d.coords).toEqual(coords);
 
     const request = frames[0].frame as Record<string, unknown>;
-    expect(request.value).toBe(run.request);
     expect(request.agent_id).toBe("agent-a");
     const id = request.id as string;
     expect(typeof id).toBe("string");
     expect(id.length).toBeGreaterThan(0);
-
     expect(frames[1].frame).toEqual({ id, value: { hello: "world" } });
     expect(frames[2].frame).toEqual({ id, value: { type: "mcp", url: "http://x" } });
     expect(frames[3].frame).toEqual({ id, end: true });
   });
 
-  it("mints a distinct id per run", async () => {
-    mod.startDaemonListener();
-    await settle();
-    const a = pluginsRun("alpha");
-    const b = pluginsRun("beta");
-    harness.listeners[0].push(a.run);
-    harness.listeners[0].push(b.run);
-    await settle();
-    a.response.end();
-    b.response.end();
-    await settle();
-
-    const requestFrames = harness.delivered
-      .map((d) => d.frame as Record<string, unknown>)
-      .filter((f) => "value" in f && (f.value as { path_type?: string })?.path_type === "plugins/run");
-    expect(requestFrames).toHaveLength(2);
-    expect(requestFrames[0].id).not.toBe(requestFrames[1].id);
-  });
-
-  it("routes every run to daemonRuns() subscribers; only plugins/run forwards", async () => {
-    mod.startDaemonListener();
-    await settle();
-
-    const seen: unknown[] = [];
-    const iterating = (async () => {
-      for await (const run of mod.daemonRuns()) {
-        seen.push(run);
-        if (seen.length === 2) break;
-      }
-    })();
-    await settle();
-
-    const other = {
-      request: { path_type: "agents/list" },
-      agentArguments: {},
-      response: fakeResponseStream(),
-    };
-    harness.listeners[0].push(other);
-    const { run, response } = pluginsRun("alpha");
-    harness.listeners[0].push(run);
-    await settle();
-    response.end();
-    await iterating;
-
-    expect(seen).toEqual([other, run]);
-    // Only the plugins/run run produced deliveries.
-    const requestFrames = harness.delivered.map(
-      (d) => (d.frame as Record<string, unknown>).value,
-    );
-    expect(requestFrames).not.toContain(other.request);
-  });
-
-  it("return() wakes a parked daemonRuns consumer with done", async () => {
-    mod.startDaemonListener();
-    await settle();
-
-    const iterator = mod.daemonRuns();
-    const parked = iterator.next();
-    await settle();
-    await iterator.return?.(undefined);
-
-    expect((await parked).done).toBe(true);
-  });
-
-  it("reconnects after the connection ends", async () => {
+  it("keeps registrations across reconnects", async () => {
     vi.useFakeTimers();
     try {
+      const seen: unknown[] = [];
+      mod.registerExecutionHandler("agents/list" as PathType, (e) => {
+        seen.push(e);
+      });
       mod.startDaemonListener();
       await vi.advanceTimersByTimeAsync(0);
       expect(harness.connects).toHaveLength(1);
@@ -284,21 +362,10 @@ describe("daemon-listener", () => {
       await vi.advanceTimersByTimeAsync(1000);
       expect(harness.connects).toHaveLength(2);
 
-      // Subscribers survive the reconnect.
-      const seen: unknown[] = [];
-      const iterating = (async () => {
-        for await (const run of mod.daemonRuns()) {
-          seen.push(run);
-          break;
-        }
-      })();
+      const listed = execution("agents/list", {}, fakeResponse());
+      harness.listeners[1].push(listed);
       await vi.advanceTimersByTimeAsync(0);
-      const { run, response } = pluginsRun("alpha");
-      harness.listeners[1].push(run);
-      await vi.advanceTimersByTimeAsync(0);
-      response.end();
-      await iterating;
-      expect(seen).toEqual([run]);
+      expect(seen).toEqual([listed]);
     } finally {
       vi.useRealTimers();
     }

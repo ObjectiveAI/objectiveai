@@ -2,10 +2,9 @@ import cn from "classnames";
 import type { Entry } from "../../types";
 import { formatCost } from "../../lib/format";
 import { useActiveAgents } from "../../hooks/useActiveAgents";
-import type { ListenerStream } from "../../hooks/useListener";
 
-export function StatusBar({ entries, isHistorical, stream }: { entries: Entry[]; isHistorical?: boolean; stream: ListenerStream }) {
-  const activeAgents = useActiveAgents(stream);
+export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
+  const activeAgents = useActiveAgents();
   let totalTokens = 0;
   let totalCost = 0;
   for (const e of entries) {

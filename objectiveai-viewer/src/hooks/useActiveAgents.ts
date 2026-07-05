@@ -1,145 +1,146 @@
-import { useEffect, useRef, useState } from "react";
-import type { ListenerStream } from "./useListener";
+import { useEffect, useState } from "react";
+import { registerExecutionHandler } from "../daemon-listener";
 
 /** One currently-active agent instance. Identity-stable: the same
- * object rides every returned list for as long as the agent stays
+ * object rides every published list for as long as the agent stays
  * active, so consumers can key and memo on it directly. */
 export interface ActiveAgent {
   agent_instance_hierarchy: string;
 }
 
-/** The streaming run paths that announce agent instance hierarchies. */
-const TRACKED_PATHS = new Set([
+/** The streaming execution paths that announce agent instance hierarchies. */
+const TRACKED_PATHS = [
   "agents/spawn",
   "functions/execute/standard",
   "functions/execute/swiss_system",
-]);
+] as const;
+
+// ── The GLOBAL tracker ──────────────────────────────────────────────
+// One refcounter for the whole app, shared by every hook caller: a
+// single execution-handler registration on the daemon-listener
+// singleton (register at viewer startup, before the listener starts)
+// materializes the active list continuously — so a component mounting
+// mid-execution reads the live snapshot instead of missing everything
+// announced before it existed. React state stays per-caller: each
+// mounted hook holds the current list in its own useState, synced by
+// subscription.
+
+/** AIH → refcount. Entries auto-delete at zero — the maps only ever
+ * hold live agents. */
+const counts = new Map<string, number>();
+/** The live ActiveAgent object per hierarchy — created on first
+ * sight, dropped at zero, reused across publishes in between. */
+const objects = new Map<string, ActiveAgent>();
+/** The currently-published list. Identity-stable: replaced only when
+ * membership/order actually changes. */
+let current: ActiveAgent[] = [];
+const subscribers = new Set<(list: ActiveAgent[]) => void>();
+let registered = false;
+
+/** Publish the live list IFF membership/order changed; unchanged
+ * members keep their exact objects. */
+function publish(): void {
+  const next = [...counts.keys()].map(
+    (hier) => objects.get(hier) as ActiveAgent,
+  );
+  if (
+    current.length === next.length &&
+    current.every((v, i) => v === next[i])
+  ) {
+    return;
+  }
+  current = next;
+  for (const notify of [...subscribers]) {
+    notify(current);
+  }
+}
+
+function increment(hier: string): void {
+  counts.set(hier, (counts.get(hier) ?? 0) + 1);
+  if (!objects.has(hier)) {
+    objects.set(hier, { agent_instance_hierarchy: hier });
+  }
+  publish();
+}
+
+function decrementAll(hiers: Set<string>): void {
+  if (hiers.size === 0) return;
+  for (const hier of hiers) {
+    const count = (counts.get(hier) ?? 0) - 1;
+    if (count > 0) {
+      counts.set(hier, count);
+    } else {
+      // Auto-delete at zero — no dead entries accumulate.
+      counts.delete(hier);
+      objects.delete(hier);
+    }
+  }
+  publish();
+}
 
 /**
- * Live list of active agent instance hierarchies (AIHs), refcounted
- * across the runs on `stream` (a [`ListenerStream`], normally from
- * `useListener`).
- *
- * Tracks exactly the STREAMING forms of `agents/spawn` and
+ * Register the tracker's execution handler on the daemon-listener
+ * singleton (idempotent, app-lifetime). Call at viewer startup,
+ * BEFORE `startDaemonListener()` — the singleton is live-only, and a
+ * late registration misses everything announced before it existed.
+ */
+export function registerActiveAgentsHandler(): void {
+  if (registered) return;
+  registered = true;
+  registerExecutionHandler(TRACKED_PATHS, (execution) => {
+    // Streaming forms only; the unary variants announce nothing.
+    if (execution.request.dangerous_advanced?.stream !== true) return;
+    const pathType = execution.request.path_type;
+    // Count this execution's AIH announcements; release exactly them
+    // when its stream ends (in-band errors don't end streams — the
+    // terminator does).
+    const announced = new Set<string>();
+    return {
+      onItem: (item) => {
+        const hier = extractHierarchy(pathType, item);
+        if (hier !== null && !announced.has(hier)) {
+          announced.add(hier);
+          increment(hier);
+        }
+      },
+      onEnd: () => {
+        decrementAll(announced);
+      },
+    };
+  });
+}
+
+/**
+ * Live list of active agent instance hierarchies, read from the
+ * app-global refcounter (all callers share the counting; the returned
+ * list is held in per-caller state). Tracks exactly the STREAMING
+ * forms of `agents/spawn` and
  * `functions/execute/{standard,swiss_system}` —
- * `request.dangerous_advanced.stream === true`; everything else is
- * ignored. Each AIH announcement on a run's response increments that
- * hierarchy's count (once per run — the emitters announce each AIH
- * exactly once, and a per-run set guards it besides); when the run's
- * stream ends, every AIH it announced is decremented. The returned
- * list is the hierarchies with a live count, in first-seen order.
+ * `request.dangerous_advanced.stream === true`; each execution's AIH
+ * announcements increment, and when the execution's stream ends its
+ * hierarchies decrement, dropping at zero. First-seen order.
  *
  * AIH announcements on the wire:
  * - `agents/spawn`: the bare-string `Id` item IS the hierarchy.
  * - `functions/execute/*`: the tagged
  *   `{type: "agent_instance_hierarchy", agent_instance_hierarchy}`
- *   item (the bare-string item there is the execution id, NOT a
- *   hierarchy).
+ *   item (the bare-string item there is the execution id).
  *
- * Live-only like the feed itself: runs already in flight when the
- * stream subscribed are invisible.
- *
- * Identity-preserving, per the repo's merge-system philosophy: the
- * returned array keeps the SAME reference until its contents actually
- * change, and refcount moves that don't alter membership (a second
- * run holding an already-listed hierarchy) trigger no re-render at
- * all — the counts live in a ref; only the visible list is state.
+ * Identity-preserving end to end: the array reference changes only
+ * when membership changes (and is SHARED across callers), and each
+ * agent keeps one object for its whole active life.
  */
-export function useActiveAgents(stream: ListenerStream): ActiveAgent[] {
-  const countsRef = useRef<Map<string, number>>(new Map());
-  // The live ActiveAgent object per hierarchy — created on first
-  // sight, dropped at zero, reused across publishes in between.
-  const objectsRef = useRef<Map<string, ActiveAgent>>(new Map());
-  const [agents, setAgents] = useState<ActiveAgent[]>(() => []);
+export function useActiveAgents(): ActiveAgent[] {
+  const [agents, setAgents] = useState<ActiveAgent[]>(() => current);
 
   useEffect(() => {
-    let alive = true;
-
-    /** Publish the live list IFF membership/order changed; unchanged
-     * members keep their exact objects. */
-    const publish = () => {
-      const objects = objectsRef.current;
-      const next = [...countsRef.current.keys()].map(
-        (hier) => objects.get(hier) as ActiveAgent,
-      );
-      setAgents((prev) =>
-        prev.length === next.length && prev.every((v, i) => v === next[i])
-          ? prev
-          : next,
-      );
-    };
-    const increment = (hier: string) => {
-      if (!alive) return;
-      const counts = countsRef.current;
-      counts.set(hier, (counts.get(hier) ?? 0) + 1);
-      if (!objectsRef.current.has(hier)) {
-        objectsRef.current.set(hier, { agent_instance_hierarchy: hier });
-      }
-      publish();
-    };
-    const decrementAll = (hiers: Set<string>) => {
-      if (!alive || hiers.size === 0) return;
-      const counts = countsRef.current;
-      for (const hier of hiers) {
-        const count = (counts.get(hier) ?? 0) - 1;
-        if (count > 0) {
-          counts.set(hier, count);
-        } else {
-          // Auto-delete at zero — the maps only ever hold live agents.
-          counts.delete(hier);
-          objectsRef.current.delete(hier);
-        }
-      }
-      publish();
-    };
-
-    /** Drain one tracked run: count its AIH announcements, release
-     * them when its stream ends (in-band errors don't end streams —
-     * the terminator does). */
-    const track = (
-      pathType: string,
-      response: AsyncIterable<unknown>,
-    ): void => {
-      void (async () => {
-        const announced = new Set<string>();
-        try {
-          for await (const item of response) {
-            const hier = extractHierarchy(pathType, item);
-            if (hier !== null && !announced.has(hier)) {
-              announced.add(hier);
-              increment(hier);
-            }
-          }
-        } finally {
-          decrementAll(announced);
-        }
-      })();
-    };
-
-    void (async () => {
-      for await (const run of stream) {
-        if (!alive) return;
-        const request = run.request as {
-          path_type: string;
-          dangerous_advanced?: { stream?: boolean | null } | null;
-        };
-        if (!TRACKED_PATHS.has(request.path_type)) continue;
-        if (request.dangerous_advanced?.stream !== true) continue;
-        // Streaming form: the response is a response-item stream.
-        // Subscribe synchronously on receipt — live-only.
-        track(request.path_type, run.response as AsyncIterable<unknown>);
-      }
-    })();
-
+    // Catch anything published between render and subscription.
+    setAgents(current);
+    subscribers.add(setAgents);
     return () => {
-      alive = false;
-      countsRef.current = new Map();
-      objectsRef.current = new Map();
-      setAgents([]);
-      // The outer loop ends when the stream's owner (useListener's
-      // cleanup) return()s it; the per-run drains end with their runs.
+      subscribers.delete(setAgents);
     };
-  }, [stream]);
+  }, []);
 
   return agents;
 }

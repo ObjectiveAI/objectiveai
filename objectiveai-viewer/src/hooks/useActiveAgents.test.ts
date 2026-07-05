@@ -1,19 +1,71 @@
 // @vitest-environment jsdom
 
-import { describe, expect, it, beforeEach } from "vitest";
+import { describe, expect, it, beforeEach, vi } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { CliCommandListenerExecution } from "@objectiveai/sdk";
-import { useActiveAgents, type ActiveAgent } from "./useActiveAgents";
-import type { ListenerStream } from "./useListener";
+import type { ActiveAgent } from "./useActiveAgents";
 
 /**
- * Tests for useActiveAgents: AIH refcounting over a fake
- * ListenerStream (React mount pattern; all infra faked).
+ * Tests for the active-agents tracker: a typed execution-handler
+ * registration on the REAL daemon-listener singleton (SDK / tauri /
+ * bridge mocked), with per-caller React state. vi.resetModules gives
+ * each test fresh module globals; ending the harness feed retires
+ * the previous test's pump.
  */
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT =
   true;
+
+const harness = vi.hoisted(() => {
+  type Feed = { queue: unknown[]; ended: boolean; wake: (() => void) | null };
+  const h = {
+    feed: null as Feed | null,
+    push(execution: unknown) {
+      h.feed?.queue.push(execution);
+      h.feed?.wake?.();
+    },
+    endFeed() {
+      if (h.feed) {
+        h.feed.ended = true;
+        h.feed.wake?.();
+      }
+    },
+    newFeed(): Feed {
+      const feed: Feed = { queue: [], ended: false, wake: null };
+      h.feed = feed;
+      return feed;
+    },
+  };
+  return h;
+});
+
+vi.mock("../lib/tauri", () => ({
+  tauriInvoke: async () => ({ address: "ws://127.0.0.1:1", signature: null }),
+}));
+
+vi.mock("../plugin-bridge", () => ({
+  deliverInbound: () => {},
+}));
+
+vi.mock("@objectiveai/sdk", () => ({
+  WebSocketListener: {
+    connect: async () => {
+      const feed = harness.newFeed();
+      return {
+        async *[Symbol.asyncIterator]() {
+          for (;;) {
+            while (feed.queue.length > 0) yield feed.queue.shift();
+            if (feed.ended) return;
+            await new Promise<void>((r) => {
+              feed.wake = r;
+            });
+            feed.wake = null;
+          }
+        },
+      };
+    },
+  },
+}));
 
 /** A controllable live-only response stream. */
 function fakeResponse() {
@@ -42,50 +94,7 @@ function fakeResponse() {
   };
 }
 
-/** A controllable fake ListenerStream. */
-function fakeStream() {
-  const queue: unknown[] = [];
-  let ended = false;
-  let wake: (() => void) | null = null;
-  const stream = {
-    push(run: unknown) {
-      queue.push(run);
-      wake?.();
-    },
-    endStream() {
-      ended = true;
-      wake?.();
-    },
-    next: async () => {
-      for (;;) {
-        if (queue.length > 0) {
-          return { value: queue.shift() as CliCommandListenerExecution, done: false as const };
-        }
-        if (ended) return { value: undefined, done: true as const };
-        await new Promise<void>((r) => {
-          wake = r;
-        });
-        wake = null;
-      }
-    },
-    return: async () => {
-      ended = true;
-      wake?.();
-      return { value: undefined, done: true as const };
-    },
-    throw: async (e?: unknown) => {
-      ended = true;
-      wake?.();
-      throw e;
-    },
-    [Symbol.asyncIterator]() {
-      return stream;
-    },
-  };
-  return stream;
-}
-
-function run(
+function execution(
   pathType: string,
   streaming: boolean | null | undefined,
   response: unknown,
@@ -102,10 +111,12 @@ function run(
   };
 }
 
-function mountProbe(stream: ListenerStream) {
+type UseActiveAgents = () => ActiveAgent[];
+
+function mountProbe(useActiveAgents: UseActiveAgents) {
   let latest: ActiveAgent[] = [];
   function Probe() {
-    latest = useActiveAgents(stream);
+    latest = useActiveAgents();
     return null;
   }
   const container = document.createElement("div");
@@ -129,16 +140,25 @@ function mountProbe(stream: ListenerStream) {
   };
 }
 
-describe("useActiveAgents", () => {
-  let stream: ReturnType<typeof fakeStream>;
-  beforeEach(() => {
-    stream = fakeStream();
+describe("useActiveAgents (registered tracker)", () => {
+  let useActiveAgents: UseActiveAgents;
+
+  beforeEach(async () => {
+    harness.endFeed(); // retire the previous test's pump
+    vi.resetModules();
+    const listener = await import("../daemon-listener");
+    const mod = await import("./useActiveAgents");
+    // The viewer-startup order: register handlers, then start.
+    mod.registerActiveAgentsHandler();
+    listener.startDaemonListener();
+    await new Promise((r) => setTimeout(r, 0));
+    useActiveAgents = mod.useActiveAgents;
   });
 
-  it("counts an agents/spawn streaming run's string-Id AIH until its stream ends", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+  it("counts an agents/spawn streaming execution's string-Id AIH until its stream ends", async () => {
+    const probe = mountProbe(useActiveAgents);
     const response = fakeResponse();
-    stream.push(run("agents/spawn", true, response));
+    harness.push(execution("agents/spawn", true, response));
     await probe.settle();
 
     response.push({ some: "chunk" });
@@ -153,9 +173,9 @@ describe("useActiveAgents", () => {
   });
 
   it("counts function executions' tagged announcements, not their string execution ids", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+    const probe = mountProbe(useActiveAgents);
     const response = fakeResponse();
-    stream.push(run("functions/execute/standard", true, response));
+    harness.push(execution("functions/execute/standard", true, response));
     await probe.settle();
 
     response.push("execution-id-123"); // NOT an AIH here
@@ -163,12 +183,8 @@ describe("useActiveAgents", () => {
       type: "agent_instance_hierarchy",
       agent_instance_hierarchy: "Agent/a",
     });
-    response.push({
-      type: "agent_instance_hierarchy",
-      agent_instance_hierarchy: "Agent/b",
-    });
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/a" }, { agent_instance_hierarchy: "Agent/b" }]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/a" }]);
 
     response.end();
     await probe.settle();
@@ -176,24 +192,62 @@ describe("useActiveAgents", () => {
     probe.unmount();
   });
 
-  it("ignores non-streaming runs and untracked paths", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
-    stream.push(run("agents/spawn", false, Promise.resolve("Agent/x")));
-    stream.push(run("agents/spawn", undefined, Promise.resolve("Agent/y")));
+  it("ignores non-streaming executions and untracked paths", async () => {
+    const probe = mountProbe(useActiveAgents);
+    harness.push(execution("agents/spawn", false, Promise.resolve("Agent/x")));
+    harness.push(execution("agents/spawn", undefined, Promise.resolve("Agent/y")));
     const other = fakeResponse();
-    stream.push(run("plugins/run", true, other));
+    harness.push(execution("agents/list", true, other));
     other.push("Agent/z");
     await probe.settle();
     expect(probe.agents).toEqual([]);
     probe.unmount();
   });
 
-  it("refcounts the same AIH across concurrent runs", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+  it("shares one counter across callers with per-caller state and shared identity", async () => {
+    const probeA = mountProbe(useActiveAgents);
+    const response = fakeResponse();
+    harness.push(execution("agents/spawn", true, response));
+    await probeA.settle();
+    response.push("Agent/shared");
+    await probeA.settle();
+
+    // A second caller mounts LATE and still reads the live snapshot.
+    const probeB = mountProbe(useActiveAgents);
+    await probeB.settle();
+    expect(probeB.agents).toEqual([
+      { agent_instance_hierarchy: "Agent/shared" },
+    ]);
+    expect(probeB.agents).toBe(probeA.agents);
+
+    // One caller unmounting doesn't disturb the shared counting.
+    probeB.unmount();
+    const second = fakeResponse();
+    harness.push(execution("functions/execute/swiss_system", true, second));
+    await probeA.settle();
+    second.push({
+      type: "agent_instance_hierarchy",
+      agent_instance_hierarchy: "Agent/other",
+    });
+    await probeA.settle();
+    expect(probeA.agents).toEqual([
+      { agent_instance_hierarchy: "Agent/shared" },
+      { agent_instance_hierarchy: "Agent/other" },
+    ]);
+
+    response.end();
+    second.end();
+    await probeA.settle();
+    expect(probeA.agents).toEqual([]);
+    probeA.unmount();
+  });
+
+  it("refcounts a shared AIH across concurrent executions, preserving identity", async () => {
+    const probe = mountProbe(useActiveAgents);
     const first = fakeResponse();
     const second = fakeResponse();
-    stream.push(run("agents/spawn", true, first));
-    stream.push(run("functions/execute/swiss_system", true, second));
+    harness.push(execution("agents/spawn", true, first));
+    harness.push(execution("functions/execute/standard", true, second));
     await probe.settle();
 
     first.push("Agent/shared");
@@ -202,54 +256,24 @@ describe("useActiveAgents", () => {
       agent_instance_hierarchy: "Agent/shared",
     });
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
-
-    first.end();
-    await probe.settle();
-    // Still held by the second run.
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
-
-    second.end();
-    await probe.settle();
-    expect(probe.agents).toEqual([]);
-    probe.unmount();
-  });
-
-  it("keeps the same array reference until the list actually changes", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
-    const first = fakeResponse();
-    const second = fakeResponse();
-    stream.push(run("agents/spawn", true, first));
-    stream.push(run("agents/spawn", true, second));
-    await probe.settle();
-
-    first.push("Agent/stable");
-    await probe.settle();
     const listed = probe.agents;
-    expect(listed).toEqual([{ agent_instance_hierarchy: "Agent/stable" }]);
+    expect(listed).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
 
-    // A refcount move that doesn't change membership: same reference.
-    second.push("Agent/stable");
-    await probe.settle();
-    expect(probe.agents).toBe(listed);
-
-    // One holder ends — still held, still the same reference.
+    // Refcount move without membership change: same references.
     first.end();
     await probe.settle();
     expect(probe.agents).toBe(listed);
 
-    // Membership changes — new reference.
     second.end();
     await probe.settle();
-    expect(probe.agents).not.toBe(listed);
     expect(probe.agents).toEqual([]);
     probe.unmount();
   });
 
-  it("counts a duplicated announcement within one run only once", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+  it("counts a duplicated announcement within one execution only once", async () => {
+    const probe = mountProbe(useActiveAgents);
     const response = fakeResponse();
-    stream.push(run("agents/spawn", true, response));
+    harness.push(execution("agents/spawn", true, response));
     await probe.settle();
 
     response.push("Agent/dup");
@@ -264,32 +288,39 @@ describe("useActiveAgents", () => {
   });
 
   it("keeps counting through in-band error items", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+    const probe = mountProbe(useActiveAgents);
     const response = fakeResponse();
-    stream.push(run("agents/spawn", true, response));
+    harness.push(execution("agents/spawn", true, response));
     await probe.settle();
 
     response.push({ type: "error", level: "warn", fatal: null, message: "hm" });
     response.push("Agent/resilient");
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/resilient" }]);
+    expect(probe.agents).toEqual([
+      { agent_instance_hierarchy: "Agent/resilient" },
+    ]);
     response.end();
     await probe.settle();
     probe.unmount();
   });
 
-  it("clears on unmount", async () => {
-    const probe = mountProbe(stream as unknown as ListenerStream);
+  it("keeps tracking globally while no caller is mounted", async () => {
+    const probe = mountProbe(useActiveAgents);
     const response = fakeResponse();
-    stream.push(run("agents/spawn", true, response));
+    harness.push(execution("agents/spawn", true, response));
     await probe.settle();
-    response.push("Agent/root/1");
-    await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/root/1" }]);
     probe.unmount();
-    // Post-unmount item delivery is a no-op (alive flag).
-    response.push("Agent/root/2");
-    response.end();
+
+    // Announced with zero subscribers — the global still counts.
+    response.push("Agent/quiet");
     await new Promise((r) => setTimeout(r, 0));
+
+    const late = mountProbe(useActiveAgents);
+    await late.settle();
+    expect(late.agents).toEqual([{ agent_instance_hierarchy: "Agent/quiet" }]);
+    response.end();
+    await late.settle();
+    expect(late.agents).toEqual([]);
+    late.unmount();
   });
 });

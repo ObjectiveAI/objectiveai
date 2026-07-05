@@ -3,7 +3,7 @@ import cn from "classnames";
 import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
 import { startDaemonListener } from "./daemon-listener";
-import { useListener } from "./hooks/useListener";
+import { registerActiveAgentsHandler } from "./hooks/useActiveAgents";
 import { useEntries } from "./hooks/useEntries";
 import { useCollapseState } from "./hooks/useCollapseState";
 import { useSessionStorage } from "./hooks/useSessionStorage";
@@ -300,14 +300,13 @@ function App() {
     entries: [],
     isHistorical: false,
   });
-  // The status bar's live feed (active agents), per user direction:
-  // the listener rides in as a prop.
-  const listenerStream = useListener();
 
-  // The app's one daemon broadcast connection — routing (daemonRuns
-  // subscribers) + plugins/run forwarding into plugin iframes.
-  // Idempotent, so StrictMode's double effect is harmless.
+  // Viewer startup: register every execution handler FIRST (the
+  // listener is live-only), then start the autonomous singleton —
+  // which registers the built-in plugins/run forwarding itself. All
+  // idempotent, so StrictMode's double effect is harmless.
   useEffect(() => {
+    registerActiveAgentsHandler();
     startDaemonListener();
   }, []);
 
@@ -331,7 +330,7 @@ function App() {
         <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
           <ObjectiveAIView onStatusChange={setStatus} />
         </div>
-        <StatusBar entries={status.entries} isHistorical={status.isHistorical} stream={listenerStream} />
+        <StatusBar entries={status.entries} isHistorical={status.isHistorical} />
       </div>
     );
   }
@@ -394,7 +393,7 @@ function App() {
         ))}
       </div>
       {/* Spans every tab — plugin panes included. */}
-      <StatusBar entries={status.entries} isHistorical={status.isHistorical} stream={listenerStream} />
+      <StatusBar entries={status.entries} isHistorical={status.isHistorical} />
     </div>
   );
 }
