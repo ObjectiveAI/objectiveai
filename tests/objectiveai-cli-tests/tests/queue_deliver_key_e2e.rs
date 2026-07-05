@@ -110,6 +110,7 @@ async fn deliver_key_spawns_only_keyed_targets() {
         InstancesRequest {
             path_type: InstancesPath::AgentsInstancesList,
             targets: vec![Target::Me],
+            all: None,
             base: Default::default(),
         },
     )

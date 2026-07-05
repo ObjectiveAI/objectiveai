@@ -31,6 +31,7 @@ async fn aggregate(
     exact: Option<&str>,
     prefix: Option<&str>,
     prefix_deep: Option<&str>,
+    all: bool,
 ) -> Result<Vec<ResponseItem>, Error> {
     // logs (spawned/active/logged) FULL OUTER JOINed with active queue
     // counts (queued). A queue row targeting a tag resolves to that
@@ -45,7 +46,8 @@ async fn aggregate(
                     COUNT(*) AS logged \
              FROM objectiveai.messages \
              WHERE ( \
-                 ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
+                 $4::boolean \
+                 OR ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
                  OR ($2::text IS NOT NULL \
                      AND agent_instance_hierarchy LIKE $2 \
                      AND agent_instance_hierarchy NOT LIKE $3) \
@@ -65,7 +67,8 @@ async fn aggregate(
                  WHERE mq.active = TRUE \
              ) x \
              WHERE ( \
-                 ($1::text IS NOT NULL AND x.eff_aih = $1) \
+                 $4::boolean \
+                 OR ($1::text IS NOT NULL AND x.eff_aih = $1) \
                  OR ($2::text IS NOT NULL \
                      AND x.eff_aih LIKE $2 \
                      AND x.eff_aih NOT LIKE $3) \
@@ -84,6 +87,7 @@ async fn aggregate(
     .bind(exact)
     .bind(prefix)
     .bind(prefix_deep)
+    .bind(all)
     .fetch_all(&**pool)
     .await?;
 
@@ -92,7 +96,8 @@ async fn aggregate(
     let tag_rows = sqlx::query(
         "SELECT agent_instance_hierarchy, name FROM objectiveai.tags \
          WHERE ( \
-             ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
+             $4::boolean \
+             OR ($1::text IS NOT NULL AND agent_instance_hierarchy = $1) \
              OR ($2::text IS NOT NULL \
                  AND agent_instance_hierarchy LIKE $2 \
                  AND agent_instance_hierarchy NOT LIKE $3) \
@@ -102,6 +107,7 @@ async fn aggregate(
     .bind(exact)
     .bind(prefix)
     .bind(prefix_deep)
+    .bind(all)
     .fetch_all(&**pool)
     .await?;
     let mut tags_by_aih: HashMap<String, Vec<String>> = HashMap::new();
@@ -140,7 +146,13 @@ pub async fn list_under_parent(
 ) -> Result<Vec<ResponseItem>, Error> {
     let prefix = format!("{parent}/%");
     let prefix_deep = format!("{parent}/%/%");
-    aggregate(pool, None, Some(&prefix), Some(&prefix_deep)).await
+    aggregate(pool, None, Some(&prefix), Some(&prefix_deep), false).await
+}
+
+/// Aggregate stats for EVERY agent seen in the logs or queue tiers —
+/// the `--all` form of `agents instances list`, no target filtering.
+pub async fn list_all(pool: &Pool) -> Result<Vec<ResponseItem>, Error> {
+    aggregate(pool, None, None, None, true).await
 }
 
 /// Aggregate stats for one EXACT agent AIH. Always returns an item:
@@ -148,7 +160,7 @@ pub async fn list_under_parent(
 /// AIH + bound tags + zero counts + null timestamps), so an
 /// explicitly-named target always yields a row.
 pub async fn get_exact(pool: &Pool, aih: &str) -> Result<ResponseItem, Error> {
-    let mut items = aggregate(pool, Some(aih), None, None).await?;
+    let mut items = aggregate(pool, Some(aih), None, None, false).await?;
     if let Some(item) = items.pop() {
         return Ok(item);
     }

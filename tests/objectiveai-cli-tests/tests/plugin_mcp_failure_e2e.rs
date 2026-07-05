@@ -227,6 +227,7 @@ async fn spawn_and_count_tool_io(
         InstancesRequest {
             path_type: InstancesPath::AgentsInstancesList,
             targets: vec![ReadAllTarget::Me],
+            all: None,
             base: Default::default(),
         },
     )
