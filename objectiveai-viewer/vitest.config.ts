@@ -8,7 +8,7 @@ export default defineConfig({
     },
   },
   test: {
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}"],
     testTimeout: 0,
     // DOM-dependent tests (plugin-bridge routing) use jsdom, selected
     // per-file via the `// @vitest-environment jsdom` pragma at the
