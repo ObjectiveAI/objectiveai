@@ -26,7 +26,7 @@ vi.mock("../hooks/useAgents", () => ({
 import { HierarchyTree } from "./HierarchyTree";
 
 function agent(hier: string, active: boolean): AgentStatus {
-  return { agent_instance_hierarchy: hier, active };
+  return { agent_instance_hierarchy: hier, active, created_at: null };
 }
 
 function render(agents: AgentStatus[]) {

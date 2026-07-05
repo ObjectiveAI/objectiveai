@@ -1,11 +1,15 @@
 import { useEffect, useState } from "react";
 import { registerExecutionHandler } from "../daemon-listener";
 
-/** One currently-active agent instance. Identity-stable: the same
- * object rides every published list for as long as the agent stays
- * active, so consumers can key and memo on it directly. */
+/** One currently-active agent instance. Identity-stable between
+ * announcements: the object is replaced (with a fresh
+ * `last_active_at`) each time the agent's AIH announcement arrives,
+ * and keeps its reference otherwise — so consumers can key and memo
+ * on it directly. */
 export interface ActiveAgent {
   agent_instance_hierarchy: string;
+  /** RFC3339; refreshed each time an AIH announcement arrives. */
+  last_active_at: string;
 }
 
 /** The streaming execution paths that announce agent instance hierarchies. */
@@ -28,8 +32,9 @@ const TRACKED_PATHS = [
 /** AIH → refcount. Entries auto-delete at zero — the maps only ever
  * hold live agents. */
 const counts = new Map<string, number>();
-/** The live ActiveAgent object per hierarchy — created on first
- * sight, dropped at zero, reused across publishes in between. */
+/** The live ActiveAgent object per hierarchy — replaced per
+ * announcement (fresh `last_active_at`), dropped at zero, reused
+ * across publishes in between. */
 const objects = new Map<string, ActiveAgent>();
 /** The currently-published list. Identity-stable: replaced only when
  * membership/order actually changes. */
@@ -57,9 +62,12 @@ function publish(): void {
 
 function increment(hier: string): void {
   counts.set(hier, (counts.get(hier) ?? 0) + 1);
-  if (!objects.has(hier)) {
-    objects.set(hier, { agent_instance_hierarchy: hier });
-  }
+  // Every announcement IS activity: a new object with a fresh
+  // timestamp, so subscribers see the change.
+  objects.set(hier, {
+    agent_instance_hierarchy: hier,
+    last_active_at: new Date().toISOString(),
+  });
   publish();
 }
 
@@ -127,8 +135,9 @@ export function registerActiveAgentsHandler(): void {
  *   item (the bare-string item there is the execution id).
  *
  * Identity-preserving end to end: the array reference changes only
- * when membership changes (and is SHARED across callers), and each
- * agent keeps one object for its whole active life.
+ * when membership or a member object changes (and is SHARED across
+ * callers), and each agent keeps one object between announcements —
+ * an announcement replaces it with a fresh `last_active_at`.
  */
 export function useActiveAgents(): ActiveAgent[] {
   const [agents, setAgents] = useState<ActiveAgent[]>(() => current);

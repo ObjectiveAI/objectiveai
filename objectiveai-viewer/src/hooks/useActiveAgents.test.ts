@@ -164,7 +164,7 @@ describe("useActiveAgents (registered tracker)", () => {
     response.push({ some: "chunk" });
     response.push("Agent/root/1");
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/root/1" }]);
+    expect(probe.agents).toMatchObject([{ agent_instance_hierarchy: "Agent/root/1" }]);
 
     response.end();
     await probe.settle();
@@ -184,7 +184,7 @@ describe("useActiveAgents (registered tracker)", () => {
       agent_instance_hierarchy: "Agent/a",
     });
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/a" }]);
+    expect(probe.agents).toMatchObject([{ agent_instance_hierarchy: "Agent/a" }]);
 
     response.end();
     await probe.settle();
@@ -215,7 +215,7 @@ describe("useActiveAgents (registered tracker)", () => {
     // A second caller mounts LATE and still reads the live snapshot.
     const probeB = mountProbe(useActiveAgents);
     await probeB.settle();
-    expect(probeB.agents).toEqual([
+    expect(probeB.agents).toMatchObject([
       { agent_instance_hierarchy: "Agent/shared" },
     ]);
     expect(probeB.agents).toBe(probeA.agents);
@@ -230,7 +230,7 @@ describe("useActiveAgents (registered tracker)", () => {
       agent_instance_hierarchy: "Agent/other",
     });
     await probeA.settle();
-    expect(probeA.agents).toEqual([
+    expect(probeA.agents).toMatchObject([
       { agent_instance_hierarchy: "Agent/shared" },
       { agent_instance_hierarchy: "Agent/other" },
     ]);
@@ -257,7 +257,7 @@ describe("useActiveAgents (registered tracker)", () => {
     });
     await probe.settle();
     const listed = probe.agents;
-    expect(listed).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
+    expect(listed).toMatchObject([{ agent_instance_hierarchy: "Agent/shared" }]);
 
     // Refcount move without membership change: same references.
     first.end();
@@ -279,7 +279,7 @@ describe("useActiveAgents (registered tracker)", () => {
     response.push("Agent/dup");
     response.push("Agent/dup");
     await probe.settle();
-    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/dup" }]);
+    expect(probe.agents).toMatchObject([{ agent_instance_hierarchy: "Agent/dup" }]);
 
     response.end();
     await probe.settle();
@@ -296,10 +296,38 @@ describe("useActiveAgents (registered tracker)", () => {
     response.push({ type: "error", level: "warn", fatal: null, message: "hm" });
     response.push("Agent/resilient");
     await probe.settle();
-    expect(probe.agents).toEqual([
+    expect(probe.agents).toMatchObject([
       { agent_instance_hierarchy: "Agent/resilient" },
     ]);
     response.end();
+    await probe.settle();
+    probe.unmount();
+  });
+
+  it("refreshes last_active_at (new object) on each announcement", async () => {
+    const probe = mountProbe(useActiveAgents);
+    const first = fakeResponse();
+    harness.push(execution("agents/spawn", true, first));
+    await probe.settle();
+    first.push("Agent/again");
+    await probe.settle();
+    const before = probe.agents[0];
+    expect(before.last_active_at).toEqual(expect.any(String));
+
+    const second = fakeResponse();
+    harness.push(execution("agents/spawn", true, second));
+    await probe.settle();
+    second.push("Agent/again");
+    await probe.settle();
+
+    // Same membership, REPLACED object: every announcement is
+    // activity and stamps a fresh last_active_at.
+    expect(probe.agents).toHaveLength(1);
+    expect(probe.agents[0]).not.toBe(before);
+    expect(probe.agents[0].agent_instance_hierarchy).toBe("Agent/again");
+    expect(probe.agents[0].last_active_at).toEqual(expect.any(String));
+    first.end();
+    second.end();
     await probe.settle();
     probe.unmount();
   });
@@ -317,7 +345,7 @@ describe("useActiveAgents (registered tracker)", () => {
 
     const late = mountProbe(useActiveAgents);
     await late.settle();
-    expect(late.agents).toEqual([{ agent_instance_hierarchy: "Agent/quiet" }]);
+    expect(late.agents).toMatchObject([{ agent_instance_hierarchy: "Agent/quiet" }]);
     response.end();
     await late.settle();
     expect(late.agents).toEqual([]);
