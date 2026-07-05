@@ -4,13 +4,11 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
 import { startDaemonListener } from "./daemon-listener";
 import { useEntries } from "./hooks/useEntries";
-import { useApiCalls } from "./hooks/useApiCalls";
 import { useCollapseState } from "./hooks/useCollapseState";
 import { useSessionStorage } from "./hooks/useSessionStorage";
 import { Shell } from "./components/layout/Shell";
 import { StatusBar } from "./components/layout/StatusBar";
 import { EntryView } from "./components/views/EntryView";
-import { NetworkPanel } from "./components/shared/NetworkPanel";
 import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
 import { RestoreBanner } from "./components/shared/RestoreBanner";
@@ -47,7 +45,6 @@ const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
 function ObjectiveAIView() {
   const realEntries = useEntries();
   const liveEntries = !isTauri() && realEntries.length === 0 ? mockEntries : realEntries;
-  const apiCalls = useApiCalls();
   const session = useSessionStorage(liveEntries, true);
   const [sessionPickerOpen, setSessionPickerOpen] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
@@ -149,7 +146,7 @@ function ObjectiveAIView() {
   ) : null;
 
   return (
-    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} networkPanel={<NetworkPanel entries={apiCalls} />} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
+    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
       <SessionPicker
         open={sessionPickerOpen}
         onOpenChange={setSessionPickerOpen}

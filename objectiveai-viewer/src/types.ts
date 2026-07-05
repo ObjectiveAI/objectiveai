@@ -72,11 +72,4 @@ export interface ViewerCliCommandEvent {
   value: unknown;
 }
 
-export interface ViewerApiCallEvent {
-  type: "api_call";
-  destination: string;
-  sub_type: string;
-  value: unknown;
-}
-
-export type ViewerEvent = ViewerInboundEvent | ViewerCliCommandEvent | ViewerApiCallEvent;
+export type ViewerEvent = ViewerInboundEvent | ViewerCliCommandEvent;
