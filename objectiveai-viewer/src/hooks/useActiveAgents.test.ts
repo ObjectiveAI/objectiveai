@@ -215,6 +215,37 @@ describe("useActiveAgents", () => {
     probe.unmount();
   });
 
+  it("keeps the same array reference until the list actually changes", async () => {
+    const probe = mountProbe(stream as unknown as ListenerStream);
+    const first = fakeResponse();
+    const second = fakeResponse();
+    stream.push(run("agents/spawn", true, first));
+    stream.push(run("agents/spawn", true, second));
+    await probe.settle();
+
+    first.push("Agent/stable");
+    await probe.settle();
+    const listed = probe.agents;
+    expect(listed).toEqual(["Agent/stable"]);
+
+    // A refcount move that doesn't change membership: same reference.
+    second.push("Agent/stable");
+    await probe.settle();
+    expect(probe.agents).toBe(listed);
+
+    // One holder ends — still held, still the same reference.
+    first.end();
+    await probe.settle();
+    expect(probe.agents).toBe(listed);
+
+    // Membership changes — new reference.
+    second.end();
+    await probe.settle();
+    expect(probe.agents).not.toBe(listed);
+    expect(probe.agents).toEqual([]);
+    probe.unmount();
+  });
+
   it("counts a duplicated announcement within one run only once", async () => {
     const probe = mountProbe(stream as unknown as ListenerStream);
     const response = fakeResponse();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { ListenerStream } from "./useListener";
 
 /** The streaming run paths that announce agent instance hierarchies. */
@@ -31,35 +31,47 @@ const TRACKED_PATHS = new Set([
  *
  * Live-only like the feed itself: runs already in flight when the
  * stream subscribed are invisible.
+ *
+ * Identity-preserving, per the repo's merge-system philosophy: the
+ * returned array keeps the SAME reference until its contents actually
+ * change, and refcount moves that don't alter membership (a second
+ * run holding an already-listed hierarchy) trigger no re-render at
+ * all — the counts live in a ref; only the visible list is state.
  */
 export function useActiveAgents(stream: ListenerStream): string[] {
-  const [counts, setCounts] = useState<Map<string, number>>(() => new Map());
+  const countsRef = useRef<Map<string, number>>(new Map());
+  const [agents, setAgents] = useState<string[]>(() => []);
 
   useEffect(() => {
     let alive = true;
 
+    /** Publish the key list IFF membership/order changed. */
+    const publish = () => {
+      const keys = [...countsRef.current.keys()];
+      setAgents((prev) =>
+        prev.length === keys.length && prev.every((v, i) => v === keys[i])
+          ? prev
+          : keys,
+      );
+    };
     const increment = (hier: string) => {
       if (!alive) return;
-      setCounts((prev) => {
-        const next = new Map(prev);
-        next.set(hier, (next.get(hier) ?? 0) + 1);
-        return next;
-      });
+      const counts = countsRef.current;
+      counts.set(hier, (counts.get(hier) ?? 0) + 1);
+      publish();
     };
     const decrementAll = (hiers: Set<string>) => {
       if (!alive || hiers.size === 0) return;
-      setCounts((prev) => {
-        const next = new Map(prev);
-        for (const hier of hiers) {
-          const count = (next.get(hier) ?? 0) - 1;
-          if (count > 0) {
-            next.set(hier, count);
-          } else {
-            next.delete(hier);
-          }
+      const counts = countsRef.current;
+      for (const hier of hiers) {
+        const count = (counts.get(hier) ?? 0) - 1;
+        if (count > 0) {
+          counts.set(hier, count);
+        } else {
+          counts.delete(hier);
         }
-        return next;
-      });
+      }
+      publish();
     };
 
     /** Drain one tracked run: count its AIH announcements, release
@@ -102,13 +114,14 @@ export function useActiveAgents(stream: ListenerStream): string[] {
 
     return () => {
       alive = false;
-      setCounts(new Map());
+      countsRef.current = new Map();
+      setAgents([]);
       // The outer loop ends when the stream's owner (useListener's
       // cleanup) return()s it; the per-run drains end with their runs.
     };
   }, [stream]);
 
-  return [...counts.keys()];
+  return agents;
 }
 
 /** Pull the AIH out of one response item, per the path's wire shape. */
