@@ -2712,11 +2712,12 @@ async function agentsInstancesListResponseSchemaExecuteTransform(executor, reque
 }
 var CliCommandAgentsInstancesListPathSchema = z1466.z.literal("agents/instances/list").meta({ title: "cli.command.agents.instances.list.Path" });
 var CliCommandAgentsInstancesListRequestSchema = z1466.z.object({
+  all: z1466.z.boolean().nullable().describe("List EVERY instance in the state \u2014 mutually exclusive with\n`targets`.").meta({ omitempty: true }).optional(),
   jq: z1466.z.string().nullable().describe("jq filter applied to the JSON output. Ignored when `python`\nis also set \u2014 python overrides jq.").optional(),
   max_tokens: z1466.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Response token budget, `>= 1` (`0` is rejected at parse\ntime \u2014 omit entirely for unlimited). Forward-compatible\nenvelope data \u2014 no leaf enforces it yet.").meta({ omitempty: true }).optional(),
   path_type: CliCommandAgentsInstancesListPathSchema,
   python: z1466.z.string().nullable().describe("Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.").optional(),
-  targets: z1466.z.array(CliCommandAgentsLogsListTargetSchema),
+  targets: z1466.z.array(CliCommandAgentsLogsListTargetSchema).describe("Resolved targets whose direct children are listed. Must be\nempty when `all` is set."),
   timeout_seconds: z1466.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.instances.list.Request" });
 function agentsInstancesListExecute(executor, request) {

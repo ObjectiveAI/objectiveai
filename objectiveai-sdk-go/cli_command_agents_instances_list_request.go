@@ -8,6 +8,9 @@ import (
 )
 
 type CliCommandAgentsInstancesListRequest struct {
+	// List EVERY instance in the state — mutually exclusive with
+	// `targets`.
+	All *bool `json:"all,omitempty"`
 	// jq filter applied to the JSON output. Ignored when `python`
 	// is also set — python overrides jq.
 	Jq *string `json:"jq"`
@@ -19,6 +22,8 @@ type CliCommandAgentsInstancesListRequest struct {
 	// Python transform applied to the JSON output. Overrides `jq`
 	// when both are provided.
 	Python *string `json:"python"`
+	// Resolved targets whose direct children are listed. Must be
+	// empty when `all` is set.
 	Targets []CliCommandAgentsLogsListTarget `json:"targets"`
 	// Wall-clock execution cap, in whole seconds. Parsed from
 	// `--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`

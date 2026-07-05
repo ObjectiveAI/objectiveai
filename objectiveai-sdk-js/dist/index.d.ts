@@ -26104,6 +26104,7 @@ declare const CliCommandRequestSchema: z.ZodUnion<readonly [z.ZodUnion<readonly 
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/instances/list">;
@@ -45970,6 +45971,7 @@ declare function agentsInstancesGetExecuteTransform(executor: CommandExecutor, r
 }): CliStream<CliError | JsonValue>;
 
 declare const CliCommandAgentsInstancesListRequestSchema: z.ZodObject<{
+    all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/instances/list">;
@@ -78079,6 +78081,7 @@ declare const CliCommandAgentsInstancesRequestSchema: z.ZodUnion<readonly [z.Zod
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/instances/list">;
@@ -92214,6 +92217,7 @@ declare const CliCommandAgentsRequestSchema: z.ZodUnion<readonly [z.ZodObject<{
     python: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     timeout_seconds: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
 }, z.core.$strip>, z.ZodObject<{
+    all: z.ZodOptional<z.ZodNullable<z.ZodBoolean>>;
     jq: z.ZodOptional<z.ZodNullable<z.ZodString>>;
     max_tokens: z.ZodOptional<z.ZodNullable<z.ZodNumber>>;
     path_type: z.ZodLiteral<"agents/instances/list">;

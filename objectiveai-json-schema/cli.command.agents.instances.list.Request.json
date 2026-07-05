@@ -2,6 +2,18 @@
   "title": "cli.command.agents.instances.list.Request",
   "type": "object",
   "properties": {
+    "all": {
+      "description": "List EVERY instance in the state — mutually exclusive with\n`targets`.",
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "jq": {
       "description": "jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.",
       "anyOf": [
@@ -42,6 +54,7 @@
       ]
     },
     "targets": {
+      "description": "Resolved targets whose direct children are listed. Must be\nempty when `all` is set.",
       "type": "array",
       "items": {
         "$ref": "cli.command.agents.logs.list.Target"
