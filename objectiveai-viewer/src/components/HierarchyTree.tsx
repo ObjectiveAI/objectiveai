@@ -167,21 +167,27 @@ function AgentTags({ hierarchy }: { hierarchy: string }) {
     return (
       <span
         data-tags-loading
-        className={cn("inline-flex", "items-center", "gap-0.5", "py-1")}
+        className={cn(
+          "inline-flex",
+          "items-center",
+          "justify-center",
+          "gap-0.5",
+          // Text-sized dots at the inherited (chip) font size, so the
+          // box doesn't resize when loading resolves into chips.
+          "text-info-dim",
+        )}
       >
         {[0, 1, 2].map((i) => (
           <span
             key={i}
             className={cn(
-              "w-1",
-              "h-1",
-              "rounded-full",
-              "bg-info-dim",
               "animate-pulse",
               i === 1 && "[animation-delay:300ms]",
               i === 2 && "[animation-delay:600ms]",
             )}
-          />
+          >
+            .
+          </span>
         ))}
       </span>
     );
