@@ -14,18 +14,6 @@ function useDroppedCount(): number {
 
 export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
   const droppedCount = useDroppedCount();
-  if (entries.length === 0) {
-    return (
-      <footer className={cn("flex", "items-center", "gap-4", "px-6", "py-2", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none")}>
-        <div className={cn("flex", "items-center", "gap-1.5")}>
-          <div className={cn("w-1.5", "h-1.5", "rounded-full", "bg-success")} />
-          <span>Ready</span>
-        </div>
-        <span className={cn("text-info-dim/70")}>localhost:5001</span>
-      </footer>
-    );
-  }
-
   const activeCount = isHistorical ? 0 : entries.filter((e) => {
     if (e.error) return false;
     if (!e.chunk) return true;
