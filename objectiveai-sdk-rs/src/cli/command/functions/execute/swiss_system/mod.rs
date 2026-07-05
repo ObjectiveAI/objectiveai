@@ -87,10 +87,46 @@ pub struct RequestDangerousAdvanced {
     pub seed: Option<i64>,
 }
 
+/// A unique agent instance participating in this execution, announced
+/// exactly once — right after its instance lock is acquired (the same
+/// moment `agents spawn` announces its own hierarchy). The constant
+/// `type:"agent_instance_hierarchy"` discriminator disambiguates this
+/// variant inside the untagged [`ResponseItem`] union, mirroring
+/// `type:"mcp"` on `plugins run`'s `Mcp`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.execute.swiss_system.AgentInstanceHierarchy")]
+pub struct AgentInstanceHierarchy {
+    pub r#type: AgentInstanceHierarchyType,
+    pub agent_instance_hierarchy: String,
+}
+
+/// Single-variant discriminator for [`AgentInstanceHierarchy`]'s
+/// `type` field. Always `"agent_instance_hierarchy"` on the wire.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.functions.execute.swiss_system.AgentInstanceHierarchyType")]
+pub enum AgentInstanceHierarchyType {
+    AgentInstanceHierarchy,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.execute.swiss_system.ResponseItem")]
 pub enum ResponseItem {
+    // Placement above `Chunk` is load-bearing: serde untagged tries
+    // variants in source order, and the constant discriminator must
+    // win before the all-optional chunk object could absorb it.
+    #[schemars(title = "AgentInstanceHierarchy")]
+    AgentInstanceHierarchy(AgentInstanceHierarchy),
     #[schemars(title = "Chunk")]
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
     #[schemars(title = "Id")]
