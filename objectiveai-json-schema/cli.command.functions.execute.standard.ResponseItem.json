@@ -2,6 +2,10 @@
   "title": "cli.command.functions.execute.standard.ResponseItem",
   "anyOf": [
     {
+      "title": "AgentInstanceHierarchy",
+      "$ref": "cli.command.functions.execute.standard.AgentInstanceHierarchy"
+    },
+    {
       "title": "Chunk",
       "$ref": "functions.executions.response.streaming.FunctionExecutionChunk"
     },

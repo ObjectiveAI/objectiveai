@@ -1,0 +1,13 @@
+{
+  "title": "cli.command.functions.execute.standard.AgentInstanceHierarchy",
+  "description": "A unique agent instance participating in this execution, announced\nexactly once — right after its instance lock is acquired (the same\nmoment `agents spawn` announces its own hierarchy). The constant\n`type:\"agent_instance_hierarchy\"` discriminator disambiguates this\nvariant inside the untagged [`ResponseItem`] union, mirroring\n`type:\"mcp\"` on `plugins run`'s `Mcp`.",
+  "type": "object",
+  "properties": {
+    "agent_instance_hierarchy": {
+      "type": "string"
+    },
+    "type": {
+      "$ref": "cli.command.functions.execute.standard.AgentInstanceHierarchyType"
+    }
+  }
+}

@@ -3,7 +3,14 @@
 from __future__ import annotations
 from typing import Union
 from pydantic import ConfigDict, RootModel
+from objectiveai_sdk.cli.command.functions.execute.standard.agent_instance_hierarchy import AgentInstanceHierarchy
 from objectiveai_sdk.functions.executions.response.streaming.function_execution_chunk import FunctionExecutionChunk
+
+
+class ResponseItemAgentInstanceHierarchy(RootModel):
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'AgentInstanceHierarchy'})
+
+    root: AgentInstanceHierarchy
 
 
 class ResponseItemChunk(RootModel):
@@ -21,5 +28,5 @@ class ResponseItemId(RootModel):
 class ResponseItem(RootModel):
     model_config = ConfigDict(title='cli.command.functions.execute.standard.ResponseItem')
 
-    root: Union[ResponseItemChunk, ResponseItemId]
+    root: Union[ResponseItemAgentInstanceHierarchy, ResponseItemChunk, ResponseItemId]
 
