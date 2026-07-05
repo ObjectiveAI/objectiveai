@@ -2,7 +2,9 @@ import { useEffect, useRef } from "react";
 import type { CliCommandListenerExecution } from "@objectiveai/sdk";
 import { daemonRuns } from "../daemon-listener";
 
-type Runs = AsyncIterableIterator<CliCommandListenerExecution>;
+/** The run stream [`useListener`] hands out: one live cursor over the
+ * app's singleton daemon listener. */
+export type ListenerStream = AsyncIterableIterator<CliCommandListenerExecution>;
 
 /**
  * A persistent handle on the app's singleton daemon listener: one
@@ -29,8 +31,8 @@ type Runs = AsyncIterableIterator<CliCommandListenerExecution>;
  * }, [listener]);
  * ```
  */
-export function useListener(): Runs {
-  const ref = useRef<Runs | null>(null);
+export function useListener(): ListenerStream {
+  const ref = useRef<ListenerStream | null>(null);
   ref.current ??= persistentRuns();
 
   useEffect(() => {
@@ -43,15 +45,12 @@ export function useListener(): Runs {
   return ref.current;
 }
 
-/**
- * The facade behind [`useListener`] — exported for tests, which
- * inject a fake subscribe function. `subscribe` defaults to the
- * singleton's `daemonRuns`.
- */
-export function persistentRuns(subscribe: () => Runs = daemonRuns): Runs {
-  let inner: Runs | null = null;
+/** The facade behind [`useListener`] — internal; tested through the
+ * hook itself. */
+function persistentRuns(subscribe: () => ListenerStream = daemonRuns): ListenerStream {
+  let inner: ListenerStream | null = null;
 
-  const facade: Runs = {
+  const facade: ListenerStream = {
     next: (): Promise<IteratorResult<CliCommandListenerExecution>> => {
       inner ??= subscribe();
       return inner.next();
