@@ -4,6 +4,15 @@ import { registerExecutionHandler } from "../daemon-listener";
 import { logsTarget } from "../lib/aih";
 import { websocketExecutor } from "../lib/websocket-executor";
 
+/** [`useAgentInstanceTags`]'s result: the live tag list plus whether
+ * the initial populate read is still in flight. */
+export interface AgentInstanceTags {
+  tags: string[];
+  /** `true` until the initial `agents instances get` completes
+   * (success or failure); the live registration works throughout. */
+  loading: boolean;
+}
+
 /**
  * The live tag list for one agent instance hierarchy.
  *
@@ -22,12 +31,14 @@ import { websocketExecutor } from "../lib/websocket-executor";
  * comes FIRST and runs against the empty list until the read lands —
  * live-only, no buffering, no special-casing of that window.
  */
-export function useAgentInstanceTags(hierarchy: string): string[] {
+export function useAgentInstanceTags(hierarchy: string): AgentInstanceTags {
   const [tags, setTags] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // A new hierarchy starts from scratch.
     setTags([]);
+    setLoading(true);
     let cancelled = false;
 
     // 1. The dynamic registration — BEFORE the populate read.
@@ -83,6 +94,10 @@ export function useAgentInstanceTags(hierarchy: string): string[] {
       } catch {
         // Daemon unreachable — the registration keeps working over
         // whatever state exists.
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     })();
 
@@ -92,5 +107,5 @@ export function useAgentInstanceTags(hierarchy: string): string[] {
     };
   }, [hierarchy]);
 
-  return tags;
+  return { tags, loading };
 }

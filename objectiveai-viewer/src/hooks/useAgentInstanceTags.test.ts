@@ -169,10 +169,15 @@ async function settle() {
   });
 }
 
-type UseTags = (hierarchy: string) => string[];
+type UseTags = (
+  hierarchy: string,
+) => import("./useAgentInstanceTags").AgentInstanceTags;
 
 function mountProbe(useTags: UseTags, hierarchy: string) {
-  let latest: string[] = [];
+  let latest: import("./useAgentInstanceTags").AgentInstanceTags = {
+    tags: [],
+    loading: true,
+  };
   function Probe() {
     latest = useTags(hierarchy);
     return null;
@@ -184,7 +189,10 @@ function mountProbe(useTags: UseTags, hierarchy: string) {
   });
   return {
     get tags() {
-      return latest;
+      return latest.tags;
+    },
+    get loading() {
+      return latest.loading;
     },
     unmount: () =>
       act(() => {
@@ -219,6 +227,7 @@ describe("useAgentInstanceTags", () => {
     await settle();
 
     expect(probe.tags).toEqual(["alpha", "beta"]);
+    expect(probe.loading).toBe(false);
     expect(harness.instanceRequests).toEqual([
       {
         targets: [
@@ -340,6 +349,7 @@ describe("useAgentInstanceTags", () => {
     const probe = mountProbe(useAgentInstanceTags, AIH);
 
     // The registration is live while the read is still gated.
+    expect(probe.loading).toBe(true);
     const early = applyExecution("early");
     harness.push(early.execution);
     await settle();
@@ -348,11 +358,14 @@ describe("useAgentInstanceTags", () => {
     });
     await settle();
     expect(probe.tags).toEqual(["early"]);
+    expect(probe.loading).toBe(true);
 
     act(() => harness.instancesGate?.());
     await settle();
-    // The populate replaces state (the read reflects the apply).
+    // The populate replaces state (the read reflects the apply) and
+    // the get's completion ends loading.
     expect(probe.tags).toEqual(["alpha", "early"]);
+    expect(probe.loading).toBe(false);
     probe.unmount();
   });
 
