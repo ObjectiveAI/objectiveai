@@ -42,7 +42,7 @@ const KINDS: { kind: Entry["kind"]; label: string; activeClass: string }[] = [
   { kind: "execution", label: "Execution", activeClass: "bg-kind-execution/20 text-kind-execution" },
 ];
 
-function ObjectiveAIView() {
+function ObjectiveAIView({ onStatusChange }: { onStatusChange?: (status: ViewerStatus) => void }) {
   const realEntries = useEntries();
   const liveEntries = !isTauri() && realEntries.length === 0 ? mockEntries : realEntries;
   const session = useSessionStorage(liveEntries, true);
@@ -102,6 +102,12 @@ function ObjectiveAIView() {
     });
   };
 
+  // Report the status-bar inputs up to App — the bar spans every tab,
+  // so it lives above the panes.
+  useEffect(() => {
+    onStatusChange?.({ entries, isHistorical: session.isViewingPast });
+  }, [entries, session.isViewingPast, onStatusChange]);
+
   const kindCounts = useMemo(() => {
     const counts = new Map<Entry["kind"], number>();
     for (const e of entries) counts.set(e.kind, (counts.get(e.kind) ?? 0) + 1);
@@ -146,7 +152,7 @@ function ObjectiveAIView() {
   ) : null;
 
   return (
-    <Shell statusBar={<StatusBar entries={entries} isHistorical={session.isViewingPast} />} banner={banner} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
+    <Shell banner={banner} entryCount={entries.length} sidebar={<SessionSidebar sessions={session.pastSessions} currentSessionId={session.sessionId} onLoad={(id) => { session.loadSession(id); }} />} detailPanel={detailPanel}>
       <SessionPicker
         open={sessionPickerOpen}
         onOpenChange={setSessionPickerOpen}
@@ -282,9 +288,19 @@ export interface ViewerPluginInfo {
   iframe_src: string;
 }
 
+/** The status-bar inputs ObjectiveAIView reports up to App. */
+interface ViewerStatus {
+  entries: Entry[];
+  isHistorical: boolean;
+}
+
 function App() {
   const [plugins, setPlugins] = useState<ViewerPluginInfo[]>([]);
   const [activeTab, setActiveTab] = useState<string>(OBJECTIVEAI_TAB_ID);
+  const [status, setStatus] = useState<ViewerStatus>({
+    entries: [],
+    isHistorical: false,
+  });
 
   // The app's one daemon broadcast connection — routing (daemonRuns
   // subscribers) + plugins/run forwarding into plugin iframes.
@@ -313,7 +329,14 @@ function App() {
   ];
 
   if (plugins.length === 0) {
-    return <ObjectiveAIView />;
+    return (
+      <div className={cn("flex", "flex-col", "h-screen")}>
+        <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
+          <ObjectiveAIView onStatusChange={setStatus} />
+        </div>
+        <StatusBar entries={status.entries} isHistorical={status.isHistorical} />
+      </div>
+    );
   }
 
   return (
@@ -374,7 +397,7 @@ function App() {
             activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
           )}
         >
-          <ObjectiveAIView />
+          <ObjectiveAIView onStatusChange={setStatus} />
         </div>
         {plugins.map((p) => (
           <div
@@ -399,6 +422,8 @@ function App() {
           />
         )}
       </div>
+      {/* Spans every tab — plugin panes included. */}
+      <StatusBar entries={status.entries} isHistorical={status.isHistorical} />
     </div>
   );
 }
