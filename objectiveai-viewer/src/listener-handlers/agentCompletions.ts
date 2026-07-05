@@ -2,11 +2,11 @@ import type { AgentCompletionsResponseStreamingAgentCompletionChunk } from "@obj
 import { registerExecutionHandler } from "../daemon-listener";
 
 /** The raw, UNMERGED chunk list of one agent's most recent
- * conversation segment, in arrival order. */
-export type AgentConversation =
+ * completion segment, in arrival order. */
+export type AgentCompletion =
   readonly AgentCompletionsResponseStreamingAgentCompletionChunk[];
 
-// ── The GLOBAL conversation store ───────────────────────────────────
+// ── The GLOBAL completion store ───────────────────────────────────
 // One store for the whole app: a single execution-handler registration
 // on the daemon-listener singleton (register at viewer startup, before
 // the listener starts) keeps, per agent instance hierarchy, the raw
@@ -18,20 +18,20 @@ export type AgentConversation =
 
 /** AIH → the most recent segment's chunk list (mutated in place as
  * chunks arrive; replaced when a newer execution claims the AIH). */
-const conversations = new Map<
+const completions = new Map<
   string,
   AgentCompletionsResponseStreamingAgentCompletionChunk[]
 >();
 let registered = false;
 
 /**
- * Register the conversation store's execution handler on the
+ * Register the completion store's execution handler on the
  * daemon-listener singleton (idempotent, app-lifetime). Call at
  * viewer startup, BEFORE `startDaemonListener()` — the singleton is
  * live-only, and a late registration misses everything announced
  * before it existed.
  */
-export function registerAgentConversationsHandler(): void {
+export function registerAgentCompletionsHandler(): void {
   if (registered) return;
   registered = true;
   registerExecutionHandler("agents/spawn", (execution) => {
@@ -47,24 +47,24 @@ export function registerAgentConversationsHandler(): void {
       const hier = chunk.agent_instance_hierarchy;
       if (!claimed.has(hier)) {
         claimed.add(hier);
-        conversations.set(hier, []);
+        completions.set(hier, []);
       }
-      conversations.get(hier)?.push(chunk);
+      completions.get(hier)?.push(chunk);
     };
   });
 }
 
-/** The most recent conversation segment for one agent instance
+/** The most recent completion segment for one agent instance
  * hierarchy, or `undefined` if no streaming spawn has chunked it. */
-export function agentConversation(
+export function agentCompletion(
   hierarchy: string,
-): AgentConversation | undefined {
-  return conversations.get(hierarchy);
+): AgentCompletion | undefined {
+  return completions.get(hierarchy);
 }
 
 /** The whole store: AIH → most recent segment. */
-export function agentConversations(): ReadonlyMap<string, AgentConversation> {
-  return conversations;
+export function agentCompletions(): ReadonlyMap<string, AgentCompletion> {
+  return completions;
 }
 
 /** Narrow one spawn response item to a completion chunk. Bare-string

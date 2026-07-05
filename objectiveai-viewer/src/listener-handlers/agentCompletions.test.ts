@@ -3,7 +3,7 @@
 import { describe, expect, it, beforeEach, vi } from "vitest";
 
 /**
- * Tests for the per-agent conversation store: a registration on the
+ * Tests for the per-agent completion store: a registration on the
  * REAL daemon-listener singleton (SDK / tauri / bridge mocked) that
  * keeps each agent's most recent streaming-spawn segment as a raw,
  * unmerged chunk list. vi.resetModules gives each test fresh module
@@ -117,16 +117,16 @@ async function settle() {
   await new Promise((r) => setTimeout(r, 0));
 }
 
-describe("agentConversations (registered store)", () => {
-  let mod: typeof import("./agentConversations");
+describe("agentCompletions (registered store)", () => {
+  let mod: typeof import("./agentCompletions");
 
   beforeEach(async () => {
     harness.endFeed(); // retire the previous test's pump
     vi.resetModules();
     const listener = await import("../daemon-listener");
-    mod = await import("./agentConversations");
+    mod = await import("./agentCompletions");
     // The viewer-startup order: register handlers, then start.
-    mod.registerAgentConversationsHandler();
+    mod.registerAgentCompletionsHandler();
     listener.startDaemonListener();
     await settle();
   });
@@ -143,8 +143,8 @@ describe("agentConversations (registered store)", () => {
     await settle();
 
     // Raw chunks, exact objects, arrival order — no merging.
-    expect(mod.agentConversation("Agent/a")).toEqual([first, second]);
-    expect(mod.agentConversation("Agent/a")?.[0]).toBe(first);
+    expect(mod.agentCompletion("Agent/a")).toEqual([first, second]);
+    expect(mod.agentCompletion("Agent/a")?.[0]).toBe(first);
     response.end();
   });
 
@@ -158,8 +158,8 @@ describe("agentConversations (registered store)", () => {
     response.push(chunk("Agent/a", "hi"));
     await settle();
 
-    expect(mod.agentConversation("Agent/a")).toHaveLength(1);
-    expect(mod.agentConversations().size).toBe(1);
+    expect(mod.agentCompletion("Agent/a")).toHaveLength(1);
+    expect(mod.agentCompletions().size).toBe(1);
     response.end();
   });
 
@@ -169,7 +169,7 @@ describe("agentConversations (registered store)", () => {
       execution("agents/spawn", undefined, Promise.resolve("Agent/y")),
     );
     await settle();
-    expect(mod.agentConversations().size).toBe(0);
+    expect(mod.agentCompletions().size).toBe(0);
   });
 
   it("keeps the segment after the stream ends", async () => {
@@ -180,7 +180,7 @@ describe("agentConversations (registered store)", () => {
     response.end();
     await settle();
 
-    expect(mod.agentConversation("Agent/a")).toHaveLength(1);
+    expect(mod.agentCompletion("Agent/a")).toHaveLength(1);
   });
 
   it("replaces the stored segment when a newer execution chunks the same AIH", async () => {
@@ -201,7 +201,7 @@ describe("agentConversations (registered store)", () => {
 
     // The whole old segment is gone — only the newest execution's
     // chunks remain.
-    expect(mod.agentConversation("Agent/a")).toEqual([latest]);
+    expect(mod.agentCompletion("Agent/a")).toEqual([latest]);
     fresh.end();
   });
 
@@ -217,8 +217,8 @@ describe("agentConversations (registered store)", () => {
     one.push(chunk("Agent/a", "a2"));
     await settle();
 
-    expect(mod.agentConversation("Agent/a")).toHaveLength(2);
-    expect(mod.agentConversation("Agent/b")).toHaveLength(1);
+    expect(mod.agentCompletion("Agent/a")).toHaveLength(2);
+    expect(mod.agentCompletion("Agent/b")).toHaveLength(1);
     one.end();
     two.end();
   });
@@ -234,7 +234,7 @@ describe("agentConversations (registered store)", () => {
     response.push(chunk("Agent/a", "3"));
     await settle();
 
-    expect(mod.agentConversation("Agent/a")).toHaveLength(3);
+    expect(mod.agentCompletion("Agent/a")).toHaveLength(3);
     response.end();
   });
 });

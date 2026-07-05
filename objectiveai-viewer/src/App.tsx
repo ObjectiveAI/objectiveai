@@ -4,7 +4,7 @@ import * as Tooltip from "@radix-ui/react-tooltip";
 import { tauriInvoke } from "./lib/tauri";
 import { startDaemonListener } from "./daemon-listener";
 import { registerActiveAgentsHandler } from "./hooks/useActiveAgents";
-import { registerAgentConversationsHandler } from "./listener-handlers/agentConversations";
+import { registerAgentCompletionsHandler } from "./listener-handlers/agentCompletions";
 import { useEntries } from "./hooks/useEntries";
 import { useCollapseState } from "./hooks/useCollapseState";
 import { useSessionStorage } from "./hooks/useSessionStorage";
@@ -308,7 +308,7 @@ function App() {
   // idempotent, so StrictMode's double effect is harmless.
   useEffect(() => {
     registerActiveAgentsHandler();
-    registerAgentConversationsHandler();
+    registerAgentCompletionsHandler();
     startDaemonListener();
   }, []);
 
