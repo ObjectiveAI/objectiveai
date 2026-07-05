@@ -18,8 +18,6 @@ import { SessionSidebar } from "./components/shared/SessionSidebar";
 import { CommandPalette } from "./components/shared/CommandPalette";
 import { DetailPanel } from "./components/shared/DetailPanel";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
-import { RightOverlayPanel, type PanelTab } from "./RightOverlayPanel";
-import { useAgentChat } from "./chat/useAgentChat";
 import type { Entry } from "./types";
 import { isTauri } from "./lib/tauri";
 import { mockEntries } from "./mockEntries";
@@ -313,11 +311,6 @@ function App() {
     startDaemonListener();
   }, []);
 
-  const [isPanelOpen, setIsPanelOpen] = useState(false);
-  const [panelTabs, setPanelTabs] = useState<PanelTab[]>([]);
-  const [activePanelTabId, setActivePanelTabId] = useState<string | null>(null);
-  const { sendMessage } = useAgentChat(setPanelTabs);
-
   useEffect(() => {
     tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
       .then((p) => { if (p) setPlugins(p); })
@@ -360,23 +353,6 @@ function App() {
         <div className={cn("flex-1", "min-w-0")}>
           <TabBar tabs={tabs} activeTab={activeTab} onSelect={setActiveTab} />
         </div>
-        <button
-          type="button"
-          onClick={() => setIsPanelOpen((v) => !v)}
-          aria-label={isPanelOpen ? "Close side panel" : "Open side panel"}
-          className={cn(
-            "shrink-0",
-            "px-3",
-            "text-neutral-600",
-            "dark:text-neutral-400",
-            "hover:text-neutral-900",
-            "dark:hover:text-neutral-50",
-            "cursor-pointer",
-            "text-lg",
-          )}
-        >
-          {isPanelOpen ? "⟩" : "⟨"}
-        </button>
       </div>
       <div
         className={cn(
@@ -416,15 +392,6 @@ function App() {
             <PluginPane info={p} />
           </div>
         ))}
-        {isPanelOpen && (
-          <RightOverlayPanel
-            panelTabs={panelTabs}
-            setPanelTabs={setPanelTabs}
-            activePanelTabId={activePanelTabId}
-            setActivePanelTabId={setActivePanelTabId}
-            sendMessage={sendMessage}
-          />
-        )}
       </div>
       {/* Spans every tab — plugin panes included. */}
       <StatusBar entries={status.entries} isHistorical={status.isHistorical} stream={listenerStream} />
