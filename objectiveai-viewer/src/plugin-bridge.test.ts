@@ -8,16 +8,21 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
  * request through its JS-native WebSocketExecutor (mocked — nothing
  * connects), and posts every line + the synthetic end marker back
  * into that iframe. Daemon config comes from the mocked Rust
- * `daemon_config` command.
+ * `websocket_config` command.
  */
 
 // ── mocks: lib/tauri invoke + the SDK executor ─────────────────────
 
 const harness = vi.hoisted(() => ({
-  daemonConfig: {
+  websocketConfig: {
     address: "ws://127.0.0.1:4242",
     signature: "sha256=abc",
-  } as { address: string; signature: string | null } | null,
+    agent_arguments: { agent_instance_hierarchy: "Viewer" },
+  } as {
+    address: string;
+    signature: string | null;
+    agent_arguments: Record<string, string | null>;
+  } | null,
   /** Constructor args of every WebSocketExecutor the bridge built. */
   constructed: [] as Array<{ url: string; options: unknown }>,
   /** Requests passed to execute(), in order. */
@@ -26,9 +31,10 @@ const harness = vi.hoisted(() => ({
    * or an Error to throw. */
   plans: [] as Array<unknown[] | Error>,
   reset(): void {
-    harness.daemonConfig = {
+    harness.websocketConfig = {
       address: "ws://127.0.0.1:4242",
       signature: "sha256=abc",
+      agent_arguments: { agent_instance_hierarchy: "Viewer" },
     };
     harness.constructed.length = 0;
     harness.executed.length = 0;
@@ -38,9 +44,9 @@ const harness = vi.hoisted(() => ({
 
 vi.mock("./lib/tauri", () => ({
   tauriInvoke: async (cmd: string) => {
-    if (cmd !== "daemon_config") throw new Error(`unexpected invoke: ${cmd}`);
-    if (!harness.daemonConfig) throw new Error("daemon_config unavailable");
-    return harness.daemonConfig;
+    if (cmd !== "websocket_config") throw new Error(`unexpected invoke: ${cmd}`);
+    if (!harness.websocketConfig) throw new Error("websocket_config unavailable");
+    return harness.websocketConfig;
   },
 }));
 
@@ -118,7 +124,7 @@ describe("plugin-bridge cli-execute", () => {
     bridge = await import("./plugin-bridge");
   });
 
-  it("builds the executor from daemon_config and runs the request", async () => {
+  it("builds the executor from websocket_config and runs the request", async () => {
     const a = makeTab(bridge, ALPHA);
     const request = { path_type: "plugins/list" };
     harness.plans.push([{ n: 1 }]);
@@ -194,9 +200,9 @@ describe("plugin-bridge cli-execute", () => {
     expect(posted[1]).toMatchObject({ value: { type: "end" } });
   });
 
-  it("surfaces a daemon_config failure as error + end, and recovers later", async () => {
+  it("surfaces a websocket_config failure as error + end, and recovers later", async () => {
     const a = makeTab(bridge, ALPHA);
-    harness.daemonConfig = null;
+    harness.websocketConfig = null;
 
     execFrom(a, "invocation-1", { path_type: "plugins/list" });
     await settle();

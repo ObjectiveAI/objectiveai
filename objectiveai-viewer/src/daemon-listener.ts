@@ -131,11 +131,11 @@ async function pumpForever(): Promise<void> {
   const config = await tauriInvoke<{
     address: string;
     signature: string | null;
-  }>("daemon_config");
+  }>("websocket_config");
   if (!config) {
     // eslint-disable-next-line no-console
     console.warn(
-      "daemon-listener: daemon_config unavailable (not running under " +
+      "daemon-listener: websocket_config unavailable (not running under " +
         "Tauri); no daemon executions will arrive.",
     );
     return;

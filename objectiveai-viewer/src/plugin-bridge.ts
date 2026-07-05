@@ -10,7 +10,7 @@
  * never claims an identity itself; unregistered windows are dropped),
  * runs the request through the host's own JS-native
  * [`WebSocketExecutor`] against the daemon's `/execute` route — the
- * daemon address + auth signature come from the Rust `daemon_config`
+ * daemon address + auth signature come from the Rust `websocket_config`
  * Tauri command, fetched once — and posts every response line back
  * into THAT iframe as
  * `{kind: "plugin-event", type: "cli_command", id, value}`, finishing

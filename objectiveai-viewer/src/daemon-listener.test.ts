@@ -4,7 +4,7 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 
 /**
  * Tests for the autonomous daemon-listener singleton: the
- * daemon_config connect, the typed execution-handler registry (root
+ * websocket_config connect, the typed execution-handler registry (root
  * callbacks per path, nested item callbacks over one shared drain),
  * error isolation, the built-in plugins/run forwarding, and the
  * reconnect loop. All infra is mocked — the SDK listener, the tauri
@@ -61,7 +61,7 @@ const harness = vi.hoisted(() => {
 
 vi.mock("./lib/tauri", () => ({
   tauriInvoke: async (cmd: string) => {
-    if (cmd !== "daemon_config") throw new Error(`unexpected invoke: ${cmd}`);
+    if (cmd !== "websocket_config") throw new Error(`unexpected invoke: ${cmd}`);
     return harness.daemonConfig ?? undefined;
   },
 }));
@@ -174,7 +174,7 @@ describe("daemon-listener registry", () => {
     expect(harness.connects).toHaveLength(1);
   });
 
-  it("stays idle without daemon_config (browser dev)", async () => {
+  it("stays idle without websocket_config (browser dev)", async () => {
     harness.daemonConfig = null;
     mod.startDaemonListener();
     await settle();

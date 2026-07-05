@@ -3,9 +3,10 @@
 //! The Rust side holds NO daemon stream: the JS frontend connects to
 //! the daemon's published `ws://` endpoint directly (native
 //! WebSockets to `/listen` and `/execute`), and the Rust side only
-//! hands it the variables it needs via the [`daemon_config`] command
-//! (address + optional first-message auth signature). The `"viewer"`
-//! lock is a per-state singleton marker (content `"ready"`).
+//! hands it the variables it needs via the [`websocket_config`]
+//! command (address, optional first-message auth signature, and the
+//! viewer's agent arguments). The `"viewer"` lock is a per-state
+//! singleton marker (content `"ready"`).
 
 use envconfig::Envconfig;
 use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
@@ -20,19 +21,21 @@ fn viewer_ready(state: tauri::State<'_, Arc<Notify>>) {
     state.notify_one();
 }
 
-/// The variables the JS frontend needs to reach the daemon itself:
-/// the published base `ws://` address and the optional first-message
-/// auth signature. The frontend appends `/listen` / `/execute` and
+/// Everything the JS frontend's own WebSocket clients take: the
+/// published base `ws://` address, the optional first-message auth
+/// signature, and the agent arguments identifying viewer-initiated
+/// executions. The frontend appends `/listen` / `/execute` and
 /// connects with native WebSockets — no daemon traffic flows through
 /// the Rust side.
 #[derive(Clone, serde::Serialize)]
-pub struct DaemonConfig {
+pub struct WebSocketConfig {
     pub address: String,
     pub signature: Option<String>,
+    pub agent_arguments: objectiveai_sdk::cli::command::AgentArguments,
 }
 
 #[tauri::command]
-fn daemon_config(state: tauri::State<'_, DaemonConfig>) -> DaemonConfig {
+fn websocket_config(state: tauri::State<'_, WebSocketConfig>) -> WebSocketConfig {
     state.inner().clone()
 }
 
@@ -160,7 +163,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 /// Returns the exit code from Tauri's event loop.
 pub fn serve(
     executor: WebSocketExecutor,
-    daemon_config_state: DaemonConfig,
+    websocket_config_state: WebSocketConfig,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
@@ -173,14 +176,14 @@ pub fn serve(
     let builder = tauri::Builder::default()
         .manage(ready)
         .manage(executor)
-        .manage(daemon_config_state)
+        .manage(websocket_config_state)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
         });
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
-        daemon_config,
+        websocket_config,
         crate::plugins::list_plugins_with_viewer,
     ]);
     builder
@@ -234,11 +237,13 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
 
     // No Rust-side daemon streams: the JS frontend connects to the
     // daemon directly with native WebSockets, using the variables the
-    // `daemon_config` command hands it.
-    let daemon_config_state = DaemonConfig {
+    // `websocket_config` command hands it — the same viewer identity
+    // the Rust-side executor stamps on its own calls.
+    let websocket_config_state = WebSocketConfig {
         address: daemon_address,
         signature: config.daemon_signature.clone(),
+        agent_arguments: crate::plugins::viewer_agent_arguments(),
     };
 
-    Ok(serve(executor, daemon_config_state, plugins_dir, None))
+    Ok(serve(executor, websocket_config_state, plugins_dir, None))
 }
