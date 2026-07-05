@@ -14,7 +14,9 @@ interface ScopedAgent {
  * hierarchy (from [`useAgents`]) split on `/` into an org-chart
  * tree — TIERS stack top-down, siblings flow left-to-right on the
  * same level (`fizz/foo/bar` + `fizz/foo/buzz` → three tiers, with
- * `bar` and `buzz` side by side under `foo`). Each node shows ONLY
+ * `bar` and `buzz` side by side under `foo`). Everything anchors
+ * LEFT: a parent sits at its subtree's leading edge, with the first
+ * child directly below it. Each node shows ONLY
  * its own segment — never a full hierarchy. Agents render as boxes
  * carrying their spawn and last-active times (locale-formatted);
  * branches with no corresponding agent render dashed as pure
@@ -75,7 +77,7 @@ function HierarchyNode({
   const kind =
     self === null ? "branch" : self.active ? "agent-active" : "agent-inactive";
   return (
-    <div className={cn("flex", "flex-col", "items-center")}>
+    <div className={cn("flex", "flex-col", "items-start")}>
       <div
         data-node-kind={kind}
         data-node-name={name}
@@ -136,8 +138,9 @@ function HierarchyNode({
       </div>
       {children.length > 0 && (
         <>
-          {/* Stem from this node down to its children's rail. */}
-          <div className={cn("w-px", "h-3", "bg-node-border/60")} />
+          {/* Stem from this node down to its children's rail —
+              anchored left, under the parent's leading edge. */}
+          <div className={cn("w-px", "h-3", "bg-node-border/60", "ml-3")} />
           <div
             className={cn(
               "flex",
