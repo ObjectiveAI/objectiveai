@@ -69,9 +69,27 @@ fn inline_profile_spec(json: serde_json::Value) -> ProfileSpec {
 async fn run_and_aggregate_normalized(request: Request) -> FunctionExecution {
     let executor = cli_test_util::executor().await;
     let items: Vec<ResponseItem> = cli_test_util::collect_stream(&executor, request).await;
+    // The AIH announcements ride the same stream (one per unique agent
+    // instance, emitted on lock acquisition); assert uniqueness, then
+    // aggregate the chunks only.
+    let hierarchies: Vec<&str> = items
+        .iter()
+        .filter_map(|item| match item {
+            ResponseItem::AgentInstanceHierarchy(h) => {
+                Some(h.agent_instance_hierarchy.as_str())
+            }
+            _ => None,
+        })
+        .collect();
+    let unique: std::collections::HashSet<&str> = hierarchies.iter().copied().collect();
+    assert_eq!(
+        unique.len(),
+        hierarchies.len(),
+        "agent instance hierarchies must be announced at most once each",
+    );
     let mut chunks = items.into_iter().filter_map(|item| match item {
         ResponseItem::Chunk(c) => Some(c),
-        ResponseItem::Id(_) => None,
+        ResponseItem::Id(_) | ResponseItem::AgentInstanceHierarchy(_) => None,
     });
     let mut agg: FunctionExecutionChunk =
         chunks.next().expect("at least one chunk must be emitted");
