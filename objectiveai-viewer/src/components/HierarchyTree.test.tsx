@@ -17,10 +17,19 @@ import type { AgentStatus } from "../hooks/useAgents";
 
 const harness = vi.hoisted(() => ({
   agents: [] as AgentStatus[],
+  tags: new Map<string, string[]>(),
+  tagsLoading: false,
 }));
 
 vi.mock("../hooks/useAgents", () => ({
   useAgents: () => harness.agents,
+}));
+
+vi.mock("../hooks/useAgentInstanceTags", () => ({
+  useAgentInstanceTags: (hierarchy: string) => ({
+    tags: harness.tags.get(hierarchy) ?? [],
+    loading: harness.tagsLoading,
+  }),
 }));
 
 import { HierarchyTree } from "./HierarchyTree";
@@ -38,8 +47,13 @@ function agent(
   };
 }
 
-function render(agents: AgentStatus[]) {
+function render(
+  agents: AgentStatus[],
+  opts?: { tags?: Record<string, string[]>; tagsLoading?: boolean },
+) {
   harness.agents = agents;
+  harness.tags = new Map(Object.entries(opts?.tags ?? {}));
+  harness.tagsLoading = opts?.tagsLoading ?? false;
   const container = document.createElement("div");
   const root = createRoot(container);
   act(() => {
@@ -164,6 +178,43 @@ describe("HierarchyTree", () => {
     expect(bar?.parentElement?.parentElement).toBe(
       buzz?.parentElement?.parentElement,
     );
+    view.unmount();
+  });
+
+  it("renders each tag in its own box on the agent node", () => {
+    const view = render([agent("cli/tagged", false)], {
+      tags: { "cli/tagged": ["rick-sanchez", "lebowski"] },
+    });
+    const box = view.container.querySelector('[data-node-name="tagged"]');
+    const chips = [...(box?.querySelectorAll("[data-tag]") ?? [])];
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      "rick-sanchez",
+      "lebowski",
+    ]);
+    // The structural parent's own box carries no tags.
+    expect(
+      view.container
+        .querySelector('[data-node-name="cli"]')
+        ?.querySelector("[data-tag]") ?? null,
+    ).toBeNull();
+    view.unmount();
+  });
+
+  it("shows the animated ellipsis while tags load", () => {
+    const view = render([agent("cli/waiting", true)], { tagsLoading: true });
+    const box = view.container.querySelector('[data-node-name="waiting"]');
+    const ellipsis = box?.querySelector("[data-tags-loading]");
+    expect(ellipsis).toBeTruthy();
+    expect(box?.querySelectorAll("[data-tag]")).toHaveLength(0);
+    // Three dots, pulse-animated, staggered so the ellipsis actually
+    // ripples.
+    const dots = [...(ellipsis?.children ?? [])];
+    expect(dots).toHaveLength(3);
+    for (const dot of dots) {
+      expect(dot.className).toContain("animate-pulse");
+    }
+    expect(dots[1].className).toContain("[animation-delay:300ms]");
+    expect(dots[2].className).toContain("[animation-delay:600ms]");
     view.unmount();
   });
 

@@ -1,5 +1,6 @@
 import cn from "classnames";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
+import { useAgentInstanceTags } from "../hooks/useAgentInstanceTags";
 
 /** One agent scoped under a tree node: the path segments REMAINING
  * below that node, plus the agent itself. `rest` empty means the
@@ -105,6 +106,9 @@ function HierarchyNode({
       >
         <span>{name}</span>
         {self !== null && (
+          <AgentTags hierarchy={self.agent_instance_hierarchy} />
+        )}
+        {self !== null && (
           <div
             className={cn(
               "grid",
@@ -149,6 +153,59 @@ function HierarchyNode({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** One agent's tag chips (live via [`useAgentInstanceTags`] — the
+ * hook's dynamic registration mounts and unmounts with this box).
+ * While the initial read is in flight, an animated ellipsis stands
+ * in; once loaded, one small box per tag (nothing when tagless). */
+function AgentTags({ hierarchy }: { hierarchy: string }) {
+  const { tags, loading } = useAgentInstanceTags(hierarchy);
+  if (loading) {
+    return (
+      <span
+        data-tags-loading
+        className={cn("inline-flex", "items-center", "gap-0.5", "py-1")}
+      >
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className={cn(
+              "w-1",
+              "h-1",
+              "rounded-full",
+              "bg-info-dim",
+              "animate-pulse",
+              i === 1 && "[animation-delay:300ms]",
+              i === 2 && "[animation-delay:600ms]",
+            )}
+          />
+        ))}
+      </span>
+    );
+  }
+  if (tags.length === 0) return null;
+  return (
+    <div className={cn("flex", "flex-row", "flex-wrap", "gap-1")}>
+      {tags.map((tag) => (
+        <span
+          key={tag}
+          data-tag={tag}
+          className={cn(
+            "px-1.5",
+            "py-px",
+            "rounded-sm",
+            "border",
+            "border-node-border/70",
+            "bg-ground-raised",
+            "text-info-mid",
+          )}
+        >
+          {tag}
+        </span>
+      ))}
     </div>
   );
 }
