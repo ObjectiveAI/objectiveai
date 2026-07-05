@@ -568,7 +568,6 @@ function main() {
     };
     const members = [];
     for (const v of variants) {
-      if (v.name === "Transformed") continue; // root fallback, emitted below
       const { targetKey, suffix } = innerToRef(branchKey, v.inner);
       if (skippedKeys.has(targetKey)) continue;
       const memberName = executionName(targetKey.split("/"), suffix);
@@ -590,23 +589,8 @@ function main() {
 
     const name = executionName(scopeSegments, "ListenerExecution");
     const docPath = scopeSegments.join(" ") || "cli command";
-    let extraBlock = "";
-    let extraMember = "";
     let modesBlock = "";
     if (branchKey === "") {
-      addImport(errorModule.srcRelative, `type ${errorModule.pascal}`);
-      addImport("cli/command/agentArguments", "type CliCommandAgentArguments");
-      addImport("cli/command/request", "type CliCommandRequest");
-      addImport("jsonValue", "type JsonValue");
-      addImport("cli/websocketListener", "type ResponseItemStream");
-      extraBlock =
-        `/** A run whose request carries a jq/python output transform: its items are post-transform JSON with no static shape, so they stay raw (the request itself is the typed root aggregate). */\n` +
-        `export type ${name}Transformed = {\n` +
-        `  request: CliCommandRequest;\n` +
-        `  agentArguments: CliCommandAgentArguments;\n` +
-        `  response: ResponseItemStream<${errorModule.pascal} | JsonValue>;\n` +
-        `};\n\n`;
-      extraMember = `\n  | ${name}Transformed`;
       modesBlock =
         "\n" +
         `/** Runtime \`path_type → mode\` table for the viewer \`WebSocketListener\`. No validation — the types are structural claims over the wire. */\n` +
@@ -616,14 +600,13 @@ function main() {
     }
     const unionDoc =
       branchKey === ""
-        ? `/** One daemon-broadcast run — the root of the JS \`ListenerExecution\` tree (the mirror of the Rust SDK's \`cli::command::ListenerExecution\`), yielded by the viewer \`WebSocketListener\`. Narrow on \`run.request.path_type\`; multi-variant leaves narrow further via the request's \`dangerous_advanced.stream\` flag. Runs this build's types predate are skipped by the listener — no unknown fallback. */`
+        ? `/** One daemon-broadcast execution — the root of the JS \`ListenerExecution\` tree (the mirror of the Rust SDK's \`cli::command::ListenerExecution\`), yielded by the viewer \`WebSocketListener\`. Narrow on \`execution.request.path_type\`; multi-variant leaves narrow further via the request's \`dangerous_advanced.stream\` flag. Items are always the typed PRE-transform response items (the CLI tees below its jq/python transform). Executions this build's types predate are skipped by the listener — no unknown fallback. */`
         : `/** \`/listen\` mirror of \`${docPath}\`'s request aggregate: one member per child listener execution. */`;
     const body =
       unionDoc +
       "\n" +
       `export type ${name} =\n` +
       members.map((m) => `  | ${m}`).join("\n") +
-      extraMember +
       ";\n";
 
     const importLines = [];
@@ -637,7 +620,6 @@ function main() {
       GENERATED_HEADER +
       importLines.join("\n") +
       "\n\n" +
-      extraBlock +
       body +
       modesBlock;
     const outAbs = path.join(SRC_DIR, outFileSrcRel);
