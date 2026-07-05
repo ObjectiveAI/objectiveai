@@ -102,14 +102,23 @@ impl ReverseChannel {
     /// Resolve a session for an inbound MCP-op `client_request`. Returns
     /// a `(code, message)` error suitable for a `JsonRpcResult::Err` when
     /// sessions aren't wired or no session exists for `response_id`.
-    fn lookup_session(&self, response_id: &str) -> Result<Arc<Session>, (i64, String)> {
+    /// Resolve a session for a client-request MCP op. A response id
+    /// whose initial connect is in flight parks here until the connect
+    /// finishes (see `SessionManager::get_or_wait`) instead of failing
+    /// with `-32001` — an upstream server may call back in while it is
+    /// itself being connected.
+    async fn lookup_session(
+        &self,
+        response_id: &str,
+    ) -> Result<Arc<Session>, (i64, String)> {
         let sessions = self
             .0
             .sessions
             .get()
             .ok_or((-32603i64, "proxy sessions not wired".to_string()))?;
         sessions
-            .get(response_id)
+            .get_or_wait(response_id)
+            .await
             .ok_or_else(|| (-32001i64, format!("unknown session for response id {response_id:?}")))
     }
 
@@ -242,7 +251,7 @@ impl ReverseChannel {
             client_request::Payload::ListTools {
                 response_id, name, ..
             } => {
-                let result = match self.lookup_session(&response_id) {
+                let result = match self.lookup_session(&response_id).await {
                     Ok(session) => {
                         match session.list_tools_filtered(None, name.as_deref()).await {
                             Ok(result) => JsonRpcResult::Ok { result },
@@ -256,7 +265,7 @@ impl ReverseChannel {
             client_request::Payload::ListResources {
                 response_id, name, ..
             } => {
-                let result = match self.lookup_session(&response_id) {
+                let result = match self.lookup_session(&response_id).await {
                     Ok(session) => {
                         match session.list_resources_filtered(None, name.as_deref()).await {
                             Ok(result) => JsonRpcResult::Ok { result },
@@ -268,7 +277,7 @@ impl ReverseChannel {
                 client_response::Response::ListResources { id, result }
             }
             client_request::Payload::ListServers { response_id } => {
-                let result = match self.lookup_session(&response_id) {
+                let result = match self.lookup_session(&response_id).await {
                     // Proxy-local aggregate — no upstream fan-out, can't fail.
                     Ok(session) => JsonRpcResult::Ok {
                         result: session.list_servers(),
@@ -278,7 +287,7 @@ impl ReverseChannel {
                 client_response::Response::ListServers { id, result }
             }
             client_request::Payload::CallTool { response_id, params } => {
-                let result = match self.lookup_session(&response_id) {
+                let result = match self.lookup_session(&response_id).await {
                     // No queue delegate here — unlike the HTTP path, this
                     // returns the upstream tool result verbatim.
                     Ok(session) => match session.call_tool(&params).await {
@@ -295,7 +304,7 @@ impl ReverseChannel {
                 client_response::Response::CallTool { id, result }
             }
             client_request::Payload::ReadResource { response_id, params } => {
-                let result = match self.lookup_session(&response_id) {
+                let result = match self.lookup_session(&response_id).await {
                     Ok(session) => match session.read_resource(&params.uri).await {
                         Ok(result) => JsonRpcResult::Ok { result },
                         Err(crate::session::ReadResourceError::ResourceNotFound(uri)) => {
