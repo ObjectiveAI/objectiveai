@@ -11,11 +11,14 @@ interface ScopedAgent {
 
 /**
  * The whole-body agent hierarchy: every known agent's instance
- * hierarchy (from [`useAgents`]) split on `/` into a tree. Each node
- * shows ONLY its own segment — never a full hierarchy. A node can be
- * an agent, a branch, or both (an agent with child agents); branches
- * with no corresponding agent render dashed as pure structure.
- * Scrolls both ways.
+ * hierarchy (from [`useAgents`]) split on `/` into an org-chart
+ * tree — TIERS stack top-down, siblings flow left-to-right on the
+ * same level (`fizz/foo/bar` + `fizz/foo/buzz` → three tiers, with
+ * `bar` and `buzz` side by side under `foo`). Each node shows ONLY
+ * its own segment — never a full hierarchy. Agents render as boxes
+ * carrying their spawn and last-active times (locale-formatted);
+ * branches with no corresponding agent render dashed as pure
+ * structure. Scrolls both ways.
  */
 export function HierarchyTree() {
   const agents = useAgents();
@@ -34,8 +37,9 @@ export function HierarchyTree() {
           "font-mono",
           "text-xs",
           "flex",
-          "flex-col",
-          "gap-1",
+          "flex-row",
+          "items-start",
+          "gap-6",
         )}
       >
         {roots.map(([name, members]) => (
@@ -47,10 +51,12 @@ export function HierarchyTree() {
 }
 
 /**
- * One tree level. `members` is every agent under this node, each
- * carrying only its remaining path — the node finds itself (an agent
- * whose path ends here), groups the rest by their next segment, and
- * hands each child group down whole.
+ * One tree node and everything beneath it. `members` is every agent
+ * under this node, each carrying only its remaining path — the node
+ * finds itself (an agent whose path ends here), groups the rest by
+ * their next segment, and hands each child group down whole.
+ * Renders as one TIER cell: its own chip/box on top, the children
+ * tier as a left-to-right row beneath it.
  */
 function HierarchyNode({
   name,
@@ -69,17 +75,17 @@ function HierarchyNode({
   const kind =
     self === null ? "branch" : self.active ? "agent-active" : "agent-inactive";
   return (
-    <div className={cn("flex", "flex-col", "gap-1")}>
+    <div className={cn("flex", "flex-col", "items-center")}>
       <div
         data-node-kind={kind}
         data-node-name={name}
         className={cn(
-          "inline-flex",
-          "items-center",
-          "gap-1.5",
-          "w-fit",
-          "px-2",
-          "py-0.5",
+          "flex",
+          "flex-col",
+          "items-start",
+          "gap-0.5",
+          "px-2.5",
+          "py-1.5",
           "rounded-sm",
           "border",
           "whitespace-nowrap",
@@ -96,38 +102,68 @@ function HierarchyNode({
               : cn("border-node-border", "bg-ground-surface", "text-info-mid"),
         )}
       >
+        <div className={cn("flex", "items-center", "gap-1.5")}>
+          {self !== null && (
+            <div
+              className={cn(
+                "w-1.5",
+                "h-1.5",
+                "rounded-full",
+                "shrink-0",
+                self.active
+                  ? cn("bg-copper-hot", "animate-pulse")
+                  : "bg-info-dim",
+              )}
+            />
+          )}
+          <span>{name}</span>
+        </div>
         {self !== null && (
           <div
             className={cn(
-              "w-1.5",
-              "h-1.5",
-              "rounded-full",
-              "shrink-0",
-              self.active ? cn("bg-copper-hot", "animate-pulse") : "bg-info-dim",
+              "flex",
+              "flex-col",
+              "gap-px",
+              "text-[9px]",
+              "text-info-dim",
+              "tabular-nums",
             )}
-          />
+          >
+            <span>spawned {formatTime(self.created_at)}</span>
+            <span>active {formatTime(self.last_active_at)}</span>
+          </div>
         )}
-        <span>{name}</span>
       </div>
       {children.length > 0 && (
-        <div
-          className={cn(
-            "ml-2.5",
-            "pl-3.5",
-            "border-l",
-            "border-node-border/60",
-            "flex",
-            "flex-col",
-            "gap-1",
-          )}
-        >
-          {children.map(([child, group]) => (
-            <HierarchyNode key={child} name={child} members={group} />
-          ))}
-        </div>
+        <>
+          {/* Stem from this node down to its children's rail. */}
+          <div className={cn("w-px", "h-3", "bg-node-border/60")} />
+          <div
+            className={cn(
+              "flex",
+              "flex-row",
+              "items-start",
+              "gap-4",
+              "border-t",
+              "border-node-border/60",
+              "pt-3",
+            )}
+          >
+            {children.map(([child, group]) => (
+              <HierarchyNode key={child} name={child} members={group} />
+            ))}
+          </div>
+        </>
       )}
     </div>
   );
+}
+
+/** RFC3339 → the user's locale, `—` when unknown. */
+function formatTime(value: string | null): string {
+  if (value === null) return "—";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString();
 }
 
 /** Group agents by their next path segment, first-seen order, each

@@ -5,7 +5,7 @@ import { useActiveAgents } from "./useActiveAgents";
 
 /** One known agent instance and whether it is active right now.
  * Identity-stable: the same object rides every returned list until
- * its `active` flag flips or its `created_at` resolves. */
+ * any field changes. */
 export interface AgentStatus {
   agent_instance_hierarchy: string;
   active: boolean;
@@ -15,6 +15,11 @@ export interface AgentStatus {
    * command, locked in at the lowest last-active time encountered —
    * its `last_active_at` the moment the live tracker first saw it. */
   created_at: string | null;
+  /** Most recent activity (RFC3339). The live tracker's timestamp
+   * once the stream has seen the agent (refreshed per announcement,
+   * retained after its stream ends); otherwise the CLI instances
+   * list's value; `null` when neither knows. */
+  last_active_at: string | null;
 }
 
 /**
@@ -34,12 +39,21 @@ export interface AgentStatus {
 export function useAgents(): AgentStatus[] {
   const active = useActiveAgents();
   const [listed, setListed] = useState<
-    readonly { agent_instance_hierarchy: string; created_at: string | null }[] | null
+    | readonly {
+        agent_instance_hierarchy: string;
+        created_at: string | null;
+        last_active_at: string | null;
+      }[]
+    | null
   >(null);
   // Every AIH the stream has counted during this hook's lifetime →
   // its locked-in spawn time (the last_active_at at first sighting).
   // Ended agents stay known (marked inactive), in first-seen order.
   const seenRef = useRef(new Map<string, string>());
+  // hier → the live tracker's newest last_active_at, refreshed per
+  // announcement and RETAINED after the stream ends (it stays the
+  // most recent activity). Overrides the CLI list's value.
+  const liveLastActiveRef = useRef(new Map<string, string>());
   // hier → its current AgentStatus object; replaced only on flips.
   const objectsRef = useRef(new Map<string, AgentStatus>());
   const previousRef = useRef<AgentStatus[]>([]);
@@ -52,6 +66,7 @@ export function useAgents(): AgentStatus[] {
         const instances: {
           agent_instance_hierarchy: string;
           created_at: string | null;
+          last_active_at: string | null;
         }[] = [];
         for await (const item of agentsInstancesListExecute(executor, {
           all: true,
@@ -62,6 +77,7 @@ export function useAgents(): AgentStatus[] {
           instances.push({
             agent_instance_hierarchy: item.agent_instance_hierarchy,
             created_at: item.created_at ?? null,
+            last_active_at: item.last_active_at ?? null,
           });
         }
         if (!cancelled) {
@@ -84,10 +100,16 @@ export function useAgents(): AgentStatus[] {
     // time at its first-seen last_active_at (idempotent — safe under
     // StrictMode's double invocation, and the lock never moves).
     const seen = seenRef.current;
+    const liveLastActive = liveLastActiveRef.current;
     for (const agent of active) {
       if (!seen.has(agent.agent_instance_hierarchy)) {
         seen.set(agent.agent_instance_hierarchy, agent.last_active_at);
       }
+      // Refresh unconditionally: each announcement is newer activity.
+      liveLastActive.set(
+        agent.agent_instance_hierarchy,
+        agent.last_active_at,
+      );
     }
 
     const activeSet = new Set(
@@ -95,11 +117,17 @@ export function useAgents(): AgentStatus[] {
     );
     // The CLI list is authoritative for spawn time when it reported
     // the agent (even as null); the lock only covers never-reported
-    // agents.
+    // agents. For last-active it's the fallback — live wins.
     const listedCreatedAt = new Map(
       (listed ?? []).map((instance) => [
         instance.agent_instance_hierarchy,
         instance.created_at,
+      ]),
+    );
+    const listedLastActive = new Map(
+      (listed ?? []).map((instance) => [
+        instance.agent_instance_hierarchy,
+        instance.last_active_at,
       ]),
     );
     const objects = objectsRef.current;
@@ -112,16 +140,20 @@ export function useAgents(): AgentStatus[] {
       const createdAt = listedCreatedAt.has(hier)
         ? (listedCreatedAt.get(hier) ?? null)
         : (seen.get(hier) ?? null);
+      const lastActiveAt =
+        liveLastActive.get(hier) ?? listedLastActive.get(hier) ?? null;
       let status = objects.get(hier);
       if (
         status === undefined ||
         status.active !== isActive ||
-        status.created_at !== createdAt
+        status.created_at !== createdAt ||
+        status.last_active_at !== lastActiveAt
       ) {
         status = {
           agent_instance_hierarchy: hier,
           active: isActive,
           created_at: createdAt,
+          last_active_at: lastActiveAt,
         };
         objects.set(hier, status);
       }

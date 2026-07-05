@@ -137,11 +137,17 @@ function execution(pathType: string, response: unknown) {
 }
 
 const LISTED_AT = "2026-06-20T00:00:00+00:00";
+const LISTED_LAST = "2026-06-21T00:00:00+00:00";
 
-function instance(hier: string, createdAt: string | null = LISTED_AT) {
+function instance(
+  hier: string,
+  createdAt: string | null = LISTED_AT,
+  lastActiveAt: string | null = LISTED_LAST,
+) {
   return {
     agent_instance_hierarchy: hier,
     created_at: createdAt,
+    last_active_at: lastActiveAt,
     logged: 3,
     queued: 0,
     tags: [],
@@ -205,14 +211,24 @@ describe("useAgents", () => {
     harness.instanceItems = [
       instance("Agent/a"),
       { type: "error", level: "warn", fatal: null, message: "hm" },
-      instance("Agent/b", null), // reported, but no logs yet
+      instance("Agent/b", null, null), // reported, but no logs yet
     ];
     const probe = mountProbe(useAgents);
     await settle();
 
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/a", active: false, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/b", active: false, created_at: null },
+      {
+        agent_instance_hierarchy: "Agent/a",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
+      {
+        agent_instance_hierarchy: "Agent/b",
+        active: false,
+        created_at: null,
+        last_active_at: null,
+      },
     ]);
     // One one-off read: everything, no targets.
     expect(harness.instanceRequests).toEqual([{ all: true, targets: [] }]);
@@ -233,9 +249,21 @@ describe("useAgents", () => {
     await settle();
 
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/a", active: true, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/b", active: false, created_at: LISTED_AT },
+      {
+        agent_instance_hierarchy: "Agent/a",
+        active: true,
+        created_at: LISTED_AT,
+        // Live activity overrides the CLI's last-active.
+        last_active_at: expect.any(String),
+      },
+      {
+        agent_instance_hierarchy: "Agent/b",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
     ]);
+    expect(probe.agents[0].last_active_at).not.toBe(LISTED_LAST);
     // The flipped agent got a NEW object; the untouched one kept its.
     expect(probe.agents[0]).not.toBe(before[0]);
     expect(probe.agents[1]).toBe(before[1]);
@@ -245,9 +273,21 @@ describe("useAgents", () => {
     // Ended: marked false, never removed. The CLI spawn time held
     // throughout — the list is authoritative for reported agents.
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/a", active: false, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/b", active: false, created_at: LISTED_AT },
+      {
+        agent_instance_hierarchy: "Agent/a",
+        active: false,
+        created_at: LISTED_AT,
+        // The live last-active is RETAINED after the stream ends.
+        last_active_at: expect.any(String),
+      },
+      {
+        agent_instance_hierarchy: "Agent/b",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
     ]);
+    expect(probe.agents[0].last_active_at).not.toBe(LISTED_LAST);
     probe.unmount();
   });
 
@@ -266,8 +306,18 @@ describe("useAgents", () => {
     await settle();
 
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/listed", active: false, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/fresh", active: true, created_at: expect.any(String) },
+      {
+        agent_instance_hierarchy: "Agent/listed",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
+      {
+        agent_instance_hierarchy: "Agent/fresh",
+        active: true,
+        created_at: expect.any(String),
+        last_active_at: expect.any(String),
+      },
     ]);
     const locked = probe.agents[1].created_at;
 
@@ -275,8 +325,18 @@ describe("useAgents", () => {
     await settle();
     // The never-listed agent keeps its locked-in spawn time.
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/listed", active: false, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/fresh", active: false, created_at: locked },
+      {
+        agent_instance_hierarchy: "Agent/listed",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
+      {
+        agent_instance_hierarchy: "Agent/fresh",
+        active: false,
+        created_at: locked,
+        last_active_at: expect.any(String),
+      },
     ]);
     probe.unmount();
   });
@@ -292,15 +352,30 @@ describe("useAgents", () => {
     await settle();
 
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/live", active: true, created_at: expect.any(String) },
+      {
+        agent_instance_hierarchy: "Agent/live",
+        active: true,
+        created_at: expect.any(String),
+        last_active_at: expect.any(String),
+      },
     ]);
 
     act(() => harness.instancesGate?.());
     await settle();
     // Listed agents come first; the stream-seen one follows.
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/listed", active: false, created_at: LISTED_AT },
-      { agent_instance_hierarchy: "Agent/live", active: true, created_at: expect.any(String) },
+      {
+        agent_instance_hierarchy: "Agent/listed",
+        active: false,
+        created_at: LISTED_AT,
+        last_active_at: LISTED_LAST,
+      },
+      {
+        agent_instance_hierarchy: "Agent/live",
+        active: true,
+        created_at: expect.any(String),
+        last_active_at: expect.any(String),
+      },
     ]);
     response.end();
     probe.unmount();
@@ -318,7 +393,12 @@ describe("useAgents", () => {
     // The CLI's spawn time wins over the stream lock for a reported
     // agent.
     expect(probe.agents).toEqual([
-      { agent_instance_hierarchy: "Agent/a", active: true, created_at: LISTED_AT },
+      {
+        agent_instance_hierarchy: "Agent/a",
+        active: true,
+        created_at: LISTED_AT,
+        last_active_at: expect.any(String),
+      },
     ]);
     response.end();
     probe.unmount();
@@ -339,6 +419,7 @@ describe("useAgents", () => {
           agent_instance_hierarchy: "Agent/solo",
           active: true,
           created_at: "2026-07-05T10:00:00.000Z",
+          last_active_at: "2026-07-05T10:00:00.000Z",
         },
       ]);
 
@@ -353,11 +434,14 @@ describe("useAgents", () => {
       second.push("Agent/solo");
       await settleFake();
 
+      // The spawn lock holds while last-active moved to the newer
+      // announcement.
       expect(probe.agents).toEqual([
         {
           agent_instance_hierarchy: "Agent/solo",
           active: true,
           created_at: "2026-07-05T10:00:00.000Z",
+          last_active_at: "2026-07-05T11:00:00.000Z",
         },
       ]);
       second.end();
@@ -391,6 +475,7 @@ describe("useAgents", () => {
         agent_instance_hierarchy: "Agent/solo",
         active: true,
         created_at: "2026-06-01T00:00:00+00:00",
+        last_active_at: expect.any(String),
       },
     ]);
     response.end();

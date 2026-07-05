@@ -25,8 +25,17 @@ vi.mock("../hooks/useAgents", () => ({
 
 import { HierarchyTree } from "./HierarchyTree";
 
-function agent(hier: string, active: boolean): AgentStatus {
-  return { agent_instance_hierarchy: hier, active, created_at: null };
+function agent(
+  hier: string,
+  active: boolean,
+  times?: { created_at?: string | null; last_active_at?: string | null },
+): AgentStatus {
+  return {
+    agent_instance_hierarchy: hier,
+    active,
+    created_at: times?.created_at ?? null,
+    last_active_at: times?.last_active_at ?? null,
+  };
 }
 
 function render(agents: AgentStatus[]) {
@@ -110,6 +119,51 @@ describe("HierarchyTree", () => {
   it("renders single-segment hierarchies as root agents", () => {
     const view = render([agent("Viewer", true)]);
     expect(view.nodes()).toEqual([{ name: "Viewer", kind: "agent-active" }]);
+    view.unmount();
+  });
+
+  it("shows locale-formatted spawn and last-active times on agent boxes", () => {
+    const spawned = "2026-06-20T00:00:00+00:00";
+    const lastActive = "2026-07-05T01:07:14+00:00";
+    const view = render([
+      agent("cli/timed", true, {
+        created_at: spawned,
+        last_active_at: lastActive,
+      }),
+    ]);
+
+    const box = view.container.querySelector('[data-node-name="timed"]');
+    expect(box?.textContent).toContain(
+      `spawned ${new Date(spawned).toLocaleString()}`,
+    );
+    expect(box?.textContent).toContain(
+      `active ${new Date(lastActive).toLocaleString()}`,
+    );
+    // The structural parent carries no times.
+    const cli = view.container.querySelector('[data-node-name="cli"]');
+    expect(cli?.textContent).not.toContain("spawned");
+    view.unmount();
+  });
+
+  it("shows an em dash for unknown times", () => {
+    const view = render([agent("solo", false)]);
+    const box = view.container.querySelector('[data-node-name="solo"]');
+    expect(box?.textContent).toContain("spawned —");
+    expect(box?.textContent).toContain("active —");
+    view.unmount();
+  });
+
+  it("lays siblings out left-to-right in one shared row", () => {
+    const view = render([
+      agent("cli/foo/bar", false),
+      agent("cli/foo/buzz", false),
+    ]);
+    const bar = view.container.querySelector('[data-node-name="bar"]');
+    const buzz = view.container.querySelector('[data-node-name="buzz"]');
+    // Same tier: both node cells share one children-row container.
+    expect(bar?.parentElement?.parentElement).toBe(
+      buzz?.parentElement?.parentElement,
+    );
     view.unmount();
   });
 
