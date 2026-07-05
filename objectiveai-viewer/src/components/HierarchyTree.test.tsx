@@ -133,11 +133,11 @@ describe("HierarchyTree", () => {
     ]);
 
     const box = view.container.querySelector('[data-node-name="timed"]');
+    expect(box?.textContent).toContain("spawned");
+    expect(box?.textContent).toContain(new Date(spawned).toLocaleString());
+    expect(box?.textContent).toContain("active");
     expect(box?.textContent).toContain(
-      `spawned ${new Date(spawned).toLocaleString()}`,
-    );
-    expect(box?.textContent).toContain(
-      `active ${new Date(lastActive).toLocaleString()}`,
+      new Date(lastActive).toLocaleString(),
     );
     // The structural parent carries no times.
     const cli = view.container.querySelector('[data-node-name="cli"]');
@@ -148,8 +148,8 @@ describe("HierarchyTree", () => {
   it("shows an em dash for unknown times", () => {
     const view = render([agent("solo", false)]);
     const box = view.container.querySelector('[data-node-name="solo"]');
-    expect(box?.textContent).toContain("spawned —");
-    expect(box?.textContent).toContain("active —");
+    expect(box?.textContent).toContain("spawned");
+    expect(box?.textContent).toContain("—");
     view.unmount();
   });
 

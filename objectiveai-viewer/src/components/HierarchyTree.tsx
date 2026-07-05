@@ -84,7 +84,6 @@ function HierarchyNode({
         className={cn(
           "flex",
           "flex-col",
-          "items-start",
           "gap-0.5",
           "px-2.5",
           "py-1.5",
@@ -104,35 +103,27 @@ function HierarchyNode({
               : cn("border-node-border", "bg-ground-surface", "text-info-mid"),
         )}
       >
-        <div className={cn("flex", "items-center", "gap-1.5")}>
-          {self !== null && (
-            <div
-              className={cn(
-                "w-1.5",
-                "h-1.5",
-                "rounded-full",
-                "shrink-0",
-                self.active
-                  ? cn("bg-copper-hot", "animate-pulse")
-                  : "bg-info-dim",
-              )}
-            />
-          )}
-          <span>{name}</span>
-        </div>
+        <span>{name}</span>
         {self !== null && (
           <div
             className={cn(
-              "flex",
-              "flex-col",
-              "gap-px",
+              "grid",
+              "grid-cols-[auto_auto]",
+              "justify-end",
+              "gap-x-1.5",
+              "gap-y-px",
               "text-[9px]",
               "text-info-dim",
               "tabular-nums",
+              // Two right-anchored columns: labels line up at their
+              // right edge, dates at theirs.
+              "text-right",
             )}
           >
-            <span>spawned {formatTime(self.created_at)}</span>
-            <span>active {formatTime(self.last_active_at)}</span>
+            <span>spawned</span>
+            <span>{formatTime(self.created_at)}</span>
+            <span>active</span>
+            <span>{formatTime(self.last_active_at)}</span>
           </div>
         )}
       </div>
