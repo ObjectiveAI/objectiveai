@@ -12620,8 +12620,7 @@ onRequest_fn = function(id, frame) {
     return;
   }
   const agentArguments = extractAgentArguments(frame);
-  const transformed = req.jq != null || req.python != null;
-  const mode = transformed ? "stream" : CLI_COMMAND_LISTENER_EXECUTION_MODES[req.path_type];
+  const mode = CLI_COMMAND_LISTENER_EXECUTION_MODES[req.path_type];
   if (mode === void 0) {
     __privateGet(this, _skipped).add(id);
     return;
