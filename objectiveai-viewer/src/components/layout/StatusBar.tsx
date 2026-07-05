@@ -1,17 +1,8 @@
-import { useState, useEffect } from "react";
 import cn from "classnames";
 import type { Entry } from "../../types";
 import { formatCost } from "../../lib/format";
-import { getDroppedEventCount, onDroppedCountChange } from "../../classify";
-
-function useDroppedCount(): number {
-  const [count, setCount] = useState(getDroppedEventCount);
-  useEffect(() => onDroppedCountChange(setCount), []);
-  return count;
-}
 
 export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
-  const droppedCount = useDroppedCount();
   let totalTokens = 0;
   let totalCost = 0;
   for (const e of entries) {
@@ -32,7 +23,6 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
       )}
       {totalTokens > 0 && <span className={cn("shrink-0")}>{totalTokens.toLocaleString()} tokens</span>}
       {totalCost > 0 && <span className={cn("shrink-0")}>{formatCost(totalCost)}</span>}
-      {droppedCount > 0 && <span className={cn("text-error", "shrink-0")}>{droppedCount} dropped</span>}
     </footer>
   );
 }
