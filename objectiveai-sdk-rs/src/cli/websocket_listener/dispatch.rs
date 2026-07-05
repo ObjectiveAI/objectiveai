@@ -72,18 +72,14 @@ fn stream_feed<T: serde::de::DeserializeOwned + Send + 'static>()
     (response, RunFeed { push_fn })
 }
 
-/// The dispatch probe: the only three request fields the dispatch
-/// needs before it knows the exact type to deserialize the whole
-/// request as. Not a wire schema — a borrowed peek at one.
+/// The dispatch probe: the one request field the dispatch needs
+/// before it knows the exact type to deserialize the whole request
+/// as. Not a wire schema — a borrowed peek at one.
 #[objectiveai_sdk_macros::json_schema_ignore]
 #[derive(serde::Deserialize)]
 struct RequestProbe {
     #[serde(default)]
     path_type: Option<String>,
-    #[serde(default)]
-    jq: Option<String>,
-    #[serde(default)]
-    python: Option<String>,
 }
 
 /// Open a run from its broadcast request frame's raw body. `None` —
@@ -94,19 +90,6 @@ pub(crate) fn open_run(
     agent_arguments: AgentArguments,
 ) -> Option<(ListenerExecution, RunFeed)> {
     let probe = serde_json::from_str::<RequestProbe>(request.get()).ok()?;
-    if probe.jq.is_some() || probe.python.is_some() {
-        let parsed =
-            serde_json::from_str::<crate::cli::command::Request>(request.get()).ok()?;
-        let (response, feed) = stream_feed::<Box<RawValue>>();
-        return Some((
-            ListenerExecution::Transformed {
-                request: Box::new(parsed),
-                agent_arguments,
-                response,
-            },
-            feed,
-        ));
-    }
     let path_type = probe.path_type.as_deref().unwrap_or("");
     match path_type {
         "agents/enqueue" => {

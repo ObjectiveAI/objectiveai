@@ -585,9 +585,11 @@ impl From<super::FromArgsError> for ParseError {
 /// `/listen` mirror of [`Request`] — the root of the distributed
 /// `ListenerExecution` tree ([`crate::cli::websocket_listener`]'s
 /// stream item): one variant per child wrapping its
-/// `ListenerExecution`, plus the transform fallback. Runs whose
-/// `path_type` this build's types predate are skipped by the
-/// listener, so there is no unknown fallback.
+/// `ListenerExecution`. The broadcast always carries the typed
+/// PRE-transform items (the producer tee sits below the CLI's
+/// jq/python transform), so every execution lands on its typed
+/// variant. Executions whose `path_type` this build's types predate
+/// are skipped by the listener, so there is no unknown fallback.
 #[cfg(feature = "cli-listener")]
 pub enum ListenerExecution {
     Agents(super::agents::ListenerExecution),
@@ -610,13 +612,4 @@ pub enum ListenerExecution {
     UpdateRequestSchema(super::update::request_schema::ListenerExecution),
     UpdateResponseSchema(super::update::response_schema::ListenerExecution),
     Viewer(super::viewer::ListenerExecution),
-    /// The request carries a jq/python output transform: its teed
-    /// items are post-transform JSON with no static shape, kept as
-    /// raw wire text for the consumer to deserialize as it sees
-    /// fit (the request itself is the typed root aggregate).
-    Transformed {
-        request: Box<Request>,
-        agent_arguments: crate::cli::command::AgentArguments,
-        response: crate::cli::websocket_listener::ResponseItemStream<Box<serde_json::value::RawValue>>,
-    },
 }
