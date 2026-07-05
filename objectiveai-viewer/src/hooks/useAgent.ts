@@ -4,8 +4,8 @@ import {
   agentsLogsListExecute,
   vectorCompletionsResponseStreamingAgentCompletionChunkMerged,
   type CliCommandAgentsLogsListResponseItem,
-  type CliCommandAgentsLogsListTarget,
 } from "@objectiveai/sdk";
+import { logsTarget } from "../lib/aih";
 import { websocketExecutor } from "../lib/websocket-executor";
 import {
   agentCompletion,
@@ -162,22 +162,4 @@ function mergeChunk(
     )[0];
   }
   return agentCompletionsResponseStreamingAgentCompletionChunkMerged(a, b)[0];
-}
-
-/** The logs-list target for one AIH: leaf after the last `/`, lineage
- * prefix as the parent (`null` for a bare single-segment hierarchy). */
-function logsTarget(hierarchy: string): CliCommandAgentsLogsListTarget {
-  const slash = hierarchy.lastIndexOf("/");
-  if (slash === -1) {
-    return {
-      by: "direct",
-      agent_instance: hierarchy,
-      parent_agent_instance_hierarchy: null,
-    };
-  }
-  return {
-    by: "direct",
-    agent_instance: hierarchy.slice(slash + 1),
-    parent_agent_instance_hierarchy: hierarchy.slice(0, slash),
-  };
 }

@@ -5,8 +5,9 @@
  * singleton pumps in the background, firing every matching root
  * handler on every announced execution and driving the returned item
  * callbacks over that execution's response stream. Feature logic
- * lives in the handlers (mutating their own module state); React
- * reads that state through per-caller hooks.
+ * lives in the handlers — app-lifetime ones mutate module state that
+ * React reads through per-caller hooks; dynamic ones register from a
+ * React effect and unregister in its cleanup.
  *
  * Dispatch guarantees:
  * - Root handlers run SYNCHRONOUSLY on execution receipt, so item
@@ -90,9 +91,13 @@ let started = false;
 
 /**
  * Register a typed handler for `paths`. Returns an unregister
- * function. Register everything at viewer startup — the singleton is
- * live-only, and executions announced before a registration existed
- * are gone for it.
+ * function. Registrations attach and detach at ANY time: app-lifetime
+ * handlers register at viewer startup, and dynamic consumers (React
+ * effects) register on mount and call the returned unregister as
+ * their cleanup. The singleton is live-only — a registration never
+ * sees executions announced before it existed (no replay), and
+ * unregistering stops future root-handler firings (item hooks
+ * already attached to an in-flight execution run out with it).
  */
 export function registerExecutionHandler<P extends PathType>(
   paths: P | readonly P[],
