@@ -188,7 +188,15 @@ function AgentTags({ hierarchy }: { hierarchy: string }) {
   }
   if (tags.length === 0) return null;
   return (
-    <div className={cn("flex", "flex-row", "flex-wrap", "gap-1")}>
+    <div
+      className={cn(
+        "flex",
+        "flex-row",
+        "flex-wrap",
+        "justify-center",
+        "gap-1",
+      )}
+    >
       {tags.map((tag) => (
         <span
           key={tag}
