@@ -261,6 +261,18 @@ describe("daemon-listener", () => {
     expect(requestFrames).not.toContain(other.request);
   });
 
+  it("return() wakes a parked daemonRuns consumer with done", async () => {
+    mod.startDaemonListener();
+    await settle();
+
+    const iterator = mod.daemonRuns();
+    const parked = iterator.next();
+    await settle();
+    await iterator.return?.(undefined);
+
+    expect((await parked).done).toBe(true);
+  });
+
   it("reconnects after the connection ends", async () => {
     vi.useFakeTimers();
     try {

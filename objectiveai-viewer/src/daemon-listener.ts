@@ -55,6 +55,7 @@ export function startDaemonListener(): void {
  */
 export function daemonRuns(): AsyncIterableIterator<CliCommandListenerExecution> {
   const queue: CliCommandListenerExecution[] = [];
+  let ended = false;
   let wake: (() => void) | null = null;
   const subscriber: Subscriber = {
     push: (run) => {
@@ -63,19 +64,32 @@ export function daemonRuns(): AsyncIterableIterator<CliCommandListenerExecution>
     },
   };
   subscribers.add(subscriber);
-  const detach = () => subscribers.delete(subscriber);
+  // Detaching also ENDS the iterator: a consumer parked in `next()`
+  // when someone else calls `return()` (e.g. an unmount cleanup while
+  // the consumer loop is awaiting) wakes up and sees `done` instead
+  // of hanging on a wake that would never come.
+  const detach = () => {
+    subscribers.delete(subscriber);
+    ended = true;
+    wake?.();
+  };
   return {
     next: async (): Promise<IteratorResult<CliCommandListenerExecution>> => {
-      while (queue.length === 0) {
+      for (;;) {
+        if (queue.length > 0) {
+          return {
+            value: queue.shift() as CliCommandListenerExecution,
+            done: false,
+          };
+        }
+        if (ended) {
+          return { value: undefined, done: true };
+        }
         await new Promise<void>((resolve) => {
           wake = resolve;
         });
         wake = null;
       }
-      return {
-        value: queue.shift() as CliCommandListenerExecution,
-        done: false,
-      };
     },
     return: async (): Promise<IteratorResult<CliCommandListenerExecution>> => {
       detach();
