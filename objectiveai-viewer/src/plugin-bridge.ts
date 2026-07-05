@@ -26,8 +26,8 @@
  * does not exist yet; it returns with the deferred plugins/run
  * routing, JS-native like everything else here.
  */
-import { WebSocketExecutor } from "@objectiveai/sdk";
-import { tauriInvoke } from "./lib/tauri";
+import type { WebSocketExecutor } from "@objectiveai/sdk";
+import { websocketExecutor } from "./lib/websocket-executor";
 
 /** A plugin's full install coordinates — the identity of a tab. */
 export type PluginCoords = {
@@ -110,34 +110,6 @@ export function deliverInbound(coords: PluginCoords, frame: unknown): void {
   );
 }
 
-// ── The host's daemon executor (lazy, shared) ─────────────────────
-
-let executorPromise: Promise<WebSocketExecutor> | null = null;
-
-/** The daemon config handed over by the Rust side, fetched once. */
-async function daemonExecutor(): Promise<WebSocketExecutor> {
-  if (!executorPromise) {
-    executorPromise = (async () => {
-      const config = await tauriInvoke<{
-        address: string;
-        signature: string | null;
-      }>("daemon_config");
-      if (!config) {
-        throw new Error("daemon_config unavailable (not running under Tauri)");
-      }
-      return new WebSocketExecutor(`${config.address}/execute`, {
-        signature: config.signature,
-        agentArguments: { agent_instance_hierarchy: "Viewer" },
-      });
-    })();
-    // A failed fetch shouldn't poison every later invocation.
-    executorPromise.catch(() => {
-      executorPromise = null;
-    });
-  }
-  return executorPromise;
-}
-
 // ── Reverse channel: iframe -> host postMessages ──────────────────
 
 let reverseListenerAttached = false;
@@ -187,7 +159,7 @@ async function runForIframe(
     );
   };
   try {
-    const executor = await daemonExecutor();
+    const executor = await websocketExecutor();
     for await (const line of executor.execute(
       request as Parameters<WebSocketExecutor["execute"]>[0],
     )) {

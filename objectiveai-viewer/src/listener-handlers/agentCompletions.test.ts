@@ -5,12 +5,14 @@ import { describe, expect, it, beforeEach, vi } from "vitest";
 /**
  * Tests for the per-agent completion store: registrations on the
  * REAL daemon-listener singleton (SDK / tauri / bridge mocked) that
- * keep each agent's most recent completion segment as a raw,
- * unmerged chunk list — fed by spawn chunks directly and by the
- * recursive walk over function-execution chunks, with the response
- * `id` as the reset rule. vi.resetModules gives each test fresh
- * module globals; ending the harness feed retires the previous
- * test's pump.
+ * keep each agent's current segment as a raw, unmerged chunk list —
+ * fed by spawn chunks directly and by the recursive walk over
+ * function-execution chunks. One stream = one segment: an
+ * execution's first chunk for an AIH resets the entry, everything
+ * else appends (response-id changes included). Per-AIH subscribers
+ * fire on every recorded chunk. vi.resetModules gives each test
+ * fresh module globals; ending the harness feed retires the
+ * previous test's pump.
  */
 
 const harness = vi.hoisted(() => {
@@ -180,9 +182,12 @@ describe("agentCompletions (registered store)", () => {
     response.push(second);
     await settle();
 
-    // Raw chunks, exact objects, arrival order — no merging.
-    expect(mod.agentCompletion("Agent/a")).toEqual([first, second]);
-    expect(mod.agentCompletion("Agent/a")?.[0]).toBe(first);
+    // Raw chunks, exact objects, arrival order — no merging. Spawn
+    // segments carry no function execution response id.
+    const entry = mod.agentCompletion("Agent/a");
+    expect(entry?.chunks).toEqual([first, second]);
+    expect(entry?.chunks[0]).toBe(first);
+    expect(entry?.functionExecutionResponseId).toBeNull();
     response.end();
   });
 
@@ -196,7 +201,7 @@ describe("agentCompletions (registered store)", () => {
     response.push(chunk("Agent/a", "cmpl-1", "hi"));
     await settle();
 
-    expect(mod.agentCompletion("Agent/a")).toHaveLength(1);
+    expect(mod.agentCompletion("Agent/a")?.chunks).toHaveLength(1);
     expect(mod.agentCompletions().size).toBe(1);
     response.end();
   });
@@ -225,33 +230,27 @@ describe("agentCompletions (registered store)", () => {
     response.end();
     await settle();
 
-    expect(mod.agentCompletion("Agent/a")).toHaveLength(1);
+    expect(mod.agentCompletion("Agent/a")?.chunks).toHaveLength(1);
   });
 
-  it("resets the entry to the solo chunk when the response id changes", async () => {
+  it("accumulates across response-id changes within one stream", async () => {
     const response = fakeResponse();
     harness.push(execution("agents/spawn", true, response));
     await settle();
 
-    response.push(chunk("Agent/a", "cmpl-1", "old-1"));
-    response.push(chunk("Agent/a", "cmpl-1", "old-2"));
+    response.push(chunk("Agent/a", "cmpl-1", "turn1-a"));
+    response.push(chunk("Agent/a", "cmpl-1", "turn1-b"));
+    response.push(chunk("Agent/a", "cmpl-2", "turn2-a"));
     await settle();
-    expect(mod.agentCompletion("Agent/a")).toHaveLength(2);
 
-    // New response id — even mid-stream — starts the segment over.
-    const fresh = chunk("Agent/a", "cmpl-2", "new-1");
-    response.push(fresh);
-    await settle();
-    expect(mod.agentCompletion("Agent/a")).toEqual([fresh]);
-
-    // And the same id accumulates again.
-    response.push(chunk("Agent/a", "cmpl-2", "new-2"));
-    await settle();
-    expect(mod.agentCompletion("Agent/a")).toHaveLength(2);
+    // One stream = one segment: the multi-turn id change does NOT
+    // reset anything.
+    const entry = mod.agentCompletion("Agent/a");
+    expect(entry?.chunks).toHaveLength(3);
     response.end();
   });
 
-  it("a newer execution's chunks supersede via their fresh response id", async () => {
+  it("a newer execution resets the segment and bumps the generation", async () => {
     const old = fakeResponse();
     harness.push(execution("agents/spawn", true, old));
     await settle();
@@ -259,19 +258,26 @@ describe("agentCompletions (registered store)", () => {
     old.push(chunk("Agent/a", "cmpl-1", "old-2"));
     old.end();
     await settle();
+    const before = mod.agentCompletion("Agent/a");
+    expect(before?.chunks).toHaveLength(2);
+    const oldGeneration = before?.generation;
 
     const fresh = fakeResponse();
     harness.push(execution("agents/spawn", true, fresh));
     await settle();
-    const latest = chunk("Agent/a", "cmpl-2", "new-1");
+    // Same response id as the old stream — the reset is per-stream,
+    // not id-driven.
+    const latest = chunk("Agent/a", "cmpl-1", "new-1");
     fresh.push(latest);
     await settle();
 
-    expect(mod.agentCompletion("Agent/a")).toEqual([latest]);
+    const after = mod.agentCompletion("Agent/a");
+    expect(after?.chunks).toEqual([latest]);
+    expect(after?.generation).not.toBe(oldGeneration);
     fresh.end();
   });
 
-  it("walks function-execution chunks for nested agent completions", async () => {
+  it("walks function-execution chunks and records the root execution's response id", async () => {
     const response = fakeResponse();
     harness.push(execution("functions/execute/standard", true, response));
     await settle();
@@ -289,11 +295,17 @@ describe("agentCompletions (registered store)", () => {
     );
     await settle();
 
-    // Completions surface from every nesting level; the announced-only
-    // agent has no chunks.
-    expect(mod.agentCompletion("Agent/vec")).toEqual([top]);
-    expect(mod.agentCompletion("Agent/deep")).toEqual([deep]);
-    expect(mod.agentCompletion("Agent/reason")).toEqual([summary]);
+    // Completions surface from every nesting level, each entry
+    // stamped with the ROOT function-execution chunk's id; the
+    // announced-only agent has no chunks.
+    expect(mod.agentCompletion("Agent/vec")?.chunks).toEqual([top]);
+    expect(mod.agentCompletion("Agent/deep")?.chunks).toEqual([deep]);
+    expect(mod.agentCompletion("Agent/reason")?.chunks).toEqual([summary]);
+    for (const hier of ["Agent/vec", "Agent/deep", "Agent/reason"]) {
+      expect(mod.agentCompletion(hier)?.functionExecutionResponseId).toBe(
+        "exec-1",
+      );
+    }
     expect(mod.agentCompletion("Agent/announced")).toBeUndefined();
     expect(mod.agentCompletions().size).toBe(3);
     response.end();
@@ -305,12 +317,13 @@ describe("agentCompletions (registered store)", () => {
     await settle();
 
     const first = chunk("Agent/vec", "cmpl-v", "a");
-    const second = chunk("Agent/vec", "cmpl-v", "b");
+    const second = chunk("Agent/vec", "cmpl-v2", "b");
     response.push(functionChunk({ vector: [first] }));
     response.push(functionChunk({ vector: [second] }));
     await settle();
 
-    expect(mod.agentCompletion("Agent/vec")).toEqual([first, second]);
+    // Same stream — even a different response id appends.
+    expect(mod.agentCompletion("Agent/vec")?.chunks).toEqual([first, second]);
     response.end();
   });
 
@@ -326,9 +339,38 @@ describe("agentCompletions (registered store)", () => {
     spawn.push(chunk("Agent/a", "cmpl-a", "a2"));
     await settle();
 
-    expect(mod.agentCompletion("Agent/a")).toHaveLength(2);
-    expect(mod.agentCompletion("Agent/b")).toHaveLength(1);
+    expect(mod.agentCompletion("Agent/a")?.chunks).toHaveLength(2);
+    expect(mod.agentCompletion("Agent/b")?.chunks).toHaveLength(1);
     spawn.end();
     fn.end();
+  });
+
+  it("notifies per-AIH subscribers per chunk, and unsubscribe detaches", async () => {
+    let aCalls = 0;
+    let bCalls = 0;
+    const unsubscribeA = mod.subscribeAgentCompletions("Agent/a", () => {
+      aCalls += 1;
+    });
+    mod.subscribeAgentCompletions("Agent/b", () => {
+      bCalls += 1;
+    });
+
+    const response = fakeResponse();
+    harness.push(execution("agents/spawn", true, response));
+    await settle();
+    response.push(chunk("Agent/a", "cmpl-1", "1"));
+    response.push(chunk("Agent/a", "cmpl-1", "2"));
+    response.push(chunk("Agent/b", "cmpl-b", "b1"));
+    await settle();
+
+    expect(aCalls).toBe(2);
+    expect(bCalls).toBe(1);
+
+    unsubscribeA();
+    response.push(chunk("Agent/a", "cmpl-1", "3"));
+    await settle();
+    expect(aCalls).toBe(2); // detached
+    expect(mod.agentCompletion("Agent/a")?.chunks).toHaveLength(3);
+    response.end();
   });
 });
