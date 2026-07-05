@@ -4,7 +4,7 @@ import { describe, expect, it, beforeEach } from "vitest";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { CliCommandListenerExecution } from "@objectiveai/sdk";
-import { useActiveAgents } from "./useActiveAgents";
+import { useActiveAgents, type ActiveAgent } from "./useActiveAgents";
 import type { ListenerStream } from "./useListener";
 
 /**
@@ -103,7 +103,7 @@ function run(
 }
 
 function mountProbe(stream: ListenerStream) {
-  let latest: string[] = [];
+  let latest: ActiveAgent[] = [];
   function Probe() {
     latest = useActiveAgents(stream);
     return null;
@@ -144,7 +144,7 @@ describe("useActiveAgents", () => {
     response.push({ some: "chunk" });
     response.push("Agent/root/1");
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/root/1"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/root/1" }]);
 
     response.end();
     await probe.settle();
@@ -168,7 +168,7 @@ describe("useActiveAgents", () => {
       agent_instance_hierarchy: "Agent/b",
     });
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/a", "Agent/b"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/a" }, { agent_instance_hierarchy: "Agent/b" }]);
 
     response.end();
     await probe.settle();
@@ -202,12 +202,12 @@ describe("useActiveAgents", () => {
       agent_instance_hierarchy: "Agent/shared",
     });
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/shared"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
 
     first.end();
     await probe.settle();
     // Still held by the second run.
-    expect(probe.agents).toEqual(["Agent/shared"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/shared" }]);
 
     second.end();
     await probe.settle();
@@ -226,7 +226,7 @@ describe("useActiveAgents", () => {
     first.push("Agent/stable");
     await probe.settle();
     const listed = probe.agents;
-    expect(listed).toEqual(["Agent/stable"]);
+    expect(listed).toEqual([{ agent_instance_hierarchy: "Agent/stable" }]);
 
     // A refcount move that doesn't change membership: same reference.
     second.push("Agent/stable");
@@ -255,7 +255,7 @@ describe("useActiveAgents", () => {
     response.push("Agent/dup");
     response.push("Agent/dup");
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/dup"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/dup" }]);
 
     response.end();
     await probe.settle();
@@ -272,7 +272,7 @@ describe("useActiveAgents", () => {
     response.push({ type: "error", level: "warn", fatal: null, message: "hm" });
     response.push("Agent/resilient");
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/resilient"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/resilient" }]);
     response.end();
     await probe.settle();
     probe.unmount();
@@ -285,7 +285,7 @@ describe("useActiveAgents", () => {
     await probe.settle();
     response.push("Agent/root/1");
     await probe.settle();
-    expect(probe.agents).toEqual(["Agent/root/1"]);
+    expect(probe.agents).toEqual([{ agent_instance_hierarchy: "Agent/root/1" }]);
     probe.unmount();
     // Post-unmount item delivery is a no-op (alive flag).
     response.push("Agent/root/2");

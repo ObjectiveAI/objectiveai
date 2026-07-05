@@ -1,8 +1,11 @@
 import cn from "classnames";
 import type { Entry } from "../../types";
 import { formatCost } from "../../lib/format";
+import { useActiveAgents } from "../../hooks/useActiveAgents";
+import type { ListenerStream } from "../../hooks/useListener";
 
-export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHistorical?: boolean }) {
+export function StatusBar({ entries, isHistorical, stream }: { entries: Entry[]; isHistorical?: boolean; stream: ListenerStream }) {
+  const activeAgents = useActiveAgents(stream);
   let totalTokens = 0;
   let totalCost = 0;
   for (const e of entries) {
@@ -15,6 +18,10 @@ export function StatusBar({ entries, isHistorical }: { entries: Entry[]; isHisto
 
   return (
     <footer role="status" aria-live="polite" className={cn("flex", "items-center", "gap-4", "px-4", "py-2", "border-t", "border-node-border", "bg-ground-raised", "font-mono", "text-[10px]", "text-info-dim", "tabular-nums", "select-none", "overflow-hidden", "whitespace-nowrap", "min-w-0")}>
+      <div className={cn("flex", "items-center", "gap-1.5", "shrink-0")}>
+        <div className={cn("w-1.5", "h-1.5", "rounded-full", activeAgents.length > 0 ? cn("bg-copper-hot", "animate-pulse") : "bg-info-dim")} />
+        <span>{activeAgents.length} active {activeAgents.length === 1 ? "agent" : "agents"}</span>
+      </div>
       {isHistorical && (
         <div className={cn("flex", "items-center", "gap-1.5", "shrink-0")}>
           <div className={cn("w-1.5", "h-1.5", "rounded-full", "bg-info-dim")} />

@@ -1,6 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import type { ListenerStream } from "./useListener";
 
+/** One currently-active agent instance. Identity-stable: the same
+ * object rides every returned list for as long as the agent stays
+ * active, so consumers can key and memo on it directly. */
+export interface ActiveAgent {
+  agent_instance_hierarchy: string;
+}
+
 /** The streaming run paths that announce agent instance hierarchies. */
 const TRACKED_PATHS = new Set([
   "agents/spawn",
@@ -38,26 +45,36 @@ const TRACKED_PATHS = new Set([
  * run holding an already-listed hierarchy) trigger no re-render at
  * all — the counts live in a ref; only the visible list is state.
  */
-export function useActiveAgents(stream: ListenerStream): string[] {
+export function useActiveAgents(stream: ListenerStream): ActiveAgent[] {
   const countsRef = useRef<Map<string, number>>(new Map());
-  const [agents, setAgents] = useState<string[]>(() => []);
+  // The live ActiveAgent object per hierarchy — created on first
+  // sight, dropped at zero, reused across publishes in between.
+  const objectsRef = useRef<Map<string, ActiveAgent>>(new Map());
+  const [agents, setAgents] = useState<ActiveAgent[]>(() => []);
 
   useEffect(() => {
     let alive = true;
 
-    /** Publish the key list IFF membership/order changed. */
+    /** Publish the live list IFF membership/order changed; unchanged
+     * members keep their exact objects. */
     const publish = () => {
-      const keys = [...countsRef.current.keys()];
+      const objects = objectsRef.current;
+      const next = [...countsRef.current.keys()].map(
+        (hier) => objects.get(hier) as ActiveAgent,
+      );
       setAgents((prev) =>
-        prev.length === keys.length && prev.every((v, i) => v === keys[i])
+        prev.length === next.length && prev.every((v, i) => v === next[i])
           ? prev
-          : keys,
+          : next,
       );
     };
     const increment = (hier: string) => {
       if (!alive) return;
       const counts = countsRef.current;
       counts.set(hier, (counts.get(hier) ?? 0) + 1);
+      if (!objectsRef.current.has(hier)) {
+        objectsRef.current.set(hier, { agent_instance_hierarchy: hier });
+      }
       publish();
     };
     const decrementAll = (hiers: Set<string>) => {
@@ -68,7 +85,9 @@ export function useActiveAgents(stream: ListenerStream): string[] {
         if (count > 0) {
           counts.set(hier, count);
         } else {
+          // Auto-delete at zero — the maps only ever hold live agents.
           counts.delete(hier);
+          objectsRef.current.delete(hier);
         }
       }
       publish();
@@ -115,6 +134,7 @@ export function useActiveAgents(stream: ListenerStream): string[] {
     return () => {
       alive = false;
       countsRef.current = new Map();
+      objectsRef.current = new Map();
       setAgents([]);
       // The outer loop ends when the stream's owner (useListener's
       // cleanup) return()s it; the per-run drains end with their runs.
