@@ -780,7 +780,16 @@ type ToolMsg = Extract<RequestMessage, { role: "tool" }>;
 
 /** The unwrapped `agent_completion_request`: a dated `request`
  * header, then its body's messages — the only place the caller's
- * user input appears. Fetched on view like a log part. */
+ * user input appears.
+ *
+ * Continuation / queue-delivery requests carry their content on the
+ * continuation STATE, not `body.messages`, so those bodies are empty
+ * and their user input is the nearby `client_notification` rows. An
+ * empty request is treated as NON-EXISTENT — nothing renders (not
+ * even a boundary) so there's no gap. Because emptiness is only
+ * knowable after the fetch, the body is fetched eagerly on mount
+ * (requests are few — spawn boundaries) and `null` renders until
+ * then. */
 function RequestSection({
   id,
   sender,
@@ -790,14 +799,33 @@ function RequestSection({
   sender: string;
   at: string;
 }) {
-  const { content, failed, ref } = useLazyOpen(id);
-  const body =
-    content !== null && content.type === "agent_completion_request"
-      ? content
-      : null;
+  const [messages, setMessages] = useState<RequestMessage[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const executor = await websocketExecutor();
+        const resp = await agentsLogsOpenExecute(executor, { id });
+        if (cancelled) return;
+        setMessages(
+          resp.type === "agent_completion_request" ? resp.body.messages : [],
+        );
+      } catch {
+        if (!cancelled) setMessages([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  // Nothing at all while loading OR when empty — the request simply
+  // does not exist in the conversation.
+  if (messages === null || messages.length === 0) return null;
+
   return (
     <div
-      ref={ref}
       data-log-row="agent_completion_request"
       className={cn("flex", "flex-col", "gap-1")}
     >
@@ -815,13 +843,7 @@ function RequestSection({
           "gap-2",
         )}
       >
-        {failed ? (
-          <span className={cn("text-info-dim")}>failed to load</span>
-        ) : body === null ? (
-          <LoadingDots marker="data-request-loading" />
-        ) : (
-          <RequestMessages messages={body.body.messages} />
-        )}
+        <RequestMessages messages={messages} />
       </div>
     </div>
   );
