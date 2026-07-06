@@ -106,9 +106,9 @@ export function HierarchyTree() {
         "absolute",
         "inset-0",
         "overflow-auto",
-        "cursor-grab",
-        // While actually panning: grabby cursor and NO text selection
-        // anywhere beneath (descendants' select-text included).
+        // Regular cursor at rest; grabby only while actually
+        // panning, with NO text selection anywhere beneath
+        // (descendants' select-text included).
         dragging && cn("cursor-grabbing", "[&_*]:select-none"),
       )}
     >
