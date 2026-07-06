@@ -158,9 +158,18 @@ export function ConversationModal({
   );
 }
 
-/** The little copper kind label heading each block, with an
- * optional relative timestamp to its right. */
-function KindLabel({ children, at }: { children: string; at?: string }) {
+/** The little copper kind label heading each block: the badge, an
+ * optional inline note directly to its right, and an optional
+ * relative timestamp pushed to the far right. */
+function KindLabel({
+  children,
+  note,
+  at,
+}: {
+  children: string;
+  note?: string;
+  at?: string;
+}) {
   return (
     <div className={cn("flex", "items-center", "gap-1.5", "self-stretch")}>
       <span
@@ -176,6 +185,9 @@ function KindLabel({ children, at }: { children: string; at?: string }) {
       >
         {children}
       </span>
+      {note !== undefined && (
+        <span className={cn("text-info-dim", "truncate")}>{note}</span>
+      )}
       {at !== undefined && (
         <span
           data-badge-ago
@@ -367,10 +379,12 @@ function LogRow({
           data-log-row={item.type}
           className={cn("flex", "flex-col", "gap-1")}
         >
-          <KindLabel at={item.queued_at}>message</KindLabel>
-          <span className={cn("text-info-dim", "truncate")}>
-            from {item.sender_agent_instance_hierarchy}
-          </span>
+          <KindLabel
+            note={`from ${item.sender_agent_instance_hierarchy}`}
+            at={item.queued_at}
+          >
+            notification
+          </KindLabel>
           {item.parts.map((part) => (
             <LogPart key={part.id} id={part.id} />
           ))}
