@@ -155,30 +155,59 @@ function HierarchyNode({
               "bg-copper-hot",
             )}
           />
-          <div
-            className={cn(
-              "flex",
-              "flex-row",
-              "items-start",
-              "gap-4",
-              "border-t",
-              "border-copper-hot",
-            )}
-          >
-            {children.map(([child, group]) => (
-              <div key={child} className={cn("flex", "flex-col", "items-start")}>
-                {/* Stem from the rail down INTO this child. */}
+          <div className={cn("flex", "flex-row", "items-start")}>
+            {children.map(([child, group], i) => {
+              const first = i === 0;
+              const last = i === children.length - 1;
+              return (
                 <div
-                  className={cn(
-                    "w-px",
-                    "h-3",
-                    "ml-3",
-                    "bg-copper-hot",
+                  key={child}
+                  className={cn("flex", "flex-col", "items-stretch")}
+                >
+                  {/* The rail, built per-child so it CAPS at the
+                      first and last drop points: a left piece up to
+                      this child's stem (skipped on the first child)
+                      and a right piece onward to the next sibling
+                      (skipped on the last). A single child renders
+                      neither — just the straight vertical. */}
+                  {children.length > 1 && (
+                    <div className={cn("flex", "flex-row")}>
+                      <div
+                        className={cn(
+                          "h-px",
+                          "w-3",
+                          "shrink-0",
+                          !first && "bg-copper-hot",
+                        )}
+                      />
+                      <div
+                        className={cn(
+                          "h-px",
+                          "flex-1",
+                          !last && "bg-copper-hot",
+                        )}
+                      />
+                    </div>
                   )}
-                />
-                <HierarchyNode name={child} members={group} />
-              </div>
-            ))}
+                  <div
+                    className={cn(
+                      "flex",
+                      "flex-col",
+                      "items-start",
+                      // Sibling spacing lives INSIDE the cell so the
+                      // rail's right piece spans the whole gap.
+                      !last && "pr-4",
+                    )}
+                  >
+                    {/* Stem from the rail down INTO this child. */}
+                    <div
+                      className={cn("w-px", "h-3", "ml-3", "bg-copper-hot")}
+                    />
+                    <HierarchyNode name={child} members={group} />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </>
       )}
