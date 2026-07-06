@@ -262,7 +262,7 @@ function AgentLatestTextView({
         "border-copper-mid",
         "text-[10px]",
         // Between info-bright (#d6d3d1) and info-mid (#a8a29e).
-        "text-[#bdb9b5]",
+        "text-[#c3bfbb]",
         "text-left",
         "whitespace-pre-wrap",
         "break-words",
@@ -459,7 +459,7 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     "border-copper-warm",
     "bg-ground-raised",
     // Matching the message block's tone.
-    "text-[#bdb9b5]",
+    "text-[#c3bfbb]",
   );
   return (
     <div
