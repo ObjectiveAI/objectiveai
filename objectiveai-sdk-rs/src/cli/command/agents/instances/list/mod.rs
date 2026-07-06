@@ -66,6 +66,13 @@ pub struct ResponseItem {
     pub last_active_at: Option<String>,
     /// Total `logs.messages` rows for this agent over all time.
     pub logged: u64,
+    /// The agent definition recorded for this AIH — from
+    /// `objectiveai.agent_refs`, with the legacy most-recent-request
+    /// fallback (`lookup_session`). Populated by `agents instances
+    /// get`; `agents instances list` leaves it unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent: Option<crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
 }
 
 #[derive(clap::Args)]

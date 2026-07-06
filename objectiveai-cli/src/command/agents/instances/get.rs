@@ -32,7 +32,13 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     // that resolved to the same AIH.
     let mut merged: BTreeMap<String, ResponseItem> = BTreeMap::new();
     for aih in aihs {
-        let item = crate::db::instances::get_exact(ctx.db_client().await?, &aih).await?;
+        let mut item = crate::db::instances::get_exact(ctx.db_client().await?, &aih).await?;
+        // The recorded definition source: agent_refs, with the
+        // legacy request-blob fallback. None when neither knows the
+        // agent.
+        item.agent = crate::db::logs::lookup_session(ctx.db_client().await?, &aih)
+            .await?
+            .map(|lookup| lookup.agent);
         merged.insert(item.agent_instance_hierarchy.clone(), item);
     }
 

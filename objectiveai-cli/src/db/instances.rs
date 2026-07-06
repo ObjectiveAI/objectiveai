@@ -132,6 +132,7 @@ async fn aggregate(
             created_at: super::time::unix_to_rfc3339_opt(spawned),
             last_active_at: super::time::unix_to_rfc3339_opt(active),
             logged: logged as u64,
+            agent: None,
         });
     }
     Ok(out)
@@ -174,5 +175,6 @@ pub async fn get_exact(pool: &Pool, aih: &str) -> Result<ResponseItem, Error> {
         created_at: None,
         last_active_at: None,
         logged: 0,
+        agent: None,
     })
 }
