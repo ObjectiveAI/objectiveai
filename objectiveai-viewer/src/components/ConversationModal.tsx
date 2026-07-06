@@ -243,7 +243,7 @@ function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
                 {part.type === "refusal" && (
                   <span className={cn("text-info-dim")}>refusal</span>
                 )}
-                <LogPart id={part.id} />
+                <LogPart id={part.id} json={part.type === "tool_call"} />
               </div>
             ),
           )}
@@ -280,6 +280,16 @@ function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
   }
 }
 
+/** Pretty-print a JSON text body; unparsable input passes through
+ * verbatim. */
+function prettyJson(text: string): string {
+  try {
+    return JSON.stringify(JSON.parse(text), null, 2);
+  } catch {
+    return text;
+  }
+}
+
 /** A reasoning part: collapsed to a disclosure line by default —
  * the body (and its fetch) only exists once opened. */
 function ReasoningPart({ id }: { id: number }) {
@@ -310,7 +320,7 @@ function ReasoningPart({ id }: { id: number }) {
  * where IntersectionObserver doesn't exist, e.g. jsdom) — loading
  * dots until then.
  */
-function LogPart({ id }: { id: number }) {
+function LogPart({ id, json = false }: { id: number; json?: boolean }) {
   const [content, setContent] =
     useState<CliCommandAgentsLogsOpenResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -367,21 +377,40 @@ function LogPart({ id }: { id: number }) {
       ) : content === null ? (
         <LoadingDots marker="data-part-loading" />
       ) : (
-        <PartContent content={content} />
+        <PartContent content={content} json={json} />
       )}
     </div>
   );
 }
 
 /** The resolved body, by kind. Text is the star; media renders as a
- * minimal preview/label for now. */
+ * minimal preview/label for now. `json` text bodies (tool-call
+ * arguments) pretty-print instead of rendering as markdown. */
 function PartContent({
   content,
+  json = false,
 }: {
   content: CliCommandAgentsLogsOpenResponse;
+  json?: boolean;
 }) {
   switch (content.type) {
     case "text":
+      if (json) {
+        return (
+          <pre
+            data-json-part
+            className={cn(
+              "text-[10px]",
+              "text-left",
+              "whitespace-pre-wrap",
+              "break-words",
+              "leading-snug",
+            )}
+          >
+            {prettyJson(content.text)}
+          </pre>
+        );
+      }
       return <Markdown>{content.text}</Markdown>;
     case "image":
       return (

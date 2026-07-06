@@ -210,7 +210,10 @@ describe("ConversationModal", () => {
   });
 
   it("labels tool calls, tool responses, and notifications", async () => {
-    harness.autoResolve.set(31, { type: "text", text: "{}" });
+    harness.autoResolve.set(31, {
+      type: "text",
+      text: '{"query":"SELECT 1","limit":5}',
+    });
     harness.autoResolve.set(32, { type: "text", text: "result" });
     harness.autoResolve.set(33, { type: "text", text: "ping" });
     harness.logs = [
@@ -243,6 +246,11 @@ describe("ConversationModal", () => {
     const view = mount();
     await settle();
     expect(view.container.textContent).toContain("tool call do_thing (call-9)");
+    // Tool-call arguments pretty-print as JSON, not markdown.
+    const args = view.container.querySelector("[data-json-part]");
+    expect(args?.textContent).toBe(
+      JSON.stringify({ query: "SELECT 1", limit: 5 }, null, 2),
+    );
     const tool = view.container.querySelector('[data-log-row="tool_response"]');
     expect(tool?.textContent).toContain("call-9");
     expect(tool?.textContent).toContain("result");
