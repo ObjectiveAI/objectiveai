@@ -378,7 +378,7 @@ function BadgeRow({
         // box's own padding).
         "mt-1",
         "first:mt-0",
-        "text-[10px]",
+        "text-[11px]",
       )}
     >
       <span
