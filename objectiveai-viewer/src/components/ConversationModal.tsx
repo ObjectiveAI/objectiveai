@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import cn from "classnames";
 import {
   agentsLogsOpenExecute,
@@ -33,52 +33,6 @@ export function ConversationModal({
   onClose: () => void;
 }) {
   const { logs } = useAgent(hierarchy);
-  const bodyRef = useRef<HTMLDivElement | null>(null);
-  const contentRef = useRef<HTMLDivElement | null>(null);
-  // Bottom bias: pinned until the USER scrolls away from the bottom.
-  const stickyRef = useRef(true);
-  // True while a scroll we caused is in flight — those events must
-  // not be mistaken for user intent.
-  const snappingRef = useRef(false);
-
-  const snapToBottom = () => {
-    const el = bodyRef.current;
-    if (el === null) return;
-    snappingRef.current = true;
-    el.scrollTop = el.scrollHeight;
-    // The resulting scroll event lands in a later task.
-    setTimeout(() => {
-      snappingRef.current = false;
-    }, 0);
-  };
-
-  // The conversation opens at the BOTTOM — the newest rows (which
-  // also makes the lazy parts nearest the present load first).
-  useLayoutEffect(() => {
-    if (logs === null) return;
-    snapToBottom();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logs]);
-
-  // Lazy parts resolving above/below grow the content and would
-  // drift the viewport off the bottom — while pinned, every content
-  // resize snaps back to the bottom.
-  useLayoutEffect(() => {
-    const el = bodyRef.current;
-    const content = contentRef.current;
-    if (el === null || content === null) return;
-    if (typeof ResizeObserver === "undefined") return;
-    const observer = new ResizeObserver(() => {
-      if (stickyRef.current) {
-        snapToBottom();
-      }
-    });
-    observer.observe(content);
-    return () => {
-      observer.disconnect();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [logs]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -162,46 +116,41 @@ export function ConversationModal({
           </button>
         </header>
         <div
-          ref={bodyRef}
-          onScroll={() => {
-            // Only USER scrolls may unpin — our own snaps are flagged.
-            if (snappingRef.current) return;
-            const el = bodyRef.current;
-            if (el === null) return;
-            stickyRef.current =
-              el.scrollHeight - el.scrollTop - el.clientHeight < 40;
-          }}
           className={cn(
             "flex-1",
             "overflow-auto",
-            // The browser's own scroll anchoring also adjusts
-            // scrollTop on content resizes, firing scroll events
-            // indistinguishable from the user's and racing the pin —
-            // we own the anchoring, so turn the native one off.
+            // column-reverse: the browser NATIVELY pins scrollTop=0
+            // to the bottom — opens at the newest rows and stays
+            // pinned through content growth with zero JS, and a user
+            // scrolling up is off the pin until they return. The DOM
+            // renders newest-first to match.
+            "flex",
+            "flex-col-reverse",
             "[overflow-anchor:none]",
             "px-4",
             "py-3",
+            "gap-3",
             "text-[11px]",
             "text-[#c3bfbb]",
           )}
         >
-          <div ref={contentRef} className={cn("flex", "flex-col", "gap-3")}>
-            {logs === null ? (
-              <LoadingDots marker="data-conversation-loading" />
-            ) : logs.length === 0 ? (
-              <span className={cn("text-info-dim")}>no history</span>
-            ) : (
-              logs.map((item, index) => (
+          {/* TODO: the live completions tail + the chat input land
+              here in a later pass. */}
+          {logs === null ? (
+            <LoadingDots marker="data-conversation-loading" />
+          ) : logs.length === 0 ? (
+            <span className={cn("text-info-dim")}>no history</span>
+          ) : (
+            logs
+              .map((item, index) => (
                 <LogRow
                   key={`${item.type}-${index}`}
                   item={item}
                   toolResponses={pairToolResponses(logs)}
                 />
               ))
-            )}
-            {/* TODO: the live completions tail + the chat input land
-                here in a later pass. */}
-          </div>
+              .reverse()
+          )}
         </div>
       </div>
     </div>
