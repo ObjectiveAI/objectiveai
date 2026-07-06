@@ -51,7 +51,10 @@ export function ConversationModal({
       data-conversation-backdrop
       onClick={onClose}
       className={cn(
-        "fixed",
+        // Absolute within the main pane's relative root — the popup
+        // is CONSTRAINED to the tab's content area (like plugin
+        // panes) and never eclipses the tab bar or status bar.
+        "absolute",
         "inset-0",
         "z-50",
         "bg-ground/80",

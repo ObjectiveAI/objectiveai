@@ -60,11 +60,9 @@ export function HierarchyTree() {
       left: el.scrollLeft,
       top: el.scrollTop,
     };
-    try {
-      el.setPointerCapture(e.pointerId);
-    } catch {
-      // jsdom / detached — capture is best-effort.
-    }
+    // NO capture yet: capturing on pointerdown retargets the
+    // eventual click to the container, swallowing box clicks. The
+    // move handler captures once a real pan engages.
   };
   const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const drag = dragRef.current;
@@ -74,6 +72,11 @@ export function HierarchyTree() {
     const dy = e.clientY - drag.y;
     if (!dragging && Math.abs(dx) + Math.abs(dy) > 3) {
       setDragging(true);
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch {
+        // jsdom / detached — capture is best-effort.
+      }
     }
     el.scrollLeft = drag.left - dx;
     el.scrollTop = drag.top - dy;
@@ -98,6 +101,7 @@ export function HierarchyTree() {
     })),
   );
   return (
+    <>
     <div
       ref={containerRef}
       onPointerDown={onPointerDown}
@@ -135,13 +139,14 @@ export function HierarchyTree() {
           />
         ))}
       </div>
-      {openHierarchy !== null && (
-        <ConversationModal
-          hierarchy={openHierarchy}
-          onClose={() => setOpenHierarchy(null)}
-        />
-      )}
     </div>
+    {openHierarchy !== null && (
+      <ConversationModal
+        hierarchy={openHierarchy}
+        onClose={() => setOpenHierarchy(null)}
+      />
+    )}
+    </>
   );
 }
 
