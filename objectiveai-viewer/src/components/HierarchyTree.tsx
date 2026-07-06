@@ -245,12 +245,17 @@ function AgentLatestTextView({
   const [expanded, setExpanded] = useState(false);
   const [clipped, setClipped] = useState(false);
   const clipRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   // Detect ACTUAL hidden content: only then does the toggle appear.
+  // Note scrollHeight can't see justify-end's TOP overflow, so the
+  // measure compares the inner content's natural height against the
+  // clip window instead.
   useLayoutEffect(() => {
-    const el = clipRef.current;
-    if (el === null) return;
-    setClipped(el.scrollHeight > el.clientHeight + 1);
+    const clip = clipRef.current;
+    const content = contentRef.current;
+    if (clip === null || content === null) return;
+    setClipped(content.offsetHeight > clip.clientHeight + 1);
   }, [text, expanded]);
 
   if (text === null) return null;
@@ -300,7 +305,11 @@ function AgentLatestTextView({
             ),
         )}
       >
-        {text}
+        {/* shrink-0 keeps the natural height measurable while the
+            container clips it. */}
+        <div ref={contentRef} className={cn("shrink-0")}>
+          {text}
+        </div>
       </div>
       {(clipped || expanded) && (
         <button

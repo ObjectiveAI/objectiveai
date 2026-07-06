@@ -397,9 +397,9 @@ describe("HierarchyTree", () => {
     // jsdom has no layout: fake an overflowing clip element.
     const original = Object.getOwnPropertyDescriptor(
       HTMLElement.prototype,
-      "scrollHeight",
+      "offsetHeight",
     );
-    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+    Object.defineProperty(HTMLElement.prototype, "offsetHeight", {
       configurable: true,
       get() {
         return 500;
@@ -440,7 +440,7 @@ describe("HierarchyTree", () => {
       view.unmount();
     } finally {
       if (original) {
-        Object.defineProperty(HTMLElement.prototype, "scrollHeight", original);
+        Object.defineProperty(HTMLElement.prototype, "offsetHeight", original);
       }
     }
   });
