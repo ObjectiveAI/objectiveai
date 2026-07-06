@@ -209,7 +209,7 @@ describe("ConversationModal", () => {
     view.unmount();
   });
 
-  it("labels tool calls, tool responses, and notifications", async () => {
+  it("pairs tool calls with their responses as headed sections", async () => {
     harness.autoResolve.set(31, {
       type: "text",
       text: '{"query":"SELECT 1","limit":5}',
@@ -245,20 +245,64 @@ describe("ConversationModal", () => {
     ];
     const view = mount();
     await settle();
-    expect(view.container.textContent).toContain("tool call do_thing (call-9)");
-    // Tool-call arguments pretty-print as JSON, not markdown.
-    const args = view.container.querySelector("[data-json-part]");
-    expect(args?.textContent).toBe(
+
+    // One section, headed by the TOOL NAME, holding call args (pretty
+    // JSON) and the paired response — no visible tool_call_id, no
+    // separate tool row.
+    const section = view.container.querySelector(
+      '[data-tool-section="do_thing"]',
+    );
+    expect(section).toBeTruthy();
+    expect(section?.textContent).toContain("do_thing");
+    expect(section?.textContent).not.toContain("call-9");
+    expect(section?.querySelector("[data-json-part]")?.textContent).toBe(
       JSON.stringify({ query: "SELECT 1", limit: 5 }, null, 2),
     );
-    const tool = view.container.querySelector('[data-log-row="tool_response"]');
-    expect(tool?.textContent).toContain("call-9");
-    expect(tool?.textContent).toContain("result");
+    expect(section?.textContent).toContain("result");
+    expect(
+      view.container.querySelector('[data-log-row="tool_response"]'),
+    ).toBeNull();
+
     const note = view.container.querySelector(
       '[data-log-row="client_notification"]',
     );
     expect(note?.textContent).toContain("from cli/sender");
     expect(note?.textContent).toContain("ping");
+    view.unmount();
+  });
+
+  it("omits the response area for unanswered calls; orphan responses vanish", async () => {
+    harness.autoResolve.set(51, { type: "text", text: "{}" });
+    harness.logs = [
+      assistantRow([
+        {
+          type: "tool_call",
+          id: 51,
+          delivered_at: "t",
+          function_name: "pending_tool",
+          tool_call_id: "call-1",
+          tool_call_index: 0,
+        },
+      ]),
+      {
+        type: "tool_response",
+        agent_instance_hierarchy: "cli/me",
+        response_id: "cmpl-1",
+        tool_call_id: "call-GHOST",
+        parts: [{ type: "text", id: 52, delivered_at: "t" }],
+      },
+    ];
+    const view = mount();
+    await settle();
+
+    const section = view.container.querySelector(
+      '[data-tool-section="pending_tool"]',
+    );
+    expect(section?.textContent).toContain("call");
+    expect(section?.textContent).not.toContain("response");
+    // The orphan response fetches nothing and renders nowhere.
+    expect(harness.openedIds).toEqual([51]);
+    expect(view.container.textContent).not.toContain("call-GHOST");
     view.unmount();
   });
 

@@ -170,7 +170,11 @@ export function ConversationModal({
               <span className={cn("text-info-dim")}>no history</span>
             ) : (
               logs.map((item, index) => (
-                <LogRow key={`${item.type}-${index}`} item={item} />
+                <LogRow
+                  key={`${item.type}-${index}`}
+                  item={item}
+                  toolResponses={pairToolResponses(logs)}
+                />
               ))
             )}
             {/* TODO: the live completions tail + the chat input land
@@ -202,9 +206,104 @@ function KindLabel({ children }: { children: string }) {
   );
 }
 
+/** A tool_response list row. */
+type ToolResponseItem = Extract<
+  CliCommandAgentsLogsListResponseItem,
+  { type: "tool_response" }
+>;
+
+/** First tool_response per tool_call_id — the call/response pairing
+ * the sections render. Orphan responses (no matching call) simply
+ * never render. */
+function pairToolResponses(
+  logs: readonly CliCommandAgentsLogsListResponseItem[],
+): ReadonlyMap<string, ToolResponseItem> {
+  const map = new Map<string, ToolResponseItem>();
+  for (const item of logs) {
+    if (item.type === "tool_response" && !map.has(item.tool_call_id)) {
+      map.set(item.tool_call_id, item);
+    }
+  }
+  return map;
+}
+
+/** One tool exchange: the call's arguments and (when present) its
+ * response, stacked as a request/response card headed by the tool's
+ * NAME — the pairing is visual, no ids shown. */
+function ToolSection({
+  name,
+  argsId,
+  response,
+}: {
+  name: string;
+  argsId: number;
+  response: ToolResponseItem | null;
+}) {
+  const label = cn(
+    "text-[9px]",
+    "uppercase",
+    "tracking-widest",
+    "text-info-dim",
+  );
+  return (
+    <div
+      data-tool-section={name}
+      className={cn(
+        "rounded-sm",
+        "border",
+        "border-copper-mid/50",
+        "overflow-hidden",
+      )}
+    >
+      <div
+        className={cn(
+          "px-2.5",
+          "py-1",
+          "bg-copper-warm/10",
+          "border-b",
+          "border-copper-mid/50",
+          "text-copper-bright",
+        )}
+      >
+        {name}
+      </div>
+      <div className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}>
+        <span className={label}>call</span>
+        <LogPart id={argsId} json />
+      </div>
+      {response !== null && (
+        <div
+          className={cn(
+            "px-2.5",
+            "py-1.5",
+            "border-t",
+            "border-copper-mid/30",
+            "flex",
+            "flex-col",
+            "gap-1",
+          )}
+        >
+          <span className={label}>response</span>
+          {response.parts.map((part) => (
+            <LogPart key={part.id} id={part.id} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** One `agents/logs/list` row. Request rows are bare markers; the
- * part-bearing rows render one lazily-loaded [`LogPart`] each. */
-function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
+ * part-bearing rows render one lazily-loaded [`LogPart`] each. Tool
+ * calls render as paired call/response sections; bare tool_response
+ * rows render nothing here (they live inside their call's section). */
+function LogRow({
+  item,
+  toolResponses,
+}: {
+  item: CliCommandAgentsLogsListResponseItem;
+  toolResponses: ReadonlyMap<string, ToolResponseItem>;
+}) {
   switch (item.type) {
     case "agent_completion_request":
     case "vector_completion_request":
@@ -233,35 +332,30 @@ function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
               // Hidden by default — expanding also defers the fetch
               // until someone actually wants to read it.
               <ReasoningPart key={part.id} id={part.id} />
+            ) : part.type === "tool_call" ? (
+              // Call + its response, paired implicitly — no ids on
+              // display.
+              <ToolSection
+                key={part.id}
+                name={part.function_name}
+                argsId={part.id}
+                response={toolResponses.get(part.tool_call_id) ?? null}
+              />
             ) : (
               <div key={part.id} className={cn("flex", "flex-col", "gap-0.5")}>
-                {part.type === "tool_call" && (
-                  <span className={cn("text-info-dim")}>
-                    tool call {part.function_name} ({part.tool_call_id})
-                  </span>
-                )}
                 {part.type === "refusal" && (
                   <span className={cn("text-info-dim")}>refusal</span>
                 )}
-                <LogPart id={part.id} json={part.type === "tool_call"} />
+                <LogPart id={part.id} />
               </div>
             ),
           )}
         </div>
       );
     case "tool_response":
-      return (
-        <div
-          data-log-row={item.type}
-          className={cn("flex", "flex-col", "gap-1")}
-        >
-          <KindLabel>tool</KindLabel>
-          <span className={cn("text-info-dim")}>{item.tool_call_id}</span>
-          {item.parts.map((part) => (
-            <LogPart key={part.id} id={part.id} />
-          ))}
-        </div>
-      );
+      // Rendered inside its call's ToolSection; orphans (no matching
+      // call) are ignored by design.
+      return null;
     case "client_notification":
       return (
         <div
