@@ -367,7 +367,9 @@ describe("HierarchyTree", () => {
     );
     const boxes = view.container.querySelectorAll("[data-latest-text]");
     expect(boxes).toHaveLength(1);
-    expect(boxes[0].textContent).toBe("Both cleared — *BURRP*");
+    // Markdown-rendered: *BURRP* becomes emphasis.
+    expect(boxes[0].textContent).toContain("Both cleared — BURRP");
+    expect(boxes[0].querySelector("em")?.textContent).toBe("BURRP");
     // Below the agent's own box, as a SIBLING in the node cell — not
     // inside the agent box.
     const agentBox = view.container.querySelector(

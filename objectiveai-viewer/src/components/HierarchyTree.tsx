@@ -1,5 +1,7 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
+import ReactMarkdown, { type Components } from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { tauriInvoke } from "../lib/tauri";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
 import {
@@ -283,12 +285,11 @@ function AgentLatestTextView({
       <div
         ref={clipRef}
         className={cn(
-          "whitespace-pre-wrap",
           "break-words",
           "select-text",
           "leading-4",
-          // Collapsed: cap at 5 VISUAL lines, showing the most
-          // recent ones — the text bottom-anchors in a fixed
+          // Collapsed: cap the preview visually, showing the most
+          // recent content — the body bottom-anchors in a fixed
           // max-height clip, so overflow disappears off the TOP.
           !expanded &&
             cn(
@@ -301,9 +302,39 @@ function AgentLatestTextView({
         )}
       >
         {/* shrink-0 keeps the natural height measurable while the
-            container clips it. */}
-        <div ref={contentRef} className={cn("shrink-0")}>
-          {text}
+            container clips it. Light element styling for the
+            rendered markdown. */}
+        <div
+          ref={contentRef}
+          className={cn(
+            "shrink-0",
+            "[&_p]:mb-1",
+            "[&_p:last-child]:mb-0",
+            "[&_ul]:list-disc",
+            "[&_ul]:pl-4",
+            "[&_ol]:list-decimal",
+            "[&_ol]:pl-4",
+            "[&_blockquote]:border-l",
+            "[&_blockquote]:border-copper-mid/50",
+            "[&_blockquote]:pl-2",
+            "[&_code]:bg-ground-raised",
+            "[&_code]:px-0.5",
+            "[&_code]:rounded-sm",
+            "[&_pre]:overflow-x-auto",
+            "[&_pre]:my-1",
+            "[&_h1]:font-semibold",
+            "[&_h2]:font-semibold",
+            "[&_h3]:font-semibold",
+            "[&_hr]:border-copper-mid/40",
+            "[&_hr]:my-1",
+          )}
+        >
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            components={markdownComponents}
+          >
+            {text}
+          </ReactMarkdown>
         </div>
       </div>
       {(clipped || expanded) && (
@@ -593,6 +624,13 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     </>
   );
 }
+
+/** Element overrides for the rendered message markdown. Links show
+ * as underlined text but never navigate — the webview must not
+ * wander off after untrusted agent output. */
+const markdownComponents: Components = {
+  a: ({ children }) => <span className={cn("underline")}>{children}</span>,
+};
 
 /** RFC3339 → a locale-aware relative string ("2 days ago", "3
  * minutes ago") via the built-in Intl.RelativeTimeFormat, using the
