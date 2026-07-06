@@ -330,39 +330,28 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     return <RemoteDefinition remote={agent} />;
   }
   return (
-    // One border around badge AND content: the badge itself goes
-    // borderless (keeping its tint) inside the shared box.
+    // A regular badge chip, just BIGGER: identical border, padding,
+    // and tint — the label meets the top-left exactly like every
+    // other badge, and the box simply extends to hold the JSON.
     <div
       className={cn(
         "flex",
         "flex-col",
         "items-start",
-        "gap-1",
         "self-start",
         "mt-1",
         "first:mt-0",
+        "px-1.5",
+        "py-px",
+        "rounded-sm",
         "border",
         "border-copper-mid/70",
-        "rounded-sm",
-        "px-1.5",
-        "py-1",
-        // Outdent by border + padding so the badge INSIDE sits at
-        // the same x as the sibling badge rows.
-        "-ml-[7px]",
+        "bg-copper-warm/10",
+        "text-[11px]",
+        "text-copper-bright",
       )}
     >
-      <span
-        className={cn(
-          "px-1.5",
-          "py-px",
-          "rounded-sm",
-          "bg-copper-warm/10",
-          "text-copper-bright",
-          "text-[11px]",
-        )}
-      >
-        inline
-      </span>
+      inline
       <pre
         data-agent-definition
         className={cn(
@@ -371,6 +360,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
           "text-left",
           "whitespace-pre",
           "leading-snug",
+          "py-1",
         )}
       >
         {formatDefinition(agent)}
