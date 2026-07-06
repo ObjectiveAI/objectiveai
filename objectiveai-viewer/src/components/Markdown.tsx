@@ -19,6 +19,12 @@ export function Markdown({ children }: { children: string }) {
   return (
     <div
       className={cn(
+        // Preserve single newlines in prose: CommonMark treats a lone
+        // `\n` as a soft break, which the browser would otherwise
+        // collapse to a space. `pre-line` keeps the break while still
+        // collapsing runs of spaces and wrapping normally.
+        "[&_p]:whitespace-pre-line",
+        "[&_li]:whitespace-pre-line",
         "[&_p]:mb-1",
         "[&_p:last-child]:mb-0",
         "[&_ul]:list-disc",
