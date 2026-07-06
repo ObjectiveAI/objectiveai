@@ -18,6 +18,10 @@ type VectorCompletionsResponseUnaryAgentCompletion struct {
 	// Leaf agent id of the slot that produced this completion. See
 	// [`super::streaming::AgentCompletionChunk::agent_id`].
 	AgentID string `json:"agent_id"`
+	// The resolved inline WF definition, carried from the streaming
+	// first chunk. See
+	// [`super::streaming::AgentCompletionChunk::agent_inline`].
+	AgentInline *AgentInlineAgentWithFallbacks `json:"agent_inline,omitempty"`
 	// Full agent instance hierarchy for this completion's slot. See
 	// [`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`

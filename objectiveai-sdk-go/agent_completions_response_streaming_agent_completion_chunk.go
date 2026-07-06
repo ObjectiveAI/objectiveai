@@ -21,6 +21,11 @@ type AgentCompletionsResponseStreamingAgentCompletionChunk struct {
 	// primary attempt this is the primary agent's id; on fallback it
 	// is the fallback agent's id. Same on every chunk of a slot.
 	AgentID string `json:"agent_id"`
+	// The resolved inline WF definition. Populated ONLY on the FIRST
+	// chunk of a completion — but ALWAYS on the first chunk, remote
+	// or not (pair with [`Self::agent_remote`] to tell which source
+	// it came from). [`Self::push`] keeps the first value.
+	AgentInline *AgentInlineAgentWithFallbacks `json:"agent_inline,omitempty"`
 	// Full agent instance hierarchy for this completion's slot —
 	// `{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed
 	// continuation value on resume. Same on every chunk of a slot.

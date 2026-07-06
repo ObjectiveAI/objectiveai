@@ -7,6 +7,7 @@ from objectiveai_sdk.RemotePath.remote_path import RemotePath
 from objectiveai_sdk.agent.completions.response.streaming.message_chunk import MessageChunk
 from objectiveai_sdk.agent.completions.response.streaming.object import Object
 from objectiveai_sdk.agent.completions.response.usage import Usage
+from objectiveai_sdk.agent.inline_agent_with_fallbacks import InlineAgentWithFallbacks
 from objectiveai_sdk.agent.upstream import Upstream
 from objectiveai_sdk.error.response_error import ResponseError
 
@@ -21,6 +22,7 @@ using the [`push`](Self::push) method."""
 
     agent_full_id: str = Field(..., description="WF-level id: concatenation of the primary agent's id with all\nfallback ids (see `InlineAgentWithFallbacks::full_id`). Same\nfor every slot in the same WF request.")
     agent_id: str = Field(..., description="Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot.")
+    agent_inline: Optional[InlineAgentWithFallbacks] = Field(None, description='The resolved inline WF definition. Populated ONLY on the FIRST\nchunk of a completion — but ALWAYS on the first chunk, remote\nor not (pair with [`Self::agent_remote`] to tell which source\nit came from). [`Self::push`] keeps the first value.', json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: str = Field(..., description="Full agent instance hierarchy for this completion's slot —\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot.")
     agent_remote: Optional[RemotePath] = Field(None, description='`RemotePath` the WF was fetched from. `None` when the WF was\nsupplied inline. Same for every slot in the same WF request.', json_schema_extra={'omitempty': True})
     continuation: Optional[str] = Field(None, description='Continuation state for multi-turn conversations (only present in the final chunk).', json_schema_extra={'omitempty': True})

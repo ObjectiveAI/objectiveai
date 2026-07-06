@@ -4,6 +4,7 @@ import { z } from "zod";
 import { AgentCompletionsResponseUnaryMessageSchema } from "../../../../agent/completions/response/unary/message";
 import { AgentCompletionsResponseUnaryObjectSchema } from "../../../../agent/completions/response/unary/object";
 import { AgentCompletionsResponseUsageSchema } from "../../../../agent/completions/response/usage";
+import { AgentInlineAgentWithFallbacksSchema } from "../../../../agent/inlineAgentWithFallbacks";
 import { AgentUpstreamSchema } from "../../../../agent/upstream";
 import { ErrorResponseErrorSchema } from "../../../../error/responseError";
 import { RemotePathSchema } from "../../../../remotePath";
@@ -11,6 +12,7 @@ import { RemotePathSchema } from "../../../../remotePath";
 export const FunctionsExecutionsResponseUnaryReasoningSummarySchema = z.object({
   agent_full_id: z.string().describe("WF-level id: see\n[`super::streaming::AgentCompletionChunk::agent_full_id`]."),
   agent_id: z.string().describe("Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`]."),
+  agent_inline: AgentInlineAgentWithFallbacksSchema.nullable().describe("The resolved inline WF definition, carried from the streaming\nfirst chunk. See\n[`super::streaming::AgentCompletionChunk::agent_inline`].").meta({ omitempty: true }).optional(),
   agent_instance_hierarchy: z.string().describe("Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`]."),
   agent_remote: RemotePathSchema.nullable().describe("`RemotePath` the WF was fetched from, or `None` when inline.\nSee [`super::streaming::AgentCompletionChunk::agent_remote`].").meta({ omitempty: true }).optional(),
   continuation: z.string().nullable().describe("Continuation state for multi-turn conversations.").optional(),
