@@ -34,6 +34,9 @@ export function ConversationModal({
 }) {
   const { logs } = useAgent(hierarchy);
   const bodyRef = useRef<HTMLDivElement | null>(null);
+  const contentRef = useRef<HTMLDivElement | null>(null);
+  // Bottom bias: pinned until the user scrolls away from the bottom.
+  const stickyRef = useRef(true);
 
   // The conversation opens at the BOTTOM — the newest rows (which
   // also makes the lazy parts nearest the present load first).
@@ -41,6 +44,25 @@ export function ConversationModal({
     const el = bodyRef.current;
     if (el === null || logs === null) return;
     el.scrollTop = el.scrollHeight;
+  }, [logs]);
+
+  // Lazy parts resolving above/below grow the content and would
+  // drift the viewport off the bottom — while pinned, every content
+  // resize snaps back to the bottom.
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    const content = contentRef.current;
+    if (el === null || content === null) return;
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => {
+      if (stickyRef.current) {
+        el.scrollTop = el.scrollHeight;
+      }
+    });
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+    };
   }, [logs]);
 
   useEffect(() => {
@@ -126,29 +148,34 @@ export function ConversationModal({
         </header>
         <div
           ref={bodyRef}
+          onScroll={() => {
+            const el = bodyRef.current;
+            if (el === null) return;
+            stickyRef.current =
+              el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+          }}
           className={cn(
             "flex-1",
             "overflow-auto",
             "px-4",
             "py-3",
-            "flex",
-            "flex-col",
-            "gap-3",
             "text-[11px]",
             "text-[#c3bfbb]",
           )}
         >
-          {logs === null ? (
-            <LoadingDots marker="data-conversation-loading" />
-          ) : logs.length === 0 ? (
-            <span className={cn("text-info-dim")}>no history</span>
-          ) : (
-            logs.map((item, index) => (
-              <LogRow key={`${item.type}-${index}`} item={item} />
-            ))
-          )}
-          {/* TODO: the live completions tail + the chat input land
-              here in a later pass. */}
+          <div ref={contentRef} className={cn("flex", "flex-col", "gap-3")}>
+            {logs === null ? (
+              <LoadingDots marker="data-conversation-loading" />
+            ) : logs.length === 0 ? (
+              <span className={cn("text-info-dim")}>no history</span>
+            ) : (
+              logs.map((item, index) => (
+                <LogRow key={`${item.type}-${index}`} item={item} />
+              ))
+            )}
+            {/* TODO: the live completions tail + the chat input land
+                here in a later pass. */}
+          </div>
         </div>
       </div>
     </div>
