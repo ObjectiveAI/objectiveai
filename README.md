@@ -4,7 +4,7 @@
 
 Define and compose swarms of LLM agents. Spawn an agent to do things, spawn a swarm to score things, or hand a swarm a Docker sandbox — from the CLI, the SDKs, or your own agent.
 
-[Website](https://objectiveai.dev) · [Discord](https://discord.gg/gbNFHensby) · [GitHub](https://github.com/ObjectiveAI/objectiveai)
+[Website](https://objectiveai.dev) · [Discord](https://discord.gg/gbNFHensby) · [How it works](docs/HOW_IT_WORKS.md) · [GitHub](https://github.com/ObjectiveAI/objectiveai)
 
 [![Release](https://img.shields.io/github/v/release/ObjectiveAI/objectiveai?label=release&color=blue)](https://github.com/ObjectiveAI/objectiveai/releases/latest)
 [![Crates.io](https://img.shields.io/crates/v/objectiveai-sdk?label=crates.io%20%2F%20objectiveai-sdk)](https://crates.io/crates/objectiveai-sdk)
