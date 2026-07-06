@@ -1,15 +1,18 @@
 //! Look up the agent definition + latest continuation that
 //! belong to a given `agent_instance_hierarchy`.
 //!
-//! Two sources, one round-trip:
+//! Sources, in order:
 //!
 //! - **agent definition** — read from `objectiveai.agent_refs`, the
 //!   definition-source registry keyed by the full AIH (EITHER the
 //!   `RemotePath` the WF was fetched from OR the inline spec —
 //!   blindly upserted at spawn-by-spec lock acquisition and by the
-//!   log writer whenever a chunk carries `agent_inline`). This
-//!   replaced the old most-recent-request-blob extraction: the
-//!   registry is authoritative and needs no `response_id` parsing.
+//!   log writer whenever a chunk carries `agent_inline`). When the
+//!   registry has no row — agents whose last activity predates the
+//!   table — the MIGRATION FALLBACK extracts the definition from
+//!   the most recent `agent_completion_requests` blob, keyed by the
+//!   `response_id` suffix embedded in the AIH. Any post-table run
+//!   repopulates the registry, so the fallback decays naturally.
 //! - **latest continuation** — read straight from the
 //!   `agent_continuations` table keyed by the full AIH. The
 //!   chunk-yielder loops (`agents spawn` + `functions execute`)
@@ -39,8 +42,9 @@ pub struct SessionLookup {
 }
 
 /// Resolve the session for `agent_instance_hierarchy`.
-/// `Ok(None)` means the `agent_refs` registry holds no definition
-/// source for that hierarchy (no prior session recorded).
+/// `Ok(None)` means neither the `agent_refs` registry nor the
+/// legacy request-blob fallback holds a definition for that
+/// hierarchy (no prior session recorded).
 pub async fn lookup_session(
     pool: &Pool,
     agent_instance_hierarchy: &str,
@@ -61,7 +65,12 @@ pub async fn lookup_session(
     .fetch_optional(&**pool)
     .await?;
 
-    let Some(row) = row else { return Ok(None) };
+    let Some(row) = row else {
+        // Migration fallback: pre-`agent_refs` agents resolve from
+        // their most recent request blob.
+        return lookup_session_from_request_blob(pool, agent_instance_hierarchy)
+            .await;
+    };
 
     let remote: Option<String> = row.try_get("remote")?;
     let inline: Option<serde_json::Value> = row.try_get("inline")?;
@@ -83,6 +92,55 @@ pub async fn lookup_session(
             )));
         }
     };
+    let agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
+        serde_json::from_value(agent_value)?;
+
+    Ok(Some(SessionLookup { agent, continuation }))
+}
+
+/// The pre-`agent_refs` resolution, kept as a migration fallback:
+/// extract the definition from
+/// `objectiveai.agent_completion_requests.body.agent` (the request
+/// blob is a serialized `AgentCompletionCreateParams`). The request
+/// row is PK'd by `response_id` — the trailing suffix of the AIH
+/// after the final `-`
+/// (`{ctx lineage}/{agent_full_id}-{response_id}`).
+async fn lookup_session_from_request_blob(
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+) -> Result<Option<SessionLookup>, Error> {
+    // Split on the FINAL `-`: everything after is the response_id.
+    // No `-` at all means the hierarchy doesn't carry a response_id
+    // suffix and can't be resolved — return None.
+    let Some((_, response_id)) = agent_instance_hierarchy.rsplit_once('-') else {
+        return Ok(None);
+    };
+
+    let row = sqlx::query(
+        "SELECT req.body AS request_body, cont.continuation AS continuation \
+         FROM objectiveai.agent_completion_requests req \
+         LEFT JOIN objectiveai.agent_continuations cont \
+           ON cont.agent_instance_hierarchy = $2 \
+         WHERE req.response_id = $1",
+    )
+    .bind(response_id)
+    .bind(agent_instance_hierarchy)
+    .fetch_optional(&**pool)
+    .await?;
+
+    let Some(row) = row else { return Ok(None) };
+
+    let request_body: serde_json::Value = row.try_get("request_body")?;
+    let continuation: Option<String> = row.try_get("continuation")?;
+
+    // The request blob is a serialized
+    // `AgentCompletionCreateParams`; the agent field there is what
+    // spawn's `Request.agent` carries.
+    let agent_value = request_body.get("agent").cloned().ok_or_else(|| {
+        Error::InvalidData(format!(
+            "agent_completion_requests.body missing `agent` field for response_id {response_id}",
+        ))
+    })?;
     let agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
         serde_json::from_value(agent_value)?;
 
