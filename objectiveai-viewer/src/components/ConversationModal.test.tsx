@@ -104,25 +104,163 @@ describe("ConversationModal", () => {
     empty.unmount();
   });
 
-  it("renders request rows as markers with no fetch", async () => {
-    harness.logs = [
-      {
-        type: "agent_completion_request",
-        agent_instance_hierarchy: "cli/me",
-        delivered_at: "t",
-        id: 1,
-        response_id: "cmpl-1",
-        sender_agent_instance_hierarchy: "cli",
+  /** A log-list agent_completion_request row. */
+  function requestRow(id: number) {
+    return {
+      type: "agent_completion_request",
+      agent_instance_hierarchy: "cli/me",
+      delivered_at: "t",
+      id,
+      response_id: "cmpl-1",
+      sender_agent_instance_hierarchy: "cli",
+    };
+  }
+
+  it("unwraps a request into dated user + assistant messages", async () => {
+    harness.autoResolve.set(1, {
+      type: "agent_completion_request",
+      created_at: 0,
+      response_id: "cmpl-1",
+      sender_agent_instance_hierarchy: "cli",
+      body: {
+        messages: [
+          { role: "user", content: "hello there" },
+          {
+            role: "assistant",
+            content: "hi *back*",
+            reasoning: "thinking...",
+          },
+        ],
       },
-    ];
+    });
+    harness.logs = [requestRow(1)];
     const view = mount();
     await settle();
-    const row = view.container.querySelector(
+
+    const req = view.container.querySelector(
       '[data-log-row="agent_completion_request"]',
     );
-    expect(row?.textContent).toContain("agent completion request");
-    expect(row?.textContent).toContain("from cli");
-    expect(harness.openedIds).toEqual([]);
+    expect(req?.textContent).toContain("request");
+    expect(req?.textContent).toContain("from cli");
+    const user = view.container.querySelector('[data-request-message="user"]');
+    expect(user?.textContent).toContain("hello there");
+    const assistant = view.container.querySelector(
+      '[data-request-message="assistant"]',
+    );
+    expect(assistant?.textContent).toContain("hi back");
+    expect(assistant?.querySelector("em")?.textContent).toBe("back");
+    // Reasoning is collapsed; its text is inline (no fetch anywhere).
+    expect(assistant?.querySelector("[data-reasoning-toggle]")).toBeTruthy();
+    expect(assistant?.textContent).not.toContain("thinking...");
+    expect(harness.openedIds).toEqual([1]);
+    view.unmount();
+  });
+
+  it("renders inline assistant tool calls paired with their tool message", async () => {
+    harness.autoResolve.set(2, {
+      type: "agent_completion_request",
+      created_at: 0,
+      response_id: "cmpl-1",
+      sender_agent_instance_hierarchy: "cli",
+      body: {
+        messages: [
+          {
+            role: "assistant",
+            tool_calls: [
+              {
+                type: "function",
+                id: "call-1",
+                function: {
+                  name: "do_thing",
+                  arguments: '{"q":"x"}',
+                },
+              },
+            ],
+          },
+          { role: "tool", tool_call_id: "call-1", content: "the result" },
+        ],
+      },
+    });
+    harness.logs = [requestRow(2)];
+    const view = mount();
+    await settle();
+
+    const section = view.container.querySelector(
+      '[data-tool-section="do_thing"]',
+    );
+    expect(section).toBeTruthy();
+    act(() => {
+      (section?.querySelector("[data-tool-toggle]") as HTMLElement).click();
+    });
+    await settle();
+    // Inline: args pretty-print, the tool message is the response —
+    // no id fetches beyond the request open itself.
+    expect(section?.querySelector("[data-json-part]")?.textContent).toBe(
+      JSON.stringify({ q: "x" }, null, 2),
+    );
+    expect(section?.textContent).toContain("the result");
+    // The paired tool message does not also render standalone.
+    expect(
+      view.container.querySelectorAll('[data-tool-section]'),
+    ).toHaveLength(1);
+    expect(harness.openedIds).toEqual([2]);
+    view.unmount();
+  });
+
+  it("renders an orphan tool message (call in a prior log) response-only", async () => {
+    harness.autoResolve.set(3, {
+      type: "agent_completion_request",
+      created_at: 0,
+      response_id: "cmpl-1",
+      sender_agent_instance_hierarchy: "cli",
+      body: {
+        messages: [
+          { role: "tool", tool_call_id: "call-GHOST", content: "orphan out" },
+        ],
+      },
+    });
+    harness.logs = [requestRow(3)];
+    const view = mount();
+    await settle();
+    const section = view.container.querySelector(
+      '[data-tool-section="tool response"]',
+    );
+    expect(section).toBeTruthy();
+    act(() => {
+      (section?.querySelector("[data-tool-toggle]") as HTMLElement).click();
+    });
+    await settle();
+    expect(section?.textContent).toContain("orphan out");
+    view.unmount();
+  });
+
+  it("renders inline image content without a fetch", async () => {
+    harness.autoResolve.set(4, {
+      type: "agent_completion_request",
+      created_at: 0,
+      response_id: "cmpl-1",
+      sender_agent_instance_hierarchy: "cli",
+      body: {
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: "look:" },
+              {
+                type: "image_url",
+                image_url: { url: "data:image/png;base64,IMG" },
+              },
+            ],
+          },
+        ],
+      },
+    });
+    harness.logs = [requestRow(4)];
+    const view = mount();
+    await settle();
+    const img = view.container.querySelector("[data-media-image]");
+    expect(img?.getAttribute("src")).toBe("data:image/png;base64,IMG");
+    expect(harness.openedIds).toEqual([4]);
     view.unmount();
   });
 

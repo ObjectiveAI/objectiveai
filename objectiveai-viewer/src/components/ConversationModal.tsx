@@ -2,6 +2,9 @@ import { useEffect, useRef, useState } from "react";
 import cn from "classnames";
 import {
   agentsLogsOpenExecute,
+  type AgentCompletionsMessageMessage,
+  type AgentCompletionsMessageRichContent,
+  type AgentCompletionsMessageRichContentPart,
   type CliCommandAgentsLogsListResponseItem,
   type CliCommandAgentsLogsOpenResponse,
 } from "@objectiveai/sdk";
@@ -226,20 +229,32 @@ function pairToolResponses(
   return map;
 }
 
+/** A tool call's arguments source: a log id to fetch, or the inline
+ * JSON string from an assistant message. */
+type ToolCallSource = { id: number } | { args: string };
+/** A tool response's source: a log row (parts fetch by id), inline
+ * content (a tool message), or none (unanswered call). */
+type ToolResponseSource =
+  | { log: ToolResponseItem }
+  | { inline: AgentCompletionsMessageRichContent }
+  | null;
+
 /** One tool exchange: the call's arguments and (when present) its
  * response, stacked as a request/response card headed by the tool's
- * NAME — the pairing is visual, no ids shown. */
+ * NAME — the pairing is visual, no ids shown. Collapsed by default;
+ * `call` omitted renders a response-only card (an orphan tool
+ * response whose call lives in a prior log). */
 function ToolSection({
   name,
-  argsId,
+  call,
   response,
 }: {
   name: string;
-  argsId: number;
-  response: ToolResponseItem | null;
+  call?: ToolCallSource;
+  response: ToolResponseSource;
 }) {
-  // Closed by default — opening also defers the body fetches until
-  // someone actually wants to look.
+  // Closed by default — opening also defers the log-source fetches
+  // until someone actually wants to look.
   const [open, setOpen] = useState(false);
   const label = cn(
     "text-[9px]",
@@ -282,32 +297,50 @@ function ToolSection({
       </button>
       {open && (
         <>
-          <div className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}>
-            <span className={label}>call</span>
-            <LogPart id={argsId} json />
-          </div>
+          {call !== undefined && (
+            <div
+              className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}
+            >
+              <span className={label}>call</span>
+              {"args" in call ? (
+                <MediaView
+                  media={{ kind: "text", text: call.args, json: true }}
+                />
+              ) : (
+                <LogPart id={call.id} json />
+              )}
+            </div>
+          )}
           {response !== null && (
             <div
               className={cn(
                 "px-2.5",
                 "py-1.5",
-                "border-t",
-                "border-copper-mid/30",
+                call !== undefined && cn("border-t", "border-copper-mid/30"),
                 "flex",
                 "flex-col",
                 "gap-1",
               )}
             >
               <span className={label}>response</span>
-              {response.parts.map((part) => (
-                <LogPart key={part.id} id={part.id} />
-              ))}
+              {"log" in response ? (
+                response.log.parts.map((part) => (
+                  <LogPart key={part.id} id={part.id} />
+                ))
+              ) : (
+                <InlineContent content={response.inline} />
+              )}
             </div>
           )}
         </>
       )}
     </div>
   );
+}
+
+/** A log tool-response row wrapped as a [`ToolResponseSource`]. */
+function logResponse(item: ToolResponseItem | undefined): ToolResponseSource {
+  return item !== undefined ? { log: item } : null;
 }
 
 /** One `agents/logs/list` row. Request rows are bare markers; the
@@ -323,18 +356,28 @@ function LogRow({
 }) {
   switch (item.type) {
     case "agent_completion_request":
+      return (
+        <RequestSection
+          id={item.id}
+          sender={item.sender_agent_instance_hierarchy}
+          at={item.delivered_at}
+        />
+      );
     case "vector_completion_request":
     case "function_execution_request":
       return (
         <div
           data-log-row={item.type}
-          className={cn("text-info-dim", "flex", "items-center", "gap-1.5")}
+          className={cn("flex", "flex-col", "gap-1")}
         >
-          <span>{"→"}</span>
-          <span>{item.type.replace(/_/g, " ")}</span>
-          <span className={cn("truncate")}>
-            from {item.sender_agent_instance_hierarchy}
-          </span>
+          <KindLabel
+            note={`from ${item.sender_agent_instance_hierarchy}`}
+            at={item.delivered_at}
+          >
+            {item.type === "vector_completion_request"
+              ? "vector request"
+              : "function request"}
+          </KindLabel>
         </div>
       );
     case "assistant_response":
@@ -355,8 +398,8 @@ function LogRow({
               <ToolSection
                 key={part.id}
                 name={part.function_name}
-                argsId={part.id}
-                response={toolResponses.get(part.tool_call_id) ?? null}
+                call={{ id: part.id }}
+                response={logResponse(toolResponses.get(part.tool_call_id))}
               />
             ) : (
               <div key={part.id} className={cn("flex", "flex-col", "gap-0.5")}>
@@ -404,8 +447,9 @@ function prettyJson(text: string): string {
 }
 
 /** A reasoning part: collapsed to a disclosure line by default —
- * the body (and its fetch) only exists once opened. */
-function ReasoningPart({ id }: { id: number }) {
+ * the body (and, for the log source, its fetch) only exists once
+ * opened. Source is a log id (fetch) or inline reasoning text. */
+function ReasoningPart(props: { id: number } | { text: string }) {
   const [open, setOpen] = useState(false);
   return (
     <div className={cn("flex", "flex-col", "gap-0.5")}>
@@ -422,18 +466,27 @@ function ReasoningPart({ id }: { id: number }) {
       >
         {open ? "\u25be reasoning" : "\u25b8 reasoning"}
       </button>
-      {open && <LogPart id={id} />}
+      {open &&
+        ("id" in props ? (
+          <LogPart id={props.id} />
+        ) : (
+          <InlineContent content={props.text} />
+        ))}
     </div>
   );
 }
 
 /**
- * One ID-addressable log part. Fetches its body via
- * `agents/logs/open` the first time it becomes visible (immediately
- * where IntersectionObserver doesn't exist, e.g. jsdom) — loading
- * dots until then.
+ * Lazily open one log id via `agents/logs/open`, fetching the first
+ * time the returned `ref` element becomes visible (immediately where
+ * IntersectionObserver doesn't exist, e.g. jsdom). Shared by
+ * [`LogPart`] and [`RequestSection`].
  */
-function LogPart({ id, json = false }: { id: number; json?: boolean }) {
+function useLazyOpen(id: number): {
+  content: CliCommandAgentsLogsOpenResponse | null;
+  failed: boolean;
+  ref: React.RefObject<HTMLDivElement | null>;
+} {
   const [content, setContent] =
     useState<CliCommandAgentsLogsOpenResponse | null>(null);
   const [failed, setFailed] = useState(false);
@@ -483,6 +536,13 @@ function LogPart({ id, json = false }: { id: number; json?: boolean }) {
     };
   }, [id]);
 
+  return { content, failed, ref };
+}
+
+/** One ID-addressable log part: fetched on view, rendered through
+ * the shared [`MediaView`]. */
+function LogPart({ id, json = false }: { id: number; json?: boolean }) {
+  const { content, failed, ref } = useLazyOpen(id);
   return (
     <div ref={ref} data-log-part={id}>
       {failed ? (
@@ -490,25 +550,112 @@ function LogPart({ id, json = false }: { id: number; json?: boolean }) {
       ) : content === null ? (
         <LoadingDots marker="data-part-loading" />
       ) : (
-        <PartContent content={content} json={json} />
+        <MediaView media={openResponseToMedia(content, json)} />
       )}
     </div>
   );
 }
 
-/** The resolved body, by kind. Text is the star; media renders as a
- * minimal preview/label for now. `json` text bodies (tool-call
- * arguments) pretty-print instead of rendering as markdown. */
-function PartContent({
+/** Render inline `RichContent` (no fetch): a bare string as markdown
+ * (or pretty JSON when `json`), or each part through the shared
+ * [`MediaView`]. */
+function InlineContent({
   content,
   json = false,
 }: {
-  content: CliCommandAgentsLogsOpenResponse;
+  content: AgentCompletionsMessageRichContent;
   json?: boolean;
 }) {
+  if (typeof content === "string") {
+    return <MediaView media={{ kind: "text", text: content, json }} />;
+  }
+  return (
+    <>
+      {content.map((part, i) => (
+        <MediaView key={i} media={richPartToMedia(part)} />
+      ))}
+    </>
+  );
+}
+
+/** The normalized media descriptor both the fetched
+ * `agents/logs/open` bodies and inline `RichContentPart`s map to, so
+ * one renderer ([`MediaView`]) serves both sources. */
+type Media =
+  | { kind: "text"; text: string; json?: boolean }
+  | { kind: "image"; url: string }
+  | { kind: "audio"; data: string; format: string }
+  | { kind: "video"; url: string }
+  | {
+      kind: "file";
+      file_data?: string | null;
+      file_id?: string | null;
+      file_url?: string | null;
+      filename?: string | null;
+    };
+
+/** An `agents/logs/open` response → [`Media`]. */
+function openResponseToMedia(
+  content: CliCommandAgentsLogsOpenResponse,
+  json: boolean,
+): Media {
   switch (content.type) {
     case "text":
-      if (json) {
+      return { kind: "text", text: content.text, json };
+    case "image":
+      return { kind: "image", url: content.url };
+    case "audio":
+      return { kind: "audio", data: content.data, format: content.format };
+    case "video":
+      return { kind: "video", url: content.url };
+    case "file":
+      return {
+        kind: "file",
+        file_data: content.file_data,
+        file_id: content.file_id,
+        file_url: content.file_url,
+        filename: content.filename,
+      };
+    default:
+      // Request blobs never resolve from part ids.
+      return { kind: "text", text: content.type };
+  }
+}
+
+/** An inline `RichContentPart` → [`Media`]. */
+function richPartToMedia(part: AgentCompletionsMessageRichContentPart): Media {
+  switch (part.type) {
+    case "text":
+      return { kind: "text", text: part.text };
+    case "image_url":
+      return { kind: "image", url: part.image_url.url };
+    case "input_audio":
+      return {
+        kind: "audio",
+        data: part.input_audio.data,
+        format: part.input_audio.format,
+      };
+    case "video_url":
+    case "input_video":
+      return { kind: "video", url: part.video_url.url };
+    case "file":
+      return {
+        kind: "file",
+        file_data: part.file.file_data,
+        file_id: part.file.file_id,
+        file_url: part.file.file_url,
+        filename: part.file.filename,
+      };
+  }
+}
+
+/** Render one normalized media descriptor. Text is the star (markdown
+ * or, for `json` tool-call arguments, pretty-printed); image / video
+ * / audio get real players; file a download link. */
+function MediaView({ media }: { media: Media }) {
+  switch (media.kind) {
+    case "text":
+      if (media.json) {
         return (
           <pre
             data-json-part
@@ -520,18 +667,18 @@ function PartContent({
               "leading-snug",
             )}
           >
-            {prettyJson(content.text)}
+            {prettyJson(media.text)}
           </pre>
         );
       }
-      return <Markdown>{content.text}</Markdown>;
+      return <Markdown>{media.text}</Markdown>;
     case "image":
-      return <MediaImage url={content.url} />;
+      return <MediaImage url={media.url} />;
     case "video":
       return (
         <video
           data-media-video
-          src={content.url}
+          src={media.url}
           controls
           preload="metadata"
           className={cn("max-w-full", "max-h-80", "rounded-sm")}
@@ -541,18 +688,14 @@ function PartContent({
       return (
         <audio
           data-media-audio
-          src={`data:audio/${mediaMime(content.format)};base64,${content.data}`}
+          src={`data:audio/${mediaMime(media.format)};base64,${media.data}`}
           controls
           preload="metadata"
           className={cn("max-w-full")}
         />
       );
     case "file":
-      return <MediaFile content={content} />;
-    default:
-      // Request blobs never resolve from part ids; render a marker
-      // if one ever does.
-      return <span className={cn("text-info-dim")}>{content.type}</span>;
+      return <MediaFile file={media} />;
   }
 }
 
@@ -599,30 +742,187 @@ function MediaImage({ url }: { url: string }) {
  * otherwise a dim label. Data-URL downloads never navigate the
  * webview. */
 function MediaFile({
-  content,
+  file,
 }: {
-  content: Extract<CliCommandAgentsLogsOpenResponse, { type: "file" }>;
+  file: {
+    file_data?: string | null;
+    file_id?: string | null;
+    file_url?: string | null;
+    filename?: string | null;
+  };
 }) {
-  const name = content.filename ?? content.file_id ?? "attachment";
+  const name = file.filename ?? file.file_id ?? "attachment";
   const href =
-    content.file_url != null
-      ? content.file_url
-      : content.file_data != null
-        ? `data:application/octet-stream;base64,${content.file_data}`
+    file.file_url != null
+      ? file.file_url
+      : file.file_data != null
+        ? `data:application/octet-stream;base64,${file.file_data}`
         : null;
   if (href === null) {
-    return (
-      <span className={cn("text-info-dim")}>file: {name}</span>
-    );
+    return <span className={cn("text-info-dim")}>file: {name}</span>;
   }
   return (
     <a
       data-media-file
       href={href}
-      download={content.filename ?? "file"}
+      download={file.filename ?? "file"}
       className={cn("underline", "text-copper-bright", "cursor-pointer")}
     >
       {name}
     </a>
+  );
+}
+
+/** A user / assistant / tool message from a request body. */
+type RequestMessage = AgentCompletionsMessageMessage;
+type AssistantMsg = Extract<RequestMessage, { role: "assistant" }>;
+type ToolMsg = Extract<RequestMessage, { role: "tool" }>;
+
+/** The unwrapped `agent_completion_request`: a dated `request`
+ * header, then its body's messages — the only place the caller's
+ * user input appears. Fetched on view like a log part. */
+function RequestSection({
+  id,
+  sender,
+  at,
+}: {
+  id: number;
+  sender: string;
+  at: string;
+}) {
+  const { content, failed, ref } = useLazyOpen(id);
+  const body =
+    content !== null && content.type === "agent_completion_request"
+      ? content
+      : null;
+  return (
+    <div
+      ref={ref}
+      data-log-row="agent_completion_request"
+      className={cn("flex", "flex-col", "gap-1")}
+    >
+      <KindLabel note={`from ${sender}`} at={at}>
+        request
+      </KindLabel>
+      <div
+        className={cn(
+          "ml-1",
+          "pl-2",
+          "border-l",
+          "border-copper-mid/30",
+          "flex",
+          "flex-col",
+          "gap-2",
+        )}
+      >
+        {failed ? (
+          <span className={cn("text-info-dim")}>failed to load</span>
+        ) : body === null ? (
+          <LoadingDots marker="data-request-loading" />
+        ) : (
+          <RequestMessages messages={body.body.messages} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** Render a request body's messages: user (content), assistant (the
+ * shared assistant body), and tool responses paired into their
+ * assistant's tool sections. A tool message whose call is NOT in
+ * these messages (it lives in a prior log) renders as a standalone
+ * response-only tool section. */
+function RequestMessages({ messages }: { messages: RequestMessage[] }) {
+  // The response per tool_call_id, and the set of ids an assistant
+  // in these messages actually calls (so orphan tool messages —
+  // answering a log-side call — still render).
+  const toolByCallId = new Map<string, ToolMsg>();
+  const calledIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role === "tool" && !toolByCallId.has(m.tool_call_id)) {
+      toolByCallId.set(m.tool_call_id, m);
+    }
+    if (m.role === "assistant") {
+      for (const tc of m.tool_calls ?? []) {
+        calledIds.add(tc.id);
+      }
+    }
+  }
+  return (
+    <>
+      {messages.map((m, i) => {
+        switch (m.role) {
+          case "user":
+            return (
+              <div
+                key={i}
+                data-request-message="user"
+                className={cn("flex", "flex-col", "gap-1")}
+              >
+                <KindLabel>user</KindLabel>
+                <InlineContent content={m.content} />
+              </div>
+            );
+          case "assistant":
+            return (
+              <AssistantMessage key={i} msg={m} toolByCallId={toolByCallId} />
+            );
+          case "tool":
+            // Answered inside its assistant's section above; only a
+            // tool message whose call lives in a prior log shows
+            // standalone.
+            if (calledIds.has(m.tool_call_id)) return null;
+            return (
+              <ToolSection
+                key={i}
+                name="tool response"
+                response={{ inline: m.content }}
+              />
+            );
+        }
+      })}
+    </>
+  );
+}
+
+/** An assistant message rendered with the SAME pieces as a log
+ * assistant turn: collapsed reasoning, content, and one tool section
+ * per tool call (paired with its inline tool response), then a
+ * refusal. */
+function AssistantMessage({
+  msg,
+  toolByCallId,
+}: {
+  msg: AssistantMsg;
+  toolByCallId: ReadonlyMap<string, ToolMsg>;
+}) {
+  return (
+    <div
+      data-request-message="assistant"
+      className={cn("flex", "flex-col", "gap-1")}
+    >
+      <KindLabel>assistant</KindLabel>
+      {msg.reasoning != null && msg.reasoning !== "" && (
+        <ReasoningPart text={msg.reasoning} />
+      )}
+      {msg.content != null && <InlineContent content={msg.content} />}
+      {(msg.tool_calls ?? []).map((tc) => {
+        const answer = toolByCallId.get(tc.id);
+        return (
+          <ToolSection
+            key={tc.id}
+            name={tc.function.name}
+            call={{ args: tc.function.arguments }}
+            response={answer !== undefined ? { inline: answer.content } : null}
+          />
+        );
+      })}
+      {msg.refusal != null && msg.refusal !== "" && (
+        <div className={cn("flex", "flex-col", "gap-0.5")}>
+          <span className={cn("text-info-dim")}>refusal</span>
+          <InlineContent content={msg.refusal} />
+        </div>
+      )}
+    </div>
   );
 }
