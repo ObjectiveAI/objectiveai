@@ -228,22 +228,25 @@ function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
           className={cn("flex", "flex-col", "gap-1")}
         >
           <KindLabel>assistant</KindLabel>
-          {item.parts.map((part) => (
-            <div key={part.id} className={cn("flex", "flex-col", "gap-0.5")}>
-              {part.type === "tool_call" && (
-                <span className={cn("text-info-dim")}>
-                  tool call {part.function_name} ({part.tool_call_id})
-                </span>
-              )}
-              {part.type === "reasoning" && (
-                <span className={cn("text-info-dim")}>reasoning</span>
-              )}
-              {part.type === "refusal" && (
-                <span className={cn("text-info-dim")}>refusal</span>
-              )}
-              <LogPart id={part.id} />
-            </div>
-          ))}
+          {item.parts.map((part) =>
+            part.type === "reasoning" ? (
+              // Hidden by default — expanding also defers the fetch
+              // until someone actually wants to read it.
+              <ReasoningPart key={part.id} id={part.id} />
+            ) : (
+              <div key={part.id} className={cn("flex", "flex-col", "gap-0.5")}>
+                {part.type === "tool_call" && (
+                  <span className={cn("text-info-dim")}>
+                    tool call {part.function_name} ({part.tool_call_id})
+                  </span>
+                )}
+                {part.type === "refusal" && (
+                  <span className={cn("text-info-dim")}>refusal</span>
+                )}
+                <LogPart id={part.id} />
+              </div>
+            ),
+          )}
         </div>
       );
     case "tool_response":
@@ -275,6 +278,30 @@ function LogRow({ item }: { item: CliCommandAgentsLogsListResponseItem }) {
         </div>
       );
   }
+}
+
+/** A reasoning part: collapsed to a disclosure line by default —
+ * the body (and its fetch) only exists once opened. */
+function ReasoningPart({ id }: { id: number }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={cn("flex", "flex-col", "gap-0.5")}>
+      <button
+        type="button"
+        data-reasoning-toggle
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "self-start",
+          "text-info-dim",
+          "hover:text-info-bright",
+          "cursor-pointer",
+        )}
+      >
+        {open ? "\u25be reasoning" : "\u25b8 reasoning"}
+      </button>
+      {open && <LogPart id={id} />}
+    </div>
+  );
 }
 
 /**

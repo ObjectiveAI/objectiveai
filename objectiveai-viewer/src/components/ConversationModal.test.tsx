@@ -130,7 +130,7 @@ describe("ConversationModal", () => {
     harness.logs = [
       assistantRow([
         { type: "text", id: 11, delivered_at: "t" },
-        { type: "reasoning", id: 12, delivered_at: "t" },
+        { type: "text", id: 12, delivered_at: "t" },
       ]),
     ];
     const view = mount();
@@ -151,6 +151,36 @@ describe("ConversationModal", () => {
     expect(
       view.container.querySelectorAll("[data-part-loading]"),
     ).toHaveLength(1);
+    view.unmount();
+  });
+
+  it("collapses reasoning by default; opening fetches, closing hides", async () => {
+    harness.autoResolve.set(41, { type: "text", text: "deep thoughts" });
+    harness.logs = [
+      assistantRow([{ type: "reasoning", id: 41, delivered_at: "t" }]),
+    ];
+    const view = mount();
+    await settle();
+    // Collapsed: no body, no fetch.
+    expect(view.container.querySelector('[data-log-part="41"]')).toBeNull();
+    expect(harness.openedIds).toEqual([]);
+
+    const toggle = view.container.querySelector(
+      "[data-reasoning-toggle]",
+    ) as HTMLElement;
+    act(() => {
+      toggle.click();
+    });
+    await settle();
+    expect(harness.openedIds).toEqual([41]);
+    expect(
+      view.container.querySelector('[data-log-part="41"]')?.textContent,
+    ).toContain("deep thoughts");
+
+    act(() => {
+      toggle.click();
+    });
+    expect(view.container.querySelector('[data-log-part="41"]')).toBeNull();
     view.unmount();
   });
 
