@@ -91,6 +91,9 @@ function HierarchyNode({
           "px-2.5",
           "py-1.5",
           "rounded-sm",
+          // Square the bottom IFF a message box is attached below —
+          // the message box carries the bottom rounding then.
+          "[&:has(+[data-latest-text])]:rounded-b-none",
           "border",
           "whitespace-nowrap",
           "select-none",
