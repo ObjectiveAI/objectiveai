@@ -374,6 +374,10 @@ function BadgeRow({
         "items-center",
         "gap-1.5",
         "self-start",
+        // Breathing room between badge rows (the first hugs the
+        // box's own padding).
+        "mt-1",
+        "first:mt-0",
         "text-[10px]",
       )}
     >
