@@ -286,7 +286,7 @@ function AgentLatestTextView({
         // Anchor for the border-straddling toggle pill; extra bottom
         // room so text clears the pill's upper half.
         "relative",
-        (clipped || expanded) && "pb-3.5",
+        (clipped || expanded) && "pb-4",
       )}
     >
       <div
@@ -328,14 +328,14 @@ function AgentLatestTextView({
             "absolute",
             "left-1/2",
             "-translate-x-1/2",
-            "-bottom-3",
+            "-bottom-3.5",
             "px-2",
             "py-1",
             "rounded-full",
             "border",
             "border-copper-mid",
             "bg-ground",
-            "text-sm",
+            "text-[21px]",
             "leading-none",
             "text-copper-mid",
             "hover:text-copper-bright",
