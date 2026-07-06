@@ -372,6 +372,11 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
         "flex-wrap",
         "justify-center",
         "gap-1",
+        // min-content width: the row only ever demands the WIDEST
+        // single chip, so a pile of tags wraps instead of stretching
+        // the agent box; centered as a block within the box.
+        "w-min",
+        "self-center",
       )}
     >
       {/* The AIH segment: just another tag. */}
