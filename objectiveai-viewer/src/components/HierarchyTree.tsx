@@ -283,6 +283,10 @@ function AgentLatestTextView({
         "text-left",
         "flex",
         "flex-col",
+        // Anchor for the border-straddling toggle pill; extra bottom
+        // room so text clears the pill's upper half.
+        "relative",
+        (clipped || expanded) && "pb-2.5",
       )}
     >
       <div
@@ -318,8 +322,20 @@ function AgentLatestTextView({
           onClick={() => setExpanded((v) => !v)}
           aria-label={expanded ? "Collapse message" : "Expand message"}
           className={cn(
-            "self-center",
-            "mt-0.5",
+            // An oval SPLITTING the bottom border: centered on the
+            // border line, opaque ground fill masking the border
+            // beneath it.
+            "absolute",
+            "left-1/2",
+            "-translate-x-1/2",
+            "-bottom-2",
+            "px-2",
+            "py-px",
+            "rounded-full",
+            "border",
+            "border-copper-mid",
+            "bg-ground",
+            "text-[9px]",
             "leading-none",
             "text-copper-mid",
             "hover:text-copper-bright",
