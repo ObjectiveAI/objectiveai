@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import {
   agentsLogsOpenExecute,
@@ -33,6 +33,15 @@ export function ConversationModal({
   onClose: () => void;
 }) {
   const { logs } = useAgent(hierarchy);
+  const bodyRef = useRef<HTMLDivElement | null>(null);
+
+  // The conversation opens at the BOTTOM — the newest rows (which
+  // also makes the lazy parts nearest the present load first).
+  useLayoutEffect(() => {
+    const el = bodyRef.current;
+    if (el === null || logs === null) return;
+    el.scrollTop = el.scrollHeight;
+  }, [logs]);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -116,6 +125,7 @@ export function ConversationModal({
           </button>
         </header>
         <div
+          ref={bodyRef}
           className={cn(
             "flex-1",
             "overflow-auto",
