@@ -341,17 +341,25 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         "self-start",
         "mt-1",
         "first:mt-0",
-        "px-1.5",
-        "py-px",
         "rounded-sm",
         "border",
         "border-copper-mid/70",
-        "bg-copper-warm/10",
+        // The label's tint clips to the border at the top-left.
+        "overflow-hidden",
         "text-[11px]",
         "text-copper-bright",
       )}
     >
-      inline
+      <span
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "bg-copper-warm/10",
+          "rounded-br-sm",
+        )}
+      >
+        inline
+      </span>
       <pre
         data-agent-definition
         className={cn(
@@ -360,6 +368,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
           "text-left",
           "whitespace-pre",
           "leading-snug",
+          "px-1.5",
           "py-1",
         )}
       >
