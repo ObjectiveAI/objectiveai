@@ -35,15 +35,29 @@ export function ConversationModal({
   const { logs } = useAgent(hierarchy);
   const bodyRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  // Bottom bias: pinned until the user scrolls away from the bottom.
+  // Bottom bias: pinned until the USER scrolls away from the bottom.
   const stickyRef = useRef(true);
+  // True while a scroll we caused is in flight — those events must
+  // not be mistaken for user intent.
+  const snappingRef = useRef(false);
+
+  const snapToBottom = () => {
+    const el = bodyRef.current;
+    if (el === null) return;
+    snappingRef.current = true;
+    el.scrollTop = el.scrollHeight;
+    // The resulting scroll event lands in a later task.
+    setTimeout(() => {
+      snappingRef.current = false;
+    }, 0);
+  };
 
   // The conversation opens at the BOTTOM — the newest rows (which
   // also makes the lazy parts nearest the present load first).
   useLayoutEffect(() => {
-    const el = bodyRef.current;
-    if (el === null || logs === null) return;
-    el.scrollTop = el.scrollHeight;
+    if (logs === null) return;
+    snapToBottom();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs]);
 
   // Lazy parts resolving above/below grow the content and would
@@ -56,13 +70,14 @@ export function ConversationModal({
     if (typeof ResizeObserver === "undefined") return;
     const observer = new ResizeObserver(() => {
       if (stickyRef.current) {
-        el.scrollTop = el.scrollHeight;
+        snapToBottom();
       }
     });
     observer.observe(content);
     return () => {
       observer.disconnect();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logs]);
 
   useEffect(() => {
@@ -149,6 +164,8 @@ export function ConversationModal({
         <div
           ref={bodyRef}
           onScroll={() => {
+            // Only USER scrolls may unpin — our own snaps are flagged.
+            if (snappingRef.current) return;
             const el = bodyRef.current;
             if (el === null) return;
             stickyRef.current =
@@ -157,6 +174,11 @@ export function ConversationModal({
           className={cn(
             "flex-1",
             "overflow-auto",
+            // The browser's own scroll anchoring also adjusts
+            // scrollTop on content resizes, firing scroll events
+            // indistinguishable from the user's and racing the pin —
+            // we own the anchoring, so turn the native one off.
+            "[overflow-anchor:none]",
             "px-4",
             "py-3",
             "text-[11px]",
