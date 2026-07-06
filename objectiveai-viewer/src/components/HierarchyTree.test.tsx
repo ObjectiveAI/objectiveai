@@ -171,34 +171,29 @@ describe("HierarchyTree", () => {
     view.unmount();
   });
 
-  it("shows locale-formatted spawn and last-active times on agent boxes", () => {
-    const spawned = "2026-06-20T00:00:00+00:00";
-    const lastActive = "2026-07-05T01:07:14+00:00";
+  it("shows a locale-aware relative last-active string, bottom right", () => {
+    const lastActive = new Date(
+      Date.now() - 2 * 24 * 60 * 60 * 1000,
+    ).toISOString();
     const view = render([
-      agent("cli/timed", true, {
-        created_at: spawned,
-        last_active_at: lastActive,
-      }),
+      agent("cli/timed", true, { last_active_at: lastActive }),
     ]);
 
-    const box = view.container.querySelector('[data-node-name="timed"]');
-    expect(box?.textContent).toContain("spawned");
-    expect(box?.textContent).toContain(new Date(spawned).toLocaleString());
-    expect(box?.textContent).toContain("active");
-    expect(box?.textContent).toContain(
-      new Date(lastActive).toLocaleString(),
+    const ago = view.container.querySelector("[data-last-active]");
+    expect(ago?.textContent).toBe(
+      new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(
+        -2,
+        "day",
+      ),
     );
-    // The structural parent carries no times.
-    const cli = view.container.querySelector('[data-node-name="cli"]');
-    expect(cli?.textContent).not.toContain("spawned");
+    // Spawn time is no longer displayed anywhere.
+    expect(view.container.textContent).not.toContain("spawned");
     view.unmount();
   });
 
-  it("shows an em dash for unknown times", () => {
+  it("shows no time line when last-active is unknown", () => {
     const view = render([agent("solo", false)]);
-    const box = view.container.querySelector('[data-node-name="solo"]');
-    expect(box?.textContent).toContain("spawned");
-    expect(box?.textContent).toContain("—");
+    expect(view.container.querySelector("[data-last-active]")).toBeNull();
     view.unmount();
   });
 
