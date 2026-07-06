@@ -456,7 +456,7 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     "py-px",
     "rounded-sm",
     "border",
-    "border-copper-warm",
+    "border-copper-mid/70",
     "bg-ground-raised",
     // Matching the message block's tone.
     "text-[#c3bfbb]",
