@@ -251,7 +251,7 @@ function AgentLatestTextView({
         "leading-4",
         // 5 lines of leading-4 (80px) + py-1.5 (12px) + border (2px):
         // border-box height, so the padding doesn't eat the top line.
-        "max-h-[94px]",
+        "max-h-[91px]",
         "overflow-hidden",
         "flex",
         "flex-col",
