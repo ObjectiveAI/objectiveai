@@ -824,29 +824,10 @@ function RequestSection({
   // does not exist in the conversation.
   if (messages === null || messages.length === 0) return null;
 
-  return (
-    <div
-      data-log-row="agent_completion_request"
-      className={cn("flex", "flex-col", "gap-1")}
-    >
-      <KindLabel note={`from ${sender}`} at={at}>
-        request
-      </KindLabel>
-      <div
-        className={cn(
-          "ml-1",
-          "pl-2",
-          "border-l",
-          "border-copper-mid/30",
-          "flex",
-          "flex-col",
-          "gap-2",
-        )}
-      >
-        <RequestMessages messages={messages} />
-      </div>
-    </div>
-  );
+  // Flattened: no request wrapper. Each message renders as a
+  // top-level row carrying the request's sender + date on its own
+  // badge.
+  return <RequestMessages messages={messages} sender={sender} at={at} />;
 }
 
 /** Render a request body's messages: user (content), assistant (the
@@ -854,7 +835,15 @@ function RequestSection({
  * assistant's tool sections. A tool message whose call is NOT in
  * these messages (it lives in a prior log) renders as a standalone
  * response-only tool section. */
-function RequestMessages({ messages }: { messages: RequestMessage[] }) {
+function RequestMessages({
+  messages,
+  sender,
+  at,
+}: {
+  messages: RequestMessage[];
+  sender: string;
+  at: string;
+}) {
   // The response per tool_call_id, and the set of ids an assistant
   // in these messages actually calls (so orphan tool messages —
   // answering a log-side call — still render).
@@ -881,13 +870,21 @@ function RequestMessages({ messages }: { messages: RequestMessage[] }) {
                 data-request-message="user"
                 className={cn("flex", "flex-col", "gap-1")}
               >
-                <KindLabel>user</KindLabel>
+                <KindLabel note={`from ${sender}`} at={at}>
+                  user
+                </KindLabel>
                 <InlineContent content={m.content} />
               </div>
             );
           case "assistant":
             return (
-              <AssistantMessage key={i} msg={m} toolByCallId={toolByCallId} />
+              <AssistantMessage
+                key={i}
+                msg={m}
+                toolByCallId={toolByCallId}
+                sender={sender}
+                at={at}
+              />
             );
           case "tool":
             // Answered inside its assistant's section above; only a
@@ -914,16 +911,22 @@ function RequestMessages({ messages }: { messages: RequestMessage[] }) {
 function AssistantMessage({
   msg,
   toolByCallId,
+  sender,
+  at,
 }: {
   msg: AssistantMsg;
   toolByCallId: ReadonlyMap<string, ToolMsg>;
+  sender: string;
+  at: string;
 }) {
   return (
     <div
       data-request-message="assistant"
       className={cn("flex", "flex-col", "gap-1")}
     >
-      <KindLabel>assistant</KindLabel>
+      <KindLabel note={`from ${sender}`} at={at}>
+        assistant
+      </KindLabel>
       {msg.reasoning != null && msg.reasoning !== "" && (
         <ReasoningPart text={msg.reasoning} />
       )}

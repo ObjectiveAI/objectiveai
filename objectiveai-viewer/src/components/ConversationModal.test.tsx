@@ -137,13 +137,14 @@ describe("ConversationModal", () => {
     const view = mount();
     await settle();
 
-    const req = view.container.querySelector(
-      '[data-log-row="agent_completion_request"]',
-    );
-    expect(req?.textContent).toContain("request");
-    expect(req?.textContent).toContain("from cli");
+    // Flattened: no request wrapper — messages are top-level, each
+    // carrying the request's sender on its badge.
+    expect(
+      view.container.querySelector('[data-log-row="agent_completion_request"]'),
+    ).toBeNull();
     const user = view.container.querySelector('[data-request-message="user"]');
     expect(user?.textContent).toContain("hello there");
+    expect(user?.textContent).toContain("from cli");
     const assistant = view.container.querySelector(
       '[data-request-message="assistant"]',
     );
