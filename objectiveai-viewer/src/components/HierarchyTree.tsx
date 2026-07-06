@@ -2,6 +2,7 @@ import cn from "classnames";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
 import { useAgentDefinition } from "../hooks/useAgentDefinition";
 import { useAgentInstanceTags } from "../hooks/useAgentInstanceTags";
+import { useAgentLatestText } from "../hooks/useAgentLatestText";
 
 /** One agent scoped under a tree node: the path segments REMAINING
  * below that node, plus the agent itself. `rest` empty means the
@@ -136,6 +137,12 @@ function HierarchyNode({
           </div>
         )}
       </div>
+      {self !== null && (
+        <AgentLatestTextView
+          hierarchy={self.agent_instance_hierarchy}
+          active={self.active}
+        />
+      )}
       {children.length > 0 && (
         <>
           {/* Stem from this node down to its children's rail —
@@ -158,6 +165,43 @@ function HierarchyNode({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+/** The agent's most recent assistant TEXT, in its own box below the
+ * agent's — absent entirely when the agent has written none. Live
+ * via [`useAgentLatestText`]: refreshed on active flips and polled
+ * every 60s while active. */
+function AgentLatestTextView({
+  hierarchy,
+  active,
+}: {
+  hierarchy: string;
+  active: boolean;
+}) {
+  const text = useAgentLatestText(hierarchy, active);
+  if (text === null) return null;
+  return (
+    <div
+      data-latest-text
+      className={cn(
+        "mt-1",
+        "max-w-72",
+        "px-2.5",
+        "py-1.5",
+        "rounded-sm",
+        "border",
+        "border-copper-mid/60",
+        "text-[10px]",
+        "text-info-mid",
+        "text-left",
+        "whitespace-pre-wrap",
+        "break-words",
+        "select-text",
+      )}
+    >
+      {text}
     </div>
   );
 }

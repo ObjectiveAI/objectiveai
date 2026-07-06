@@ -21,6 +21,7 @@ const harness = vi.hoisted(() => ({
   tagsLoading: false,
   definitions: new Map<string, unknown>(),
   definitionLoading: false,
+  latestTexts: new Map<string, string>(),
 }));
 
 vi.mock("../hooks/useAgents", () => ({
@@ -39,6 +40,11 @@ vi.mock("../hooks/useAgentDefinition", () => ({
     agent: harness.definitions.get(hierarchy) ?? null,
     loading: harness.definitionLoading,
   }),
+}));
+
+vi.mock("../hooks/useAgentLatestText", () => ({
+  useAgentLatestText: (hierarchy: string) =>
+    harness.latestTexts.get(hierarchy) ?? null,
 }));
 
 import { HierarchyTree } from "./HierarchyTree";
@@ -63,6 +69,7 @@ function render(
     tagsLoading?: boolean;
     definitions?: Record<string, unknown>;
     definitionLoading?: boolean;
+    latestTexts?: Record<string, string>;
   },
 ) {
   harness.agents = agents;
@@ -70,6 +77,7 @@ function render(
   harness.tagsLoading = opts?.tagsLoading ?? false;
   harness.definitions = new Map(Object.entries(opts?.definitions ?? {}));
   harness.definitionLoading = opts?.definitionLoading ?? false;
+  harness.latestTexts = new Map(Object.entries(opts?.latestTexts ?? {}));
   const container = document.createElement("div");
   const root = createRoot(container);
   act(() => {
@@ -273,6 +281,26 @@ describe("HierarchyTree", () => {
       bareView.container.querySelector("[data-definition-loading]"),
     ).toBeNull();
     bareView.unmount();
+  });
+
+  it("shows the latest assistant text in its own box below the agent's; none when unwritten", () => {
+    const view = render(
+      [agent("cli/wrote", false), agent("cli/silent", false)],
+      { latestTexts: { "cli/wrote": "Both cleared — *BURRP*" } },
+    );
+    const boxes = view.container.querySelectorAll("[data-latest-text]");
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0].textContent).toBe("Both cleared — *BURRP*");
+    // Below the agent's own box, as a SIBLING in the node cell — not
+    // inside the agent box.
+    const agentBox = view.container.querySelector(
+      '[data-node-name="wrote"]',
+    );
+    expect(agentBox?.querySelector("[data-latest-text]")).toBeNull();
+    expect(agentBox?.parentElement?.querySelector("[data-latest-text]")).toBe(
+      boxes[0],
+    );
+    view.unmount();
   });
 
   it("renders nothing for no agents (the watermark shows through)", () => {
