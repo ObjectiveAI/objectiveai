@@ -249,44 +249,41 @@ function ToolSection({
     "text-info-dim",
   );
   return (
-    <div
-      data-tool-section={name}
-      className={cn(
-        "rounded-sm",
-        "border",
-        "border-copper-mid/50",
-        "overflow-hidden",
-      )}
-    >
+    <div data-tool-section={name} className={cn("flex", "flex-col", "gap-0.5")}>
       <button
         type="button"
         data-tool-toggle
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "w-full",
+          "self-start",
           "flex",
           "items-center",
           "gap-1.5",
-          "px-2.5",
-          "py-1",
-          "bg-copper-warm/10",
-          "text-copper-bright",
-          "text-left",
+          "text-info-dim",
+          "hover:text-info-bright",
           "cursor-pointer",
-          open && cn("border-b", "border-copper-mid/50"),
         )}
       >
-        <span className={cn("text-info-dim")}>
-          {open ? "\u25be" : "\u25b8"}
+        <span>{open ? "\u25be" : "\u25b8"}</span>
+        <span className={cn("text-[9px]", "uppercase", "tracking-widest")}>
+          tool
         </span>
-        {name}
+        <span className={cn("text-info-mid")}>{name}</span>
       </button>
       {open && (
-        <>
+        <div
+          className={cn(
+            "ml-1.5",
+            "pl-2",
+            "border-l",
+            "border-node-border",
+            "flex",
+            "flex-col",
+            "gap-1.5",
+          )}
+        >
           {call !== undefined && (
-            <div
-              className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}
-            >
+            <div className={cn("flex", "flex-col", "gap-1")}>
               <span className={label}>call</span>
               {"args" in call ? (
                 <MediaView
@@ -298,16 +295,7 @@ function ToolSection({
             </div>
           )}
           {response !== null && (
-            <div
-              className={cn(
-                "px-2.5",
-                "py-1.5",
-                call !== undefined && cn("border-t", "border-copper-mid/30"),
-                "flex",
-                "flex-col",
-                "gap-1",
-              )}
-            >
+            <div className={cn("flex", "flex-col", "gap-1")}>
               <span className={label}>response</span>
               {"log" in response ? (
                 response.log.parts.map((part) => (
@@ -318,7 +306,7 @@ function ToolSection({
               )}
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
@@ -684,19 +672,38 @@ function ReasoningPart(props: { id: number } | { text: string }) {
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "self-start",
+          "flex",
+          "items-center",
+          "gap-1.5",
           "text-info-dim",
           "hover:text-info-bright",
           "cursor-pointer",
         )}
       >
-        {open ? "\u25be reasoning" : "\u25b8 reasoning"}
+        <span>{open ? "\u25be" : "\u25b8"}</span>
+        <span className={cn("text-[9px]", "uppercase", "tracking-widest")}>
+          reasoning
+        </span>
       </button>
-      {open &&
-        ("id" in props ? (
-          <LogPart id={props.id} />
-        ) : (
-          <InlineContent content={props.text} />
-        ))}
+      {open && (
+        <div
+          className={cn(
+            "ml-1.5",
+            "pl-2",
+            "border-l",
+            "border-node-border",
+            "flex",
+            "flex-col",
+            "gap-1",
+          )}
+        >
+          {"id" in props ? (
+            <LogPart id={props.id} />
+          ) : (
+            <InlineContent content={props.text} />
+          )}
+        </div>
+      )}
     </div>
   );
 }
