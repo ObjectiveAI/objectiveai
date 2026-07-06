@@ -41,6 +41,14 @@ pub struct AgentCompletionChunk {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_remote: Option<crate::RemotePath>,
+    /// The resolved inline WF definition. Populated ONLY on the FIRST
+    /// chunk of a completion — but ALWAYS on the first chunk, remote
+    /// or not (pair with [`Self::agent_remote`] to tell which source
+    /// it came from). [`Self::push`] keeps the first value.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    #[arbitrary(default)]
+    pub agent_inline: Option<crate::agent::InlineAgentWithFallbacks>,
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub created: u64,
     pub messages: Vec<super::MessageChunk>,
@@ -83,10 +91,18 @@ impl AgentCompletionChunk {
             error,
             continuation,
             messages_queued,
+            agent_inline,
             ..
         }: &AgentCompletionChunk,
     ) {
         self.push_messages(messages);
+        // First chunk wins: `agent_inline` rides only the completion's
+        // first chunk, so the accumulator never overwrites it.
+        if self.agent_inline.is_none() {
+            if let Some(agent_inline) = agent_inline {
+                self.agent_inline = Some(agent_inline.clone());
+            }
+        }
         match (&mut self.usage, usage) {
             (Some(self_usage), Some(other_usage)) => {
                 self_usage.push(other_usage);

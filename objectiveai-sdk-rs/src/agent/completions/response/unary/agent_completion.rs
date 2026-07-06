@@ -25,6 +25,12 @@ pub struct AgentCompletion {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub agent_remote: Option<crate::RemotePath>,
+    /// The resolved inline WF definition, carried from the streaming
+    /// first chunk. See
+    /// [`super::streaming::AgentCompletionChunk::agent_inline`].
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent_inline: Option<crate::agent::InlineAgentWithFallbacks>,
     pub created: u64,
     pub messages: Vec<super::Message>,
     /// The object type (always "agent.completion").
@@ -80,6 +86,7 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
             agent_id,
             agent_full_id,
             agent_remote,
+            agent_inline,
             created,
             messages,
             object,
@@ -96,6 +103,7 @@ impl From<response::streaming::AgentCompletionChunk> for AgentCompletion {
             agent_id,
             agent_full_id,
             agent_remote,
+            agent_inline,
             created,
             messages: messages.into_iter().map(Into::into).collect(),
             object: object.into(),
