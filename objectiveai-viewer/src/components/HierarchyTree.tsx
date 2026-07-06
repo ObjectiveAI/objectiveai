@@ -341,6 +341,16 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
           "whitespace-pre",
           "leading-snug",
           "self-start",
+          // Bordered box hanging off the badge: same copper border,
+          // pulled up to overlap the badge's bottom edge, square
+          // where they join.
+          "border",
+          "border-copper-mid/70",
+          "rounded-sm",
+          "rounded-tl-none",
+          "px-1.5",
+          "py-1",
+          "-mt-[3px]",
         )}
       >
         {formatDefinition(agent)}
