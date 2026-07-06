@@ -458,7 +458,8 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     "border",
     "border-copper-warm",
     "bg-ground-raised",
-    "text-info-bright",
+    // Matching the message block's tone.
+    "text-[#bdb9b5]",
   );
   return (
     <div
