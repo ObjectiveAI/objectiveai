@@ -249,7 +249,9 @@ function AgentLatestTextView({
         // text bottom-anchors in a fixed-max-height clip, so overflow
         // disappears off the TOP.
         "leading-4",
-        "max-h-20",
+        // 5 lines of leading-4 (80px) + py-1.5 (12px) + border (2px):
+        // border-box height, so the padding doesn't eat the top line.
+        "max-h-[94px]",
         "overflow-hidden",
         "flex",
         "flex-col",
