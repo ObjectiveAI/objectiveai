@@ -330,8 +330,39 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     return <RemoteDefinition remote={agent} />;
   }
   return (
-    <>
-      <BadgeRow badge="inline" />
+    // One border around badge AND content: the badge itself goes
+    // borderless (keeping its tint) inside the shared box.
+    <div
+      className={cn(
+        "flex",
+        "flex-col",
+        "items-start",
+        "gap-1",
+        "self-start",
+        "mt-1",
+        "first:mt-0",
+        "border",
+        "border-copper-mid/70",
+        "rounded-sm",
+        "px-1.5",
+        "py-1",
+        // Outdent by border + padding so the badge INSIDE sits at
+        // the same x as the sibling badge rows.
+        "-ml-[7px]",
+      )}
+    >
+      <span
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+          "text-[11px]",
+        )}
+      >
+        inline
+      </span>
       <pre
         data-agent-definition
         className={cn(
@@ -340,22 +371,11 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
           "text-left",
           "whitespace-pre",
           "leading-snug",
-          "self-start",
-          // Bordered box hanging off the badge: same copper border,
-          // pulled up to overlap the badge's bottom edge, square
-          // where they join.
-          "border",
-          "border-copper-mid/70",
-          "rounded-sm",
-          "rounded-tl-none",
-          "px-1.5",
-          "py-1",
-          "-mt-[3px]",
         )}
       >
         {formatDefinition(agent)}
       </pre>
-    </>
+    </div>
   );
 }
 
