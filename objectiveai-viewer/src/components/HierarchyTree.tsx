@@ -456,7 +456,7 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     "py-px",
     "rounded-sm",
     "border",
-    "border-node-border/70",
+    "border-copper-warm",
     "bg-ground-raised",
     "text-info-bright",
   );
