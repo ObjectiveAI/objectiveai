@@ -147,7 +147,15 @@ function HierarchyNode({
         <>
           {/* Stem from this node down to its children's rail —
               anchored left, under the parent's leading edge. */}
-          <div className={cn("w-px", "h-3", "bg-node-border/60", "ml-3")} />
+          <div
+            className={cn(
+              "w-px",
+              "h-3",
+              "ml-3",
+              "bg-copper-hot",
+              "shadow-[0_0_6px_rgba(245,158,11,0.8)]",
+            )}
+          />
           <div
             className={cn(
               "flex",
@@ -155,14 +163,21 @@ function HierarchyNode({
               "items-start",
               "gap-4",
               "border-t",
-              "border-node-border/60",
+              "border-copper-hot",
+              "shadow-[0_-1px_6px_rgba(245,158,11,0.5)]",
             )}
           >
             {children.map(([child, group]) => (
               <div key={child} className={cn("flex", "flex-col", "items-start")}>
                 {/* Stem from the rail down INTO this child. */}
                 <div
-                  className={cn("w-px", "h-3", "bg-node-border/60", "ml-3")}
+                  className={cn(
+                    "w-px",
+                    "h-3",
+                    "ml-3",
+                    "bg-copper-hot",
+                    "shadow-[0_0_6px_rgba(245,158,11,0.8)]",
+                  )}
                 />
                 <HierarchyNode name={child} members={group} />
               </div>
