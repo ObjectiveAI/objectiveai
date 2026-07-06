@@ -389,7 +389,7 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
         "flex-row",
         "items-center",
         "gap-1.5",
-        "self-center",
+        "self-start",
         "text-[10px]",
       )}
     >
@@ -463,13 +463,13 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
         "flex",
         "flex-row",
         "flex-wrap",
-        "justify-center",
         "gap-1",
         // min-content width: the row only ever demands the WIDEST
         // single chip, so a pile of tags wraps instead of stretching
-        // the agent box; centered as a block within the box.
+        // the agent box (other children can still stretch it wider —
+        // the row starts at the left either way).
         "w-min",
-        "self-center",
+        "self-start",
       )}
     >
       {/* The AIH segment: just another tag. */}
