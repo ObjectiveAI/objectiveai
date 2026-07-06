@@ -385,6 +385,66 @@ describe("HierarchyTree", () => {
     view.unmount();
   });
 
+  it("shows no expand toggle when the message fits", () => {
+    const view = render([agent("cli/short", false)], {
+      latestTexts: { "cli/short": "one-liner" },
+    });
+    expect(view.container.querySelector("[data-expand-text]")).toBeNull();
+    view.unmount();
+  });
+
+  it("shows the expand toggle only for clipped content, and toggles", () => {
+    // jsdom has no layout: fake an overflowing clip element.
+    const original = Object.getOwnPropertyDescriptor(
+      HTMLElement.prototype,
+      "scrollHeight",
+    );
+    Object.defineProperty(HTMLElement.prototype, "scrollHeight", {
+      configurable: true,
+      get() {
+        return 500;
+      },
+    });
+    try {
+      const view = render([agent("cli/talker", false)], {
+        latestTexts: { "cli/talker": "long ".repeat(200) },
+      });
+      const box = view.container.querySelector("[data-latest-text]");
+      const clip = box?.firstElementChild;
+      expect(clip?.className).toContain("max-h-[77px]");
+
+      const toggle = box?.querySelector(
+        "[data-expand-text]",
+      ) as HTMLElement | null;
+      expect(toggle).toBeTruthy();
+
+      act(() => {
+        toggle?.click();
+      });
+      // Expanded: the clamp is gone, toggle stays to collapse.
+      const expandedClip =
+        view.container.querySelector("[data-latest-text]")?.firstElementChild;
+      expect(expandedClip?.className).not.toContain("max-h-[77px]");
+      expect(
+        view.container.querySelector("[data-expand-text]"),
+      ).toBeTruthy();
+
+      act(() => {
+        (
+          view.container.querySelector("[data-expand-text]") as HTMLElement
+        ).click();
+      });
+      const collapsedClip =
+        view.container.querySelector("[data-latest-text]")?.firstElementChild;
+      expect(collapsedClip?.className).toContain("max-h-[77px]");
+      view.unmount();
+    } finally {
+      if (original) {
+        Object.defineProperty(HTMLElement.prototype, "scrollHeight", original);
+      }
+    }
+  });
+
   it("renders nothing for no agents (the watermark shows through)", () => {
     const view = render([]);
     expect(view.nodes()).toEqual([]);

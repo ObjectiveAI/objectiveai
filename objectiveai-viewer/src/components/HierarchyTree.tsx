@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
@@ -241,6 +242,17 @@ function AgentLatestTextView({
   active: boolean;
 }) {
   const text = useAgentLatestText(hierarchy, active);
+  const [expanded, setExpanded] = useState(false);
+  const [clipped, setClipped] = useState(false);
+  const clipRef = useRef<HTMLDivElement | null>(null);
+
+  // Detect ACTUAL hidden content: only then does the toggle appear.
+  useLayoutEffect(() => {
+    const el = clipRef.current;
+    if (el === null) return;
+    setClipped(el.scrollHeight > el.clientHeight + 1);
+  }, [text, expanded]);
+
   if (text === null) return null;
   return (
     <div
@@ -264,23 +276,50 @@ function AgentLatestTextView({
         // Between info-bright (#d6d3d1) and info-mid (#a8a29e).
         "text-[#c3bfbb]",
         "text-left",
-        "whitespace-pre-wrap",
-        "break-words",
-        "select-text",
-        // Cap at 5 VISUAL lines, showing the most recent ones: the
-        // text bottom-anchors in a fixed-max-height clip, so overflow
-        // disappears off the TOP.
-        "leading-4",
-        // 5 lines of leading-4 (80px) + py-1.5 (12px) + border (2px):
-        // border-box height, so the padding doesn't eat the top line.
-        "max-h-[91px]",
-        "overflow-hidden",
         "flex",
         "flex-col",
-        "justify-end",
       )}
     >
-      {text}
+      <div
+        ref={clipRef}
+        className={cn(
+          "whitespace-pre-wrap",
+          "break-words",
+          "select-text",
+          "leading-4",
+          // Collapsed: cap at 5 VISUAL lines, showing the most
+          // recent ones — the text bottom-anchors in a fixed
+          // max-height clip, so overflow disappears off the TOP.
+          !expanded &&
+            cn(
+              "max-h-[77px]",
+              "overflow-hidden",
+              "flex",
+              "flex-col",
+              "justify-end",
+            ),
+        )}
+      >
+        {text}
+      </div>
+      {(clipped || expanded) && (
+        <button
+          type="button"
+          data-expand-text
+          onClick={() => setExpanded((v) => !v)}
+          aria-label={expanded ? "Collapse message" : "Expand message"}
+          className={cn(
+            "self-center",
+            "mt-0.5",
+            "leading-none",
+            "text-copper-mid",
+            "hover:text-copper-bright",
+            "cursor-pointer",
+          )}
+        >
+          {expanded ? "\u25b4" : "\u25be"}
+        </button>
+      )}
     </div>
   );
 }
