@@ -20,6 +20,14 @@ export function Markdown({ children }: { children: string }) {
   return (
     <div
       className={cn(
+        // Honor literal newlines even when the content isn't paragraph
+        // prose. Agent/system text (e.g. notifications) often starts
+        // with a `<tag>`, which CommonMark parses as a RAW HTML BLOCK:
+        // the text lands directly here with no `<p>` wrapper and
+        // remark-breaks can't touch it. `white-space: pre-line` is
+        // inherited, so it reaches that unwrapped text (and paragraph
+        // prose) while `<pre>` code keeps its own `white-space`.
+        "whitespace-pre-line",
         "[&_p]:mb-1",
         "[&_p:last-child]:mb-0",
         "[&_ul]:list-disc",
