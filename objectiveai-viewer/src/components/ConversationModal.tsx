@@ -6,6 +6,7 @@ import {
   type CliCommandAgentsLogsOpenResponse,
 } from "@objectiveai/sdk";
 import { useAgent } from "../hooks/useAgent";
+import { formatAgo } from "../lib/formatAgo";
 import { websocketExecutor } from "../lib/websocket-executor";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
@@ -157,23 +158,30 @@ export function ConversationModal({
   );
 }
 
-/** The little copper kind label heading each block. */
-function KindLabel({ children }: { children: string }) {
+/** The little copper kind label heading each block, with an
+ * optional relative timestamp to its right. */
+function KindLabel({ children, at }: { children: string; at?: string }) {
   return (
-    <span
-      className={cn(
-        "self-start",
-        "px-1.5",
-        "py-px",
-        "rounded-sm",
-        "border",
-        "border-copper-mid/70",
-        "bg-copper-warm/10",
-        "text-copper-bright",
+    <div className={cn("flex", "items-center", "gap-1.5")}>
+      <span
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+        )}
+      >
+        {children}
+      </span>
+      {at !== undefined && (
+        <span className={cn("text-[9px]", "text-info-dim")}>
+          {formatAgo(at)}
+        </span>
       )}
-    >
-      {children}
-    </span>
+    </div>
   );
 }
 
@@ -315,7 +323,7 @@ function LogRow({
           data-log-row={item.type}
           className={cn("flex", "flex-col", "gap-1")}
         >
-          <KindLabel>assistant</KindLabel>
+          <KindLabel at={item.parts[0]?.delivered_at}>assistant</KindLabel>
           {item.parts.map((part) =>
             part.type === "reasoning" ? (
               // Hidden by default — expanding also defers the fetch
@@ -351,7 +359,7 @@ function LogRow({
           data-log-row={item.type}
           className={cn("flex", "flex-col", "gap-1")}
         >
-          <KindLabel>message</KindLabel>
+          <KindLabel at={item.queued_at}>message</KindLabel>
           <span className={cn("text-info-dim", "truncate")}>
             from {item.sender_agent_instance_hierarchy}
           </span>
