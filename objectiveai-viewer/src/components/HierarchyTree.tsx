@@ -329,7 +329,7 @@ function AgentLatestTextView({
             "left-1/2",
             "-translate-x-1/2",
             "-bottom-3",
-            "px-4",
+            "px-2",
             "py-1",
             "rounded-full",
             "border",
