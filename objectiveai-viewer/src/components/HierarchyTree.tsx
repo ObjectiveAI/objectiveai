@@ -248,7 +248,20 @@ function AgentLatestTextView({
     const clip = clipRef.current;
     const content = contentRef.current;
     if (clip === null || content === null) return;
-    setClipped(content.offsetHeight > clip.clientHeight + 1);
+    const measure = () => {
+      setClipped(content.offsetHeight > clip.clientHeight + 1);
+    };
+    measure();
+    // The box's width settles as its siblings (tags, definition)
+    // load in — a narrow first paint wraps the text taller than it
+    // will really be, so keep re-measuring on any size change.
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(clip);
+    observer.observe(content);
+    return () => {
+      observer.disconnect();
+    };
   }, [text, expanded]);
 
   if (text === null) return null;
