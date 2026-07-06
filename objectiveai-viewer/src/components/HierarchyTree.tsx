@@ -390,6 +390,9 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
         "items-center",
         "gap-1.5",
         "self-start",
+        // The box's gap is 0.5; topping up 0.5 matches the tag
+        // row's own gap-1 chip spacing.
+        "mt-0.5",
         "text-[10px]",
       )}
     >
