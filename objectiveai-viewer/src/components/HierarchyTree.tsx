@@ -354,6 +354,47 @@ type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
  * Rust `open_agent_remote` command) and `github` (opens the repo,
  * or `/tree/<commit>` when pinned — the short sha shown inline);
  * plain text for `mock`. */
+/** The uniform badge-plus-value row every definition-ish line uses:
+ * a copper badge chip naming the KIND (`aih` / `tag` / `client` /
+ * `github` / `mock`) followed by the value. */
+function BadgeRow({
+  badge,
+  children,
+  ...rest
+}: {
+  badge: string;
+  children: React.ReactNode;
+} & Record<string, unknown>) {
+  return (
+    <div
+      {...rest}
+      className={cn(
+        "flex",
+        "flex-row",
+        "items-center",
+        "gap-1.5",
+        "self-start",
+        "text-[10px]",
+      )}
+    >
+      <span
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+        )}
+      >
+        {badge}
+      </span>
+      {children}
+    </div>
+  );
+}
+
 function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
   // Mock remotes carry a bare `name`; client/github carry
   // owner/repository coordinates.
@@ -382,33 +423,7 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
             })
         : null;
   return (
-    <div
-      data-agent-remote={remote.remote}
-      className={cn(
-        "flex",
-        "flex-row",
-        "items-center",
-        "gap-1.5",
-        "self-start",
-        // The box's gap is 0.5; topping up 0.5 matches the tag
-        // row's own gap-1 chip spacing.
-        "mt-0.5",
-        "text-[10px]",
-      )}
-    >
-      <span
-        className={cn(
-          "px-1.5",
-          "py-px",
-          "rounded-sm",
-          "border",
-          "border-copper-mid/70",
-          "bg-copper-warm/10",
-          "text-copper-bright",
-        )}
-      >
-        {remote.remote}
-      </span>
+    <BadgeRow badge={remote.remote} data-agent-remote={remote.remote}>
       {open !== null ? (
         <button
           type="button"
@@ -428,7 +443,7 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
       {remote.remote === "github" && commit !== null && (
         <span className={cn("text-info-dim")}>@{commit.slice(0, 7)}</span>
       )}
-    </div>
+    </BadgeRow>
   );
 }
 
@@ -451,41 +466,24 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
   if (loading) {
     return <LoadingDots marker="data-tags-loading" />;
   }
-  const chip = cn(
-    "px-1.5",
-    "py-px",
-    "rounded-sm",
-    "border",
-    "border-copper-mid/70",
-    "bg-ground-raised",
-    // Matching the message block's tone.
-    "text-[#c3bfbb]",
-  );
+  // Borderless, background-less values in the remote's copper — the
+  // rows ARE the remote row's component, badged by kind.
+  const value = cn("text-copper-bright");
   return (
-    <div
-      className={cn(
-        "flex",
-        "flex-row",
-        "flex-wrap",
-        "gap-1",
-        // min-content width: the row only ever demands the WIDEST
-        // single chip, so a pile of tags wraps instead of stretching
-        // the agent box (other children can still stretch it wider —
-        // the row starts at the left either way).
-        "w-min",
-        "self-start",
-      )}
-    >
-      {/* The AIH segment: just another tag. */}
-      <span data-tag-aih className={chip}>
-        {name}
-      </span>
-      {tags.map((tag) => (
-        <span key={tag} data-tag={tag} className={chip}>
-          {tag}
+    <>
+      <BadgeRow badge="aih">
+        <span data-tag-aih className={value}>
+          {name}
         </span>
+      </BadgeRow>
+      {tags.map((tag) => (
+        <BadgeRow key={tag} badge="tag">
+          <span data-tag={tag} className={value}>
+            {tag}
+          </span>
+        </BadgeRow>
       ))}
-    </div>
+    </>
   );
 }
 
