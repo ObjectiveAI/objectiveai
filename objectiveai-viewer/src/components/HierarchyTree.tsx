@@ -245,6 +245,15 @@ function AgentLatestTextView({
         "whitespace-pre-wrap",
         "break-words",
         "select-text",
+        // Cap at 5 VISUAL lines, showing the most recent ones: the
+        // text bottom-anchors in a fixed-max-height clip, so overflow
+        // disappears off the TOP.
+        "leading-4",
+        "max-h-20",
+        "overflow-hidden",
+        "flex",
+        "flex-col",
+        "justify-end",
       )}
     >
       {text}
