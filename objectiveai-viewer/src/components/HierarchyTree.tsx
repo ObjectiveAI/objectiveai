@@ -692,7 +692,7 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
   const value = cn("text-[#c3bfbb]");
   return (
     <>
-      <BadgeRow badge="aih">
+      <BadgeRow badge="instance">
         <span data-tag-aih className={value}>
           {name}
         </span>
