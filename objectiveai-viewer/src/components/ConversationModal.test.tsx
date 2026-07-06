@@ -184,6 +184,85 @@ describe("ConversationModal", () => {
     view.unmount();
   });
 
+  it("renders each media kind: image, video, audio, file", async () => {
+    harness.autoResolve.set(61, {
+      type: "image",
+      url: "data:image/png;base64,IMG",
+    });
+    harness.autoResolve.set(62, {
+      type: "video",
+      url: "https://example.com/v.mp4",
+    });
+    harness.autoResolve.set(63, {
+      type: "audio",
+      data: "AUD",
+      format: "mp3",
+    });
+    harness.autoResolve.set(64, {
+      type: "file",
+      file_url: "https://example.com/doc.pdf",
+      filename: "doc.pdf",
+    });
+    harness.autoResolve.set(65, {
+      type: "file",
+      file_data: "Zmls",
+      filename: "inline.bin",
+    });
+    harness.logs = [
+      assistantRow([
+        { type: "image", id: 61, delivered_at: "t" },
+        { type: "video", id: 62, delivered_at: "t" },
+        { type: "audio", id: 63, delivered_at: "t" },
+        { type: "file", id: 64, delivered_at: "t" },
+        { type: "file", id: 65, delivered_at: "t" },
+      ]),
+    ];
+    const view = mount();
+    await settle();
+
+    const img = view.container.querySelector("[data-media-image]");
+    expect(img?.getAttribute("src")).toBe("data:image/png;base64,IMG");
+    expect(img?.className).toContain("max-h-80");
+
+    const video = view.container.querySelector("[data-media-video]");
+    expect(video?.getAttribute("src")).toBe("https://example.com/v.mp4");
+    expect(video?.hasAttribute("controls")).toBe(true);
+
+    // mp3 → audio/mpeg data URL.
+    const audio = view.container.querySelector("[data-media-audio]");
+    expect(audio?.getAttribute("src")).toBe("data:audio/mpeg;base64,AUD");
+    expect(audio?.hasAttribute("controls")).toBe(true);
+
+    const files = view.container.querySelectorAll("[data-media-file]");
+    expect(files[0].getAttribute("href")).toBe("https://example.com/doc.pdf");
+    expect(files[0].getAttribute("download")).toBe("doc.pdf");
+    expect(files[0].textContent).toBe("doc.pdf");
+    expect(files[1].getAttribute("href")).toBe(
+      "data:application/octet-stream;base64,Zmls",
+    );
+    view.unmount();
+  });
+
+  it("falls back to a line when an image fails to load", async () => {
+    harness.autoResolve.set(71, { type: "image", url: "http://bad/x.png" });
+    harness.logs = [
+      assistantRow([{ type: "image", id: 71, delivered_at: "t" }]),
+    ];
+    const view = mount();
+    await settle();
+    const img = view.container.querySelector(
+      "[data-media-image]",
+    ) as HTMLImageElement;
+    act(() => {
+      img.dispatchEvent(new Event("error"));
+    });
+    expect(
+      view.container.querySelector("[data-media-image-failed]")?.textContent,
+    ).toContain("image failed to load");
+    expect(view.container.querySelector("[data-media-image]")).toBeNull();
+    view.unmount();
+  });
+
   it("shows a failure line for CliError resolutions, others unaffected", async () => {
     harness.autoResolve.set(21, {
       type: "error",

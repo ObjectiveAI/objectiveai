@@ -512,26 +512,103 @@ function PartContent({
       }
       return <Markdown>{content.text}</Markdown>;
     case "image":
-      return (
-        <img
-          src={content.url}
-          alt="agent image"
-          className={cn("max-h-64", "rounded-sm")}
-        />
-      );
+      return <MediaImage url={content.url} />;
     case "video":
       return (
-        <span className={cn("text-info-dim")}>video: {content.url}</span>
+        <video
+          data-media-video
+          src={content.url}
+          controls
+          preload="metadata"
+          className={cn("max-w-full", "max-h-80", "rounded-sm")}
+        />
       );
     case "audio":
       return (
-        <span className={cn("text-info-dim")}>audio ({content.format})</span>
+        <audio
+          data-media-audio
+          src={`data:audio/${mediaMime(content.format)};base64,${content.data}`}
+          controls
+          preload="metadata"
+          className={cn("max-w-full")}
+        />
       );
     case "file":
-      return <span className={cn("text-info-dim")}>file</span>;
+      return <MediaFile content={content} />;
     default:
       // Request blobs never resolve from part ids; render a marker
       // if one ever does.
       return <span className={cn("text-info-dim")}>{content.type}</span>;
   }
+}
+
+/** Format → media MIME subtype for audio data URLs. `mp3` → `mpeg`,
+ * `m4a` → `mp4`; everything else passes through (`wav`, `ogg`,
+ * `webm`, `flac`, …). */
+function mediaMime(format: string): string {
+  const f = format.toLowerCase();
+  if (f === "mp3") return "mpeg";
+  if (f === "m4a") return "mp4";
+  return f;
+}
+
+/** An image with a size cap and a load-failure fallback, so a bad or
+ * blocked URL shows a line instead of nothing. */
+function MediaImage({ url }: { url: string }) {
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return (
+      <span data-media-image-failed className={cn("text-info-dim")}>
+        image failed to load —{" "}
+        <span className={cn("underline", "break-all")}>{url}</span>
+      </span>
+    );
+  }
+  return (
+    <img
+      data-media-image
+      src={url}
+      alt="agent image"
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className={cn(
+        "max-w-full",
+        "max-h-80",
+        "object-contain",
+        "rounded-sm",
+      )}
+    />
+  );
+}
+
+/** A file attachment: a download link when data/url is present,
+ * otherwise a dim label. Data-URL downloads never navigate the
+ * webview. */
+function MediaFile({
+  content,
+}: {
+  content: Extract<CliCommandAgentsLogsOpenResponse, { type: "file" }>;
+}) {
+  const name = content.filename ?? content.file_id ?? "attachment";
+  const href =
+    content.file_url != null
+      ? content.file_url
+      : content.file_data != null
+        ? `data:application/octet-stream;base64,${content.file_data}`
+        : null;
+  if (href === null) {
+    return (
+      <span className={cn("text-info-dim")}>file: {name}</span>
+    );
+  }
+  return (
+    <a
+      data-media-file
+      href={href}
+      download={content.filename ?? "file"}
+      className={cn("underline", "text-copper-bright", "cursor-pointer")}
+    >
+      {name}
+    </a>
+  );
 }
