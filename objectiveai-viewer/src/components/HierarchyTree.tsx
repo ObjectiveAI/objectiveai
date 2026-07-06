@@ -132,7 +132,7 @@ function HierarchyNode({
               "gap-x-1.5",
               "gap-y-px",
               "text-[9px]",
-              "text-info-dim",
+              "text-info-mid",
               "tabular-nums",
               // Two right-anchored columns: labels line up at their
               // right edge, dates at theirs.
@@ -257,7 +257,7 @@ function AgentLatestTextView({
         "border",
         "border-copper-mid",
         "text-[10px]",
-        "text-info-mid",
+        "text-info-bright",
         "text-left",
         "whitespace-pre-wrap",
         "break-words",
