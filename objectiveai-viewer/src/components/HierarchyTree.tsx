@@ -286,7 +286,7 @@ function AgentLatestTextView({
         // Anchor for the border-straddling toggle pill; extra bottom
         // room so text clears the pill's upper half.
         "relative",
-        (clipped || expanded) && "pb-4",
+        (clipped || expanded) && "pb-3.5",
       )}
     >
       <div
@@ -328,21 +328,35 @@ function AgentLatestTextView({
             "absolute",
             "left-1/2",
             "-translate-x-1/2",
-            "-bottom-3.5",
+            "-bottom-2.5",
             "px-2",
             "py-1",
             "rounded-full",
             "border",
             "border-copper-mid",
             "bg-ground",
-            "text-[21px]",
-            "leading-none",
             "text-copper-mid",
             "hover:text-copper-bright",
             "cursor-pointer",
           )}
         >
-          {expanded ? "\u25b4" : "\u25be"}
+          {/* A flat, WIDE chevron — much wider than tall. */}
+          <svg
+            width="22"
+            height="8"
+            viewBox="0 0 22 8"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            {expanded ? (
+              <path d="M2 6L11 2L20 6" />
+            ) : (
+              <path d="M2 2L11 6L20 2" />
+            )}
+          </svg>
         </button>
       )}
     </div>
