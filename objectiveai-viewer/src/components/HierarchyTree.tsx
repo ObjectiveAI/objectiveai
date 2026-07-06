@@ -1,5 +1,6 @@
 import cn from "classnames";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
+import { useAgentDefinition } from "../hooks/useAgentDefinition";
 import { useAgentInstanceTags } from "../hooks/useAgentInstanceTags";
 
 /** One agent scoped under a tree node: the path segments REMAINING
@@ -110,6 +111,9 @@ function HierarchyNode({
         )}
         <span className={cn("text-[11px]")}>{name}</span>
         {self !== null && (
+          <AgentDefinitionView hierarchy={self.agent_instance_hierarchy} />
+        )}
+        {self !== null && (
           <div
             className={cn(
               "grid",
@@ -158,6 +162,62 @@ function HierarchyNode({
   );
 }
 
+/** The staggered-pulse ellipsis every per-box loading state shows.
+ * Text-sized dots at the inherited font size, so boxes don't resize
+ * when loading resolves into content. */
+function LoadingDots({ marker }: { marker: string }) {
+  return (
+    <span
+      {...{ [marker]: true }}
+      className={cn(
+        "inline-flex",
+        "items-center",
+        "justify-center",
+        "gap-0.5",
+        "text-info-dim",
+      )}
+    >
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          className={cn(
+            "animate-pulse",
+            i === 1 && "[animation-delay:300ms]",
+            i === 2 && "[animation-delay:600ms]",
+          )}
+        >
+          .
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** The recorded agent definition (remote path or inline spec), shown
+ * as full pretty-printed JSON — whatever shape it is. Its own
+ * loading ellipsis; nothing when the registry knows nothing. */
+function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
+  const { agent, loading } = useAgentDefinition(hierarchy);
+  if (loading) {
+    return <LoadingDots marker="data-definition-loading" />;
+  }
+  if (agent == null) return null;
+  return (
+    <pre
+      data-agent-definition
+      className={cn(
+        "text-[9px]",
+        "text-info-dim",
+        "text-left",
+        "whitespace-pre",
+        "leading-snug",
+      )}
+    >
+      {JSON.stringify(agent, null, 2)}
+    </pre>
+  );
+}
+
 /** One agent's tag chips (live via [`useAgentInstanceTags`] — the
  * hook's dynamic registration mounts and unmounts with this box).
  * While the initial read is in flight, an animated ellipsis stands
@@ -165,33 +225,7 @@ function HierarchyNode({
 function AgentTags({ hierarchy }: { hierarchy: string }) {
   const { tags, loading } = useAgentInstanceTags(hierarchy);
   if (loading) {
-    return (
-      <span
-        data-tags-loading
-        className={cn(
-          "inline-flex",
-          "items-center",
-          "justify-center",
-          "gap-0.5",
-          // Text-sized dots at the inherited (chip) font size, so the
-          // box doesn't resize when loading resolves into chips.
-          "text-info-dim",
-        )}
-      >
-        {[0, 1, 2].map((i) => (
-          <span
-            key={i}
-            className={cn(
-              "animate-pulse",
-              i === 1 && "[animation-delay:300ms]",
-              i === 2 && "[animation-delay:600ms]",
-            )}
-          >
-            .
-          </span>
-        ))}
-      </span>
-    );
+    return <LoadingDots marker="data-tags-loading" />;
   }
   if (tags.length === 0) return null;
   return (

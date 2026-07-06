@@ -19,6 +19,8 @@ const harness = vi.hoisted(() => ({
   agents: [] as AgentStatus[],
   tags: new Map<string, string[]>(),
   tagsLoading: false,
+  definitions: new Map<string, unknown>(),
+  definitionLoading: false,
 }));
 
 vi.mock("../hooks/useAgents", () => ({
@@ -29,6 +31,13 @@ vi.mock("../hooks/useAgentInstanceTags", () => ({
   useAgentInstanceTags: (hierarchy: string) => ({
     tags: harness.tags.get(hierarchy) ?? [],
     loading: harness.tagsLoading,
+  }),
+}));
+
+vi.mock("../hooks/useAgentDefinition", () => ({
+  useAgentDefinition: (hierarchy: string) => ({
+    agent: harness.definitions.get(hierarchy) ?? null,
+    loading: harness.definitionLoading,
   }),
 }));
 
@@ -49,11 +58,18 @@ function agent(
 
 function render(
   agents: AgentStatus[],
-  opts?: { tags?: Record<string, string[]>; tagsLoading?: boolean },
+  opts?: {
+    tags?: Record<string, string[]>;
+    tagsLoading?: boolean;
+    definitions?: Record<string, unknown>;
+    definitionLoading?: boolean;
+  },
 ) {
   harness.agents = agents;
   harness.tags = new Map(Object.entries(opts?.tags ?? {}));
   harness.tagsLoading = opts?.tagsLoading ?? false;
+  harness.definitions = new Map(Object.entries(opts?.definitions ?? {}));
+  harness.definitionLoading = opts?.definitionLoading ?? false;
   const container = document.createElement("div");
   const root = createRoot(container);
   act(() => {
@@ -216,6 +232,40 @@ describe("HierarchyTree", () => {
     expect(dots[1].className).toContain("[animation-delay:300ms]");
     expect(dots[2].className).toContain("[animation-delay:600ms]");
     view.unmount();
+  });
+
+  it("shows the recorded definition as pretty JSON, between name and dates", () => {
+    const definition = {
+      remote: "client",
+      owner: "ObjectiveAI",
+      repository: "rick-sanchez",
+      commit: null,
+    };
+    const view = render([agent("cli/defined", false)], {
+      definitions: { "cli/defined": definition },
+    });
+    const pre = view.container.querySelector("[data-agent-definition]");
+    expect(pre?.textContent).toBe(JSON.stringify(definition, null, 2));
+    view.unmount();
+  });
+
+  it("shows its own loading dots for the definition; nothing when unrecorded", () => {
+    const loadingView = render([agent("cli/waiting", false)], {
+      definitionLoading: true,
+    });
+    expect(
+      loadingView.container.querySelector("[data-definition-loading]"),
+    ).toBeTruthy();
+    loadingView.unmount();
+
+    const bareView = render([agent("cli/bare", false)]);
+    expect(
+      bareView.container.querySelector("[data-agent-definition]"),
+    ).toBeNull();
+    expect(
+      bareView.container.querySelector("[data-definition-loading]"),
+    ).toBeNull();
+    bareView.unmount();
   });
 
   it("renders nothing for no agents (the watermark shows through)", () => {
