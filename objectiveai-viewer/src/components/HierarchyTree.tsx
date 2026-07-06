@@ -232,13 +232,17 @@ function AgentLatestTextView({
     <div
       data-latest-text
       className={cn(
-        "mt-1",
+        // Attached to the agent box above: borders overlap 1px and
+        // share the agent's copper-mid, so the pair reads as one
+        // connected unit.
+        "-mt-px",
         "max-w-72",
         "px-2.5",
         "py-1.5",
         "rounded-sm",
+        "rounded-t-none",
         "border",
-        "border-copper-mid/60",
+        "border-copper-mid",
         "text-[10px]",
         "text-info-mid",
         "text-left",
