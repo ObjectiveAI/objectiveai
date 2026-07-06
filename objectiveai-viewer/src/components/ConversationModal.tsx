@@ -162,7 +162,7 @@ export function ConversationModal({
  * optional relative timestamp to its right. */
 function KindLabel({ children, at }: { children: string; at?: string }) {
   return (
-    <div className={cn("flex", "items-center", "gap-1.5")}>
+    <div className={cn("flex", "items-center", "gap-1.5", "self-stretch")}>
       <span
         className={cn(
           "px-1.5",
@@ -177,7 +177,15 @@ function KindLabel({ children, at }: { children: string; at?: string }) {
         {children}
       </span>
       {at !== undefined && (
-        <span className={cn("text-[9px]", "text-info-dim")}>
+        <span
+          data-badge-ago
+          className={cn(
+            "ml-auto",
+            "text-[9px]",
+            "text-info-dim",
+            "tabular-nums",
+          )}
+        >
           {formatAgo(at)}
         </span>
       )}
