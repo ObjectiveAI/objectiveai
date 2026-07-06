@@ -1,0 +1,23 @@
+name: Bug report
+description: Something didn't work the way the docs or README say it should.
+labels: ["bug", "from-the-wild"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you run, what did you expect, what did you get instead?
+    validations:
+      required: true
+  - type: input
+    id: surface
+    attributes:
+      label: Where?
+      placeholder: CLI / viewer / @objectiveai/sdk / objectiveai-sdk (py/rust/go) / API
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      placeholder: e.g. 2.2.9
