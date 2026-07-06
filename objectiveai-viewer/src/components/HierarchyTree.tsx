@@ -93,11 +93,13 @@ function HierarchyNode({
           "whitespace-nowrap",
           "select-none",
           // Every node — agent or pure branch — wears the theme
-          // orange border; structure stays dashed.
+          // orange border and glow; structure stays dashed.
           "border-copper-mid",
+          "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
           self === null
-            ? // Pure structure: a path segment no agent occupies.
-              cn("border-dashed", "text-info-dim")
+            ? // Pure structure: a path segment no agent occupies —
+              // its name reads as bright as the agents'.
+              cn("border-dashed", "text-info-bright")
             : self.active
               ? cn("bg-copper-warm/10", "text-copper-bright")
               : cn("bg-ground-surface", "text-info-mid"),
