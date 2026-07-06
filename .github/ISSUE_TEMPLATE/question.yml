@@ -1,0 +1,11 @@
+name: Question / help
+description: Stuck, confused, or curious — ask anything about running swarms.
+labels: ["question", "from-the-wild"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: What are you trying to do?
+      description: There are no dumb questions — if you got stuck, that's a docs bug on our side.
+    validations:
+      required: true
