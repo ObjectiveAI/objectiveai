@@ -156,11 +156,16 @@ function HierarchyNode({
               "gap-4",
               "border-t",
               "border-node-border/60",
-              "pt-3",
             )}
           >
             {children.map(([child, group]) => (
-              <HierarchyNode key={child} name={child} members={group} />
+              <div key={child} className={cn("flex", "flex-col", "items-start")}>
+                {/* Stem from the rail down INTO this child. */}
+                <div
+                  className={cn("w-px", "h-3", "bg-node-border/60", "ml-3")}
+                />
+                <HierarchyNode name={child} members={group} />
+              </div>
             ))}
           </div>
         </>
