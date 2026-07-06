@@ -330,18 +330,22 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     return <RemoteDefinition remote={agent} />;
   }
   return (
-    <pre
-      data-agent-definition
-      className={cn(
-        "text-[9px]",
-        "text-info-bright",
-        "text-left",
-        "whitespace-pre",
-        "leading-snug",
-      )}
-    >
-      {formatDefinition(agent)}
-    </pre>
+    <>
+      <BadgeRow badge="inline" />
+      <pre
+        data-agent-definition
+        className={cn(
+          "text-[9px]",
+          "text-[#c3bfbb]",
+          "text-left",
+          "whitespace-pre",
+          "leading-snug",
+          "self-start",
+        )}
+      >
+        {formatDefinition(agent)}
+      </pre>
+    </>
   );
 }
 
@@ -363,7 +367,7 @@ function BadgeRow({
   ...rest
 }: {
   badge: string;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 } & Record<string, unknown>) {
   return (
     <div
