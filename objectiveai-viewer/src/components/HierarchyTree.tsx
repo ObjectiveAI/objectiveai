@@ -113,10 +113,13 @@ function HierarchyNode({
               : cn("bg-ground-surface", "text-info-mid"),
         )}
       >
-        {self !== null && (
-          <AgentTags hierarchy={self.agent_instance_hierarchy} />
+        {self !== null ? (
+          // The AIH segment rides the tag row as just another chip —
+          // it appears with the tags, post-load.
+          <AgentTags hierarchy={self.agent_instance_hierarchy} name={name} />
+        ) : (
+          <span className={cn("text-[11px]")}>{name}</span>
         )}
-        <span className={cn("text-[11px]")}>{name}</span>
         {self !== null && (
           <AgentDefinitionView hierarchy={self.agent_instance_hierarchy} />
         )}
@@ -347,12 +350,20 @@ function formatDefinition(agent: unknown): string {
  * hook's dynamic registration mounts and unmounts with this box).
  * While the initial read is in flight, an animated ellipsis stands
  * in; once loaded, one small box per tag (nothing when tagless). */
-function AgentTags({ hierarchy }: { hierarchy: string }) {
+function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
   const { tags, loading } = useAgentInstanceTags(hierarchy);
   if (loading) {
     return <LoadingDots marker="data-tags-loading" />;
   }
-  if (tags.length === 0) return null;
+  const chip = cn(
+    "px-1.5",
+    "py-px",
+    "rounded-sm",
+    "border",
+    "border-node-border/70",
+    "bg-ground-raised",
+    "text-info-mid",
+  );
   return (
     <div
       className={cn(
@@ -363,20 +374,12 @@ function AgentTags({ hierarchy }: { hierarchy: string }) {
         "gap-1",
       )}
     >
+      {/* The AIH segment: just another tag. */}
+      <span data-tag-aih className={chip}>
+        {name}
+      </span>
       {tags.map((tag) => (
-        <span
-          key={tag}
-          data-tag={tag}
-          className={cn(
-            "px-1.5",
-            "py-px",
-            "rounded-sm",
-            "border",
-            "border-node-border/70",
-            "bg-ground-raised",
-            "text-info-mid",
-          )}
-        >
+        <span key={tag} data-tag={tag} className={chip}>
           {tag}
         </span>
       ))}

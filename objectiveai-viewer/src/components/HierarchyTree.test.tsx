@@ -223,6 +223,10 @@ describe("HierarchyTree", () => {
       "rick-sanchez",
       "lebowski",
     ]);
+    // The AIH segment rides the row as just another chip, first.
+    const aihChip = box?.querySelector("[data-tag-aih]");
+    expect(aihChip?.textContent).toBe("tagged");
+    expect(aihChip?.className).toBe(chips[0].className);
     // The structural parent's own box carries no tags.
     expect(
       view.container
