@@ -55,6 +55,15 @@ vi.mock("../hooks/useAgentLatestText", () => ({
     harness.latestTexts.get(hierarchy) ?? null,
 }));
 
+vi.mock("./ConversationModal", () => ({
+  ConversationModal: ({ hierarchy }: { hierarchy: string }) => {
+    const el = createElement("div", {
+      "data-conversation-for": hierarchy,
+    });
+    return el;
+  },
+}));
+
 import { HierarchyTree } from "./HierarchyTree";
 
 function agent(
@@ -440,6 +449,41 @@ describe("HierarchyTree", () => {
         Object.defineProperty(HTMLElement.prototype, "offsetHeight", original);
       }
     }
+  });
+
+  it("opens the conversation on a box click — but not via its links", () => {
+    const view = render([agent("cli/talky", false)], {
+      definitions: {
+        "cli/talky": {
+          remote: "client",
+          owner: "ObjectiveAI",
+          repository: "talky",
+          commit: null,
+        },
+      },
+    });
+    // Clicking the remote link does NOT open the conversation.
+    (
+      view.container.querySelector("[data-remote-link]") as HTMLElement
+    ).click();
+    expect(
+      view.container.querySelector("[data-conversation-for]"),
+    ).toBeNull();
+
+    // Clicking the box's top region does.
+    act(() => {
+      (
+        view.container.querySelector(
+          '[data-node-name="talky"]',
+        ) as HTMLElement
+      ).click();
+    });
+    expect(
+      view.container
+        .querySelector("[data-conversation-for]")
+        ?.getAttribute("data-conversation-for"),
+    ).toBe("cli/talky");
+    view.unmount();
   });
 
   it("renders nothing for no agents (the watermark shows through)", () => {

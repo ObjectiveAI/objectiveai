@@ -1,8 +1,9 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
-import ReactMarkdown, { type Components } from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { tauriInvoke } from "../lib/tauri";
+import { ConversationModal } from "./ConversationModal";
+import { LoadingDots } from "./LoadingDots";
+import { Markdown } from "./Markdown";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
 import {
   useAgentDefinition,
@@ -34,6 +35,7 @@ interface ScopedAgent {
  */
 export function HierarchyTree() {
   const agents = useAgents();
+  const [openHierarchy, setOpenHierarchy] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     x: number;
@@ -125,9 +127,20 @@ export function HierarchyTree() {
         )}
       >
         {roots.map(([name, members]) => (
-          <HierarchyNode key={name} name={name} members={members} />
+          <HierarchyNode
+            key={name}
+            name={name}
+            members={members}
+            onOpen={setOpenHierarchy}
+          />
         ))}
       </div>
+      {openHierarchy !== null && (
+        <ConversationModal
+          hierarchy={openHierarchy}
+          onClose={() => setOpenHierarchy(null)}
+        />
+      )}
     </div>
   );
 }
@@ -143,9 +156,11 @@ export function HierarchyTree() {
 function HierarchyNode({
   name,
   members,
+  onOpen,
 }: {
   name: string;
   members: ScopedAgent[];
+  onOpen: (hierarchy: string) => void;
 }) {
   // The agent AT this node, if any (hierarchies are unique — at most
   // one member terminates here).
@@ -164,7 +179,18 @@ function HierarchyNode({
       <div
         data-node-kind={kind}
         data-node-name={name}
+        role={self !== null ? "button" : undefined}
+        onClick={
+          self === null
+            ? undefined
+            : (e) => {
+                // The definition hyperlinks keep their own clicks.
+                if ((e.target as Element).closest("button,a")) return;
+                onOpen(self.agent_instance_hierarchy);
+              }
+        }
         className={cn(
+          self !== null && cn("cursor-pointer", "hover:border-copper-hot"),
           "flex",
           "flex-col",
           "gap-0.5",
@@ -281,7 +307,11 @@ function HierarchyNode({
                     <div
                       className={cn("w-px", "h-3", "ml-3", "bg-copper-hot")}
                     />
-                    <HierarchyNode name={child} members={group} />
+                    <HierarchyNode
+                      name={child}
+                      members={group}
+                      onOpen={onOpen}
+                    />
                   </div>
                 </div>
               );
@@ -387,37 +417,8 @@ function AgentLatestTextView({
         {/* shrink-0 keeps the natural height measurable while the
             container clips it. Light element styling for the
             rendered markdown. */}
-        <div
-          ref={contentRef}
-          className={cn(
-            "shrink-0",
-            "[&_p]:mb-1",
-            "[&_p:last-child]:mb-0",
-            "[&_ul]:list-disc",
-            "[&_ul]:pl-4",
-            "[&_ol]:list-decimal",
-            "[&_ol]:pl-4",
-            "[&_blockquote]:border-l",
-            "[&_blockquote]:border-copper-mid/50",
-            "[&_blockquote]:pl-2",
-            "[&_code]:bg-ground-raised",
-            "[&_code]:px-0.5",
-            "[&_code]:rounded-sm",
-            "[&_pre]:overflow-x-auto",
-            "[&_pre]:my-1",
-            "[&_h1]:font-semibold",
-            "[&_h2]:font-semibold",
-            "[&_h3]:font-semibold",
-            "[&_hr]:border-copper-mid/40",
-            "[&_hr]:my-1",
-          )}
-        >
-          <ReactMarkdown
-            remarkPlugins={[remarkGfm]}
-            components={markdownComponents}
-          >
-            {text}
-          </ReactMarkdown>
+        <div ref={contentRef} className={cn("shrink-0")}>
+          <Markdown>{text}</Markdown>
         </div>
       </div>
       {(clipped || expanded) && (
@@ -465,37 +466,6 @@ function AgentLatestTextView({
         </button>
       )}
     </div>
-  );
-}
-
-/** The staggered-pulse ellipsis every per-box loading state shows.
- * Text-sized dots at the inherited font size, so boxes don't resize
- * when loading resolves into content. */
-function LoadingDots({ marker }: { marker: string }) {
-  return (
-    <span
-      {...{ [marker]: true }}
-      className={cn(
-        "inline-flex",
-        "items-center",
-        "justify-center",
-        "gap-0.5",
-        "text-info-dim",
-      )}
-    >
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className={cn(
-            "animate-pulse",
-            i === 1 && "[animation-delay:300ms]",
-            i === 2 && "[animation-delay:600ms]",
-          )}
-        >
-          .
-        </span>
-      ))}
-    </span>
   );
 }
 
@@ -707,13 +677,6 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     </>
   );
 }
-
-/** Element overrides for the rendered message markdown. Links show
- * as underlined text but never navigate — the webview must not
- * wander off after untrusted agent output. */
-const markdownComponents: Components = {
-  a: ({ children }) => <span className={cn("underline")}>{children}</span>,
-};
 
 /** RFC3339 → a locale-aware relative string ("2 days ago", "3
  * minutes ago") via the built-in Intl.RelativeTimeFormat, using the
