@@ -210,6 +210,9 @@ function ToolSection({
   argsId: number;
   response: ToolResponseItem | null;
 }) {
+  // Closed by default — opening also defers the body fetches until
+  // someone actually wants to look.
+  const [open, setOpen] = useState(false);
   const label = cn(
     "text-[9px]",
     "uppercase",
@@ -226,39 +229,54 @@ function ToolSection({
         "overflow-hidden",
       )}
     >
-      <div
+      <button
+        type="button"
+        data-tool-toggle
+        onClick={() => setOpen((v) => !v)}
         className={cn(
+          "w-full",
+          "flex",
+          "items-center",
+          "gap-1.5",
           "px-2.5",
           "py-1",
           "bg-copper-warm/10",
-          "border-b",
-          "border-copper-mid/50",
           "text-copper-bright",
+          "text-left",
+          "cursor-pointer",
+          open && cn("border-b", "border-copper-mid/50"),
         )}
       >
+        <span className={cn("text-info-dim")}>
+          {open ? "\u25be" : "\u25b8"}
+        </span>
         {name}
-      </div>
-      <div className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}>
-        <span className={label}>call</span>
-        <LogPart id={argsId} json />
-      </div>
-      {response !== null && (
-        <div
-          className={cn(
-            "px-2.5",
-            "py-1.5",
-            "border-t",
-            "border-copper-mid/30",
-            "flex",
-            "flex-col",
-            "gap-1",
+      </button>
+      {open && (
+        <>
+          <div className={cn("px-2.5", "py-1.5", "flex", "flex-col", "gap-1")}>
+            <span className={label}>call</span>
+            <LogPart id={argsId} json />
+          </div>
+          {response !== null && (
+            <div
+              className={cn(
+                "px-2.5",
+                "py-1.5",
+                "border-t",
+                "border-copper-mid/30",
+                "flex",
+                "flex-col",
+                "gap-1",
+              )}
+            >
+              <span className={label}>response</span>
+              {response.parts.map((part) => (
+                <LogPart key={part.id} id={part.id} />
+              ))}
+            </div>
           )}
-        >
-          <span className={label}>response</span>
-          {response.parts.map((part) => (
-            <LogPart key={part.id} id={part.id} />
-          ))}
-        </div>
+        </>
       )}
     </div>
   );

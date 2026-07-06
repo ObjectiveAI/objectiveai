@@ -254,6 +254,13 @@ describe("ConversationModal", () => {
     );
     expect(section).toBeTruthy();
     expect(section?.textContent).toContain("do_thing");
+    // Closed by default: header only, no fetches yet.
+    expect(section?.querySelector("[data-json-part]")).toBeNull();
+    expect(harness.openedIds).toEqual([33]);
+    act(() => {
+      (section?.querySelector("[data-tool-toggle]") as HTMLElement).click();
+    });
+    await settle();
     expect(section?.textContent).not.toContain("call-9");
     expect(section?.querySelector("[data-json-part]")?.textContent).toBe(
       JSON.stringify({ query: "SELECT 1", limit: 5 }, null, 2),
@@ -298,6 +305,10 @@ describe("ConversationModal", () => {
     const section = view.container.querySelector(
       '[data-tool-section="pending_tool"]',
     );
+    act(() => {
+      (section?.querySelector("[data-tool-toggle]") as HTMLElement).click();
+    });
+    await settle();
     expect(section?.textContent).toContain("call");
     expect(section?.textContent).not.toContain("response");
     // The orphan response fetches nothing and renders nowhere.
