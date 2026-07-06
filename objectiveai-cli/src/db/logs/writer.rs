@@ -103,6 +103,70 @@ impl WriterChunk for FunctionExecutionChunk {
     }
 }
 
+/// Chunks that can surface `(AIH, definition source)` pairs for the
+/// `objectiveai.agent_refs` registry: every nested agent completion
+/// carrying `agent_inline` (each completion's FIRST chunk). Per the
+/// registry's rule, `agent_remote` present → the remote wins;
+/// otherwise the inline spec itself.
+pub trait ChunkAgentRefs {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    );
+}
+
+impl ChunkAgentRefs for AgentCompletionChunk {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        if let Some(inline) = &self.agent_inline {
+            let value = match &self.agent_remote {
+                Some(remote) => {
+                    crate::db::agent_refs::AgentRefValue::remote(remote)
+                }
+                None => crate::db::agent_refs::AgentRefValue::inline(inline),
+            };
+            if let Some(value) = value {
+                out.push((self.agent_instance_hierarchy.clone(), value));
+            }
+        }
+    }
+}
+
+impl ChunkAgentRefs for VectorCompletionChunk {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        for completion in &self.completions {
+            completion.inner.collect_agent_refs(out);
+        }
+    }
+}
+
+impl ChunkAgentRefs for FunctionExecutionChunk {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        use objectiveai_sdk::functions::executions::response::streaming::TaskChunk;
+        for task in &self.tasks {
+            match task {
+                TaskChunk::FunctionExecution(wrapper) => {
+                    wrapper.inner.collect_agent_refs(out);
+                }
+                TaskChunk::VectorCompletion(wrapper) => {
+                    wrapper.inner.collect_agent_refs(out);
+                }
+            }
+        }
+        if let Some(reasoning) = &self.reasoning {
+            reasoning.inner.collect_agent_refs(out);
+        }
+    }
+}
+
 /// CLI-side wrapper exposing the SDK's intrinsic `push(&mut self,
 /// other: &Self)` method via a uniform trait. Each impl simply
 /// delegates to the chunk type's inherent method — the SDK already
@@ -431,7 +495,14 @@ async fn listener_loop<C>(
     written_tx: watch::Sender<bool>,
 ) -> Result<(), crate::error::Error>
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync,
+    C: WriterChunk
+        + AgentCompletionIds
+        + ChunkAgentRefs
+        + ChunkPush
+        + Clone
+        + Serialize
+        + Send
+        + Sync,
 {
     let mut ready_tx = Some(ready_tx);
     let mut written_fired = false;
@@ -449,12 +520,19 @@ where
         // per-batch slice. Draining the queue only collapses how OFTEN
         // the persistence pass runs; what it persists from is always
         // the full accumulator.
+        // Definition sources ride the RAW chunks (agent_inline is
+        // first-chunk-only), so scan each incoming chunk before it
+        // dissolves into the aggregate.
+        let mut agent_refs: Vec<(String, crate::db::agent_refs::AgentRefValue)> =
+            Vec::new();
+        first.collect_agent_refs(&mut agent_refs);
         if let Some(acc) = accumulated.as_mut() {
             acc.push(&first);
         } else {
             accumulated = Some(first.clone());
         }
         while let Ok(next) = rx.try_recv() {
+            next.collect_agent_refs(&mut agent_refs);
             if let Some(acc) = accumulated.as_mut() {
                 acc.push(&next);
             }
@@ -484,6 +562,12 @@ where
         // rows Skip with zero writes, only genuinely-changed bodies hit
         // the DB.
         state.apply_chunk(acc).await?;
+
+        // Blind agent_refs upserts for every scanned definition
+        // source — last write wins by design.
+        for (hier, value) in agent_refs {
+            crate::db::agent_refs::upsert(&state.pool, &hier, value).await?;
+        }
 
         // First successful apply: flip the watch true exactly once.
         // Subsequent batches don't touch it (the value is already
@@ -529,7 +613,15 @@ fn spawn_writer<C>(
     items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync + 'static,
+    C: WriterChunk
+        + AgentCompletionIds
+        + ChunkAgentRefs
+        + ChunkPush
+        + Clone
+        + Serialize
+        + Send
+        + Sync
+        + 'static,
 {
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();

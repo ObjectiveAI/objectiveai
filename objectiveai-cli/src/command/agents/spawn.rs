@@ -172,6 +172,10 @@ async fn execute_streaming(
     // AIH's; an instance → the AIH's.
     use crate::command::agents::locks::Family;
     use crate::db::laboratory_attachments::Target;
+    // Spawn-by-SPEC detection for the agent_refs registry: only a
+    // direct `--agent` ref counts — spawns via tag or AIH resume or
+    // rebind an existing agent and record nothing.
+    let by_spec = matches!(request.agent, AgentSelector::Ref { .. });
     let (mode, lab_targets, family): (Mode, Vec<Target>, Option<Family>) = match request.agent {
         AgentSelector::Ref { agent } => (
             Mode::Fresh {
@@ -290,6 +294,21 @@ async fn execute_streaming(
         }
     };
 
+    // The definition source to record at AIH-lock acquisition —
+    // spawn-by-SPEC only.
+    let agent_ref = if by_spec {
+        match &agent {
+            InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
+                crate::db::agent_refs::AgentRefValue::remote(remote)
+            }
+            InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(spec) => {
+                crate::db::agent_refs::AgentRefValue::inline(spec)
+            }
+        }
+    } else {
+        None
+    };
+
     // Message-queue delivery to the live API happens through the
     // conduit's `read_pending_and_upgrade_tag` call — the API
     // pulls pending rows on demand as the stream runs and stamps
@@ -307,6 +326,7 @@ async fn execute_streaming(
         continuation,
         agent_tag,
         lab_targets,
+        agent_ref,
         registry,
     )))
 }
@@ -372,9 +392,11 @@ pub(crate) fn run_multi_pass(
     continuation: Option<String>,
     agent_tag: Option<String>,
     lab_targets: Vec<crate::db::laboratory_attachments::Target>,
+    agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     mut registry: AgentInstanceRegistry,
 ) -> impl Stream<Item = Result<ResponseItem, Error>> + Send {
     async_stream::try_stream! {
+        let mut agent_ref = agent_ref;
         // Resolve the agent's laboratory attachments (from the named targets)
         // and assemble the create-params. `provider`/`response_format` are
         // always defaulted and `stream` is always true for the in-process WS
@@ -479,6 +501,16 @@ pub(crate) fn run_multi_pass(
                     let hier = chunk.agent_instance_hierarchy.clone();
                     let full_id = chunk.agent_full_id.clone();
                     registry.observe(&hier).await;
+                    // Spawn-by-spec: record the definition source the
+                    // moment the AIH lock is acquired.
+                    if let Some(value) = agent_ref.take() {
+                        crate::db::agent_refs::upsert(
+                            ctx.db_client().await?,
+                            &hier,
+                            value,
+                        )
+                        .await?;
+                    }
                     identity = Some((hier, full_id));
                 }
 

@@ -294,6 +294,7 @@ fn deliver_one_hierarchy(
             lookup.continuation,
             None,
             vec![crate::db::laboratory_attachments::Target::Aih(hierarchy.clone())],
+            None,
             registry,
         );
         let mut inner = Box::pin(inner);
@@ -412,6 +413,7 @@ fn deliver_one_tag(
             None,
             Some(agent_tag),
             lab_targets,
+            None,
             registry,
         );
         let mut inner = Box::pin(inner);

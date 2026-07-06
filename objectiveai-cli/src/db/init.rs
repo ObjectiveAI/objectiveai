@@ -125,6 +125,24 @@ CREATE TABLE IF NOT EXISTS objectiveai.agent_token_usage (
     total_tokens             BIGINT NOT NULL
 );
 
+-- The definition SOURCE per AIH: EITHER the RemotePath the agent's WF
+-- was fetched from, OR the inline WF spec itself — exactly one set.
+-- Blindly upserted (last write wins, no read-before-write) from two
+-- sites: `agents spawn` for spawns by SPEC at AIH-lock acquisition,
+-- and the log writer whenever a chunk carries `agent_inline` (the
+-- first chunk of every completion, any tier/nesting).
+CREATE TABLE IF NOT EXISTS objectiveai.agent_refs (
+    agent_instance_hierarchy TEXT   PRIMARY KEY NOT NULL,
+    remote                   TEXT,
+    inline                   JSONB,
+    updated_at               BIGINT NOT NULL,
+    CHECK (
+        (remote IS NOT NULL AND inline IS NULL)
+        OR
+        (remote IS NULL AND inline IS NOT NULL)
+    )
+);
+
 -- AFTER-INSERT/UPDATE trigger on `agent_token_usage`: every write
 -- emits `NOTIFY agent_token_usage_changed '<agent_instance_hierarchy>'`
 -- so `agents logs token-usage subscribe` wakes the instant an AIH's
