@@ -245,7 +245,14 @@ describe("HierarchyTree", () => {
       definitions: { "cli/defined": definition },
     });
     const pre = view.container.querySelector("[data-agent-definition]");
-    expect(pre?.textContent).toBe(JSON.stringify(definition, null, 2));
+    // Null-valued keys (commit) are omitted from the pretty print.
+    expect(pre?.textContent).toBe(
+      JSON.stringify(
+        { remote: "client", owner: "ObjectiveAI", repository: "rick-sanchez" },
+        null,
+        2,
+      ),
+    );
     view.unmount();
   });
 

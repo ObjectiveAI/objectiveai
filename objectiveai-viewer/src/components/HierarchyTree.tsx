@@ -213,8 +213,18 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
         "leading-snug",
       )}
     >
-      {JSON.stringify(agent, null, 2)}
+      {formatDefinition(agent)}
     </pre>
+  );
+}
+
+/** Pretty-print the definition, omitting every null-valued key (at
+ * any depth) — nulls are wire noise, not information. */
+function formatDefinition(agent: unknown): string {
+  return JSON.stringify(
+    agent,
+    (_key, value: unknown) => (value === null ? undefined : value),
+    2,
   );
 }
 
