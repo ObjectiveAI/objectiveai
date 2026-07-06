@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import cn from "classnames";
 import {
   agentsLogsOpenExecute,
@@ -140,21 +140,7 @@ export function ConversationModal({
         >
           {/* TODO: the live completions tail + the chat input land
               here in a later pass. */}
-          {logs === null ? (
-            <LoadingDots marker="data-conversation-loading" />
-          ) : logs.length === 0 ? (
-            <span className={cn("text-info-dim")}>no history</span>
-          ) : (
-            logs
-              .map((item, index) => (
-                <LogRow
-                  key={`${item.type}-${index}`}
-                  item={item}
-                  toolResponses={pairToolResponses(logs)}
-                />
-              ))
-              .reverse()
-          )}
+          <ConversationBody logs={logs} />
         </div>
       </div>
     </div>
@@ -343,97 +329,336 @@ function logResponse(item: ToolResponseItem | undefined): ToolResponseSource {
   return item !== undefined ? { log: item } : null;
 }
 
-/** One `agents/logs/list` row. Request rows are bare markers; the
- * part-bearing rows render one lazily-loaded [`LogPart`] each. Tool
- * calls render as paired call/response sections; bare tool_response
- * rows render nothing here (they live inside their call's section). */
-function LogRow({
-  item,
-  toolResponses,
+/** A coalesced conversation is a sequence of role RUNS: consecutive
+ * blocks of the same role (user / assistant / notification) share
+ * ONE badge, their content listed in order. Tool sections and
+ * reasoning are assistant-role blocks (no badge of their own). */
+type BlockRole = "user" | "assistant" | "notification";
+
+interface Block {
+  key: string;
+  role: BlockRole;
+  from?: string;
+  at?: string;
+  node: React.ReactNode;
+}
+
+interface Group {
+  role: BlockRole;
+  from?: string;
+  at?: string;
+  blocks: Block[];
+}
+
+/** The conversation body: fetch every request body up front (so the
+ * ordered block list is fully known), flatten logs + request
+ * messages into role-tagged blocks, coalesce consecutive same-role
+ * runs, and render one badge per run — newest at the bottom. */
+function ConversationBody({
+  logs,
 }: {
-  item: CliCommandAgentsLogsListResponseItem;
-  toolResponses: ReadonlyMap<string, ToolResponseItem>;
+  logs: readonly CliCommandAgentsLogsListResponseItem[] | null;
 }) {
-  switch (item.type) {
-    case "agent_completion_request":
-      return (
-        <RequestSection
-          id={item.id}
-          sender={item.sender_agent_instance_hierarchy}
-          at={item.delivered_at}
-        />
-      );
-    case "vector_completion_request":
-    case "function_execution_request":
-      return (
-        <div
-          data-log-row={item.type}
-          className={cn("flex", "flex-col", "gap-1")}
-        >
-          <KindLabel
-            note={`from ${item.sender_agent_instance_hierarchy}`}
-            at={item.delivered_at}
-          >
-            {item.type === "vector_completion_request"
-              ? "vector request"
-              : "function request"}
-          </KindLabel>
-        </div>
-      );
-    case "assistant_response":
-      return (
-        <div
-          data-log-row={item.type}
-          className={cn("flex", "flex-col", "gap-1")}
-        >
-          <KindLabel at={item.parts[0]?.delivered_at}>assistant</KindLabel>
-          {item.parts.map((part) =>
-            part.type === "reasoning" ? (
-              // Hidden by default — expanding also defers the fetch
-              // until someone actually wants to read it.
-              <ReasoningPart key={part.id} id={part.id} />
-            ) : part.type === "tool_call" ? (
-              // Call + its response, paired implicitly — no ids on
-              // display.
-              <ToolSection
-                key={part.id}
-                name={part.function_name}
-                call={{ id: part.id }}
-                response={logResponse(toolResponses.get(part.tool_call_id))}
-              />
-            ) : (
-              <div key={part.id} className={cn("flex", "flex-col", "gap-0.5")}>
-                {part.type === "refusal" && (
-                  <span className={cn("text-info-dim")}>refusal</span>
-                )}
-                <LogPart id={part.id} />
-              </div>
-            ),
-          )}
-        </div>
-      );
-    case "tool_response":
-      // Rendered inside its call's ToolSection; orphans (no matching
-      // call) are ignored by design.
-      return null;
-    case "client_notification":
-      return (
-        <div
-          data-log-row={item.type}
-          className={cn("flex", "flex-col", "gap-1")}
-        >
-          <KindLabel
-            note={`from ${item.sender_agent_instance_hierarchy}`}
-            at={item.queued_at}
-          >
-            notification
-          </KindLabel>
-          {item.parts.map((part) => (
-            <LogPart key={part.id} id={part.id} />
-          ))}
-        </div>
-      );
+  const requestBodies = useRequestBodies(logs);
+  if (logs === null || requestBodies === null) {
+    return <LoadingDots marker="data-conversation-loading" />;
   }
+  if (logs.length === 0) {
+    return <span className={cn("text-info-dim")}>no history</span>;
+  }
+  const groups = coalesce(flattenBlocks(logs, requestBodies));
+  return (
+    <>
+      {groups
+        .map((group, i) => <BlockGroup key={i} group={group} />)
+        .reverse()}
+    </>
+  );
+}
+
+/** One role run: a single badge (role + the run's first block's
+ * sender/date) over its blocks in order. */
+function BlockGroup({ group }: { group: Group }) {
+  return (
+    <div
+      data-block-group={group.role}
+      className={cn("flex", "flex-col", "gap-1")}
+    >
+      <KindLabel
+        note={group.from !== undefined ? `from ${group.from}` : undefined}
+        at={group.at}
+      >
+        {group.role}
+      </KindLabel>
+      {group.blocks.map((b) => (
+        <Fragment key={b.key}>{b.node}</Fragment>
+      ))}
+    </div>
+  );
+}
+
+/** Group consecutive blocks of the same role — the coalescing rule:
+ * the next badge is always a different role. */
+function coalesce(blocks: Block[]): Group[] {
+  const groups: Group[] = [];
+  for (const b of blocks) {
+    const last = groups[groups.length - 1];
+    if (last !== undefined && last.role === b.role) {
+      last.blocks.push(b);
+    } else {
+      groups.push({ role: b.role, from: b.from, at: b.at, blocks: [b] });
+    }
+  }
+  return groups;
+}
+
+/** Flatten the ordered log rows (with requests expanded via their
+ * fetched bodies) into role-tagged, badge-less blocks. tool_response
+ * rows are consumed into their assistant's tool section; vector /
+ * function requests are skipped. */
+function flattenBlocks(
+  logs: readonly CliCommandAgentsLogsListResponseItem[],
+  requestBodies: ReadonlyMap<number, RequestMessage[]>,
+): Block[] {
+  const toolResponses = pairToolResponses(logs);
+  const blocks: Block[] = [];
+  logs.forEach((item, i) => {
+    const base = `${item.type}-${i}`;
+    switch (item.type) {
+      case "assistant_response": {
+        const at = item.parts[0]?.delivered_at;
+        for (const part of item.parts) {
+          const key = `${base}-${part.id}`;
+          if (part.type === "reasoning") {
+            blocks.push({
+              key,
+              role: "assistant",
+              at,
+              node: <ReasoningPart id={part.id} />,
+            });
+          } else if (part.type === "tool_call") {
+            blocks.push({
+              key,
+              role: "assistant",
+              at,
+              node: (
+                <ToolSection
+                  name={part.function_name}
+                  call={{ id: part.id }}
+                  response={logResponse(toolResponses.get(part.tool_call_id))}
+                />
+              ),
+            });
+          } else {
+            blocks.push({
+              key,
+              role: "assistant",
+              at,
+              node: (
+                <>
+                  {part.type === "refusal" && (
+                    <span className={cn("text-info-dim")}>refusal</span>
+                  )}
+                  <LogPart id={part.id} />
+                </>
+              ),
+            });
+          }
+        }
+        break;
+      }
+      case "client_notification": {
+        const from = item.sender_agent_instance_hierarchy;
+        const at = item.queued_at;
+        for (const part of item.parts) {
+          blocks.push({
+            key: `${base}-${part.id}`,
+            role: "notification",
+            from,
+            at,
+            node: <LogPart id={part.id} />,
+          });
+        }
+        break;
+      }
+      case "agent_completion_request":
+        pushRequestBlocks(
+          blocks,
+          base,
+          requestBodies.get(item.id) ?? [],
+          item.sender_agent_instance_hierarchy,
+          item.delivered_at,
+        );
+        break;
+      // tool_response rows are consumed above; vector / function
+      // requests aren't part of an agent's message flow.
+    }
+  });
+  return blocks;
+}
+
+/** Expand a request body's messages into blocks: user content;
+ * assistant reasoning / content / tool-call sections / refusal; and
+ * tool messages paired into their assistant's tool section (an
+ * orphan tool message — its call in a prior log — renders as an
+ * assistant-side response-only section). */
+function pushRequestBlocks(
+  blocks: Block[],
+  base: string,
+  messages: RequestMessage[],
+  from: string,
+  at: string,
+): void {
+  const toolByCallId = new Map<string, ToolMsg>();
+  const calledIds = new Set<string>();
+  for (const m of messages) {
+    if (m.role === "tool" && !toolByCallId.has(m.tool_call_id)) {
+      toolByCallId.set(m.tool_call_id, m);
+    }
+    if (m.role === "assistant") {
+      for (const tc of m.tool_calls ?? []) {
+        calledIds.add(tc.id);
+      }
+    }
+  }
+  messages.forEach((m, j) => {
+    const mk = `${base}-m${j}`;
+    switch (m.role) {
+      case "user":
+        blocks.push({
+          key: mk,
+          role: "user",
+          from,
+          at,
+          node: <InlineContent content={m.content} />,
+        });
+        break;
+      case "assistant":
+        if (m.reasoning != null && m.reasoning !== "") {
+          blocks.push({
+            key: `${mk}-r`,
+            role: "assistant",
+            from,
+            at,
+            node: <ReasoningPart text={m.reasoning} />,
+          });
+        }
+        if (m.content != null) {
+          blocks.push({
+            key: `${mk}-c`,
+            role: "assistant",
+            from,
+            at,
+            node: <InlineContent content={m.content} />,
+          });
+        }
+        for (const tc of m.tool_calls ?? []) {
+          const answer = toolByCallId.get(tc.id);
+          blocks.push({
+            key: `${mk}-tc-${tc.id}`,
+            role: "assistant",
+            from,
+            at,
+            node: (
+              <ToolSection
+                name={tc.function.name}
+                call={{ args: tc.function.arguments }}
+                response={
+                  answer !== undefined ? { inline: answer.content } : null
+                }
+              />
+            ),
+          });
+        }
+        if (m.refusal != null && m.refusal !== "") {
+          blocks.push({
+            key: `${mk}-refusal`,
+            role: "assistant",
+            from,
+            at,
+            node: (
+              <>
+                <span className={cn("text-info-dim")}>refusal</span>
+                <InlineContent content={m.refusal} />
+              </>
+            ),
+          });
+        }
+        break;
+      case "tool":
+        // Answered inside its assistant's section; only a tool
+        // message whose call lives in a prior log shows standalone.
+        if (calledIds.has(m.tool_call_id)) return;
+        blocks.push({
+          key: mk,
+          role: "assistant",
+          from,
+          at,
+          node: (
+            <ToolSection name="tool response" response={{ inline: m.content }} />
+          ),
+        });
+        break;
+    }
+  });
+}
+
+/** Fetch every `agent_completion_request` body referenced by `logs`
+ * up front (requests are few — spawn boundaries), returning a map of
+ * id → messages, or `null` while any are still loading. A request
+ * that fails or isn't one resolves to no messages. */
+function useRequestBodies(
+  logs: readonly CliCommandAgentsLogsListResponseItem[] | null,
+): ReadonlyMap<number, RequestMessage[]> | null {
+  const [bodies, setBodies] = useState<Map<number, RequestMessage[]> | null>(
+    null,
+  );
+  useEffect(() => {
+    if (logs === null) {
+      setBodies(null);
+      return;
+    }
+    const ids = logs
+      .filter((l) => l.type === "agent_completion_request")
+      .map((l) => l.id);
+    let cancelled = false;
+    setBodies(null);
+    void (async () => {
+      const map = new Map<number, RequestMessage[]>();
+      let executor: Awaited<ReturnType<typeof websocketExecutor>> | null = null;
+      try {
+        executor = await websocketExecutor();
+      } catch {
+        executor = null;
+      }
+      await Promise.all(
+        ids.map(async (id) => {
+          if (executor === null) {
+            map.set(id, []);
+            return;
+          }
+          try {
+            const resp = await agentsLogsOpenExecute(executor, { id });
+            map.set(
+              id,
+              resp.type === "agent_completion_request"
+                ? resp.body.messages
+                : [],
+            );
+          } catch {
+            map.set(id, []);
+          }
+        }),
+      );
+      if (!cancelled) {
+        setBodies(map);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [logs]);
+  return bodies;
 }
 
 /** Pretty-print a JSON text body; unparsable input passes through
@@ -777,177 +1002,3 @@ function MediaFile({
 type RequestMessage = AgentCompletionsMessageMessage;
 type AssistantMsg = Extract<RequestMessage, { role: "assistant" }>;
 type ToolMsg = Extract<RequestMessage, { role: "tool" }>;
-
-/** The unwrapped `agent_completion_request`: a dated `request`
- * header, then its body's messages — the only place the caller's
- * user input appears.
- *
- * Continuation / queue-delivery requests carry their content on the
- * continuation STATE, not `body.messages`, so those bodies are empty
- * and their user input is the nearby `client_notification` rows. An
- * empty request is treated as NON-EXISTENT — nothing renders (not
- * even a boundary) so there's no gap. Because emptiness is only
- * knowable after the fetch, the body is fetched eagerly on mount
- * (requests are few — spawn boundaries) and `null` renders until
- * then. */
-function RequestSection({
-  id,
-  sender,
-  at,
-}: {
-  id: number;
-  sender: string;
-  at: string;
-}) {
-  const [messages, setMessages] = useState<RequestMessage[] | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const executor = await websocketExecutor();
-        const resp = await agentsLogsOpenExecute(executor, { id });
-        if (cancelled) return;
-        setMessages(
-          resp.type === "agent_completion_request" ? resp.body.messages : [],
-        );
-      } catch {
-        if (!cancelled) setMessages([]);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id]);
-
-  // Nothing at all while loading OR when empty — the request simply
-  // does not exist in the conversation.
-  if (messages === null || messages.length === 0) return null;
-
-  // Flattened: no request wrapper. Each message renders as a
-  // top-level row carrying the request's sender + date on its own
-  // badge.
-  return <RequestMessages messages={messages} sender={sender} at={at} />;
-}
-
-/** Render a request body's messages: user (content), assistant (the
- * shared assistant body), and tool responses paired into their
- * assistant's tool sections. A tool message whose call is NOT in
- * these messages (it lives in a prior log) renders as a standalone
- * response-only tool section. */
-function RequestMessages({
-  messages,
-  sender,
-  at,
-}: {
-  messages: RequestMessage[];
-  sender: string;
-  at: string;
-}) {
-  // The response per tool_call_id, and the set of ids an assistant
-  // in these messages actually calls (so orphan tool messages —
-  // answering a log-side call — still render).
-  const toolByCallId = new Map<string, ToolMsg>();
-  const calledIds = new Set<string>();
-  for (const m of messages) {
-    if (m.role === "tool" && !toolByCallId.has(m.tool_call_id)) {
-      toolByCallId.set(m.tool_call_id, m);
-    }
-    if (m.role === "assistant") {
-      for (const tc of m.tool_calls ?? []) {
-        calledIds.add(tc.id);
-      }
-    }
-  }
-  return (
-    <>
-      {messages.map((m, i) => {
-        switch (m.role) {
-          case "user":
-            return (
-              <div
-                key={i}
-                data-request-message="user"
-                className={cn("flex", "flex-col", "gap-1")}
-              >
-                <KindLabel note={`from ${sender}`} at={at}>
-                  user
-                </KindLabel>
-                <InlineContent content={m.content} />
-              </div>
-            );
-          case "assistant":
-            return (
-              <AssistantMessage
-                key={i}
-                msg={m}
-                toolByCallId={toolByCallId}
-                sender={sender}
-                at={at}
-              />
-            );
-          case "tool":
-            // Answered inside its assistant's section above; only a
-            // tool message whose call lives in a prior log shows
-            // standalone.
-            if (calledIds.has(m.tool_call_id)) return null;
-            return (
-              <ToolSection
-                key={i}
-                name="tool response"
-                response={{ inline: m.content }}
-              />
-            );
-        }
-      })}
-    </>
-  );
-}
-
-/** An assistant message rendered with the SAME pieces as a log
- * assistant turn: collapsed reasoning, content, and one tool section
- * per tool call (paired with its inline tool response), then a
- * refusal. */
-function AssistantMessage({
-  msg,
-  toolByCallId,
-  sender,
-  at,
-}: {
-  msg: AssistantMsg;
-  toolByCallId: ReadonlyMap<string, ToolMsg>;
-  sender: string;
-  at: string;
-}) {
-  return (
-    <div
-      data-request-message="assistant"
-      className={cn("flex", "flex-col", "gap-1")}
-    >
-      <KindLabel note={`from ${sender}`} at={at}>
-        assistant
-      </KindLabel>
-      {msg.reasoning != null && msg.reasoning !== "" && (
-        <ReasoningPart text={msg.reasoning} />
-      )}
-      {msg.content != null && <InlineContent content={msg.content} />}
-      {(msg.tool_calls ?? []).map((tc) => {
-        const answer = toolByCallId.get(tc.id);
-        return (
-          <ToolSection
-            key={tc.id}
-            name={tc.function.name}
-            call={{ args: tc.function.arguments }}
-            response={answer !== undefined ? { inline: answer.content } : null}
-          />
-        );
-      })}
-      {msg.refusal != null && msg.refusal !== "" && (
-        <div className={cn("flex", "flex-col", "gap-0.5")}>
-          <span className={cn("text-info-dim")}>refusal</span>
-          <InlineContent content={msg.refusal} />
-        </div>
-      )}
-    </div>
-  );
-}

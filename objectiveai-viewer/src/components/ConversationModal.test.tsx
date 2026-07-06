@@ -137,23 +137,42 @@ describe("ConversationModal", () => {
     const view = mount();
     await settle();
 
-    // Flattened: no request wrapper — messages are top-level, each
-    // carrying the request's sender on its badge.
+    // Flattened + coalesced: no request wrapper; role-run badges.
     expect(
       view.container.querySelector('[data-log-row="agent_completion_request"]'),
     ).toBeNull();
-    const user = view.container.querySelector('[data-request-message="user"]');
+    const user = view.container.querySelector('[data-block-group="user"]');
     expect(user?.textContent).toContain("hello there");
     expect(user?.textContent).toContain("from cli");
     const assistant = view.container.querySelector(
-      '[data-request-message="assistant"]',
+      '[data-block-group="assistant"]',
     );
     expect(assistant?.textContent).toContain("hi back");
     expect(assistant?.querySelector("em")?.textContent).toBe("back");
     // Reasoning is collapsed; its text is inline (no fetch anywhere).
     expect(assistant?.querySelector("[data-reasoning-toggle]")).toBeTruthy();
     expect(assistant?.textContent).not.toContain("thinking...");
+    // The request body opened; no per-part fetches (all inline).
     expect(harness.openedIds).toEqual([1]);
+    view.unmount();
+  });
+
+  it("coalesces consecutive same-role log rows under one badge", async () => {
+    harness.autoResolve.set(11, { type: "text", text: "turn one" });
+    harness.autoResolve.set(12, { type: "text", text: "turn two" });
+    harness.logs = [
+      assistantRow([{ type: "text", id: 11, delivered_at: "t" }]),
+      assistantRow([{ type: "text", id: 12, delivered_at: "t" }]),
+    ];
+    const view = mount();
+    await settle();
+    // Two assistant_response rows → ONE assistant badge group.
+    const groups = view.container.querySelectorAll(
+      '[data-block-group="assistant"]',
+    );
+    expect(groups).toHaveLength(1);
+    expect(groups[0].textContent).toContain("turn one");
+    expect(groups[0].textContent).toContain("turn two");
     view.unmount();
   });
 
@@ -489,7 +508,7 @@ describe("ConversationModal", () => {
     ).toBeNull();
 
     const note = view.container.querySelector(
-      '[data-log-row="client_notification"]',
+      '[data-block-group="notification"]',
     );
     expect(note?.textContent).toContain("from cli/sender");
     expect(note?.textContent).toContain("ping");
