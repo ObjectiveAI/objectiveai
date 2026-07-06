@@ -434,15 +434,16 @@ function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
           data-remote-link
           onClick={open}
           className={cn(
-            "text-copper-bright",
-            "hover:underline",
+            "text-[#c3bfbb]",
+            "underline",
+            "hover:text-copper-bright",
             "cursor-pointer",
           )}
         >
           {label}
         </button>
       ) : (
-        <span className={cn("text-info-bright")}>{label}</span>
+        <span className={cn("text-[#c3bfbb]")}>{label}</span>
       )}
       {remote.remote === "github" && commit !== null && (
         <span className={cn("text-info-dim")}>@{commit.slice(0, 7)}</span>
@@ -470,9 +471,9 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
   if (loading) {
     return <LoadingDots marker="data-tags-loading" />;
   }
-  // Borderless, background-less values in the remote's copper — the
-  // rows ARE the remote row's component, badged by kind.
-  const value = cn("text-copper-bright");
+  // Borderless, background-less values in the message body's tone —
+  // the rows ARE the remote row's component, badged by kind.
+  const value = cn("text-[#c3bfbb]");
   return (
     <>
       <BadgeRow badge="aih">
