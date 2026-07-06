@@ -81,6 +81,9 @@ function HierarchyNode({
     self === null ? "branch" : self.active ? "agent-active" : "agent-inactive";
   return (
     <div className={cn("flex", "flex-col", "items-start")}>
+      {/* The card pair: the agent box sets the width; the attached
+          message box stretches to match it exactly. */}
+      <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
       <div
         data-node-kind={kind}
         data-node-name={name}
@@ -146,6 +149,7 @@ function HierarchyNode({
           active={self.active}
         />
       )}
+      </div>
       {children.length > 0 && (
         <>
           {/* Stem from this node down to its children's rail —
@@ -239,7 +243,10 @@ function AgentLatestTextView({
         // share the agent's copper-mid, so the pair reads as one
         // connected unit.
         "-mt-px",
-        "max-w-72",
+        // Zero preferred width + min-w-full: the wrapper (sized by
+        // the agent box) dictates this box's width exactly.
+        "w-0",
+        "min-w-full",
         "px-2.5",
         "py-1.5",
         "rounded-sm",

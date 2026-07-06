@@ -144,7 +144,9 @@ describe("HierarchyTree", () => {
     ]);
 
     const cli = view.container.querySelector('[data-node-name="cli"]');
-    const parent = cli?.parentElement;
+    // box -> card-pair wrapper -> node cell (which holds the
+    // children row).
+    const parent = cli?.parentElement?.parentElement;
     expect(parent?.querySelector('[data-node-name="bar"]')).toBeTruthy();
     expect(parent?.querySelector('[data-node-name="other"]')).toBeTruthy();
     // Only ONE cli node exists — shared prefixes collapse.
@@ -198,11 +200,16 @@ describe("HierarchyTree", () => {
     ]);
     const bar = view.container.querySelector('[data-node-name="bar"]');
     const buzz = view.container.querySelector('[data-node-name="buzz"]');
-    // Same tier: both node cells (box -> node cell -> content
-    // wrapper -> child cell) share one children-row container.
+    // Same tier: both node cells (box -> card-pair wrapper -> node
+    // cell -> content wrapper -> child cell) share one children-row
+    // container.
     expect(
-      bar?.parentElement?.parentElement?.parentElement?.parentElement,
-    ).toBe(buzz?.parentElement?.parentElement?.parentElement?.parentElement);
+      bar?.parentElement?.parentElement?.parentElement?.parentElement
+        ?.parentElement,
+    ).toBe(
+      buzz?.parentElement?.parentElement?.parentElement?.parentElement
+        ?.parentElement,
+    );
     view.unmount();
   });
 
