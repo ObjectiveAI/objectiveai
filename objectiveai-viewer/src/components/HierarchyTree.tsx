@@ -362,7 +362,7 @@ function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
     "border",
     "border-node-border/70",
     "bg-ground-raised",
-    "text-info-mid",
+    "text-info-bright",
   );
   return (
     <div
