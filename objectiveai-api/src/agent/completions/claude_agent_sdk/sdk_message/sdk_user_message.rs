@@ -137,6 +137,7 @@ impl SDKUserMessage {
                 agent_id,
                 agent_full_id,
                 agent_remote,
+                agent_inline: None,
                 created,
                 messages,
                 object: Default::default(),

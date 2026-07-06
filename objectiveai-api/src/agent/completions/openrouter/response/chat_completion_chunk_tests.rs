@@ -52,6 +52,7 @@ fn test_text_only_content() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -116,6 +117,7 @@ fn test_empty_delta() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -190,6 +192,7 @@ fn test_images_only() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -273,6 +276,7 @@ fn test_text_and_images_merged() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -370,6 +374,7 @@ fn test_usage_with_cost_multiplier() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 2000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -465,6 +470,7 @@ fn test_reasoning_and_tool_calls() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 1000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -566,6 +572,7 @@ fn test_byok_cost_splitting() {
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
+        agent_inline: None,
         created: 3000,
         messages: vec![
             objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
