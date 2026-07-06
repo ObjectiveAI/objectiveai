@@ -1,6 +1,10 @@
 import cn from "classnames";
+import { tauriInvoke } from "../lib/tauri";
 import { useAgents, type AgentStatus } from "../hooks/useAgents";
-import { useAgentDefinition } from "../hooks/useAgentDefinition";
+import {
+  useAgentDefinition,
+  type AgentDefinition,
+} from "../hooks/useAgentDefinition";
 import { useAgentInstanceTags } from "../hooks/useAgentInstanceTags";
 import { useAgentLatestText } from "../hooks/useAgentLatestText";
 
@@ -312,15 +316,19 @@ function LoadingDots({ marker }: { marker: string }) {
   );
 }
 
-/** The recorded agent definition (remote path or inline spec), shown
- * as full pretty-printed JSON — whatever shape it is. Its own
- * loading ellipsis; nothing when the registry knows nothing. */
+/** The recorded agent definition. Remotes render as a badge + link
+ * row ([`RemoteDefinition`]); inline specs as full pretty-printed
+ * JSON. Its own loading ellipsis; nothing when the registry knows
+ * nothing. */
 function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
   const { agent, loading } = useAgentDefinition(hierarchy);
   if (loading) {
     return <LoadingDots marker="data-definition-loading" />;
   }
   if (agent == null) return null;
+  if ("remote" in agent) {
+    return <RemoteDefinition remote={agent} />;
+  }
   return (
     <pre
       data-agent-definition
@@ -334,6 +342,90 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
     >
       {formatDefinition(agent)}
     </pre>
+  );
+}
+
+/** The remote variants of the definition union. */
+type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
+
+/** A remote definition as a badge + link row: a kind badge
+ * (`client` / `github` / `mock`) and `owner/repository` — a
+ * hyperlink for `client` (opens the local agents folder via the
+ * Rust `open_agent_remote` command) and `github` (opens the repo,
+ * or `/tree/<commit>` when pinned — the short sha shown inline);
+ * plain text for `mock`. */
+function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
+  // Mock remotes carry a bare `name`; client/github carry
+  // owner/repository coordinates.
+  const label =
+    remote.remote === "mock"
+      ? remote.name
+      : `${remote.owner}/${remote.repository}`;
+  const commit =
+    "commit" in remote && typeof remote.commit === "string"
+      ? remote.commit
+      : null;
+  const open =
+    remote.remote === "client"
+      ? () =>
+          void tauriInvoke("open_agent_remote", {
+            owner: remote.owner,
+            repository: remote.repository,
+          })
+      : remote.remote === "github"
+        ? () =>
+            void tauriInvoke("open_url", {
+              url:
+                commit === null
+                  ? `https://github.com/${remote.owner}/${remote.repository}`
+                  : `https://github.com/${remote.owner}/${remote.repository}/tree/${commit}`,
+            })
+        : null;
+  return (
+    <div
+      data-agent-remote={remote.remote}
+      className={cn(
+        "flex",
+        "flex-row",
+        "items-center",
+        "gap-1.5",
+        "self-center",
+        "text-[10px]",
+      )}
+    >
+      <span
+        className={cn(
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+        )}
+      >
+        {remote.remote}
+      </span>
+      {open !== null ? (
+        <button
+          type="button"
+          data-remote-link
+          onClick={open}
+          className={cn(
+            "text-copper-bright",
+            "hover:underline",
+            "cursor-pointer",
+          )}
+        >
+          {label}
+        </button>
+      ) : (
+        <span className={cn("text-info-bright")}>{label}</span>
+      )}
+      {remote.remote === "github" && commit !== null && (
+        <span className={cn("text-info-dim")}>@{commit.slice(0, 7)}</span>
+      )}
+    </div>
   );
 }
 

@@ -39,6 +39,43 @@ fn websocket_config(state: tauri::State<'_, WebSocketConfig>) -> WebSocketConfig
     state.inner().clone()
 }
 
+/// The per-state agents root the `client` remote links open:
+/// `<objectiveai_dir>/state/<state>/agents`.
+pub struct AgentsDir(pub PathBuf);
+
+/// Open a `client` remote's local folder
+/// (`<agents root>/<owner>/<repository>`) in the OS file manager.
+/// Path segments are rejected if they'd escape the agents root.
+#[tauri::command]
+fn open_agent_remote(
+    state: tauri::State<'_, AgentsDir>,
+    owner: String,
+    repository: String,
+) -> Result<(), String> {
+    for segment in [&owner, &repository] {
+        if segment.is_empty()
+            || segment.contains(['/', '\\'])
+            || segment == "."
+            || segment == ".."
+        {
+            return Err(format!("invalid remote path segment: {segment:?}"));
+        }
+    }
+    let path = state.0.join(&owner).join(&repository);
+    open::that_detached(&path).map_err(|e| e.to_string())
+}
+
+/// Open a GitHub URL in the default browser. Restricted to
+/// `https://github.com/` so the frontend can't shell-open arbitrary
+/// targets.
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !url.starts_with("https://github.com/") {
+        return Err("only https://github.com/ urls may be opened".to_string());
+    }
+    open::that_detached(&url).map_err(|e| e.to_string())
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "DAEMON_ADDRESS")]
@@ -164,6 +201,7 @@ pub type Exiter = Box<dyn FnOnce(i32) + Send>;
 pub fn serve(
     executor: WebSocketExecutor,
     websocket_config_state: WebSocketConfig,
+    agents_dir: AgentsDir,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
 ) -> i32 {
@@ -177,6 +215,7 @@ pub fn serve(
         .manage(ready)
         .manage(executor)
         .manage(websocket_config_state)
+        .manage(agents_dir)
         .manage(crate::plugins::PluginsDir(plugins_dir))
         .register_uri_scheme_protocol("plugin", move |_app, request| {
             serve_plugin_asset(&plugins_dir_for_protocol, request)
@@ -184,6 +223,8 @@ pub fn serve(
     let builder = builder.invoke_handler(tauri::generate_handler![
         viewer_ready,
         websocket_config,
+        open_agent_remote,
+        open_url,
         crate::plugins::list_plugins_with_viewer,
     ]);
     builder
@@ -245,5 +286,19 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         agent_arguments: crate::plugins::viewer_agent_arguments(),
     };
 
-    Ok(serve(executor, websocket_config_state, plugins_dir, None))
+    let agents_dir = AgentsDir(
+        config
+            .objectiveai_dir
+            .join("state")
+            .join(&config.objectiveai_state)
+            .join("agents"),
+    );
+
+    Ok(serve(
+        executor,
+        websocket_config_state,
+        agents_dir,
+        plugins_dir,
+        None,
+    ))
 }

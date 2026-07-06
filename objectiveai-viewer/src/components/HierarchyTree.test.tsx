@@ -16,12 +16,20 @@ import type { AgentStatus } from "../hooks/useAgents";
   true;
 
 const harness = vi.hoisted(() => ({
+  invokes: [] as Array<[string, unknown]>,
   agents: [] as AgentStatus[],
   tags: new Map<string, string[]>(),
   tagsLoading: false,
   definitions: new Map<string, unknown>(),
   definitionLoading: false,
   latestTexts: new Map<string, string>(),
+}));
+
+vi.mock("../lib/tauri", () => ({
+  tauriInvoke: (cmd: string, args: unknown) => {
+    harness.invokes.push([cmd, args]);
+    return Promise.resolve(undefined);
+  },
 }));
 
 vi.mock("../hooks/useAgents", () => ({
@@ -78,6 +86,7 @@ function render(
   harness.definitions = new Map(Object.entries(opts?.definitions ?? {}));
   harness.definitionLoading = opts?.definitionLoading ?? false;
   harness.latestTexts = new Map(Object.entries(opts?.latestTexts ?? {}));
+  harness.invokes = [];
   const container = document.createElement("div");
   const root = createRoot(container);
   act(() => {
@@ -254,25 +263,86 @@ describe("HierarchyTree", () => {
     view.unmount();
   });
 
-  it("shows the recorded definition as pretty JSON, between name and dates", () => {
+  it("shows an INLINE definition as pretty JSON, nulls omitted", () => {
     const definition = {
-      remote: "client",
-      owner: "ObjectiveAI",
-      repository: "rick-sanchez",
-      commit: null,
+      upstream: "mock",
+      output_mode: "instruction",
+      fallbacks: null,
     };
     const view = render([agent("cli/defined", false)], {
       definitions: { "cli/defined": definition },
     });
     const pre = view.container.querySelector("[data-agent-definition]");
-    // Null-valued keys (commit) are omitted from the pretty print.
+    // Null-valued keys (fallbacks) are omitted from the pretty print.
     expect(pre?.textContent).toBe(
       JSON.stringify(
-        { remote: "client", owner: "ObjectiveAI", repository: "rick-sanchez" },
+        { upstream: "mock", output_mode: "instruction" },
         null,
         2,
       ),
     );
+    view.unmount();
+  });
+
+  it("renders a github remote as badge + repo link with the short commit", () => {
+    const view = render([agent("cli/gh", false)], {
+      definitions: {
+        "cli/gh": {
+          remote: "github",
+          owner: "ObjectiveAI",
+          repository: "foo",
+          commit: "3f2a9c1deadbeef",
+        },
+      },
+    });
+    const row = view.container.querySelector('[data-agent-remote="github"]');
+    expect(row?.textContent).toContain("github");
+    expect(row?.textContent).toContain("ObjectiveAI/foo");
+    expect(row?.textContent).toContain("@3f2a9c1");
+    (row?.querySelector("[data-remote-link]") as HTMLElement).click();
+    expect(harness.invokes).toEqual([
+      [
+        "open_url",
+        { url: "https://github.com/ObjectiveAI/foo/tree/3f2a9c1deadbeef" },
+      ],
+    ]);
+    view.unmount();
+  });
+
+  it("renders a client remote linking to the local agents folder", () => {
+    const view = render([agent("cli/local", false)], {
+      definitions: {
+        "cli/local": {
+          remote: "client",
+          owner: "ObjectiveAI",
+          repository: "rick-sanchez",
+          commit: null,
+        },
+      },
+    });
+    const row = view.container.querySelector('[data-agent-remote="client"]');
+    expect(row?.textContent).toContain("client");
+    (row?.querySelector("[data-remote-link]") as HTMLElement).click();
+    expect(harness.invokes).toEqual([
+      [
+        "open_agent_remote",
+        { owner: "ObjectiveAI", repository: "rick-sanchez" },
+      ],
+    ]);
+    // No JSON block for remotes.
+    expect(view.container.querySelector("[data-agent-definition]")).toBeNull();
+    view.unmount();
+  });
+
+  it("renders a mock remote as plain text — no link", () => {
+    const view = render([agent("cli/mocked", false)], {
+      definitions: { "cli/mocked": { remote: "mock", name: "test-thing" } },
+    });
+    const row = view.container.querySelector('[data-agent-remote="mock"]');
+    expect(row?.textContent).toContain("mock");
+    expect(row?.textContent).toContain("test-thing");
+    expect(row?.querySelector("[data-remote-link]")).toBeNull();
+    expect(harness.invokes).toEqual([]);
     view.unmount();
   });
 
