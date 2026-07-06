@@ -329,8 +329,8 @@ function AgentLatestTextView({
             "left-1/2",
             "-translate-x-1/2",
             "-bottom-2.5",
-            "px-2",
-            "py-1",
+            "px-2.5",
+            "py-1.5",
             "rounded-full",
             "border",
             "border-copper-mid",
@@ -342,9 +342,9 @@ function AgentLatestTextView({
         >
           {/* A flat, WIDE chevron — much wider than tall. */}
           <svg
-            width="22"
-            height="8"
-            viewBox="0 0 22 8"
+            width="18"
+            height="7"
+            viewBox="0 0 18 7"
             fill="none"
             stroke="currentColor"
             strokeWidth="2"
@@ -352,9 +352,9 @@ function AgentLatestTextView({
             strokeLinejoin="round"
           >
             {expanded ? (
-              <path d="M2 6L11 2L20 6" />
+              <path d="M2 5L9 2L16 5" />
             ) : (
-              <path d="M2 2L11 6L20 2" />
+              <path d="M2 2L9 5L16 2" />
             )}
           </svg>
         </button>
