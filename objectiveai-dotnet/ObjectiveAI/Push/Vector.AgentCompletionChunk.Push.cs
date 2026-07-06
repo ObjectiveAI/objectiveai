@@ -18,6 +18,9 @@ public partial class AgentCompletionChunk
         Usage = usage;
         Error = PushReplace(Error, other.Error);
         Continuation = PushReplace(Continuation, other.Continuation);
+        // agent_inline: first chunk wins (rides only the completion's
+        // first chunk; never overwritten)
+        AgentInline ??= other.AgentInline;
         // id, created, object, upstream, index: immutable
     }
 }
