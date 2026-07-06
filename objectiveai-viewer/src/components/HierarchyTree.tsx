@@ -207,7 +207,7 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
       data-agent-definition
       className={cn(
         "text-[9px]",
-        "text-info-dim",
+        "text-info-bright",
         "text-left",
         "whitespace-pre",
         "leading-snug",
