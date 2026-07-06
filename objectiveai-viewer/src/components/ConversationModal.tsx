@@ -225,6 +225,27 @@ type ToolResponseSource =
   | { inline: AgentCompletionsMessageRichContent }
   | null;
 
+/** A disclosure chevron: points right when closed, rotates down on
+ * open. Inline-sized and inherits the toggle's text color. */
+function Chevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="13"
+      height="13"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className={cn("shrink-0", "transition-transform", open && "rotate-90")}
+    >
+      <path d="m9 18 6-6-6-6" />
+    </svg>
+  );
+}
+
 /** One tool exchange: the call's arguments and (when present) its
  * response, stacked as a request/response card headed by the tool's
  * NAME — the pairing is visual, no ids shown. Collapsed by default;
@@ -264,7 +285,7 @@ function ToolSection({
           "cursor-pointer",
         )}
       >
-        <span>{open ? "\u25be" : "\u25b8"}</span>
+        <Chevron open={open} />
         <span className={cn("text-[9px]", "uppercase", "tracking-widest")}>
           tool
         </span>
@@ -680,7 +701,7 @@ function ReasoningPart(props: { id: number } | { text: string }) {
           "cursor-pointer",
         )}
       >
-        <span>{open ? "\u25be" : "\u25b8"}</span>
+        <Chevron open={open} />
         <span className={cn("text-[9px]", "uppercase", "tracking-widest")}>
           reasoning
         </span>
