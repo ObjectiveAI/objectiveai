@@ -153,7 +153,6 @@ function HierarchyNode({
               "h-3",
               "ml-3",
               "bg-copper-hot",
-              "shadow-[0_0_6px_rgba(245,158,11,0.8)]",
             )}
           />
           <div
@@ -164,7 +163,6 @@ function HierarchyNode({
               "gap-4",
               "border-t",
               "border-copper-hot",
-              "shadow-[0_-1px_6px_rgba(245,158,11,0.5)]",
             )}
           >
             {children.map(([child, group]) => (
@@ -176,7 +174,6 @@ function HierarchyNode({
                     "h-3",
                     "ml-3",
                     "bg-copper-hot",
-                    "shadow-[0_0_6px_rgba(245,158,11,0.8)]",
                   )}
                 />
                 <HierarchyNode name={child} members={group} />
