@@ -198,11 +198,11 @@ describe("HierarchyTree", () => {
     ]);
     const bar = view.container.querySelector('[data-node-name="bar"]');
     const buzz = view.container.querySelector('[data-node-name="buzz"]');
-    // Same tier: both node cells (box -> node cell -> stem wrapper)
-    // share one children-row container.
-    expect(bar?.parentElement?.parentElement?.parentElement).toBe(
-      buzz?.parentElement?.parentElement?.parentElement,
-    );
+    // Same tier: both node cells (box -> node cell -> content
+    // wrapper -> child cell) share one children-row container.
+    expect(
+      bar?.parentElement?.parentElement?.parentElement?.parentElement,
+    ).toBe(buzz?.parentElement?.parentElement?.parentElement?.parentElement);
     view.unmount();
   });
 
