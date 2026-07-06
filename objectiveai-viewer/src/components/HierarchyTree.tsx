@@ -257,8 +257,8 @@ function AgentLatestTextView({
         "border",
         "border-copper-mid",
         "text-[10px]",
-        // A hair greyer than info-bright (#d6d3d1).
-        "text-[#c9c6c2]",
+        // Between info-bright (#d6d3d1) and info-mid (#a8a29e).
+        "text-[#bdb9b5]",
         "text-left",
         "whitespace-pre-wrap",
         "break-words",
