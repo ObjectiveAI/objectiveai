@@ -34,6 +34,61 @@ interface ScopedAgent {
  */
 export function HierarchyTree() {
   const agents = useAgents();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const dragRef = useRef<{
+    x: number;
+    y: number;
+    left: number;
+    top: number;
+  } | null>(null);
+  const [dragging, setDragging] = useState(false);
+
+  // MOUSE-only drag-to-pan. Touch/pen pointers are ignored entirely —
+  // mobile keeps its native scroller untouched.
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.pointerType !== "mouse" || e.button !== 0) return;
+    // Don't hijack interactive elements or selectable text.
+    const target = e.target as Element;
+    if (target.closest("button, a, [data-latest-text], pre")) return;
+    const el = containerRef.current;
+    if (el === null) return;
+    dragRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      left: el.scrollLeft,
+      top: el.scrollTop,
+    };
+    try {
+      el.setPointerCapture(e.pointerId);
+    } catch {
+      // jsdom / detached — capture is best-effort.
+    }
+  };
+  const onPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    const el = containerRef.current;
+    if (drag === null || el === null) return;
+    const dx = e.clientX - drag.x;
+    const dy = e.clientY - drag.y;
+    if (!dragging && Math.abs(dx) + Math.abs(dy) > 3) {
+      setDragging(true);
+    }
+    el.scrollLeft = drag.left - dx;
+    el.scrollTop = drag.top - dy;
+  };
+  const onPointerEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    dragRef.current = null;
+    setDragging(false);
+    const el = containerRef.current;
+    if (el !== null) {
+      try {
+        el.releasePointerCapture(e.pointerId);
+      } catch {
+        // Never captured — fine.
+      }
+    }
+  };
+
   const roots = groupByHead(
     agents.map((status) => ({
       rest: status.agent_instance_hierarchy.split("/"),
@@ -41,7 +96,22 @@ export function HierarchyTree() {
     })),
   );
   return (
-    <div className={cn("absolute", "inset-0", "overflow-auto")}>
+    <div
+      ref={containerRef}
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerEnd}
+      onPointerCancel={onPointerEnd}
+      className={cn(
+        "absolute",
+        "inset-0",
+        "overflow-auto",
+        "cursor-grab",
+        // While actually panning: grabby cursor and NO text selection
+        // anywhere beneath (descendants' select-text included).
+        dragging && cn("cursor-grabbing", "[&_*]:select-none"),
+      )}
+    >
       <div
         className={cn(
           "min-w-max",
