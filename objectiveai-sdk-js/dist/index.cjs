@@ -2659,6 +2659,7 @@ var CliCommandAgentsInstancesGetRequestSchema = z1466.z.object({
   timeout_seconds: z1466.z.number().int().min(0).max(18446744073709552e3).nullable().describe("Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.").meta({ omitempty: true }).optional()
 }).meta({ title: "cli.command.agents.instances.get.Request" });
 var CliCommandAgentsInstancesListResponseItemSchema = z1466.z.object({
+  agent: AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptionalSchema.nullable().describe("The agent definition recorded for this AIH \u2014 from\n`objectiveai.agent_refs`, with the legacy most-recent-request\nfallback (`lookup_session`). Populated by `agents instances\nget`; `agents instances list` leaves it unset.").meta({ omitempty: true }).optional(),
   agent_instance_hierarchy: z1466.z.string().describe("Full hierarchy of this agent instance."),
   created_at: z1466.z.string().nullable().describe("RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
   last_active_at: z1466.z.string().nullable().describe("RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).").meta({ omitempty: true }).optional(),
