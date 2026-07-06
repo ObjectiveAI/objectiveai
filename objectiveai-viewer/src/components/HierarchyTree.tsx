@@ -105,10 +105,10 @@ function HierarchyNode({
               : cn("bg-ground-surface", "text-info-mid"),
         )}
       >
-        <span>{name}</span>
         {self !== null && (
           <AgentTags hierarchy={self.agent_instance_hierarchy} />
         )}
+        <span className={cn("text-[11px]")}>{name}</span>
         {self !== null && (
           <div
             className={cn(
