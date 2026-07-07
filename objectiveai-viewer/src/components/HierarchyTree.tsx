@@ -1,16 +1,20 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
+import type { DaemonConnection } from "../lib/daemon";
 import { ConversationModal } from "./ConversationModal";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
-import { useAgents, type AgentStatus } from "../hooks/useAgents";
+import type { AgentStatus } from "../hooks/useAgentsInstancesList";
+import {
+  useAgentInstance,
+  type ConversationBlock,
+  type ConversationRow,
+} from "../hooks/useAgentInstance";
 import {
   useAgentDefinition,
   type AgentDefinition,
 } from "../hooks/useAgentDefinition";
-import { useAgentInstanceTags } from "../hooks/useAgentInstanceTags";
-import { useAgentLatestText } from "../hooks/useAgentLatestText";
 import { formatAgo } from "../lib/formatAgo";
 
 /** One agent scoped under a tree node: the path segments REMAINING
@@ -23,19 +27,25 @@ interface ScopedAgent {
 
 /**
  * The whole-body agent hierarchy: every known agent's instance
- * hierarchy (from [`useAgents`]) split on `/` into an org-chart
- * tree — TIERS stack top-down, siblings flow left-to-right on the
- * same level (`fizz/foo/bar` + `fizz/foo/buzz` → three tiers, with
- * `bar` and `buzz` side by side under `foo`). Everything anchors
+ * hierarchy (from App's agents-list connection) split on `/` into an
+ * org-chart tree — TIERS stack top-down, siblings flow left-to-right
+ * on the same level (`fizz/foo/bar` + `fizz/foo/buzz` → three tiers,
+ * with `bar` and `buzz` side by side under `foo`). Everything anchors
  * LEFT: a parent sits at its subtree's leading edge, with the first
- * child directly below it. Each node shows ONLY
- * its own segment — never a full hierarchy. Agents render as boxes
- * carrying their spawn and last-active times (locale-formatted);
- * branches with no corresponding agent render dashed as pure
- * structure. Scrolls both ways.
+ * child directly below it. Each node shows ONLY its own segment —
+ * never a full hierarchy. Each AGENT node opens its own
+ * `/agents/instances/{*aih}` connection ([`useAgentInstance`]) for
+ * its tags, timestamps, and latest conversation item; branches with
+ * no corresponding agent render dashed as pure structure. Scrolls
+ * both ways.
  */
-export function HierarchyTree() {
-  const agents = useAgents();
+export function HierarchyTree({
+  connection,
+  agents,
+}: {
+  connection: DaemonConnection | null;
+  agents: AgentStatus[];
+}) {
   const [openHierarchy, setOpenHierarchy] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
@@ -136,6 +146,7 @@ export function HierarchyTree() {
             key={name}
             name={name}
             members={members}
+            connection={connection}
             onOpen={setOpenHierarchy}
           />
         ))}
@@ -162,10 +173,12 @@ export function HierarchyTree() {
 function HierarchyNode({
   name,
   members,
+  connection,
   onOpen,
 }: {
   name: string;
   members: ScopedAgent[];
+  connection: DaemonConnection | null;
   onOpen: (hierarchy: string) => void;
 }) {
   // The agent AT this node, if any (hierarchies are unique — at most
@@ -175,84 +188,40 @@ function HierarchyNode({
   const children = groupByHead(
     members.filter((member) => member.rest.length > 0),
   );
-  const kind =
-    self === null ? "branch" : self.active ? "agent-active" : "agent-inactive";
   return (
     <div className={cn("flex", "flex-col", "items-start")}>
-      {/* The card pair: the agent box sets the width; the attached
-          message box stretches to match it exactly. */}
-      <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
-      <div
-        data-node-kind={kind}
-        data-node-name={name}
-        role={self !== null ? "button" : undefined}
-        onClick={
-          self === null
-            ? undefined
-            : (e) => {
-                // The definition hyperlinks keep their own clicks.
-                if ((e.target as Element).closest("button,a")) return;
-                onOpen(self.agent_instance_hierarchy);
-              }
-        }
-        className={cn(
-          self !== null && cn("cursor-pointer", "hover:border-copper-hot"),
-          "flex",
-          "flex-col",
-          "gap-0.5",
-          "px-2.5",
-          "py-1.5",
-          "rounded-sm",
-          // Square the bottom IFF a message box is attached below —
-          // the message box carries the bottom rounding then.
-          "[&:has(+[data-latest-text])]:rounded-b-none",
-          "border",
-          "whitespace-nowrap",
-          "select-none",
-          // Every node — agent or pure branch — wears the theme
-          // orange border and glow; structure stays dashed.
-          "border-copper-mid",
-          "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
-          self === null
-            ? // Pure structure: a path segment no agent occupies —
-              // its name reads as bright as the agents'.
-              cn("border-dashed", "text-info-bright")
-            : self.active
-              ? cn("bg-copper-warm/10", "text-copper-bright")
-              : cn("bg-ground-surface", "text-info-mid"),
-        )}
-      >
-        {self !== null ? (
-          // The AIH segment rides the tag row as just another chip —
-          // it appears with the tags, post-load.
-          <AgentTags hierarchy={self.agent_instance_hierarchy} name={name} />
-        ) : (
-          <span className={cn("text-[11px]")}>{name}</span>
-        )}
-        {self !== null && (
-          <AgentDefinitionView hierarchy={self.agent_instance_hierarchy} />
-        )}
-        {self !== null && self.last_active_at !== null && (
-          <span
-            data-last-active
-            className={cn(
-              "self-end",
-              "text-[9px]",
-              "text-info-mid",
-              "tabular-nums",
-            )}
-          >
-            {formatAgo(self.last_active_at)}
-          </span>
-        )}
-      </div>
-      {self !== null && (
-        <AgentLatestTextView
-          hierarchy={self.agent_instance_hierarchy}
-          active={self.active}
+      {self !== null ? (
+        <AgentNode
+          name={name}
+          status={self}
+          connection={connection}
+          onOpen={onOpen}
         />
+      ) : (
+        <div
+          data-node-kind="branch"
+          data-node-name={name}
+          className={cn(
+            "flex",
+            "flex-col",
+            "gap-0.5",
+            "px-2.5",
+            "py-1.5",
+            "rounded-sm",
+            "border",
+            "whitespace-nowrap",
+            "select-none",
+            "border-copper-mid",
+            "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
+            // Pure structure: a path segment no agent occupies —
+            // its name reads as bright as the agents'.
+            "border-dashed",
+            "text-info-bright",
+          )}
+        >
+          <span className={cn("text-[11px]")}>{name}</span>
+        </div>
       )}
-      </div>
       {children.length > 0 && (
         <>
           {/* Stem from this node down to its children's rail —
@@ -316,6 +285,7 @@ function HierarchyNode({
                     <HierarchyNode
                       name={child}
                       members={group}
+                      connection={connection}
                       onOpen={onOpen}
                     />
                   </div>
@@ -329,18 +299,232 @@ function HierarchyNode({
   );
 }
 
-/** The agent's most recent assistant TEXT, in its own box below the
- * agent's — absent entirely when the agent has written none. Live
- * via [`useAgentLatestText`]: refreshed on active flips and polled
- * every 60s while active. */
-function AgentLatestTextView({
-  hierarchy,
-  active,
+/**
+ * One AGENT node's card pair: the agent box (tags + definition +
+ * last-active) and, attached below it, the latest conversation item.
+ * Owns this agent's `/agents/instances/{*aih}` connection — tags and
+ * timestamps come from its status record, the message body from its
+ * conversation's last block. The `active` flag comes from the LIST
+ * connection (`status.active`) so the whole tree flips without every
+ * node owning a record yet.
+ */
+function AgentNode({
+  name,
+  status,
+  connection,
+  onOpen,
 }: {
-  hierarchy: string;
-  active: boolean;
+  name: string;
+  status: AgentStatus;
+  connection: DaemonConnection | null;
+  onOpen: (hierarchy: string) => void;
 }) {
-  const text = useAgentLatestText(hierarchy, active);
+  const hierarchy = status.agent_instance_hierarchy;
+  const { agent, lastBlock } = useAgentInstance(connection, hierarchy);
+  const kind = status.active ? "agent-active" : "agent-inactive";
+  // A live agent's last-active is implicitly "now" — the chip shows
+  // only for inactive agents, from the per-agent record.
+  const lastActiveAt = !status.active ? (agent?.last_active_at ?? null) : null;
+  return (
+    <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
+      <div
+        data-node-kind={kind}
+        data-node-name={name}
+        role="button"
+        onClick={(e) => {
+          // The definition hyperlinks keep their own clicks.
+          if ((e.target as Element).closest("button,a")) return;
+          onOpen(hierarchy);
+        }}
+        className={cn(
+          "cursor-pointer",
+          "hover:border-copper-hot",
+          "flex",
+          "flex-col",
+          "gap-0.5",
+          "px-2.5",
+          "py-1.5",
+          "rounded-sm",
+          // Square the bottom IFF a message box is attached below —
+          // the message box carries the bottom rounding then.
+          "[&:has(+[data-latest-text])]:rounded-b-none",
+          "border",
+          "whitespace-nowrap",
+          "select-none",
+          "border-copper-mid",
+          "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
+          status.active
+            ? cn("bg-copper-warm/10", "text-copper-bright")
+            : cn("bg-ground-surface", "text-info-mid"),
+        )}
+      >
+        {/* The AIH segment rides the tag row as just another chip —
+            tags come from the per-agent record. */}
+        {agent === null ? (
+          <LoadingDots marker="data-tags-loading" />
+        ) : (
+          <>
+            <BadgeRow badge="instance">
+              <span data-tag-aih className={cn("text-[#c3bfbb]")}>
+                {name}
+              </span>
+            </BadgeRow>
+            {agent.tags.map((tag) => (
+              <BadgeRow key={tag} badge="tag">
+                <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
+                  {tag}
+                </span>
+              </BadgeRow>
+            ))}
+          </>
+        )}
+        <AgentDefinitionView hierarchy={hierarchy} />
+        {lastActiveAt !== null && (
+          <span
+            data-last-active
+            className={cn(
+              "self-end",
+              "text-[9px]",
+              "text-info-mid",
+              "tabular-nums",
+            )}
+          >
+            {formatAgo(lastActiveAt)}
+          </span>
+        )}
+      </div>
+      {lastBlock !== null && <LastItemView block={lastBlock} />}
+    </div>
+  );
+}
+
+/** What the latest conversation item IS (the indicator at the top of
+ * the message box) plus how to render its body. */
+function describeLastItem(block: ConversationBlock): {
+  label: string;
+  body: React.ReactNode;
+} {
+  // The block's most recent part, where the block carries parts.
+  const lastPart = (rows: ConversationRow[]): ConversationRow | null =>
+    rows.length > 0 ? rows[rows.length - 1] : null;
+
+  switch (block.type) {
+    case "vector_response_vote":
+      return {
+        label: "vote",
+        body: <JsonBody value={block.vote} />,
+      };
+    case "vector_request_choices": {
+      const lastChoice =
+        block.choices.length > 0
+          ? block.choices[block.choices.length - 1]
+          : null;
+      const row = lastChoice === null ? null : lastPart(lastChoice.parts);
+      return describeRow("choices", row);
+    }
+    case "assistant_response":
+      return describeRow("assistant", lastPart(block.parts));
+    case "tool_response":
+      return describeRow("tool response", lastPart(block.parts));
+    case "request_message_user":
+      return describeRow("user", lastPart(block.parts));
+    case "request_message_assistant":
+      return describeRow("assistant · request", lastPart(block.parts));
+    case "request_message_tool":
+      return describeRow("tool response · request", lastPart(block.parts));
+    case "client_notification":
+      return describeRow("notification", lastPart(block.parts));
+  }
+}
+
+/** Render one row per content kind, labeled `{scope} · {kind}` — tool
+ * calls surface the tool NAME in the label and their arguments as
+ * formatted JSON. */
+function describeRow(
+  scope: string,
+  row: ConversationRow | null,
+): { label: string; body: React.ReactNode } {
+  if (row === null) {
+    return { label: scope, body: null };
+  }
+  const content = row.content;
+  switch (content.type) {
+    case "text":
+      return { label: `${scope} · text`, body: <Markdown>{content.text}</Markdown> };
+    case "reasoning":
+      return {
+        label: `${scope} · reasoning`,
+        body: <Markdown>{content.text}</Markdown>,
+      };
+    case "refusal":
+      return {
+        label: `${scope} · refusal`,
+        body: <Markdown>{content.text}</Markdown>,
+      };
+    case "tool_call":
+      return {
+        label: `tool call · ${content.function_name}`,
+        body: <JsonBody value={content.arguments} />,
+      };
+    case "image":
+      return { label: `${scope} · image`, body: <UrlBody url={content.url} /> };
+    case "audio":
+      return {
+        label: `${scope} · audio`,
+        body: <span>[audio · {content.format}]</span>,
+      };
+    case "video":
+      return { label: `${scope} · video`, body: <UrlBody url={content.url} /> };
+    case "file": {
+      const label =
+        content.filename ?? content.file_url ?? content.file_id ?? "[file]";
+      return { label: `${scope} · file`, body: <span>{label}</span> };
+    }
+    case "vote":
+      return { label: `${scope} · vote`, body: <JsonBody value={content.vote} /> };
+    case "head":
+      // Heads never materialize as parts — defensive only.
+      return { label: scope, body: null };
+  }
+}
+
+/** Pretty-printed JSON body: a string that parses as JSON renders
+ * re-indented; anything else renders raw. */
+function JsonBody({ value }: { value: unknown }) {
+  let text: string;
+  if (typeof value === "string") {
+    try {
+      text = JSON.stringify(JSON.parse(value), null, 2);
+    } catch {
+      text = value;
+    }
+  } else {
+    text = JSON.stringify(value, null, 2);
+  }
+  return (
+    <pre
+      className={cn(
+        "text-[9px]",
+        "whitespace-pre-wrap",
+        "break-words",
+        "leading-snug",
+      )}
+    >
+      {text}
+    </pre>
+  );
+}
+
+function UrlBody({ url }: { url: string }) {
+  return <span className={cn("break-all")}>{url}</span>;
+}
+
+/** The agent's most recent conversation item, in its own box below
+ * the agent's — with an indicator chip naming exactly what is being
+ * shown (`assistant · text`, `tool call · <name>`, …). Live from the
+ * agent's own `/agents/instances/{*aih}` connection. */
+function LastItemView({ block }: { block: ConversationBlock }) {
+  const { label, body } = describeLastItem(block);
   const [expanded, setExpanded] = useState(false);
   const [clipped, setClipped] = useState(false);
   const clipRef = useRef<HTMLDivElement | null>(null);
@@ -368,9 +552,9 @@ function AgentLatestTextView({
     return () => {
       observer.disconnect();
     };
-  }, [text, expanded]);
+  }, [block, expanded]);
 
-  if (text === null) return null;
+  if (body === null) return null;
   return (
     <div
       data-latest-text
@@ -401,6 +585,24 @@ function AgentLatestTextView({
         (clipped || expanded) && "pb-3.5",
       )}
     >
+      {/* The indicator: exactly what kind of item is shown below. */}
+      <span
+        data-last-item-kind
+        className={cn(
+          "self-start",
+          "mb-1",
+          "px-1.5",
+          "py-px",
+          "rounded-sm",
+          "border",
+          "border-copper-mid/70",
+          "bg-copper-warm/10",
+          "text-copper-bright",
+          "text-[9px]",
+        )}
+      >
+        {label}
+      </span>
       <div
         ref={clipRef}
         className={cn(
@@ -421,10 +623,9 @@ function AgentLatestTextView({
         )}
       >
         {/* shrink-0 keeps the natural height measurable while the
-            container clips it. Light element styling for the
-            rendered markdown. */}
+            container clips it. */}
         <div ref={contentRef} className={cn("shrink-0")}>
-          <Markdown>{text}</Markdown>
+          {body}
         </div>
       </div>
       {(clipped || expanded) && (
@@ -540,14 +741,8 @@ function AgentDefinitionView({ hierarchy }: { hierarchy: string }) {
 /** The remote variants of the definition union. */
 type RemoteDefinitionValue = Extract<AgentDefinition, { remote: string }>;
 
-/** A remote definition as a badge + link row: a kind badge
- * (`client` / `github` / `mock`) and `owner/repository` — a
- * hyperlink for `client` (opens the local agents folder via the
- * Rust `open_agent_remote` command) and `github` (opens the repo,
- * or `/tree/<commit>` when pinned — the short sha shown inline);
- * plain text for `mock`. */
 /** The uniform badge-plus-value row every definition-ish line uses:
- * a copper badge chip naming the KIND (`aih` / `tag` / `client` /
+ * a copper badge chip naming the KIND (`instance` / `tag` / `client` /
  * `github` / `mock`) followed by the value. */
 function BadgeRow({
   badge,
@@ -591,6 +786,12 @@ function BadgeRow({
   );
 }
 
+/** A remote definition as a badge + link row: a kind badge
+ * (`client` / `github` / `mock`) and `owner/repository` — a
+ * hyperlink for `client` (opens the local agents folder via the
+ * Rust `open_agent_remote` command) and `github` (opens the repo,
+ * or `/tree/<commit>` when pinned — the short sha shown inline);
+ * plain text for `mock`. */
 function RemoteDefinition({ remote }: { remote: RemoteDefinitionValue }) {
   // Mock remotes carry a bare `name`; client/github carry
   // owner/repository coordinates.
@@ -651,36 +852,6 @@ function formatDefinition(agent: unknown): string {
     agent,
     (_key, value: unknown) => (value === null ? undefined : value),
     2,
-  );
-}
-
-/** One agent's tag chips (live via [`useAgentInstanceTags`] — the
- * hook's dynamic registration mounts and unmounts with this box).
- * While the initial read is in flight, an animated ellipsis stands
- * in; once loaded, one small box per tag (nothing when tagless). */
-function AgentTags({ hierarchy, name }: { hierarchy: string; name: string }) {
-  const { tags, loading } = useAgentInstanceTags(hierarchy);
-  if (loading) {
-    return <LoadingDots marker="data-tags-loading" />;
-  }
-  // Borderless, background-less values in the message body's tone —
-  // the rows ARE the remote row's component, badged by kind.
-  const value = cn("text-[#c3bfbb]");
-  return (
-    <>
-      <BadgeRow badge="instance">
-        <span data-tag-aih className={value}>
-          {name}
-        </span>
-      </BadgeRow>
-      {tags.map((tag) => (
-        <BadgeRow key={tag} badge="tag">
-          <span data-tag={tag} className={value}>
-            {tag}
-          </span>
-        </BadgeRow>
-      ))}
-    </>
   );
 }
 

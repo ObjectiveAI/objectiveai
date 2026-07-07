@@ -1,9 +1,11 @@
 import { useState, useEffect } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "./lib/tauri";
-import { startDaemonListener } from "./daemon-listener";
-import { registerActiveAgentsHandler } from "./hooks/useActiveAgents";
-import { registerAgentCompletionsHandler } from "./listener-handlers/agentCompletions";
+import { daemonConnection, type DaemonConnection } from "./lib/daemon";
+import {
+  useAgentsInstancesList,
+  type AgentStatus,
+} from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
 import { HierarchyTree } from "./components/HierarchyTree";
@@ -13,7 +15,15 @@ import { CommandPalette } from "./components/shared/CommandPalette";
 import { LogoMark, Wordmark } from "./components/shared/Logo";
 import type { Entry } from "./types";
 
-function ObjectiveAIView({ onStatusChange }: { onStatusChange?: (status: ViewerStatus) => void }) {
+function ObjectiveAIView({
+  connection,
+  agents,
+  onStatusChange,
+}: {
+  connection: DaemonConnection | null;
+  agents: AgentStatus[];
+  onStatusChange?: (status: ViewerStatus) => void;
+}) {
   const entries = useEntries();
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
 
@@ -55,7 +65,7 @@ function ObjectiveAIView({ onStatusChange }: { onStatusChange?: (status: ViewerS
         <Wordmark className={cn("w-[220px]", "h-auto", "text-info-dim/15")} />
       </div>
       {/* The body: the agent hierarchy tree, over the watermark. */}
-      <HierarchyTree />
+      <HierarchyTree connection={connection} agents={agents} />
     </div>
   );
 }
@@ -80,16 +90,22 @@ function App() {
   const [status, setStatus] = useState<ViewerStatus>({
     entries: [],
   });
-
-  // Viewer startup: register every execution handler FIRST (the
-  // listener is live-only), then start the autonomous singleton —
-  // which registers the built-in plugins/run forwarding itself. All
-  // idempotent, so StrictMode's double effect is harmless.
+  // The daemon connection coordinates, fetched once. There is no
+  // global listener singleton — App threads this down and components
+  // construct and own their own listeners.
+  const [connection, setConnection] = useState<DaemonConnection | null>(null);
   useEffect(() => {
-    registerActiveAgentsHandler();
-    registerAgentCompletionsHandler();
-    startDaemonListener();
+    let cancelled = false;
+    void daemonConnection().then((config) => {
+      if (!cancelled && config !== null) setConnection(config);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+  // The app's ONE agents-list connection: {aih, active} items, live.
+  const agents = useAgentsInstancesList(connection);
+  const activeAgents = agents.filter((agent) => agent.active).length;
 
   useEffect(() => {
     tauriInvoke<ViewerPluginInfo[]>("list_plugins_with_viewer")
@@ -109,9 +125,9 @@ function App() {
     return (
       <div className={cn("flex", "flex-col", "h-screen")}>
         <div className={cn("flex", "flex-col", "flex-1", "min-h-0")}>
-          <ObjectiveAIView onStatusChange={setStatus} />
+          <ObjectiveAIView connection={connection} agents={agents} onStatusChange={setStatus} />
         </div>
-        <StatusBar entries={status.entries} />
+        <StatusBar entries={status.entries} activeAgents={activeAgents} />
       </div>
     );
   }
@@ -157,7 +173,7 @@ function App() {
             activeTab === OBJECTIVEAI_TAB_ID ? "flex" : "hidden",
           )}
         >
-          <ObjectiveAIView onStatusChange={setStatus} />
+          <ObjectiveAIView connection={connection} agents={agents} onStatusChange={setStatus} />
         </div>
         {plugins.map((p) => (
           <div
@@ -174,7 +190,7 @@ function App() {
         ))}
       </div>
       {/* Spans every tab — plugin panes included. */}
-      <StatusBar entries={status.entries} />
+      <StatusBar entries={status.entries} activeAgents={activeAgents} />
     </div>
   );
 }
