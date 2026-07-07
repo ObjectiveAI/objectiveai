@@ -38,6 +38,22 @@
       }
     },
     {
+      "title": "Updated",
+      "description": "An agent's record changed while it remained present — currently\nemitted when its bound tags change (a tag applied, moved, or\nremoved). Carries the full refreshed record; consumers replace by\n`agent_instance_hierarchy`.",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "cli.websocket_agents_listener.AgentRecord"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "updated"
+          ]
+        }
+      }
+    },
+    {
       "title": "Deactivated",
       "description": "An agent released its per-instance lock (became inactive) — on\nnormal stream end OR holder death. `last_active_at` is the release\nmoment.",
       "type": "object",
