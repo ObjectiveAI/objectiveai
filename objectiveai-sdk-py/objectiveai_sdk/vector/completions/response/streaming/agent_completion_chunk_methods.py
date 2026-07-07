@@ -16,6 +16,10 @@ def _push(self, other: AgentCompletionChunk) -> None:
     # first chunk; never overwritten)
     if self.agent_inline is None and other.agent_inline is not None:
         self.agent_inline = other.agent_inline
+    # request_choice_keys: first chunk wins (ride only the completion's
+    # first chunk; never overwritten)
+    if self.request_choice_keys is None and other.request_choice_keys is not None:
+        self.request_choice_keys = other.request_choice_keys
 
 
 AgentCompletionChunk.push = _push
