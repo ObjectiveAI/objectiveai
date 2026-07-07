@@ -1,6 +1,6 @@
 {
   "title": "cli.websocket_agents_listener.AgentEvent",
-  "description": "One event on the `/agents` stream. The first is always a\n[`Snapshot`](AgentEvent::Snapshot); every later one is an\n[`Activated`](AgentEvent::Activated) or\n[`Deactivated`](AgentEvent::Deactivated) delta. Consumers key by\n`agent_instance_hierarchy` (the snapshot and a delta may overlap by\none item at connect time).",
+  "description": "One event on the `/agents/instances/list` stream. The first is always a\n[`Snapshot`](AgentEvent::Snapshot); every later one is an\n[`Activated`](AgentEvent::Activated) or\n[`Deactivated`](AgentEvent::Deactivated) delta. Consumers key by\n`agent_instance_hierarchy` (the snapshot and a delta may overlap by\none item at connect time).",
   "anyOf": [
     {
       "title": "Snapshot",

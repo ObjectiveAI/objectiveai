@@ -1,6 +1,6 @@
 {
   "title": "cli.websocket_agents_listener.AgentRecord",
-  "description": "One agent's record on the `/agents` endpoint: identity, spawn /\nlast-active timestamps, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the live\n`active` flag.",
+  "description": "One agent's record on the `/agents/instances/list` endpoint: identity, spawn /\nlast-active timestamps, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the live\n`active` flag.",
   "type": "object",
   "properties": {
     "active": {
