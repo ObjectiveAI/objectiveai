@@ -10,5 +10,5 @@ export const CliWebsocketAgentsListenerAgentRecordSchema = z.object({
   queued: z.number().int().min(0).max(18446744073709552000).describe("Active `message_queue` rows targeting this agent."),
   spawned_at: z.string().nullable().describe("RFC3339 timestamp of the first `objectiveai.messages` row for this\nagent (spawn time). `None` for an agent with no logs yet.").meta({ omitempty: true }).optional(),
   tags: z.array(z.string()).describe("Tag names currently bound to this AIH, newest-bound first."),
-}).describe("One agent's record on the `/agents` endpoint: identity, spawn /\nlast-active timestamps, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the live\n`active` flag.").meta({ title: "cli.websocket_agents_listener.AgentRecord" });
+}).describe("One agent's record on the `/agents/instances/list` endpoint: identity, spawn /\nlast-active timestamps, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the live\n`active` flag.").meta({ title: "cli.websocket_agents_listener.AgentRecord" });
 export type CliWebsocketAgentsListenerAgentRecord = z.infer<typeof CliWebsocketAgentsListenerAgentRecordSchema>;
