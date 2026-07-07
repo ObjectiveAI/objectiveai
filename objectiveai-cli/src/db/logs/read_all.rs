@@ -29,7 +29,8 @@
 
 use objectiveai_sdk::cli::command::agents::logs::list::{
     AssistantResponsePart, ClientNotificationPart, ClientNotificationPartType, ResponseItem,
-    ToolResponsePart, ToolResponsePartType,
+    RequestMessageUserPart, RequestMessageUserPartType, ToolResponsePart, ToolResponsePartType,
+    VectorRequestChoice, VectorRequestChoicePart, VectorRequestChoicePartType,
 };
 use sqlx::Row as _;
 
@@ -88,6 +89,18 @@ struct MsgRow {
     /// part_index for content rows). Surfaced as `tool_call_index` on
     /// `AssistantResponsePart::ToolCall`.
     row_sub_index: Option<i64>,
+    /// `objectiveai.messages.row_index` — needed to group
+    /// `request_vector_choice_content_*` rows into choices by choice
+    /// index. NULL for `response_vector_vote`.
+    row_index: Option<i64>,
+    /// `request_vector_choice.key` for the choice — `Some` only for
+    /// `request_vector_choice_content_*` rows (JOINed by
+    /// (response_id, choice index)). Surfaced inline on the choice.
+    choice_key: Option<String>,
+    /// `response_vector_vote.vote` JSON array — `Some` only for
+    /// `response_vector_vote` rows. Parsed into `Vec<Decimal>` and
+    /// returned inline (no `read id`).
+    vote: Option<serde_json::Value>,
 }
 
 /// Coarse block-class for a `objectiveai.message_table` value. Block
@@ -95,19 +108,24 @@ struct MsgRow {
 /// rows (or AIH / response_id / sender for ClientNotification).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum BlockClass {
-    AgentCompletionRequest,
-    VectorCompletionRequest,
-    FunctionExecutionRequest,
+    /// Request-blob marker rows — still written (blob openable) but
+    /// NOT emitted in `list`. Collapsed into one skipped class.
+    SkippedRequestBlob,
     ClientNotification,
     AssistantResponse,
     ToolResponse,
+    RequestMessageUser,
+    RequestMessageAssistant,
+    RequestMessageTool,
+    VectorRequestChoices,
+    VectorResponseVote,
 }
 
 fn block_class(t: MessageTable) -> BlockClass {
     match t {
-        MessageTable::AgentCompletionRequest => BlockClass::AgentCompletionRequest,
-        MessageTable::VectorCompletionRequest => BlockClass::VectorCompletionRequest,
-        MessageTable::FunctionExecutionRequest => BlockClass::FunctionExecutionRequest,
+        MessageTable::AgentCompletionRequest
+        | MessageTable::VectorCompletionRequest
+        | MessageTable::FunctionExecutionRequest => BlockClass::SkippedRequestBlob,
         MessageTable::MessageQueueText
         | MessageTable::MessageQueueImage
         | MessageTable::MessageQueueAudio
@@ -126,6 +144,30 @@ fn block_class(t: MessageTable) -> BlockClass {
         | MessageTable::AssistantResponseContentAudio
         | MessageTable::AssistantResponseContentVideo
         | MessageTable::AssistantResponseContentFile => BlockClass::AssistantResponse,
+        MessageTable::RequestMessageUserContentText
+        | MessageTable::RequestMessageUserContentImage
+        | MessageTable::RequestMessageUserContentAudio
+        | MessageTable::RequestMessageUserContentVideo
+        | MessageTable::RequestMessageUserContentFile => BlockClass::RequestMessageUser,
+        MessageTable::RequestMessageAssistantRefusal
+        | MessageTable::RequestMessageAssistantReasoning
+        | MessageTable::RequestMessageAssistantToolCalls
+        | MessageTable::RequestMessageAssistantContentText
+        | MessageTable::RequestMessageAssistantContentImage
+        | MessageTable::RequestMessageAssistantContentAudio
+        | MessageTable::RequestMessageAssistantContentVideo
+        | MessageTable::RequestMessageAssistantContentFile => BlockClass::RequestMessageAssistant,
+        MessageTable::RequestMessageToolContentText
+        | MessageTable::RequestMessageToolContentImage
+        | MessageTable::RequestMessageToolContentAudio
+        | MessageTable::RequestMessageToolContentVideo
+        | MessageTable::RequestMessageToolContentFile => BlockClass::RequestMessageTool,
+        MessageTable::RequestVectorChoiceContentText
+        | MessageTable::RequestVectorChoiceContentImage
+        | MessageTable::RequestVectorChoiceContentAudio
+        | MessageTable::RequestVectorChoiceContentVideo
+        | MessageTable::RequestVectorChoiceContentFile => BlockClass::VectorRequestChoices,
+        MessageTable::ResponseVectorVote => BlockClass::VectorResponseVote,
     }
 }
 
@@ -148,32 +190,40 @@ fn assistant_response_part(row: &MsgRow) -> Option<AssistantResponsePart> {
     let id = row.id;
     let delivered_at = unix_to_rfc3339(row.timestamp_delivered);
     Some(match row.table_kind {
-        MessageTable::AssistantResponseToolCalls => AssistantResponsePart::ToolCall {
+        MessageTable::AssistantResponseToolCalls
+        | MessageTable::RequestMessageAssistantToolCalls => AssistantResponsePart::ToolCall {
             id,
             delivered_at,
             function_name: row.function_name.clone().unwrap_or_default(),
             tool_call_id: row.tool_call_id.clone().unwrap_or_default(),
             tool_call_index: row.row_sub_index.unwrap_or_default(),
         },
-        MessageTable::AssistantResponseRefusal => {
+        MessageTable::AssistantResponseRefusal
+        | MessageTable::RequestMessageAssistantRefusal => {
             AssistantResponsePart::Refusal { id, delivered_at }
         }
-        MessageTable::AssistantResponseReasoning => {
+        MessageTable::AssistantResponseReasoning
+        | MessageTable::RequestMessageAssistantReasoning => {
             AssistantResponsePart::Reasoning { id, delivered_at }
         }
-        MessageTable::AssistantResponseContentText => {
+        MessageTable::AssistantResponseContentText
+        | MessageTable::RequestMessageAssistantContentText => {
             AssistantResponsePart::Text { id, delivered_at }
         }
-        MessageTable::AssistantResponseContentImage => {
+        MessageTable::AssistantResponseContentImage
+        | MessageTable::RequestMessageAssistantContentImage => {
             AssistantResponsePart::Image { id, delivered_at }
         }
-        MessageTable::AssistantResponseContentAudio => {
+        MessageTable::AssistantResponseContentAudio
+        | MessageTable::RequestMessageAssistantContentAudio => {
             AssistantResponsePart::Audio { id, delivered_at }
         }
-        MessageTable::AssistantResponseContentVideo => {
+        MessageTable::AssistantResponseContentVideo
+        | MessageTable::RequestMessageAssistantContentVideo => {
             AssistantResponsePart::Video { id, delivered_at }
         }
-        MessageTable::AssistantResponseContentFile => {
+        MessageTable::AssistantResponseContentFile
+        | MessageTable::RequestMessageAssistantContentFile => {
             AssistantResponsePart::File { id, delivered_at }
         }
         _ => return None,
@@ -182,11 +232,38 @@ fn assistant_response_part(row: &MsgRow) -> Option<AssistantResponsePart> {
 
 fn tool_response_kind(t: MessageTable) -> Option<ToolResponsePartType> {
     match t {
-        MessageTable::ToolResponseContentText => Some(ToolResponsePartType::Text),
-        MessageTable::ToolResponseContentImage => Some(ToolResponsePartType::Image),
-        MessageTable::ToolResponseContentAudio => Some(ToolResponsePartType::Audio),
-        MessageTable::ToolResponseContentVideo => Some(ToolResponsePartType::Video),
-        MessageTable::ToolResponseContentFile => Some(ToolResponsePartType::File),
+        MessageTable::ToolResponseContentText
+        | MessageTable::RequestMessageToolContentText => Some(ToolResponsePartType::Text),
+        MessageTable::ToolResponseContentImage
+        | MessageTable::RequestMessageToolContentImage => Some(ToolResponsePartType::Image),
+        MessageTable::ToolResponseContentAudio
+        | MessageTable::RequestMessageToolContentAudio => Some(ToolResponsePartType::Audio),
+        MessageTable::ToolResponseContentVideo
+        | MessageTable::RequestMessageToolContentVideo => Some(ToolResponsePartType::Video),
+        MessageTable::ToolResponseContentFile
+        | MessageTable::RequestMessageToolContentFile => Some(ToolResponsePartType::File),
+        _ => None,
+    }
+}
+
+fn request_message_user_kind(t: MessageTable) -> Option<RequestMessageUserPartType> {
+    match t {
+        MessageTable::RequestMessageUserContentText => Some(RequestMessageUserPartType::Text),
+        MessageTable::RequestMessageUserContentImage => Some(RequestMessageUserPartType::Image),
+        MessageTable::RequestMessageUserContentAudio => Some(RequestMessageUserPartType::Audio),
+        MessageTable::RequestMessageUserContentVideo => Some(RequestMessageUserPartType::Video),
+        MessageTable::RequestMessageUserContentFile => Some(RequestMessageUserPartType::File),
+        _ => None,
+    }
+}
+
+fn vector_choice_kind(t: MessageTable) -> Option<VectorRequestChoicePartType> {
+    match t {
+        MessageTable::RequestVectorChoiceContentText => Some(VectorRequestChoicePartType::Text),
+        MessageTable::RequestVectorChoiceContentImage => Some(VectorRequestChoicePartType::Image),
+        MessageTable::RequestVectorChoiceContentAudio => Some(VectorRequestChoicePartType::Audio),
+        MessageTable::RequestVectorChoiceContentVideo => Some(VectorRequestChoicePartType::Video),
+        MessageTable::RequestVectorChoiceContentFile => Some(VectorRequestChoicePartType::File),
         _ => None,
     }
 }
@@ -216,9 +293,12 @@ const SELECT_SHAPE: &str = "SELECT \
     mq.id AS message_queue_id, \
     mq.enqueued_at AS timestamp_queued, \
     mq.key AS message_queue_key, \
-    atc.function_name AS function_name, \
-    COALESCE(atc.tool_call_id, tr.tool_call_id) AS tool_call_id, \
-    m.row_sub_index AS row_sub_index";
+    COALESCE(atc.function_name, rmatc.function_name) AS function_name, \
+    COALESCE(atc.tool_call_id, tr.tool_call_id, rmatc.tool_call_id, rmt.tool_call_id) AS tool_call_id, \
+    m.row_sub_index AS row_sub_index, \
+    m.row_index AS row_index, \
+    rvc.key AS choice_key, \
+    rvv.vote AS vote";
 
 const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.message_queue_contents mqc \
@@ -249,7 +329,32 @@ const FROM_JOINS: &str = "FROM objectiveai.messages m \
             'tool_response_content_text', 'tool_response_content_image', \
             'tool_response_content_audio', 'tool_response_content_video', \
             'tool_response_content_file' \
-        )";
+        ) \
+    LEFT JOIN objectiveai.request_message_assistant_tool_calls rmatc \
+        ON m.response_id = rmatc.response_id \
+        AND m.row_index = rmatc.\"index\" \
+        AND m.row_sub_index = rmatc.tool_call_index \
+        AND m.\"table\" = 'request_message_assistant_tool_calls' \
+    LEFT JOIN objectiveai.request_message_tool rmt \
+        ON m.response_id = rmt.response_id \
+        AND m.row_index = rmt.\"index\" \
+        AND m.\"table\" IN ( \
+            'request_message_tool_content_text', 'request_message_tool_content_image', \
+            'request_message_tool_content_audio', 'request_message_tool_content_video', \
+            'request_message_tool_content_file' \
+        ) \
+    LEFT JOIN objectiveai.request_vector_choice rvc \
+        ON m.response_id = rvc.response_id \
+        AND m.row_index = rvc.\"index\" \
+        AND m.\"table\" IN ( \
+            'request_vector_choice_content_text', 'request_vector_choice_content_image', \
+            'request_vector_choice_content_audio', 'request_vector_choice_content_video', \
+            'request_vector_choice_content_file' \
+        ) \
+    LEFT JOIN objectiveai.response_vector_vote rvv \
+        ON m.response_id = rvv.response_id \
+        AND m.agent_instance_hierarchy = rvv.agent_instance_hierarchy \
+        AND m.\"table\" = 'response_vector_vote'";
 
 fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
     Ok(MsgRow {
@@ -265,203 +370,182 @@ fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
         function_name: r.try_get("function_name")?,
         tool_call_id: r.try_get("tool_call_id")?,
         row_sub_index: r.try_get("row_sub_index")?,
+        row_index: r.try_get("row_index")?,
+        choice_key: r.try_get("choice_key")?,
+        vote: r.try_get::<Option<sqlx::types::Json<serde_json::Value>>, _>("vote")?.map(|j| j.0),
     })
 }
 
+/// Accumulation state for one in-progress `ResponseItem` block while
+/// walking `objectiveai.messages` rows in `"index"` order.
+#[derive(Default)]
+struct BlockAccum {
+    class: Option<BlockClass>,
+    aih: String,
+    rid: String,
+    sender: Option<String>,
+    mq_id: Option<i64>,
+    timestamp_queued: Option<i64>,
+    key: Option<String>,
+    /// The tool_call_id for an open ToolResponse / RequestMessageTool
+    /// block (part of their boundary tuple).
+    tool_call_id: Option<String>,
+    notification_parts: Vec<ClientNotificationPart>,
+    /// Shared by AssistantResponse and RequestMessageAssistant blocks
+    /// (same part shape; the open `class` selects the emitted variant).
+    assistant_parts: Vec<AssistantResponsePart>,
+    /// Shared by ToolResponse and RequestMessageTool blocks.
+    tool_parts: Vec<ToolResponsePart>,
+    user_parts: Vec<RequestMessageUserPart>,
+    // VectorRequestChoices: choices grouped by choice index (row_index).
+    choices: Vec<VectorRequestChoice>,
+    cur_choice_index: Option<i64>,
+    cur_choice_key: Option<String>,
+    cur_choice_parts: Vec<VectorRequestChoicePart>,
+}
+
+impl BlockAccum {
+    /// Push the in-progress choice (if any) into `choices`.
+    fn finish_choice(&mut self) {
+        if self.cur_choice_index.is_some() || !self.cur_choice_parts.is_empty() {
+            self.choices.push(VectorRequestChoice {
+                key: self.cur_choice_key.take().unwrap_or_default(),
+                parts: std::mem::take(&mut self.cur_choice_parts),
+            });
+        }
+        self.cur_choice_index = None;
+    }
+
+    /// Emit the open block (if it has content), then reset all state.
+    fn flush(&mut self, out: &mut Vec<ResponseItem>) {
+        match self.class {
+            Some(BlockClass::ClientNotification) if !self.notification_parts.is_empty() => {
+                out.push(ResponseItem::ClientNotification {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    sender_agent_instance_hierarchy: self.sender.take().unwrap_or_default(),
+                    response_id: std::mem::take(&mut self.rid),
+                    queued_at: unix_to_rfc3339(self.timestamp_queued.take().unwrap_or_default()),
+                    key: self.key.take(),
+                    parts: std::mem::take(&mut self.notification_parts),
+                });
+            }
+            Some(BlockClass::AssistantResponse) if !self.assistant_parts.is_empty() => {
+                out.push(ResponseItem::AssistantResponse {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    response_id: std::mem::take(&mut self.rid),
+                    parts: std::mem::take(&mut self.assistant_parts),
+                });
+            }
+            Some(BlockClass::RequestMessageAssistant) if !self.assistant_parts.is_empty() => {
+                out.push(ResponseItem::RequestMessageAssistant {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    response_id: std::mem::take(&mut self.rid),
+                    parts: std::mem::take(&mut self.assistant_parts),
+                });
+            }
+            Some(BlockClass::ToolResponse) if !self.tool_parts.is_empty() => {
+                out.push(ResponseItem::ToolResponse {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    response_id: std::mem::take(&mut self.rid),
+                    tool_call_id: self.tool_call_id.take().unwrap_or_default(),
+                    parts: std::mem::take(&mut self.tool_parts),
+                });
+            }
+            Some(BlockClass::RequestMessageTool) if !self.tool_parts.is_empty() => {
+                out.push(ResponseItem::RequestMessageTool {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    response_id: std::mem::take(&mut self.rid),
+                    tool_call_id: self.tool_call_id.take().unwrap_or_default(),
+                    parts: std::mem::take(&mut self.tool_parts),
+                });
+            }
+            Some(BlockClass::RequestMessageUser) if !self.user_parts.is_empty() => {
+                out.push(ResponseItem::RequestMessageUser {
+                    agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                    response_id: std::mem::take(&mut self.rid),
+                    parts: std::mem::take(&mut self.user_parts),
+                });
+            }
+            Some(BlockClass::VectorRequestChoices) => {
+                self.finish_choice();
+                if !self.choices.is_empty() {
+                    out.push(ResponseItem::VectorRequestChoices {
+                        agent_instance_hierarchy: std::mem::take(&mut self.aih),
+                        response_id: std::mem::take(&mut self.rid),
+                        choices: std::mem::take(&mut self.choices),
+                    });
+                }
+            }
+            _ => {}
+        }
+        *self = BlockAccum::default();
+    }
+}
+
 /// Walk `rows` (already sorted by `id` ASC) and coalesce into
-/// `ResponseItem`s. Pure / deterministic.
+/// `ResponseItem`s. Pure / deterministic. Request-blob marker rows are
+/// skipped (still written for `read id`, hidden from `list`). Every
+/// block's `response_id` is the AGENT-COMPLETION's id — the writer
+/// keyed all request_message / choice / vote rows by the per-agent
+/// `agent_completion_chunk` id, never the vector/task id.
 fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
     let mut out: Vec<ResponseItem> = Vec::new();
-    let mut cur_class: Option<BlockClass> = None;
-    let mut cur_aih: String = String::new();
-    let mut cur_rid: String = String::new();
-    /// `Some` only for an open `ClientNotification` block; assistant /
-    /// tool blocks never set this. Boundary check pulls it in.
-    let mut cur_sender: Option<String> = None;
-    /// `Some` only for an open `ClientNotification` block — the
-    /// consumed `message_queue.id`. Forces 1:1 block-to-parent
-    /// correspondence so block-level `timestamp_queued` is
-    /// well-defined.
-    let mut cur_mq_id: Option<i64> = None;
-    /// `Some` only for an open `ClientNotification` block —
-    /// `message_queue.enqueued_at`.
-    let mut cur_timestamp_queued: Option<i64> = None;
-    /// `Some` only for an open `ClientNotification` block AND
-    /// only when the parent queue row had `--key` set —
-    /// `message_queue.key`.
-    let mut cur_key: Option<String> = None;
-    // `Some` only for an open `ToolResponse` block — the `tool_call_id`
-    // this block answers. Part of the ToolResponse boundary tuple so
-    // each block = exactly one tool call's response.
-    let mut cur_tool_call_id: Option<String> = None;
-    let mut cur_notification_parts: Vec<ClientNotificationPart> = Vec::new();
-    let mut cur_assistant_parts: Vec<AssistantResponsePart> = Vec::new();
-    let mut cur_tool_parts: Vec<ToolResponsePart> = Vec::new();
-
-    let flush = |class: Option<BlockClass>,
-                 aih: &mut String,
-                 rid: &mut String,
-                 sender: &mut Option<String>,
-                 mq_id: &mut Option<i64>,
-                 timestamp_queued: &mut Option<i64>,
-                 key: &mut Option<String>,
-                 tool_call_id: &mut Option<String>,
-                 notification_parts: &mut Vec<ClientNotificationPart>,
-                 assistant_parts: &mut Vec<AssistantResponsePart>,
-                 tool_parts: &mut Vec<ToolResponsePart>,
-                 out: &mut Vec<ResponseItem>| {
-        match class {
-            Some(BlockClass::ClientNotification) if !notification_parts.is_empty() => {
-                out.push(ResponseItem::ClientNotification {
-                    agent_instance_hierarchy: std::mem::take(aih),
-                    sender_agent_instance_hierarchy: sender.take().unwrap_or_default(),
-                    response_id: std::mem::take(rid),
-                    queued_at: unix_to_rfc3339(timestamp_queued.take().unwrap_or_default()),
-                    key: key.take(),
-                    parts: std::mem::take(notification_parts),
-                });
-                *mq_id = None;
-            }
-            Some(BlockClass::AssistantResponse) if !assistant_parts.is_empty() => {
-                out.push(ResponseItem::AssistantResponse {
-                    agent_instance_hierarchy: std::mem::take(aih),
-                    response_id: std::mem::take(rid),
-                    parts: std::mem::take(assistant_parts),
-                });
-            }
-            Some(BlockClass::ToolResponse) if !tool_parts.is_empty() => {
-                out.push(ResponseItem::ToolResponse {
-                    agent_instance_hierarchy: std::mem::take(aih),
-                    response_id: std::mem::take(rid),
-                    tool_call_id: tool_call_id.take().unwrap_or_default(),
-                    parts: std::mem::take(tool_parts),
-                });
-            }
-            _ => {
-                aih.clear();
-                rid.clear();
-                *sender = None;
-                *mq_id = None;
-                *timestamp_queued = None;
-                *key = None;
-                *tool_call_id = None;
-                notification_parts.clear();
-                assistant_parts.clear();
-                tool_parts.clear();
-            }
-        }
-    };
+    let mut acc = BlockAccum::default();
 
     for row in rows {
         let class = block_class(row.table_kind);
 
-        // Single-row request classes — emit immediately, reset.
         match class {
-            BlockClass::AgentCompletionRequest => {
-                flush(
-                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
-                    &mut cur_tool_call_id,
-                    &mut cur_notification_parts, &mut cur_assistant_parts,
-                    &mut cur_tool_parts, &mut out,
-                );
-                out.push(ResponseItem::AgentCompletionRequest {
-                    id: row.id,
-                    agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    sender_agent_instance_hierarchy: row
-                        .sender_agent_instance_hierarchy
-                        .unwrap_or_default(),
-                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
-                    response_id: row.response_id,
-                });
-                cur_class = None;
+            // Request-blob marker: hidden from list. Flush + skip.
+            BlockClass::SkippedRequestBlob => {
+                acc.flush(&mut out);
                 continue;
             }
-            BlockClass::VectorCompletionRequest => {
-                flush(
-                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
-                    &mut cur_tool_call_id,
-                    &mut cur_notification_parts, &mut cur_assistant_parts,
-                    &mut cur_tool_parts, &mut out,
-                );
-                out.push(ResponseItem::VectorCompletionRequest {
-                    id: row.id,
+            // Single inline row: this agent's vote (closer).
+            BlockClass::VectorResponseVote => {
+                acc.flush(&mut out);
+                let vote: Vec<rust_decimal::Decimal> = row
+                    .vote
+                    .and_then(|v| serde_json::from_value(v).ok())
+                    .unwrap_or_default();
+                out.push(ResponseItem::VectorResponseVote {
                     agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    sender_agent_instance_hierarchy: row
-                        .sender_agent_instance_hierarchy
-                        .unwrap_or_default(),
-                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     response_id: row.response_id,
+                    vote,
                 });
-                cur_class = None;
-                continue;
-            }
-            BlockClass::FunctionExecutionRequest => {
-                flush(
-                    cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                    &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
-                    &mut cur_tool_call_id,
-                    &mut cur_notification_parts, &mut cur_assistant_parts,
-                    &mut cur_tool_parts, &mut out,
-                );
-                out.push(ResponseItem::FunctionExecutionRequest {
-                    id: row.id,
-                    agent_instance_hierarchy: row.agent_instance_hierarchy,
-                    sender_agent_instance_hierarchy: row
-                        .sender_agent_instance_hierarchy
-                        .unwrap_or_default(),
-                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
-                    response_id: row.response_id,
-                });
-                cur_class = None;
                 continue;
             }
             _ => {}
         }
 
-        // Multi-row class. For ClientNotification, sender_aih
-        // AND message_queue_id are part of the boundary tuple —
-        // each block = one consumed parent queue row, well-defined
-        // block-level `timestamp_queued`. Assistant/Tool blocks
-        // ignore sender + mq_id (both are None for them anyway).
-        let boundary = cur_class != Some(class)
-            || cur_aih != row.agent_instance_hierarchy
-            || cur_rid != row.response_id
+        // Multi-row block. Boundary tuple: (class, aih, rid) — plus
+        // sender+mq_id for ClientNotification, tool_call_id for the two
+        // tool classes.
+        let boundary = acc.class != Some(class)
+            || acc.aih != row.agent_instance_hierarchy
+            || acc.rid != row.response_id
             || (class == BlockClass::ClientNotification
-                && (cur_sender.as_deref() != row.sender_agent_instance_hierarchy.as_deref()
-                    || cur_mq_id != row.message_queue_id))
-            || (class == BlockClass::ToolResponse
-                && cur_tool_call_id.as_deref() != row.tool_call_id.as_deref());
+                && (acc.sender.as_deref() != row.sender_agent_instance_hierarchy.as_deref()
+                    || acc.mq_id != row.message_queue_id))
+            || ((class == BlockClass::ToolResponse
+                || class == BlockClass::RequestMessageTool)
+                && acc.tool_call_id.as_deref() != row.tool_call_id.as_deref());
         if boundary {
-            flush(
-                cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-                &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
-                &mut cur_tool_call_id,
-                &mut cur_notification_parts, &mut cur_assistant_parts,
-                &mut cur_tool_parts, &mut out,
-            );
-            cur_class = Some(class);
-            cur_aih = row.agent_instance_hierarchy.clone();
-            cur_rid = row.response_id.clone();
-            if class == BlockClass::ClientNotification {
-                cur_sender = row.sender_agent_instance_hierarchy.clone();
-                cur_mq_id = row.message_queue_id;
-                cur_timestamp_queued = row.timestamp_queued;
-                cur_key = row.message_queue_key.clone();
-                cur_tool_call_id = None;
-            } else if class == BlockClass::ToolResponse {
-                cur_sender = None;
-                cur_mq_id = None;
-                cur_timestamp_queued = None;
-                cur_key = None;
-                cur_tool_call_id = row.tool_call_id.clone();
-            } else {
-                cur_sender = None;
-                cur_mq_id = None;
-                cur_timestamp_queued = None;
-                cur_key = None;
-                cur_tool_call_id = None;
+            acc.flush(&mut out);
+            acc.class = Some(class);
+            acc.aih = row.agent_instance_hierarchy.clone();
+            acc.rid = row.response_id.clone();
+            match class {
+                BlockClass::ClientNotification => {
+                    acc.sender = row.sender_agent_instance_hierarchy.clone();
+                    acc.mq_id = row.message_queue_id;
+                    acc.timestamp_queued = row.timestamp_queued;
+                    acc.key = row.message_queue_key.clone();
+                }
+                BlockClass::ToolResponse | BlockClass::RequestMessageTool => {
+                    acc.tool_call_id = row.tool_call_id.clone();
+                }
+                _ => {}
             }
         }
 
@@ -469,38 +553,56 @@ fn coalesce_into_blocks(rows: Vec<MsgRow>) -> Vec<ResponseItem> {
             BlockClass::ClientNotification => {
                 let r#type = client_notification_kind(row.table_kind)
                     .expect("class invariant: ClientNotification maps to message_queue_*");
-                cur_notification_parts.push(ClientNotificationPart {
+                acc.notification_parts.push(ClientNotificationPart {
                     id: row.id,
                     delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     r#type,
                 });
             }
-            BlockClass::AssistantResponse => {
+            BlockClass::AssistantResponse | BlockClass::RequestMessageAssistant => {
                 let part = assistant_response_part(&row)
-                    .expect("class invariant: AssistantResponse maps to assistant_response_*");
-                cur_assistant_parts.push(part);
+                    .expect("class invariant: (request) assistant maps to assistant tables");
+                acc.assistant_parts.push(part);
             }
-            BlockClass::ToolResponse => {
+            BlockClass::ToolResponse | BlockClass::RequestMessageTool => {
                 let r#type = tool_response_kind(row.table_kind)
-                    .expect("class invariant: ToolResponse maps to tool_response*");
-                cur_tool_parts.push(ToolResponsePart {
+                    .expect("class invariant: (request) tool maps to tool content tables");
+                acc.tool_parts.push(ToolResponsePart {
                     id: row.id,
                     delivered_at: unix_to_rfc3339(row.timestamp_delivered),
                     r#type,
                 });
             }
-            _ => unreachable!("request classes handled above"),
+            BlockClass::RequestMessageUser => {
+                let r#type = request_message_user_kind(row.table_kind)
+                    .expect("class invariant: RequestMessageUser maps to user content tables");
+                acc.user_parts.push(RequestMessageUserPart {
+                    id: row.id,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
+                    r#type,
+                });
+            }
+            BlockClass::VectorRequestChoices => {
+                let r#type = vector_choice_kind(row.table_kind)
+                    .expect("class invariant: VectorRequestChoices maps to choice content tables");
+                if acc.cur_choice_index != row.row_index {
+                    acc.finish_choice();
+                    acc.cur_choice_index = row.row_index;
+                    acc.cur_choice_key = row.choice_key.clone();
+                }
+                acc.cur_choice_parts.push(VectorRequestChoicePart {
+                    id: row.id,
+                    delivered_at: unix_to_rfc3339(row.timestamp_delivered),
+                    r#type,
+                });
+            }
+            BlockClass::SkippedRequestBlob | BlockClass::VectorResponseVote => {
+                unreachable!("handled by the early `match class` above")
+            }
         }
     }
 
-    flush(
-        cur_class, &mut cur_aih, &mut cur_rid, &mut cur_sender,
-        &mut cur_mq_id, &mut cur_timestamp_queued, &mut cur_key,
-        &mut cur_tool_call_id,
-        &mut cur_notification_parts, &mut cur_assistant_parts,
-        &mut cur_tool_parts, &mut out,
-    );
-
+    acc.flush(&mut out);
     out
 }
 
@@ -585,7 +687,8 @@ pub async fn read_pending_for_parent(
                 s.sender_agent_instance_hierarchy, \
                 s.message_queue_id, s.timestamp_queued, \
                 s.message_queue_key, s.function_name, \
-                s.tool_call_id, s.row_sub_index \
+                s.tool_call_id, s.row_sub_index, \
+                s.row_index, s.choice_key, s.vote \
            FROM selected s \
           ORDER BY s.id ASC",
         select = SELECT_SHAPE,

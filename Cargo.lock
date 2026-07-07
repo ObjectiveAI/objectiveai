@@ -4237,6 +4237,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "reqwest-eventsource",
+ "rust_decimal",
  "schemars 1.2.1",
  "semver",
  "serde",

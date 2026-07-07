@@ -482,61 +482,61 @@ CREATE TABLE IF NOT EXISTS objectiveai.request_message_tool_content_file (
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     -- This agent's prefix-tree voting key for the choice.
     key          TEXT   NOT NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index)
+    PRIMARY KEY (response_id, "index")
 );
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice_content_text (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     part_index   BIGINT NOT NULL,
     text         TEXT   NOT NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index, part_index)
+    PRIMARY KEY (response_id, "index", part_index)
 );
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice_content_image (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     part_index   BIGINT NOT NULL,
     url          TEXT   NOT NULL,
     detail       TEXT   NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index, part_index)
+    PRIMARY KEY (response_id, "index", part_index)
 );
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice_content_audio (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     part_index   BIGINT NOT NULL,
     data         TEXT   NOT NULL,
     format       TEXT   NOT NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index, part_index)
+    PRIMARY KEY (response_id, "index", part_index)
 );
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice_content_video (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     part_index   BIGINT NOT NULL,
     url          TEXT   NOT NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index, part_index)
+    PRIMARY KEY (response_id, "index", part_index)
 );
 
 CREATE TABLE IF NOT EXISTS objectiveai.request_vector_choice_content_file (
     response_id  TEXT   NOT NULL,
-    choice_index BIGINT NOT NULL,
+    "index"      BIGINT NOT NULL,
     part_index   BIGINT NOT NULL,
     file_data    TEXT   NULL,
     file_id      TEXT   NULL,
     filename     TEXT   NULL,
     file_url     TEXT   NULL,
     inserted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    PRIMARY KEY (response_id, choice_index, part_index)
+    PRIMARY KEY (response_id, "index", part_index)
 );
 
 -- =====================================================================

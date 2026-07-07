@@ -19,14 +19,17 @@
 //! writer can populate `objectiveai.messages` / `objectiveai.messages_queue`
 //! without a side-channel.
 
-use objectiveai_sdk::agent::completions::message::{RichContent, RichContentPart};
+use objectiveai_sdk::agent::completions::message::{
+    AssistantToolCall, Message, RichContent, RichContentPart,
+};
 use objectiveai_sdk::agent::completions::response::ToolResponse;
 use objectiveai_sdk::agent::completions::response::streaming::{
     AgentCompletionChunk, AssistantResponseChunk, MessageChunk,
 };
 use objectiveai_sdk::functions::executions::response::streaming::{
-    FunctionExecutionChunk, TaskChunk,
+    FunctionExecutionChunk, TaskChunk, VectorCompletionTaskChunk,
 };
+use objectiveai_sdk::vector::completions::response::Vote;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 
 use super::row::{RowValue, RowsIter, WriterItem, WriterItems};
@@ -90,9 +93,250 @@ fn task_chunk_rows<'a>(task: &'a TaskChunk) -> WriterItems<'a> {
         TaskChunk::FunctionExecution(wrapper) => {
             function_execution_chunk_rows(&wrapper.inner)
         }
-        TaskChunk::VectorCompletion(wrapper) => {
-            vector_completion_chunk_rows(&wrapper.inner)
+        TaskChunk::VectorCompletion(wrapper) => vector_task_rows(wrapper),
+    }
+}
+
+/// A function-execution vector-completion task: for each per-agent
+/// completion, emit — in order — the task's request messages, the
+/// choices (with this agent's inline voting key), the agent's own
+/// response rows, then this agent's vote (closer). Every emitted row
+/// uses the per-agent AGENT-COMPLETION `response_id`
+/// (`c.inner.id`) — never the vector/task id — so `read all` groups
+/// them under the agent completion.
+fn vector_task_rows<'a>(
+    wrapper: &'a VectorCompletionTaskChunk,
+) -> WriterItems<'a> {
+    let vc = &wrapper.inner;
+    let request_messages = wrapper.request_messages.as_deref();
+    let request_choices = wrapper.request_choices.as_deref();
+    Box::new(vc.completions.iter().flat_map(move |c| {
+        let agent = &c.inner;
+        let response_id = agent.id.as_str();
+        let aih = agent.agent_instance_hierarchy.as_str();
+
+        let req_msgs: RowsIter<'a> = match request_messages {
+            Some(msgs) => request_message_rows(response_id, aih, msgs),
+            None => Box::new(std::iter::empty()),
+        };
+        let choices: RowsIter<'a> =
+            match (request_choices, c.request_choice_keys.as_deref()) {
+                (Some(chs), Some(keys)) => {
+                    vector_choice_rows(response_id, aih, chs, keys)
+                }
+                _ => Box::new(std::iter::empty()),
+            };
+        let vote = vote_row(response_id, aih, &vc.votes, agent.agent_id.as_str())
+            .map(WriterItem::Row);
+
+        Box::new(
+            req_msgs
+                .map(WriterItem::Row)
+                .chain(choices.map(WriterItem::Row))
+                .chain(agent_completion_chunk_rows(agent))
+                .chain(vote),
+        ) as WriterItems<'a>
+    }))
+}
+
+/// This agent's vote for the task, matched by `agent_id`. `completion_index`
+/// is `#[serde(skip)]` (lost over the wire), so `agent_id` is the
+/// correlation key; count>1 duplicates resolve to the first match.
+fn vote_row<'a>(
+    response_id: &'a str,
+    agent_instance_hierarchy: &'a str,
+    votes: &'a [Vote],
+    agent_id: &str,
+) -> Option<RowValue<'a>> {
+    votes
+        .iter()
+        .find(|v| v.agent_id == agent_id)
+        .map(|v| RowValue::ResponseVectorVote {
+            response_id,
+            agent_instance_hierarchy,
+            vote: v.vote.as_slice(),
+        })
+}
+
+/// One choice per entry in `choices`, keyed by choice index: the head
+/// row (this agent's `keys[i]`) then the choice's content parts.
+fn vector_choice_rows<'a>(
+    response_id: &'a str,
+    agent_instance_hierarchy: &'a str,
+    choices: &'a [RichContent],
+    keys: &'a [String],
+) -> RowsIter<'a> {
+    Box::new(choices.iter().enumerate().flat_map(move |(i, content)| {
+        let choice_index = i as u64;
+        let key = keys.get(i).map(|k| k.as_str()).unwrap_or("");
+        let head = std::iter::once(RowValue::RequestVectorChoice {
+            response_id,
+            agent_instance_hierarchy,
+            choice_index,
+            key,
+        });
+        Box::new(head.chain(request_content_rows(
+            RequestTarget::VectorChoice,
+            response_id,
+            agent_instance_hierarchy,
+            choice_index,
+            content,
+        ))) as RowsIter<'a>
+    }))
+}
+
+/// Walk a request/task `Vec<Message>` into request_message rows,
+/// paralleling the response walk but into the `request_message_*`
+/// tables. `index` is the message's position in the array. Shared by
+/// the function-tier task walk (from `task.request_messages`) and the
+/// agent-tier writer (from the request body).
+pub(super) fn request_message_rows<'a>(
+    response_id: &'a str,
+    aih: &'a str,
+    messages: &'a [Message],
+) -> RowsIter<'a> {
+    Box::new(messages.iter().enumerate().flat_map(move |(i, msg)| {
+        let index = i as u64;
+        let out: RowsIter<'a> = match msg {
+            Message::User(u) => {
+                request_content_rows(RequestTarget::User, response_id, aih, index, &u.content)
+            }
+            Message::Assistant(a) => {
+                // reasoning → tool_calls → content → refusal
+                let reasoning = a.reasoning.iter().map(move |t| {
+                    RowValue::RequestMessageAssistantReasoning {
+                        response_id,
+                        agent_instance_hierarchy: aih,
+                        index,
+                        text: t.as_str(),
+                    }
+                });
+                let tool_calls =
+                    a.tool_calls.iter().flatten().enumerate().map(move |(tci, tc)| {
+                        let AssistantToolCall::Function { id, function } = tc;
+                        RowValue::RequestMessageAssistantToolCalls {
+                            response_id,
+                            agent_instance_hierarchy: aih,
+                            index,
+                            tool_call_index: tci as u64,
+                            tool_call_id: id.as_str(),
+                            function_name: function.name.as_str(),
+                            arguments: function.arguments.as_str(),
+                        }
+                    });
+                let content = a.content.iter().flat_map(move |c| {
+                    request_content_rows(RequestTarget::Assistant, response_id, aih, index, c)
+                });
+                let refusal = a.refusal.iter().map(move |t| {
+                    RowValue::RequestMessageAssistantRefusal {
+                        response_id,
+                        agent_instance_hierarchy: aih,
+                        index,
+                        text: t.as_str(),
+                    }
+                });
+                Box::new(reasoning.chain(tool_calls).chain(content).chain(refusal))
+            }
+            Message::Tool(t) => {
+                let head = std::iter::once(RowValue::RequestMessageTool {
+                    response_id,
+                    agent_instance_hierarchy: aih,
+                    index,
+                    tool_call_id: t.tool_call_id.as_str(),
+                });
+                Box::new(head.chain(request_content_rows(
+                    RequestTarget::Tool,
+                    response_id,
+                    aih,
+                    index,
+                    &t.content,
+                )))
+            }
+        };
+        out
+    }))
+}
+
+/// Which request content table group a content part targets.
+#[derive(Debug, Clone, Copy)]
+enum RequestTarget {
+    User,
+    Assistant,
+    Tool,
+    VectorChoice,
+}
+
+fn request_content_rows<'a>(
+    target: RequestTarget,
+    response_id: &'a str,
+    aih: &'a str,
+    index: u64,
+    content: &'a RichContent,
+) -> RowsIter<'a> {
+    match content {
+        RichContent::Text(text) => Box::new(std::iter::once(request_content_text(
+            target, response_id, aih, index, 0, text.as_str(),
+        ))),
+        RichContent::Parts(parts) => {
+            Box::new(parts.iter().enumerate().map(move |(pi, part)| {
+                request_content_part(target, response_id, aih, index, pi as u64, part)
+            }))
         }
+    }
+}
+
+fn request_content_text<'a>(
+    target: RequestTarget,
+    response_id: &'a str,
+    agent_instance_hierarchy: &'a str,
+    index: u64,
+    part_index: u64,
+    text: &'a str,
+) -> RowValue<'a> {
+    match target {
+        RequestTarget::User => RowValue::RequestMessageUserContentText { response_id, agent_instance_hierarchy, index, part_index, text },
+        RequestTarget::Assistant => RowValue::RequestMessageAssistantContentText { response_id, agent_instance_hierarchy, index, part_index, text },
+        RequestTarget::Tool => RowValue::RequestMessageToolContentText { response_id, agent_instance_hierarchy, index, part_index, text },
+        RequestTarget::VectorChoice => RowValue::RequestVectorChoiceContentText { response_id, agent_instance_hierarchy, choice_index: index, part_index, text },
+    }
+}
+
+fn request_content_part<'a>(
+    target: RequestTarget,
+    response_id: &'a str,
+    agent_instance_hierarchy: &'a str,
+    index: u64,
+    part_index: u64,
+    part: &'a RichContentPart,
+) -> RowValue<'a> {
+    match part {
+        RichContentPart::Text { text } => {
+            request_content_text(target, response_id, agent_instance_hierarchy, index, part_index, text.as_str())
+        }
+        RichContentPart::ImageUrl { image_url } => match target {
+            RequestTarget::User => RowValue::RequestMessageUserContentImage { response_id, agent_instance_hierarchy, index, part_index, image_url },
+            RequestTarget::Assistant => RowValue::RequestMessageAssistantContentImage { response_id, agent_instance_hierarchy, index, part_index, image_url },
+            RequestTarget::Tool => RowValue::RequestMessageToolContentImage { response_id, agent_instance_hierarchy, index, part_index, image_url },
+            RequestTarget::VectorChoice => RowValue::RequestVectorChoiceContentImage { response_id, agent_instance_hierarchy, choice_index: index, part_index, image_url },
+        },
+        RichContentPart::InputAudio { input_audio } => match target {
+            RequestTarget::User => RowValue::RequestMessageUserContentAudio { response_id, agent_instance_hierarchy, index, part_index, input_audio },
+            RequestTarget::Assistant => RowValue::RequestMessageAssistantContentAudio { response_id, agent_instance_hierarchy, index, part_index, input_audio },
+            RequestTarget::Tool => RowValue::RequestMessageToolContentAudio { response_id, agent_instance_hierarchy, index, part_index, input_audio },
+            RequestTarget::VectorChoice => RowValue::RequestVectorChoiceContentAudio { response_id, agent_instance_hierarchy, choice_index: index, part_index, input_audio },
+        },
+        RichContentPart::InputVideo { video_url } | RichContentPart::VideoUrl { video_url } => match target {
+            RequestTarget::User => RowValue::RequestMessageUserContentVideo { response_id, agent_instance_hierarchy, index, part_index, video_url },
+            RequestTarget::Assistant => RowValue::RequestMessageAssistantContentVideo { response_id, agent_instance_hierarchy, index, part_index, video_url },
+            RequestTarget::Tool => RowValue::RequestMessageToolContentVideo { response_id, agent_instance_hierarchy, index, part_index, video_url },
+            RequestTarget::VectorChoice => RowValue::RequestVectorChoiceContentVideo { response_id, agent_instance_hierarchy, choice_index: index, part_index, video_url },
+        },
+        RichContentPart::File { file } => match target {
+            RequestTarget::User => RowValue::RequestMessageUserContentFile { response_id, agent_instance_hierarchy, index, part_index, file },
+            RequestTarget::Assistant => RowValue::RequestMessageAssistantContentFile { response_id, agent_instance_hierarchy, index, part_index, file },
+            RequestTarget::Tool => RowValue::RequestMessageToolContentFile { response_id, agent_instance_hierarchy, index, part_index, file },
+            RequestTarget::VectorChoice => RowValue::RequestVectorChoiceContentFile { response_id, agent_instance_hierarchy, choice_index: index, part_index, file },
+        },
     }
 }
 

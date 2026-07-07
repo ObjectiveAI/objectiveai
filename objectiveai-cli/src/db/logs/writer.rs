@@ -85,11 +85,22 @@ use super::write::{
 
 pub trait WriterChunk {
     fn primary_id(&self) -> &str;
+    /// The spawned agent's AIH for the agent tier — where the writer
+    /// derives request_message rows + the agent_ref from the REQUEST
+    /// (the response chunk no longer carries them). `None` for the
+    /// vector/function tiers, which surface these through the chunk
+    /// stream instead.
+    fn agent_tier_aih(&self) -> Option<&str> {
+        None
+    }
 }
 
 impl WriterChunk for AgentCompletionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
+    }
+    fn agent_tier_aih(&self) -> Option<&str> {
+        Some(self.agent_instance_hierarchy.as_str())
     }
 }
 impl WriterChunk for VectorCompletionChunk {
@@ -118,19 +129,13 @@ pub trait ChunkAgentRefs {
 impl ChunkAgentRefs for AgentCompletionChunk {
     fn collect_agent_refs(
         &self,
-        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+        _out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
     ) {
-        if let Some(inline) = &self.agent_inline {
-            let value = match &self.agent_remote {
-                Some(remote) => {
-                    crate::db::agent_refs::AgentRefValue::remote(remote)
-                }
-                None => crate::db::agent_refs::AgentRefValue::inline(inline),
-            };
-            if let Some(value) = value {
-                out.push((self.agent_instance_hierarchy.clone(), value));
-            }
-        }
+        // The inner agent chunk no longer carries `agent_inline` (it
+        // moved to the vector wrapper). Agent-tier refs are derived
+        // from the REQUEST by the writer, not from the response chunk;
+        // this impl is a no-op (used only when the chunk appears as a
+        // standalone agent completion or a function reasoning summary).
     }
 }
 
@@ -139,8 +144,24 @@ impl ChunkAgentRefs for VectorCompletionChunk {
         &self,
         out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
     ) {
+        // `agent_inline` now lives on the per-agent vector wrapper, not
+        // the inner agent chunk. Pair it with the inner chunk's
+        // AIH / remote.
         for completion in &self.completions {
-            completion.inner.collect_agent_refs(out);
+            if let Some(inline) = &completion.agent_inline {
+                let value = match &completion.inner.agent_remote {
+                    Some(remote) => {
+                        crate::db::agent_refs::AgentRefValue::remote(remote)
+                    }
+                    None => crate::db::agent_refs::AgentRefValue::inline(inline),
+                };
+                if let Some(value) = value {
+                    out.push((
+                        completion.inner.agent_instance_hierarchy.clone(),
+                        value,
+                    ));
+                }
+            }
         }
     }
 }
@@ -273,6 +294,16 @@ struct LogWriterState<C> {
     pool: Pool,
     tier: Tier,
     request_body: serde_json::Value,
+    /// Agent tier only: the request's typed messages, unpacked into
+    /// request_message content rows once on the first chunk. `None`
+    /// for the vector/function tiers (their request_message rows ride
+    /// the chunk stream). Immutable — written once, not shadow-gated.
+    request_messages: Option<Vec<objectiveai_sdk::agent::completions::message::Message>>,
+    /// Agent tier only: the agent-ref derived from the REQUEST's
+    /// `agent` field, upserted once on the first chunk. Taken (moved)
+    /// then. `None` for the other tiers (their refs come from the
+    /// response via `ChunkAgentRefs`).
+    request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     /// AIH of the caller who issued the request that spawned this
     /// writer (pulled from `ctx.config.agent_instance_hierarchy` at
     /// `spawn_writer` time). Written into the request blob row at
@@ -306,11 +337,17 @@ impl<C> LogWriterState<C> {
         request_body: serde_json::Value,
         sender_agent_instance_hierarchy: String,
         items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
+        request_messages: Option<
+            Vec<objectiveai_sdk::agent::completions::message::Message>,
+        >,
+        request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     ) -> Self {
         Self {
             pool,
             tier,
             request_body,
+            request_messages,
+            request_agent_ref,
             sender_agent_instance_hierarchy,
             items_fn,
             last_usage: HashMap::new(),
@@ -319,6 +356,26 @@ impl<C> LogWriterState<C> {
             seen_agents: HashSet::new(),
             _chunk: PhantomData,
         }
+    }
+
+    /// Agent tier: write the request's messages as request_message
+    /// content rows, once, on the first chunk — before any response
+    /// row so they read first. Immutable, so a direct one-time INSERT
+    /// per row (no shadow). `response_id`/`aih` are the spawned agent
+    /// completion's own id + AIH.
+    async fn write_agent_request_messages(
+        &self,
+        response_id: &str,
+        aih: &str,
+    ) -> Result<(), crate::error::Error> {
+        let Some(messages) = &self.request_messages else {
+            return Ok(());
+        };
+        let ts = now_secs() as i64;
+        for row in super::rows::request_message_rows(response_id, aih, messages) {
+            write_value(&self.pool, WriteOp::Insert, &row, ts).await?;
+        }
+        Ok(())
     }
 
     /// Persist the cumulative aggregate's streaming-content rows
@@ -546,6 +603,16 @@ where
         if state.primary_id.is_none() {
             let response_id = acc.primary_id().to_string();
             state.write_request_blob(&response_id).await?;
+            // Agent tier: unpack the REQUEST into request_message rows
+            // (written first) and register the agent_ref from the
+            // request's agent field — never the response chunk.
+            if let Some(aih) = acc.agent_tier_aih() {
+                state.write_agent_request_messages(&response_id, aih).await?;
+                if let Some(value) = state.request_agent_ref.take() {
+                    crate::db::agent_refs::upsert(&state.pool, aih, value)
+                        .await?;
+                }
+            }
             state.primary_id = Some(response_id);
         }
 
@@ -611,6 +678,10 @@ fn spawn_writer<C>(
     request_body: serde_json::Value,
     sender_agent_instance_hierarchy: String,
     items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
+    request_messages: Option<
+        Vec<objectiveai_sdk::agent::completions::message::Message>,
+    >,
+    request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
     C: WriterChunk
@@ -632,6 +703,8 @@ where
         request_body,
         sender_agent_instance_hierarchy,
         items_fn,
+        request_messages,
+        request_agent_ref,
     );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
@@ -654,12 +727,25 @@ pub fn write_agent_completion(
     crate::error::Error,
 > {
     let body = serde_json::to_value(params)?;
+    // Agent tier derives request_message rows + the agent_ref from the
+    // REQUEST (not the response chunk). Capture both at construction.
+    let request_messages = Some(params.messages.clone());
+    let request_agent_ref = match &params.agent {
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(base) => {
+            crate::db::agent_refs::AgentRefValue::inline(base)
+        }
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
+            crate::db::agent_refs::AgentRefValue::remote(remote)
+        }
+    };
     Ok(spawn_writer(
         pool.clone(),
         Tier::Agent,
         body,
         sender_agent_instance_hierarchy,
         agent_completion_chunk_rows,
+        request_messages,
+        request_agent_ref,
     ))
 }
 
@@ -678,6 +764,8 @@ pub fn write_vector_completion(
         body,
         sender_agent_instance_hierarchy,
         vector_completion_chunk_rows,
+        None,
+        None,
     ))
 }
 
@@ -696,5 +784,7 @@ pub fn write_function_execution(
         body,
         sender_agent_instance_hierarchy,
         function_execution_chunk_rows,
+        None,
+        None,
     ))
 }

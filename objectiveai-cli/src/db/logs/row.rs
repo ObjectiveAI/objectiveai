@@ -63,6 +63,46 @@ pub enum RowTable {
     ToolResponseContentAudio,
     ToolResponseContentVideo,
     ToolResponseContentFile,
+
+    // ---- request_message: user content ----
+    RequestMessageUserContentText,
+    RequestMessageUserContentImage,
+    RequestMessageUserContentAudio,
+    RequestMessageUserContentVideo,
+    RequestMessageUserContentFile,
+
+    // ---- request_message: assistant ----
+    RequestMessageAssistantRefusal,
+    RequestMessageAssistantReasoning,
+    RequestMessageAssistantToolCalls,
+    RequestMessageAssistantContentText,
+    RequestMessageAssistantContentImage,
+    RequestMessageAssistantContentAudio,
+    RequestMessageAssistantContentVideo,
+    RequestMessageAssistantContentFile,
+
+    // ---- request_message: tool ----
+    /// Head row (JOIN target for `tool_call_id`) — no messages event,
+    /// like [`RowTable::ToolResponse`].
+    RequestMessageTool,
+    RequestMessageToolContentText,
+    RequestMessageToolContentImage,
+    RequestMessageToolContentAudio,
+    RequestMessageToolContentVideo,
+    RequestMessageToolContentFile,
+
+    // ---- vector request choices ----
+    /// Head row carrying the per-agent inline `key` per choice — no
+    /// messages event, JOIN target for the key.
+    RequestVectorChoice,
+    RequestVectorChoiceContentText,
+    RequestVectorChoiceContentImage,
+    RequestVectorChoiceContentAudio,
+    RequestVectorChoiceContentVideo,
+    RequestVectorChoiceContentFile,
+
+    // ---- vector response vote (inline closer) ----
+    ResponseVectorVote,
 }
 
 /// The subset of [`RowTable`] that produces a `objectiveai.messages` event
@@ -96,6 +136,30 @@ pub enum MessageTable {
     ToolResponseContentAudio,
     ToolResponseContentVideo,
     ToolResponseContentFile,
+    RequestMessageUserContentText,
+    RequestMessageUserContentImage,
+    RequestMessageUserContentAudio,
+    RequestMessageUserContentVideo,
+    RequestMessageUserContentFile,
+    RequestMessageAssistantRefusal,
+    RequestMessageAssistantReasoning,
+    RequestMessageAssistantToolCalls,
+    RequestMessageAssistantContentText,
+    RequestMessageAssistantContentImage,
+    RequestMessageAssistantContentAudio,
+    RequestMessageAssistantContentVideo,
+    RequestMessageAssistantContentFile,
+    RequestMessageToolContentText,
+    RequestMessageToolContentImage,
+    RequestMessageToolContentAudio,
+    RequestMessageToolContentVideo,
+    RequestMessageToolContentFile,
+    RequestVectorChoiceContentText,
+    RequestVectorChoiceContentImage,
+    RequestVectorChoiceContentAudio,
+    RequestVectorChoiceContentVideo,
+    RequestVectorChoiceContentFile,
+    ResponseVectorVote,
 }
 
 impl MessageTable {
@@ -126,6 +190,30 @@ impl MessageTable {
             MessageTable::ToolResponseContentAudio => "tool_response_content_audio",
             MessageTable::ToolResponseContentVideo => "tool_response_content_video",
             MessageTable::ToolResponseContentFile => "tool_response_content_file",
+            MessageTable::RequestMessageUserContentText => "request_message_user_content_text",
+            MessageTable::RequestMessageUserContentImage => "request_message_user_content_image",
+            MessageTable::RequestMessageUserContentAudio => "request_message_user_content_audio",
+            MessageTable::RequestMessageUserContentVideo => "request_message_user_content_video",
+            MessageTable::RequestMessageUserContentFile => "request_message_user_content_file",
+            MessageTable::RequestMessageAssistantRefusal => "request_message_assistant_refusal",
+            MessageTable::RequestMessageAssistantReasoning => "request_message_assistant_reasoning",
+            MessageTable::RequestMessageAssistantToolCalls => "request_message_assistant_tool_calls",
+            MessageTable::RequestMessageAssistantContentText => "request_message_assistant_content_text",
+            MessageTable::RequestMessageAssistantContentImage => "request_message_assistant_content_image",
+            MessageTable::RequestMessageAssistantContentAudio => "request_message_assistant_content_audio",
+            MessageTable::RequestMessageAssistantContentVideo => "request_message_assistant_content_video",
+            MessageTable::RequestMessageAssistantContentFile => "request_message_assistant_content_file",
+            MessageTable::RequestMessageToolContentText => "request_message_tool_content_text",
+            MessageTable::RequestMessageToolContentImage => "request_message_tool_content_image",
+            MessageTable::RequestMessageToolContentAudio => "request_message_tool_content_audio",
+            MessageTable::RequestMessageToolContentVideo => "request_message_tool_content_video",
+            MessageTable::RequestMessageToolContentFile => "request_message_tool_content_file",
+            MessageTable::RequestVectorChoiceContentText => "request_vector_choice_content_text",
+            MessageTable::RequestVectorChoiceContentImage => "request_vector_choice_content_image",
+            MessageTable::RequestVectorChoiceContentAudio => "request_vector_choice_content_audio",
+            MessageTable::RequestVectorChoiceContentVideo => "request_vector_choice_content_video",
+            MessageTable::RequestVectorChoiceContentFile => "request_vector_choice_content_file",
+            MessageTable::ResponseVectorVote => "response_vector_vote",
         }
     }
 }
@@ -166,6 +254,34 @@ impl RowTable {
             RowTable::ToolResponseContentAudio => MessageTable::ToolResponseContentAudio,
             RowTable::ToolResponseContentVideo => MessageTable::ToolResponseContentVideo,
             RowTable::ToolResponseContentFile => MessageTable::ToolResponseContentFile,
+            RowTable::RequestMessageUserContentText => MessageTable::RequestMessageUserContentText,
+            RowTable::RequestMessageUserContentImage => MessageTable::RequestMessageUserContentImage,
+            RowTable::RequestMessageUserContentAudio => MessageTable::RequestMessageUserContentAudio,
+            RowTable::RequestMessageUserContentVideo => MessageTable::RequestMessageUserContentVideo,
+            RowTable::RequestMessageUserContentFile => MessageTable::RequestMessageUserContentFile,
+            RowTable::RequestMessageAssistantRefusal => MessageTable::RequestMessageAssistantRefusal,
+            RowTable::RequestMessageAssistantReasoning => MessageTable::RequestMessageAssistantReasoning,
+            RowTable::RequestMessageAssistantToolCalls => MessageTable::RequestMessageAssistantToolCalls,
+            RowTable::RequestMessageAssistantContentText => MessageTable::RequestMessageAssistantContentText,
+            RowTable::RequestMessageAssistantContentImage => MessageTable::RequestMessageAssistantContentImage,
+            RowTable::RequestMessageAssistantContentAudio => MessageTable::RequestMessageAssistantContentAudio,
+            RowTable::RequestMessageAssistantContentVideo => MessageTable::RequestMessageAssistantContentVideo,
+            RowTable::RequestMessageAssistantContentFile => MessageTable::RequestMessageAssistantContentFile,
+            // Head row — no messages event (like `ToolResponse`).
+            RowTable::RequestMessageTool => return None,
+            RowTable::RequestMessageToolContentText => MessageTable::RequestMessageToolContentText,
+            RowTable::RequestMessageToolContentImage => MessageTable::RequestMessageToolContentImage,
+            RowTable::RequestMessageToolContentAudio => MessageTable::RequestMessageToolContentAudio,
+            RowTable::RequestMessageToolContentVideo => MessageTable::RequestMessageToolContentVideo,
+            RowTable::RequestMessageToolContentFile => MessageTable::RequestMessageToolContentFile,
+            // Head row — no messages event; JOIN target for the key.
+            RowTable::RequestVectorChoice => return None,
+            RowTable::RequestVectorChoiceContentText => MessageTable::RequestVectorChoiceContentText,
+            RowTable::RequestVectorChoiceContentImage => MessageTable::RequestVectorChoiceContentImage,
+            RowTable::RequestVectorChoiceContentAudio => MessageTable::RequestVectorChoiceContentAudio,
+            RowTable::RequestVectorChoiceContentVideo => MessageTable::RequestVectorChoiceContentVideo,
+            RowTable::RequestVectorChoiceContentFile => MessageTable::RequestVectorChoiceContentFile,
+            RowTable::ResponseVectorVote => MessageTable::ResponseVectorVote,
             RowTable::AgentCompletionResponses
             | RowTable::VectorCompletionResponses
             | RowTable::FunctionExecutionResponses => return None,
@@ -198,6 +314,32 @@ impl RowTable {
             RowTable::ToolResponseContentAudio => "objectiveai.tool_response_content_audio",
             RowTable::ToolResponseContentVideo => "objectiveai.tool_response_content_video",
             RowTable::ToolResponseContentFile => "objectiveai.tool_response_content_file",
+            RowTable::RequestMessageUserContentText => "objectiveai.request_message_user_content_text",
+            RowTable::RequestMessageUserContentImage => "objectiveai.request_message_user_content_image",
+            RowTable::RequestMessageUserContentAudio => "objectiveai.request_message_user_content_audio",
+            RowTable::RequestMessageUserContentVideo => "objectiveai.request_message_user_content_video",
+            RowTable::RequestMessageUserContentFile => "objectiveai.request_message_user_content_file",
+            RowTable::RequestMessageAssistantRefusal => "objectiveai.request_message_assistant_refusal",
+            RowTable::RequestMessageAssistantReasoning => "objectiveai.request_message_assistant_reasoning",
+            RowTable::RequestMessageAssistantToolCalls => "objectiveai.request_message_assistant_tool_calls",
+            RowTable::RequestMessageAssistantContentText => "objectiveai.request_message_assistant_content_text",
+            RowTable::RequestMessageAssistantContentImage => "objectiveai.request_message_assistant_content_image",
+            RowTable::RequestMessageAssistantContentAudio => "objectiveai.request_message_assistant_content_audio",
+            RowTable::RequestMessageAssistantContentVideo => "objectiveai.request_message_assistant_content_video",
+            RowTable::RequestMessageAssistantContentFile => "objectiveai.request_message_assistant_content_file",
+            RowTable::RequestMessageTool => "objectiveai.request_message_tool",
+            RowTable::RequestMessageToolContentText => "objectiveai.request_message_tool_content_text",
+            RowTable::RequestMessageToolContentImage => "objectiveai.request_message_tool_content_image",
+            RowTable::RequestMessageToolContentAudio => "objectiveai.request_message_tool_content_audio",
+            RowTable::RequestMessageToolContentVideo => "objectiveai.request_message_tool_content_video",
+            RowTable::RequestMessageToolContentFile => "objectiveai.request_message_tool_content_file",
+            RowTable::RequestVectorChoice => "objectiveai.request_vector_choice",
+            RowTable::RequestVectorChoiceContentText => "objectiveai.request_vector_choice_content_text",
+            RowTable::RequestVectorChoiceContentImage => "objectiveai.request_vector_choice_content_image",
+            RowTable::RequestVectorChoiceContentAudio => "objectiveai.request_vector_choice_content_audio",
+            RowTable::RequestVectorChoiceContentVideo => "objectiveai.request_vector_choice_content_video",
+            RowTable::RequestVectorChoiceContentFile => "objectiveai.request_vector_choice_content_file",
+            RowTable::ResponseVectorVote => "objectiveai.response_vector_vote",
         }
     }
 }
@@ -333,6 +475,201 @@ pub enum RowValue<'a> {
         part_index: u64,
         file: &'a File,
     },
+
+    // ---- request_message: user content ----
+    RequestMessageUserContentText {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    RequestMessageUserContentImage {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    RequestMessageUserContentAudio {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    RequestMessageUserContentVideo {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+    },
+    RequestMessageUserContentFile {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+
+    // ---- request_message: assistant ----
+    RequestMessageAssistantRefusal {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        text: &'a str,
+    },
+    RequestMessageAssistantReasoning {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        text: &'a str,
+    },
+    RequestMessageAssistantToolCalls {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        tool_call_index: u64,
+        tool_call_id: &'a str,
+        function_name: &'a str,
+        arguments: &'a str,
+    },
+    RequestMessageAssistantContentText {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    RequestMessageAssistantContentImage {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    RequestMessageAssistantContentAudio {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    RequestMessageAssistantContentVideo {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+    },
+    RequestMessageAssistantContentFile {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+
+    // ---- request_message: tool ----
+    /// Head row (JOIN target for `tool_call_id`) — emits no messages
+    /// event, like [`RowValue::ToolResponse`].
+    RequestMessageTool {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        tool_call_id: &'a str,
+    },
+    RequestMessageToolContentText {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    RequestMessageToolContentImage {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    RequestMessageToolContentAudio {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    RequestMessageToolContentVideo {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+    },
+    RequestMessageToolContentFile {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+
+    // ---- vector request choices ----
+    /// Head row carrying this agent's inline voting `key` for the
+    /// choice. Emits no messages event; JOIN target for the key.
+    RequestVectorChoice {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        key: &'a str,
+    },
+    RequestVectorChoiceContentText {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        part_index: u64,
+        text: &'a str,
+    },
+    RequestVectorChoiceContentImage {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        part_index: u64,
+        image_url: &'a ImageUrl,
+    },
+    RequestVectorChoiceContentAudio {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        part_index: u64,
+        input_audio: &'a InputAudio,
+    },
+    RequestVectorChoiceContentVideo {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        part_index: u64,
+        video_url: &'a VideoUrl,
+    },
+    RequestVectorChoiceContentFile {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        choice_index: u64,
+        part_index: u64,
+        file: &'a File,
+    },
+
+    // ---- vector response vote (inline closer) ----
+    /// The per-agent vote (score per choice, in choice order). Inline
+    /// value, NULL row indices; written via a dedicated helper that
+    /// this generic path early-branches.
+    ResponseVectorVote {
+        response_id: &'a str,
+        agent_instance_hierarchy: &'a str,
+        vote: &'a [rust_decimal::Decimal],
+    },
 }
 
 impl<'a> RowValue<'a> {
@@ -353,6 +690,32 @@ impl<'a> RowValue<'a> {
             RowValue::ToolResponseContentAudio { .. } => RowTable::ToolResponseContentAudio,
             RowValue::ToolResponseContentVideo { .. } => RowTable::ToolResponseContentVideo,
             RowValue::ToolResponseContentFile { .. } => RowTable::ToolResponseContentFile,
+            RowValue::RequestMessageUserContentText { .. } => RowTable::RequestMessageUserContentText,
+            RowValue::RequestMessageUserContentImage { .. } => RowTable::RequestMessageUserContentImage,
+            RowValue::RequestMessageUserContentAudio { .. } => RowTable::RequestMessageUserContentAudio,
+            RowValue::RequestMessageUserContentVideo { .. } => RowTable::RequestMessageUserContentVideo,
+            RowValue::RequestMessageUserContentFile { .. } => RowTable::RequestMessageUserContentFile,
+            RowValue::RequestMessageAssistantRefusal { .. } => RowTable::RequestMessageAssistantRefusal,
+            RowValue::RequestMessageAssistantReasoning { .. } => RowTable::RequestMessageAssistantReasoning,
+            RowValue::RequestMessageAssistantToolCalls { .. } => RowTable::RequestMessageAssistantToolCalls,
+            RowValue::RequestMessageAssistantContentText { .. } => RowTable::RequestMessageAssistantContentText,
+            RowValue::RequestMessageAssistantContentImage { .. } => RowTable::RequestMessageAssistantContentImage,
+            RowValue::RequestMessageAssistantContentAudio { .. } => RowTable::RequestMessageAssistantContentAudio,
+            RowValue::RequestMessageAssistantContentVideo { .. } => RowTable::RequestMessageAssistantContentVideo,
+            RowValue::RequestMessageAssistantContentFile { .. } => RowTable::RequestMessageAssistantContentFile,
+            RowValue::RequestMessageTool { .. } => RowTable::RequestMessageTool,
+            RowValue::RequestMessageToolContentText { .. } => RowTable::RequestMessageToolContentText,
+            RowValue::RequestMessageToolContentImage { .. } => RowTable::RequestMessageToolContentImage,
+            RowValue::RequestMessageToolContentAudio { .. } => RowTable::RequestMessageToolContentAudio,
+            RowValue::RequestMessageToolContentVideo { .. } => RowTable::RequestMessageToolContentVideo,
+            RowValue::RequestMessageToolContentFile { .. } => RowTable::RequestMessageToolContentFile,
+            RowValue::RequestVectorChoice { .. } => RowTable::RequestVectorChoice,
+            RowValue::RequestVectorChoiceContentText { .. } => RowTable::RequestVectorChoiceContentText,
+            RowValue::RequestVectorChoiceContentImage { .. } => RowTable::RequestVectorChoiceContentImage,
+            RowValue::RequestVectorChoiceContentAudio { .. } => RowTable::RequestVectorChoiceContentAudio,
+            RowValue::RequestVectorChoiceContentVideo { .. } => RowTable::RequestVectorChoiceContentVideo,
+            RowValue::RequestVectorChoiceContentFile { .. } => RowTable::RequestVectorChoiceContentFile,
+            RowValue::ResponseVectorVote { .. } => RowTable::ResponseVectorVote,
         }
     }
 
@@ -392,7 +755,33 @@ impl<'a> RowValue<'a> {
             | RowValue::ToolResponseContentImage { response_id, .. }
             | RowValue::ToolResponseContentAudio { response_id, .. }
             | RowValue::ToolResponseContentVideo { response_id, .. }
-            | RowValue::ToolResponseContentFile { response_id, .. } => response_id,
+            | RowValue::ToolResponseContentFile { response_id, .. }
+            | RowValue::RequestMessageUserContentText { response_id, .. }
+            | RowValue::RequestMessageUserContentImage { response_id, .. }
+            | RowValue::RequestMessageUserContentAudio { response_id, .. }
+            | RowValue::RequestMessageUserContentVideo { response_id, .. }
+            | RowValue::RequestMessageUserContentFile { response_id, .. }
+            | RowValue::RequestMessageAssistantRefusal { response_id, .. }
+            | RowValue::RequestMessageAssistantReasoning { response_id, .. }
+            | RowValue::RequestMessageAssistantToolCalls { response_id, .. }
+            | RowValue::RequestMessageAssistantContentText { response_id, .. }
+            | RowValue::RequestMessageAssistantContentImage { response_id, .. }
+            | RowValue::RequestMessageAssistantContentAudio { response_id, .. }
+            | RowValue::RequestMessageAssistantContentVideo { response_id, .. }
+            | RowValue::RequestMessageAssistantContentFile { response_id, .. }
+            | RowValue::RequestMessageTool { response_id, .. }
+            | RowValue::RequestMessageToolContentText { response_id, .. }
+            | RowValue::RequestMessageToolContentImage { response_id, .. }
+            | RowValue::RequestMessageToolContentAudio { response_id, .. }
+            | RowValue::RequestMessageToolContentVideo { response_id, .. }
+            | RowValue::RequestMessageToolContentFile { response_id, .. }
+            | RowValue::RequestVectorChoice { response_id, .. }
+            | RowValue::RequestVectorChoiceContentText { response_id, .. }
+            | RowValue::RequestVectorChoiceContentImage { response_id, .. }
+            | RowValue::RequestVectorChoiceContentAudio { response_id, .. }
+            | RowValue::RequestVectorChoiceContentVideo { response_id, .. }
+            | RowValue::RequestVectorChoiceContentFile { response_id, .. }
+            | RowValue::ResponseVectorVote { response_id, .. } => response_id,
         }
     }
 
@@ -415,7 +804,33 @@ impl<'a> RowValue<'a> {
             | RowValue::ToolResponseContentImage { agent_instance_hierarchy, .. }
             | RowValue::ToolResponseContentAudio { agent_instance_hierarchy, .. }
             | RowValue::ToolResponseContentVideo { agent_instance_hierarchy, .. }
-            | RowValue::ToolResponseContentFile { agent_instance_hierarchy, .. } => {
+            | RowValue::ToolResponseContentFile { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageUserContentText { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageUserContentImage { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageUserContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageUserContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageUserContentFile { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantRefusal { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantReasoning { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantToolCalls { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantContentText { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantContentImage { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageAssistantContentFile { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageTool { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageToolContentText { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageToolContentImage { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageToolContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageToolContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::RequestMessageToolContentFile { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoice { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoiceContentText { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoiceContentImage { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoiceContentAudio { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoiceContentVideo { agent_instance_hierarchy, .. }
+            | RowValue::RequestVectorChoiceContentFile { agent_instance_hierarchy, .. }
+            | RowValue::ResponseVectorVote { agent_instance_hierarchy, .. } => {
                 agent_instance_hierarchy
             }
         }
@@ -442,7 +857,37 @@ impl<'a> RowValue<'a> {
             | RowValue::ToolResponseContentImage { index, .. }
             | RowValue::ToolResponseContentAudio { index, .. }
             | RowValue::ToolResponseContentVideo { index, .. }
-            | RowValue::ToolResponseContentFile { index, .. } => *index as i64,
+            | RowValue::ToolResponseContentFile { index, .. }
+            | RowValue::RequestMessageUserContentText { index, .. }
+            | RowValue::RequestMessageUserContentImage { index, .. }
+            | RowValue::RequestMessageUserContentAudio { index, .. }
+            | RowValue::RequestMessageUserContentVideo { index, .. }
+            | RowValue::RequestMessageUserContentFile { index, .. }
+            | RowValue::RequestMessageAssistantRefusal { index, .. }
+            | RowValue::RequestMessageAssistantReasoning { index, .. }
+            | RowValue::RequestMessageAssistantToolCalls { index, .. }
+            | RowValue::RequestMessageAssistantContentText { index, .. }
+            | RowValue::RequestMessageAssistantContentImage { index, .. }
+            | RowValue::RequestMessageAssistantContentAudio { index, .. }
+            | RowValue::RequestMessageAssistantContentVideo { index, .. }
+            | RowValue::RequestMessageAssistantContentFile { index, .. }
+            | RowValue::RequestMessageTool { index, .. }
+            | RowValue::RequestMessageToolContentText { index, .. }
+            | RowValue::RequestMessageToolContentImage { index, .. }
+            | RowValue::RequestMessageToolContentAudio { index, .. }
+            | RowValue::RequestMessageToolContentVideo { index, .. }
+            | RowValue::RequestMessageToolContentFile { index, .. } => *index as i64,
+            RowValue::RequestVectorChoice { choice_index, .. }
+            | RowValue::RequestVectorChoiceContentText { choice_index, .. }
+            | RowValue::RequestVectorChoiceContentImage { choice_index, .. }
+            | RowValue::RequestVectorChoiceContentAudio { choice_index, .. }
+            | RowValue::RequestVectorChoiceContentVideo { choice_index, .. }
+            | RowValue::RequestVectorChoiceContentFile { choice_index, .. } => {
+                *choice_index as i64
+            }
+            // NULL row_index — written via a dedicated helper that
+            // early-branches this generic path; never actually read.
+            RowValue::ResponseVectorVote { .. } => 0,
         }
     }
 
@@ -455,8 +900,14 @@ impl<'a> RowValue<'a> {
             RowValue::MessageQueueContent { .. }
             | RowValue::ToolResponse { .. }
             | RowValue::AssistantResponseRefusal { .. }
-            | RowValue::AssistantResponseReasoning { .. } => None,
-            RowValue::AssistantResponseToolCalls { tool_call_index, .. } => {
+            | RowValue::AssistantResponseReasoning { .. }
+            | RowValue::RequestMessageAssistantRefusal { .. }
+            | RowValue::RequestMessageAssistantReasoning { .. }
+            | RowValue::RequestMessageTool { .. }
+            | RowValue::RequestVectorChoice { .. }
+            | RowValue::ResponseVectorVote { .. } => None,
+            RowValue::AssistantResponseToolCalls { tool_call_index, .. }
+            | RowValue::RequestMessageAssistantToolCalls { tool_call_index, .. } => {
                 Some(*tool_call_index as i64)
             }
             RowValue::AssistantResponseContentText { part_index, .. }
@@ -468,7 +919,27 @@ impl<'a> RowValue<'a> {
             | RowValue::ToolResponseContentImage { part_index, .. }
             | RowValue::ToolResponseContentAudio { part_index, .. }
             | RowValue::ToolResponseContentVideo { part_index, .. }
-            | RowValue::ToolResponseContentFile { part_index, .. } => Some(*part_index as i64),
+            | RowValue::ToolResponseContentFile { part_index, .. }
+            | RowValue::RequestMessageUserContentText { part_index, .. }
+            | RowValue::RequestMessageUserContentImage { part_index, .. }
+            | RowValue::RequestMessageUserContentAudio { part_index, .. }
+            | RowValue::RequestMessageUserContentVideo { part_index, .. }
+            | RowValue::RequestMessageUserContentFile { part_index, .. }
+            | RowValue::RequestMessageAssistantContentText { part_index, .. }
+            | RowValue::RequestMessageAssistantContentImage { part_index, .. }
+            | RowValue::RequestMessageAssistantContentAudio { part_index, .. }
+            | RowValue::RequestMessageAssistantContentVideo { part_index, .. }
+            | RowValue::RequestMessageAssistantContentFile { part_index, .. }
+            | RowValue::RequestMessageToolContentText { part_index, .. }
+            | RowValue::RequestMessageToolContentImage { part_index, .. }
+            | RowValue::RequestMessageToolContentAudio { part_index, .. }
+            | RowValue::RequestMessageToolContentVideo { part_index, .. }
+            | RowValue::RequestMessageToolContentFile { part_index, .. }
+            | RowValue::RequestVectorChoiceContentText { part_index, .. }
+            | RowValue::RequestVectorChoiceContentImage { part_index, .. }
+            | RowValue::RequestVectorChoiceContentAudio { part_index, .. }
+            | RowValue::RequestVectorChoiceContentVideo { part_index, .. }
+            | RowValue::RequestVectorChoiceContentFile { part_index, .. } => Some(*part_index as i64),
         }
     }
 
@@ -531,6 +1002,88 @@ impl<'a> RowValue<'a> {
             }
             RowValue::ToolResponseContentFile { response_id, index, part_index, .. } => {
                 RowKey::ToolContentFile { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageUserContentText { response_id, index, part_index, .. } => {
+                RowKey::RequestUserContentText { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageUserContentImage { response_id, index, part_index, .. } => {
+                RowKey::RequestUserContentImage { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageUserContentAudio { response_id, index, part_index, .. } => {
+                RowKey::RequestUserContentAudio { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageUserContentVideo { response_id, index, part_index, .. } => {
+                RowKey::RequestUserContentVideo { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageUserContentFile { response_id, index, part_index, .. } => {
+                RowKey::RequestUserContentFile { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageAssistantRefusal { response_id, index, .. } => {
+                RowKey::RequestAssistantRefusal { response_id, index: *index }
+            }
+            RowValue::RequestMessageAssistantReasoning { response_id, index, .. } => {
+                RowKey::RequestAssistantReasoning { response_id, index: *index }
+            }
+            RowValue::RequestMessageAssistantToolCalls { response_id, index, tool_call_index, .. } => {
+                RowKey::RequestAssistantToolCall {
+                    response_id,
+                    index: *index,
+                    tool_call_index: *tool_call_index,
+                }
+            }
+            RowValue::RequestMessageAssistantContentText { response_id, index, part_index, .. } => {
+                RowKey::RequestAssistantContentText { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageAssistantContentImage { response_id, index, part_index, .. } => {
+                RowKey::RequestAssistantContentImage { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageAssistantContentAudio { response_id, index, part_index, .. } => {
+                RowKey::RequestAssistantContentAudio { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageAssistantContentVideo { response_id, index, part_index, .. } => {
+                RowKey::RequestAssistantContentVideo { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageAssistantContentFile { response_id, index, part_index, .. } => {
+                RowKey::RequestAssistantContentFile { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageTool { response_id, index, .. } => {
+                RowKey::RequestTool { response_id, index: *index }
+            }
+            RowValue::RequestMessageToolContentText { response_id, index, part_index, .. } => {
+                RowKey::RequestToolContentText { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageToolContentImage { response_id, index, part_index, .. } => {
+                RowKey::RequestToolContentImage { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageToolContentAudio { response_id, index, part_index, .. } => {
+                RowKey::RequestToolContentAudio { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageToolContentVideo { response_id, index, part_index, .. } => {
+                RowKey::RequestToolContentVideo { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestMessageToolContentFile { response_id, index, part_index, .. } => {
+                RowKey::RequestToolContentFile { response_id, index: *index, part_index: *part_index }
+            }
+            RowValue::RequestVectorChoice { response_id, choice_index, .. } => {
+                RowKey::RequestVectorChoice { response_id, choice_index: *choice_index }
+            }
+            RowValue::RequestVectorChoiceContentText { response_id, choice_index, part_index, .. } => {
+                RowKey::RequestVectorChoiceContentText { response_id, choice_index: *choice_index, part_index: *part_index }
+            }
+            RowValue::RequestVectorChoiceContentImage { response_id, choice_index, part_index, .. } => {
+                RowKey::RequestVectorChoiceContentImage { response_id, choice_index: *choice_index, part_index: *part_index }
+            }
+            RowValue::RequestVectorChoiceContentAudio { response_id, choice_index, part_index, .. } => {
+                RowKey::RequestVectorChoiceContentAudio { response_id, choice_index: *choice_index, part_index: *part_index }
+            }
+            RowValue::RequestVectorChoiceContentVideo { response_id, choice_index, part_index, .. } => {
+                RowKey::RequestVectorChoiceContentVideo { response_id, choice_index: *choice_index, part_index: *part_index }
+            }
+            RowValue::RequestVectorChoiceContentFile { response_id, choice_index, part_index, .. } => {
+                RowKey::RequestVectorChoiceContentFile { response_id, choice_index: *choice_index, part_index: *part_index }
+            }
+            RowValue::ResponseVectorVote { response_id, agent_instance_hierarchy, .. } => {
+                RowKey::ResponseVectorVote { response_id, agent_instance_hierarchy }
             }
         }
     }
@@ -603,6 +1156,110 @@ impl<'a> RowValue<'a> {
                 RowValue::ToolResponseContentFile { file: a, .. },
                 RowBody::ToolContentFile { file: b },
             ) => *a == b,
+            (
+                RowValue::RequestMessageUserContentText { text: a, .. },
+                RowBody::RequestUserContentText { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageUserContentImage { image_url: a, .. },
+                RowBody::RequestUserContentImage { image_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageUserContentAudio { input_audio: a, .. },
+                RowBody::RequestUserContentAudio { input_audio: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageUserContentVideo { video_url: a, .. },
+                RowBody::RequestUserContentVideo { video_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageUserContentFile { file: a, .. },
+                RowBody::RequestUserContentFile { file: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageAssistantRefusal { text: a, .. },
+                RowBody::RequestAssistantRefusal { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageAssistantReasoning { text: a, .. },
+                RowBody::RequestAssistantReasoning { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageAssistantToolCalls { tool_call_id: a, arguments: aa, .. },
+                RowBody::RequestAssistantToolCall { tool_call_id: b, arguments: bb },
+            ) => *a == b.as_str() && *aa == bb.as_str(),
+            (
+                RowValue::RequestMessageAssistantContentText { text: a, .. },
+                RowBody::RequestAssistantContentText { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageAssistantContentImage { image_url: a, .. },
+                RowBody::RequestAssistantContentImage { image_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageAssistantContentAudio { input_audio: a, .. },
+                RowBody::RequestAssistantContentAudio { input_audio: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageAssistantContentVideo { video_url: a, .. },
+                RowBody::RequestAssistantContentVideo { video_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageAssistantContentFile { file: a, .. },
+                RowBody::RequestAssistantContentFile { file: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageTool { tool_call_id: a, .. },
+                RowBody::RequestTool { tool_call_id: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageToolContentText { text: a, .. },
+                RowBody::RequestToolContentText { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestMessageToolContentImage { image_url: a, .. },
+                RowBody::RequestToolContentImage { image_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageToolContentAudio { input_audio: a, .. },
+                RowBody::RequestToolContentAudio { input_audio: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageToolContentVideo { video_url: a, .. },
+                RowBody::RequestToolContentVideo { video_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestMessageToolContentFile { file: a, .. },
+                RowBody::RequestToolContentFile { file: b },
+            ) => *a == b,
+            (
+                RowValue::RequestVectorChoice { key: a, .. },
+                RowBody::RequestVectorChoice { key: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestVectorChoiceContentText { text: a, .. },
+                RowBody::RequestVectorChoiceContentText { text: b },
+            ) => *a == b.as_str(),
+            (
+                RowValue::RequestVectorChoiceContentImage { image_url: a, .. },
+                RowBody::RequestVectorChoiceContentImage { image_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestVectorChoiceContentAudio { input_audio: a, .. },
+                RowBody::RequestVectorChoiceContentAudio { input_audio: b },
+            ) => *a == b,
+            (
+                RowValue::RequestVectorChoiceContentVideo { video_url: a, .. },
+                RowBody::RequestVectorChoiceContentVideo { video_url: b },
+            ) => *a == b,
+            (
+                RowValue::RequestVectorChoiceContentFile { file: a, .. },
+                RowBody::RequestVectorChoiceContentFile { file: b },
+            ) => *a == b,
+            (
+                RowValue::ResponseVectorVote { vote: a, .. },
+                RowBody::ResponseVectorVote { vote: b },
+            ) => *a == b.as_slice(),
             _ => false,
         }
     }
@@ -660,6 +1317,35 @@ impl<'a> RowValue<'a> {
             RowValue::ToolResponseContentFile { file, .. } => RowBody::ToolContentFile {
                 file: (*file).clone(),
             },
+            RowValue::RequestMessageUserContentText { text, .. } => RowBody::RequestUserContentText { text: (*text).to_owned() },
+            RowValue::RequestMessageUserContentImage { image_url, .. } => RowBody::RequestUserContentImage { image_url: (*image_url).clone() },
+            RowValue::RequestMessageUserContentAudio { input_audio, .. } => RowBody::RequestUserContentAudio { input_audio: (*input_audio).clone() },
+            RowValue::RequestMessageUserContentVideo { video_url, .. } => RowBody::RequestUserContentVideo { video_url: (*video_url).clone() },
+            RowValue::RequestMessageUserContentFile { file, .. } => RowBody::RequestUserContentFile { file: (*file).clone() },
+            RowValue::RequestMessageAssistantRefusal { text, .. } => RowBody::RequestAssistantRefusal { text: (*text).to_owned() },
+            RowValue::RequestMessageAssistantReasoning { text, .. } => RowBody::RequestAssistantReasoning { text: (*text).to_owned() },
+            RowValue::RequestMessageAssistantToolCalls { tool_call_id, arguments, .. } => RowBody::RequestAssistantToolCall {
+                tool_call_id: (*tool_call_id).to_owned(),
+                arguments: (*arguments).to_owned(),
+            },
+            RowValue::RequestMessageAssistantContentText { text, .. } => RowBody::RequestAssistantContentText { text: (*text).to_owned() },
+            RowValue::RequestMessageAssistantContentImage { image_url, .. } => RowBody::RequestAssistantContentImage { image_url: (*image_url).clone() },
+            RowValue::RequestMessageAssistantContentAudio { input_audio, .. } => RowBody::RequestAssistantContentAudio { input_audio: (*input_audio).clone() },
+            RowValue::RequestMessageAssistantContentVideo { video_url, .. } => RowBody::RequestAssistantContentVideo { video_url: (*video_url).clone() },
+            RowValue::RequestMessageAssistantContentFile { file, .. } => RowBody::RequestAssistantContentFile { file: (*file).clone() },
+            RowValue::RequestMessageTool { tool_call_id, .. } => RowBody::RequestTool { tool_call_id: (*tool_call_id).to_owned() },
+            RowValue::RequestMessageToolContentText { text, .. } => RowBody::RequestToolContentText { text: (*text).to_owned() },
+            RowValue::RequestMessageToolContentImage { image_url, .. } => RowBody::RequestToolContentImage { image_url: (*image_url).clone() },
+            RowValue::RequestMessageToolContentAudio { input_audio, .. } => RowBody::RequestToolContentAudio { input_audio: (*input_audio).clone() },
+            RowValue::RequestMessageToolContentVideo { video_url, .. } => RowBody::RequestToolContentVideo { video_url: (*video_url).clone() },
+            RowValue::RequestMessageToolContentFile { file, .. } => RowBody::RequestToolContentFile { file: (*file).clone() },
+            RowValue::RequestVectorChoice { key, .. } => RowBody::RequestVectorChoice { key: (*key).to_owned() },
+            RowValue::RequestVectorChoiceContentText { text, .. } => RowBody::RequestVectorChoiceContentText { text: (*text).to_owned() },
+            RowValue::RequestVectorChoiceContentImage { image_url, .. } => RowBody::RequestVectorChoiceContentImage { image_url: (*image_url).clone() },
+            RowValue::RequestVectorChoiceContentAudio { input_audio, .. } => RowBody::RequestVectorChoiceContentAudio { input_audio: (*input_audio).clone() },
+            RowValue::RequestVectorChoiceContentVideo { video_url, .. } => RowBody::RequestVectorChoiceContentVideo { video_url: (*video_url).clone() },
+            RowValue::RequestVectorChoiceContentFile { file, .. } => RowBody::RequestVectorChoiceContentFile { file: (*file).clone() },
+            RowValue::ResponseVectorVote { vote, .. } => RowBody::ResponseVectorVote { vote: (*vote).to_vec() },
         }
     }
 }
@@ -719,6 +1405,32 @@ pub enum RowKey<'a> {
     ToolContentAudio { response_id: &'a str, index: u64, part_index: u64 },
     ToolContentVideo { response_id: &'a str, index: u64, part_index: u64 },
     ToolContentFile { response_id: &'a str, index: u64, part_index: u64 },
+    RequestUserContentText { response_id: &'a str, index: u64, part_index: u64 },
+    RequestUserContentImage { response_id: &'a str, index: u64, part_index: u64 },
+    RequestUserContentAudio { response_id: &'a str, index: u64, part_index: u64 },
+    RequestUserContentVideo { response_id: &'a str, index: u64, part_index: u64 },
+    RequestUserContentFile { response_id: &'a str, index: u64, part_index: u64 },
+    RequestAssistantRefusal { response_id: &'a str, index: u64 },
+    RequestAssistantReasoning { response_id: &'a str, index: u64 },
+    RequestAssistantToolCall { response_id: &'a str, index: u64, tool_call_index: u64 },
+    RequestAssistantContentText { response_id: &'a str, index: u64, part_index: u64 },
+    RequestAssistantContentImage { response_id: &'a str, index: u64, part_index: u64 },
+    RequestAssistantContentAudio { response_id: &'a str, index: u64, part_index: u64 },
+    RequestAssistantContentVideo { response_id: &'a str, index: u64, part_index: u64 },
+    RequestAssistantContentFile { response_id: &'a str, index: u64, part_index: u64 },
+    RequestTool { response_id: &'a str, index: u64 },
+    RequestToolContentText { response_id: &'a str, index: u64, part_index: u64 },
+    RequestToolContentImage { response_id: &'a str, index: u64, part_index: u64 },
+    RequestToolContentAudio { response_id: &'a str, index: u64, part_index: u64 },
+    RequestToolContentVideo { response_id: &'a str, index: u64, part_index: u64 },
+    RequestToolContentFile { response_id: &'a str, index: u64, part_index: u64 },
+    RequestVectorChoice { response_id: &'a str, choice_index: u64 },
+    RequestVectorChoiceContentText { response_id: &'a str, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentImage { response_id: &'a str, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentAudio { response_id: &'a str, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentVideo { response_id: &'a str, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentFile { response_id: &'a str, choice_index: u64, part_index: u64 },
+    ResponseVectorVote { response_id: &'a str, agent_instance_hierarchy: &'a str },
 }
 
 /// Owned counterpart to [`RowKey`]. Stored in the shadow map. Built
@@ -740,6 +1452,32 @@ pub enum OwnedRowKey {
     ToolContentAudio { response_id: String, index: u64, part_index: u64 },
     ToolContentVideo { response_id: String, index: u64, part_index: u64 },
     ToolContentFile { response_id: String, index: u64, part_index: u64 },
+    RequestUserContentText { response_id: String, index: u64, part_index: u64 },
+    RequestUserContentImage { response_id: String, index: u64, part_index: u64 },
+    RequestUserContentAudio { response_id: String, index: u64, part_index: u64 },
+    RequestUserContentVideo { response_id: String, index: u64, part_index: u64 },
+    RequestUserContentFile { response_id: String, index: u64, part_index: u64 },
+    RequestAssistantRefusal { response_id: String, index: u64 },
+    RequestAssistantReasoning { response_id: String, index: u64 },
+    RequestAssistantToolCall { response_id: String, index: u64, tool_call_index: u64 },
+    RequestAssistantContentText { response_id: String, index: u64, part_index: u64 },
+    RequestAssistantContentImage { response_id: String, index: u64, part_index: u64 },
+    RequestAssistantContentAudio { response_id: String, index: u64, part_index: u64 },
+    RequestAssistantContentVideo { response_id: String, index: u64, part_index: u64 },
+    RequestAssistantContentFile { response_id: String, index: u64, part_index: u64 },
+    RequestTool { response_id: String, index: u64 },
+    RequestToolContentText { response_id: String, index: u64, part_index: u64 },
+    RequestToolContentImage { response_id: String, index: u64, part_index: u64 },
+    RequestToolContentAudio { response_id: String, index: u64, part_index: u64 },
+    RequestToolContentVideo { response_id: String, index: u64, part_index: u64 },
+    RequestToolContentFile { response_id: String, index: u64, part_index: u64 },
+    RequestVectorChoice { response_id: String, choice_index: u64 },
+    RequestVectorChoiceContentText { response_id: String, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentImage { response_id: String, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentAudio { response_id: String, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentVideo { response_id: String, choice_index: u64, part_index: u64 },
+    RequestVectorChoiceContentFile { response_id: String, choice_index: u64, part_index: u64 },
+    ResponseVectorVote { response_id: String, agent_instance_hierarchy: String },
 }
 
 impl<'a> RowKey<'a> {
@@ -805,6 +1543,110 @@ impl<'a> RowKey<'a> {
                 RowKey::ToolContentFile { response_id: a, index: ai, part_index: ap },
                 OwnedRowKey::ToolContentFile { response_id: b, index: bi, part_index: bp },
             ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestUserContentText { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestUserContentText { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestUserContentImage { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestUserContentImage { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestUserContentAudio { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestUserContentAudio { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestUserContentVideo { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestUserContentVideo { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestUserContentFile { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestUserContentFile { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestAssistantRefusal { response_id: a, index: ai },
+                OwnedRowKey::RequestAssistantRefusal { response_id: b, index: bi },
+            ) => *a == b.as_str() && ai == bi,
+            (
+                RowKey::RequestAssistantReasoning { response_id: a, index: ai },
+                OwnedRowKey::RequestAssistantReasoning { response_id: b, index: bi },
+            ) => *a == b.as_str() && ai == bi,
+            (
+                RowKey::RequestAssistantToolCall { response_id: a, index: ai, tool_call_index: at },
+                OwnedRowKey::RequestAssistantToolCall { response_id: b, index: bi, tool_call_index: bt },
+            ) => *a == b.as_str() && ai == bi && at == bt,
+            (
+                RowKey::RequestAssistantContentText { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestAssistantContentText { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestAssistantContentImage { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestAssistantContentImage { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestAssistantContentAudio { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestAssistantContentAudio { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestAssistantContentVideo { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestAssistantContentVideo { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestAssistantContentFile { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestAssistantContentFile { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestTool { response_id: a, index: ai },
+                OwnedRowKey::RequestTool { response_id: b, index: bi },
+            ) => *a == b.as_str() && ai == bi,
+            (
+                RowKey::RequestToolContentText { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestToolContentText { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestToolContentImage { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestToolContentImage { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestToolContentAudio { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestToolContentAudio { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestToolContentVideo { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestToolContentVideo { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestToolContentFile { response_id: a, index: ai, part_index: ap },
+                OwnedRowKey::RequestToolContentFile { response_id: b, index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestVectorChoice { response_id: a, choice_index: ai },
+                OwnedRowKey::RequestVectorChoice { response_id: b, choice_index: bi },
+            ) => *a == b.as_str() && ai == bi,
+            (
+                RowKey::RequestVectorChoiceContentText { response_id: a, choice_index: ai, part_index: ap },
+                OwnedRowKey::RequestVectorChoiceContentText { response_id: b, choice_index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestVectorChoiceContentImage { response_id: a, choice_index: ai, part_index: ap },
+                OwnedRowKey::RequestVectorChoiceContentImage { response_id: b, choice_index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestVectorChoiceContentAudio { response_id: a, choice_index: ai, part_index: ap },
+                OwnedRowKey::RequestVectorChoiceContentAudio { response_id: b, choice_index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestVectorChoiceContentVideo { response_id: a, choice_index: ai, part_index: ap },
+                OwnedRowKey::RequestVectorChoiceContentVideo { response_id: b, choice_index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::RequestVectorChoiceContentFile { response_id: a, choice_index: ai, part_index: ap },
+                OwnedRowKey::RequestVectorChoiceContentFile { response_id: b, choice_index: bi, part_index: bp },
+            ) => *a == b.as_str() && ai == bi && ap == bp,
+            (
+                RowKey::ResponseVectorVote { response_id: a, agent_instance_hierarchy: ah },
+                OwnedRowKey::ResponseVectorVote { response_id: b, agent_instance_hierarchy: bh },
+            ) => *a == b.as_str() && *ah == bh.as_str(),
             _ => false,
         }
     }
@@ -906,6 +1748,32 @@ impl<'a> RowKey<'a> {
                     part_index: *part_index,
                 }
             }
+            RowKey::RequestUserContentText { response_id, index, part_index } => OwnedRowKey::RequestUserContentText { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestUserContentImage { response_id, index, part_index } => OwnedRowKey::RequestUserContentImage { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestUserContentAudio { response_id, index, part_index } => OwnedRowKey::RequestUserContentAudio { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestUserContentVideo { response_id, index, part_index } => OwnedRowKey::RequestUserContentVideo { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestUserContentFile { response_id, index, part_index } => OwnedRowKey::RequestUserContentFile { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestAssistantRefusal { response_id, index } => OwnedRowKey::RequestAssistantRefusal { response_id: (*response_id).to_owned(), index: *index },
+            RowKey::RequestAssistantReasoning { response_id, index } => OwnedRowKey::RequestAssistantReasoning { response_id: (*response_id).to_owned(), index: *index },
+            RowKey::RequestAssistantToolCall { response_id, index, tool_call_index } => OwnedRowKey::RequestAssistantToolCall { response_id: (*response_id).to_owned(), index: *index, tool_call_index: *tool_call_index },
+            RowKey::RequestAssistantContentText { response_id, index, part_index } => OwnedRowKey::RequestAssistantContentText { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestAssistantContentImage { response_id, index, part_index } => OwnedRowKey::RequestAssistantContentImage { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestAssistantContentAudio { response_id, index, part_index } => OwnedRowKey::RequestAssistantContentAudio { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestAssistantContentVideo { response_id, index, part_index } => OwnedRowKey::RequestAssistantContentVideo { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestAssistantContentFile { response_id, index, part_index } => OwnedRowKey::RequestAssistantContentFile { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestTool { response_id, index } => OwnedRowKey::RequestTool { response_id: (*response_id).to_owned(), index: *index },
+            RowKey::RequestToolContentText { response_id, index, part_index } => OwnedRowKey::RequestToolContentText { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestToolContentImage { response_id, index, part_index } => OwnedRowKey::RequestToolContentImage { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestToolContentAudio { response_id, index, part_index } => OwnedRowKey::RequestToolContentAudio { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestToolContentVideo { response_id, index, part_index } => OwnedRowKey::RequestToolContentVideo { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestToolContentFile { response_id, index, part_index } => OwnedRowKey::RequestToolContentFile { response_id: (*response_id).to_owned(), index: *index, part_index: *part_index },
+            RowKey::RequestVectorChoice { response_id, choice_index } => OwnedRowKey::RequestVectorChoice { response_id: (*response_id).to_owned(), choice_index: *choice_index },
+            RowKey::RequestVectorChoiceContentText { response_id, choice_index, part_index } => OwnedRowKey::RequestVectorChoiceContentText { response_id: (*response_id).to_owned(), choice_index: *choice_index, part_index: *part_index },
+            RowKey::RequestVectorChoiceContentImage { response_id, choice_index, part_index } => OwnedRowKey::RequestVectorChoiceContentImage { response_id: (*response_id).to_owned(), choice_index: *choice_index, part_index: *part_index },
+            RowKey::RequestVectorChoiceContentAudio { response_id, choice_index, part_index } => OwnedRowKey::RequestVectorChoiceContentAudio { response_id: (*response_id).to_owned(), choice_index: *choice_index, part_index: *part_index },
+            RowKey::RequestVectorChoiceContentVideo { response_id, choice_index, part_index } => OwnedRowKey::RequestVectorChoiceContentVideo { response_id: (*response_id).to_owned(), choice_index: *choice_index, part_index: *part_index },
+            RowKey::RequestVectorChoiceContentFile { response_id, choice_index, part_index } => OwnedRowKey::RequestVectorChoiceContentFile { response_id: (*response_id).to_owned(), choice_index: *choice_index, part_index: *part_index },
+            RowKey::ResponseVectorVote { response_id, agent_instance_hierarchy } => OwnedRowKey::ResponseVectorVote { response_id: (*response_id).to_owned(), agent_instance_hierarchy: (*agent_instance_hierarchy).to_owned() },
         }
     }
 }
@@ -937,4 +1805,30 @@ pub enum RowBody {
     ToolContentAudio { input_audio: InputAudio },
     ToolContentVideo { video_url: VideoUrl },
     ToolContentFile { file: File },
+    RequestUserContentText { text: String },
+    RequestUserContentImage { image_url: ImageUrl },
+    RequestUserContentAudio { input_audio: InputAudio },
+    RequestUserContentVideo { video_url: VideoUrl },
+    RequestUserContentFile { file: File },
+    RequestAssistantRefusal { text: String },
+    RequestAssistantReasoning { text: String },
+    RequestAssistantToolCall { tool_call_id: String, arguments: String },
+    RequestAssistantContentText { text: String },
+    RequestAssistantContentImage { image_url: ImageUrl },
+    RequestAssistantContentAudio { input_audio: InputAudio },
+    RequestAssistantContentVideo { video_url: VideoUrl },
+    RequestAssistantContentFile { file: File },
+    RequestTool { tool_call_id: String },
+    RequestToolContentText { text: String },
+    RequestToolContentImage { image_url: ImageUrl },
+    RequestToolContentAudio { input_audio: InputAudio },
+    RequestToolContentVideo { video_url: VideoUrl },
+    RequestToolContentFile { file: File },
+    RequestVectorChoice { key: String },
+    RequestVectorChoiceContentText { text: String },
+    RequestVectorChoiceContentImage { image_url: ImageUrl },
+    RequestVectorChoiceContentAudio { input_audio: InputAudio },
+    RequestVectorChoiceContentVideo { video_url: VideoUrl },
+    RequestVectorChoiceContentFile { file: File },
+    ResponseVectorVote { vote: Vec<rust_decimal::Decimal> },
 }
