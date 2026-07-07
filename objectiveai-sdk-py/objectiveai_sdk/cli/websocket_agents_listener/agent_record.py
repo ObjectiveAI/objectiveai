@@ -6,7 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AgentRecord(BaseModel):
-    """One agent's record on the `/agents` endpoint: identity, spawn /
+    """One agent's record on the `/agents/instances/list` endpoint: identity, spawn /
 last-active timestamps, and whether its per-instance lock is currently
 held. Mirrors `agents instances list`'s `ResponseItem` plus the live
 `active` flag."""
