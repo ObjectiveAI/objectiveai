@@ -15,25 +15,33 @@ import type {
   ConversationRow,
 } from "../hooks/useAgentInstance";
 
-/** The block-level scope label — the first half of every indicator. */
+/** The block-level scope label — the first half of every indicator.
+ * Deliberately coarse: request-vs-response is not distinguished
+ * (`assistant` covers both; `tool` covers every tool shape). */
 export function blockScope(block: ConversationBlock): string {
   switch (block.type) {
     case "assistant_response":
+    case "request_message_assistant":
       return "assistant";
     case "tool_response":
-      return "tool response";
+    case "request_message_tool":
+      return "tool";
     case "request_message_user":
       return "user";
-    case "request_message_assistant":
-      return "assistant · request";
-    case "request_message_tool":
-      return "tool response · request";
     case "client_notification":
       return "notification";
     case "vector_request_choices":
       return "choices";
     case "vector_response_vote":
       return "vote";
+    default:
+      // LOUD on purpose: a new block kind must be handled here, not
+      // silently mislabeled.
+      throw new Error(
+        `unhandled conversation block kind: ${String(
+          (block as { type: unknown }).type,
+        )}`,
+      );
   }
 }
 
@@ -91,6 +99,14 @@ export function describeRow(
     case "head":
       // Heads never materialize as parts — defensive only.
       return { label: scope, body: null };
+    default:
+      // LOUD on purpose: a new content kind must be handled here, not
+      // silently mislabeled.
+      throw new Error(
+        `unhandled conversation content kind: ${String(
+          (content as { type: unknown }).type,
+        )}`,
+      );
   }
 }
 
