@@ -323,8 +323,8 @@ function AgentNode({
   const hierarchy = status.agent_instance_hierarchy;
   const { agent, lastBlock } = useAgentInstance(connection, hierarchy);
   const kind = status.active ? "agent-active" : "agent-inactive";
-  // A live agent's last-active is implicitly "now" — the chip shows
-  // only for inactive agents, from the per-agent record.
+  // A live agent's last-active is implicitly "now" — while active the
+  // status row reads `active`; inactive shows the record's timestamp.
   const lastActiveAt = !status.active ? (agent?.last_active_at ?? null) : null;
   return (
     <div className={cn("flex", "flex-col", "items-stretch", "w-fit")}>
@@ -354,9 +354,11 @@ function AgentNode({
           "select-none",
           "border-copper-mid",
           "shadow-[0_0_8px_rgba(217,119,6,0.3)]",
-          status.active
-            ? cn("bg-copper-warm/10", "text-copper-bright")
-            : cn("bg-ground-surface", "text-info-mid"),
+          // Active and inactive boxes look IDENTICAL — the status
+          // row's dot (same indicator as the footer's) is the only
+          // visual difference.
+          "bg-ground-surface",
+          "text-info-mid",
         )}
       >
         {/* The AIH segment rides the tag row as just another chip —
@@ -380,17 +382,31 @@ function AgentNode({
           </>
         )}
         <AgentDefinitionView hierarchy={hierarchy} />
-        {lastActiveAt !== null && (
+        {(status.active || lastActiveAt !== null) && (
           <span
             data-last-active
             className={cn(
               "self-end",
+              "flex",
+              "items-center",
+              "gap-1.5",
               "text-[9px]",
               "text-info-mid",
               "tabular-nums",
             )}
           >
-            {formatAgo(lastActiveAt)}
+            {/* The footer's exact active indicator. */}
+            <span
+              className={cn(
+                "w-1.5",
+                "h-1.5",
+                "rounded-full",
+                status.active
+                  ? cn("bg-copper-hot", "animate-pulse")
+                  : "bg-info-dim",
+              )}
+            />
+            {status.active ? "active" : formatAgo(lastActiveAt ?? "")}
           </span>
         )}
       </div>
