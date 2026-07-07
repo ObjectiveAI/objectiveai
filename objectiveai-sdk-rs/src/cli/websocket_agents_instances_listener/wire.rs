@@ -32,7 +32,7 @@ use crate::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
     schemars::JsonSchema,
 )]
 #[serde(rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agent_instance_listener.RowTableKind")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.RowTableKind")]
 pub enum RowTableKind {
     MessageQueueText,
     MessageQueueImage,
@@ -91,7 +91,7 @@ pub enum RowTableKind {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agent_instance_listener.RowContent")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.RowContent")]
 pub enum RowContent {
     #[schemars(title = "Text")]
     Text { text: String },
@@ -139,7 +139,7 @@ pub enum RowContent {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agent_instance_listener.ConversationRow")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.ConversationRow")]
 pub struct ConversationRow {
     pub agent_instance_hierarchy: String,
     /// The enclosing agent completion's id — same semantics as the
@@ -210,7 +210,7 @@ pub struct ConversationRow {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agent_instance_listener.AgentInstanceEvent")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.AgentInstanceEvent")]
 pub enum AgentInstanceEvent {
     /// One conversation row (snapshot replay or live). Replaces any
     /// prior row with the same identity.
@@ -228,7 +228,7 @@ pub enum AgentInstanceEvent {
     /// structurally independent of the conversation rows.
     #[schemars(title = "Agent")]
     Agent {
-        agent: crate::cli::websocket_agents_listener::AgentRecord,
+        agent: crate::cli::websocket_agents_instances_list_listener::AgentRecord,
     },
 }
 
@@ -238,7 +238,7 @@ pub enum AgentInstanceEvent {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agent_instance_listener.ConversationChoice")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.ConversationChoice")]
 pub struct ConversationChoice {
     /// The prefix-tree voting key this agent assigned to the choice.
     pub key: String,
@@ -254,7 +254,7 @@ pub struct ConversationChoice {
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[schemars(rename = "cli.websocket_agent_instance_listener.ConversationBlock")]
+#[schemars(rename = "cli.websocket_agents_instances_listener.ConversationBlock")]
 pub enum ConversationBlock {
     /// A `user`-role message from the request/task input.
     #[schemars(title = "RequestMessageUser")]

@@ -6,7 +6,7 @@
 //! emitting `{id, type}` parts for `agents logs read id` to resolve,
 //! each row's ACTUAL content is batch-fetched from its per-kind table
 //! and inlined into an SDK
-//! [`ConversationRow`](objectiveai_sdk::cli::websocket_agent_instance_listener::ConversationRow)
+//! [`ConversationRow`](objectiveai_sdk::cli::websocket_agents_instances_listener::ConversationRow)
 //! — the same frame shape the live tee ships, so the WS handler
 //! replays the snapshot and relays live frames through one type and
 //! clients converge the seam by row identity.
@@ -21,7 +21,7 @@
 use std::collections::HashMap;
 
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::websocket_agent_instance_listener::{
+use objectiveai_sdk::cli::websocket_agents_instances_listener::{
     ConversationRow, RowContent, RowTableKind,
 };
 use sqlx::Row as _;

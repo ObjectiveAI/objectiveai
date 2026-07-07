@@ -27,7 +27,7 @@ use interprocess::local_socket::GenericFilePath;
 use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::Name;
 use interprocess::local_socket::tokio::prelude::*;
-use objectiveai_sdk::cli::websocket_agent_instance_listener::{
+use objectiveai_sdk::cli::websocket_agents_instances_listener::{
     ConversationRow, RowContent, RowTableKind,
 };
 use tokio::io::AsyncWriteExt;

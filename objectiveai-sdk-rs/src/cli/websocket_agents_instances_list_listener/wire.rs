@@ -7,7 +7,7 @@
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_listener.AgentRecord")]
+#[schemars(rename = "cli.websocket_agents_instances_list_listener.AgentRecord")]
 pub struct AgentRecord {
     /// Full hierarchy of this agent instance.
     pub agent_instance_hierarchy: String,
@@ -43,7 +43,7 @@ pub struct AgentRecord {
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[schemars(rename = "cli.websocket_agents_listener.AgentEvent")]
+#[schemars(rename = "cli.websocket_agents_instances_list_listener.AgentEvent")]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum AgentEvent {
     /// The full set of agents, sent once immediately on connect.

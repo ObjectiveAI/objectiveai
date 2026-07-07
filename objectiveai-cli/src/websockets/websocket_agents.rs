@@ -34,7 +34,7 @@ use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
-use objectiveai_sdk::cli::websocket_agents_listener::{AgentEvent, AgentRecord};
+use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentRecord};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, broadcast};
 

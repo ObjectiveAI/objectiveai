@@ -1,6 +1,6 @@
 //! Materialized consumer of the cli daemon's `/agents/instances/list` endpoint.
 //!
-//! [`WebSocketAgentsListener`] is NOT a raw event stream — it connects
+//! [`WebSocketAgentsInstancesListListener`] is NOT a raw event stream — it connects
 //! once, then folds every incoming [`AgentEvent`] into an in-memory,
 //! self-updating view of the current agent set (keyed by
 //! `agent_instance_hierarchy`): a [`Snapshot`](AgentEvent::Snapshot)
@@ -11,11 +11,11 @@
 //! view mirrors the endpoint's "all agents" semantics.
 //!
 //! Three ways to observe it:
-//! - [`agents`](WebSocketAgentsListener::agents) — async snapshot of the
+//! - [`agents`](WebSocketAgentsInstancesListListener::agents) — async snapshot of the
 //!   current set (sorted by AIH).
-//! - an on-change **callback** ([`on_change`](WebSocketAgentsListenerBuilder::on_change)),
+//! - an on-change **callback** ([`on_change`](WebSocketAgentsInstancesListListenerBuilder::on_change)),
 //!   invoked with the full refreshed set on every applied change.
-//! - [`subscribe`](WebSocketAgentsListener::subscribe) — async, blocks
+//! - [`subscribe`](WebSocketAgentsInstancesListListener::subscribe) — async, blocks
 //!   until the next change.
 //!
 //! One listener = one connection: the internal pump runs until the daemon
@@ -57,18 +57,18 @@ struct Shared {
     /// `BTreeMap` so iteration (snapshots, the callback) is sorted by AIH.
     state: Mutex<BTreeMap<String, AgentRecord>>,
     /// A monotonically-bumped change counter. Each applied event bumps it,
-    /// waking every [`subscribe`](WebSocketAgentsListener::subscribe)
+    /// waking every [`subscribe`](WebSocketAgentsInstancesListListener::subscribe)
     /// waiter.
     changes: watch::Sender<u64>,
     /// Optional push callback, invoked with the full set after each change.
     on_change: Option<OnChange>,
 }
 
-/// Unconnected configuration — [`WebSocketAgentsListener::new`] +
-/// [`WebSocketAgentsListenerBuilder::signature`] +
-/// [`WebSocketAgentsListenerBuilder::on_change`] +
-/// [`WebSocketAgentsListenerBuilder::connect`].
-pub struct WebSocketAgentsListenerBuilder {
+/// Unconnected configuration — [`WebSocketAgentsInstancesListListener::new`] +
+/// [`WebSocketAgentsInstancesListListenerBuilder::signature`] +
+/// [`WebSocketAgentsInstancesListListenerBuilder::on_change`] +
+/// [`WebSocketAgentsInstancesListListenerBuilder::connect`].
+pub struct WebSocketAgentsInstancesListListenerBuilder {
     /// Full connect URL of the daemon's agents route, e.g.
     /// `ws://127.0.0.1:49152/agents/instances/list`.
     url: String,
@@ -79,7 +79,7 @@ pub struct WebSocketAgentsListenerBuilder {
     on_change: Option<OnChange>,
 }
 
-impl WebSocketAgentsListenerBuilder {
+impl WebSocketAgentsInstancesListListenerBuilder {
     /// Attach the daemon auth signature (the pre-derived
     /// `sha256=<hex(SHA256(DAEMON_SECRET))>`), sent verbatim in the
     /// [`AuthEnvelope`] preamble — the connection's first text frame.
@@ -92,7 +92,7 @@ impl WebSocketAgentsListenerBuilder {
     /// Register a callback invoked with the full current agent set (sorted
     /// by AIH) after every applied change. Runs on the pump task, so keep
     /// it cheap and non-blocking; for the full state on demand use
-    /// [`agents`](WebSocketAgentsListener::agents).
+    /// [`agents`](WebSocketAgentsInstancesListListener::agents).
     pub fn on_change(
         mut self,
         callback: impl Fn(&[AgentRecord]) + Send + Sync + 'static,
@@ -102,9 +102,9 @@ impl WebSocketAgentsListenerBuilder {
     }
 
     /// Upgrade, send the auth preamble, and start the pump. The returned
-    /// [`WebSocketAgentsListener`] immediately begins folding events into
+    /// [`WebSocketAgentsInstancesListListener`] immediately begins folding events into
     /// its state (the first is the endpoint's connect-time snapshot).
-    pub async fn connect(self) -> Result<WebSocketAgentsListener, Error> {
+    pub async fn connect(self) -> Result<WebSocketAgentsInstancesListListener, Error> {
         let upgrade = self
             .url
             .as_str()
@@ -130,23 +130,23 @@ impl WebSocketAgentsListenerBuilder {
             on_change: self.on_change,
         });
         let pump = tokio::spawn(pump(ws, shared.clone()));
-        Ok(WebSocketAgentsListener { shared, pump })
+        Ok(WebSocketAgentsInstancesListListener { shared, pump })
     }
 }
 
 /// The materialized `/agents/instances/list` view — see the module docs. Construct via
-/// [`WebSocketAgentsListener::new`]. Dropping it aborts the background
+/// [`WebSocketAgentsInstancesListListener::new`]. Dropping it aborts the background
 /// pump.
-pub struct WebSocketAgentsListener {
+pub struct WebSocketAgentsInstancesListListener {
     shared: Arc<Shared>,
     pump: tokio::task::JoinHandle<()>,
 }
 
-impl WebSocketAgentsListener {
+impl WebSocketAgentsInstancesListListener {
     /// Start building a listener for the daemon's `/agents/instances/list` URL (the
     /// daemon's published base address + `/agents/instances/list`).
-    pub fn new(url: impl Into<String>) -> WebSocketAgentsListenerBuilder {
-        WebSocketAgentsListenerBuilder {
+    pub fn new(url: impl Into<String>) -> WebSocketAgentsInstancesListListenerBuilder {
+        WebSocketAgentsInstancesListListenerBuilder {
             url: url.into(),
             signature: None,
             on_change: None,
@@ -162,7 +162,7 @@ impl WebSocketAgentsListener {
     /// waits for the FIRST change after it is made, so a change that lands
     /// between a preceding [`agents`](Self::agents) read and this call is
     /// not observed by it — pair with the read in a loop, or use the
-    /// [`on_change`](WebSocketAgentsListenerBuilder::on_change) callback for
+    /// [`on_change`](WebSocketAgentsInstancesListListenerBuilder::on_change) callback for
     /// guaranteed push.
     pub async fn subscribe(&self) {
         // A receiver from `subscribe` is caught up to the current version,
@@ -173,7 +173,7 @@ impl WebSocketAgentsListener {
     }
 }
 
-impl Drop for WebSocketAgentsListener {
+impl Drop for WebSocketAgentsInstancesListListener {
     fn drop(&mut self) {
         // Stop updating a view no one holds any more.
         self.pump.abort();

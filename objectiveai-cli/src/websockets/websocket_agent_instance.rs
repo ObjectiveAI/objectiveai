@@ -35,7 +35,7 @@ use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
-use objectiveai_sdk::cli::websocket_agent_instance_listener::{
+use objectiveai_sdk::cli::websocket_agents_instances_listener::{
     AgentInstanceEvent, ConversationRow, RowContent, RowTableKind,
 };
 use sqlx::Row as _;
@@ -316,7 +316,7 @@ async fn instance_pump(
     aih: String,
 ) {
     use axum::extract::ws::Message;
-    use objectiveai_sdk::cli::websocket_agents_listener::{AgentEvent, AgentRecord};
+    use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentRecord};
     let mut rx = hub.subscribe();
     let mut agents_rx = active.subscribe();
 
