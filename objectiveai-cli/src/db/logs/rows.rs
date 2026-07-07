@@ -126,7 +126,7 @@ fn vector_task_rows<'a>(
                 }
                 _ => Box::new(std::iter::empty()),
             };
-        let vote = vote_row(response_id, aih, &vc.votes, agent.agent_id.as_str())
+        let vote = vote_row(response_id, aih, &vc.votes, c.index)
             .map(WriterItem::Row);
 
         Box::new(
@@ -139,18 +139,19 @@ fn vector_task_rows<'a>(
     }))
 }
 
-/// This agent's vote for the task, matched by `agent_id`. `completion_index`
-/// is `#[serde(skip)]` (lost over the wire), so `agent_id` is the
-/// correlation key; count>1 duplicates resolve to the first match.
+/// This agent's vote for the task, matched by `completion_index` —
+/// which equals the vector wrapper's `index`. This is an exact match
+/// even when swarm `count > 1` gives several completions the same
+/// `agent_id`.
 fn vote_row<'a>(
     response_id: &'a str,
     agent_instance_hierarchy: &'a str,
     votes: &'a [Vote],
-    agent_id: &str,
+    completion_index: u64,
 ) -> Option<RowValue<'a>> {
     votes
         .iter()
-        .find(|v| v.agent_id == agent_id)
+        .find(|v| v.completion_index == Some(completion_index))
         .map(|v| RowValue::ResponseVectorVote {
             response_id,
             agent_instance_hierarchy,
