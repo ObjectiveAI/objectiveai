@@ -40,6 +40,36 @@
       "description": "Object type identifier (`\"vector.completion.chunk\"`).",
       "$ref": "vector.completions.response.streaming.Object"
     },
+    "request_choices": {
+      "description": "The response options (choices) voted on for this\nvector-completion task. Populated ONLY on the FIRST chunk of the\ntask; [`push`](Self::push) keeps the first value.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.completions.message.RichContent"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "request_messages": {
+      "description": "The messages dispatched for this vector-completion task.\nPopulated ONLY on the FIRST chunk of the task; [`push`](Self::push)\nkeeps the first value.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "$ref": "agent.completions.message.Message"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "scores": {
       "description": "Current weighted scores. Updated as new votes arrive.",
       "type": "array",

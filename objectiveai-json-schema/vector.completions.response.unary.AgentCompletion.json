@@ -12,7 +12,7 @@
       "type": "string"
     },
     "agent_inline": {
-      "description": "The resolved inline WF definition, carried from the streaming\nfirst chunk. See\n[`super::streaming::AgentCompletionChunk::agent_inline`].",
+      "description": "The resolved inline WF definition for this agent, carried from\nthe completion's first streaming chunk.",
       "anyOf": [
         {
           "$ref": "agent.InlineAgentWithFallbacks"
@@ -96,6 +96,13 @@
     "object": {
       "description": "The object type (always \"agent.completion\").",
       "$ref": "agent.completions.response.unary.Object"
+    },
+    "request_choice_keys": {
+      "description": "This agent's prefix-tree voting key for each response choice, in\nthe SAME order as the request's `responses`, carried from the\ncompletion's first streaming chunk.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "upstream": {
       "description": "Upstream provider",

@@ -11,18 +11,6 @@
       "description": "Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`].",
       "type": "string"
     },
-    "agent_inline": {
-      "description": "The resolved inline WF definition, carried from the streaming\nfirst chunk. See\n[`super::streaming::AgentCompletionChunk::agent_inline`].",
-      "anyOf": [
-        {
-          "$ref": "agent.InlineAgentWithFallbacks"
-        },
-        {
-          "type": "null"
-        }
-      ],
-      "omitempty": true
-    },
     "agent_instance_hierarchy": {
       "description": "Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].",
       "type": "string"
