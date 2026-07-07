@@ -3,5 +3,5 @@
 
 
 def test_agent_event_deactivated():
-    from objectiveai_sdk.cli.websocket_agents_listener import AgentEventDeactivated
+    from objectiveai_sdk.cli.websocket_agents_instances_list_listener import AgentEventDeactivated
     schema = AgentEventDeactivated.model_json_schema()

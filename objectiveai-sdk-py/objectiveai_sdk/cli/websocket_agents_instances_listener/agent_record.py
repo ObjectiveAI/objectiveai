@@ -6,11 +6,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class AgentRecord(BaseModel):
-    """One agent's record on the `/agents/instances/list` endpoint: identity, spawn /
-last-active timestamps, and whether its per-instance lock is currently
-held. Mirrors `agents instances list`'s `ResponseItem` plus the live
-`active` flag."""
-    model_config = ConfigDict(title='cli.websocket_agents_listener.AgentRecord')
+    """One agent's record: identity, spawn / last-active timestamps, tag
+bindings, counters, and whether its per-instance lock is currently
+held. Mirrors `agents instances list`'s `ResponseItem` plus the
+live `active` flag. Carried by [`AgentInstanceEvent::Agent`] — the
+`/agents/instances/list` stream itself is a flat list of AIH
+strings and carries no records."""
+    model_config = ConfigDict(title='cli.websocket_agents_instances_listener.AgentRecord')
 
     active: bool = Field(..., description="Whether the agent's per-instance lock is currently held — i.e. a\nlive process owns this agent right now.")
     agent_instance_hierarchy: str = Field(..., description='Full hierarchy of this agent instance.')

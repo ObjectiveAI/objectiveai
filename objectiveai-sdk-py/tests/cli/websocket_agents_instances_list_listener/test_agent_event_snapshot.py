@@ -3,5 +3,5 @@
 
 
 def test_agent_event_snapshot():
-    from objectiveai_sdk.cli.websocket_agents_listener import AgentEventSnapshot
+    from objectiveai_sdk.cli.websocket_agents_instances_list_listener import AgentEventSnapshot
     schema = AgentEventSnapshot.model_json_schema()

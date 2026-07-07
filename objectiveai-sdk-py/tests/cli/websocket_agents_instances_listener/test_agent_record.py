@@ -3,5 +3,5 @@
 
 
 def test_agent_record():
-    from objectiveai_sdk.cli.websocket_agents_listener import AgentRecord
+    from objectiveai_sdk.cli.websocket_agents_instances_listener import AgentRecord
     schema = AgentRecord.model_json_schema()
