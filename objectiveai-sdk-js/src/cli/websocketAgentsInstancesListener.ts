@@ -30,15 +30,15 @@
  * {@link WebSocketListener}.
  */
 
-import type { CliWebsocketAgentsInstancesListListenerAgentRecord } from "./websocket_agents_instances_list_listener";
 import type {
   CliWebsocketAgentsInstancesListenerAgentInstanceEvent,
+  CliWebsocketAgentsInstancesListenerAgentRecord,
   CliWebsocketAgentsInstancesListenerConversationBlock,
   CliWebsocketAgentsInstancesListenerConversationChoice,
   CliWebsocketAgentsInstancesListenerConversationRow,
 } from "./websocket_agents_instances_listener";
 
-type AgentRecord = CliWebsocketAgentsInstancesListListenerAgentRecord;
+type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
 type AgentInstanceEvent = CliWebsocketAgentsInstancesListenerAgentInstanceEvent;
 type ConversationBlock = CliWebsocketAgentsInstancesListenerConversationBlock;
 type ConversationChoice = CliWebsocketAgentsInstancesListenerConversationChoice;

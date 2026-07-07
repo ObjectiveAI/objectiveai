@@ -53,7 +53,10 @@ pub struct AgentRecord {
 /// kinds (request blobs excluded — they never appear on this stream),
 /// plus the three HEAD rows (`tool_response`, `request_message_tool`,
 /// `request_vector_choice`) that emit no `objectiveai.messages` event but
-/// carry block metadata (`tool_call_id` / the choice voting `key`).
+/// carry block metadata: the two tool heads carry the `tool_call_id`
+/// their block answers, and `request_vector_choice` carries this
+/// agent's inline voting `key` for one choice. (No per-variant docs —
+/// they would break the plain string-enum schema shape.)
 #[derive(
     Debug,
     Clone,
@@ -112,11 +115,8 @@ pub enum RowTableKind {
     RequestVectorChoiceContentVideo,
     RequestVectorChoiceContentFile,
     ResponseVectorVote,
-    /// HEAD row: the `tool_call_id` a tool-response block answers.
     ToolResponse,
-    /// HEAD row: the `tool_call_id` a request `tool` message answers.
     RequestMessageTool,
-    /// HEAD row: this agent's inline voting `key` for one choice.
     RequestVectorChoice,
 }
 
