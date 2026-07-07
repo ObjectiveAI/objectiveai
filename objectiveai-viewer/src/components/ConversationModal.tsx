@@ -490,17 +490,10 @@ function flattenBlocks(
         }
         break;
       }
-      case "agent_completion_request":
-        pushRequestBlocks(
-          blocks,
-          base,
-          requestBodies.get(item.id) ?? [],
-          item.sender_agent_instance_hierarchy,
-          item.delivered_at,
-        );
-        break;
-      // tool_response rows are consumed above; vector / function
-      // requests aren't part of an agent's message flow.
+      // Request blobs no longer appear on `agents logs list` — the
+      // request's messages arrive as request_message_* blocks instead.
+      // (This popup is degraded pending its rebuild on the per-agent
+      // conversation stream; tool_response rows are consumed above.)
     }
   });
   return blocks;
@@ -627,9 +620,11 @@ function useRequestBodies(
       setBodies(null);
       return;
     }
-    const ids = logs
-      .filter((l) => l.type === "agent_completion_request")
-      .map((l) => l.id);
+    // Request blobs no longer appear on `agents logs list`, so there
+    // are no request bodies to fetch — the map resolves empty. Kept
+    // (rather than deleted) so the popup's shape survives until its
+    // rebuild on the per-agent conversation stream.
+    const ids: number[] = [];
     let cancelled = false;
     setBodies(null);
     void (async () => {
