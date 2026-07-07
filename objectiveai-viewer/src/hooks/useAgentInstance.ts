@@ -19,6 +19,7 @@ import {
   type CliWebsocketAgentsInstancesListenerConversationRow,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
+import { reportError } from "../lib/errors";
 
 export type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
 export type ConversationBlock =
@@ -89,8 +90,9 @@ export function useAgentInstance(
           while (!listener.closed) {
             await listener.subscribe();
           }
-        } catch {
-          // Connect refused / handshake failure — fall through to retry.
+        } catch (error) {
+          // Connect refused / handshake failure — surface it, then retry.
+          reportError(`agent ${agentInstanceHierarchy}`, error);
         }
         current = null;
         if (cancelled) return;

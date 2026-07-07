@@ -17,6 +17,7 @@ import {
   type CliWebsocketAgentsInstancesListListenerAgentStatus,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
+import { reportError } from "../lib/errors";
 
 export type AgentStatus = CliWebsocketAgentsInstancesListListenerAgentStatus;
 
@@ -52,8 +53,9 @@ export function useAgentsInstancesList(
           while (!listener.closed) {
             await listener.subscribe();
           }
-        } catch {
-          // Connect refused / handshake failure — fall through to retry.
+        } catch (error) {
+          // Connect refused / handshake failure — surface it, then retry.
+          reportError("agents list", error);
         }
         current = null;
         if (cancelled) return;

@@ -8,6 +8,7 @@ import {
 } from "./hooks/useAgentsInstancesList";
 import { useEntries } from "./hooks/useEntries";
 import { StatusBar } from "./components/layout/StatusBar";
+import { ErrorToast } from "./components/ErrorToast";
 import { HierarchyTree } from "./components/HierarchyTree";
 import { TabBar, type Tab } from "./TabBar";
 import { PluginPane } from "./PluginPane";
@@ -128,6 +129,7 @@ function App() {
           <ObjectiveAIView connection={connection} agents={agents} onStatusChange={setStatus} />
         </div>
         <StatusBar entries={status.entries} activeAgents={activeAgents} />
+      <ErrorToast />
       </div>
     );
   }
@@ -191,6 +193,7 @@ function App() {
       </div>
       {/* Spans every tab — plugin panes included. */}
       <StatusBar entries={status.entries} activeAgents={activeAgents} />
+      <ErrorToast />
     </div>
   );
 }
