@@ -739,6 +739,7 @@ where
                     completions: vec![
                         objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                             index: completion_index,
+                            request_messages: None,
                             inner,
                         },
                     ],
@@ -782,11 +783,22 @@ where
                 }
             };
 
+            // The request messages this vector client dispatched to
+            // the agent ride ONLY the completion's first outbound
+            // chunk — `take()`n on the first yield, `None` after.
+            let mut sent_messages_pending = Some(agent_params.messages.clone());
             while let Some(item) = stream.next().await {
                 match item {
                     agent::completions::StreamItem::Chunk(chunk) => {
-                        // Yield immediately
-                        yield wrap_agent_chunk(indexer.get(flat_swarm_index), chunk.clone());
+                        // Yield immediately, stamping the sent messages
+                        // onto the first chunk only.
+                        let mut wrapped = wrap_agent_chunk(indexer.get(flat_swarm_index), chunk.clone());
+                        if let Some(request_messages) = sent_messages_pending.take() {
+                            if let Some(first) = wrapped.completions.first_mut() {
+                                first.request_messages = Some(request_messages);
+                            }
+                        }
+                        yield wrapped;
                         // Also aggregate for vote extraction
                         match &mut aggregate {
                             Some(agg) => agg.push(&chunk),
@@ -1137,6 +1149,7 @@ where
             completions: vec![
                 objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                     index: completion_index,
+                    request_messages: None,
                     inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                         error: Some(objectiveai_sdk::error::ResponseError::from(&error)),
                         upstream,
