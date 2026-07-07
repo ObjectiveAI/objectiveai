@@ -30,5 +30,11 @@ func (v *VectorCompletionsResponseStreamingAgentCompletionChunk) Push(other *Vec
 		v.AgentInline = other.AgentInline
 	}
 
+	// request_choice_keys: first chunk wins (ride only the
+	// completion's first chunk; never overwritten)
+	if v.RequestChoiceKeys == nil {
+		v.RequestChoiceKeys = other.RequestChoiceKeys
+	}
+
 	// id, created, object, upstream, index are immutable
 }
