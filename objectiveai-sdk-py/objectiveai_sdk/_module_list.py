@@ -970,6 +970,8 @@ MODULES = [
     'objectiveai_sdk.cli.plugins.command',
     'objectiveai_sdk.cli.plugins.command_type',
     'objectiveai_sdk.cli.plugins.output',
+    'objectiveai_sdk.cli.websocket_agents_listener.agent_event',
+    'objectiveai_sdk.cli.websocket_agents_listener.agent_record',
     'objectiveai_sdk.cli.websocket_listener.listener_end',
     'objectiveai_sdk.error.error_create_params',
     'objectiveai_sdk.error.error_response',
