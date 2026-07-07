@@ -223,6 +223,8 @@ pub(crate) struct DaemonWsState {
     pub(crate) tx: broadcast::Sender<String>,
     pub(crate) ctx: crate::context::Context,
     pub(crate) secret: Option<std::sync::Arc<String>>,
+    /// The live agent-status registry backing the `/agents` route.
+    pub(crate) active: crate::websockets::websocket_agents::ActiveAgents,
 }
 
 /// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
@@ -236,6 +238,10 @@ pub(crate) struct DaemonWsState {
 ///   in-process against `ctx`, and its items stream back on that socket
 ///   only — never onto the broadcast. (The run's tee still lands on
 ///   `/listen` like any other CLI activity, via the producer socket.)
+/// - **`/agents`** — the live agent-status stream
+///   ([`crate::websockets::websocket_agents`]): a connect-time snapshot of
+///   every agent, then `Activated`/`Deactivated` deltas driven by
+///   AIH-lockfile release. Backed by `state.active`.
 ///
 /// EVERY connection on both routes starts with the first-message auth
 /// preamble ([`crate::websockets::daemon_auth::authenticate`]): the
@@ -248,6 +254,7 @@ pub fn serve_ws(
     tx: broadcast::Sender<String>,
     secret: Option<std::sync::Arc<String>>,
     ctx: crate::context::Context,
+    active: crate::websockets::websocket_agents::ActiveAgents,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::any(listen_handler))
@@ -255,7 +262,16 @@ pub fn serve_ws(
             "/execute",
             axum::routing::any(crate::websockets::daemon_execute::execute_handler),
         )
-        .with_state(DaemonWsState { tx, ctx, secret });
+        .route(
+            "/agents",
+            axum::routing::any(crate::websockets::websocket_agents::agents_handler),
+        )
+        .with_state(DaemonWsState {
+            tx,
+            ctx,
+            secret,
+            active,
+        });
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;
     })

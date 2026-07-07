@@ -161,6 +161,18 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
                 return Err(Error::Spawn("daemon socket bind".into(), e));
             }
         };
+    // The dedicated agents-status producer socket, bound under the same
+    // init gate as the broadcast socket (a held daemon lock ⇒ it is up).
+    let agents_socket_listener =
+        match crate::websockets::websocket_agents::bind_agents_socket_listener(&state_dir) {
+            Ok(listener) => listener,
+            Err(e) => {
+                drop(ws_listener);
+                drop(socket_listener);
+                let _ = init.release();
+                return Err(Error::Spawn("daemon agents socket bind".into(), e));
+            }
+        };
 
     // Publish the client-connect `ws://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
@@ -178,6 +190,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         None => {
             drop(ws_listener);
             drop(socket_listener);
+            drop(agents_socket_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
         }
@@ -195,8 +208,36 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // first-message auth preamble must carry a valid signature; when
     // unset, the server is open (the preamble is consumed regardless).
     let secret = ctx.config.daemon_secret.clone().map(std::sync::Arc::new);
-    crate::websockets::daemon_stream::serve_ws(ws_listener, tx.clone(), secret, ctx.clone());
+    // The live agent-status hub: its own broadcast of `AgentEvent` frames,
+    // fed by AIH-lock announcements on `agents.sock` and watched for
+    // release. Held in scope for the daemon's life (its sender clone keeps
+    // the channel open).
+    let (agents_tx, _agents_rx) = tokio::sync::broadcast::channel::<String>(1024);
+    let active = crate::websockets::websocket_agents::ActiveAgents::new(
+        state_dir.clone(),
+        agents_tx,
+        ctx.clone(),
+    );
+    crate::websockets::daemon_stream::serve_ws(
+        ws_listener,
+        tx.clone(),
+        secret,
+        ctx.clone(),
+        active.clone(),
+    );
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
+    crate::websockets::websocket_agents::serve_agents_socket_listener(
+        agents_socket_listener,
+        active.clone(),
+    );
+    // Best-effort: seed the registry with agents already holding a lock
+    // when the daemon started (off the boot path — no DB round-trip block).
+    tokio::spawn({
+        let active = active.clone();
+        async move {
+            active.reconcile_startup().await;
+        }
+    });
 
     // Launch every daemon plugin under the SHARED plugin executor, run
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed

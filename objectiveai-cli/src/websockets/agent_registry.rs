@@ -61,6 +61,7 @@ impl AgentInstanceRegistry {
     /// with the rest.
     pub fn preseed(&mut self, hier: String, claim: AgentLock) {
         self.attempted.insert(hier.clone());
+        self.announce_active(&hier);
         self.open.insert(hier, claim);
     }
 
@@ -86,7 +87,25 @@ impl AgentInstanceRegistry {
             crate::command::agents::locks::try_acquire(&self.agent_locks, &dir, &key).await
         {
             self.open.insert(hier.to_string(), claim);
+            self.announce_active(hier);
         }
+    }
+
+    /// Best-effort, detached: tell the resident daemon this process just
+    /// acquired `hier`'s instance lock, so its `/agents` endpoint flips the
+    /// agent active and starts watching the lock for release. Fire-and-
+    /// forget — never blocks the acquire path, and a dead/absent daemon is
+    /// a silent no-op. The daemon dedupes by AIH, so a re-announce (e.g. a
+    /// child that inherited the lock) is harmless.
+    fn announce_active(&self, hier: &str) {
+        if tokio::runtime::Handle::try_current().is_err() {
+            return;
+        }
+        let state_dir = self.state_dir.clone();
+        let hier = hier.to_string();
+        tokio::spawn(async move {
+            super::websocket_agents::announce_active(&state_dir, &hier).await;
+        });
     }
 
     /// Release `hier`'s claim immediately — another process can then
