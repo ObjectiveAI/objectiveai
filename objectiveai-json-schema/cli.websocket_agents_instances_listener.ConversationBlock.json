@@ -1,0 +1,249 @@
+{
+  "title": "cli.websocket_agents_instances_listener.ConversationBlock",
+  "description": "One materialized conversation block — the mirror of\n`agents logs list`'s `ResponseItem` with content-inlined parts.\nProduced by the listener's incremental coalescer; blocks appear in\nconversation order (snapshot `\"index\"` order, then live write\norder).",
+  "anyOf": [
+    {
+      "title": "RequestMessageUser",
+      "description": "A `user`-role message from the request/task input.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_user"
+          ]
+        }
+      }
+    },
+    {
+      "title": "RequestMessageAssistant",
+      "description": "An `assistant`-role message from the request/task input.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_assistant"
+          ]
+        }
+      }
+    },
+    {
+      "title": "RequestMessageTool",
+      "description": "A `tool`-role message from the request/task input.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this request message answers.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "request_message_tool"
+          ]
+        }
+      }
+    },
+    {
+      "title": "VectorRequestChoices",
+      "description": "The response choices a vector-completion task voted over.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationChoice"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_request_choices"
+          ]
+        }
+      }
+    },
+    {
+      "title": "VectorResponseVote",
+      "description": "The closer for a vector task: this agent's own vote.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_response_vote"
+          ]
+        },
+        "vote": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38
+          }
+        }
+      }
+    },
+    {
+      "title": "ClientNotification",
+      "description": "Consumed message-queue notifications from one parent queue row.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "key": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "queued_at": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "sender_agent_instance_hierarchy": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "client_notification"
+          ]
+        }
+      }
+    },
+    {
+      "title": "AssistantResponse",
+      "description": "The agent's own assistant output.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "assistant_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "ToolResponse",
+      "description": "One tool call's response.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this response answers.",
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_response"
+          ]
+        }
+      }
+    }
+  ]
+}

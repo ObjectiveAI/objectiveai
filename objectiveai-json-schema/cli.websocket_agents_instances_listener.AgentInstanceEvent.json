@@ -1,0 +1,51 @@
+{
+  "title": "cli.websocket_agents_instances_listener.AgentInstanceEvent",
+  "description": "One event on the `/agents/instances/{*aih}` stream. Two structurally\nindependent concerns ride it:\n\n- **The conversation**: the DB snapshot replays as `Row` events (in\n  `objectiveai.messages.\"index\"` order), one `Live` marks the\n  snapshot complete, then live `Row` events follow as the\n  conversation occurs.\n- **The agent's status**: `Agent` carries this agent's list record\n  (active flag + tags + counters), once at connect and on every\n  change.\n\nExtensibility contract: future variants WILL be added (e.g.\nclient-message delivery notifications) — consumers must skip events\nthey cannot parse.",
+  "anyOf": [
+    {
+      "title": "Row",
+      "description": "One conversation row (snapshot replay or live). Replaces any\nprior row with the same identity.",
+      "type": "object",
+      "properties": {
+        "row": {
+          "$ref": "cli.websocket_agents_instances_listener.ConversationRow"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "row"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Live",
+      "description": "The snapshot is complete; every following `Row` is live.",
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "live"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Agent",
+      "description": "This agent's list record — the same shape\n`/agents/instances/list` tracks (lock-driven `active` flag,\nbound tags, counters). A FULL-VALUE upsert: sent once on\nconnect with the current state, then re-sent whenever it\nchanges (activation; deactivation — on stream end OR holder\nkill; a tag apply/move/removal). Replaces any prior value;\nstructurally independent of the conversation rows.",
+      "type": "object",
+      "properties": {
+        "agent": {
+          "$ref": "cli.websocket_agents_instances_listener.AgentRecord"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "agent"
+          ]
+        }
+      }
+    }
+  ]
+}

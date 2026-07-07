@@ -1,6 +1,6 @@
 {
-  "title": "cli.websocket_agents_listener.AgentRecord",
-  "description": "One agent's record on the `/agents/instances/list` endpoint: identity, spawn /\nlast-active timestamps, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the live\n`active` flag.",
+  "title": "cli.websocket_agents_instances_listener.AgentRecord",
+  "description": "One agent's record: identity, spawn / last-active timestamps, tag\nbindings, counters, and whether its per-instance lock is currently\nheld. Mirrors `agents instances list`'s `ResponseItem` plus the\nlive `active` flag. Carried by [`AgentInstanceEvent::Agent`] — the\n`/agents/instances/list` stream itself is a flat list of AIH\nstrings and carries no records.",
   "type": "object",
   "properties": {
     "active": {
