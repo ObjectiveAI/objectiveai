@@ -4,7 +4,7 @@ import { tauriInvoke } from "../lib/tauri";
 import type { DaemonConnection } from "../lib/daemon";
 import { ConversationModal } from "./ConversationModal";
 import { LoadingDots } from "./LoadingDots";
-import { Markdown } from "./Markdown";
+import { blockScope, describeRow } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
 import {
   useAgentInstance,
@@ -154,6 +154,7 @@ export function HierarchyTree({
     </div>
     {openHierarchy !== null && (
       <ConversationModal
+        connection={connection}
         hierarchy={openHierarchy}
         onClose={() => setOpenHierarchy(null)}
       />
@@ -399,108 +400,36 @@ function AgentNode({
 }
 
 /** What the latest conversation item IS (the indicator at the top of
- * the message box) plus how to render its body. */
+ * the message box) plus how to render its body — the block's most
+ * recent part, via the shared per-kind renderers. */
 function describeLastItem(block: ConversationBlock): {
   label: string;
   body: React.ReactNode;
 } {
-  // The block's most recent part, where the block carries parts.
   const lastPart = (rows: ConversationRow[]): ConversationRow | null =>
     rows.length > 0 ? rows[rows.length - 1] : null;
-
+  const scope = blockScope(block);
   switch (block.type) {
     case "vector_response_vote":
-      return {
-        label: "vote",
-        body: <JsonBody value={block.vote} />,
-      };
+      // The vote is the block's own payload, not a part.
+      return { label: scope, body: <VoteBody vote={block.vote} /> };
     case "vector_request_choices": {
       const lastChoice =
         block.choices.length > 0
           ? block.choices[block.choices.length - 1]
           : null;
-      const row = lastChoice === null ? null : lastPart(lastChoice.parts);
-      return describeRow("choices", row);
+      return describeRow(
+        scope,
+        lastChoice === null ? null : lastPart(lastChoice.parts),
+      );
     }
-    case "assistant_response":
-      return describeRow("assistant", lastPart(block.parts));
-    case "tool_response":
-      return describeRow("tool response", lastPart(block.parts));
-    case "request_message_user":
-      return describeRow("user", lastPart(block.parts));
-    case "request_message_assistant":
-      return describeRow("assistant · request", lastPart(block.parts));
-    case "request_message_tool":
-      return describeRow("tool response · request", lastPart(block.parts));
-    case "client_notification":
-      return describeRow("notification", lastPart(block.parts));
+    default:
+      return describeRow(scope, lastPart(block.parts));
   }
 }
 
-/** Render one row per content kind, labeled `{scope} · {kind}` — tool
- * calls surface the tool NAME in the label and their arguments as
- * formatted JSON. */
-function describeRow(
-  scope: string,
-  row: ConversationRow | null,
-): { label: string; body: React.ReactNode } {
-  if (row === null) {
-    return { label: scope, body: null };
-  }
-  const content = row.content;
-  switch (content.type) {
-    case "text":
-      return { label: `${scope} · text`, body: <Markdown>{content.text}</Markdown> };
-    case "reasoning":
-      return {
-        label: `${scope} · reasoning`,
-        body: <Markdown>{content.text}</Markdown>,
-      };
-    case "refusal":
-      return {
-        label: `${scope} · refusal`,
-        body: <Markdown>{content.text}</Markdown>,
-      };
-    case "tool_call":
-      return {
-        label: `tool call · ${content.function_name}`,
-        body: <JsonBody value={content.arguments} />,
-      };
-    case "image":
-      return { label: `${scope} · image`, body: <UrlBody url={content.url} /> };
-    case "audio":
-      return {
-        label: `${scope} · audio`,
-        body: <span>[audio · {content.format}]</span>,
-      };
-    case "video":
-      return { label: `${scope} · video`, body: <UrlBody url={content.url} /> };
-    case "file": {
-      const label =
-        content.filename ?? content.file_url ?? content.file_id ?? "[file]";
-      return { label: `${scope} · file`, body: <span>{label}</span> };
-    }
-    case "vote":
-      return { label: `${scope} · vote`, body: <JsonBody value={content.vote} /> };
-    case "head":
-      // Heads never materialize as parts — defensive only.
-      return { label: scope, body: null };
-  }
-}
-
-/** Pretty-printed JSON body: a string that parses as JSON renders
- * re-indented; anything else renders raw. */
-function JsonBody({ value }: { value: unknown }) {
-  let text: string;
-  if (typeof value === "string") {
-    try {
-      text = JSON.stringify(JSON.parse(value), null, 2);
-    } catch {
-      text = value;
-    }
-  } else {
-    text = JSON.stringify(value, null, 2);
-  }
+/** The vote array, pretty-printed. */
+function VoteBody({ vote }: { vote: number[] }) {
   return (
     <pre
       className={cn(
@@ -510,13 +439,9 @@ function JsonBody({ value }: { value: unknown }) {
         "leading-snug",
       )}
     >
-      {text}
+      {JSON.stringify(vote, null, 2)}
     </pre>
   );
-}
-
-function UrlBody({ url }: { url: string }) {
-  return <span className={cn("break-all")}>{url}</span>;
 }
 
 /** The agent's most recent conversation item, in its own box below

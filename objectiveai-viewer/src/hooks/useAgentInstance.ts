@@ -30,6 +30,8 @@ export interface AgentInstanceView {
   /** The agent's status record — `null` until the first status frame
    * lands (the daemon ships one right after auth). */
   agent: AgentRecord | null;
+  /** The whole conversation, blocks in conversation order. */
+  blocks: ConversationBlock[];
   /** The LAST conversation block, whatever it is — `null` while the
    * conversation is empty. */
   lastBlock: ConversationBlock | null;
@@ -43,6 +45,7 @@ export function useAgentInstance(
 ): AgentInstanceView {
   const [view, setView] = useState<AgentInstanceView>({
     agent: null,
+    blocks: [],
     lastBlock: null,
     live: false,
   });
@@ -64,6 +67,7 @@ export function useAgentInstance(
                   blocks.length > 0 ? blocks[blocks.length - 1] : null;
                 setView((previous) => ({
                   ...previous,
+                  blocks,
                   lastBlock,
                   live: current?.live ?? previous.live,
                 }));
