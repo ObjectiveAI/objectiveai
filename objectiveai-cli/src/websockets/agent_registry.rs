@@ -92,7 +92,7 @@ impl AgentInstanceRegistry {
     }
 
     /// Best-effort, detached: tell the resident daemon this process just
-    /// acquired `hier`'s instance lock, so its `/agents` endpoint flips the
+    /// acquired `hier`'s instance lock, so its `/agents/instances/list` endpoint flips the
     /// agent active and starts watching the lock for release. Fire-and-
     /// forget — never blocks the acquire path, and a dead/absent daemon is
     /// a silent no-op. The daemon dedupes by AIH, so a re-announce (e.g. a

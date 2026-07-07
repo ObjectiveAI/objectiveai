@@ -27,7 +27,7 @@
 //! - [`daemon_execute`] — the daemon's `/execute` WebSocket route:
 //!   connection-per-command in-process execution for remote consumers
 //!   (the SDK's `WebSocketExecutor`, notably the viewer).
-//! - [`websocket_agents`] — the daemon's `/agents` WebSocket route + its
+//! - [`websocket_agents`] — the daemon's `/agents/instances/list` WebSocket route + its
 //!   dedicated `agents.sock` producer socket: a live all-agents
 //!   active/inactive stream, driven by AIH-lockfile release.
 

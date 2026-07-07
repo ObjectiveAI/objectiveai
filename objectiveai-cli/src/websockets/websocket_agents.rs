@@ -1,4 +1,4 @@
-//! The resident daemon's live agent-status hub — the `/agents` endpoint.
+//! The resident daemon's live agent-status hub — the `/agents/instances/list` endpoint.
 //!
 //! Robust active/inactive tracking, driven by the per-agent lockfile
 //! (`objectiveai_sdk::lockfile`) rather than by stream lifecycles:
@@ -13,7 +13,7 @@
 //!   lock. The kernel releases a `flock`/`LockFileEx` even when its holder
 //!   is killed, so a spawn killed mid-stream flips to inactive exactly —
 //!   no leak, no reliance on a clean stream end.
-//! - **Consumer side** — the [`axum`] WebSocket `/agents` route
+//! - **Consumer side** — the [`axum`] WebSocket `/agents/instances/list` route
 //!   (registered by [`crate::websockets::daemon_stream::serve_ws`]). On
 //!   connect a client gets one [`AgentEvent::Snapshot`] of ALL agents
 //!   (from the DB), then streams [`AgentEvent::Activated`] /
@@ -98,7 +98,7 @@ pub(crate) struct ActiveAgents {
     /// under the lock, serializing correctly against concurrent
     /// [`activate`](Self::activate) (no lost activation on fast reacquire).
     active: Arc<Mutex<HashSet<String>>>,
-    /// Pre-serialized [`AgentEvent`] JSON frames, fanned to every `/agents`
+    /// Pre-serialized [`AgentEvent`] JSON frames, fanned to every `/agents/instances/list`
     /// subscriber.
     events: broadcast::Sender<String>,
     state_dir: PathBuf,
@@ -126,7 +126,7 @@ impl ActiveAgents {
         self.events.subscribe()
     }
 
-    /// Serialize + fan one event out. A send error means no `/agents`
+    /// Serialize + fan one event out. A send error means no `/agents/instances/list`
     /// clients are connected — drop the frame.
     fn broadcast(&self, event: &AgentEvent) {
         if let Ok(frame) = serde_json::to_string(event) {
@@ -392,7 +392,7 @@ pub async fn announce_active(state_dir: &Path, aih: &str) {
     let _ = write_half.shutdown().await;
 }
 
-/// `/agents`: upgrade to WebSocket, consume the auth preamble, send the
+/// `/agents/instances/list`: upgrade to WebSocket, consume the auth preamble, send the
 /// snapshot, then stream deltas.
 pub(crate) async fn agents_handler(
     axum::extract::State(state): axum::extract::State<

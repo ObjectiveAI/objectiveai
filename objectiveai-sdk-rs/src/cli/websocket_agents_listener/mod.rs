@@ -1,4 +1,4 @@
-//! Consumer + wire types for the cli daemon's `/agents` endpoint — a
+//! Consumer + wire types for the cli daemon's `/agents/instances/list` endpoint — a
 //! live stream of every agent's active/inactive status.
 //!
 //! On connect the daemon sends one [`AgentEvent::Snapshot`] with every

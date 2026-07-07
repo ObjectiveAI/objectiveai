@@ -223,7 +223,7 @@ pub(crate) struct DaemonWsState {
     pub(crate) tx: broadcast::Sender<String>,
     pub(crate) ctx: crate::context::Context,
     pub(crate) secret: Option<std::sync::Arc<String>>,
-    /// The live agent-status registry backing the `/agents` route.
+    /// The live agent-status registry backing the `/agents/instances/list` route.
     pub(crate) active: crate::websockets::websocket_agents::ActiveAgents,
 }
 
@@ -238,7 +238,7 @@ pub(crate) struct DaemonWsState {
 ///   in-process against `ctx`, and its items stream back on that socket
 ///   only — never onto the broadcast. (The run's tee still lands on
 ///   `/listen` like any other CLI activity, via the producer socket.)
-/// - **`/agents`** — the live agent-status stream
+/// - **`/agents/instances/list`** — the live agent-status stream
 ///   ([`crate::websockets::websocket_agents`]): a connect-time snapshot of
 ///   every agent, then `Activated`/`Deactivated` deltas driven by
 ///   AIH-lockfile release. Backed by `state.active`.
@@ -263,7 +263,7 @@ pub fn serve_ws(
             axum::routing::any(crate::websockets::daemon_execute::execute_handler),
         )
         .route(
-            "/agents",
+            "/agents/instances/list",
             axum::routing::any(crate::websockets::websocket_agents::agents_handler),
         )
         .with_state(DaemonWsState {

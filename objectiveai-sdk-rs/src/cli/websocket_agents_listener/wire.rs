@@ -1,6 +1,6 @@
-//! Wire types for the daemon `/agents` endpoint.
+//! Wire types for the daemon `/agents/instances/list` endpoint.
 
-/// One agent's record on the `/agents` endpoint: identity, spawn /
+/// One agent's record on the `/agents/instances/list` endpoint: identity, spawn /
 /// last-active timestamps, and whether its per-instance lock is currently
 /// held. Mirrors `agents instances list`'s `ResponseItem` plus the live
 /// `active` flag.
@@ -34,7 +34,7 @@ pub struct AgentRecord {
     pub last_active_at: Option<String>,
 }
 
-/// One event on the `/agents` stream. The first is always a
+/// One event on the `/agents/instances/list` stream. The first is always a
 /// [`Snapshot`](AgentEvent::Snapshot); every later one is an
 /// [`Activated`](AgentEvent::Activated) or
 /// [`Deactivated`](AgentEvent::Deactivated) delta. Consumers key by

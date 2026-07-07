@@ -1,4 +1,4 @@
-//! Materialized consumer of the cli daemon's `/agents` endpoint.
+//! Materialized consumer of the cli daemon's `/agents/instances/list` endpoint.
 //!
 //! [`WebSocketAgentsListener`] is NOT a raw event stream — it connects
 //! once, then folds every incoming [`AgentEvent`] into an in-memory,
@@ -70,7 +70,7 @@ struct Shared {
 /// [`WebSocketAgentsListenerBuilder::connect`].
 pub struct WebSocketAgentsListenerBuilder {
     /// Full connect URL of the daemon's agents route, e.g.
-    /// `ws://127.0.0.1:49152/agents`.
+    /// `ws://127.0.0.1:49152/agents/instances/list`.
     url: String,
     /// Optional auth signature, sent in the [`AuthEnvelope`] preamble right
     /// after connecting.
@@ -134,7 +134,7 @@ impl WebSocketAgentsListenerBuilder {
     }
 }
 
-/// The materialized `/agents` view — see the module docs. Construct via
+/// The materialized `/agents/instances/list` view — see the module docs. Construct via
 /// [`WebSocketAgentsListener::new`]. Dropping it aborts the background
 /// pump.
 pub struct WebSocketAgentsListener {
@@ -143,8 +143,8 @@ pub struct WebSocketAgentsListener {
 }
 
 impl WebSocketAgentsListener {
-    /// Start building a listener for the daemon's `/agents` URL (the
-    /// daemon's published base address + `/agents`).
+    /// Start building a listener for the daemon's `/agents/instances/list` URL (the
+    /// daemon's published base address + `/agents/instances/list`).
     pub fn new(url: impl Into<String>) -> WebSocketAgentsListenerBuilder {
         WebSocketAgentsListenerBuilder {
             url: url.into(),

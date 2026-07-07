@@ -81,9 +81,9 @@ CREATE INDEX IF NOT EXISTS tags_tag_group_idx
 
 -- Fires `NOTIFY tags_changed '<agent_instance_hierarchy>'` whenever a
 -- tag row bound to an AIH is written or removed, so the daemon's
--- `/agents` endpoint can refresh that agent's tag list. Only BOUND
+-- `/agents/instances/list` endpoint can refresh that agent's tag list. Only BOUND
 -- rows carry an AIH; GROUPED rows (`agent_instance_hierarchy` NULL) map
--- to no `/agents` record and are skipped. A relocation (an UPDATE that
+-- to no `/agents/instances/list` record and are skipped. A relocation (an UPDATE that
 -- moves the AIH) changes BOTH the old and new agent's tag list, so both
 -- sides are notified when they differ.
 CREATE OR REPLACE FUNCTION objectiveai.notify_tags_changed()
