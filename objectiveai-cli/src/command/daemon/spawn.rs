@@ -238,6 +238,10 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             active.reconcile_startup().await;
         }
     });
+    // Live tag tracking: broadcast an `Updated` for an agent whenever its
+    // bound tags change (a `tags_changed` NOTIFY from the DB). Resident for
+    // the daemon's life; reconnects on listener error.
+    tokio::spawn(active.clone().watch_tag_changes());
 
     // Launch every daemon plugin under the SHARED plugin executor, run
     // as `<exec> daemon begin`. `plugins::run::execute` spawns it leashed

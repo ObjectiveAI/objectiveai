@@ -79,6 +79,38 @@ CREATE INDEX IF NOT EXISTS tags_hierarchy_idx
 CREATE INDEX IF NOT EXISTS tags_tag_group_idx
     ON objectiveai.tags(tag_group);
 
+-- Fires `NOTIFY tags_changed '<agent_instance_hierarchy>'` whenever a
+-- tag row bound to an AIH is written or removed, so the daemon's
+-- `/agents` endpoint can refresh that agent's tag list. Only BOUND
+-- rows carry an AIH; GROUPED rows (`agent_instance_hierarchy` NULL) map
+-- to no `/agents` record and are skipped. A relocation (an UPDATE that
+-- moves the AIH) changes BOTH the old and new agent's tag list, so both
+-- sides are notified when they differ.
+CREATE OR REPLACE FUNCTION objectiveai.notify_tags_changed()
+RETURNS trigger AS $$
+BEGIN
+    IF (TG_OP = 'DELETE') THEN
+        IF OLD.agent_instance_hierarchy IS NOT NULL THEN
+            PERFORM pg_notify('tags_changed', OLD.agent_instance_hierarchy);
+        END IF;
+        RETURN OLD;
+    END IF;
+    -- INSERT / UPDATE. On an AIH move, notify the vacated side too.
+    IF TG_OP = 'UPDATE'
+       AND OLD.agent_instance_hierarchy IS NOT NULL
+       AND OLD.agent_instance_hierarchy IS DISTINCT FROM NEW.agent_instance_hierarchy THEN
+        PERFORM pg_notify('tags_changed', OLD.agent_instance_hierarchy);
+    END IF;
+    IF NEW.agent_instance_hierarchy IS NOT NULL THEN
+        PERFORM pg_notify('tags_changed', NEW.agent_instance_hierarchy);
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+CREATE OR REPLACE TRIGGER tags_changed_notify
+AFTER INSERT OR UPDATE OR DELETE ON objectiveai.tags
+FOR EACH ROW EXECUTE FUNCTION objectiveai.notify_tags_changed();
+
 -- `laboratory_attachments`: laboratory IDs attached to an agent target.
 -- The target is EITHER an `agent_instance_hierarchy` (AIH) OR a `tag`
 -- (never both — same exclusivity CHECK as `tags`/`message_queue`). A

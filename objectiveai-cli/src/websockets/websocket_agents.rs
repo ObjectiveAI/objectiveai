@@ -235,6 +235,50 @@ impl ActiveAgents {
         out
     }
 
+    /// Build the current record for `aih` — DB truth
+    /// ([`crate::db::instances::get_exact`]) with the `active` flag from
+    /// the registry (a live agent's `last_active_at` is suppressed).
+    /// `None` if the DB is unavailable.
+    async fn build_record_for(&self, aih: &str) -> Option<AgentRecord> {
+        let active = self.active.lock().await.contains(aih);
+        let pool = self.ctx.db_client().await.ok()?;
+        let item = crate::db::instances::get_exact(pool, aih).await.ok()?;
+        Some(record_from_item(&item, active))
+    }
+
+    /// Subscribe to the `tags_changed` NOTIFY channel and broadcast an
+    /// [`AgentEvent::Updated`] for each AIH whose bound tags changed (tag
+    /// applied / moved / removed — a trigger on `objectiveai.tags` fires
+    /// the AIH as payload). Runs for the daemon's life; on a listener
+    /// error it reconnects after a short pause. This is the persisted-state
+    /// counterpart to the lock-driven active/inactive tracking: tags live
+    /// in the DB, so the DB is the authoritative change signal.
+    pub(crate) async fn watch_tag_changes(self) {
+        use std::time::Duration;
+        loop {
+            let reconnect = async {
+                let pool = self.ctx.db_client().await.ok()?;
+                let mut listener =
+                    sqlx::postgres::PgListener::connect_with(&**pool).await.ok()?;
+                listener.listen("tags_changed").await.ok()?;
+                Some(listener)
+            }
+            .await;
+            let Some(mut listener) = reconnect else {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                continue;
+            };
+            while let Ok(notification) = listener.recv().await {
+                let aih = notification.payload().to_string();
+                if let Some(agent) = self.build_record_for(&aih).await {
+                    self.broadcast(&AgentEvent::Updated { agent });
+                }
+            }
+            // Listener errored/closed — pause, then reconnect.
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+
     /// Best-effort startup reconcile: seed the registry with agents already
     /// holding an instance lock when the daemon starts (or before any
     /// client connects). Probes `try_held` per candidate AIH from
