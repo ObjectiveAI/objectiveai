@@ -331,15 +331,7 @@ function AgentNode({
       <div
         data-node-kind={kind}
         data-node-name={name}
-        role="button"
-        onClick={(e) => {
-          // The definition hyperlinks keep their own clicks.
-          if ((e.target as Element).closest("button,a")) return;
-          onOpen(hierarchy);
-        }}
         className={cn(
-          "cursor-pointer",
-          "hover:border-copper-hot",
           "flex",
           "flex-col",
           "gap-0.5",
@@ -361,26 +353,58 @@ function AgentNode({
           "text-info-mid",
         )}
       >
-        {/* The AIH segment rides the tag row as just another chip —
-            tags come from the per-agent record. */}
-        {agent === null ? (
-          <LoadingDots marker="data-tags-loading" />
-        ) : (
-          <>
+        {/* Header row: the instance chip left, the EXPLICIT opener
+            right — the chip is the only way to open the conversation
+            (no whole-box click). */}
+        <div
+          className={cn(
+            "flex",
+            "flex-row",
+            "items-center",
+            "gap-3",
+            "self-stretch",
+          )}
+        >
+          {agent === null ? (
+            <LoadingDots marker="data-tags-loading" />
+          ) : (
             <BadgeRow badge="instance">
               <span data-tag-aih className={cn("text-[#c3bfbb]")}>
                 {name}
               </span>
             </BadgeRow>
-            {agent.tags.map((tag) => (
-              <BadgeRow key={tag} badge="tag">
-                <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
-                  {tag}
-                </span>
-              </BadgeRow>
-            ))}
-          </>
-        )}
+          )}
+          <button
+            type="button"
+            data-open-agent
+            onClick={() => onOpen(hierarchy)}
+            aria-label={`Open ${hierarchy} conversation`}
+            className={cn(
+              "ml-auto",
+              "px-1.5",
+              "py-px",
+              "rounded-sm",
+              "border",
+              "border-copper-mid/70",
+              "bg-copper-warm/10",
+              "text-copper-bright",
+              "text-[11px]",
+              "hover:border-copper-hot",
+              "hover:text-copper-hot",
+              "cursor-pointer",
+            )}
+          >
+            open ↗
+          </button>
+        </div>
+        {agent !== null &&
+          agent.tags.map((tag) => (
+            <BadgeRow key={tag} badge="tag">
+              <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
+                {tag}
+              </span>
+            </BadgeRow>
+          ))}
         <AgentDefinitionView hierarchy={hierarchy} />
         {(status.active || lastActiveAt !== null) && (
           <span
