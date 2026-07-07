@@ -59,6 +59,35 @@ func (v *CliWebsocketAgentsListenerAgentEventActivated) UnmarshalJSON(data []byt
 }
 func (CliWebsocketAgentsListenerAgentEventActivated) SchemaVariantTitle() string { return "Activated" }
 
+// An agent's record changed while it remained present — currently
+// emitted when its bound tags change (a tag applied, moved, or
+// removed). Carries the full refreshed record; consumers replace by
+// `agent_instance_hierarchy`.
+type CliWebsocketAgentsListenerAgentEventUpdated struct {
+	Agent CliWebsocketAgentsListenerAgentRecord `json:"agent"`
+	Type string `json:"type" validate:"oneof=updated"`
+}
+
+func (v *CliWebsocketAgentsListenerAgentEventUpdated) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsListenerAgentEventUpdated: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsListenerAgentEventUpdated
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsListenerAgentEventUpdated(alias)
+	return nil
+}
+func (CliWebsocketAgentsListenerAgentEventUpdated) SchemaVariantTitle() string { return "Updated" }
+
 // An agent released its per-instance lock (became inactive) — on
 // normal stream end OR holder death. `last_active_at` is the release
 // moment.
@@ -99,6 +128,11 @@ type CliWebsocketAgentsListenerAgentEvent struct {
 	Snapshot *CliWebsocketAgentsListenerAgentEventSnapshot `outerObject:"true"`
 	// An agent acquired its per-instance lock (became active).
 	Activated *CliWebsocketAgentsListenerAgentEventActivated `outerObject:"true"`
+	// An agent's record changed while it remained present — currently
+	// emitted when its bound tags change (a tag applied, moved, or
+	// removed). Carries the full refreshed record; consumers replace by
+	// `agent_instance_hierarchy`.
+	Updated *CliWebsocketAgentsListenerAgentEventUpdated `outerObject:"true"`
 	// An agent released its per-instance lock (became inactive) — on
 	// normal stream end OR holder death. `last_active_at` is the release
 	// moment.
@@ -111,6 +145,9 @@ func (v CliWebsocketAgentsListenerAgentEvent) MarshalJSON() ([]byte, error) {
 	}
 	if v.Activated != nil {
 		return json.Marshal(v.Activated)
+	}
+	if v.Updated != nil {
+		return json.Marshal(v.Updated)
 	}
 	if v.Deactivated != nil {
 		return json.Marshal(v.Deactivated)
@@ -142,6 +179,17 @@ func (v *CliWebsocketAgentsListenerAgentEvent) UnmarshalJSON(data []byte) error 
 		}
 	}
 	{
+		var try CliWebsocketAgentsListenerAgentEventUpdated
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsListenerAgentEvent{}
+			candidate.Updated = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
 		var try CliWebsocketAgentsListenerAgentEventDeactivated
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliWebsocketAgentsListenerAgentEvent{}
@@ -159,6 +207,7 @@ func (v CliWebsocketAgentsListenerAgentEvent) Validate() error {
 	count := 0
 	if v.Snapshot != nil { count++ }
 	if v.Activated != nil { count++ }
+	if v.Updated != nil { count++ }
 	if v.Deactivated != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliWebsocketAgentsListenerAgentEvent: exactly one variant must be set, got %d", count)
