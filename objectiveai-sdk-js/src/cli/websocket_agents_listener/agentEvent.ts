@@ -10,6 +10,9 @@ export const CliWebsocketAgentsListenerAgentEventSchema = z.union([z.object({
   agent: CliWebsocketAgentsListenerAgentRecordSchema,
   type: z.literal("activated"),
 }).describe("An agent acquired its per-instance lock (became active).").meta({"variantTitle":"Activated"}), z.object({
+  agent: CliWebsocketAgentsListenerAgentRecordSchema,
+  type: z.literal("updated"),
+}).describe("An agent's record changed while it remained present — currently\nemitted when its bound tags change (a tag applied, moved, or\nremoved). Carries the full refreshed record; consumers replace by\n`agent_instance_hierarchy`.").meta({"variantTitle":"Updated"}), z.object({
   agent_instance_hierarchy: z.string(),
   last_active_at: z.string().nullable().meta({ omitempty: true }).optional(),
   type: z.literal("deactivated"),
