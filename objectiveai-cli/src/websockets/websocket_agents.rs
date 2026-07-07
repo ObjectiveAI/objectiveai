@@ -34,7 +34,8 @@ use interprocess::local_socket::GenericNamespaced;
 use interprocess::local_socket::tokio::prelude::*;
 use interprocess::local_socket::{ListenerOptions, Name};
 use objectiveai_sdk::cli::command::agents::instances::list::ResponseItem;
-use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentRecord};
+use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentStatus};
+use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{Mutex, broadcast};
 
@@ -47,6 +48,27 @@ use crate::websockets::mcp_listener::socks_dir;
 #[derive(serde::Serialize, serde::Deserialize)]
 struct ActiveAnnounce {
     agent_instance_hierarchy: String,
+}
+
+/// CLI-internal agent-status change, broadcast by [`ActiveAgents`] to
+/// BOTH websocket routes, which map it to their own wire vocabularies:
+/// `/agents/instances/list` re-ships `Activated`/`Deactivated` as its
+/// flat status events (and ignores `TagsChanged`);
+/// `/agents/instances/{*aih}` rebuilds and re-ships this one agent's
+/// full record on any matching change.
+#[derive(Debug, Clone)]
+pub(crate) enum StatusChange {
+    /// The AIH acquired its instance lock.
+    Activated { agent_instance_hierarchy: String },
+    /// The AIH released its instance lock (normal end or holder
+    /// death). Carries the release-moment timestamp so the per-agent
+    /// route can patch its record exactly.
+    Deactivated {
+        agent_instance_hierarchy: String,
+        last_active_at: Option<String>,
+    },
+    /// The AIH's bound tags changed (applied / moved / removed).
+    TagsChanged { agent_instance_hierarchy: String },
 }
 
 /// The fixed local-socket name for the agents hub, identical on the
@@ -98,9 +120,8 @@ pub(crate) struct ActiveAgents {
     /// under the lock, serializing correctly against concurrent
     /// [`activate`](Self::activate) (no lost activation on fast reacquire).
     active: Arc<Mutex<HashSet<String>>>,
-    /// Pre-serialized [`AgentEvent`] JSON frames, fanned to every `/agents/instances/list`
-    /// subscriber.
-    events: broadcast::Sender<String>,
+    /// Typed [`StatusChange`]s, fanned to both websocket routes.
+    events: broadcast::Sender<StatusChange>,
     state_dir: PathBuf,
     /// Resident context — the DB pool is resolved lazily (`db_client`), as
     /// the daemon boots before a DB necessarily exists.
@@ -110,7 +131,7 @@ pub(crate) struct ActiveAgents {
 impl ActiveAgents {
     pub(crate) fn new(
         state_dir: PathBuf,
-        events: broadcast::Sender<String>,
+        events: broadcast::Sender<StatusChange>,
         ctx: crate::context::Context,
     ) -> Self {
         Self {
@@ -121,17 +142,14 @@ impl ActiveAgents {
         }
     }
 
-    /// A fresh subscription to the delta stream.
-    pub(crate) fn subscribe(&self) -> broadcast::Receiver<String> {
+    /// A fresh subscription to the status-change stream.
+    pub(crate) fn subscribe(&self) -> broadcast::Receiver<StatusChange> {
         self.events.subscribe()
     }
 
-    /// Serialize + fan one event out. A send error means no `/agents/instances/list`
-    /// clients are connected — drop the frame.
-    fn broadcast(&self, event: &AgentEvent) {
-        if let Ok(frame) = serde_json::to_string(event) {
-            let _ = self.events.send(frame);
-        }
+    /// Fan one change out. A send error means no subscribers — drop it.
+    fn emit(&self, change: StatusChange) {
+        let _ = self.events.send(change);
     }
 
     /// Mark `aih` active. Idempotent: if it is already active (a reentrant
@@ -146,30 +164,11 @@ impl ActiveAgents {
                 return;
             }
         }
-        let agent = self.build_active_record(&aih).await;
-        self.broadcast(&AgentEvent::Activated { agent });
+        self.emit(StatusChange::Activated {
+            agent_instance_hierarchy: aih.clone(),
+        });
         let this = self.clone();
         tokio::spawn(async move { this.watch(aih).await });
-    }
-
-    /// Build the `Activated` record for `aih`, preferring DB truth
-    /// ([`crate::db::instances::get_exact`]); on a brand-new agent (no
-    /// `messages` row yet) or DB-unavailable, a minimal `active` record.
-    async fn build_active_record(&self, aih: &str) -> AgentRecord {
-        if let Ok(pool) = self.ctx.db_client().await {
-            if let Ok(item) = crate::db::instances::get_exact(pool, aih).await {
-                return record_from_item(&item, true);
-            }
-        }
-        AgentRecord {
-            agent_instance_hierarchy: aih.to_string(),
-            tags: Vec::new(),
-            queued: 0,
-            logged: 0,
-            active: true,
-            spawned_at: None,
-            last_active_at: None,
-        }
     }
 
     /// Watch `aih`'s instance lock until it is released (or its holder
@@ -195,7 +194,7 @@ impl ActiveAgents {
             drop(active);
             let last =
                 crate::db::time::unix_to_rfc3339(chrono::Utc::now().timestamp());
-            self.broadcast(&AgentEvent::Deactivated {
+            self.emit(StatusChange::Deactivated {
                 agent_instance_hierarchy: aih,
                 last_active_at: Some(last),
             });
@@ -203,10 +202,11 @@ impl ActiveAgents {
         }
     }
 
-    /// The connect-time snapshot: ALL agents from the DB, each with its
-    /// `active` flag from the registry, plus a minimal record for any
-    /// active AIH not yet in the DB (brand-new).
-    async fn snapshot(&self) -> Vec<AgentRecord> {
+    /// The connect-time snapshot: every known AIH (from the DB), each
+    /// with its `active` flag from the registry, plus any active AIH
+    /// not yet in the DB (brand-new). Nothing but the AIH + flag —
+    /// this endpoint's whole payload.
+    async fn snapshot(&self) -> Vec<AgentStatus> {
         let items = match self.ctx.db_client().await {
             Ok(pool) => crate::db::instances::list_all(pool).await.unwrap_or_default(),
             Err(_) => Vec::new(),
@@ -215,20 +215,17 @@ impl ActiveAgents {
         let mut out = Vec::with_capacity(items.len());
         let mut seen: HashSet<&str> = HashSet::new();
         for item in &items {
-            let is_active = active.contains(&item.agent_instance_hierarchy);
             seen.insert(item.agent_instance_hierarchy.as_str());
-            out.push(record_from_item(item, is_active));
+            out.push(AgentStatus {
+                agent_instance_hierarchy: item.agent_instance_hierarchy.clone(),
+                active: active.contains(&item.agent_instance_hierarchy),
+            });
         }
         for aih in active.iter() {
             if !seen.contains(aih.as_str()) {
-                out.push(AgentRecord {
+                out.push(AgentStatus {
                     agent_instance_hierarchy: aih.clone(),
-                    tags: Vec::new(),
-                    queued: 0,
-                    logged: 0,
                     active: true,
-                    spawned_at: None,
-                    last_active_at: None,
                 });
             }
         }
@@ -247,13 +244,15 @@ impl ActiveAgents {
         Some(record_from_item(&item, active))
     }
 
-    /// Subscribe to the `tags_changed` NOTIFY channel and broadcast an
-    /// [`AgentEvent::Updated`] for each AIH whose bound tags changed (tag
-    /// applied / moved / removed — a trigger on `objectiveai.tags` fires
-    /// the AIH as payload). Runs for the daemon's life; on a listener
-    /// error it reconnects after a short pause. This is the persisted-state
-    /// counterpart to the lock-driven active/inactive tracking: tags live
-    /// in the DB, so the DB is the authoritative change signal.
+    /// Subscribe to the `tags_changed` NOTIFY channel and emit a
+    /// [`StatusChange::TagsChanged`] for each AIH whose bound tags
+    /// changed (tag applied / moved / removed — a trigger on
+    /// `objectiveai.tags` fires the AIH as payload). Consumed by the
+    /// per-agent route only (the list endpoint carries no tags). Runs
+    /// for the daemon's life; on a listener error it reconnects after
+    /// a short pause. This is the persisted-state counterpart to the
+    /// lock-driven active/inactive tracking: tags live in the DB, so
+    /// the DB is the authoritative change signal.
     pub(crate) async fn watch_tag_changes(self) {
         use std::time::Duration;
         loop {
@@ -270,10 +269,9 @@ impl ActiveAgents {
                 continue;
             };
             while let Ok(notification) = listener.recv().await {
-                let aih = notification.payload().to_string();
-                if let Some(agent) = self.build_record_for(&aih).await {
-                    self.broadcast(&AgentEvent::Updated { agent });
-                }
+                self.emit(StatusChange::TagsChanged {
+                    agent_instance_hierarchy: notification.payload().to_string(),
+                });
             }
             // Listener errored/closed — pause, then reconnect.
             tokio::time::sleep(Duration::from_secs(1)).await;
@@ -430,7 +428,21 @@ async fn agents_pump(mut socket: axum::extract::ws::WebSocket, active: ActiveAge
     loop {
         tokio::select! {
             received = rx.recv() => match received {
-                Ok(frame) => {
+                Ok(change) => {
+                    // Map the internal change to this endpoint's flat
+                    // wire vocabulary; tag changes don't ride the list.
+                    let event = match change {
+                        StatusChange::Activated { agent_instance_hierarchy } => {
+                            AgentEvent::Activated { agent_instance_hierarchy }
+                        }
+                        StatusChange::Deactivated { agent_instance_hierarchy, .. } => {
+                            AgentEvent::Deactivated { agent_instance_hierarchy }
+                        }
+                        StatusChange::TagsChanged { .. } => continue,
+                    };
+                    let Ok(frame) = serde_json::to_string(&event) else {
+                        continue;
+                    };
                     if socket.send(Message::Text(frame.into())).await.is_err() {
                         break;
                     }

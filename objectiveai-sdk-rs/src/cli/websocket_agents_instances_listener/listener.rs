@@ -41,11 +41,10 @@ use tokio_tungstenite::tungstenite;
 use tokio_tungstenite::tungstenite::client::IntoClientRequest;
 
 use super::{
-    AgentInstanceEvent, ConversationBlock, ConversationChoice, ConversationRow, RowContent,
-    RowTableKind,
+    AgentInstanceEvent, AgentRecord, ConversationBlock, ConversationChoice, ConversationRow,
+    RowContent, RowTableKind,
 };
 use crate::cli::command::command_executor::websocket::AuthEnvelope;
-use crate::cli::websocket_agents_instances_list_listener::AgentRecord;
 
 /// The conversation on-change callback: invoked with the full current
 /// conversation (blocks in conversation order) after each applied

@@ -12,6 +12,42 @@
 
 use crate::agent::completions::message::{File, ImageUrl, InputAudio, VideoUrl};
 
+/// One agent's record: identity, spawn / last-active timestamps, tag
+/// bindings, counters, and whether its per-instance lock is currently
+/// held. Mirrors `agents instances list`'s `ResponseItem` plus the
+/// live `active` flag. Carried by [`AgentInstanceEvent::Agent`] — the
+/// `/agents/instances/list` stream itself is a flat list of AIH
+/// strings and carries no records.
+#[derive(
+    Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[schemars(rename = "cli.websocket_agents_instances_listener.AgentRecord")]
+pub struct AgentRecord {
+    /// Full hierarchy of this agent instance.
+    pub agent_instance_hierarchy: String,
+    /// Tag names currently bound to this AIH, newest-bound first.
+    pub tags: Vec<String>,
+    /// Active `message_queue` rows targeting this agent.
+    pub queued: u64,
+    /// Total `objectiveai.messages` rows for this agent over all time.
+    pub logged: u64,
+    /// Whether the agent's per-instance lock is currently held — i.e. a
+    /// live process owns this agent right now.
+    pub active: bool,
+    /// RFC3339 timestamp of the first `objectiveai.messages` row for this
+    /// agent (spawn time). `None` for an agent with no logs yet.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub spawned_at: Option<String>,
+    /// RFC3339 timestamp the agent was last active. Meaningful only when
+    /// `active` is `false` — a live agent's last-active is implicitly
+    /// "now", so it is left `None` while active and stamped at the moment
+    /// the lock releases.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub last_active_at: Option<String>,
+}
+
 /// Which logs table a [`ConversationRow`] mirrors — the client's
 /// block-class discriminant. The 42 `objectiveai.message_table` event
 /// kinds (request blobs excluded — they never appear on this stream),
@@ -227,9 +263,7 @@ pub enum AgentInstanceEvent {
     /// kill; a tag apply/move/removal). Replaces any prior value;
     /// structurally independent of the conversation rows.
     #[schemars(title = "Agent")]
-    Agent {
-        agent: crate::cli::websocket_agents_instances_list_listener::AgentRecord,
-    },
+    Agent { agent: AgentRecord },
 }
 
 /// One choice of a [`ConversationBlock::VectorRequestChoices`] block:

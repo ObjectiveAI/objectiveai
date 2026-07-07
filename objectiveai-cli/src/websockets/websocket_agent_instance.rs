@@ -316,7 +316,9 @@ async fn instance_pump(
     aih: String,
 ) {
     use axum::extract::ws::Message;
-    use objectiveai_sdk::cli::websocket_agents_instances_list_listener::{AgentEvent, AgentRecord};
+    use objectiveai_sdk::cli::websocket_agents_instances_listener::AgentRecord;
+
+    use crate::websockets::websocket_agents::StatusChange;
     let mut rx = hub.subscribe();
     let mut agents_rx = active.subscribe();
 
@@ -398,21 +400,23 @@ async fn instance_pump(
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             received = agents_rx.recv() => match received {
-                Ok(frame) => {
-                    // The list broadcast carries every agent's
-                    // lifecycle/tag events, pre-serialized. Parse,
-                    // keep only this agent's, and re-ship as a
-                    // full-value `Agent` record.
-                    let Ok(event) = serde_json::from_str::<AgentEvent>(&frame) else {
-                        continue;
-                    };
-                    let agent = match event {
-                        AgentEvent::Activated { agent } | AgentEvent::Updated { agent }
-                            if agent.agent_instance_hierarchy == aih =>
+                Ok(change) => {
+                    // The internal status broadcast carries every
+                    // agent's lifecycle/tag changes. Keep only this
+                    // agent's, and ship a full-value `Agent` record.
+                    let agent = match change {
+                        StatusChange::Activated { agent_instance_hierarchy }
+                        | StatusChange::TagsChanged { agent_instance_hierarchy }
+                            if agent_instance_hierarchy == aih =>
                         {
-                            Some(agent)
+                            // Rebuild from DB truth + the live active
+                            // flag (changes are low-frequency).
+                            match active.build_record_for(&aih).await {
+                                Some(record) => Some(record),
+                                None => continue,
+                            }
                         }
-                        AgentEvent::Deactivated {
+                        StatusChange::Deactivated {
                             agent_instance_hierarchy,
                             last_active_at,
                         } if agent_instance_hierarchy == aih => {
@@ -431,8 +435,7 @@ async fn instance_pump(
                             record.last_active_at = last_active_at;
                             Some(record)
                         }
-                        // Other agents' events, or shapes this route
-                        // doesn't re-ship (Snapshot never broadcasts).
+                        // Other agents' changes.
                         _ => None,
                     };
                     let Some(agent) = agent else { continue };

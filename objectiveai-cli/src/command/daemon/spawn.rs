@@ -228,7 +228,9 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
     // fed by AIH-lock announcements on `agents.sock` and watched for
     // release. Held in scope for the daemon's life (its sender clone keeps
     // the channel open).
-    let (agents_tx, _agents_rx) = tokio::sync::broadcast::channel::<String>(1024);
+    let (agents_tx, _agents_rx) = tokio::sync::broadcast::channel::<
+        crate::websockets::websocket_agents::StatusChange,
+    >(1024);
     let active = crate::websockets::websocket_agents::ActiveAgents::new(
         state_dir.clone(),
         agents_tx,
