@@ -5,8 +5,13 @@ from .client_notification_part import ClientNotificationPart  # noqa: F401
 from .client_notification_part_type import ClientNotificationPartType  # noqa: F401
 from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
-from .response_item import ResponseItem, ResponseItemAgentCompletionRequest, ResponseItemAssistantResponse, ResponseItemClientNotification, ResponseItemFunctionExecutionRequest, ResponseItemToolResponse, ResponseItemVectorCompletionRequest  # noqa: F401
+from .request_message_user_part import RequestMessageUserPart  # noqa: F401
+from .request_message_user_part_type import RequestMessageUserPartType  # noqa: F401
+from .response_item import ResponseItem, ResponseItemAssistantResponse, ResponseItemClientNotification, ResponseItemRequestMessageAssistant, ResponseItemRequestMessageTool, ResponseItemRequestMessageUser, ResponseItemToolResponse, ResponseItemVectorRequestChoices, ResponseItemVectorResponseVote  # noqa: F401
 from .target import Target, TargetDirect, TargetMe, TargetTag  # noqa: F401
 from .tool_response_part import ToolResponsePart  # noqa: F401
 from .tool_response_part_type import ToolResponsePartType  # noqa: F401
+from .vector_request_choice import VectorRequestChoice  # noqa: F401
+from .vector_request_choice_part import VectorRequestChoicePart  # noqa: F401
+from .vector_request_choice_part_type import VectorRequestChoicePartType  # noqa: F401
 from ._execute import execute, execute_transform  # noqa: F401

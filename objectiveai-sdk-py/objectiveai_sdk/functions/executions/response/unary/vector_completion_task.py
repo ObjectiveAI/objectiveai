@@ -3,6 +3,8 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.completions.message.message import Message
+from objectiveai_sdk.agent.completions.message.rich_content import RichContent
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.error.response_error import ResponseError
 from objectiveai_sdk.vector.completions.response.unary.agent_completion import AgentCompletion
@@ -23,6 +25,8 @@ agent completions that produced those votes."""
     id: str = Field(..., description='Unique identifier for this vector completion.')
     index: int = Field(..., ge=0, le=18446744073709551615)
     object: Object = Field(..., description='Object type identifier (`"vector.completion"`).')
+    request_choices: list[RichContent] = Field(..., description="The response options (choices) voted on for this\nvector-completion task, carried from the task's first streaming\nchunk.")
+    request_messages: list[Message] = Field(..., description="The messages dispatched for this vector-completion task,\ncarried from the task's first streaming chunk.")
     scores: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='Final weighted scores for each response option. Sums to 1.')
     swarm: str = Field(..., description='ID of the swarm used for this completion.')
     task_index: int = Field(..., ge=0, le=18446744073709551615)

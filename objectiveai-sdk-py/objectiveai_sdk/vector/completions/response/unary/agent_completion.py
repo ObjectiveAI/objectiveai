@@ -21,7 +21,7 @@ which agent in the swarm produced it."""
 
     agent_full_id: str = Field(..., description='WF-level id: see\n[`super::streaming::AgentCompletionChunk::agent_full_id`].')
     agent_id: str = Field(..., description='Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`].')
-    agent_inline: Optional[InlineAgentWithFallbacks] = Field(None, description='The resolved inline WF definition, carried from the streaming\nfirst chunk. See\n[`super::streaming::AgentCompletionChunk::agent_inline`].', json_schema_extra={'omitempty': True})
+    agent_inline: Optional[InlineAgentWithFallbacks] = Field(None, description="The resolved inline WF definition for this agent, carried from\nthe completion's first streaming chunk.", json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: str = Field(..., description="Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].")
     agent_remote: Optional[RemotePath] = Field(None, description='`RemotePath` the WF was fetched from, or `None` when inline.\nSee [`super::streaming::AgentCompletionChunk::agent_remote`].', json_schema_extra={'omitempty': True})
     continuation: Optional[str] = Field(None, description='Continuation state for multi-turn conversations.')
@@ -32,6 +32,7 @@ which agent in the swarm produced it."""
     messages: list[Message]
     messages_queued: Optional[bool] = Field(None, description='`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].', json_schema_extra={'omitempty': True})
     object: Object = Field(..., description='The object type (always "agent.completion").')
+    request_choice_keys: list[str] = Field(..., description="This agent's prefix-tree voting key for each response choice, in\nthe SAME order as the request's `responses`, carried from the\ncompletion's first streaming chunk.")
     upstream: Upstream = Field(..., description='Upstream provider')
     usage: Usage
 
