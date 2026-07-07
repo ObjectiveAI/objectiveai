@@ -22,6 +22,14 @@ type FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk struct {
 	Index uint64 `json:"index" validate:"min=0,max=18446744073709551615"`
 	// Object type identifier (`"vector.completion.chunk"`).
 	Object VectorCompletionsResponseStreamingObject `json:"object"`
+	// The response options (choices) voted on for this
+	// vector-completion task. Populated ONLY on the FIRST chunk of the
+	// task; [`push`](Self::push) keeps the first value.
+	RequestChoices *[]AgentCompletionsMessageRichContent `json:"request_choices,omitempty"`
+	// The messages dispatched for this vector-completion task.
+	// Populated ONLY on the FIRST chunk of the task; [`push`](Self::push)
+	// keeps the first value.
+	RequestMessages *[]AgentCompletionsMessageMessage `json:"request_messages,omitempty"`
 	// Current weighted scores. Updated as new votes arrive.
 	Scores []float64 `json:"scores" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// ID of the swarm used for this completion.

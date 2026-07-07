@@ -7,94 +7,155 @@ import (
 	"fmt"
 )
 
-type CliCommandAgentsLogsListResponseItemAgentCompletionRequest struct {
+// A `user`-role message from the request/task input, unpacked
+// into content parts (each addressable via `read id`).
+type CliCommandAgentsLogsListResponseItemRequestMessageUser struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	DeliveredAt string `json:"delivered_at"`
-	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Parts []CliCommandAgentsLogsListRequestMessageUserPart `json:"parts"`
 	ResponseID string `json:"response_id"`
-	// AIH of the caller who issued the request — from
-	// `logs.agent_completion_requests.sender_*`.
-	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	Type string `json:"type" validate:"oneof=agent_completion_request"`
+	Type string `json:"type" validate:"oneof=request_message_user"`
 }
 
-func (v *CliCommandAgentsLogsListResponseItemAgentCompletionRequest) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsLogsListResponseItemRequestMessageUser) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsListResponseItemAgentCompletionRequest: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemRequestMessageUser: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsLogsListResponseItemAgentCompletionRequest
+	type Alias CliCommandAgentsLogsListResponseItemRequestMessageUser
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsLogsListResponseItemAgentCompletionRequest(alias)
+	*v = CliCommandAgentsLogsListResponseItemRequestMessageUser(alias)
 	return nil
 }
-func (CliCommandAgentsLogsListResponseItemAgentCompletionRequest) SchemaVariantTitle() string { return "AgentCompletionRequest" }
+func (CliCommandAgentsLogsListResponseItemRequestMessageUser) SchemaVariantTitle() string { return "RequestMessageUser" }
 
-type CliCommandAgentsLogsListResponseItemVectorCompletionRequest struct {
+// An `assistant`-role message from the request/task input. Same
+// part shape as an assistant response — reasoning / tool calls /
+// refusal / content — but sourced from the request.
+type CliCommandAgentsLogsListResponseItemRequestMessageAssistant struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	DeliveredAt string `json:"delivered_at"`
-	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Parts []CliCommandAgentsLogsListAssistantResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
-	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	Type string `json:"type" validate:"oneof=vector_completion_request"`
+	Type string `json:"type" validate:"oneof=request_message_assistant"`
 }
 
-func (v *CliCommandAgentsLogsListResponseItemVectorCompletionRequest) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsLogsListResponseItemRequestMessageAssistant) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsListResponseItemVectorCompletionRequest: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemRequestMessageAssistant: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsLogsListResponseItemVectorCompletionRequest
+	type Alias CliCommandAgentsLogsListResponseItemRequestMessageAssistant
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsLogsListResponseItemVectorCompletionRequest(alias)
+	*v = CliCommandAgentsLogsListResponseItemRequestMessageAssistant(alias)
 	return nil
 }
-func (CliCommandAgentsLogsListResponseItemVectorCompletionRequest) SchemaVariantTitle() string { return "VectorCompletionRequest" }
+func (CliCommandAgentsLogsListResponseItemRequestMessageAssistant) SchemaVariantTitle() string { return "RequestMessageAssistant" }
 
-type CliCommandAgentsLogsListResponseItemFunctionExecutionRequest struct {
+// A `tool`-role message from the request/task input, answering a
+// prior tool call. Same part shape as a tool response.
+type CliCommandAgentsLogsListResponseItemRequestMessageTool struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	DeliveredAt string `json:"delivered_at"`
-	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Parts []CliCommandAgentsLogsListToolResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
-	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
-	Type string `json:"type" validate:"oneof=function_execution_request"`
+	// The wire tool-call id this request message answers.
+	ToolCallID string `json:"tool_call_id"`
+	Type string `json:"type" validate:"oneof=request_message_tool"`
 }
 
-func (v *CliCommandAgentsLogsListResponseItemFunctionExecutionRequest) UnmarshalJSON(data []byte) error {
+func (v *CliCommandAgentsLogsListResponseItemRequestMessageTool) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "id", "response_id", "sender_agent_instance_hierarchy", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "tool_call_id", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliCommandAgentsLogsListResponseItemFunctionExecutionRequest: missing required field %q", key)
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemRequestMessageTool: missing required field %q", key)
 		}
 	}
-	type Alias CliCommandAgentsLogsListResponseItemFunctionExecutionRequest
+	type Alias CliCommandAgentsLogsListResponseItemRequestMessageTool
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliCommandAgentsLogsListResponseItemFunctionExecutionRequest(alias)
+	*v = CliCommandAgentsLogsListResponseItemRequestMessageTool(alias)
 	return nil
 }
-func (CliCommandAgentsLogsListResponseItemFunctionExecutionRequest) SchemaVariantTitle() string { return "FunctionExecutionRequest" }
+func (CliCommandAgentsLogsListResponseItemRequestMessageTool) SchemaVariantTitle() string { return "RequestMessageTool" }
+
+// The response choices a vector-completion task voted over,
+// yielded as one block: an ordered list of choices, each with its
+// content parts and this agent's inline voting `key`.
+type CliCommandAgentsLogsListResponseItemVectorRequestChoices struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Choices []CliCommandAgentsLogsListVectorRequestChoice `json:"choices"`
+	ResponseID string `json:"response_id"`
+	Type string `json:"type" validate:"oneof=vector_request_choices"`
+}
+
+func (v *CliCommandAgentsLogsListResponseItemVectorRequestChoices) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "choices", "response_id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemVectorRequestChoices: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsListResponseItemVectorRequestChoices
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsListResponseItemVectorRequestChoices(alias)
+	return nil
+}
+func (CliCommandAgentsLogsListResponseItemVectorRequestChoices) SchemaVariantTitle() string { return "VectorRequestChoices" }
+
+// The closer for a function-execution vector task: this agent's
+// own vote (its score for each choice, in choice order). Inline —
+// no `read id` needed.
+type CliCommandAgentsLogsListResponseItemVectorResponseVote struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	ResponseID string `json:"response_id"`
+	Type string `json:"type" validate:"oneof=vector_response_vote"`
+	Vote []float64 `json:"vote" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+}
+
+func (v *CliCommandAgentsLogsListResponseItemVectorResponseVote) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "response_id", "type", "vote"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemVectorResponseVote: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsListResponseItemVectorResponseVote
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsListResponseItemVectorResponseVote(alias)
+	return nil
+}
+func (CliCommandAgentsLogsListResponseItemVectorResponseVote) SchemaVariantTitle() string { return "VectorResponseVote" }
 
 type CliCommandAgentsLogsListResponseItemClientNotification struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
@@ -220,9 +281,24 @@ func (CliCommandAgentsLogsListResponseItemToolResponse) SchemaVariantTitle() str
 // `sender_agent_instance_hierarchy` are well-defined
 // block-level.
 type CliCommandAgentsLogsListResponseItem struct {
-	AgentCompletionRequest *CliCommandAgentsLogsListResponseItemAgentCompletionRequest `outerObject:"true"`
-	VectorCompletionRequest *CliCommandAgentsLogsListResponseItemVectorCompletionRequest `outerObject:"true"`
-	FunctionExecutionRequest *CliCommandAgentsLogsListResponseItemFunctionExecutionRequest `outerObject:"true"`
+	// A `user`-role message from the request/task input, unpacked
+	// into content parts (each addressable via `read id`).
+	RequestMessageUser *CliCommandAgentsLogsListResponseItemRequestMessageUser `outerObject:"true"`
+	// An `assistant`-role message from the request/task input. Same
+	// part shape as an assistant response — reasoning / tool calls /
+	// refusal / content — but sourced from the request.
+	RequestMessageAssistant *CliCommandAgentsLogsListResponseItemRequestMessageAssistant `outerObject:"true"`
+	// A `tool`-role message from the request/task input, answering a
+	// prior tool call. Same part shape as a tool response.
+	RequestMessageTool *CliCommandAgentsLogsListResponseItemRequestMessageTool `outerObject:"true"`
+	// The response choices a vector-completion task voted over,
+	// yielded as one block: an ordered list of choices, each with its
+	// content parts and this agent's inline voting `key`.
+	VectorRequestChoices *CliCommandAgentsLogsListResponseItemVectorRequestChoices `outerObject:"true"`
+	// The closer for a function-execution vector task: this agent's
+	// own vote (its score for each choice, in choice order). Inline —
+	// no `read id` needed.
+	VectorResponseVote *CliCommandAgentsLogsListResponseItemVectorResponseVote `outerObject:"true"`
 	ClientNotification *CliCommandAgentsLogsListResponseItemClientNotification `outerObject:"true"`
 	// Agent emissions — the agent IS the producer of these
 	// rows, so there's no separate sender. The
@@ -236,14 +312,20 @@ type CliCommandAgentsLogsListResponseItem struct {
 }
 
 func (v CliCommandAgentsLogsListResponseItem) MarshalJSON() ([]byte, error) {
-	if v.AgentCompletionRequest != nil {
-		return json.Marshal(v.AgentCompletionRequest)
+	if v.RequestMessageUser != nil {
+		return json.Marshal(v.RequestMessageUser)
 	}
-	if v.VectorCompletionRequest != nil {
-		return json.Marshal(v.VectorCompletionRequest)
+	if v.RequestMessageAssistant != nil {
+		return json.Marshal(v.RequestMessageAssistant)
 	}
-	if v.FunctionExecutionRequest != nil {
-		return json.Marshal(v.FunctionExecutionRequest)
+	if v.RequestMessageTool != nil {
+		return json.Marshal(v.RequestMessageTool)
+	}
+	if v.VectorRequestChoices != nil {
+		return json.Marshal(v.VectorRequestChoices)
+	}
+	if v.VectorResponseVote != nil {
+		return json.Marshal(v.VectorResponseVote)
 	}
 	if v.ClientNotification != nil {
 		return json.Marshal(v.ClientNotification)
@@ -259,10 +341,10 @@ func (v CliCommandAgentsLogsListResponseItem) MarshalJSON() ([]byte, error) {
 
 func (v *CliCommandAgentsLogsListResponseItem) UnmarshalJSON(data []byte) error {
 	{
-		var try CliCommandAgentsLogsListResponseItemAgentCompletionRequest
+		var try CliCommandAgentsLogsListResponseItemRequestMessageUser
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsListResponseItem{}
-			candidate.AgentCompletionRequest = &try
+			candidate.RequestMessageUser = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -270,10 +352,10 @@ func (v *CliCommandAgentsLogsListResponseItem) UnmarshalJSON(data []byte) error 
 		}
 	}
 	{
-		var try CliCommandAgentsLogsListResponseItemVectorCompletionRequest
+		var try CliCommandAgentsLogsListResponseItemRequestMessageAssistant
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsListResponseItem{}
-			candidate.VectorCompletionRequest = &try
+			candidate.RequestMessageAssistant = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -281,10 +363,32 @@ func (v *CliCommandAgentsLogsListResponseItem) UnmarshalJSON(data []byte) error 
 		}
 	}
 	{
-		var try CliCommandAgentsLogsListResponseItemFunctionExecutionRequest
+		var try CliCommandAgentsLogsListResponseItemRequestMessageTool
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandAgentsLogsListResponseItem{}
-			candidate.FunctionExecutionRequest = &try
+			candidate.RequestMessageTool = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsListResponseItemVectorRequestChoices
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsListResponseItem{}
+			candidate.VectorRequestChoices = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliCommandAgentsLogsListResponseItemVectorResponseVote
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsListResponseItem{}
+			candidate.VectorResponseVote = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -329,9 +433,11 @@ func (v *CliCommandAgentsLogsListResponseItem) UnmarshalJSON(data []byte) error 
 
 func (v CliCommandAgentsLogsListResponseItem) Validate() error {
 	count := 0
-	if v.AgentCompletionRequest != nil { count++ }
-	if v.VectorCompletionRequest != nil { count++ }
-	if v.FunctionExecutionRequest != nil { count++ }
+	if v.RequestMessageUser != nil { count++ }
+	if v.RequestMessageAssistant != nil { count++ }
+	if v.RequestMessageTool != nil { count++ }
+	if v.VectorRequestChoices != nil { count++ }
+	if v.VectorResponseVote != nil { count++ }
 	if v.ClientNotification != nil { count++ }
 	if v.AssistantResponse != nil { count++ }
 	if v.ToolResponse != nil { count++ }

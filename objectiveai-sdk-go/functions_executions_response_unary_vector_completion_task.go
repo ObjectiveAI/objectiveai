@@ -22,6 +22,13 @@ type FunctionsExecutionsResponseUnaryVectorCompletionTask struct {
 	Index uint64 `json:"index" validate:"min=0,max=18446744073709551615"`
 	// Object type identifier (`"vector.completion"`).
 	Object VectorCompletionsResponseUnaryObject `json:"object"`
+	// The response options (choices) voted on for this
+	// vector-completion task, carried from the task's first streaming
+	// chunk.
+	RequestChoices []AgentCompletionsMessageRichContent `json:"request_choices"`
+	// The messages dispatched for this vector-completion task,
+	// carried from the task's first streaming chunk.
+	RequestMessages []AgentCompletionsMessageMessage `json:"request_messages"`
 	// Final weighted scores for each response option. Sums to 1.
 	Scores []float64 `json:"scores" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
 	// ID of the swarm used for this completion.
@@ -48,7 +55,7 @@ func (v *FunctionsExecutionsResponseUnaryVectorCompletionTask) UnmarshalJSON(dat
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"completions", "created", "id", "index", "object", "scores", "swarm", "task_index", "task_path", "usage", "votes", "weights"} {
+	for _, key := range []string{"completions", "created", "id", "index", "object", "request_choices", "request_messages", "scores", "swarm", "task_index", "task_path", "usage", "votes", "weights"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("FunctionsExecutionsResponseUnaryVectorCompletionTask: missing required field %q", key)
 		}

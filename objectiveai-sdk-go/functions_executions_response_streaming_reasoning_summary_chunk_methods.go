@@ -24,11 +24,5 @@ func (v *FunctionsExecutionsResponseStreamingReasoningSummaryChunk) Push(other *
 	// messages_queued: replace (latest Some() wins)
 	v.MessagesQueued = pushReplace(v.MessagesQueued, other.MessagesQueued)
 
-	// agent_inline: first chunk wins (rides only the completion's
-	// first chunk; never overwritten)
-	if v.AgentInline == nil {
-		v.AgentInline = other.AgentInline
-	}
-
 	// id, created, object, upstream are immutable
 }

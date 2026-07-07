@@ -31,6 +31,11 @@ type VectorCompletionsResponseVote struct {
 	// When fallbacks fired, this is the fallback's id rather than the
 	// primary's.
 	AgentID string `json:"agent_id"`
+	// Index correlating this vote with its completion — equals the
+	// `index` on the corresponding
+	// [`vector::completions::response::streaming::AgentCompletionChunk`](super::streaming::AgentCompletionChunk)
+	// wrapper. Populated by the API; `None` only in hand-built values.
+	CompletionIndex *uint64 `json:"completion_index,omitempty" validate:"omitempty,min=0,max=18446744073709551615"`
 	// Flattened index accounting for agent counts in the swarm.
 	FlatSwarmIndex uint64 `json:"flat_swarm_index" validate:"min=0,max=18446744073709551615"`
 	// Content hash of the request messages (for caching/deduplication).

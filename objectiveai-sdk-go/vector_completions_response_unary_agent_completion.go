@@ -18,9 +18,8 @@ type VectorCompletionsResponseUnaryAgentCompletion struct {
 	// Leaf agent id of the slot that produced this completion. See
 	// [`super::streaming::AgentCompletionChunk::agent_id`].
 	AgentID string `json:"agent_id"`
-	// The resolved inline WF definition, carried from the streaming
-	// first chunk. See
-	// [`super::streaming::AgentCompletionChunk::agent_inline`].
+	// The resolved inline WF definition for this agent, carried from
+	// the completion's first streaming chunk.
 	AgentInline *AgentInlineAgentWithFallbacks `json:"agent_inline,omitempty"`
 	// Full agent instance hierarchy for this completion's slot. See
 	// [`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].
@@ -43,6 +42,10 @@ type VectorCompletionsResponseUnaryAgentCompletion struct {
 	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	// The object type (always "agent.completion").
 	Object AgentCompletionsResponseUnaryObject `json:"object"`
+	// This agent's prefix-tree voting key for each response choice, in
+	// the SAME order as the request's `responses`, carried from the
+	// completion's first streaming chunk.
+	RequestChoiceKeys []string `json:"request_choice_keys"`
 	// Upstream provider
 	Upstream AgentUpstream `json:"upstream"`
 	Usage AgentCompletionsResponseUsage `json:"usage"`
@@ -58,7 +61,7 @@ func (v *VectorCompletionsResponseUnaryAgentCompletion) UnmarshalJSON(data []byt
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_full_id", "agent_id", "agent_instance_hierarchy", "created", "id", "index", "messages", "object", "upstream", "usage"} {
+	for _, key := range []string{"agent_full_id", "agent_id", "agent_instance_hierarchy", "created", "id", "index", "messages", "object", "request_choice_keys", "upstream", "usage"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("VectorCompletionsResponseUnaryAgentCompletion: missing required field %q", key)
 		}
