@@ -7,11 +7,13 @@ import (
 	"fmt"
 )
 
-// One agent's record on the `/agents/instances/list` endpoint: identity, spawn /
-// last-active timestamps, and whether its per-instance lock is currently
-// held. Mirrors `agents instances list`'s `ResponseItem` plus the live
-// `active` flag.
-type CliWebsocketAgentsListenerAgentRecord struct {
+// One agent's record: identity, spawn / last-active timestamps, tag
+// bindings, counters, and whether its per-instance lock is currently
+// held. Mirrors `agents instances list`'s `ResponseItem` plus the
+// live `active` flag. Carried by [`AgentInstanceEvent::Agent`] — the
+// `/agents/instances/list` stream itself is a flat list of AIH
+// strings and carries no records.
+type CliWebsocketAgentsInstancesListenerAgentRecord struct {
 	// Whether the agent's per-instance lock is currently held — i.e. a
 	// live process owns this agent right now.
 	Active bool `json:"active"`
@@ -33,26 +35,26 @@ type CliWebsocketAgentsListenerAgentRecord struct {
 	Tags []string `json:"tags"`
 }
 
-func (CliWebsocketAgentsListenerAgentRecord) SchemaTitle() string { return "cli.websocket_agents_listener.AgentRecord" }
-func (v CliWebsocketAgentsListenerAgentRecord) Validate() error {
+func (CliWebsocketAgentsInstancesListenerAgentRecord) SchemaTitle() string { return "cli.websocket_agents_instances_listener.AgentRecord" }
+func (v CliWebsocketAgentsInstancesListenerAgentRecord) Validate() error {
 	return variantValidator.Struct(v)
 }
 
-func (v *CliWebsocketAgentsListenerAgentRecord) UnmarshalJSON(data []byte) error {
+func (v *CliWebsocketAgentsInstancesListenerAgentRecord) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
 	for _, key := range []string{"active", "agent_instance_hierarchy", "logged", "queued", "tags"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliWebsocketAgentsListenerAgentRecord: missing required field %q", key)
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentRecord: missing required field %q", key)
 		}
 	}
-	type Alias CliWebsocketAgentsListenerAgentRecord
+	type Alias CliWebsocketAgentsInstancesListenerAgentRecord
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliWebsocketAgentsListenerAgentRecord(alias)
+	*v = CliWebsocketAgentsInstancesListenerAgentRecord(alias)
 	return nil
 }
