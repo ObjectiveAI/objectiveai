@@ -45,10 +45,18 @@ use super::{
     RowTableKind,
 };
 use crate::cli::command::command_executor::websocket::AuthEnvelope;
+use crate::cli::websocket_agents_listener::AgentRecord;
 
-/// The on-change callback: invoked with the full current conversation
-/// (blocks in conversation order) after each applied event.
+/// The conversation on-change callback: invoked with the full current
+/// conversation (blocks in conversation order) after each applied
+/// conversation event.
 pub type OnChange = Box<dyn Fn(&[ConversationBlock]) + Send + Sync>;
+
+/// The agent-status on-change callback: invoked with the agent's
+/// refreshed list record after each applied `Agent` event. Structurally
+/// independent of the conversation callback — neither fires for the
+/// other's events.
+pub type OnAgentChange = Box<dyn Fn(&AgentRecord) + Send + Sync>;
 
 type Ws = tokio_tungstenite::WebSocketStream<
     tokio_tungstenite::MaybeTlsStream<tokio::net::TcpStream>,
@@ -370,6 +378,9 @@ impl ConversationState {
         match event {
             AgentInstanceEvent::Row { row } => self.apply_row(row),
             AgentInstanceEvent::Live => self.live = true,
+            // Agent-status events never reach the conversation state —
+            // the pump routes them to their own slot.
+            AgentInstanceEvent::Agent { .. } => {}
         }
     }
 
@@ -405,10 +416,15 @@ impl ConversationState {
 /// The shared inner state, held by the listener handle and its pump.
 struct Shared {
     state: Mutex<ConversationState>,
-    /// Bumped per applied event; wakes every
+    /// The agent's list record (active/tags/counters) — structurally
+    /// separate from the conversation. `None` until the first `Agent`
+    /// event lands (the daemon ships one right after auth).
+    agent: Mutex<Option<AgentRecord>>,
+    /// Bumped per applied event (conversation OR agent); wakes every
     /// [`subscribe`](WebSocketAgentInstanceListener::subscribe) waiter.
     changes: watch::Sender<u64>,
     on_change: Option<OnChange>,
+    on_agent_change: Option<OnAgentChange>,
     /// The connection's write half — retained for the planned
     /// client→daemon message requests over this stream; unused today.
     #[allow(dead_code)]
@@ -424,6 +440,7 @@ pub struct WebSocketAgentInstanceListenerBuilder {
     url: String,
     signature: Option<String>,
     on_change: Option<OnChange>,
+    on_agent_change: Option<OnAgentChange>,
 }
 
 impl WebSocketAgentInstanceListenerBuilder {
@@ -437,14 +454,28 @@ impl WebSocketAgentInstanceListenerBuilder {
     }
 
     /// Register a callback invoked with the full current conversation
-    /// after every applied event. Runs on the pump task — keep it
-    /// cheap; for state on demand use
+    /// after every applied CONVERSATION event (never for agent-status
+    /// events). Runs on the pump task — keep it cheap; for state on
+    /// demand use
     /// [`conversation`](WebSocketAgentInstanceListener::conversation).
     pub fn on_change(
         mut self,
         callback: impl Fn(&[ConversationBlock]) + Send + Sync + 'static,
     ) -> Self {
         self.on_change = Some(Box::new(callback));
+        self
+    }
+
+    /// Register a callback invoked with the agent's refreshed list
+    /// record after every applied AGENT-STATUS event (activation /
+    /// deactivation / tag change — never for conversation events).
+    /// Runs on the pump task — keep it cheap; for state on demand use
+    /// [`agent`](WebSocketAgentInstanceListener::agent).
+    pub fn on_agent_change(
+        mut self,
+        callback: impl Fn(&AgentRecord) + Send + Sync + 'static,
+    ) -> Self {
+        self.on_agent_change = Some(Box::new(callback));
         self
     }
 
@@ -474,8 +505,10 @@ impl WebSocketAgentInstanceListenerBuilder {
         let (sink, stream) = ws.split();
         let shared = Arc::new(Shared {
             state: Mutex::new(ConversationState::default()),
+            agent: Mutex::new(None),
             changes: watch::channel(0u64).0,
             on_change: self.on_change,
+            on_agent_change: self.on_agent_change,
             sink: Mutex::new(sink),
         });
         let pump = tokio::spawn(pump(stream, shared.clone()));
@@ -500,12 +533,23 @@ impl WebSocketAgentInstanceListener {
             url: url.into(),
             signature: None,
             on_change: None,
+            on_agent_change: None,
         }
     }
 
     /// Snapshot the current conversation, blocks in conversation order.
     pub async fn conversation(&self) -> Vec<ConversationBlock> {
         self.shared.state.lock().await.conversation()
+    }
+
+    /// The agent's current list record (active flag, bound tags,
+    /// counters) — the same shape `/agents/instances/list` tracks,
+    /// scoped to this agent. `None` until the connection's first
+    /// agent-status event lands (the daemon ships one right after
+    /// auth). Structurally independent of
+    /// [`conversation`](Self::conversation).
+    pub async fn agent(&self) -> Option<AgentRecord> {
+        self.shared.agent.lock().await.clone()
     }
 
     /// Whether the snapshot replay has completed — every event after
@@ -531,11 +575,13 @@ impl Drop for WebSocketAgentInstanceListener {
     }
 }
 
-/// Read frames, fold each [`AgentInstanceEvent`] into the state, fire
-/// the callback, bump the change counter. Runs until the connection
-/// closes (the daemon disconnects lagging clients — reconnect for a
-/// fresh snapshot). Unparseable frames are SKIPPED — the forward-compat
-/// contract for future event variants.
+/// Read frames, fold each [`AgentInstanceEvent`] into its concern's
+/// state — conversation events into the coalescer, agent-status events
+/// into the record slot — fire that concern's callback (never the
+/// other's), and bump the shared change counter. Runs until the
+/// connection closes (the daemon disconnects lagging clients —
+/// reconnect for a fresh snapshot). Unparseable frames are SKIPPED —
+/// the forward-compat contract for future event variants.
 async fn pump(mut stream: SplitStream<Ws>, shared: Arc<Shared>) {
     while let Some(message) = stream.next().await {
         let text = match message {
@@ -547,13 +593,26 @@ async fn pump(mut stream: SplitStream<Ws>, shared: Arc<Shared>) {
         let Ok(event) = serde_json::from_str::<AgentInstanceEvent>(&text) else {
             continue;
         };
-        let snapshot = {
-            let mut state = shared.state.lock().await;
-            state.apply(event);
-            shared.on_change.as_ref().map(|_| state.conversation())
-        };
-        if let (Some(callback), Some(snapshot)) = (&shared.on_change, &snapshot) {
-            callback(snapshot);
+        match event {
+            AgentInstanceEvent::Agent { agent } => {
+                {
+                    let mut slot = shared.agent.lock().await;
+                    *slot = Some(agent.clone());
+                }
+                if let Some(callback) = &shared.on_agent_change {
+                    callback(&agent);
+                }
+            }
+            event => {
+                let snapshot = {
+                    let mut state = shared.state.lock().await;
+                    state.apply(event);
+                    shared.on_change.as_ref().map(|_| state.conversation())
+                };
+                if let (Some(callback), Some(snapshot)) = (&shared.on_change, &snapshot) {
+                    callback(snapshot);
+                }
+            }
         }
         shared.changes.send_modify(|version| {
             *version = version.wrapping_add(1);

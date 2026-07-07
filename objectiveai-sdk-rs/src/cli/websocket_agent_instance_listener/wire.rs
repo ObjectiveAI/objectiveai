@@ -192,14 +192,20 @@ pub struct ConversationRow {
     pub content: RowContent,
 }
 
-/// One event on the `/agents/instances/{*aih}` stream: the DB snapshot
-/// replays as `Row` events (in `objectiveai.messages."index"` order),
-/// one `Live` marks the snapshot complete, then live `Row` events
-/// follow as the conversation occurs.
+/// One event on the `/agents/instances/{*aih}` stream. Two structurally
+/// independent concerns ride it:
 ///
-/// Extensibility contract: future variants WILL be added (per-agent
-/// tag/activity events; client-message delivery notifications) —
-/// consumers must skip events they cannot parse.
+/// - **The conversation**: the DB snapshot replays as `Row` events (in
+///   `objectiveai.messages."index"` order), one `Live` marks the
+///   snapshot complete, then live `Row` events follow as the
+///   conversation occurs.
+/// - **The agent's status**: `Agent` carries this agent's list record
+///   (active flag + tags + counters), once at connect and on every
+///   change.
+///
+/// Extensibility contract: future variants WILL be added (e.g.
+/// client-message delivery notifications) — consumers must skip events
+/// they cannot parse.
 #[derive(
     Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
@@ -213,6 +219,17 @@ pub enum AgentInstanceEvent {
     /// The snapshot is complete; every following `Row` is live.
     #[schemars(title = "Live")]
     Live,
+    /// This agent's list record — the same shape
+    /// `/agents/instances/list` tracks (lock-driven `active` flag,
+    /// bound tags, counters). A FULL-VALUE upsert: sent once on
+    /// connect with the current state, then re-sent whenever it
+    /// changes (activation; deactivation — on stream end OR holder
+    /// kill; a tag apply/move/removal). Replaces any prior value;
+    /// structurally independent of the conversation rows.
+    #[schemars(title = "Agent")]
+    Agent {
+        agent: crate::cli::websocket_agents_listener::AgentRecord,
+    },
 }
 
 /// One choice of a [`ConversationBlock::VectorRequestChoices`] block:
