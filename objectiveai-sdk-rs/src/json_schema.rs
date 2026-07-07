@@ -1135,6 +1135,8 @@ pub fn json_schemas() -> Vec<schemars::Schema> {
 
     #[cfg(feature = "cli-listener")]
     schemas.extend([
+        schemars::schema_for!(crate::cli::websocket_agents_listener::AgentEvent),
+        schemars::schema_for!(crate::cli::websocket_agents_listener::AgentRecord),
         schemars::schema_for!(crate::cli::websocket_listener::ListenerEnd),
     ]);
 
