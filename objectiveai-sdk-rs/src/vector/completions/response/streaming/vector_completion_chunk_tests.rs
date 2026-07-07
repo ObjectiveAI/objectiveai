@@ -8,13 +8,13 @@ fn completion(
     AgentCompletionChunk {
         index,
         request_messages: None,
+        agent_inline: None,
         inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
             id: format!("acc-{index}"),
             agent_instance_hierarchy: String::new(),
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 0,
             messages: vec![],
             object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -197,13 +197,13 @@ stream_push_test!(
             completions: vec![AgentCompletionChunk {
                 index: 0,
                 request_messages: None,
+                agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
                     agent_instance_hierarchy: String::new(),
                     agent_id: String::new(),
                     agent_full_id: String::new(),
                     agent_remote: None,
-                    agent_inline: None,
                     created: 0,
                     messages: vec![],
                     object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -227,13 +227,13 @@ stream_push_test!(
             completions: vec![AgentCompletionChunk {
                 index: 1,
                 request_messages: None,
+                agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),
                     agent_instance_hierarchy: String::new(),
                     agent_id: String::new(),
                     agent_full_id: String::new(),
                     agent_remote: None,
-                    agent_inline: None,
                     created: 0,
                     messages: vec![],
                     object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -259,13 +259,13 @@ stream_push_test!(
             AgentCompletionChunk {
                 index: 0,
                 request_messages: None,
+                agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
                     agent_instance_hierarchy: String::new(),
                     agent_id: String::new(),
                     agent_full_id: String::new(),
                     agent_remote: None,
-                    agent_inline: None,
                     created: 0,
                     messages: vec![],
                     object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -279,13 +279,13 @@ stream_push_test!(
             AgentCompletionChunk {
                 index: 1,
                 request_messages: None,
+                agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),
                     agent_instance_hierarchy: String::new(),
                     agent_id: String::new(),
                     agent_full_id: String::new(),
                     agent_remote: None,
-                    agent_inline: None,
                     created: 0,
                     messages: vec![],
                     object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,

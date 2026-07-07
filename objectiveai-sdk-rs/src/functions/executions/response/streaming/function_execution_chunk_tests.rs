@@ -17,7 +17,6 @@ fn agent_completion(
         agent_id: String::new(),
         agent_full_id: String::new(),
         agent_remote: None,
-        agent_inline: None,
         created: 0,
         messages: vec![],
         object: crate::agent::completions::response::streaming::Object::AgentCompletionChunk,
@@ -36,6 +35,7 @@ fn vector_agent_completion(
     crate::vector::completions::response::streaming::AgentCompletionChunk {
         index,
         request_messages: None,
+        agent_inline: None,
         inner: agent_completion(error),
     }
 }

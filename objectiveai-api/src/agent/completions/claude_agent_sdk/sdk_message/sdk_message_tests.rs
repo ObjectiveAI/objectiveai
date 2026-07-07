@@ -37,7 +37,6 @@ fn test_text_delta() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 1000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -96,7 +95,6 @@ fn test_thinking_delta() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 2000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -158,7 +156,6 @@ fn test_tool_use_content_block_start() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 3000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -227,7 +224,6 @@ fn test_input_json_delta() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 4000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -303,7 +299,6 @@ fn test_message_delta_tool_use_stop_reason() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 5000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(
@@ -405,7 +400,6 @@ fn test_user_message_tool_result() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 7000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
@@ -534,7 +528,6 @@ fn test_result_success_byok() {
             agent_id: String::new(),
             agent_full_id: String::new(),
             agent_remote: None,
-            agent_inline: None,
             created: 10000,
             messages: vec![
                 objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(

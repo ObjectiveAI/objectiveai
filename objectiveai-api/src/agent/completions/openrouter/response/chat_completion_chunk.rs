@@ -109,7 +109,6 @@ impl ChatCompletionChunk {
             agent_id,
             agent_full_id,
             agent_remote,
-            agent_inline: None,
             created,
             messages: vec![message],
             object: Default::default(),

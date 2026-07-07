@@ -106,7 +106,6 @@ fn assistant_chunk(
         agent_id,
         agent_full_id,
         agent_remote,
-        agent_inline: None,
         created,
         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
             index: assistant_index,

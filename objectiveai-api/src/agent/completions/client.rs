@@ -1016,7 +1016,6 @@ where
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
-                                inline,
                             ).await {
                                 Ok(stream) => {
                                     // Lock-in: this agent yielded its first
@@ -1053,7 +1052,6 @@ where
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
-                                inline,
                             ).await {
                                 Ok(stream) => {
                                     // Lock-in: this agent yielded its first
@@ -1090,7 +1088,6 @@ where
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
-                                inline,
                             ).await {
                                 Ok(stream) => {
                                     // Lock-in: this agent yielded its first
@@ -1127,7 +1124,6 @@ where
                                 attempt.agent.id(),
                                 agent_full_id.as_str(),
                                 agent_remote.as_ref(),
-                                inline,
                             ).await {
                                 Ok(stream) => {
                                     // Lock-in: this agent yielded its first
@@ -1195,7 +1191,6 @@ where
         agent_id: &str,
         agent_full_id: &str,
         agent_remote: Option<&objectiveai_sdk::RemotePath>,
-        agent_inline: &objectiveai_sdk::agent::InlineAgentWithFallbacks,
     ) -> Result<
         Pin<Box<dyn futures::Stream<Item = super::StreamItem<CONT>> + Send>>,
         super::Error,
@@ -1412,10 +1407,6 @@ where
         let agent_id = agent_id.to_string();
         let agent_full_id = agent_full_id.to_string();
         let agent_remote = agent_remote.cloned();
-        // The resolved WF definition rides ONLY the first outbound
-        // chunk of this completion — `take()`n at whichever egress
-        // yields first, `None` on everything after.
-        let mut agent_inline_pending = Some(agent_inline.clone());
         let request_continuation = request_continuation.cloned();
         // Capture into the stream. The Drop on `_delegate_guard`
         // fires when the stream future is dropped (natural
@@ -1513,9 +1504,6 @@ where
                                         }
                                     }
                                 }
-                                if let Some(inline) = agent_inline_pending.take() {
-                                    prev.agent_inline = Some(inline);
-                                }
                                 yield super::StreamItem::Chunk(prev);
                             }
                         }
@@ -1542,9 +1530,6 @@ where
                                 break;
                             }
                         }
-                    }
-                    if let Some(inline) = agent_inline_pending.take() {
-                        last.agent_inline = Some(inline);
                     }
                     yield super::StreamItem::Chunk(last);
                 }
@@ -1649,10 +1634,6 @@ where
                             if let Some(ref mut agg) = aggregate {
                                 agg.push(&chunk);
                             }
-                            let mut chunk = chunk;
-                            if let Some(inline) = agent_inline_pending.take() {
-                                chunk.agent_inline = Some(inline);
-                            }
                             yield super::StreamItem::Chunk(chunk);
                             continuation_items
                                 .push(super::ContinuationItem::ToolMessage(tool_msg));
@@ -1698,10 +1679,6 @@ where
                             );
                             if let Some(ref mut agg) = aggregate {
                                 agg.push(&chunk);
-                            }
-                            let mut chunk = chunk;
-                            if let Some(inline) = agent_inline_pending.take() {
-                                chunk.agent_inline = Some(inline);
                             }
                             yield super::StreamItem::Chunk(chunk);
                             continuation_items
@@ -1787,7 +1764,6 @@ where
                     agent_id: agent_id.clone(),
                     agent_full_id: agent_full_id.clone(),
                     agent_remote: agent_remote.clone(),
-                    agent_inline: agent_inline_pending.take(),
                     created,
                     upstream: upstream_kind,
                     usage: Some(usage),

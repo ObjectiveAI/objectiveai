@@ -479,7 +479,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                         agent_id: agent_id_for_chunks.clone(),
                         agent_full_id: agent_full_id.clone(),
                         agent_remote: agent_remote.clone(),
-                        agent_inline: None,
                         created,
                         messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                             index: assistant_index,
@@ -514,7 +513,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                 agent_id: agent_id_for_chunks.clone(),
                                 agent_full_id: agent_full_id.clone(),
                                 agent_remote: agent_remote.clone(),
-                                agent_inline: None,
                                 created,
                                 messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                     index: assistant_index,
@@ -566,7 +564,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                     agent_id: agent_id_for_chunks.clone(),
                                     agent_full_id: agent_full_id.clone(),
                                     agent_remote: agent_remote.clone(),
-                                    agent_inline: None,
                                     created,
                                     messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                         index: assistant_index,
@@ -646,7 +643,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                     agent_id: agent_id_for_chunks.clone(),
                                     agent_full_id: agent_full_id.clone(),
                                     agent_remote: agent_remote.clone(),
-                                    agent_inline: None,
                                     created,
                                     messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                         index: assistant_index,
@@ -716,7 +712,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                                     agent_id: agent_id_for_chunks.clone(),
                                     agent_full_id: agent_full_id.clone(),
                                     agent_remote: agent_remote.clone(),
-                                    agent_inline: None,
                                     created,
                                     messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                                         index: assistant_index,
@@ -758,7 +753,6 @@ impl UpstreamClient<objectiveai_sdk::agent::mock::Agent, objectiveai_sdk::agent:
                     agent_id: agent_id_for_chunks.clone(),
                     agent_full_id: agent_full_id.clone(),
                     agent_remote: agent_remote.clone(),
-                    agent_inline: None,
                     created,
                     messages: vec![MessageChunk::Assistant(AssistantResponseChunk {
                         index: assistant_index,
