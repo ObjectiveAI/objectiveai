@@ -26,6 +26,9 @@ const harness = vi.hoisted(() => ({
 }));
 
 vi.mock("../lib/tauri", () => ({
+  // Browser-fallback path: node clicks open the in-app modal (asserted
+  // below). Under Tauri they'd invoke `open_agent_window` instead.
+  isTauri: () => false,
   tauriInvoke: (cmd: string, args: unknown) => {
     harness.invokes.push([cmd, args]);
     return Promise.resolve(undefined);

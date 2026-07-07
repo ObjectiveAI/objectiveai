@@ -76,6 +76,52 @@ fn open_url(url: String) -> Result<(), String> {
     open::that_detached(&url).map_err(|e| e.to_string())
 }
 
+/// The deterministic native-window label for one agent hierarchy's
+/// agent window. Hex-encodes the hierarchy's UTF-8 bytes: the result
+/// is injective (one window per hierarchy, no collisions) and uses
+/// only `[0-9a-f]` after the prefix — a strict subset of Tauri's
+/// allowed label charset, unlike the raw hierarchy which carries `/`
+/// and hash characters. The `agent-` prefix is what the `agent-*`
+/// capability glob matches. The same hex rides the window URL's
+/// `?agent=` param (decoded frontend-side), so the label never needs
+/// to be reversible.
+fn agent_window_label(hierarchy: &str) -> String {
+    let hex: String = hierarchy.bytes().map(|b| format!("{b:02x}")).collect();
+    format!("agent-{hex}")
+}
+
+/// Open (or focus) the native agent window showing one agent's
+/// conversation. One window per hierarchy: an existing window is
+/// focused rather than duplicated. The window loads the same frontend
+/// bundle with `?agent=<hex>`, which `main.tsx` decodes to pick the
+/// agent-window root instead of the main app.
+#[tauri::command]
+fn open_agent_window(app: tauri::AppHandle, hierarchy: String) -> Result<(), String> {
+    use tauri::Manager as _;
+
+    let label = agent_window_label(&hierarchy);
+    if let Some(existing) = app.get_webview_window(&label) {
+        return existing.set_focus().map_err(|e| e.to_string());
+    }
+    // Reuse the label's hex (after the prefix) as the URL param — it is
+    // already the hex of the hierarchy's bytes.
+    let hex = &label["agent-".len()..];
+    let url = tauri::WebviewUrl::App(format!("index.html?agent={hex}").into());
+    match tauri::WebviewWindowBuilder::new(&app, label.clone(), url)
+        .title(format!("Agent — {hierarchy}"))
+        .inner_size(900.0, 700.0)
+        .build()
+    {
+        Ok(_) => Ok(()),
+        // A rapid second click can race the build; if the window now
+        // exists, focus it instead of surfacing the duplicate error.
+        Err(e) => match app.get_webview_window(&label) {
+            Some(existing) => existing.set_focus().map_err(|err| err.to_string()),
+            None => Err(e.to_string()),
+        },
+    }
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "DAEMON_ADDRESS")]
@@ -225,6 +271,7 @@ pub fn serve(
         websocket_config,
         open_agent_remote,
         open_url,
+        open_agent_window,
         crate::plugins::list_plugins_with_viewer,
     ]);
     builder

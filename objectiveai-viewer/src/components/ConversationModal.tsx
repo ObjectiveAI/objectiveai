@@ -29,6 +29,97 @@ import { Markdown } from "./Markdown";
  * it scrolls into view — everything shows loading dots and resolves
  * one part at a time.
  */
+/**
+ * The framed conversation panel — header (the hierarchy label plus an
+ * optional `headerRight` slot) over the scrollable, bottom-pinned log
+ * body. Source of the agent's HISTORICAL conversation via
+ * `useAgent().logs`. Shared by [`ConversationModal`] (which wraps it
+ * in a dismissable overlay) and the popout window root (which renders
+ * it full-bleed), so it fills its container (`h-full w-full`) and owns
+ * no positioning of its own.
+ *
+ * No bulk content load: each ID-addressable part is its own
+ * [`LogPart`], fetching its body via `agents/logs/open` only once it
+ * scrolls into view.
+ */
+export function ConversationView({
+  hierarchy,
+  headerRight,
+}: {
+  hierarchy: string;
+  headerRight?: React.ReactNode;
+}) {
+  const { logs } = useAgent(hierarchy);
+
+  return (
+    <div
+      data-conversation-modal
+      className={cn(
+        "h-full",
+        "w-full",
+        "flex",
+        "flex-col",
+        "overflow-hidden",
+        "rounded-md",
+        "border",
+        "border-copper-mid",
+        "bg-ground",
+        "shadow-[0_0_16px_rgba(217,119,6,0.25)]",
+        "font-mono",
+      )}
+    >
+      <header
+        className={cn(
+          "flex",
+          "items-center",
+          "gap-3",
+          "px-4",
+          "py-2.5",
+          "border-b",
+          "border-copper-mid/50",
+          "shrink-0",
+        )}
+      >
+        <span className={cn("text-[11px]", "text-info-mid", "truncate")}>
+          {hierarchy}
+        </span>
+        {headerRight}
+      </header>
+      <div
+        className={cn(
+          "flex-1",
+          "overflow-auto",
+          // column-reverse: the browser NATIVELY pins scrollTop=0
+          // to the bottom — opens at the newest rows and stays
+          // pinned through content growth with zero JS, and a user
+          // scrolling up is off the pin until they return. The DOM
+          // renders newest-first to match.
+          "flex",
+          "flex-col-reverse",
+          "[overflow-anchor:none]",
+          "px-4",
+          "py-3",
+          "gap-3",
+          "text-[11px]",
+          "text-[#c3bfbb]",
+        )}
+      >
+        {/* TODO: the live completions tail + the chat input land
+            here in a later pass. */}
+        <ConversationBody logs={logs} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The per-agent conversation popup: near-fullscreen panel over a dim
+ * backdrop, closable via the X, Escape, or a backdrop click. Wraps the
+ * shared [`ConversationView`] with the dismissable overlay chrome.
+ *
+ * The Tauri build opens conversations as native windows instead (see
+ * `open_conversation_window`); this modal is the browser-dev fallback.
+ */
 export function ConversationModal({
   hierarchy,
   onClose,
@@ -36,8 +127,6 @@ export function ConversationModal({
   hierarchy: string;
   onClose: () => void;
 }) {
-  const { logs } = useAgent(hierarchy);
-
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -65,83 +154,39 @@ export function ConversationModal({
         "backdrop-blur-sm",
       )}
     >
+      {/* The panel sits in an inset wrapper that swallows clicks, so a
+          click ON the panel never reaches the dismiss-on-click
+          backdrop. */}
       <div
-        data-conversation-modal
         onClick={(e) => {
           e.stopPropagation();
         }}
-        className={cn(
-          "absolute",
-          "inset-4",
-          "flex",
-          "flex-col",
-          "overflow-hidden",
-          "rounded-md",
-          "border",
-          "border-copper-mid",
-          "bg-ground",
-          "shadow-[0_0_16px_rgba(217,119,6,0.25)]",
-          "font-mono",
-        )}
+        className={cn("absolute", "inset-4")}
       >
-        <header
-          className={cn(
-            "flex",
-            "items-center",
-            "gap-3",
-            "px-4",
-            "py-2.5",
-            "border-b",
-            "border-copper-mid/50",
-            "shrink-0",
-          )}
-        >
-          <span className={cn("text-[11px]", "text-info-mid", "truncate")}>
-            {hierarchy}
-          </span>
-          <button
-            type="button"
-            data-conversation-close
-            onClick={onClose}
-            aria-label="Close conversation"
-            className={cn(
-              "ml-auto",
-              "px-2",
-              "py-0.5",
-              "rounded-sm",
-              "text-copper-mid",
-              "hover:text-copper-bright",
-              "cursor-pointer",
-              "text-sm",
-              "leading-none",
-            )}
-          >
-            {"✕"}
-          </button>
-        </header>
-        <div
-          className={cn(
-            "flex-1",
-            "overflow-auto",
-            // column-reverse: the browser NATIVELY pins scrollTop=0
-            // to the bottom — opens at the newest rows and stays
-            // pinned through content growth with zero JS, and a user
-            // scrolling up is off the pin until they return. The DOM
-            // renders newest-first to match.
-            "flex",
-            "flex-col-reverse",
-            "[overflow-anchor:none]",
-            "px-4",
-            "py-3",
-            "gap-3",
-            "text-[11px]",
-            "text-[#c3bfbb]",
-          )}
-        >
-          {/* TODO: the live completions tail + the chat input land
-              here in a later pass. */}
-          <ConversationBody logs={logs} />
-        </div>
+        <ConversationView
+          hierarchy={hierarchy}
+          headerRight={
+            <button
+              type="button"
+              data-conversation-close
+              onClick={onClose}
+              aria-label="Close conversation"
+              className={cn(
+                "ml-auto",
+                "px-2",
+                "py-0.5",
+                "rounded-sm",
+                "text-copper-mid",
+                "hover:text-copper-bright",
+                "cursor-pointer",
+                "text-sm",
+                "leading-none",
+              )}
+            >
+              {"✕"}
+            </button>
+          }
+        />
       </div>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
-import { tauriInvoke } from "../lib/tauri";
+import { isTauri, tauriInvoke } from "../lib/tauri";
 import { ConversationModal } from "./ConversationModal";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
@@ -95,6 +95,16 @@ export function HierarchyTree() {
     }
   };
 
+  // Under Tauri, open the conversation as a native agent window; in
+  // browser dev (no window API) fall back to the in-app modal.
+  const openConversation = (hierarchy: string) => {
+    if (isTauri()) {
+      void tauriInvoke("open_agent_window", { hierarchy });
+    } else {
+      setOpenHierarchy(hierarchy);
+    }
+  };
+
   const roots = groupByHead(
     agents.map((status) => ({
       rest: status.agent_instance_hierarchy.split("/"),
@@ -136,7 +146,7 @@ export function HierarchyTree() {
             key={name}
             name={name}
             members={members}
-            onOpen={setOpenHierarchy}
+            onOpen={openConversation}
           />
         ))}
       </div>
