@@ -117,7 +117,7 @@ func (v *CliWebsocketAgentsListenerAgentEventDeactivated) UnmarshalJSON(data []b
 }
 func (CliWebsocketAgentsListenerAgentEventDeactivated) SchemaVariantTitle() string { return "Deactivated" }
 
-// One event on the `/agents` stream. The first is always a
+// One event on the `/agents/instances/list` stream. The first is always a
 // [`Snapshot`](AgentEvent::Snapshot); every later one is an
 // [`Activated`](AgentEvent::Activated) or
 // [`Deactivated`](AgentEvent::Deactivated) delta. Consumers key by
