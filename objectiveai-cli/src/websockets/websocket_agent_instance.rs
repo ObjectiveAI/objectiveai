@@ -295,22 +295,46 @@ pub(crate) async fn instance_handler(
         {
             return;
         }
-        instance_pump(socket, state.conversations, aih).await;
+        instance_pump(socket, state.conversations, state.active, aih).await;
     })
 }
 
-/// The snapshot→live seam, in order: subscribe FIRST (no gap — a
-/// duplicate across the seam converges client-side by row identity),
-/// replay the DB snapshot page by page (one WS text frame per row),
-/// send `Live`, then relay. A DB-less daemon skips the snapshot and
-/// goes straight to live. `Lagged` DISCONNECTS the client.
+/// The snapshot→live seam, in order: subscribe FIRST on BOTH concerns
+/// (no gap — duplicates converge client-side: conversation rows by
+/// identity, the agent record by full-value replace), ship the agent's
+/// current status record, replay the DB conversation snapshot page by
+/// page (one WS text frame per row), send `Live`, then relay both
+/// streams. A DB-less daemon skips the snapshot and goes straight to
+/// live. Conversation `Lagged` DISCONNECTS the client; agent-status
+/// `Lagged` self-heals (full state is one cheap query — and a
+/// fleet-wide burst of OTHER agents' events must not kill this
+/// connection).
 async fn instance_pump(
     mut socket: axum::extract::ws::WebSocket,
     hub: ConversationHub,
+    active: crate::websockets::websocket_agents::ActiveAgents,
     aih: String,
 ) {
     use axum::extract::ws::Message;
+    use objectiveai_sdk::cli::websocket_agents_listener::{AgentEvent, AgentRecord};
     let mut rx = hub.subscribe();
+    let mut agents_rx = active.subscribe();
+
+    // The agent's current status record, first — one small frame,
+    // instant active/tags state, independent of the conversation.
+    // (`get_exact` zero-fills unknown AIHs, so a record exists whenever
+    // the DB is up; DB-less: skipped, the first live event covers it.)
+    let mut last_record: Option<AgentRecord> = active.build_record_for(&aih).await;
+    if let Some(agent) = &last_record {
+        let event = AgentInstanceEvent::Agent {
+            agent: agent.clone(),
+        };
+        if let Ok(frame) = serde_json::to_string(&event) {
+            if socket.send(Message::Text(frame.into())).await.is_err() {
+                return;
+            }
+        }
+    }
 
     if let Ok(pool) = hub.ctx.db_client().await {
         let mut after_id: Option<i64> = None;
@@ -371,6 +395,70 @@ async fn instance_pump(
                 // disconnect so the client resyncs with a fresh
                 // snapshot. (Unlike /listen's drop-and-continue.)
                 Err(broadcast::error::RecvError::Lagged(_)) => break,
+                Err(broadcast::error::RecvError::Closed) => break,
+            },
+            received = agents_rx.recv() => match received {
+                Ok(frame) => {
+                    // The list broadcast carries every agent's
+                    // lifecycle/tag events, pre-serialized. Parse,
+                    // keep only this agent's, and re-ship as a
+                    // full-value `Agent` record.
+                    let Ok(event) = serde_json::from_str::<AgentEvent>(&frame) else {
+                        continue;
+                    };
+                    let agent = match event {
+                        AgentEvent::Activated { agent } | AgentEvent::Updated { agent }
+                            if agent.agent_instance_hierarchy == aih =>
+                        {
+                            Some(agent)
+                        }
+                        AgentEvent::Deactivated {
+                            agent_instance_hierarchy,
+                            last_active_at,
+                        } if agent_instance_hierarchy == aih => {
+                            // Patch the last-known record with the
+                            // release-moment timestamp (fall back to a
+                            // fresh build for a connection that never
+                            // got one — e.g. a DB-less connect).
+                            let mut record = match last_record.take() {
+                                Some(record) => record,
+                                None => match active.build_record_for(&aih).await {
+                                    Some(record) => record,
+                                    None => continue,
+                                },
+                            };
+                            record.active = false;
+                            record.last_active_at = last_active_at;
+                            Some(record)
+                        }
+                        // Other agents' events, or shapes this route
+                        // doesn't re-ship (Snapshot never broadcasts).
+                        _ => None,
+                    };
+                    let Some(agent) = agent else { continue };
+                    last_record = Some(agent.clone());
+                    let event = AgentInstanceEvent::Agent { agent };
+                    let Ok(frame) = serde_json::to_string(&event) else {
+                        continue;
+                    };
+                    if socket.send(Message::Text(frame.into())).await.is_err() {
+                        break;
+                    }
+                }
+                // Agent-status lag self-heals: the full state is one
+                // cheap query, and a fleet-wide burst of OTHER agents'
+                // events must not kill this connection.
+                Err(broadcast::error::RecvError::Lagged(_)) => {
+                    if let Some(agent) = active.build_record_for(&aih).await {
+                        last_record = Some(agent.clone());
+                        let event = AgentInstanceEvent::Agent { agent };
+                        if let Ok(frame) = serde_json::to_string(&event) {
+                            if socket.send(Message::Text(frame.into())).await.is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
                 Err(broadcast::error::RecvError::Closed) => break,
             },
             inbound = socket.recv() => match inbound {

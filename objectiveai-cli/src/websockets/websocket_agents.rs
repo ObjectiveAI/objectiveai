@@ -238,8 +238,9 @@ impl ActiveAgents {
     /// Build the current record for `aih` — DB truth
     /// ([`crate::db::instances::get_exact`]) with the `active` flag from
     /// the registry (a live agent's `last_active_at` is suppressed).
-    /// `None` if the DB is unavailable.
-    async fn build_record_for(&self, aih: &str) -> Option<AgentRecord> {
+    /// `None` if the DB is unavailable. Also used by the
+    /// `/agents/instances/{*aih}` route for its per-agent status frames.
+    pub(crate) async fn build_record_for(&self, aih: &str) -> Option<AgentRecord> {
         let active = self.active.lock().await.contains(aih);
         let pool = self.ctx.db_client().await.ok()?;
         let item = crate::db::instances::get_exact(pool, aih).await.ok()?;
