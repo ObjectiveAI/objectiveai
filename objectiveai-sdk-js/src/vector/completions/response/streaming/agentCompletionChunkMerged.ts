@@ -49,6 +49,14 @@ export function vectorCompletionsResponseStreamingAgentCompletionChunkMerged(
     changed = true;
   }
 
+  // First chunk wins: request_choice_keys ride only the completion's
+  // first chunk, so the accumulator never overwrites them.
+  let request_choice_keys = a.request_choice_keys;
+  if (request_choice_keys == null && b.request_choice_keys != null) {
+    request_choice_keys = b.request_choice_keys;
+    changed = true;
+  }
+
   if (!changed) return [a, false];
   return [{
     index: a.index,
@@ -58,6 +66,7 @@ export function vectorCompletionsResponseStreamingAgentCompletionChunkMerged(
     agent_instance_hierarchy: a.agent_instance_hierarchy,
     ...(a.agent_remote != null ? { agent_remote: a.agent_remote } : {}),
     ...(agent_inline != null ? { agent_inline } : {}),
+    ...(request_choice_keys != null ? { request_choice_keys } : {}),
     created: a.created,
     messages,
     object: a.object,
