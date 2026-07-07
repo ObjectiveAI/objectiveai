@@ -3,30 +3,37 @@
 import { z } from "zod";
 import { CliCommandAgentsLogsListAssistantResponsePartSchema } from "./assistantResponsePart";
 import { CliCommandAgentsLogsListClientNotificationPartSchema } from "./clientNotificationPart";
+import { CliCommandAgentsLogsListRequestMessageUserPartSchema } from "./requestMessageUserPart";
 import { CliCommandAgentsLogsListToolResponsePartSchema } from "./toolResponsePart";
+import { CliCommandAgentsLogsListVectorRequestChoiceSchema } from "./vectorRequestChoice";
 
 export const CliCommandAgentsLogsListResponseItemSchema = z.union([z.object({
   agent_instance_hierarchy: z.string(),
-  delivered_at: z.string(),
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  parts: z.array(CliCommandAgentsLogsListRequestMessageUserPartSchema),
   response_id: z.string(),
-  sender_agent_instance_hierarchy: z.string().describe("AIH of the caller who issued the request — from\n`logs.agent_completion_requests.sender_*`."),
-  type: z.literal("agent_completion_request"),
-}).meta({"variantTitle":"AgentCompletionRequest"}), z.object({
+  type: z.literal("request_message_user"),
+}).describe("A `user`-role message from the request/task input, unpacked\ninto content parts (each addressable via `read id`).").meta({"variantTitle":"RequestMessageUser"}), z.object({
   agent_instance_hierarchy: z.string(),
-  delivered_at: z.string(),
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  parts: z.array(CliCommandAgentsLogsListAssistantResponsePartSchema),
   response_id: z.string(),
-  sender_agent_instance_hierarchy: z.string(),
-  type: z.literal("vector_completion_request"),
-}).meta({"variantTitle":"VectorCompletionRequest"}), z.object({
+  type: z.literal("request_message_assistant"),
+}).describe("An `assistant`-role message from the request/task input. Same\npart shape as an assistant response — reasoning / tool calls /\nrefusal / content — but sourced from the request.").meta({"variantTitle":"RequestMessageAssistant"}), z.object({
   agent_instance_hierarchy: z.string(),
-  delivered_at: z.string(),
-  id: z.number().int().min(-9223372036854776000).max(9223372036854776000),
+  parts: z.array(CliCommandAgentsLogsListToolResponsePartSchema),
   response_id: z.string(),
-  sender_agent_instance_hierarchy: z.string(),
-  type: z.literal("function_execution_request"),
-}).meta({"variantTitle":"FunctionExecutionRequest"}), z.object({
+  tool_call_id: z.string().describe("The wire tool-call id this request message answers."),
+  type: z.literal("request_message_tool"),
+}).describe("A `tool`-role message from the request/task input, answering a\nprior tool call. Same part shape as a tool response.").meta({"variantTitle":"RequestMessageTool"}), z.object({
+  agent_instance_hierarchy: z.string(),
+  choices: z.array(CliCommandAgentsLogsListVectorRequestChoiceSchema),
+  response_id: z.string(),
+  type: z.literal("vector_request_choices"),
+}).describe("The response choices a vector-completion task voted over,\nyielded as one block: an ordered list of choices, each with its\ncontent parts and this agent's inline voting `key`.").meta({"variantTitle":"VectorRequestChoices"}), z.object({
+  agent_instance_hierarchy: z.string(),
+  response_id: z.string(),
+  type: z.literal("vector_response_vote"),
+  vote: z.array(z.number().min(-3.4028234663852886e+38).max(3.4028234663852886e+38)),
+}).describe("The closer for a function-execution vector task: this agent's\nown vote (its score for each choice, in choice order). Inline —\nno `read id` needed.").meta({"variantTitle":"VectorResponseVote"}), z.object({
   agent_instance_hierarchy: z.string(),
   key: z.string().nullable().describe("Idempotency token, if the row was enqueued with\n`--key` via `agents message --enqueue-with-key`.\nSurfacing it lets readers attribute a notification\nto a specific enqueue beyond just the sender AIH.").meta({ omitempty: true }).optional(),
   parts: z.array(CliCommandAgentsLogsListClientNotificationPartSchema),

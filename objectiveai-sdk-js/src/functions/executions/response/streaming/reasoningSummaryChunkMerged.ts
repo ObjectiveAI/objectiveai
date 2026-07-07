@@ -40,14 +40,6 @@ export function functionsExecutionsResponseStreamingReasoningSummaryChunkMerged(
     messages_queued = b.messages_queued;
   }
 
-  // First chunk wins: agent_inline rides only the completion's first
-  // chunk, so the accumulator never overwrites it.
-  let agent_inline = a.agent_inline;
-  if (agent_inline == null && b.agent_inline != null) {
-    agent_inline = b.agent_inline;
-    changed = true;
-  }
-
   if (!changed) return [a, false];
   return [{
     id: a.id,
@@ -55,7 +47,6 @@ export function functionsExecutionsResponseStreamingReasoningSummaryChunkMerged(
     agent_id: a.agent_id,
     agent_instance_hierarchy: a.agent_instance_hierarchy,
     ...(a.agent_remote != null ? { agent_remote: a.agent_remote } : {}),
-    ...(agent_inline != null ? { agent_inline } : {}),
     created: a.created,
     messages,
     object: a.object,

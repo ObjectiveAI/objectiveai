@@ -12,7 +12,7 @@ import { RemotePathSchema } from "../../../../remotePath";
 export const VectorCompletionsResponseUnaryAgentCompletionSchema = z.object({
   agent_full_id: z.string().describe("WF-level id: see\n[`super::streaming::AgentCompletionChunk::agent_full_id`]."),
   agent_id: z.string().describe("Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`]."),
-  agent_inline: AgentInlineAgentWithFallbacksSchema.nullable().describe("The resolved inline WF definition, carried from the streaming\nfirst chunk. See\n[`super::streaming::AgentCompletionChunk::agent_inline`].").meta({ omitempty: true }).optional(),
+  agent_inline: AgentInlineAgentWithFallbacksSchema.nullable().describe("The resolved inline WF definition for this agent, carried from\nthe completion's first streaming chunk.").meta({ omitempty: true }).optional(),
   agent_instance_hierarchy: z.string().describe("Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`]."),
   agent_remote: RemotePathSchema.nullable().describe("`RemotePath` the WF was fetched from, or `None` when inline.\nSee [`super::streaming::AgentCompletionChunk::agent_remote`].").meta({ omitempty: true }).optional(),
   continuation: z.string().nullable().describe("Continuation state for multi-turn conversations.").optional(),
@@ -23,6 +23,7 @@ export const VectorCompletionsResponseUnaryAgentCompletionSchema = z.object({
   messages: z.array(AgentCompletionsResponseUnaryMessageSchema),
   messages_queued: z.boolean().nullable().describe("`true` when the MCP proxy holds queued messages that were not\ndelivered to the agent via a tool response on this turn. See\n[`super::streaming::AgentCompletionChunk::messages_queued`].").meta({ omitempty: true }).optional(),
   object: AgentCompletionsResponseUnaryObjectSchema.describe("The object type (always \"agent.completion\")."),
+  request_choice_keys: z.array(z.string()).describe("This agent's prefix-tree voting key for each response choice, in\nthe SAME order as the request's `responses`, carried from the\ncompletion's first streaming chunk."),
   upstream: AgentUpstreamSchema.describe("Upstream provider"),
   usage: AgentCompletionsResponseUsageSchema,
 }).describe("A agent completion from a single agent within a vector completion.\n\nWraps the standard agent completion response with an index to identify\nwhich agent in the swarm produced it.").meta({ title: "vector.completions.response.unary.AgentCompletion" });
