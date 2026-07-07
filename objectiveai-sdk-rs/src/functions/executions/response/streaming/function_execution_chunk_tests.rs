@@ -35,6 +35,7 @@ fn vector_agent_completion(
     crate::vector::completions::response::streaming::AgentCompletionChunk {
         index,
         agent_inline: None,
+        request_choice_keys: None,
         inner: agent_completion(error),
     }
 }

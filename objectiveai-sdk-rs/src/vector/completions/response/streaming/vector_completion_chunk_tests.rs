@@ -8,6 +8,7 @@ fn completion(
     AgentCompletionChunk {
         index,
         agent_inline: None,
+        request_choice_keys: None,
         inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
             id: format!("acc-{index}"),
             agent_instance_hierarchy: String::new(),
@@ -196,6 +197,7 @@ stream_push_test!(
             completions: vec![AgentCompletionChunk {
                 index: 0,
                 agent_inline: None,
+                request_choice_keys: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
                     agent_instance_hierarchy: String::new(),
@@ -225,6 +227,7 @@ stream_push_test!(
             completions: vec![AgentCompletionChunk {
                 index: 1,
                 agent_inline: None,
+                request_choice_keys: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),
                     agent_instance_hierarchy: String::new(),
@@ -256,6 +259,7 @@ stream_push_test!(
             AgentCompletionChunk {
                 index: 0,
                 agent_inline: None,
+                request_choice_keys: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
                     agent_instance_hierarchy: String::new(),
@@ -275,6 +279,7 @@ stream_push_test!(
             AgentCompletionChunk {
                 index: 1,
                 agent_inline: None,
+                request_choice_keys: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),
                     agent_instance_hierarchy: String::new(),
