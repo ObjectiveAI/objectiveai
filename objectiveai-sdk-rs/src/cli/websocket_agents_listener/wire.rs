@@ -52,6 +52,12 @@ pub enum AgentEvent {
     /// An agent acquired its per-instance lock (became active).
     #[schemars(title = "Activated")]
     Activated { agent: AgentRecord },
+    /// An agent's record changed while it remained present — currently
+    /// emitted when its bound tags change (a tag applied, moved, or
+    /// removed). Carries the full refreshed record; consumers replace by
+    /// `agent_instance_hierarchy`.
+    #[schemars(title = "Updated")]
+    Updated { agent: AgentRecord },
     /// An agent released its per-instance lock (became inactive) — on
     /// normal stream end OR holder death. `last_active_at` is the release
     /// moment.
