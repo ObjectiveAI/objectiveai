@@ -89,6 +89,11 @@ pub fn run(
             ctx.db_client().await?,
             &params,
             ctx.config.agent_instance_hierarchy.clone(),
+            // Live-conversation tee: this one writer streams every
+            // nested agent's rows; the daemon routes per-frame by AIH.
+            Some(crate::db::logs::ConversationTee::spawn(
+                ctx.filesystem.state_dir(),
+            )),
         )
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"

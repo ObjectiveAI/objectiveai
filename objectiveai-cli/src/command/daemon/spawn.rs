@@ -173,6 +173,21 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
                 return Err(Error::Spawn("daemon agents socket bind".into(), e));
             }
         };
+    // The dedicated live-conversation producer socket (log-writer tee),
+    // same init-gate guarantee.
+    let conversation_socket_listener =
+        match crate::websockets::websocket_agent_instance::bind_conversation_socket_listener(
+            &state_dir,
+        ) {
+            Ok(listener) => listener,
+            Err(e) => {
+                drop(ws_listener);
+                drop(socket_listener);
+                drop(agents_socket_listener);
+                let _ = init.release();
+                return Err(Error::Spawn("daemon conversation socket bind".into(), e));
+            }
+        };
 
     // Publish the client-connect `ws://` URL as the lock content (the
     // `api` / `viewer` spawn convention), so a caller reading the lock
@@ -191,6 +206,7 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
             drop(ws_listener);
             drop(socket_listener);
             drop(agents_socket_listener);
+            drop(conversation_socket_listener);
             let _ = init.release();
             return Ok(Box::pin(futures::stream::empty()));
         }
@@ -218,17 +234,33 @@ async fn execute_foreground(ctx: &Context) -> Result<ItemStream, Error> {
         agents_tx,
         ctx.clone(),
     );
+    // The live-conversation hub: log-writer tee frames arriving on
+    // `conversation.sock` fan out per-AIH to `/agents/instances/{*aih}`
+    // subscribers. Held in scope for the daemon's life.
+    let (conversation_tx, _conversation_rx) = tokio::sync::broadcast::channel::<(
+        std::sync::Arc<str>,
+        std::sync::Arc<str>,
+    )>(1024);
+    let conversations = crate::websockets::websocket_agent_instance::ConversationHub::new(
+        conversation_tx,
+        ctx.clone(),
+    );
     crate::websockets::daemon_stream::serve_ws(
         ws_listener,
         tx.clone(),
         secret,
         ctx.clone(),
         active.clone(),
+        conversations.clone(),
     );
     crate::websockets::daemon_stream::serve_socket_listener(socket_listener, tx.clone());
     crate::websockets::websocket_agents::serve_agents_socket_listener(
         agents_socket_listener,
         active.clone(),
+    );
+    crate::websockets::websocket_agent_instance::serve_conversation_socket_listener(
+        conversation_socket_listener,
+        conversations.clone(),
     );
     // Best-effort: seed the registry with agents already holding a lock
     // when the daemon started (off the boot path — no DB round-trip block).

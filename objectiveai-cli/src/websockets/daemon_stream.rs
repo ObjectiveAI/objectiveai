@@ -225,6 +225,9 @@ pub(crate) struct DaemonWsState {
     pub(crate) secret: Option<std::sync::Arc<String>>,
     /// The live agent-status registry backing the `/agents/instances/list` route.
     pub(crate) active: crate::websockets::websocket_agents::ActiveAgents,
+    /// The live-conversation hub backing the `/agents/instances/{*aih}`
+    /// route.
+    pub(crate) conversations: crate::websockets::websocket_agent_instance::ConversationHub,
 }
 
 /// Serve the daemon's WebSocket API on `listener`. Two routes, strictly
@@ -255,6 +258,7 @@ pub fn serve_ws(
     secret: Option<std::sync::Arc<String>>,
     ctx: crate::context::Context,
     active: crate::websockets::websocket_agents::ActiveAgents,
+    conversations: crate::websockets::websocket_agent_instance::ConversationHub,
 ) -> tokio::task::JoinHandle<()> {
     let app = axum::Router::new()
         .route("/listen", axum::routing::any(listen_handler))
@@ -266,11 +270,22 @@ pub fn serve_ws(
             "/agents/instances/list",
             axum::routing::any(crate::websockets::websocket_agents::agents_handler),
         )
+        // Wildcard ({*aih} — AIHs contain `/`). The literal `list`
+        // route above takes matching priority; axum 0.8 permits the
+        // overlap (a true conflict would panic right here at daemon
+        // boot, so a clean boot is the regression check).
+        .route(
+            "/agents/instances/{*aih}",
+            axum::routing::any(
+                crate::websockets::websocket_agent_instance::instance_handler,
+            ),
+        )
         .with_state(DaemonWsState {
             tx,
             ctx,
             secret,
             active,
+            conversations,
         });
     tokio::spawn(async move {
         let _ = axum::serve(listener, app).await;

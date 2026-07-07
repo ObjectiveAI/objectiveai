@@ -30,6 +30,10 @@
 //! - [`websocket_agents`] — the daemon's `/agents/instances/list` WebSocket route + its
 //!   dedicated `agents.sock` producer socket: a live all-agents
 //!   active/inactive stream, driven by AIH-lockfile release.
+//! - [`websocket_agent_instance`] — the daemon's
+//!   `/agents/instances/{*aih}` WebSocket route + its dedicated
+//!   `conversation.sock` producer socket: one agent's full
+//!   conversation, DB history + live rows teed from the log writer.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
@@ -39,4 +43,5 @@ pub mod daemon_execute;
 pub mod daemon_stream;
 pub mod mcp_listener;
 pub mod mcp_server;
+pub mod websocket_agent_instance;
 pub mod websocket_agents;

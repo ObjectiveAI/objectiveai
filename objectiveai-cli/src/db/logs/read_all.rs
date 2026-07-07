@@ -40,42 +40,44 @@ use super::row::MessageTable;
 
 /// One materialized `objectiveai.messages` row plus the joined-in sender
 /// (and queue parent + enqueued_at for `message_queue_*` rows).
-struct MsgRow {
+/// `pub(super)` so [`super::read_conversation`] reuses the exact
+/// metadata query for its content-inlined snapshot.
+pub(super) struct MsgRow {
     /// `objectiveai.messages."index"` — pass to `agents logs read id`
     /// for the full typed payload.
-    id: i64,
-    response_id: String,
-    table_kind: MessageTable,
-    agent_instance_hierarchy: String,
-    timestamp_delivered: i64,
+    pub(super) id: i64,
+    pub(super) response_id: String,
+    pub(super) table_kind: MessageTable,
+    pub(super) agent_instance_hierarchy: String,
+    pub(super) timestamp_delivered: i64,
     /// Sender AIH. Populated for request blob rows (from
     /// `logs.<tier>_completion_requests.sender_*`) and for
     /// `message_queue_*` rows (from `message_queue.sender_*`).
     /// NULL for assistant/tool response rows — those have no
     /// distinct sender, the agent IS the producer.
-    sender_agent_instance_hierarchy: Option<String>,
+    pub(super) sender_agent_instance_hierarchy: Option<String>,
     /// `message_queue.id` of the consumed parent queue row.
     /// Some only for `message_queue_*` rows. Part of the
     /// `ClientNotification` block boundary tuple so each block
     /// = exactly one parent queue row.
-    message_queue_id: Option<i64>,
+    pub(super) message_queue_id: Option<i64>,
     /// `message_queue.enqueued_at` of the consumed parent queue
     /// row. Some only for `message_queue_*` rows; lives at
     /// block level on the emitted `ClientNotification`.
-    timestamp_queued: Option<i64>,
+    pub(super) timestamp_queued: Option<i64>,
     /// `message_queue.key` of the consumed parent queue row —
     /// the idempotency token passed to
     /// `agents message --enqueue-with-key`. Some only for
     /// `message_queue_*` rows, and only when the parent row had
     /// a key set; lives at block level on the emitted
     /// `ClientNotification`.
-    message_queue_key: Option<String>,
+    pub(super) message_queue_key: Option<String>,
     /// `objectiveai.assistant_response_tool_calls.function_name` —
     /// `Some` only for tool-call rows; NULL → `None` for every other
     /// table. Surfaced on [`AssistantResponsePart::ToolCall`] so
     /// callers can dedupe tool calls by name without a round-trip
     /// through `agents logs read id`.
-    function_name: Option<String>,
+    pub(super) function_name: Option<String>,
     /// `tool_call_id` for the row — `COALESCE` of the
     /// `assistant_response_tool_calls` join (assistant tool-call
     /// rows) and the `tool_response` join (tool-response content
@@ -83,24 +85,24 @@ struct MsgRow {
     /// other table. Used both to inline it on
     /// `AssistantResponsePart::ToolCall` and to split `ToolResponse`
     /// blocks per tool call.
-    tool_call_id: Option<String>,
+    pub(super) tool_call_id: Option<String>,
     /// `objectiveai.messages.row_sub_index` — the tool call's wire
     /// index for `assistant_response_tool_calls` rows (and the
     /// part_index for content rows). Surfaced as `tool_call_index` on
     /// `AssistantResponsePart::ToolCall`.
-    row_sub_index: Option<i64>,
+    pub(super) row_sub_index: Option<i64>,
     /// `objectiveai.messages.row_index` — needed to group
     /// `request_vector_choice_content_*` rows into choices by choice
     /// index. NULL for `response_vector_vote`.
-    row_index: Option<i64>,
+    pub(super) row_index: Option<i64>,
     /// `request_vector_choice.key` for the choice — `Some` only for
     /// `request_vector_choice_content_*` rows (JOINed by
     /// (response_id, choice index)). Surfaced inline on the choice.
-    choice_key: Option<String>,
+    pub(super) choice_key: Option<String>,
     /// `response_vector_vote.vote` JSON array — `Some` only for
     /// `response_vector_vote` rows. Parsed into `Vec<Decimal>` and
     /// returned inline (no `read id`).
-    vote: Option<serde_json::Value>,
+    pub(super) vote: Option<serde_json::Value>,
 }
 
 /// Coarse block-class for a `objectiveai.message_table` value. Block
@@ -273,7 +275,7 @@ fn vector_choice_kind(t: MessageTable) -> Option<VectorRequestChoicePartType> {
 /// right sender column based on `m."table"`. `timestamp_queued`
 /// comes from the queue JOIN (Some only for `message_queue_*`
 /// kinds).
-const SELECT_SHAPE: &str = "SELECT \
+pub(super) const SELECT_SHAPE: &str = "SELECT \
     m.\"index\" AS id, \
     m.response_id, \
     m.\"table\" AS table_kind, \
@@ -300,7 +302,7 @@ const SELECT_SHAPE: &str = "SELECT \
     rvc.key AS choice_key, \
     rvv.vote AS vote";
 
-const FROM_JOINS: &str = "FROM objectiveai.messages m \
+pub(super) const FROM_JOINS: &str = "FROM objectiveai.messages m \
     LEFT JOIN objectiveai.message_queue_contents mqc \
         ON m.row_index = mqc.id \
         AND m.\"table\" IN ( \
@@ -356,7 +358,7 @@ const FROM_JOINS: &str = "FROM objectiveai.messages m \
         AND m.agent_instance_hierarchy = rvv.agent_instance_hierarchy \
         AND m.\"table\" = 'response_vector_vote'";
 
-fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
+pub(super) fn row_into_msg(r: &sqlx::postgres::PgRow) -> Result<MsgRow, Error> {
     Ok(MsgRow {
         id: r.try_get("id")?,
         response_id: r.try_get("response_id")?,

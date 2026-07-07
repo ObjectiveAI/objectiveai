@@ -327,6 +327,12 @@ struct LogWriterState<C> {
     /// request blob in that agent's history; subsequent ticks see
     /// the agent already-marked and skip the registration.
     seen_agents: HashSet<String>,
+    /// Live-conversation tee: every row the shadow admits
+    /// (`Insert`/`Update`) is also shipped, full-value, to the resident
+    /// daemon for `/agents/instances/{*aih}` fan-out. Best-effort and
+    /// non-blocking — see [`super::tee`]. `None` = no tee (e.g. hand
+    /// -built writers).
+    tee: Option<super::tee::ConversationTee>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -341,6 +347,7 @@ impl<C> LogWriterState<C> {
             Vec<objectiveai_sdk::agent::completions::message::Message>,
         >,
         request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
+        tee: Option<super::tee::ConversationTee>,
     ) -> Self {
         Self {
             pool,
@@ -354,6 +361,7 @@ impl<C> LogWriterState<C> {
             primary_id: None,
             shadow: Shadow::new(),
             seen_agents: HashSet::new(),
+            tee,
             _chunk: PhantomData,
         }
     }
@@ -373,6 +381,12 @@ impl<C> LogWriterState<C> {
         };
         let ts = now_secs() as i64;
         for row in super::rows::request_message_rows(response_id, aih, messages) {
+            // These rows bypass the shadow (immutable, written once),
+            // so they must tee here or live subscribers never see the
+            // spawned agent's opening messages.
+            if let Some(tee) = &self.tee {
+                tee.send(super::tee::row_to_frame(&row, ts));
+            }
             write_value(&self.pool, WriteOp::Insert, &row, ts).await?;
         }
         Ok(())
@@ -412,7 +426,16 @@ impl<C> LogWriterState<C> {
                     let key = value.agent_instance_hierarchy();
                     match self.shadow.record(&value) {
                         WriteOp::Skip => {}
-                        op => buckets.entry(key).or_default().push((op, value)),
+                        op => {
+                            // Live-conversation tee: ship the admitted
+                            // row (full current value) BEFORE its SQL
+                            // runs — sequential walk order, never gated
+                            // on DB latency. Best-effort, non-blocking.
+                            if let Some(tee) = &self.tee {
+                                tee.send(super::tee::row_to_frame(&value, created_at_seed));
+                            }
+                            buckets.entry(key).or_default().push((op, value));
+                        }
                     }
                 }
                 WriterItem::Usage { agent_instance_hierarchy, total_tokens } => {
@@ -682,6 +705,7 @@ fn spawn_writer<C>(
         Vec<objectiveai_sdk::agent::completions::message::Message>,
     >,
     request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
+    tee: Option<super::tee::ConversationTee>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
     C: WriterChunk
@@ -705,6 +729,7 @@ where
         items_fn,
         request_messages,
         request_agent_ref,
+        tee,
     );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
@@ -722,6 +747,7 @@ pub fn write_agent_completion(
     pool: &Pool,
     params: &AgentCompletionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<AgentCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -746,6 +772,7 @@ pub fn write_agent_completion(
         agent_completion_chunk_rows,
         request_messages,
         request_agent_ref,
+        tee,
     ))
 }
 
@@ -753,6 +780,7 @@ pub fn write_vector_completion(
     pool: &Pool,
     params: &VectorCompletionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<VectorCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -766,6 +794,7 @@ pub fn write_vector_completion(
         vector_completion_chunk_rows,
         None,
         None,
+        tee,
     ))
 }
 
@@ -773,6 +802,7 @@ pub fn write_function_execution(
     pool: &Pool,
     params: &FunctionExecutionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<FunctionExecutionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -786,5 +816,6 @@ pub fn write_function_execution(
         function_execution_chunk_rows,
         None,
         None,
+        tee,
     ))
 }

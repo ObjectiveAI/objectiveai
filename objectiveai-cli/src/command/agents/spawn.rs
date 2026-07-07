@@ -428,6 +428,10 @@ pub(crate) fn run_multi_pass(
         let mcp_timeout_ms = ctx.resolve_mcp_timeout_ms().await?;
         let backoff_max_elapsed_time_ms =
             ctx.resolve_backoff_max_elapsed_time_ms().await?;
+        // One live-conversation tee for the whole spawn: every pass's
+        // log writer shares the one daemon socket connection.
+        let conversation_tee =
+            crate::db::logs::ConversationTee::spawn(ctx.filesystem.state_dir());
 
         loop {
             // Per-pass resources. New WS connection, new log writer,
@@ -451,6 +455,7 @@ pub(crate) fn run_multi_pass(
                 ctx.db_client().await?,
                 &params,
                 ctx.config.agent_instance_hierarchy.clone(),
+                Some(conversation_tee.clone()),
             )
             .map_err(|e| Error::Instance(format!(
                 "failed to build agent-completion log writer: {e}"
