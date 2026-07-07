@@ -22,6 +22,17 @@ class AgentEventActivated(BaseModel):
     type_: Literal['activated'] = Field(..., alias='type')
 
 
+class AgentEventUpdated(BaseModel):
+    """An agent's record changed while it remained present — currently
+emitted when its bound tags change (a tag applied, moved, or
+removed). Carries the full refreshed record; consumers replace by
+`agent_instance_hierarchy`."""
+    model_config = ConfigDict(json_schema_extra={'_variant_title': 'Updated'})
+
+    agent: AgentRecord
+    type_: Literal['updated'] = Field(..., alias='type')
+
+
 class AgentEventDeactivated(BaseModel):
     """An agent released its per-instance lock (became inactive) — on
 normal stream end OR holder death. `last_active_at` is the release
@@ -42,5 +53,5 @@ class AgentEvent(RootModel):
 one item at connect time)."""
     model_config = ConfigDict(title='cli.websocket_agents_listener.AgentEvent')
 
-    root: Union[AgentEventSnapshot, AgentEventActivated, AgentEventDeactivated]
+    root: Union[AgentEventSnapshot, AgentEventActivated, AgentEventUpdated, AgentEventDeactivated]
 
