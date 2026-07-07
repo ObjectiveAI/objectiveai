@@ -26,13 +26,6 @@ pub struct AgentCompletionChunk {
     /// Index used to correlate chunks from the same completion.
     #[arbitrary(with = crate::arbitrary_util::arbitrary_u64)]
     pub index: u64,
-    /// The request messages the vector client dispatched to this
-    /// agent. Populated ONLY on the FIRST chunk of the completion;
-    /// [`push`](Self::push) keeps the first value.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    #[schemars(extend("omitempty" = true))]
-    #[arbitrary(default)]
-    pub request_messages: Option<Vec<crate::agent::completions::message::Message>>,
     /// The resolved inline WF definition for this agent. Populated
     /// ONLY on the FIRST chunk of the completion; [`push`](Self::push)
     /// keeps the first value.
@@ -54,14 +47,8 @@ impl AgentCompletionIds for AgentCompletionChunk {
 impl AgentCompletionChunk {
     pub fn push(&mut self, other: &AgentCompletionChunk) {
         self.inner.push(&other.inner);
-        // First chunk wins: `request_messages` and `agent_inline` ride
-        // only the completion's first chunk, so the accumulator never
-        // overwrites them.
-        if self.request_messages.is_none() {
-            if let Some(request_messages) = &other.request_messages {
-                self.request_messages = Some(request_messages.clone());
-            }
-        }
+        // First chunk wins: `agent_inline` rides only the completion's
+        // first chunk, so the accumulator never overwrites it.
         if self.agent_inline.is_none() {
             if let Some(agent_inline) = &other.agent_inline {
                 self.agent_inline = Some(agent_inline.clone());

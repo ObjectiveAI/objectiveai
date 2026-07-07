@@ -7,7 +7,6 @@ fn completion(
 ) -> AgentCompletionChunk {
     AgentCompletionChunk {
         index,
-        request_messages: None,
         agent_inline: None,
         inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
             id: format!("acc-{index}"),
@@ -196,7 +195,6 @@ stream_push_test!(
             id: "vcc-3".into(),
             completions: vec![AgentCompletionChunk {
                 index: 0,
-                request_messages: None,
                 agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
@@ -226,7 +224,6 @@ stream_push_test!(
             id: "vcc-3".into(),
             completions: vec![AgentCompletionChunk {
                 index: 1,
-                request_messages: None,
                 agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),
@@ -258,7 +255,6 @@ stream_push_test!(
         completions: vec![
             AgentCompletionChunk {
                 index: 0,
-                request_messages: None,
                 agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-1".into(),
@@ -278,7 +274,6 @@ stream_push_test!(
             },
             AgentCompletionChunk {
                 index: 1,
-                request_messages: None,
                 agent_inline: None,
                 inner: crate::agent::completions::response::streaming::AgentCompletionChunk {
                     id: "acc-2".into(),

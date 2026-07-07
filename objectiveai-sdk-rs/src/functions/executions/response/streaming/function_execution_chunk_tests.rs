@@ -34,7 +34,6 @@ fn vector_agent_completion(
 ) -> crate::vector::completions::response::streaming::AgentCompletionChunk {
     crate::vector::completions::response::streaming::AgentCompletionChunk {
         index,
-        request_messages: None,
         agent_inline: None,
         inner: agent_completion(error),
     }
@@ -69,6 +68,8 @@ fn vct(
         index: *task_path.last().unwrap_or(&0),
         task_index: *task_path.last().unwrap_or(&0),
         task_path,
+        request_messages: None,
+        request_choices: None,
         inner: vector_completion_chunk(completions),
         error: own_error,
     }

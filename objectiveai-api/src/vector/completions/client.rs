@@ -739,7 +739,6 @@ where
                     completions: vec![
                         objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                             index: completion_index,
-                            request_messages: None,
                             agent_inline: None,
                             inner,
                         },
@@ -784,22 +783,17 @@ where
                 }
             };
 
-            // The request messages this vector client dispatched to
-            // the agent, and the resolved inline WF definition, ride
-            // ONLY the completion's first outbound chunk — `take()`n on
-            // the first yield, `None` after.
-            let mut sent_messages_pending = Some(agent_params.messages.clone());
+            // The resolved inline WF definition rides ONLY the
+            // completion's first outbound chunk — `take()`n on the
+            // first yield, `None` after.
             let mut agent_inline_pending = Some(agent.inner.inline().clone());
             while let Some(item) = stream.next().await {
                 match item {
                     agent::completions::StreamItem::Chunk(chunk) => {
-                        // Yield immediately, stamping the sent messages
-                        // and inline definition onto the first chunk only.
+                        // Yield immediately, stamping the inline
+                        // definition onto the first chunk only.
                         let mut wrapped = wrap_agent_chunk(indexer.get(flat_swarm_index), chunk.clone());
                         if let Some(first) = wrapped.completions.first_mut() {
-                            if let Some(request_messages) = sent_messages_pending.take() {
-                                first.request_messages = Some(request_messages);
-                            }
                             if let Some(agent_inline) = agent_inline_pending.take() {
                                 first.agent_inline = Some(agent_inline);
                             }
@@ -1155,7 +1149,6 @@ where
             completions: vec![
                 objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                     index: completion_index,
-                    request_messages: None,
                     agent_inline: None,
                     inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                         error: Some(objectiveai_sdk::error::ResponseError::from(&error)),
