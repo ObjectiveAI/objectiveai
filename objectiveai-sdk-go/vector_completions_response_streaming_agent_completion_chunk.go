@@ -20,6 +20,10 @@ type VectorCompletionsResponseStreamingAgentCompletionChunk struct {
 	// primary attempt this is the primary agent's id; on fallback it
 	// is the fallback agent's id. Same on every chunk of a slot.
 	AgentID string `json:"agent_id"`
+	// The resolved inline WF definition for this agent. Populated
+	// ONLY on the FIRST chunk of the completion; [`push`](Self::push)
+	// keeps the first value.
+	AgentInline *AgentInlineAgentWithFallbacks `json:"agent_inline,omitempty"`
 	// Full agent instance hierarchy for this completion's slot —
 	// `{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed
 	// continuation value on resume. Same on every chunk of a slot.
@@ -45,6 +49,13 @@ type VectorCompletionsResponseStreamingAgentCompletionChunk struct {
 	MessagesQueued *bool `json:"messages_queued,omitempty"`
 	// The object type (always "agent.completion.chunk").
 	Object AgentCompletionsResponseStreamingObject `json:"object"`
+	// This agent's prefix-tree voting key for each response choice, in
+	// the SAME order as the request's `responses`
+	// (`request_choice_keys[i]` is this agent's key for choice `i`).
+	// Keys are per-agent (randomized), so they differ between agents.
+	// Populated ONLY on the FIRST chunk of the completion;
+	// [`push`](Self::push) keeps the first value.
+	RequestChoiceKeys *[]string `json:"request_choice_keys,omitempty"`
 	// Upstream provider
 	Upstream AgentUpstream `json:"upstream"`
 	// Token usage (only present in the final chunk).

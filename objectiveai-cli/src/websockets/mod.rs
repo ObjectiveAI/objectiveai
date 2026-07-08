@@ -20,9 +20,28 @@
 //! - [`mcp_listener`] — per-`response_id` local-socket MCP endpoint
 //!   that forwards ops to the API over the chunk-stream WS; spawned
 //!   the first time a chunk surfaces a given agent-completion id.
+//! - [`daemon_stream`] — the resident daemon's broadcast hub: a
+//!   fixed-name local socket that producers feed CLI request/response
+//!   streams into, fanned out to every client of the WebSocket
+//!   server's `/listen` route.
+//! - [`daemon_execute`] — the daemon's `/execute` WebSocket route:
+//!   connection-per-command in-process execution for remote consumers
+//!   (the SDK's `WebSocketExecutor`, notably the viewer).
+//! - [`websocket_agents`] — the daemon's `/agents/instances/list` WebSocket route + its
+//!   dedicated `agents.sock` producer socket: a live all-agents
+//!   active/inactive stream, driven by AIH-lockfile release.
+//! - [`websocket_agent_instance`] — the daemon's
+//!   `/agents/instances/{*aih}` WebSocket route + its dedicated
+//!   `conversation.sock` producer socket: one agent's full
+//!   conversation, DB history + live rows teed from the log writer.
 
 pub mod agent_hierarchies;
 pub mod agent_registry;
 pub mod conduit;
+pub mod daemon_auth;
+pub mod daemon_execute;
+pub mod daemon_stream;
 pub mod mcp_listener;
 pub mod mcp_server;
+pub mod websocket_agent_instance;
+pub mod websocket_agents;

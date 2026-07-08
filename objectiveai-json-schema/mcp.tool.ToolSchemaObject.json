@@ -1,0 +1,40 @@
+{
+  "title": "mcp.tool.ToolSchemaObject",
+  "description": "JSON Schema for tool input/output. Must have `type: \"object\"`.",
+  "type": "object",
+  "properties": {
+    "properties": {
+      "description": "Property definitions.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "required": {
+      "description": "Required property names.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "type": {
+      "description": "Always \"object\".",
+      "$ref": "mcp.tool.ToolSchemaType"
+    }
+  },
+  "additionalProperties": true
+}

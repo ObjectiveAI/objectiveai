@@ -145,3 +145,14 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 pub mod request_schema;
 
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `daemon spawn`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}

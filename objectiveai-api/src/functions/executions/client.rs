@@ -2556,6 +2556,12 @@ where
     ) -> impl Stream<Item = FtpStreamChunk> + Send + 'static {
         let request_base = &*request;
         let request_responses_len = ftp.responses.len();
+        // The task's dispatched messages + response choices ride ONLY
+        // this task's first chunk — cloned before `ftp.messages` /
+        // `ftp.responses` are moved into the vector request, `take()`n
+        // on the first yield.
+        let mut request_messages_pending = Some(ftp.messages.clone());
+        let mut request_choices_pending = Some(ftp.responses.clone());
         let mut stream = match self
             .vector_client
             .clone()
@@ -2588,6 +2594,8 @@ where
                                 ),
                                 task_index,
                                 task_path: ftp.path.clone(),
+                                request_messages: None,
+                                request_choices: None,
                                 inner: objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk::default_from_request_responses_len(
                                     request_responses_len,
                                 ),
@@ -2633,6 +2641,8 @@ where
                         ),
                         task_index,
                         task_path: ftp.path.clone(),
+                        request_messages: request_messages_pending.take(),
+                        request_choices: request_choices_pending.take(),
                         inner: chunk,
                         error: None,
                     }

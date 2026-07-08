@@ -3,6 +3,8 @@
 from __future__ import annotations
 from typing import Annotated, Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.completions.message.message import Message
+from objectiveai_sdk.agent.completions.message.rich_content import RichContent
 from objectiveai_sdk.agent.completions.response.usage import Usage
 from objectiveai_sdk.error.response_error import ResponseError
 from objectiveai_sdk.vector.completions.response.streaming.agent_completion_chunk import AgentCompletionChunk
@@ -23,6 +25,8 @@ Each chunk contains incremental updates to the completion. Use the
     id: str = Field(..., description='Unique identifier for this vector completion.')
     index: int = Field(..., ge=0, le=18446744073709551615)
     object: Object = Field(..., description='Object type identifier (`"vector.completion.chunk"`).')
+    request_choices: Optional[list[RichContent]] = Field(None, description='The response options (choices) voted on for this\nvector-completion task. Populated ONLY on the FIRST chunk of the\ntask; [`push`](Self::push) keeps the first value.', json_schema_extra={'omitempty': True})
+    request_messages: Optional[list[Message]] = Field(None, description='The messages dispatched for this vector-completion task.\nPopulated ONLY on the FIRST chunk of the task; [`push`](Self::push)\nkeeps the first value.', json_schema_extra={'omitempty': True})
     scores: list[Annotated[float, Field(ge=-3.4028234663852886e+38, le=3.4028234663852886e+38)]] = Field(..., description='Current weighted scores. Updated as new votes arrive.')
     swarm: str = Field(..., description='ID of the swarm used for this completion.')
     task_index: int = Field(..., ge=0, le=18446744073709551615)

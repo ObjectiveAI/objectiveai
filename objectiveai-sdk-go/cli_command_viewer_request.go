@@ -8,25 +8,18 @@ import (
 )
 
 type CliCommandViewerRequest struct {
-	Config *CliCommandViewerConfigRequest 
 	GenerateSecretSignaturePair *CliCommandViewerGenerateSecretSignaturePairRequest 
 	GenerateSecretSignaturePairRequestSchema *CliCommandViewerGenerateSecretSignaturePairRequestSchemaRequest 
 	GenerateSecretSignaturePairResponseSchema *CliCommandViewerGenerateSecretSignaturePairResponseSchemaRequest 
 	Kill *CliCommandViewerKillRequest 
 	KillRequestSchema *CliCommandViewerKillRequestSchemaRequest 
 	KillResponseSchema *CliCommandViewerKillResponseSchemaRequest 
-	Send *CliCommandViewerSendRequest 
-	SendRequestSchema *CliCommandViewerSendRequestSchemaRequest 
-	SendResponseSchema *CliCommandViewerSendResponseSchemaRequest 
 	Spawn *CliCommandViewerSpawnRequest 
 	SpawnRequestSchema *CliCommandViewerSpawnRequestSchemaRequest 
 	SpawnResponseSchema *CliCommandViewerSpawnResponseSchemaRequest 
 }
 
 func (v CliCommandViewerRequest) MarshalJSON() ([]byte, error) {
-	if v.Config != nil {
-		return json.Marshal(v.Config)
-	}
 	if v.GenerateSecretSignaturePair != nil {
 		return json.Marshal(v.GenerateSecretSignaturePair)
 	}
@@ -45,15 +38,6 @@ func (v CliCommandViewerRequest) MarshalJSON() ([]byte, error) {
 	if v.KillResponseSchema != nil {
 		return json.Marshal(v.KillResponseSchema)
 	}
-	if v.Send != nil {
-		return json.Marshal(v.Send)
-	}
-	if v.SendRequestSchema != nil {
-		return json.Marshal(v.SendRequestSchema)
-	}
-	if v.SendResponseSchema != nil {
-		return json.Marshal(v.SendResponseSchema)
-	}
 	if v.Spawn != nil {
 		return json.Marshal(v.Spawn)
 	}
@@ -67,17 +51,6 @@ func (v CliCommandViewerRequest) MarshalJSON() ([]byte, error) {
 }
 
 func (v *CliCommandViewerRequest) UnmarshalJSON(data []byte) error {
-	{
-		var try CliCommandViewerConfigRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandViewerRequest{}
-			candidate.Config = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
 	{
 		var try CliCommandViewerGenerateSecretSignaturePairRequest
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -145,39 +118,6 @@ func (v *CliCommandViewerRequest) UnmarshalJSON(data []byte) error {
 		}
 	}
 	{
-		var try CliCommandViewerSendRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandViewerRequest{}
-			candidate.Send = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandViewerSendRequestSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandViewerRequest{}
-			candidate.SendRequestSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
-		var try CliCommandViewerSendResponseSchemaRequest
-		if err := json.Unmarshal(data, &try); err == nil {
-			candidate := CliCommandViewerRequest{}
-			candidate.SendResponseSchema = &try
-			if candidate.Validate() == nil {
-				*v = candidate
-				return nil
-			}
-		}
-	}
-	{
 		var try CliCommandViewerSpawnRequest
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliCommandViewerRequest{}
@@ -215,16 +155,12 @@ func (v *CliCommandViewerRequest) UnmarshalJSON(data []byte) error {
 
 func (v CliCommandViewerRequest) Validate() error {
 	count := 0
-	if v.Config != nil { count++ }
 	if v.GenerateSecretSignaturePair != nil { count++ }
 	if v.GenerateSecretSignaturePairRequestSchema != nil { count++ }
 	if v.GenerateSecretSignaturePairResponseSchema != nil { count++ }
 	if v.Kill != nil { count++ }
 	if v.KillRequestSchema != nil { count++ }
 	if v.KillResponseSchema != nil { count++ }
-	if v.Send != nil { count++ }
-	if v.SendRequestSchema != nil { count++ }
-	if v.SendResponseSchema != nil { count++ }
 	if v.Spawn != nil { count++ }
 	if v.SpawnRequestSchema != nil { count++ }
 	if v.SpawnResponseSchema != nil { count++ }

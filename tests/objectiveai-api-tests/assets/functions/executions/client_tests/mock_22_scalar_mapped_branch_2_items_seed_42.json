@@ -29,10 +29,44 @@
                 0,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Alpha"
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Yes"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "No"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                    "upstream": "mock",
+                    "output_mode": "tool_call"
+                  },
+                  "request_choice_keys": [
+                    "`K`",
+                    "`L`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -76,6 +110,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -127,6 +162,16 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "6l2dDV2SOJXgP5REPXndtU",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 3
+                  },
+                  "request_choice_keys": [
+                    "`H`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -324,7 +369,8 @@
                     0.0,
                     1.0
                   ],
-                  "weight": 0.4
+                  "weight": 0.4,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -340,7 +386,8 @@
                     0.538482653071925,
                     0.461517346928075
                   ],
-                  "weight": 0.6
+                  "weight": 0.6,
+                  "completion_index": 2
                 }
               ],
               "scores": [
@@ -407,10 +454,53 @@
                 1,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "You are an email classifier."
+                    },
+                    {
+                      "type": "text",
+                      "text": "Subject: Alpha"
+                    },
+                    {
+                      "type": "text",
+                      "text": "Body: Alpha"
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Important"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Not important"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "1cnHdCtZsV1rIX0CgQIWrL",
+                    "upstream": "mock",
+                    "output_mode": "instruction",
+                    "top_logprobs": 6
+                  },
+                  "request_choice_keys": [
+                    "`H`",
+                    "`L`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "1cnHdCtZsV1rIX0CgQIWrL",
@@ -1406,6 +1496,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "1cnHdCtZsV1rIX0CgQIWrL",
@@ -3834,6 +3925,15 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "425mMcWqssOpPRrsDrjB0B",
+                    "upstream": "mock",
+                    "output_mode": "instruction"
+                  },
+                  "request_choice_keys": [
+                    "`H`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -3876,6 +3976,7 @@
                 },
                 {
                   "index": 3,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -4014,10 +4115,44 @@
                 0,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Beta"
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Yes"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "No"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                    "upstream": "mock",
+                    "output_mode": "tool_call"
+                  },
+                  "request_choice_keys": [
+                    "`S`",
+                    "`H`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4061,6 +4196,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -4113,6 +4249,16 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "6l2dDV2SOJXgP5REPXndtU",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 3
+                  },
+                  "request_choice_keys": [
+                    "`N`",
+                    "`A`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4288,7 +4434,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.4
+                  "weight": 0.4,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -4304,7 +4451,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.6
+                  "weight": 0.6,
+                  "completion_index": 2
                 }
               ],
               "scores": [
@@ -4371,10 +4519,53 @@
                 1,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "You are an email classifier."
+                    },
+                    {
+                      "type": "text",
+                      "text": "Subject: Beta"
+                    },
+                    {
+                      "type": "text",
+                      "text": "Body: Beta"
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Important"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Not important"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "1cnHdCtZsV1rIX0CgQIWrL",
+                    "upstream": "mock",
+                    "output_mode": "instruction",
+                    "top_logprobs": 6
+                  },
+                  "request_choice_keys": [
+                    "`J`",
+                    "`Q`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "1cnHdCtZsV1rIX0CgQIWrL",
@@ -5738,6 +5929,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "1cnHdCtZsV1rIX0CgQIWrL",
@@ -7586,6 +7778,15 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "425mMcWqssOpPRrsDrjB0B",
+                    "upstream": "mock",
+                    "output_mode": "instruction"
+                  },
+                  "request_choice_keys": [
+                    "`D`",
+                    "`Q`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -7629,6 +7830,7 @@
                 },
                 {
                   "index": 3,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -7745,10 +7947,44 @@
       "task_path": [
         1
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Rate positivity: Alpha"
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Positive"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Negative"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+            "upstream": "mock",
+            "output_mode": "tool_call"
+          },
+          "request_choice_keys": [
+            "`A`",
+            "`I`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7792,6 +8028,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -7844,6 +8081,16 @@
         },
         {
           "index": 2,
+          "agent_inline": {
+            "id": "6l2dDV2SOJXgP5REPXndtU",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "top_logprobs": 3
+          },
+          "request_choice_keys": [
+            "`H`",
+            "`F`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8028,7 +8275,8 @@
             0.0,
             1.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 1
         },
         {
           "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8044,7 +8292,8 @@
             0.878439865119671,
             0.1215601348803294
           ],
-          "weight": 0.6
+          "weight": 0.6,
+          "completion_index": 2
         }
       ],
       "scores": [
@@ -8073,10 +8322,44 @@
       "task_path": [
         2
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Rate relevance: Alpha"
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Relevant"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Irrelevant"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+            "upstream": "mock",
+            "output_mode": "tool_call"
+          },
+          "request_choice_keys": [
+            "`T`",
+            "`F`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -8129,6 +8412,16 @@
         },
         {
           "index": 1,
+          "agent_inline": {
+            "id": "6l2dDV2SOJXgP5REPXndtU",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "top_logprobs": 3
+          },
+          "request_choice_keys": [
+            "`B`",
+            "`I`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8313,7 +8606,8 @@
             0.0,
             1.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 0
         },
         {
           "agent_full_id": "6l2dDV2SOJXgP5REPXndtU",
@@ -8329,7 +8623,8 @@
             0.3484706348240521,
             0.651529365175948
           ],
-          "weight": 0.6
+          "weight": 0.6,
+          "completion_index": 1
         }
       ],
       "scores": [

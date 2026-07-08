@@ -35,7 +35,9 @@ pub async fn read_by_id(pool: &Pool, id: i64) -> Result<Option<Response>, Error>
         return Ok(None);
     };
 
-    let response_id: String = msg.try_get("response_id")?;
+    // Nullable ONLY for `error` rows (which load by row_index alone).
+    let response_id: Option<String> = msg.try_get("response_id")?;
+    let response_id = response_id.unwrap_or_default();
     let table_kind: MessageTable = msg.try_get("table_kind")?;
     let row_index: Option<i64> = msg.try_get("row_index")?;
     let row_sub_index: Option<i64> = msg.try_get("row_sub_index")?;
@@ -333,6 +335,132 @@ async fn load_payload(
             )
             .await?;
             Ok(Response::File(file))
+        }
+        // ---- request_message user content ----
+        MessageTable::RequestMessageUserContentText => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Text { text: fetch_content_text(pool, "objectiveai.request_message_user_content_text", response_id, index, part_index).await? })
+        }
+        MessageTable::RequestMessageUserContentImage => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Image(fetch_content_image(pool, "objectiveai.request_message_user_content_image", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageUserContentAudio => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Audio(fetch_content_audio(pool, "objectiveai.request_message_user_content_audio", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageUserContentVideo => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Video(fetch_content_video(pool, "objectiveai.request_message_user_content_video", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageUserContentFile => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::File(fetch_content_file(pool, "objectiveai.request_message_user_content_file", response_id, index, part_index).await?))
+        }
+        // ---- request_message assistant ----
+        MessageTable::RequestMessageAssistantRefusal => {
+            let index = require_row_index(table_kind, row_index)?;
+            Ok(Response::Text { text: fetch_indexed_text(pool, "objectiveai.request_message_assistant_refusal", response_id, index).await? })
+        }
+        MessageTable::RequestMessageAssistantReasoning => {
+            let index = require_row_index(table_kind, row_index)?;
+            Ok(Response::Text { text: fetch_indexed_text(pool, "objectiveai.request_message_assistant_reasoning", response_id, index).await? })
+        }
+        MessageTable::RequestMessageAssistantToolCalls => {
+            let index = require_row_index(table_kind, row_index)?;
+            let tool_call_index = require_row_sub_index(table_kind, row_sub_index)?;
+            let row = sqlx::query(
+                "SELECT arguments FROM objectiveai.request_message_assistant_tool_calls \
+                 WHERE response_id = $1 AND \"index\" = $2 AND tool_call_index = $3",
+            )
+            .bind(response_id).bind(index).bind(tool_call_index)
+            .fetch_one(&**pool).await?;
+            Ok(Response::Text { text: row.try_get("arguments")? })
+        }
+        MessageTable::RequestMessageAssistantContentText => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Text { text: fetch_content_text(pool, "objectiveai.request_message_assistant_content_text", response_id, index, part_index).await? })
+        }
+        MessageTable::RequestMessageAssistantContentImage => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Image(fetch_content_image(pool, "objectiveai.request_message_assistant_content_image", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageAssistantContentAudio => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Audio(fetch_content_audio(pool, "objectiveai.request_message_assistant_content_audio", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageAssistantContentVideo => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Video(fetch_content_video(pool, "objectiveai.request_message_assistant_content_video", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageAssistantContentFile => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::File(fetch_content_file(pool, "objectiveai.request_message_assistant_content_file", response_id, index, part_index).await?))
+        }
+        // ---- request_message tool content ----
+        MessageTable::RequestMessageToolContentText => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Text { text: fetch_content_text(pool, "objectiveai.request_message_tool_content_text", response_id, index, part_index).await? })
+        }
+        MessageTable::RequestMessageToolContentImage => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Image(fetch_content_image(pool, "objectiveai.request_message_tool_content_image", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageToolContentAudio => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Audio(fetch_content_audio(pool, "objectiveai.request_message_tool_content_audio", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageToolContentVideo => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Video(fetch_content_video(pool, "objectiveai.request_message_tool_content_video", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestMessageToolContentFile => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::File(fetch_content_file(pool, "objectiveai.request_message_tool_content_file", response_id, index, part_index).await?))
+        }
+        // ---- vector request choice content (index = choice index) ----
+        MessageTable::RequestVectorChoiceContentText => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Text { text: fetch_content_text(pool, "objectiveai.request_vector_choice_content_text", response_id, index, part_index).await? })
+        }
+        MessageTable::RequestVectorChoiceContentImage => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Image(fetch_content_image(pool, "objectiveai.request_vector_choice_content_image", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestVectorChoiceContentAudio => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Audio(fetch_content_audio(pool, "objectiveai.request_vector_choice_content_audio", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestVectorChoiceContentVideo => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::Video(fetch_content_video(pool, "objectiveai.request_vector_choice_content_video", response_id, index, part_index).await?))
+        }
+        MessageTable::RequestVectorChoiceContentFile => {
+            let (index, part_index) = require_full_indices(table_kind, row_index, row_sub_index)?;
+            Ok(Response::File(fetch_content_file(pool, "objectiveai.request_vector_choice_content_file", response_id, index, part_index).await?))
+        }
+        // The per-agent vote is inline in `read all` (no id). If opened
+        // by id anyway, return its JSON array as text. `response_id` is
+        // the agent completion's id, so there's exactly one vote row.
+        MessageTable::ResponseVectorVote => {
+            let row = sqlx::query(
+                "SELECT vote FROM objectiveai.response_vector_vote \
+                 WHERE response_id = $1 LIMIT 1",
+            )
+            .bind(response_id)
+            .fetch_one(&**pool)
+            .await?;
+            let vote: sqlx::types::Json<serde_json::Value> = row.try_get("vote")?;
+            Ok(Response::Text { text: vote.0.to_string() })
+        }
+        MessageTable::Error => {
+            let id = require_row_index(table_kind, row_index)?;
+            let row = sqlx::query("SELECT error FROM objectiveai.errors WHERE id = $1")
+                .bind(id)
+                .fetch_one(&**pool)
+                .await?;
+            let error: sqlx::types::Json<serde_json::Value> = row.try_get("error")?;
+            Ok(Response::Error { error: error.0 })
         }
     }
 }

@@ -26,10 +26,51 @@
                 0,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank these items."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+                    "upstream": "mock",
+                    "output_mode": "tool_call"
+                  },
+                  "request_choice_keys": [
+                    "`E`",
+                    "`F`",
+                    "`N`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -72,6 +113,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -124,6 +166,17 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "58LYF2WMXs4AWDLJmt5c8p",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 8
+                  },
+                  "request_choice_keys": [
+                    "`E`",
+                    "`R`",
+                    "`N`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -319,7 +372,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.4
+                  "weight": 0.4,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "58LYF2WMXs4AWDLJmt5c8p",
@@ -337,7 +391,8 @@
                     0.1671815156192444,
                     0.3439641932055468
                   ],
-                  "weight": 0.6
+                  "weight": 0.6,
+                  "completion_index": 2
                 }
               ],
               "scores": [
@@ -405,10 +460,51 @@
                 1,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by overall quality."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "4wXv5UufT9xfKYKsCLpBXT",
+                    "upstream": "mock",
+                    "output_mode": "json_schema"
+                  },
+                  "request_choice_keys": [
+                    "`B`",
+                    "`G`",
+                    "`R`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -468,7 +564,8 @@
                     0.0,
                     0.0
                   ],
-                  "weight": 1.0
+                  "weight": 1.0,
+                  "completion_index": 0
                 }
               ],
               "scores": [
@@ -501,10 +598,51 @@
                 1,
                 1
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by clarity."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "4wXv5UufT9xfKYKsCLpBXT",
+                    "upstream": "mock",
+                    "output_mode": "json_schema"
+                  },
+                  "request_choice_keys": [
+                    "`H`",
+                    "`A`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -564,7 +702,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 1.0
+                  "weight": 1.0,
+                  "completion_index": 0
                 }
               ],
               "scores": [
@@ -597,10 +736,51 @@
                 1,
                 2
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by relevance."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "4wXv5UufT9xfKYKsCLpBXT",
+                    "upstream": "mock",
+                    "output_mode": "json_schema"
+                  },
+                  "request_choice_keys": [
+                    "`D`",
+                    "`G`",
+                    "`E`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -660,7 +840,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 1.0
+                  "weight": 1.0,
+                  "completion_index": 0
                 }
               ],
               "scores": [
@@ -693,10 +874,51 @@
                 1,
                 3
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by originality."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "4wXv5UufT9xfKYKsCLpBXT",
+                    "upstream": "mock",
+                    "output_mode": "json_schema"
+                  },
+                  "request_choice_keys": [
+                    "`T`",
+                    "`C`",
+                    "`R`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -756,7 +978,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 1.0
+                  "weight": 1.0,
+                  "completion_index": 0
                 }
               ],
               "scores": [
@@ -789,10 +1012,51 @@
                 1,
                 4
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by conciseness."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "4wXv5UufT9xfKYKsCLpBXT",
+                    "upstream": "mock",
+                    "output_mode": "json_schema"
+                  },
+                  "request_choice_keys": [
+                    "`S`",
+                    "`J`",
+                    "`P`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -852,7 +1116,8 @@
                     0.0,
                     0.0
                   ],
-                  "weight": 1.0
+                  "weight": 1.0,
+                  "completion_index": 0
                 }
               ],
               "scores": [
@@ -954,10 +1219,52 @@
                 0,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank these items."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`M`",
+                    "`T`",
+                    "`A`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -1146,6 +1453,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -1198,6 +1506,17 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`I`",
+                    "`O`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -1384,7 +1703,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -1402,7 +1722,8 @@
                     0.55949532645682,
                     0.4405046735431799
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 2
                 }
               ],
               "scores": [
@@ -1470,10 +1791,52 @@
                 1,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by overall quality."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`R`",
+                    "`H`",
+                    "`S`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -1542,6 +1905,17 @@
                 },
                 {
                   "index": 1,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`G`",
+                    "`D`",
+                    "`P`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -1737,7 +2111,8 @@
                     0.0,
                     0.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 0
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -1755,7 +2130,8 @@
                     0.1322856759711482,
                     0.3297628519776878
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 1
                 }
               ],
               "scores": [
@@ -1788,10 +2164,52 @@
                 1,
                 1
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by clarity."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`P`",
+                    "`A`",
+                    "`Q`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -1844,6 +2262,17 @@
                 },
                 {
                   "index": 1,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`A`",
+                    "`O`",
+                    "`N`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2053,7 +2482,8 @@
                     0.0,
                     1.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 0
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2071,7 +2501,8 @@
                     0.3314424795818279,
                     0.458979548559827
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 1
                 }
               ],
               "scores": [
@@ -2104,10 +2535,52 @@
                 1,
                 2
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by relevance."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`L`",
+                    "`E`",
+                    "`R`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -2168,6 +2641,17 @@
                 },
                 {
                   "index": 1,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`R`",
+                    "`K`",
+                    "`J`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2375,7 +2859,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 0
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2393,7 +2878,8 @@
                     0.590375555424377,
                     0.1323666384240581
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 1
                 }
               ],
               "scores": [
@@ -2426,10 +2912,52 @@
                 1,
                 3
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by originality."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`A`",
+                    "`C`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -2482,6 +3010,17 @@
                 },
                 {
                   "index": 1,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`B`",
+                    "`N`",
+                    "`R`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2701,7 +3240,8 @@
                     0.0,
                     1.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 0
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -2719,7 +3259,8 @@
                     0.3240832763226829,
                     0.3089019855386283
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 1
                 }
               ],
               "scores": [
@@ -2752,10 +3293,52 @@
                 1,
                 4
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank by conciseness."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`N`",
+                    "`S`",
+                    "`J`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -2934,6 +3517,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -2986,6 +3570,17 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`A`",
+                    "`H`",
+                    "`J`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -3207,7 +3802,8 @@
                     0.0,
                     0.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -3225,7 +3821,8 @@
                     0.630838211179754,
                     0.2230430043166287
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 2
                 }
               ],
               "scores": [
@@ -3293,10 +3890,52 @@
                 2,
                 0
               ],
+              "request_messages": [
+                {
+                  "role": "user",
+                  "content": [
+                    {
+                      "type": "text",
+                      "text": "Rank these items."
+                    }
+                  ]
+                }
+              ],
+              "request_choices": [
+                [
+                  {
+                    "type": "text",
+                    "text": "Alpha"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Beta"
+                  }
+                ],
+                [
+                  {
+                    "type": "text",
+                    "text": "Gamma"
+                  }
+                ]
+              ],
               "id": "",
               "completions": [
                 {
                   "index": 0,
+                  "agent_inline": {
+                    "id": "0xnE9ggm7mtO0KByCTu82r",
+                    "upstream": "mock",
+                    "output_mode": "tool_call",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`M`",
+                    "`T`",
+                    "`A`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -3485,6 +4124,7 @@
                 },
                 {
                   "index": 1,
+                  "request_choice_keys": [],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "0xnE9ggm7mtO0KByCTu82r",
@@ -3537,6 +4177,17 @@
                 },
                 {
                   "index": 2,
+                  "agent_inline": {
+                    "id": "5PjhypRVQsOkbOwJVBReFO",
+                    "upstream": "mock",
+                    "output_mode": "json_schema",
+                    "top_logprobs": 15
+                  },
+                  "request_choice_keys": [
+                    "`I`",
+                    "`O`",
+                    "`M`"
+                  ],
                   "id": "",
                   "agent_instance_hierarchy": "",
                   "agent_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -3723,7 +4374,8 @@
                     1.0,
                     0.0
                   ],
-                  "weight": 0.35
+                  "weight": 0.35,
+                  "completion_index": 1
                 },
                 {
                   "agent_full_id": "5PjhypRVQsOkbOwJVBReFO",
@@ -3741,7 +4393,8 @@
                     0.55949532645682,
                     0.4405046735431799
                   ],
-                  "weight": 0.65
+                  "weight": 0.65,
+                  "completion_index": 2
                 }
               ],
               "scores": [

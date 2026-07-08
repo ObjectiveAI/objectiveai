@@ -1,0 +1,43 @@
+{
+  "title": "mcp.TasksCapability",
+  "description": "Capabilities for task creation and management.",
+  "type": "object",
+  "properties": {
+    "cancel": {
+      "description": "Present if the server supports cancelling tasks.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksCancelCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "list": {
+      "description": "Present if the server supports listing tasks.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksListCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "requests": {
+      "description": "Task creation capabilities for specific request types.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksRequestsCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

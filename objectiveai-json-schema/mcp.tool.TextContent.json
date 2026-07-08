@@ -1,0 +1,36 @@
+{
+  "title": "mcp.tool.TextContent",
+  "description": "Text content.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "annotations": {
+      "description": "Optional annotations for the client.",
+      "anyOf": [
+        {
+          "$ref": "mcp.shared.Annotations"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "text": {
+      "description": "The text content of the message.",
+      "type": "string"
+    }
+  }
+}

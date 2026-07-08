@@ -7,10 +7,52 @@
       "task_path": [
         0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "You are an email classifier."
+            },
+            {
+              "type": "text",
+              "text": "Subject: Meeting tomorrow"
+            },
+            {
+              "type": "text",
+              "text": "Body: Don't forget the meeting at 3pm."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Important"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Not important"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "425mMcWqssOpPRrsDrjB0B",
+            "upstream": "mock",
+            "output_mode": "instruction"
+          },
+          "request_choice_keys": [
+            "`D`",
+            "`T`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -54,6 +96,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",

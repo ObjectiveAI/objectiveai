@@ -19,7 +19,6 @@ mod github;
 #[cfg(feature = "mcp")]
 mod mcp_handler;
 mod notifier;
-pub mod viewer;
 
 pub use client::*;
 pub use error::*;

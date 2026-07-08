@@ -56,6 +56,7 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::marker::PhantomData;
+use std::sync::Arc;
 use std::pin::Pin;
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
@@ -67,7 +68,7 @@ use objectiveai_sdk::functions::executions::response::streaming::FunctionExecuti
 use objectiveai_sdk::vector::completions::request::VectorCompletionCreateParams;
 use objectiveai_sdk::vector::completions::response::streaming::VectorCompletionChunk;
 use serde::Serialize;
-use tokio::sync::{mpsc, oneshot, watch};
+use tokio::sync::{Mutex, mpsc, oneshot, watch};
 use tokio::task::JoinHandle;
 
 use crate::db::Pool;
@@ -85,11 +86,22 @@ use super::write::{
 
 pub trait WriterChunk {
     fn primary_id(&self) -> &str;
+    /// The spawned agent's AIH for the agent tier — where the writer
+    /// derives request_message rows + the agent_ref from the REQUEST
+    /// (the response chunk no longer carries them). `None` for the
+    /// vector/function tiers, which surface these through the chunk
+    /// stream instead.
+    fn agent_tier_aih(&self) -> Option<&str> {
+        None
+    }
 }
 
 impl WriterChunk for AgentCompletionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
+    }
+    fn agent_tier_aih(&self) -> Option<&str> {
+        Some(self.agent_instance_hierarchy.as_str())
     }
 }
 impl WriterChunk for VectorCompletionChunk {
@@ -100,6 +112,80 @@ impl WriterChunk for VectorCompletionChunk {
 impl WriterChunk for FunctionExecutionChunk {
     fn primary_id(&self) -> &str {
         self.id.as_str()
+    }
+}
+
+/// Chunks that can surface `(AIH, definition source)` pairs for the
+/// `objectiveai.agent_refs` registry: every nested agent completion
+/// carrying `agent_inline` (each completion's FIRST chunk). Per the
+/// registry's rule, `agent_remote` present → the remote wins;
+/// otherwise the inline spec itself.
+pub trait ChunkAgentRefs {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    );
+}
+
+impl ChunkAgentRefs for AgentCompletionChunk {
+    fn collect_agent_refs(
+        &self,
+        _out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        // The inner agent chunk no longer carries `agent_inline` (it
+        // moved to the vector wrapper). Agent-tier refs are derived
+        // from the REQUEST by the writer, not from the response chunk;
+        // this impl is a no-op (used only when the chunk appears as a
+        // standalone agent completion or a function reasoning summary).
+    }
+}
+
+impl ChunkAgentRefs for VectorCompletionChunk {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        // `agent_inline` now lives on the per-agent vector wrapper, not
+        // the inner agent chunk. Pair it with the inner chunk's
+        // AIH / remote.
+        for completion in &self.completions {
+            if let Some(inline) = &completion.agent_inline {
+                let value = match &completion.inner.agent_remote {
+                    Some(remote) => {
+                        crate::db::agent_refs::AgentRefValue::remote(remote)
+                    }
+                    None => crate::db::agent_refs::AgentRefValue::inline(inline),
+                };
+                if let Some(value) = value {
+                    out.push((
+                        completion.inner.agent_instance_hierarchy.clone(),
+                        value,
+                    ));
+                }
+            }
+        }
+    }
+}
+
+impl ChunkAgentRefs for FunctionExecutionChunk {
+    fn collect_agent_refs(
+        &self,
+        out: &mut Vec<(String, crate::db::agent_refs::AgentRefValue)>,
+    ) {
+        use objectiveai_sdk::functions::executions::response::streaming::TaskChunk;
+        for task in &self.tasks {
+            match task {
+                TaskChunk::FunctionExecution(wrapper) => {
+                    wrapper.inner.collect_agent_refs(out);
+                }
+                TaskChunk::VectorCompletion(wrapper) => {
+                    wrapper.inner.collect_agent_refs(out);
+                }
+            }
+        }
+        if let Some(reasoning) = &self.reasoning {
+            reasoning.inner.collect_agent_refs(out);
+        }
     }
 }
 
@@ -141,6 +227,9 @@ pub struct LogWriter<C> {
     /// [`LogWriter::written_once`] (sync peek) and
     /// [`LogWriter::wait_written_once`] (async wait).
     written_rx: watch::Receiver<bool>,
+    /// Mid-stream failure handoff slot shared with the listener —
+    /// see [`finalize_with_stream_error`](Self::finalize_with_stream_error).
+    stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -200,6 +289,23 @@ impl<C> LogWriter<C> {
             )),
         }
     }
+
+    /// [`finalize`](Self::finalize), carrying the caller's mid-stream
+    /// failure. When `error` is `Some`, the listener — AFTER draining
+    /// every queued chunk (so error rows land last, never out of
+    /// order) — logs it as an `error` row for every nested agent
+    /// completion that has NOT finished (no `usage` yet) and does not
+    /// carry its own in-band error. Completions that finished cleanly
+    /// get nothing: they started and ended with no errors.
+    pub async fn finalize_with_stream_error(
+        self,
+        error: Option<serde_json::Value>,
+    ) -> Result<(), crate::error::Error> {
+        if let Some(value) = error {
+            *self.stream_error.lock().await = Some(value);
+        }
+        self.finalize().await
+    }
 }
 
 /// All the per-stream state the listener task owns. Was previously
@@ -209,6 +315,16 @@ struct LogWriterState<C> {
     pool: Pool,
     tier: Tier,
     request_body: serde_json::Value,
+    /// Agent tier only: the request's typed messages, unpacked into
+    /// request_message content rows once on the first chunk. `None`
+    /// for the vector/function tiers (their request_message rows ride
+    /// the chunk stream). Immutable — written once, not shadow-gated.
+    request_messages: Option<Vec<objectiveai_sdk::agent::completions::message::Message>>,
+    /// Agent tier only: the agent-ref derived from the REQUEST's
+    /// `agent` field, upserted once on the first chunk. Taken (moved)
+    /// then. `None` for the other tiers (their refs come from the
+    /// response via `ChunkAgentRefs`).
+    request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     /// AIH of the caller who issued the request that spawned this
     /// writer (pulled from `ctx.config.agent_instance_hierarchy` at
     /// `spawn_writer` time). Written into the request blob row at
@@ -232,6 +348,31 @@ struct LogWriterState<C> {
     /// request blob in that agent's history; subsequent ticks see
     /// the agent already-marked and skip the registration.
     seen_agents: HashSet<String>,
+    /// Live-conversation tee: every row the shadow admits
+    /// (`Insert`/`Update`) is also shipped, full-value, to the resident
+    /// daemon for `/agents/instances/{*aih}` fan-out. Best-effort and
+    /// non-blocking — see [`super::tee`]. `None` = no tee (e.g. hand
+    /// -built writers).
+    tee: Option<super::tee::ConversationTee>,
+    /// The tee's stateful row→typed-event mapper (head memory).
+    frame_mapper: super::tee::FrameMapper,
+    /// `(aih, response_id)` pairs whose in-band completion error has
+    /// already been persisted — the cumulative accumulator re-yields
+    /// the error item every tick once set. Also consulted by the
+    /// post-drain mid-stream failure sweep.
+    logged_errors: HashSet<(String, String)>,
+    /// Per-tier walker over the folded chunk's nested agent
+    /// completions — the mid-stream failure sweep's enumeration.
+    statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+    /// The chunk's own TOP-LEVEL in-band error (a function execution
+    /// failing on the wire without a transport error). `None`-returning
+    /// for the agent tier — spawn's `note_error` owns that tier's
+    /// stream errors.
+    chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
+    /// Mid-stream failure handoff: the caller's stream error, set by
+    /// [`LogWriter::finalize_with_stream_error`] BEFORE the EOF signal,
+    /// consumed by the listener's post-drain sweep.
+    stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -242,19 +383,63 @@ impl<C> LogWriterState<C> {
         request_body: serde_json::Value,
         sender_agent_instance_hierarchy: String,
         items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
+        request_messages: Option<
+            Vec<objectiveai_sdk::agent::completions::message::Message>,
+        >,
+        request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
+        tee: Option<super::tee::ConversationTee>,
+        statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+        chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
+        stream_error: Arc<Mutex<Option<serde_json::Value>>>,
     ) -> Self {
         Self {
             pool,
             tier,
             request_body,
+            request_messages,
+            request_agent_ref,
             sender_agent_instance_hierarchy,
             items_fn,
             last_usage: HashMap::new(),
             primary_id: None,
             shadow: Shadow::new(),
             seen_agents: HashSet::new(),
+            tee,
+            frame_mapper: super::tee::FrameMapper::default(),
+            logged_errors: HashSet::new(),
+            statuses_fn,
+            chunk_error_fn,
+            stream_error,
             _chunk: PhantomData,
         }
+    }
+
+    /// Agent tier: write the request's messages as request_message
+    /// content rows, once, on the first chunk — before any response
+    /// row so they read first. Immutable, so a direct one-time INSERT
+    /// per row (no shadow). `response_id`/`aih` are the spawned agent
+    /// completion's own id + AIH.
+    async fn write_agent_request_messages(
+        &mut self,
+        response_id: &str,
+        aih: &str,
+    ) -> Result<(), crate::error::Error> {
+        let Some(messages) = &self.request_messages else {
+            return Ok(());
+        };
+        let ts = now_secs() as i64;
+        for row in super::rows::request_message_rows(response_id, aih, messages) {
+            // These rows bypass the shadow (immutable, written once),
+            // so they must tee here or live subscribers never see the
+            // spawned agent's opening messages.
+            if let Some(tee) = &self.tee {
+                if let Some(frame) = self.frame_mapper.map(&row, ts) {
+                    tee.send(frame);
+                }
+            }
+            write_value(&self.pool, WriteOp::Insert, &row, ts).await?;
+        }
+        Ok(())
     }
 
     /// Persist the cumulative aggregate's streaming-content rows
@@ -291,7 +476,20 @@ impl<C> LogWriterState<C> {
                     let key = value.agent_instance_hierarchy();
                     match self.shadow.record(&value) {
                         WriteOp::Skip => {}
-                        op => buckets.entry(key).or_default().push((op, value)),
+                        op => {
+                            // Live-conversation tee: ship the admitted
+                            // row (full current value) BEFORE its SQL
+                            // runs — sequential walk order, never gated
+                            // on DB latency. Best-effort, non-blocking.
+                            if let Some(tee) = &self.tee {
+                                if let Some(frame) =
+                                    self.frame_mapper.map(&value, created_at_seed)
+                                {
+                                    tee.send(frame);
+                                }
+                            }
+                            buckets.entry(key).or_default().push((op, value));
+                        }
                     }
                 }
                 WriterItem::Usage { agent_instance_hierarchy, total_tokens } => {
@@ -304,6 +502,36 @@ impl<C> LogWriterState<C> {
                         .await?;
                         self.last_usage
                             .insert(agent_instance_hierarchy.to_string(), total_tokens);
+                    }
+                }
+                WriterItem::Error { agent_instance_hierarchy, response_id: rid, error } => {
+                    let logged_key =
+                        (agent_instance_hierarchy.to_string(), rid.to_string());
+                    if !self.logged_errors.contains(&logged_key) {
+                        // Persist first, then tee — same order as the
+                        // spawn-path `note_error`. Covers EVERY tier:
+                        // nested agent completions inside vector /
+                        // function executions flow through the same
+                        // walker.
+                        let value = serde_json::to_value(error)
+                            .unwrap_or_else(|_| error.to_string().into());
+                        super::errors::insert_error(
+                            &self.pool,
+                            agent_instance_hierarchy,
+                            Some(rid),
+                            &value,
+                            created_at_seed,
+                        )
+                        .await?;
+                        if let Some(tee) = &self.tee {
+                            tee.send(super::tee::error_frame(
+                                agent_instance_hierarchy.to_string(),
+                                Some(rid.to_string()),
+                                value,
+                                created_at_seed,
+                            ));
+                        }
+                        self.logged_errors.insert(logged_key);
                     }
                 }
             }
@@ -431,7 +659,14 @@ async fn listener_loop<C>(
     written_tx: watch::Sender<bool>,
 ) -> Result<(), crate::error::Error>
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync,
+    C: WriterChunk
+        + AgentCompletionIds
+        + ChunkAgentRefs
+        + ChunkPush
+        + Clone
+        + Serialize
+        + Send
+        + Sync,
 {
     let mut ready_tx = Some(ready_tx);
     let mut written_fired = false;
@@ -449,12 +684,19 @@ where
         // per-batch slice. Draining the queue only collapses how OFTEN
         // the persistence pass runs; what it persists from is always
         // the full accumulator.
+        // Definition sources ride the RAW chunks (agent_inline is
+        // first-chunk-only), so scan each incoming chunk before it
+        // dissolves into the aggregate.
+        let mut agent_refs: Vec<(String, crate::db::agent_refs::AgentRefValue)> =
+            Vec::new();
+        first.collect_agent_refs(&mut agent_refs);
         if let Some(acc) = accumulated.as_mut() {
             acc.push(&first);
         } else {
             accumulated = Some(first.clone());
         }
         while let Ok(next) = rx.try_recv() {
+            next.collect_agent_refs(&mut agent_refs);
             if let Some(acc) = accumulated.as_mut() {
                 acc.push(&next);
             }
@@ -468,6 +710,16 @@ where
         if state.primary_id.is_none() {
             let response_id = acc.primary_id().to_string();
             state.write_request_blob(&response_id).await?;
+            // Agent tier: unpack the REQUEST into request_message rows
+            // (written first) and register the agent_ref from the
+            // request's agent field — never the response chunk.
+            if let Some(aih) = acc.agent_tier_aih() {
+                state.write_agent_request_messages(&response_id, aih).await?;
+                if let Some(value) = state.request_agent_ref.take() {
+                    crate::db::agent_refs::upsert(&state.pool, aih, value)
+                        .await?;
+                }
+            }
             state.primary_id = Some(response_id);
         }
 
@@ -484,6 +736,12 @@ where
         // rows Skip with zero writes, only genuinely-changed bodies hit
         // the DB.
         state.apply_chunk(acc).await?;
+
+        // Blind agent_refs upserts for every scanned definition
+        // source — last write wins by design.
+        for (hier, value) in agent_refs {
+            crate::db::agent_refs::upsert(&state.pool, &hier, value).await?;
+        }
 
         // First successful apply: flip the watch true exactly once.
         // Subsequent batches don't touch it (the value is already
@@ -505,10 +763,56 @@ where
             }
         }
     }
-    // EOF (sender dropped via finalize): write the complete response
-    // blob exactly once from the cumulative aggregate. Skipped when no
-    // chunk ever arrived (primary_id still unset).
+    // EOF (sender dropped via finalize): every queued chunk is drained.
     if let Some(acc) = accumulated {
+        // Mid-stream failure sweep: the caller's stream error (set via
+        // `finalize_with_stream_error` before EOF) — or the execution's
+        // own TOP-LEVEL in-band error — is logged for every nested
+        // agent completion that neither finished (no usage yet) nor
+        // carries its own in-band error (already persisted). Runs
+        // strictly post-drain, so error rows land AFTER every
+        // conversation row.
+        let sweep_error = state.stream_error.lock().await.take().or_else(|| {
+            (state.chunk_error_fn)(&acc).map(|e| {
+                serde_json::to_value(e).unwrap_or_else(|_| e.to_string().into())
+            })
+        });
+        if let Some(value) = sweep_error {
+            let ts = now_secs() as i64;
+            for status in (state.statuses_fn)(&acc) {
+                if status.finished || status.errored {
+                    continue;
+                }
+                let key = (
+                    status.agent_instance_hierarchy.to_string(),
+                    status.response_id.to_string(),
+                );
+                if state.logged_errors.contains(&key) {
+                    continue;
+                }
+                // Persist first, then tee — same order as everywhere.
+                super::errors::insert_error(
+                    &state.pool,
+                    status.agent_instance_hierarchy,
+                    Some(status.response_id),
+                    &value,
+                    ts,
+                )
+                .await?;
+                if let Some(tee) = &state.tee {
+                    tee.send(super::tee::error_frame(
+                        key.0.clone(),
+                        Some(key.1.clone()),
+                        value.clone(),
+                        ts,
+                    ));
+                }
+                state.logged_errors.insert(key);
+            }
+        }
+        // Write the complete response blob exactly once from the
+        // cumulative aggregate. (Both skipped when no chunk ever
+        // arrived — `accumulated` still `None`.)
         state.write_response_blob(&acc).await?;
     }
     Ok(())
@@ -527,19 +831,42 @@ fn spawn_writer<C>(
     request_body: serde_json::Value,
     sender_agent_instance_hierarchy: String,
     items_fn: for<'a> fn(&'a C) -> WriterItems<'a>,
+    request_messages: Option<
+        Vec<objectiveai_sdk::agent::completions::message::Message>,
+    >,
+    request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
+    tee: Option<super::tee::ConversationTee>,
+    statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+    chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
-    C: WriterChunk + AgentCompletionIds + ChunkPush + Clone + Serialize + Send + Sync + 'static,
+    C: WriterChunk
+        + AgentCompletionIds
+        + ChunkAgentRefs
+        + ChunkPush
+        + Clone
+        + Serialize
+        + Send
+        + Sync
+        + 'static,
 {
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (written_tx, written_rx) = watch::channel(false);
+    let stream_error: Arc<Mutex<Option<serde_json::Value>>> =
+        Arc::new(Mutex::new(None));
     let state = LogWriterState::new(
         pool,
         tier,
         request_body,
         sender_agent_instance_hierarchy,
         items_fn,
+        request_messages,
+        request_agent_ref,
+        tee,
+        statuses_fn,
+        chunk_error_fn,
+        stream_error.clone(),
     );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
@@ -547,6 +874,7 @@ where
             tx,
             handle,
             written_rx,
+            stream_error,
             _chunk: PhantomData,
         },
         ready_rx,
@@ -557,17 +885,36 @@ pub fn write_agent_completion(
     pool: &Pool,
     params: &AgentCompletionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<AgentCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
 > {
     let body = serde_json::to_value(params)?;
+    // Agent tier derives request_message rows + the agent_ref from the
+    // REQUEST (not the response chunk). Capture both at construction.
+    let request_messages = Some(params.messages.clone());
+    let request_agent_ref = match &params.agent {
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::AgentBase(base) => {
+            crate::db::agent_refs::AgentRefValue::inline(base)
+        }
+        objectiveai_sdk::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional::Remote(remote) => {
+            crate::db::agent_refs::AgentRefValue::remote(remote)
+        }
+    };
     Ok(spawn_writer(
         pool.clone(),
         Tier::Agent,
         body,
         sender_agent_instance_hierarchy,
         agent_completion_chunk_rows,
+        request_messages,
+        request_agent_ref,
+        tee,
+        super::rows::agent_completion_statuses,
+        // Agent tier: spawn's `note_error` owns stream errors; the
+        // chunk's own in-band error is logged via `WriterItem::Error`.
+        |_| None,
     ))
 }
 
@@ -575,6 +922,7 @@ pub fn write_vector_completion(
     pool: &Pool,
     params: &VectorCompletionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<VectorCompletionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -586,6 +934,12 @@ pub fn write_vector_completion(
         body,
         sender_agent_instance_hierarchy,
         vector_completion_chunk_rows,
+        None,
+        None,
+        tee,
+        super::rows::vector_completion_statuses,
+        // VectorCompletionChunk carries no top-level error field.
+        |_| None,
     ))
 }
 
@@ -593,6 +947,7 @@ pub fn write_function_execution(
     pool: &Pool,
     params: &FunctionExecutionCreateParams,
     sender_agent_instance_hierarchy: String,
+    tee: Option<super::tee::ConversationTee>,
 ) -> Result<
     (LogWriter<FunctionExecutionChunk>, oneshot::Receiver<String>),
     crate::error::Error,
@@ -604,5 +959,10 @@ pub fn write_function_execution(
         body,
         sender_agent_instance_hierarchy,
         function_execution_chunk_rows,
+        None,
+        None,
+        tee,
+        super::rows::function_execution_statuses,
+        |chunk| chunk.error.as_ref(),
     ))
 }

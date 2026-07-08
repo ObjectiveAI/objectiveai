@@ -10,6 +10,11 @@ import (
 // One discovered agent instance under a target. Aggregated from the
 // `logs.messages`, `message_queue`, and `tags` tiers.
 type CliCommandAgentsInstancesListResponseItem struct {
+	// The agent definition recorded for this AIH — from
+	// `objectiveai.agent_refs`, with the legacy most-recent-request
+	// fallback (`lookup_session`). Populated by `agents instances
+	// get`; `agents instances list` leaves it unset.
+	Agent *AgentInlineAgentBaseWithFallbacksOrRemoteCommitOptional `json:"agent,omitempty"`
 	// Full hierarchy of this agent instance.
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	// RFC3339 timestamp of the first `logs.messages` row for this

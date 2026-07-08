@@ -41,8 +41,12 @@ use crate::websockets::agent_registry::AgentInstanceRegistry;
 pub enum Event {
     /// One-shot. Fires after the LogWriter has confirmed at least
     /// one successful batch persistence (`written_once`). Always
-    /// emitted before any `Chunk` item.
+    /// emitted before any `Chunk` or `Hierarchy` item.
     Id(String),
+    /// One unique agent instance hierarchy participating in this
+    /// execution, announced exactly once — right after its instance
+    /// lock is acquired (mirroring `agents spawn`'s announcement).
+    Hierarchy(String),
     /// One chunk straight off the SDK stream.
     Chunk(FunctionExecutionChunk),
 }
@@ -85,6 +89,11 @@ pub fn run(
             ctx.db_client().await?,
             &params,
             ctx.config.agent_instance_hierarchy.clone(),
+            // Live-conversation tee: this one writer streams every
+            // nested agent's rows; the daemon routes per-frame by AIH.
+            Some(crate::db::logs::ConversationTee::spawn(
+                ctx.filesystem.state_dir(),
+            )),
         )
         .map_err(|e| Error::Instance(format!(
             "failed to build function-execution log writer: {e}"
@@ -107,9 +116,15 @@ pub fn run(
 
         let mut sdk_stream = Box::pin(sdk_stream);
 
-        // Local buffer: chunks held back until `written_once` flips.
-        let mut buffered: Vec<FunctionExecutionChunk> = Vec::new();
+        // Local buffer: events held back until `written_once` flips,
+        // so the execution Id is always the stream's first item.
+        let mut buffered: Vec<Event> = Vec::new();
         let mut id_emitted = false;
+        // Hierarchies already announced — the registry dedupes the
+        // LOCK, this set dedupes the YIELD: never the same hierarchy
+        // item twice per execution.
+        let mut announced: std::collections::HashSet<String> =
+            std::collections::HashSet::new();
         let mut stream_err: Option<String> = None;
 
         while let Some(item) = sdk_stream.next().await {
@@ -127,8 +142,12 @@ pub fn run(
                     //    downstream work — by the time the chunk
                     //    yields, the rows are persisted.
                     let mut continuation_upserts: Vec<_> = Vec::new();
+                    let mut fresh_hierarchies: Vec<String> = Vec::new();
                     for (hier, continuation) in chunk.agent_instance_hierarchies() {
                         registry.observe(hier).await;
+                        if announced.insert(hier.to_string()) {
+                            fresh_hierarchies.push(hier.to_string());
+                        }
                         if let Some(c) = continuation {
                             continuation_upserts.push(
                                 crate::db::agent_continuations::upsert(ctx.db_client().await?, hier, c),
@@ -163,17 +182,24 @@ pub fn run(
                             format!("log writer ready signal lost: {e}")
                         ))?;
                         yield Event::Id(id);
-                        for c in buffered.drain(..) {
-                            yield Event::Chunk(c);
+                        for event in buffered.drain(..) {
+                            yield event;
                         }
                         id_emitted = true;
                     }
 
-                    // 3. Emit or buffer.
+                    // 3. Emit or buffer — hierarchy announcements
+                    //    first, then the chunk that carried them.
                     if id_emitted {
+                        for hier in fresh_hierarchies.drain(..) {
+                            yield Event::Hierarchy(hier);
+                        }
                         yield Event::Chunk(chunk);
                     } else {
-                        buffered.push(chunk);
+                        buffered.extend(
+                            fresh_hierarchies.drain(..).map(Event::Hierarchy),
+                        );
+                        buffered.push(Event::Chunk(chunk));
                     }
                 }
                 Err(e) => {
@@ -202,8 +228,8 @@ pub fn run(
                             );
                         }
                     }
-                    for c in buffered.drain(..) {
-                        yield Event::Chunk(c);
+                    for event in buffered.drain(..) {
+                        yield event;
                     }
                     id_emitted = true;
                 }
@@ -215,8 +241,18 @@ pub fn run(
 
         // Finalize the LogWriter (consumes; drops the sender;
         // awaits the listener). By the time this returns: the
-        // queue is empty AND no work is in flight.
-        let finalize_outcome = log_writer.finalize().await;
+        // queue is empty AND no work is in flight. A mid-stream
+        // failure rides in — post-drain, the writer logs it as an
+        // `error` row for every nested agent completion that never
+        // finished (no usage yet); cleanly-finished completions get
+        // nothing.
+        let finalize_outcome = log_writer
+            .finalize_with_stream_error(
+                stream_err
+                    .as_ref()
+                    .map(|e| Error::Instance(e.clone()).output_message()),
+            )
+            .await;
 
         // Surface errors. Stream errors take precedence (upstream
         // cause); writer errors are a downstream symptom.

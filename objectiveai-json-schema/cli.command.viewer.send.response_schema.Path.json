@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.send.response_schema.Path",
-  "type": "string",
-  "enum": [
-    "viewer/send/response_schema"
-  ]
-}

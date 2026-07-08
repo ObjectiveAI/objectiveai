@@ -115,7 +115,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
 
 pub mod request_schema;
 
-
 pub mod response_schema;
 
 #[cfg(feature = "cli-executor")]
@@ -128,4 +127,15 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     ) -> Result<serde_json::Value, E::Error> {
     let resp: Response = executor.execute_one(request, agent_arguments).await?;
     Ok(serde_json::to_value(resp).expect("Response serializes"))
+}
+
+/// One `/listen` broadcast run of `api config mcp_authorization add`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
 }

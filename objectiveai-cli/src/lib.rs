@@ -12,7 +12,6 @@ mod python_wasm;
 pub mod retrieve;
 mod source_resolver;
 mod spawn;
-pub mod viewer_client;
 pub(crate) mod websockets;
 
 #[cfg(test)]

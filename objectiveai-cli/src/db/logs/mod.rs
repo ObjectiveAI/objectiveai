@@ -21,24 +21,30 @@
 //! so the shadow's verdict is authoritative — concurrent races on
 //! the same row id can't happen.
 
+mod errors;
 mod listen;
 mod lookup;
 mod plugin_messages;
 mod read_all;
+mod read_conversation;
 mod read_id;
 mod row;
 mod rows;
 mod shadow;
+mod tee;
 mod write;
 mod writer;
 
+pub use errors::*;
 pub use listen::*;
 pub use lookup::*;
 pub use plugin_messages::*;
 pub use read_all::*;
+pub use read_conversation::*;
 pub use read_id::*;
 pub use row::*;
 pub use rows::*;
 pub use shadow::*;
+pub use tee::*;
 pub use write::*;
 pub use writer::*;

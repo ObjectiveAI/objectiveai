@@ -7,10 +7,44 @@
       "task_path": [
         0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Hello world"
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Yes"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "No"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "425mMcWqssOpPRrsDrjB0B",
+            "upstream": "mock",
+            "output_mode": "instruction"
+          },
+          "request_choice_keys": [
+            "`N`",
+            "`M`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -54,6 +88,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",

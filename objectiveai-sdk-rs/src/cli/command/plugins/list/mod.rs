@@ -33,10 +33,7 @@ impl CommandRequest for Request {
 // `ResponseManifest` is the canonical definition. Re-export here so
 // list items deserialize as the same Rust type the bare-naked
 // dispatcher already constructs.
-pub use super::get::{
-    ResponseHttpMethod, ResponseManifest as ResponseItem, ResponseMcpServer,
-    ResponseViewerRoute,
-};
+pub use super::get::{ResponseManifest as ResponseItem, ResponseMcpServer};
 
 #[derive(clap::Args)]
 pub struct Args {
@@ -103,5 +100,15 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `plugins list`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}

@@ -240,5 +240,40 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `agents spawn` in its unary
+/// form (the plain `execute`): the actual [`Request`], the
+/// producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}
+
+/// One `/listen` broadcast run of `agents spawn` in its
+/// streaming form (`execute_streaming` — the request set
+/// `dangerous_advanced.stream: true`): the actual [`Request`], the
+/// producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecutionStreaming {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}
+
+/// This leaf's multiple listener executions — one variant per
+/// execute fn (`Execution` for the plain `execute`, `Streaming`
+/// for `execute_streaming`), discriminated per request off
+/// `dangerous_advanced.stream`. The branch enum's single variant
+/// for this leaf wraps this.
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecutionVariant {
+    Execution(ListenerExecution),
+    Streaming(ListenerExecutionStreaming),
+}

@@ -2,10 +2,6 @@
   "title": "cli.command.viewer.Request",
   "anyOf": [
     {
-      "title": "Config",
-      "$ref": "cli.command.viewer.config.Request"
-    },
-    {
       "title": "GenerateSecretSignaturePair",
       "$ref": "cli.command.viewer.generate_secret_signature_pair.Request"
     },
@@ -28,18 +24,6 @@
     {
       "title": "KillResponseSchema",
       "$ref": "cli.command.viewer.kill.response_schema.Request"
-    },
-    {
-      "title": "Send",
-      "$ref": "cli.command.viewer.send.Request"
-    },
-    {
-      "title": "SendRequestSchema",
-      "$ref": "cli.command.viewer.send.request_schema.Request"
-    },
-    {
-      "title": "SendResponseSchema",
-      "$ref": "cli.command.viewer.send.response_schema.Request"
     },
     {
       "title": "Spawn",

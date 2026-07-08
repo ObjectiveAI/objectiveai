@@ -361,6 +361,14 @@ async fn handle_initialize(
 
     let mcp_session_id = uuid::Uuid::new_v4().to_string();
 
+    // Double-initialize hardening: if another initialize for this id is
+    // mid-connect, wait it out instead of dialing every upstream a
+    // second time. A session appearing means the concurrent initialize
+    // won — fall through to the reuse path below.
+    if state.sessions.initializing(&response_id).is_some() {
+        let _ = state.sessions.get_or_wait(&response_id).await;
+    }
+
     if let Some(session) = state.sessions.get(&response_id) {
         // Outcome 1 — reuse the live in-memory session. Re-apply the
         // session-global transient headers from THIS request's inbound
@@ -368,6 +376,14 @@ async fn handle_initialize(
         session.apply_transient_headers(headers).await;
         return ok_response_resume_sse(request.id, mcp_session_id);
     }
+
+    // Mark the fresh connect in flight: client requests for this id
+    // (`tools/list` & co — notably from an upstream server calling back
+    // in while it is itself being connected) park on this marker via
+    // `get_or_wait` instead of 404ing. The guard's Drop releases them
+    // on EVERY exit path below, so no request waits past this
+    // function's return.
+    let _init_guard = state.sessions.begin_initializing(&response_id);
 
     // Outcome 2 — fresh connect. `X-MCP-Servers` / `X-MCP-Headers` build
     // the spec list, every URL connects from scratch, and the opened
@@ -580,7 +596,8 @@ async fn handle_tools_list(
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&response_id) {
+    // A mid-initial-connect id parks here until the connect finishes.
+    let session = match sessions.get_or_wait(&response_id).await {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -616,7 +633,8 @@ async fn handle_tools_call(
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&response_id) {
+    // A mid-initial-connect id parks here until the connect finishes.
+    let session = match sessions.get_or_wait(&response_id).await {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -753,7 +771,8 @@ async fn handle_resources_list(
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&response_id) {
+    // A mid-initial-connect id parks here until the connect finishes.
+    let session = match sessions.get_or_wait(&response_id).await {
         Some(s) => s,
         None => return unknown_session_response(),
     };
@@ -788,7 +807,8 @@ async fn handle_resources_read(
         Err(resp) => return resp,
     };
 
-    let session = match sessions.get(&response_id) {
+    // A mid-initial-connect id parks here until the connect finishes.
+    let session = match sessions.get_or_wait(&response_id).await {
         Some(s) => s,
         None => return unknown_session_response(),
     };

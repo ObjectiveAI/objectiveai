@@ -11,13 +11,7 @@
   },
   "app": {
     "withGlobalTauri": false,
-    "windows": [
-      {
-        "title": "ObjectiveAI Viewer",
-        "width": 1024,
-        "height": 768
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": null
     }

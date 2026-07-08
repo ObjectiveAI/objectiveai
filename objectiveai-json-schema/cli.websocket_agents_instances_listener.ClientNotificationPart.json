@@ -1,0 +1,14 @@
+{
+  "title": "cli.websocket_agents_instances_listener.ClientNotificationPart",
+  "description": "Mirror of `logs.list.ClientNotificationPart`: `id` + `type` →\nthe opened content. `queued_at` stays on the enclosing block.",
+  "type": "object",
+  "properties": {
+    "content": {
+      "$ref": "cli.websocket_agents_instances_listener.PartContent"
+    },
+    "delivered_at": {
+      "description": "When the receiver consumed this content row.",
+      "type": "string"
+    }
+  }
+}

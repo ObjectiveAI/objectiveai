@@ -89,10 +89,46 @@ pub struct RequestDangerousAdvanced {
     pub seed: Option<i64>,
 }
 
+/// A unique agent instance participating in this execution, announced
+/// exactly once — right after its instance lock is acquired (the same
+/// moment `agents spawn` announces its own hierarchy). The constant
+/// `type:"agent_instance_hierarchy"` discriminator disambiguates this
+/// variant inside the untagged [`ResponseItem`] union, mirroring
+/// `type:"mcp"` on `plugins run`'s `Mcp`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.functions.execute.standard.AgentInstanceHierarchy")]
+pub struct AgentInstanceHierarchy {
+    pub r#type: AgentInstanceHierarchyType,
+    pub agent_instance_hierarchy: String,
+}
+
+/// Single-variant discriminator for [`AgentInstanceHierarchy`]'s
+/// `type` field. Always `"agent_instance_hierarchy"` on the wire.
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.functions.execute.standard.AgentInstanceHierarchyType")]
+pub enum AgentInstanceHierarchyType {
+    AgentInstanceHierarchy,
+}
+
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 #[schemars(rename = "cli.command.functions.execute.standard.ResponseItem")]
 pub enum ResponseItem {
+    // Placement above `Chunk` is load-bearing: serde untagged tries
+    // variants in source order, and the constant discriminator must
+    // win before the all-optional chunk object could absorb it.
+    #[schemars(title = "AgentInstanceHierarchy")]
+    AgentInstanceHierarchy(AgentInstanceHierarchy),
     #[schemars(title = "Chunk")]
     Chunk(crate::functions::executions::response::streaming::FunctionExecutionChunk),
     #[schemars(title = "Id")]
@@ -283,5 +319,40 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `functions execute standard` in its unary
+/// form (the plain `execute`): the actual [`Request`], the
+/// producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}
+
+/// One `/listen` broadcast run of `functions execute standard` in its
+/// streaming form (`execute_streaming` — the request set
+/// `dangerous_advanced.stream: true`): the actual [`Request`], the
+/// producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecutionStreaming {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}
+
+/// This leaf's multiple listener executions — one variant per
+/// execute fn (`Execution` for the plain `execute`, `Streaming`
+/// for `execute_streaming`), discriminated per request off
+/// `dangerous_advanced.stream`. The branch enum's single variant
+/// for this leaf wraps this.
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecutionVariant {
+    Execution(ListenerExecution),
+    Streaming(ListenerExecutionStreaming),
+}

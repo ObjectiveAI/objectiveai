@@ -4,16 +4,14 @@
 
 use std::pin::Pin;
 
-use futures::{Stream, StreamExt};
+use futures::Stream;
 use objectiveai_sdk::cli::command::viewer::{Request, Response};
 
 use crate::context::Context;
 use crate::error::Error;
 
-pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
-pub mod send;
 pub mod spawn;
 
 type ItemStream = Pin<Box<dyn Stream<Item = Result<Response, Error>> + Send>>;
@@ -26,10 +24,6 @@ fn once<T: Send + 'static>(
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
     let stream: ItemStream = match request {
-        Request::Config(req) => {
-            let inner = config::execute(ctx, req).await?;
-            Box::pin(inner.map(|r| r.map(Response::Config)))
-        }
         Request::GenerateSecretSignaturePair(req) => {
             let value = generate_secret_signature_pair::execute(ctx, req).await?;
             once(Ok(Response::GenerateSecretSignaturePair(value)))
@@ -53,18 +47,6 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
         Request::KillResponseSchema(req) => {
             let value = kill::response_schema::execute(ctx, req).await?;
             once(Ok(Response::KillResponseSchema(value)))
-        }
-        Request::Send(req) => {
-            let value = send::execute(ctx, req).await?;
-            once(Ok(Response::Send(value)))
-        }
-        Request::SendRequestSchema(req) => {
-            let value = send::request_schema::execute(ctx, req).await?;
-            once(Ok(Response::SendRequestSchema(value)))
-        }
-        Request::SendResponseSchema(req) => {
-            let value = send::response_schema::execute(ctx, req).await?;
-            once(Ok(Response::SendResponseSchema(value)))
         }
         Request::Spawn(req) => {
             let value = spawn::execute(ctx, req).await?;

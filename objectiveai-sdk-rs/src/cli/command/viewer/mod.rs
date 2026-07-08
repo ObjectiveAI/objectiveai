@@ -1,18 +1,11 @@
-pub mod config;
 pub mod generate_secret_signature_pair;
 pub mod kill;
-pub mod send;
 pub mod spawn;
 
 #[derive(clap::Subcommand)]
 pub enum Command {
-    Config {
-        #[command(subcommand)]
-        command: config::Command,
-    },
     GenerateSecretSignaturePair(generate_secret_signature_pair::Command),
     Kill(kill::Command),
-    Send(send::Command),
     Spawn(spawn::Command),
 }
 
@@ -20,8 +13,6 @@ pub enum Command {
 #[serde(untagged)]
 #[schemars(rename = "cli.command.viewer.Request")]
 pub enum Request {
-    #[schemars(title = "Config")]
-    Config(config::Request),
     #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Request),
     #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
@@ -34,12 +25,6 @@ pub enum Request {
     KillRequestSchema(kill::request_schema::Request),
     #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Request),
-    #[schemars(title = "Send")]
-    Send(send::Request),
-    #[schemars(title = "SendRequestSchema")]
-    SendRequestSchema(send::request_schema::Request),
-    #[schemars(title = "SendResponseSchema")]
-    SendResponseSchema(send::response_schema::Request),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Request),
     #[schemars(title = "SpawnRequestSchema")]
@@ -55,8 +40,6 @@ pub enum Request {
 #[schemars(rename = "cli.command.viewer.Response")]
 #[serde(untagged)]
 pub enum Response {
-    #[schemars(title = "Config")]
-    Config(config::Response),
     #[schemars(title = "GenerateSecretSignaturePair")]
     GenerateSecretSignaturePair(generate_secret_signature_pair::Response),
     #[schemars(title = "GenerateSecretSignaturePairRequestSchema")]
@@ -69,12 +52,6 @@ pub enum Response {
     KillRequestSchema(kill::request_schema::Response),
     #[schemars(title = "KillResponseSchema")]
     KillResponseSchema(kill::response_schema::Response),
-    #[schemars(title = "Send")]
-    Send(send::Response),
-    #[schemars(title = "SendRequestSchema")]
-    SendRequestSchema(send::request_schema::Response),
-    #[schemars(title = "SendResponseSchema")]
-    SendResponseSchema(send::response_schema::Response),
     #[schemars(title = "Spawn")]
     Spawn(spawn::Response),
     #[schemars(title = "SpawnRequestSchema")]
@@ -87,16 +64,12 @@ pub enum Response {
 impl crate::cli::command::CommandResponse for Response {
     fn into_mcp(self) -> crate::cli::command::McpResponseItem {
         match self {
-            Response::Config(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePair(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePairRequestSchema(v) => v.into_mcp(),
             Response::GenerateSecretSignaturePairResponseSchema(v) => v.into_mcp(),
             Response::Kill(v) => v.into_mcp(),
             Response::KillRequestSchema(v) => v.into_mcp(),
             Response::KillResponseSchema(v) => v.into_mcp(),
-            Response::Send(v) => v.into_mcp(),
-            Response::SendRequestSchema(v) => v.into_mcp(),
-            Response::SendResponseSchema(v) => v.into_mcp(),
             Response::Spawn(v) => v.into_mcp(),
             Response::SpawnRequestSchema(v) => v.into_mcp(),
             Response::SpawnResponseSchema(v) => v.into_mcp(),
@@ -108,8 +81,6 @@ impl TryFrom<Command> for Request {
     type Error = crate::cli::command::FromArgsError;
     fn try_from(command: Command) -> Result<Self, Self::Error> {
         match command {
-            Command::Config { command } =>
-                Ok(Request::Config(config::Request::try_from(command)?)),
             Command::GenerateSecretSignaturePair(cmd) => match cmd.schema {
                 None => Ok(Request::GenerateSecretSignaturePair(generate_secret_signature_pair::Request::try_from(cmd.args)?)),
                 Some(generate_secret_signature_pair::Schema::RequestSchema(args)) =>
@@ -123,13 +94,6 @@ impl TryFrom<Command> for Request {
                     Ok(Request::KillRequestSchema(kill::request_schema::Request::try_from(args)?)),
                 Some(kill::Schema::ResponseSchema(args)) =>
                     Ok(Request::KillResponseSchema(kill::response_schema::Request::try_from(args)?)),
-            },
-            Command::Send(cmd) => match cmd.schema {
-                None => Ok(Request::Send(send::Request::try_from(cmd.args)?)),
-                Some(send::Schema::RequestSchema(args)) =>
-                    Ok(Request::SendRequestSchema(send::request_schema::Request::try_from(args)?)),
-                Some(send::Schema::ResponseSchema(args)) =>
-                    Ok(Request::SendResponseSchema(send::response_schema::Request::try_from(args)?)),
             },
             Command::Spawn(cmd) => match cmd.schema {
                 None => Ok(Request::Spawn(spawn::Request::try_from(cmd.args)?)),
@@ -145,16 +109,12 @@ impl TryFrom<Command> for Request {
 impl crate::cli::command::CommandRequest for Request {
     fn request_base(&self) -> &crate::cli::command::RequestBase {
         match self {
-            Request::Config(inner) => inner.request_base(),
             Request::GenerateSecretSignaturePair(inner) => inner.request_base(),
             Request::GenerateSecretSignaturePairRequestSchema(inner) => inner.request_base(),
             Request::GenerateSecretSignaturePairResponseSchema(inner) => inner.request_base(),
             Request::Kill(inner) => inner.request_base(),
             Request::KillRequestSchema(inner) => inner.request_base(),
             Request::KillResponseSchema(inner) => inner.request_base(),
-            Request::Send(inner) => inner.request_base(),
-            Request::SendRequestSchema(inner) => inner.request_base(),
-            Request::SendResponseSchema(inner) => inner.request_base(),
             Request::Spawn(inner) => inner.request_base(),
             Request::SpawnRequestSchema(inner) => inner.request_base(),
             Request::SpawnResponseSchema(inner) => inner.request_base(),
@@ -163,16 +123,12 @@ impl crate::cli::command::CommandRequest for Request {
 
     fn request_base_mut(&mut self) -> Option<&mut crate::cli::command::RequestBase> {
         match self {
-            Request::Config(inner) => inner.request_base_mut(),
             Request::GenerateSecretSignaturePair(inner) => inner.request_base_mut(),
             Request::GenerateSecretSignaturePairRequestSchema(inner) => inner.request_base_mut(),
             Request::GenerateSecretSignaturePairResponseSchema(inner) => inner.request_base_mut(),
             Request::Kill(inner) => inner.request_base_mut(),
             Request::KillRequestSchema(inner) => inner.request_base_mut(),
             Request::KillResponseSchema(inner) => inner.request_base_mut(),
-            Request::Send(inner) => inner.request_base_mut(),
-            Request::SendRequestSchema(inner) => inner.request_base_mut(),
-            Request::SendResponseSchema(inner) => inner.request_base_mut(),
             Request::Spawn(inner) => inner.request_base_mut(),
             Request::SpawnRequestSchema(inner) => inner.request_base_mut(),
             Request::SpawnResponseSchema(inner) => inner.request_base_mut(),
@@ -193,10 +149,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
     use futures::StreamExt;
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<Response, E::Error>> + Send>> =
         match request {
-            Request::Config(req) => {
-                let inner = config::execute(executor, req, agent_arguments).await?;
-                Box::pin(inner.map(|r| r.map(Response::Config)))
-            }
             Request::GenerateSecretSignaturePair(req) => {
                 let value = generate_secret_signature_pair::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
@@ -231,24 +183,6 @@ pub async fn execute<E: crate::cli::command::CommandExecutor>(
                 let value = kill::response_schema::execute(executor, req, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(
                     Response::KillResponseSchema(value),
-                )))
-            }
-            Request::Send(req) => {
-                let value = send::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::Send(value),
-                )))
-            }
-            Request::SendRequestSchema(req) => {
-                let value = send::request_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::SendRequestSchema(value),
-                )))
-            }
-            Request::SendResponseSchema(req) => {
-                let value = send::response_schema::execute(executor, req, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(
-                    Response::SendResponseSchema(value),
                 )))
             }
             Request::Spawn(req) => {
@@ -286,10 +220,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 > {
     let stream: std::pin::Pin<Box<dyn futures::Stream<Item = Result<serde_json::Value, E::Error>> + Send>> =
         match request {
-            Request::Config(req) => {
-                let inner = config::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(inner)
-            }
             Request::GenerateSecretSignaturePair(req) => {
                 let value = generate_secret_signature_pair::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
@@ -314,18 +244,6 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
                 let value = kill::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
             }
-            Request::Send(req) => {
-                let value = send::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::SendRequestSchema(req) => {
-                let value = send::request_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
-            Request::SendResponseSchema(req) => {
-                let value = send::response_schema::execute_transform(executor, req, transform, agent_arguments).await?;
-                Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
-            }
             Request::Spawn(req) => {
                 let value = spawn::execute_transform(executor, req, transform, agent_arguments).await?;
                 Box::pin(crate::cli::command::StreamOnce::new(Ok(value)))
@@ -340,4 +258,19 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
             }
         };
     Ok(stream)
+}
+
+/// `/listen` mirror of [`Request`]: one variant per child, wrapping
+/// its `ListenerExecution`. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub enum ListenerExecution {
+    GenerateSecretSignaturePair(generate_secret_signature_pair::ListenerExecution),
+    GenerateSecretSignaturePairRequestSchema(generate_secret_signature_pair::request_schema::ListenerExecution),
+    GenerateSecretSignaturePairResponseSchema(generate_secret_signature_pair::response_schema::ListenerExecution),
+    Kill(kill::ListenerExecution),
+    KillRequestSchema(kill::request_schema::ListenerExecution),
+    KillResponseSchema(kill::response_schema::ListenerExecution),
+    Spawn(spawn::ListenerExecution),
+    SpawnRequestSchema(spawn::request_schema::ListenerExecution),
+    SpawnResponseSchema(spawn::response_schema::ListenerExecution),
 }

@@ -3,6 +3,7 @@
 from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
+from objectiveai_sdk.agent.inline_agent_base_with_fallbacks_or_remote_commit_optional import InlineAgentBaseWithFallbacksOrRemoteCommitOptional
 
 
 class ResponseItem(BaseModel):
@@ -10,6 +11,7 @@ class ResponseItem(BaseModel):
 `logs.messages`, `message_queue`, and `tags` tiers."""
     model_config = ConfigDict(title='cli.command.agents.instances.list.ResponseItem')
 
+    agent: Optional[InlineAgentBaseWithFallbacksOrRemoteCommitOptional] = Field(None, description='The agent definition recorded for this AIH — from\n`objectiveai.agent_refs`, with the legacy most-recent-request\nfallback (`lookup_session`). Populated by `agents instances\nget`; `agents instances list` leaves it unset.', json_schema_extra={'omitempty': True})
     agent_instance_hierarchy: str = Field(..., description='Full hierarchy of this agent instance.')
     created_at: Optional[str] = Field(None, description='RFC3339 timestamp of the first `logs.messages` row for this\nagent. `None` when the agent has no logs yet (queue-only).', json_schema_extra={'omitempty': True})
     last_active_at: Optional[str] = Field(None, description='RFC3339 timestamp of the most recent `logs.messages` row for\nthis agent. `None` when the agent has no logs yet (queue-only).', json_schema_extra={'omitempty': True})

@@ -37,8 +37,6 @@ pub fn client() -> Arc<HttpClient> {
         None,
         None::<String>,
         None::<String>,
-        None::<String>,
-        None::<String>,
     ))
 }
 

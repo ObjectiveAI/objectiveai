@@ -39,6 +39,20 @@
       "description": "Object type identifier (`\"vector.completion\"`).",
       "$ref": "vector.completions.response.unary.Object"
     },
+    "request_choices": {
+      "description": "The response options (choices) voted on for this\nvector-completion task, carried from the task's first streaming\nchunk.",
+      "type": "array",
+      "items": {
+        "$ref": "agent.completions.message.RichContent"
+      }
+    },
+    "request_messages": {
+      "description": "The messages dispatched for this vector-completion task,\ncarried from the task's first streaming chunk.",
+      "type": "array",
+      "items": {
+        "$ref": "agent.completions.message.Message"
+      }
+    },
     "scores": {
       "description": "Final weighted scores for each response option. Sums to 1.",
       "type": "array",

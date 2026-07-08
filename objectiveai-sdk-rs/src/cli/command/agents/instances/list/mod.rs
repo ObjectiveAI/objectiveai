@@ -13,7 +13,14 @@ pub use super::super::logs::list::Target;
 #[schemars(rename = "cli.command.agents.instances.list.Request")]
 pub struct Request {
     pub path_type: Path,
+    /// Resolved targets whose direct children are listed. Must be
+    /// empty when `all` is set.
     pub targets: Vec<Target>,
+    /// List EVERY instance in the state — mutually exclusive with
+    /// `targets`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub all: Option<bool>,
     #[serde(flatten)]
     pub base: crate::cli::command::RequestBase,
 }
@@ -59,6 +66,13 @@ pub struct ResponseItem {
     pub last_active_at: Option<String>,
     /// Total `logs.messages` rows for this agent over all time.
     pub logged: u64,
+    /// The agent definition recorded for this AIH — from
+    /// `objectiveai.agent_refs`, with the legacy most-recent-request
+    /// fallback (`lookup_session`). Populated by `agents instances
+    /// get`; `agents instances list` leaves it unset.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
+    pub agent: Option<crate::agent::InlineAgentBaseWithFallbacksOrRemoteCommitOptional>,
 }
 
 #[derive(clap::Args)]
@@ -66,8 +80,12 @@ pub struct Args {
     /// One or more `--target instance=L[,parent=P]` entries. Also
     /// accepts `--target tag=T` and `--target me`. Lists the direct
     /// children of each resolved target.
-    #[arg(long = "target", required = true)]
+    #[arg(long = "target", required_unless_present = "all")]
     pub targets: Vec<String>,
+    /// List EVERY instance in the state. Mutually exclusive with
+    /// `--target`.
+    #[arg(long = "all", conflicts_with = "targets")]
+    pub all: bool,
     #[command(flatten)]
     pub base: crate::cli::command::RequestBaseArgs,
 }
@@ -104,6 +122,7 @@ impl TryFrom<Args> for Request {
         Ok(Self {
             path_type: Path::AgentsInstancesList,
             targets,
+            all: args.all.then_some(true),
             base: args.base.into(),
         })
     }
@@ -141,5 +160,15 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `agents instances list`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}

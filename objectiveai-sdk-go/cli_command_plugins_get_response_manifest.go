@@ -18,7 +18,6 @@ type CliCommandPluginsGetResponseManifest struct {
 	Name string `json:"name"`
 	Owner string `json:"owner"`
 	Version string `json:"version"`
-	ViewerRoutes []CliCommandPluginsGetResponseViewerRoute `json:"viewer_routes"`
 	ViewerURL *string `json:"viewer_url,omitempty"`
 }
 
@@ -32,7 +31,7 @@ func (v *CliCommandPluginsGetResponseManifest) UnmarshalJSON(data []byte) error 
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"description", "exec", "mcp_servers", "name", "owner", "version", "viewer_routes"} {
+	for _, key := range []string{"description", "exec", "mcp_servers", "name", "owner", "version"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliCommandPluginsGetResponseManifest: missing required field %q", key)
 		}

@@ -63,23 +63,12 @@ pub struct Manifest {
     /// fragment all pass through. Must use `https://`, or `http://`
     /// targeting `localhost` / `127.0.0.1` (development only).
     ///
-    /// Mutually exclusive with [`Self::viewer_zip`]. [`Self::viewer_routes`]
-    /// apply to remote-URL viewers the same way they apply to
-    /// zip-bundled viewers — the embedded axum server still hosts the
-    /// declared routes; the iframe still receives the same postMessage
-    /// protocol regardless of where its HTML/JS loaded from.
+    /// Mutually exclusive with [`Self::viewer_zip`]. The iframe
+    /// receives the same postMessage protocol regardless of where its
+    /// HTML/JS loaded from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
-
-    /// HTTP routes the viewer exposes on behalf of this plugin.
-    /// Each entry registers a handler at
-    /// `/plugin/<repository>/<path>` on the viewer's embedded axum
-    /// server; a hit emits a `PluginRequest { type, value }` event
-    /// to the React frontend, which dispatches to the plugin's
-    /// iframe via the postMessage bridge.
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub viewer_routes: Vec<ViewerRoute>,
 
     /// MCP servers the plugin wants the host to expose. Each entry
     /// has a `name` (the identifier agents reference via
@@ -199,57 +188,17 @@ pub struct McpServer {
     pub authorization: bool,
 }
 
-/// One HTTP route a plugin's viewer registers on the host viewer's
-/// embedded axum server. The full path served is
-/// `/plugin/<repository>/<self.path>`; on a hit, the body is
-/// JSON-decoded and forwarded as a `PluginRequest { type: self.type,
-/// value: body }` event to the frontend.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, JsonSchema)]
-#[schemars(rename = "filesystem.plugins.ViewerRoute")]
-pub struct ViewerRoute {
-    /// Path relative to the plugin's namespace. Must start with `/`;
-    /// the host prepends `/plugin/<repository>` before registering.
-    pub path: String,
-
-    /// HTTP method this route handles. Methods other than the listed
-    /// five aren't supported (and don't appear in plugin practice).
-    pub method: HttpMethod,
-
-    /// String tag forwarded to the plugin's iframe as the `type`
-    /// field of the resulting `PluginRequest`. Plugin authors pick
-    /// any value they want; the host doesn't interpret it.
-    #[serde(rename = "type")]
-    pub r#type: String,
-}
-
-/// HTTP methods supported by [`ViewerRoute`]. Serializes as upper-case
-/// (`"GET"`, `"POST"`, …) on the wire.
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, JsonSchema,
-)]
-#[schemars(rename = "filesystem.plugins.HttpMethod")]
-#[serde(rename_all = "UPPERCASE")]
-pub enum HttpMethod {
-    Get,
-    Post,
-    Put,
-    Patch,
-    Delete,
-}
-
 // Typed conversion to the SDK's lean `plugins get` wire shape — drops
 // the on-disk-only fields (`cli_zip`, `viewer_zip`). Lets the
 // `command::plugins::{get, list}` leaves yield SDK `ResponseManifest`
 // items without round-tripping through `serde_json::Value`. The inner
-// type parallels (`ViewerRoute`/`ResponseViewerRoute`,
-// `McpServer`/`ResponseMcpServer`, `HttpMethod`/`ResponseHttpMethod`)
-// are field-identical — collapsing them into shared types is a
-// separate cleanup pass. `exec` is the SDK type already.
+// type parallel (`McpServer`/`ResponseMcpServer`) is field-identical —
+// collapsing them into a shared type is a separate cleanup pass.
+// `exec` is the SDK type already.
 impl From<Manifest> for objectiveai_sdk::cli::command::plugins::get::ResponseManifest {
     fn from(m: Manifest) -> Self {
         use objectiveai_sdk::cli::command::plugins::get::{
-            ResponseHttpMethod, ResponseManifest, ResponseMcpServer,
-            ResponseViewerRoute,
+            ResponseManifest, ResponseMcpServer,
         };
         ResponseManifest {
             owner: m.owner,
@@ -258,21 +207,6 @@ impl From<Manifest> for objectiveai_sdk::cli::command::plugins::get::ResponseMan
             description: m.description,
             exec: m.exec,
             viewer_url: m.viewer_url,
-            viewer_routes: m
-                .viewer_routes
-                .into_iter()
-                .map(|r| ResponseViewerRoute {
-                    path: r.path,
-                    method: match r.method {
-                        HttpMethod::Get => ResponseHttpMethod::Get,
-                        HttpMethod::Post => ResponseHttpMethod::Post,
-                        HttpMethod::Put => ResponseHttpMethod::Put,
-                        HttpMethod::Patch => ResponseHttpMethod::Patch,
-                        HttpMethod::Delete => ResponseHttpMethod::Delete,
-                    },
-                    r#type: r.r#type,
-                })
-                .collect(),
             mcp_servers: m
                 .mcp_servers
                 .into_iter()

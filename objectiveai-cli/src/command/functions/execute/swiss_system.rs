@@ -7,7 +7,8 @@ use std::pin::Pin;
 use futures::Stream;
 use futures::StreamExt;
 use objectiveai_sdk::cli::command::functions::execute::swiss_system::{
-    Request, RequestDangerousAdvanced, RequestInput, ResponseItem,
+    AgentInstanceHierarchy, AgentInstanceHierarchyType, Request,
+    RequestDangerousAdvanced, RequestInput, ResponseItem,
 };
 use objectiveai_sdk::cli::command::{BinaryExecutor, CommandExecutor};
 use objectiveai_sdk::functions::executions::request::{
@@ -67,6 +68,12 @@ async fn execute_streaming(
     Ok(Box::pin(inner.map(|r| {
         r.map(|ev| match ev {
             super::runner::Event::Id(id) => ResponseItem::Id(id),
+            super::runner::Event::Hierarchy(hier) => {
+                ResponseItem::AgentInstanceHierarchy(AgentInstanceHierarchy {
+                    r#type: AgentInstanceHierarchyType::AgentInstanceHierarchy,
+                    agent_instance_hierarchy: hier,
+                })
+            }
             super::runner::Event::Chunk(c) => ResponseItem::Chunk(c),
         })
     })))

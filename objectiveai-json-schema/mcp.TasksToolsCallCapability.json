@@ -1,0 +1,6 @@
+{
+  "title": "mcp.TasksToolsCallCapability",
+  "description": "Marker capability for tools/call task creation support.",
+  "type": "object",
+  "additionalProperties": false
+}

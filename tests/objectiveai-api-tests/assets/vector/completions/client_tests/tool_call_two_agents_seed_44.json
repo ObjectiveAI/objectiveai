@@ -3,6 +3,15 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+        "upstream": "mock",
+        "output_mode": "tool_call"
+      },
+      "request_choice_keys": [
+        "`G`",
+        "`I`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -55,6 +64,15 @@
     },
     {
       "index": 1,
+      "agent_inline": {
+        "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+        "upstream": "mock",
+        "output_mode": "tool_call"
+      },
+      "request_choice_keys": [
+        "`D`",
+        "`R`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -121,7 +139,8 @@
         1.0,
         0.0
       ],
-      "weight": 0.5
+      "weight": 0.5,
+      "completion_index": 0
     },
     {
       "agent_full_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -137,7 +156,8 @@
         0.0,
         1.0
       ],
-      "weight": 0.5
+      "weight": 0.5,
+      "completion_index": 1
     }
   ],
   "scores": [

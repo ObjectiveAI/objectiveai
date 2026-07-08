@@ -11,6 +11,18 @@
       "description": "Leaf agent id of the slot that produced this chunk. For the\nprimary attempt this is the primary agent's id; on fallback it\nis the fallback agent's id. Same on every chunk of a slot.",
       "type": "string"
     },
+    "agent_inline": {
+      "description": "The resolved inline WF definition for this agent. Populated\nONLY on the FIRST chunk of the completion; [`push`](Self::push)\nkeeps the first value.",
+      "anyOf": [
+        {
+          "$ref": "agent.InlineAgentWithFallbacks"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "agent_instance_hierarchy": {
       "description": "Full agent instance hierarchy for this completion's slot —\n`{ctx lineage}/{agent_full_id}-{response_id}`, or the fixed\ncontinuation value on resume. Same on every chunk of a slot.",
       "type": "string"
@@ -86,6 +98,21 @@
     "object": {
       "description": "The object type (always \"agent.completion.chunk\").",
       "$ref": "agent.completions.response.streaming.Object"
+    },
+    "request_choice_keys": {
+      "description": "This agent's prefix-tree voting key for each response choice, in\nthe SAME order as the request's `responses`\n(`request_choice_keys[i]` is this agent's key for choice `i`).\nKeys are per-agent (randomized), so they differ between agents.\nPopulated ONLY on the FIRST chunk of the completion;\n[`push`](Self::push) keeps the first value.",
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
     },
     "upstream": {
       "description": "Upstream provider",

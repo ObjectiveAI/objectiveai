@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-sdk"
-version = "2.2.9"
+version = "2.2.10"
 edition = "2024"
 authors = ["ObjectiveAI <admin@objectiveai.dev>"]
 description = "ObjectiveAI SDK, definitions, and utilities"
@@ -19,22 +19,22 @@ include = [
 ]
 
 [features]
-default = ["http", "env", "mcp", "cli", "cli-executor", "viewer"]
+default = ["http", "env", "mcp", "cli", "cli-executor", "cli-listener"]
 http = ["mcp", "dep:reqwest", "dep:reqwest-eventsource", "dep:eventsource-stream", "dep:futures", "dep:tokio", "dep:backoff", "dep:tokio-tungstenite", "dep:dashmap"]
 env = []
 mcp = ["dep:reqwest", "dep:backoff", "dep:futures-util", "dep:tokio", "dep:tokio-util", "dep:regex", "dep:rmcp"]
-cli = ["dep:clap", "dep:humantime"]
-cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs"]
-viewer = ["dep:tokio"]
+cli = ["mcp", "dep:clap", "dep:humantime"]
+cli-executor = ["cli", "mcp", "dep:tokio", "dep:futures", "dep:dashmap", "dep:dirs", "dep:tokio-tungstenite"]
+cli-listener = ["cli", "dep:tokio", "dep:futures", "dep:tokio-tungstenite"]
 lockfile = ["dep:tokio", "dep:nix", "dep:windows-sys", "dep:dashmap"]
 subprocess-reaper = ["dep:tokio", "dep:nix", "dep:windows-sys"]
 
 [dependencies]
-objectiveai-sdk-macros = { version = "2.2.9", path = "../objectiveai-sdk-rs-macros" }
+objectiveai-sdk-macros = { version = "2.2.10", path = "../objectiveai-sdk-rs-macros" }
 base62 = { version = "2.2.4" }
 serde = { version = "1.0.228", features = ["derive"] }
 indexmap = { version = "2.13.0", features = ["serde"] }
-serde_json = { version = "1.0.149", features = ["preserve_order"] }
+serde_json = { version = "1.0.149", features = ["preserve_order", "raw_value"] }
 twox-hash = { version = "2.1.2", default-features = false, features = ["xxhash3_128", "alloc"] }
 rust_decimal = { version = "1.40.0", features = ["serde-float", "macros"] }
 jmespath = { version = "0.5.0" }

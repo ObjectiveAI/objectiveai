@@ -1,42 +1,43 @@
 /**
- * Host-side bridge between plugin iframes and Tauri.
+ * Host-side bridge between plugin iframes and the daemon.
  *
- * For each registered plugin iframe, this module subscribes to the
- * matching `<repository>` Tauri channel and forwards each emitted
- * `Event` into the iframe as a `{kind: 'plugin-event', ...}`
- * postMessage. The iframe consumes those via `@objectiveai/sdk/viewer`'s
- * `listen()` (or by adding its own `window.addEventListener('message')`).
+ * Plugins never see daemon credentials and never touch Tauri: their
+ * ONLY channel is postMessage with this host window. The reverse
+ * direction (iframe → host) carries `cli-execute` (a typed
+ * `cli::command::Request` as serde JSON — there is no raw-argv path)
+ * plus the invocation `id` the iframe minted. This module catches it,
+ * resolves the originating iframe via `MessageEvent.source` (a plugin
+ * never claims an identity itself; unregistered windows are dropped),
+ * runs the request through the host's own JS-native
+ * [`WebSocketExecutor`] against the daemon's `/execute` route — the
+ * daemon address + auth signature come from the Rust `websocket_config`
+ * Tauri command, fetched once — and posts every response line back
+ * into THAT iframe as
+ * `{kind: "plugin-event", type: "cli_command", id, value}`, finishing
+ * with the synthetic `{"type":"end"}` marker the SDK's
+ * `ViewerPluginExecutor` terminates on. The `id` rides every line, so
+ * concurrent invocations from one plugin demux cleanly.
  *
- * Three event variants flow host -> iframe:
+ * Failures (daemon config unavailable, connect refused) surface as
+ * one in-band `{"type":"error",…}` line, then the end marker — the
+ * iframe's iterator always terminates.
  *
- *   - `inbound` — host has data for the plugin (the existing path).
- *     The iframe's `listen(sub_type, handler)` matches on the
- *     `sub_type` discriminator.
- *
- *   - `cli_command` — one stdout JSONL line from an objectiveai cli
- *     binary the host spawned for a `ViewerCommandExecutor` invocation
- *     this iframe started, terminated by a synthetic `{"type":"end"}`
- *     line. No sub_type.
- *
- *   - `api_call` — one envelope (begin / chunk / error / end) from a
- *     viewer-mode `ObjectiveAI` client call that this iframe started
- *     via `api-call-invoke`. The `sub_type` is the
- *     `"<METHOD>_<PATH>"` rename of the targeted endpoint, so the
- *     iframe can demux concurrent calls to *different* endpoints.
- *
- * The reverse direction (iframe -> host) carries `cli-execute` (a
- * typed `cli::command::Request` as serde JSON — there is no raw-argv
- * path) and `api-call-invoke` postMessages; this module catches
- * them, resolves the originating iframe via `MessageEvent.source`,
- * and dispatches the matching Tauri command (`cli_execute` /
- * `api_call_run`) with the originator's plugin name as `origin`.
- * Messages from unknown sources are dropped (security: don't let a
- * random iframe drive the host without identity).
+ * Host → iframe `inbound` data delivery (e.g. `plugins/run` runs)
+ * does not exist yet; it returns with the deferred plugins/run
+ * routing, JS-native like everything else here.
  */
-import { tauriListen as safeListen, tauriInvoke } from "./lib/tauri";
+import type { WebSocketExecutor } from "@objectiveai/sdk";
+import { websocketExecutor } from "./lib/websocket-executor";
+
+/** A plugin's full install coordinates — the identity of a tab. */
+export type PluginCoords = {
+  owner: string;
+  name: string;
+  version: string;
+};
 
 type IframeHandle = {
-  pluginName: string;
+  coords: PluginCoords;
   iframe: HTMLIFrameElement;
   /**
    * Target origin for host -> iframe postMessage calls. Derived once
@@ -46,30 +47,11 @@ type IframeHandle = {
   targetOrigin: string;
 };
 
-type InboundPayload = {
-  type: "inbound";
-  destination: string;
-  sub_type: string;
-  value: unknown;
-};
-
-type CliCommandPayload = {
-  type: "cli_command";
-  destination: string;
-  value: unknown;
-};
-
-type ApiCallPayload = {
-  type: "api_call";
-  destination: string;
-  sub_type: string;
-  value: unknown;
-};
-
-type EventPayload = InboundPayload | CliCommandPayload | ApiCallPayload;
-
 const iframes = new Map<string, IframeHandle>();
-const tauriUnlisteners = new Map<string, () => void>();
+
+function coordsKey(coords: PluginCoords): string {
+  return `${coords.owner}/${coords.name}/${coords.version}`;
+}
 
 /**
  * Target origin for host -> iframe postMessage calls: always `"*"`.
@@ -94,63 +76,38 @@ function deriveTargetOrigin(_src: string): string {
   return "*";
 }
 
-/** Register a plugin iframe so the bridge can forward events to it. */
+/** Register a plugin iframe so the bridge can serve its executions. */
 export function registerIframe(
-  pluginName: string,
+  coords: PluginCoords,
   iframe: HTMLIFrameElement,
   src: string,
 ): void {
   const targetOrigin = deriveTargetOrigin(src);
-  iframes.set(pluginName, { pluginName, iframe, targetOrigin });
-  void subscribeToPluginEvents(pluginName);
+  iframes.set(coordsKey(coords), { coords, iframe, targetOrigin });
   ensureReverseListener();
 }
 
-/** Unregister a previously-registered iframe. Cancels its event sub. */
-export function unregisterIframe(pluginName: string): void {
-  iframes.delete(pluginName);
-  const unlisten = tauriUnlisteners.get(pluginName);
-  if (unlisten) {
-    unlisten();
-    tauriUnlisteners.delete(pluginName);
-  }
+/** Unregister a previously-registered iframe. */
+export function unregisterIframe(coords: PluginCoords): void {
+  iframes.delete(coordsKey(coords));
 }
 
-async function subscribeToPluginEvents(pluginName: string): Promise<void> {
-  if (tauriUnlisteners.has(pluginName)) return;
-  const unlisten = await safeListen<EventPayload>(pluginName, (event) => {
-    const handle = iframes.get(pluginName);
-    if (!handle) return;
-    const payload = event.payload;
-    if (!payload || !payload.type) return;
-    if (payload.type === "inbound") {
-      handle.iframe.contentWindow?.postMessage(
-        {
-          kind: "plugin-event",
-          type: "inbound",
-          sub_type: payload.sub_type,
-          value: payload.value,
-        },
-        handle.targetOrigin,
-      );
-    } else if (payload.type === "cli_command") {
-      handle.iframe.contentWindow?.postMessage(
-        { kind: "plugin-event", type: "cli_command", value: payload.value },
-        handle.targetOrigin,
-      );
-    } else if (payload.type === "api_call") {
-      handle.iframe.contentWindow?.postMessage(
-        {
-          kind: "plugin-event",
-          type: "api_call",
-          sub_type: payload.sub_type,
-          value: payload.value,
-        },
-        handle.targetOrigin,
-      );
-    }
-  });
-  tauriUnlisteners.set(pluginName, unlisten);
+/**
+ * Deliver one inbound frame (a standard broadcast-envelope frame of a
+ * `plugins/run` run targeting `coords`) into the registered iframe as
+ * a `{kind: "plugin-event", type: "inbound", value}` postMessage —
+ * the wire the SDK's `ViewerPluginListener` consumes. Best-effort:
+ * unregistered coordinates drop silently (delivery is live-only).
+ * The daemon-listener wrapper is the caller; it never touches
+ * windows itself.
+ */
+export function deliverInbound(coords: PluginCoords, frame: unknown): void {
+  const handle = iframes.get(coordsKey(coords));
+  if (!handle) return;
+  handle.iframe.contentWindow?.postMessage(
+    { kind: "plugin-event", type: "inbound", value: frame },
+    handle.targetOrigin,
+  );
 }
 
 // ── Reverse channel: iframe -> host postMessages ──────────────────
@@ -168,48 +125,60 @@ function onIframeMessage(event: MessageEvent): void {
   const msg = event.data as
     | {
         kind?: string;
+        id?: unknown;
         request?: unknown;
-        subType?: unknown;
-        body?: unknown;
       }
     | null;
   if (!msg || typeof msg !== "object") return;
 
   if (msg.kind === "cli-execute") {
     // Typed request: serde JSON of the SDK's `cli::command::Request`.
-    // The Rust side hands the JSON to the cli via its top-level
-    // `--request` flag, then streams cli_command events back via the
-    // events bus — fire-and-forget. There is deliberately no raw-argv
-    // invocation path.
+    // The invocation id is REQUIRED: it's what lets the iframe demux
+    // concurrent runs.
     if (msg.request === undefined || msg.request === null) return;
-    const origin = findPluginByWindow(event.source);
-    if (!origin) return;
-    void tauriInvoke("cli_execute", { request: msg.request, origin });
-    return;
-  }
-
-  if (msg.kind === "api-call-invoke") {
-    if (typeof msg.subType !== "string") return;
-    const origin = findPluginByWindow(event.source);
-    if (!origin) return;
-    // Fire-and-forget. The host streams api_call envelope events back
-    // via the events bus; the iframe consumes them through its async
-    // iterator. `subType` is the serde-rename of the targeted endpoint
-    // (e.g. "POST_/agent/completions"); the body is whatever the JS
-    // SDK would have sent over fetch().
-    void tauriInvoke("api_call_run", {
-      subType: msg.subType,
-      body: msg.body ?? null,
-      origin,
-    });
-    return;
+    if (typeof msg.id !== "string" || msg.id.length === 0) return;
+    const handle = findPluginByWindow(event.source);
+    if (!handle) return;
+    void runForIframe(handle, msg.id, msg.request);
   }
 }
 
-function findPluginByWindow(source: MessageEventSource | null): string | null {
+/** Run one plugin-requested execution against the daemon and post
+ * every line — then the synthetic end marker — back into the
+ * originating iframe. Delivery best-effort: if the iframe vanished
+ * mid-run (tab closed), posts go nowhere and the run is dropped. */
+async function runForIframe(
+  handle: IframeHandle,
+  id: string,
+  request: unknown,
+): Promise<void> {
+  const post = (value: unknown) => {
+    handle.iframe.contentWindow?.postMessage(
+      { kind: "plugin-event", type: "cli_command", id, value },
+      handle.targetOrigin,
+    );
+  };
+  try {
+    const executor = await websocketExecutor();
+    for await (const line of executor.execute(
+      request as Parameters<WebSocketExecutor["execute"]>[0],
+    )) {
+      post(line);
+    }
+  } catch (e) {
+    post({ type: "error", level: "error", fatal: null, message: String(e) });
+  }
+  // The host-synthesized terminator the SDK's ViewerPluginExecutor
+  // ends on.
+  post({ type: "end" });
+}
+
+function findPluginByWindow(
+  source: MessageEventSource | null,
+): IframeHandle | null {
   if (!source) return null;
-  for (const [name, handle] of iframes) {
-    if (handle.iframe.contentWindow === source) return name;
+  for (const handle of iframes.values()) {
+    if (handle.iframe.contentWindow === source) return handle;
   }
   return null;
 }

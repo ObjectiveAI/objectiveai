@@ -2,8 +2,8 @@
 //!
 //! `Context` is constructed once in `main.rs` (or by a programmatic
 //! embedder) — synchronously and infallibly, no IO — then borrowed
-//! into the command tree. The three service clients are LAZY: the
-//! first `api_client()` / `viewer_client()` / `db_client()` call
+//! into the command tree. The service clients are LAZY: the
+//! first `api_client()` / `db_client()` call
 //! resolves the server's address (on-disk config, else the matching
 //! spawn flow, which itself short-circuits to the lock-published URL
 //! when the server is already up), builds the client, and memoizes it
@@ -26,7 +26,6 @@ use crate::db;
 use crate::filesystem;
 use crate::plugin_path::PluginPath;
 use crate::run::Config;
-use crate::viewer_client::ViewerClient;
 
 #[derive(Clone)]
 pub struct Context {
@@ -38,9 +37,12 @@ pub struct Context {
     pub plugin: Option<PluginPath>,
     /// Lazily-built API `HttpClient` — see [`Context::api_client`].
     api: Arc<OnceCell<HttpClient>>,
-    /// Lazily-built viewer client — see [`Context::viewer_client`].
-    /// No per-request identity; always shared across clones.
-    viewer: Arc<OnceCell<ViewerClient>>,
+    /// The daemon's published `ws://` connect URL, stored by `run`'s
+    /// producer tee right after it ensures the daemon is up (the
+    /// daemon spawn returns the lock content). Empty when the daemon
+    /// couldn't be spawned. Shared across clones; first set wins. See
+    /// [`Context::set_daemon_address`] / [`Context::daemon_address`].
+    daemon_address: Arc<std::sync::OnceLock<String>>,
     /// Lazily-connected db handle (pool + admin coordinates) — see
     /// [`Context::db_handle`]. No per-request identity; always
     /// shared across clones.
@@ -93,7 +95,7 @@ impl Context {
             filesystem,
             plugin,
             api: Arc::new(OnceCell::new()),
-            viewer: Arc::new(OnceCell::new()),
+            daemon_address: Arc::new(std::sync::OnceLock::new()),
             db: Arc::new(OnceCell::new()),
             python: Arc::new(OnceCell::new()),
             podman: Arc::new(OnceCell::new()),
@@ -101,6 +103,21 @@ impl Context {
             agent_locks: Arc::new(crate::command::agents::locks::AgentLockMap::new()),
             no_objectiveai: false,
         }
+    }
+
+    /// Record the daemon's published `ws://` connect URL. Called by
+    /// `run`'s producer tee once the daemon is confirmed up. First set
+    /// wins; later calls are no-ops.
+    pub fn set_daemon_address(&self, url: String) {
+        let _ = self.daemon_address.set(url);
+    }
+
+    /// The daemon's published `ws://` connect URL, when `run`'s
+    /// producer tee successfully ensured the daemon this run. `None`
+    /// means the daemon couldn't be spawned (or this context never
+    /// went through `run`).
+    pub fn daemon_address(&self) -> Option<&str> {
+        self.daemon_address.get().map(String::as_str)
     }
 
     /// Derive a clone with `objectiveai.execute` inside the embedded
@@ -249,31 +266,6 @@ impl Context {
         Ok(config.api().get_mcp_timeout_ms())
     }
 
-    /// The synchronous-response viewer client, built on first use and
-    /// memoized.
-    ///
-    /// Address resolution mirrors [`Self::api_client`]:
-    /// `viewer.address` from the merged config view when set, else
-    /// the `viewer spawn` flow. Signature: env `VIEWER_SIGNATURE`,
-    /// else `viewer.signature` from the same view.
-    pub async fn viewer_client(&self) -> Result<&ViewerClient, crate::error::Error> {
-        self.viewer
-            .get_or_try_init(|| async {
-                let mut config = self
-                    .filesystem
-                    .read_config_view(objectiveai_sdk::cli::command::GetScope::Final)
-                    .await?;
-                let address = match config.viewer().get_address() {
-                    Some(a) => ensure_scheme(a),
-                    None => crate::command::viewer::spawn::spawn(self).await?,
-                };
-                let signature = env("VIEWER_SIGNATURE")
-                    .or_else(|| config.viewer().get_signature().map(String::from));
-                Ok(ViewerClient::new(address, signature))
-            })
-            .await
-    }
-
     /// The db pool, connected on first use and memoized — the
     /// pool-only view of [`Self::db_handle`].
     pub async fn db_client(&self) -> Result<&db::Pool, crate::error::Error> {
@@ -364,10 +356,7 @@ impl Context {
 /// SDK's `env` feature is still enabled in `Cargo.toml`, but every
 /// value we pass in is already resolved (Some/None) so the SDK never
 /// reaches its own env fallback — the precedence chain is ours.
-///
-/// The viewer-mirror headers (`x_viewer_signature`,
-/// `x_viewer_address`) are deliberately not set — viewer discovery is
-/// lock-based now and the API client no longer carries them.
+
 ///
 /// Sourcing `agent_instance_hierarchy` and `mcp_session_id` from
 /// `cli_config` is deliberate: those are env-populated at startup by
@@ -420,8 +409,6 @@ fn build_http_client(
         x_github_authorization,
         x_openrouter_authorization,
         x_mcp_authorization,
-        None::<String>,
-        None::<String>,
         agent_instance_hierarchy,
         mcp_session_id,
     )

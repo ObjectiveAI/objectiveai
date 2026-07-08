@@ -1,0 +1,43 @@
+{
+  "title": "mcp.Server",
+  "description": "One connected upstream MCP server.",
+  "type": "object",
+  "properties": {
+    "initialize_result": {
+      "description": "The server's `initialize` response: capabilities, `server_info`\n(name, version, title, description), instructions, protocol version.",
+      "$ref": "mcp.InitializeResult"
+    },
+    "laboratory": {
+      "description": "Set only when this upstream is genuinely a laboratory — i.e. a\nclient (websocket) laboratory today. Non-laboratory servers (plain\nHTTP, the primary `objectiveai` MCP, plugins) leave this `None`.",
+      "anyOf": [
+        {
+          "$ref": "laboratories.Laboratory"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "name": {
+      "description": "The proxy's routing prefix for this server (matches the `<prefix>_`\nprepended to its tools/resources in the aggregated surface).",
+      "type": "string"
+    },
+    "plugin": {
+      "description": "Set only when this upstream is a plugin-hosted MCP server. Other\nservers (plain HTTP, the primary `objectiveai` MCP, laboratories)\nleave this `None`.",
+      "anyOf": [
+        {
+          "$ref": "mcp.Plugin"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "url": {
+      "description": "The upstream server's URL.",
+      "type": "string"
+    }
+  }
+}

@@ -18,10 +18,44 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "favorite color"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Yes"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "No"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -79,7 +113,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 1.0
+              "weight": 1.0,
+              "completion_index": 0
             }
           ],
           "scores": [
@@ -141,10 +176,44 @@
             1,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "favorite color"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Yes"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "No"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`S`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -202,7 +271,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 1.0
+              "weight": 1.0,
+              "completion_index": 0
             }
           ],
           "scores": [
@@ -264,10 +334,52 @@
             0,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "You are an email classifier."
+                },
+                {
+                  "type": "text",
+                  "text": "Subject: favorite color"
+                },
+                {
+                  "type": "text",
+                  "text": "Body: favorite color"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Important"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Not important"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`E`",
+                "`D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -325,7 +437,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 1.0
+              "weight": 1.0,
+              "completion_index": 0
             }
           ],
           "scores": [
@@ -387,10 +500,52 @@
             1,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "You are an email classifier."
+                },
+                {
+                  "type": "text",
+                  "text": "Subject: favorite color"
+                },
+                {
+                  "type": "text",
+                  "text": "Body: favorite color"
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Important"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Not important"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`E`",
+                "`D`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -448,7 +603,8 @@
                 1.0,
                 0.0
               ],
-              "weight": 1.0
+              "weight": 1.0,
+              "completion_index": 0
             }
           ],
           "scores": [
@@ -508,10 +664,44 @@
             2,
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Red"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Blue"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "4wXv5UufT9xfKYKsCLpBXT",
+                "upstream": "mock",
+                "output_mode": "json_schema"
+              },
+              "request_choice_keys": [
+                "`R`",
+                "`G`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -569,7 +759,8 @@
                 0.0,
                 1.0
               ],
-              "weight": 1.0
+              "weight": 1.0,
+              "completion_index": 0
             }
           ],
           "scores": [

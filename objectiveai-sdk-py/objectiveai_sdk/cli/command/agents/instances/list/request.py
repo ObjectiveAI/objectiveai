@@ -10,10 +10,11 @@ from objectiveai_sdk.cli.command.agents.logs.list.target import Target
 class Request(BaseModel):
     model_config = ConfigDict(title='cli.command.agents.instances.list.Request')
 
+    all: Optional[bool] = Field(None, description='List EVERY instance in the state — mutually exclusive with\n`targets`.', json_schema_extra={'omitempty': True})
     jq: Optional[str] = Field(None, description='jq filter applied to the JSON output. Ignored when `python`\nis also set — python overrides jq.')
     max_tokens: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Response token budget, `>= 1` (`0` is rejected at parse\ntime — omit entirely for unlimited). Forward-compatible\nenvelope data — no leaf enforces it yet.', json_schema_extra={'omitempty': True})
     path_type: Path
     python: Optional[str] = Field(None, description='Python transform applied to the JSON output. Overrides `jq`\nwhen both are provided.')
-    targets: list[Target]
+    targets: list[Target] = Field(..., description='Resolved targets whose direct children are listed. Must be\nempty when `all` is set.')
     timeout_seconds: Optional[Annotated[int, Field(ge=0, le=18446744073709551615)]] = Field(None, description='Wall-clock execution cap, in whole seconds. Parsed from\n`--timeout` (humantime: `30s`, `5m`, `1h30m`), `> 0`\nenforced at parse time. `db query` threads it to postgres\nwhen set; omit for uncapped.', json_schema_extra={'omitempty': True})
 

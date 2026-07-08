@@ -1,0 +1,40 @@
+{
+  "title": "mcp.tool.AudioContent",
+  "description": "Audio content (base64-encoded).",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "annotations": {
+      "description": "Optional annotations for the client.",
+      "anyOf": [
+        {
+          "$ref": "mcp.shared.Annotations"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "data": {
+      "description": "The base64-encoded audio data.",
+      "type": "string"
+    },
+    "mimeType": {
+      "description": "The MIME type of the audio.",
+      "type": "string"
+    }
+  }
+}

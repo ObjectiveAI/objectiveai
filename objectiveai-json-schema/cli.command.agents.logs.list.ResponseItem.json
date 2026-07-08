@@ -3,90 +3,133 @@
   "description": "One yielded item. Three single-row request blobs +\nthree multi-row blocks. Every variant carries `response_id`.\n`sender_agent_instance_hierarchy` appears only on the four\nvariants that have a sender ≠ producer: the three request\nvariants (caller AIH) and `ClientNotification` (enqueuer\nAIH). `AssistantResponse` and `ToolResponse` are emitted BY\nthe agent itself — their `agent_instance_hierarchy` IS the\nproducer, so no separate sender field exists.\n\nBlock-coalescing boundary tuple: `(class,\nagent_instance_hierarchy, response_id)` for `AssistantResponse`;\n`(class, agent_instance_hierarchy, response_id, tool_call_id)`\nfor `ToolResponse` (one block per tool call); `(class,\nagent_instance_hierarchy, response_id, sender, message_queue_id)`\nfor `ClientNotification` blocks.\nOne `ClientNotification` block = one consumed\n`message_queue` parent row, so `queued_at` and\n`sender_agent_instance_hierarchy` are well-defined\nblock-level.",
   "anyOf": [
     {
-      "title": "AgentCompletionRequest",
+      "title": "RequestMessageUser",
+      "description": "A `user`-role message from the request/task input, unpacked\ninto content parts (each addressable via `read id`).",
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {
           "type": "string"
         },
-        "delivered_at": {
-          "type": "string"
-        },
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.logs.list.RequestMessageUserPart"
+          }
         },
         "response_id": {
-          "type": "string"
-        },
-        "sender_agent_instance_hierarchy": {
-          "description": "AIH of the caller who issued the request — from\n`logs.agent_completion_requests.sender_*`.",
           "type": "string"
         },
         "type": {
           "type": "string",
           "enum": [
-            "agent_completion_request"
+            "request_message_user"
           ]
         }
       }
     },
     {
-      "title": "VectorCompletionRequest",
+      "title": "RequestMessageAssistant",
+      "description": "An `assistant`-role message from the request/task input. Same\npart shape as an assistant response — reasoning / tool calls /\nrefusal / content — but sourced from the request.",
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {
           "type": "string"
         },
-        "delivered_at": {
-          "type": "string"
-        },
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.logs.list.AssistantResponsePart"
+          }
         },
         "response_id": {
-          "type": "string"
-        },
-        "sender_agent_instance_hierarchy": {
           "type": "string"
         },
         "type": {
           "type": "string",
           "enum": [
-            "vector_completion_request"
+            "request_message_assistant"
           ]
         }
       }
     },
     {
-      "title": "FunctionExecutionRequest",
+      "title": "RequestMessageTool",
+      "description": "A `tool`-role message from the request/task input, answering a\nprior tool call. Same part shape as a tool response.",
       "type": "object",
       "properties": {
         "agent_instance_hierarchy": {
           "type": "string"
         },
-        "delivered_at": {
-          "type": "string"
-        },
-        "id": {
-          "type": "integer",
-          "minimum": -9223372036854775808,
-          "maximum": 9223372036854775807
+        "parts": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.logs.list.ToolResponsePart"
+          }
         },
         "response_id": {
           "type": "string"
         },
-        "sender_agent_instance_hierarchy": {
+        "tool_call_id": {
+          "description": "The wire tool-call id this request message answers.",
           "type": "string"
         },
         "type": {
           "type": "string",
           "enum": [
-            "function_execution_request"
+            "request_message_tool"
           ]
+        }
+      }
+    },
+    {
+      "title": "VectorRequestChoices",
+      "description": "The response choices a vector-completion task voted over,\nyielded as one block: an ordered list of choices, each with its\ncontent parts and this agent's inline voting `key`.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "choices": {
+          "type": "array",
+          "items": {
+            "$ref": "cli.command.agents.logs.list.VectorRequestChoice"
+          }
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_request_choices"
+          ]
+        }
+      }
+    },
+    {
+      "title": "VectorResponseVote",
+      "description": "The closer for a function-execution vector task: this agent's\nown vote (its score for each choice, in choice order). Inline —\nno `read id` needed.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "response_id": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "vector_response_vote"
+          ]
+        },
+        "vote": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": -3.4028234663852886e+38,
+            "maximum": 3.4028234663852886e+38
+          }
         }
       }
     },
@@ -184,6 +227,46 @@
           "type": "string",
           "enum": [
             "tool_response"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Error",
+      "description": "One logged failure (`objectiveai.errors`) — a spawn-path error\npersisted into the agent's history. Always a single row: the\nfailing attempt dies at its first raised error, so there is\nnothing to coalesce. The value is returned inline (like the\nvote) — no `read id` needed — but the row is still\nid-addressable like every other event.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "delivered_at": {
+          "type": "string"
+        },
+        "error": {
+          "description": "The CLI's user-facing error value — a structured object for\nAPI response errors, a plain string otherwise."
+        },
+        "id": {
+          "description": "`logs.messages.\"index\"` for this row.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "response_id": {
+          "description": "The response the failure belongs to when one existed;\n`None` for post-lock pre-stream failures (the only kind\nallowed a NULL response_id).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "error"
           ]
         }
       }

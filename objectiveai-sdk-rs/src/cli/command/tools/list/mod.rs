@@ -99,5 +99,15 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `tools list`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
+}

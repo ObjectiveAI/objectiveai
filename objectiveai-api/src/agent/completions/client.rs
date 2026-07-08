@@ -1451,15 +1451,25 @@ where
 
                 loop {
                     match tokio::time::timeout(other_chunk_timeout, stream.next()).await {
-                        Ok(Some(super::StreamItem::Chunk(chunk))) => {
+                        Ok(Some(super::StreamItem::Chunk(mut chunk))) => {
                             // Identity (`agent_instance_hierarchy`,
                             // `agent_id`, `agent_full_id`, `agent_remote`)
                             // is stamped at the upstream-client level
                             // when each chunk is constructed — no need
                             // to re-stamp here.
+                            // Empty-string reasoning is a no-content
+                            // marker (thinking-block starts, redacted /
+                            // omitted reasoning) — normalize to None
+                            // HERE, at the downstream client, so empty
+                            // reasoning is impossible on the wire, in
+                            // accumulators, and in log rows, whatever
+                            // the upstream emitted.
                             // Import usage from assistant response chunks.
-                            for msg in &chunk.messages {
+                            for msg in &mut chunk.messages {
                                 if let objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Assistant(asst) = msg {
+                                    if asst.reasoning.as_deref() == Some("") {
+                                        asst.reasoning = None;
+                                    }
                                     if let Some(upstream_usage) = &asst.usage {
                                         usage.push_upstream_usage(upstream_usage);
                                     }

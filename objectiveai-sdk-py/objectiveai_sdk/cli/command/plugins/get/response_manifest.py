@@ -4,7 +4,6 @@ from __future__ import annotations
 from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 from objectiveai_sdk.cli.command.plugins.get.response_mcp_server import ResponseMcpServer
-from objectiveai_sdk.cli.command.plugins.get.response_viewer_route import ResponseViewerRoute
 from objectiveai_sdk.cli.command.tools.get.exec import Exec
 
 
@@ -17,6 +16,5 @@ class ResponseManifest(BaseModel):
     name: str
     owner: str
     version: str
-    viewer_routes: list[ResponseViewerRoute]
     viewer_url: Optional[str] = Field(None, json_schema_extra={'omitempty': True})
 

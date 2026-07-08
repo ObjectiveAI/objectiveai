@@ -38,11 +38,27 @@ export function functionsExecutionsResponseStreamingVectorCompletionTaskChunkMer
     error = b.error;
   }
 
+  // First chunk wins: request_messages and request_choices ride only
+  // the task's first chunk, so the accumulator never overwrites them.
+  let request_messages = a.request_messages;
+  if (request_messages == null && b.request_messages != null) {
+    request_messages = b.request_messages;
+    changed = true;
+  }
+
+  let request_choices = a.request_choices;
+  if (request_choices == null && b.request_choices != null) {
+    request_choices = b.request_choices;
+    changed = true;
+  }
+
   if (!changed) return [a, false];
   return [{
     index: a.index,
     task_index: a.task_index,
     task_path: a.task_path,
+    ...(request_messages != null ? { request_messages } : {}),
+    ...(request_choices != null ? { request_choices } : {}),
     id: a.id,
     completions,
     votes,

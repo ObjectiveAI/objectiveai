@@ -126,6 +126,60 @@ async fn insert_value<'a>(
         return Ok(());
     }
 
+    // RequestMessageTool head: `tool_call_id` lookup for its content
+    // rows (JOINed at read). No messages event — like `tool_response`.
+    if let RowValue::RequestMessageTool { response_id, index, tool_call_id, .. } = *value {
+        sqlx::query(
+            "INSERT INTO objectiveai.request_message_tool (response_id, \"index\", tool_call_id) \
+             VALUES ($1, $2, $3)",
+        )
+        .bind(response_id)
+        .bind(index as i64)
+        .bind(tool_call_id)
+        .execute(&**pool)
+        .await?;
+        return Ok(());
+    }
+
+    // RequestVectorChoice head: carries this agent's inline voting
+    // `key` per choice; JOIN target for the key. No messages event.
+    if let RowValue::RequestVectorChoice { response_id, choice_index, key, .. } = *value {
+        sqlx::query(
+            "INSERT INTO objectiveai.request_vector_choice (response_id, \"index\", key) \
+             VALUES ($1, $2, $3)",
+        )
+        .bind(response_id)
+        .bind(choice_index as i64)
+        .bind(key)
+        .execute(&**pool)
+        .await?;
+        return Ok(());
+    }
+
+    // ResponseVectorVote: inline per-agent vote array + a messages
+    // event with NULL row indices (JOINed by (response_id, aih) at
+    // read). Distinct shape from the generic row_index path.
+    if let RowValue::ResponseVectorVote { response_id, agent_instance_hierarchy, vote } = *value {
+        sqlx::query(
+            "WITH data_ins AS (\
+                INSERT INTO objectiveai.response_vector_vote (response_id, agent_instance_hierarchy, vote) \
+                VALUES ($1, $2, $3) RETURNING response_id\
+             )\
+             INSERT INTO objectiveai.messages \
+                (response_id, \"table\", row_index, row_sub_index, \
+                 agent_instance_hierarchy, \"timestamp\") \
+             SELECT $1, $4, NULL, NULL, $2, $5 FROM data_ins",
+        )
+        .bind(response_id)
+        .bind(agent_instance_hierarchy)
+        .bind(sqlx::types::Json(serde_json::to_value(vote)?))
+        .bind(MessageTable::ResponseVectorVote)
+        .bind(timestamp)
+        .execute(&**pool)
+        .await?;
+        return Ok(());
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -241,6 +295,122 @@ async fn insert_value<'a>(
         RowValue::ToolResponseContentFile { file, .. } => {
             insert_file_part_with_msg(pool, "objectiveai.tool_response_content_file", value, file, timestamp).await?;
         }
+        RowValue::RequestMessageTool { .. }
+        | RowValue::RequestVectorChoice { .. }
+        | RowValue::ResponseVectorVote { .. } => unreachable!(
+            "RequestMessageTool / RequestVectorChoice / ResponseVectorVote handled by early-return branches above"
+        ),
+        // --- request_message assistant scalar slots (inline, mirror the response) ---
+        RowValue::RequestMessageAssistantRefusal { text, .. } => {
+            sqlx::query(
+                "WITH data_ins AS (\
+                    INSERT INTO objectiveai.request_message_assistant_refusal (response_id, \"index\", text) \
+                    VALUES ($1, $2, $3) RETURNING response_id\
+                 )\
+                 INSERT INTO objectiveai.messages \
+                    (response_id, \"table\", row_index, row_sub_index, \
+                     agent_instance_hierarchy, \"timestamp\") \
+                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
+            )
+            .bind(response_id).bind(row_index).bind(text)
+            .bind(mt).bind(row_index).bind(row_sub_index).bind(hier).bind(timestamp)
+            .execute(&**pool).await?;
+        }
+        RowValue::RequestMessageAssistantReasoning { text, .. } => {
+            sqlx::query(
+                "WITH data_ins AS (\
+                    INSERT INTO objectiveai.request_message_assistant_reasoning (response_id, \"index\", text) \
+                    VALUES ($1, $2, $3) RETURNING response_id\
+                 )\
+                 INSERT INTO objectiveai.messages \
+                    (response_id, \"table\", row_index, row_sub_index, \
+                     agent_instance_hierarchy, \"timestamp\") \
+                 SELECT $1, $4, $5, $6, $7, $8 FROM data_ins",
+            )
+            .bind(response_id).bind(row_index).bind(text)
+            .bind(mt).bind(row_index).bind(row_sub_index).bind(hier).bind(timestamp)
+            .execute(&**pool).await?;
+        }
+        RowValue::RequestMessageAssistantToolCalls {
+            tool_call_index, tool_call_id, function_name, arguments, ..
+        } => {
+            sqlx::query(
+                "WITH data_ins AS (\
+                    INSERT INTO objectiveai.request_message_assistant_tool_calls \
+                        (response_id, \"index\", tool_call_index, tool_call_id, function_name, arguments) \
+                    VALUES ($1, $2, $3, $4, $5, $6) RETURNING response_id\
+                 )\
+                 INSERT INTO objectiveai.messages \
+                    (response_id, \"table\", row_index, row_sub_index, \
+                     agent_instance_hierarchy, \"timestamp\") \
+                 SELECT $1, $7, $8, $9, $10, $11 FROM data_ins",
+            )
+            .bind(response_id).bind(row_index).bind(tool_call_index as i64)
+            .bind(tool_call_id).bind(function_name).bind(arguments)
+            .bind(mt).bind(row_index).bind(row_sub_index).bind(hier).bind(timestamp)
+            .execute(&**pool).await?;
+        }
+        // --- request_message + vector-choice content (reuse the shared helpers) ---
+        RowValue::RequestMessageUserContentText { text, .. } => {
+            insert_text_part_with_msg(pool, "objectiveai.request_message_user_content_text", value, text, timestamp).await?;
+        }
+        RowValue::RequestMessageUserContentImage { image_url, .. } => {
+            insert_image_part_with_msg(pool, "objectiveai.request_message_user_content_image", value, image_url, timestamp).await?;
+        }
+        RowValue::RequestMessageUserContentAudio { input_audio, .. } => {
+            insert_audio_part_with_msg(pool, "objectiveai.request_message_user_content_audio", value, input_audio, timestamp).await?;
+        }
+        RowValue::RequestMessageUserContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "objectiveai.request_message_user_content_video", value, video_url, timestamp).await?;
+        }
+        RowValue::RequestMessageUserContentFile { file, .. } => {
+            insert_file_part_with_msg(pool, "objectiveai.request_message_user_content_file", value, file, timestamp).await?;
+        }
+        RowValue::RequestMessageAssistantContentText { text, .. } => {
+            insert_text_part_with_msg(pool, "objectiveai.request_message_assistant_content_text", value, text, timestamp).await?;
+        }
+        RowValue::RequestMessageAssistantContentImage { image_url, .. } => {
+            insert_image_part_with_msg(pool, "objectiveai.request_message_assistant_content_image", value, image_url, timestamp).await?;
+        }
+        RowValue::RequestMessageAssistantContentAudio { input_audio, .. } => {
+            insert_audio_part_with_msg(pool, "objectiveai.request_message_assistant_content_audio", value, input_audio, timestamp).await?;
+        }
+        RowValue::RequestMessageAssistantContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "objectiveai.request_message_assistant_content_video", value, video_url, timestamp).await?;
+        }
+        RowValue::RequestMessageAssistantContentFile { file, .. } => {
+            insert_file_part_with_msg(pool, "objectiveai.request_message_assistant_content_file", value, file, timestamp).await?;
+        }
+        RowValue::RequestMessageToolContentText { text, .. } => {
+            insert_text_part_with_msg(pool, "objectiveai.request_message_tool_content_text", value, text, timestamp).await?;
+        }
+        RowValue::RequestMessageToolContentImage { image_url, .. } => {
+            insert_image_part_with_msg(pool, "objectiveai.request_message_tool_content_image", value, image_url, timestamp).await?;
+        }
+        RowValue::RequestMessageToolContentAudio { input_audio, .. } => {
+            insert_audio_part_with_msg(pool, "objectiveai.request_message_tool_content_audio", value, input_audio, timestamp).await?;
+        }
+        RowValue::RequestMessageToolContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "objectiveai.request_message_tool_content_video", value, video_url, timestamp).await?;
+        }
+        RowValue::RequestMessageToolContentFile { file, .. } => {
+            insert_file_part_with_msg(pool, "objectiveai.request_message_tool_content_file", value, file, timestamp).await?;
+        }
+        RowValue::RequestVectorChoiceContentText { text, .. } => {
+            insert_text_part_with_msg(pool, "objectiveai.request_vector_choice_content_text", value, text, timestamp).await?;
+        }
+        RowValue::RequestVectorChoiceContentImage { image_url, .. } => {
+            insert_image_part_with_msg(pool, "objectiveai.request_vector_choice_content_image", value, image_url, timestamp).await?;
+        }
+        RowValue::RequestVectorChoiceContentAudio { input_audio, .. } => {
+            insert_audio_part_with_msg(pool, "objectiveai.request_vector_choice_content_audio", value, input_audio, timestamp).await?;
+        }
+        RowValue::RequestVectorChoiceContentVideo { video_url, .. } => {
+            insert_video_part_with_msg(pool, "objectiveai.request_vector_choice_content_video", value, video_url, timestamp).await?;
+        }
+        RowValue::RequestVectorChoiceContentFile { file, .. } => {
+            insert_file_part_with_msg(pool, "objectiveai.request_vector_choice_content_file", value, file, timestamp).await?;
+        }
     }
     Ok(())
 }
@@ -273,6 +443,38 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         return Ok(());
     }
 
+    // Head rows + vote: no messages downgrade (write-once in practice —
+    // the shadow returns Skip, so Update is never dispatched). Bare
+    // UPDATE defensively, early-branched before the message_table path.
+    if let RowValue::RequestMessageTool { response_id, index, tool_call_id, .. } = *value {
+        sqlx::query(
+            "UPDATE objectiveai.request_message_tool SET tool_call_id = $1 \
+             WHERE response_id = $2 AND \"index\" = $3",
+        )
+        .bind(tool_call_id).bind(response_id).bind(index as i64)
+        .execute(&**pool).await?;
+        return Ok(());
+    }
+    if let RowValue::RequestVectorChoice { response_id, choice_index, key, .. } = *value {
+        sqlx::query(
+            "UPDATE objectiveai.request_vector_choice SET key = $1 \
+             WHERE response_id = $2 AND \"index\" = $3",
+        )
+        .bind(key).bind(response_id).bind(choice_index as i64)
+        .execute(&**pool).await?;
+        return Ok(());
+    }
+    if let RowValue::ResponseVectorVote { response_id, agent_instance_hierarchy, vote } = *value {
+        sqlx::query(
+            "UPDATE objectiveai.response_vector_vote SET vote = $1 \
+             WHERE response_id = $2 AND agent_instance_hierarchy = $3",
+        )
+        .bind(sqlx::types::Json(serde_json::to_value(vote)?))
+        .bind(response_id).bind(agent_instance_hierarchy)
+        .execute(&**pool).await?;
+        return Ok(());
+    }
+
     let mt = value.message_table();
     let hier = value.agent_instance_hierarchy();
     let row_index = value.row_index();
@@ -286,31 +488,46 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
         RowValue::ToolResponse { .. } => unreachable!(
             "ToolResponse handled by short-circuit above"
         ),
-        RowValue::AssistantResponseRefusal { text, .. } => {
+        RowValue::AssistantResponseRefusal { text, .. }
+        | RowValue::RequestMessageAssistantRefusal { text, .. } => {
+            let table = match *value {
+                RowValue::AssistantResponseRefusal { .. } => "objectiveai.assistant_response_refusal",
+                _ => "objectiveai.request_message_assistant_refusal",
+            };
+            let sql = format!("UPDATE {table} SET text = $A WHERE response_id = $RESP AND \"index\" = $RI");
             run_update_with_downgrade(
-                pool,
-                "UPDATE objectiveai.assistant_response_refusal SET text = $A \
-                 WHERE response_id = $RESP AND \"index\" = $RI",
+                pool, &sql,
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(text))],
                 &[BindIdx::Resp, BindIdx::Ri],
             ).await?;
         }
-        RowValue::AssistantResponseReasoning { text, .. } => {
+        RowValue::AssistantResponseReasoning { text, .. }
+        | RowValue::RequestMessageAssistantReasoning { text, .. } => {
+            let table = match *value {
+                RowValue::AssistantResponseReasoning { .. } => "objectiveai.assistant_response_reasoning",
+                _ => "objectiveai.request_message_assistant_reasoning",
+            };
+            let sql = format!("UPDATE {table} SET text = $A WHERE response_id = $RESP AND \"index\" = $RI");
             run_update_with_downgrade(
-                pool,
-                "UPDATE objectiveai.assistant_response_reasoning SET text = $A \
-                 WHERE response_id = $RESP AND \"index\" = $RI",
+                pool, &sql,
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(text))],
                 &[BindIdx::Resp, BindIdx::Ri],
             ).await?;
         }
-        RowValue::AssistantResponseToolCalls { tool_call_index, tool_call_id, function_name, arguments, .. } => {
+        RowValue::AssistantResponseToolCalls { tool_call_index, tool_call_id, function_name, arguments, .. }
+        | RowValue::RequestMessageAssistantToolCalls { tool_call_index, tool_call_id, function_name, arguments, .. } => {
+            let table = match *value {
+                RowValue::AssistantResponseToolCalls { .. } => "objectiveai.assistant_response_tool_calls",
+                _ => "objectiveai.request_message_assistant_tool_calls",
+            };
+            let sql = format!(
+                "UPDATE {table} SET tool_call_id = $A, function_name = $B, arguments = $C \
+                 WHERE response_id = $RESP AND \"index\" = $RI AND tool_call_index = $RSI"
+            );
             run_update_with_downgrade(
-                pool,
-                "UPDATE objectiveai.assistant_response_tool_calls SET tool_call_id = $A, function_name = $B, arguments = $C \
-                 WHERE response_id = $RESP AND \"index\" = $RI AND tool_call_index = $RSI",
+                pool, &sql,
                 response_id, row_index, row_sub_index, mt, hier,
                 &[("A", BindVal::Str(tool_call_id)), ("B", BindVal::Str(function_name)), ("C", BindVal::Str(arguments))],
                 &[BindIdx::Resp, BindIdx::Ri, BindIdx::Rsi],
@@ -318,10 +535,18 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
             let _ = tool_call_index;
         }
         RowValue::AssistantResponseContentText { text, .. }
-        | RowValue::ToolResponseContentText { text, .. } => {
+        | RowValue::ToolResponseContentText { text, .. }
+        | RowValue::RequestMessageUserContentText { text, .. }
+        | RowValue::RequestMessageAssistantContentText { text, .. }
+        | RowValue::RequestMessageToolContentText { text, .. }
+        | RowValue::RequestVectorChoiceContentText { text, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentText { .. } => "objectiveai.assistant_response_content_text",
-                _ => "objectiveai.tool_response_content_text",
+                RowValue::ToolResponseContentText { .. } => "objectiveai.tool_response_content_text",
+                RowValue::RequestMessageUserContentText { .. } => "objectiveai.request_message_user_content_text",
+                RowValue::RequestMessageAssistantContentText { .. } => "objectiveai.request_message_assistant_content_text",
+                RowValue::RequestMessageToolContentText { .. } => "objectiveai.request_message_tool_content_text",
+                _ => "objectiveai.request_vector_choice_content_text",
             };
             let sql = format!(
                 "UPDATE {table} SET text = $A \
@@ -335,10 +560,18 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
             ).await?;
         }
         RowValue::AssistantResponseContentImage { image_url, .. }
-        | RowValue::ToolResponseContentImage { image_url, .. } => {
+        | RowValue::ToolResponseContentImage { image_url, .. }
+        | RowValue::RequestMessageUserContentImage { image_url, .. }
+        | RowValue::RequestMessageAssistantContentImage { image_url, .. }
+        | RowValue::RequestMessageToolContentImage { image_url, .. }
+        | RowValue::RequestVectorChoiceContentImage { image_url, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentImage { .. } => "objectiveai.assistant_response_content_image",
-                _ => "objectiveai.tool_response_content_image",
+                RowValue::ToolResponseContentImage { .. } => "objectiveai.tool_response_content_image",
+                RowValue::RequestMessageUserContentImage { .. } => "objectiveai.request_message_user_content_image",
+                RowValue::RequestMessageAssistantContentImage { .. } => "objectiveai.request_message_assistant_content_image",
+                RowValue::RequestMessageToolContentImage { .. } => "objectiveai.request_message_tool_content_image",
+                _ => "objectiveai.request_vector_choice_content_image",
             };
             let detail = image_url.detail.as_ref().and_then(|d| serde_json::to_string(d).ok());
             let sql = format!(
@@ -353,10 +586,18 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
             ).await?;
         }
         RowValue::AssistantResponseContentAudio { input_audio, .. }
-        | RowValue::ToolResponseContentAudio { input_audio, .. } => {
+        | RowValue::ToolResponseContentAudio { input_audio, .. }
+        | RowValue::RequestMessageUserContentAudio { input_audio, .. }
+        | RowValue::RequestMessageAssistantContentAudio { input_audio, .. }
+        | RowValue::RequestMessageToolContentAudio { input_audio, .. }
+        | RowValue::RequestVectorChoiceContentAudio { input_audio, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentAudio { .. } => "objectiveai.assistant_response_content_audio",
-                _ => "objectiveai.tool_response_content_audio",
+                RowValue::ToolResponseContentAudio { .. } => "objectiveai.tool_response_content_audio",
+                RowValue::RequestMessageUserContentAudio { .. } => "objectiveai.request_message_user_content_audio",
+                RowValue::RequestMessageAssistantContentAudio { .. } => "objectiveai.request_message_assistant_content_audio",
+                RowValue::RequestMessageToolContentAudio { .. } => "objectiveai.request_message_tool_content_audio",
+                _ => "objectiveai.request_vector_choice_content_audio",
             };
             let sql = format!(
                 "UPDATE {table} SET data = $A, format = $B \
@@ -373,10 +614,18 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
             ).await?;
         }
         RowValue::AssistantResponseContentVideo { video_url, .. }
-        | RowValue::ToolResponseContentVideo { video_url, .. } => {
+        | RowValue::ToolResponseContentVideo { video_url, .. }
+        | RowValue::RequestMessageUserContentVideo { video_url, .. }
+        | RowValue::RequestMessageAssistantContentVideo { video_url, .. }
+        | RowValue::RequestMessageToolContentVideo { video_url, .. }
+        | RowValue::RequestVectorChoiceContentVideo { video_url, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentVideo { .. } => "objectiveai.assistant_response_content_video",
-                _ => "objectiveai.tool_response_content_video",
+                RowValue::ToolResponseContentVideo { .. } => "objectiveai.tool_response_content_video",
+                RowValue::RequestMessageUserContentVideo { .. } => "objectiveai.request_message_user_content_video",
+                RowValue::RequestMessageAssistantContentVideo { .. } => "objectiveai.request_message_assistant_content_video",
+                RowValue::RequestMessageToolContentVideo { .. } => "objectiveai.request_message_tool_content_video",
+                _ => "objectiveai.request_vector_choice_content_video",
             };
             let sql = format!(
                 "UPDATE {table} SET url = $A \
@@ -390,10 +639,18 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
             ).await?;
         }
         RowValue::AssistantResponseContentFile { file, .. }
-        | RowValue::ToolResponseContentFile { file, .. } => {
+        | RowValue::ToolResponseContentFile { file, .. }
+        | RowValue::RequestMessageUserContentFile { file, .. }
+        | RowValue::RequestMessageAssistantContentFile { file, .. }
+        | RowValue::RequestMessageToolContentFile { file, .. }
+        | RowValue::RequestVectorChoiceContentFile { file, .. } => {
             let table = match *value {
                 RowValue::AssistantResponseContentFile { .. } => "objectiveai.assistant_response_content_file",
-                _ => "objectiveai.tool_response_content_file",
+                RowValue::ToolResponseContentFile { .. } => "objectiveai.tool_response_content_file",
+                RowValue::RequestMessageUserContentFile { .. } => "objectiveai.request_message_user_content_file",
+                RowValue::RequestMessageAssistantContentFile { .. } => "objectiveai.request_message_assistant_content_file",
+                RowValue::RequestMessageToolContentFile { .. } => "objectiveai.request_message_tool_content_file",
+                _ => "objectiveai.request_vector_choice_content_file",
             };
             let sql = format!(
                 "UPDATE {table} SET file_data = $A, file_id = $B, filename = $C, file_url = $D \
@@ -411,6 +668,11 @@ async fn update_value<'a>(pool: &Pool, value: &RowValue<'a>) -> Result<(), Error
                 &[BindIdx::Resp, BindIdx::Ri, BindIdx::Rsi],
             ).await?;
         }
+        RowValue::RequestMessageTool { .. }
+        | RowValue::RequestVectorChoice { .. }
+        | RowValue::ResponseVectorVote { .. } => unreachable!(
+            "RequestMessageTool / RequestVectorChoice / ResponseVectorVote handled by early-return branches above"
+        ),
     }
     Ok(())
 }

@@ -251,6 +251,66 @@ pub struct ToolResponsePart {
     pub r#type: ToolResponsePartType,
 }
 
+/// Type tag for one `RequestMessageUser` part — the kind of the
+/// underlying `request_message_user_content_*` row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.logs.list.RequestMessageUserPartType")]
+pub enum RequestMessageUserPartType {
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
+}
+
+/// One content part of a user request message. Its `id` addresses the
+/// stored content the same way a response part's `id` does — pass it
+/// to `agents logs read id <n>`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.list.RequestMessageUserPart")]
+pub struct RequestMessageUserPart {
+    /// `logs.messages."index"` for this row.
+    pub id: i64,
+    pub delivered_at: String,
+    pub r#type: RequestMessageUserPartType,
+}
+
+/// Type tag for one `VectorRequestChoices` choice part — the kind of
+/// the underlying `request_vector_choice_content_*` row.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "snake_case")]
+#[schemars(rename = "cli.command.agents.logs.list.VectorRequestChoicePartType")]
+pub enum VectorRequestChoicePartType {
+    Text,
+    Image,
+    Audio,
+    Video,
+    File,
+}
+
+/// One content part of a vector-completion request choice. `id`
+/// addresses the stored content via `agents logs read id <n>`.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.list.VectorRequestChoicePart")]
+pub struct VectorRequestChoicePart {
+    /// `logs.messages."index"` for this row.
+    pub id: i64,
+    pub delivered_at: String,
+    pub r#type: VectorRequestChoicePartType,
+}
+
+/// One choice in a `VectorRequestChoices` block: this agent's inline
+/// voting `key` for the choice plus the choice's content parts (in
+/// request order). The key is returned inline — no `read id` needed.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[schemars(rename = "cli.command.agents.logs.list.VectorRequestChoice")]
+pub struct VectorRequestChoice {
+    /// The prefix-tree voting key this agent assigned to the choice.
+    pub key: String,
+    pub parts: Vec<VectorRequestChoicePart>,
+}
+
 /// One yielded item. Three single-row request blobs +
 /// three multi-row blocks. Every variant carries `response_id`.
 /// `sender_agent_instance_hierarchy` appears only on the four
@@ -274,31 +334,52 @@ pub struct ToolResponsePart {
 #[serde(tag = "type", rename_all = "snake_case")]
 #[schemars(rename = "cli.command.agents.logs.list.ResponseItem")]
 pub enum ResponseItem {
-    #[schemars(title = "AgentCompletionRequest")]
-    AgentCompletionRequest {
-        id: i64,
+    /// A `user`-role message from the request/task input, unpacked
+    /// into content parts (each addressable via `read id`).
+    #[schemars(title = "RequestMessageUser")]
+    RequestMessageUser {
         agent_instance_hierarchy: String,
-        /// AIH of the caller who issued the request — from
-        /// `logs.agent_completion_requests.sender_*`.
-        sender_agent_instance_hierarchy: String,
-        delivered_at: String,
         response_id: String,
+        parts: Vec<RequestMessageUserPart>,
     },
-    #[schemars(title = "VectorCompletionRequest")]
-    VectorCompletionRequest {
-        id: i64,
+    /// An `assistant`-role message from the request/task input. Same
+    /// part shape as an assistant response — reasoning / tool calls /
+    /// refusal / content — but sourced from the request.
+    #[schemars(title = "RequestMessageAssistant")]
+    RequestMessageAssistant {
         agent_instance_hierarchy: String,
-        sender_agent_instance_hierarchy: String,
-        delivered_at: String,
         response_id: String,
+        parts: Vec<AssistantResponsePart>,
     },
-    #[schemars(title = "FunctionExecutionRequest")]
-    FunctionExecutionRequest {
-        id: i64,
+    /// A `tool`-role message from the request/task input, answering a
+    /// prior tool call. Same part shape as a tool response.
+    #[schemars(title = "RequestMessageTool")]
+    RequestMessageTool {
         agent_instance_hierarchy: String,
-        sender_agent_instance_hierarchy: String,
-        delivered_at: String,
         response_id: String,
+        /// The wire tool-call id this request message answers.
+        tool_call_id: String,
+        parts: Vec<ToolResponsePart>,
+    },
+    /// The response choices a vector-completion task voted over,
+    /// yielded as one block: an ordered list of choices, each with its
+    /// content parts and this agent's inline voting `key`.
+    #[schemars(title = "VectorRequestChoices")]
+    VectorRequestChoices {
+        agent_instance_hierarchy: String,
+        response_id: String,
+        choices: Vec<VectorRequestChoice>,
+    },
+    /// The closer for a function-execution vector task: this agent's
+    /// own vote (its score for each choice, in choice order). Inline —
+    /// no `read id` needed.
+    #[schemars(title = "VectorResponseVote")]
+    VectorResponseVote {
+        agent_instance_hierarchy: String,
+        response_id: String,
+        #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
+        #[schemars(with = "Vec<f64>")]
+        vote: Vec<rust_decimal::Decimal>,
     },
     #[schemars(title = "ClientNotification")]
     ClientNotification {
@@ -342,6 +423,28 @@ pub enum ResponseItem {
         /// The wire tool-call id this response answers.
         tool_call_id: String,
         parts: Vec<ToolResponsePart>,
+    },
+    /// One logged failure (`objectiveai.errors`) — a spawn-path error
+    /// persisted into the agent's history. Always a single row: the
+    /// failing attempt dies at its first raised error, so there is
+    /// nothing to coalesce. The value is returned inline (like the
+    /// vote) — no `read id` needed — but the row is still
+    /// id-addressable like every other event.
+    #[schemars(title = "Error")]
+    Error {
+        agent_instance_hierarchy: String,
+        /// The response the failure belongs to when one existed;
+        /// `None` for post-lock pre-stream failures (the only kind
+        /// allowed a NULL response_id).
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(extend("omitempty" = true))]
+        response_id: Option<String>,
+        /// `logs.messages."index"` for this row.
+        id: i64,
+        delivered_at: String,
+        /// The CLI's user-facing error value — a structured object for
+        /// API response errors, a plain string otherwise.
+        error: serde_json::Value,
     },
 }
 
@@ -451,7 +554,6 @@ impl crate::cli::command::CommandResponse for ResponseItem {
 
 pub mod request_schema;
 
-
 pub mod response_schema;
 
 #[cfg(test)]
@@ -480,4 +582,15 @@ mod tests {
             serde_json::json!({ "by": "me" }),
         );
     }
+}
+
+/// One `/listen` broadcast run of `agents logs list`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// response-item stream. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::ResponseItemStream<ResponseItem>,
 }

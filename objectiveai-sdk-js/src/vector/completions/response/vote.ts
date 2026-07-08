@@ -5,6 +5,7 @@ import { z } from "zod";
 export const VectorCompletionsResponseVoteSchema = z.object({
   agent_full_id: z.string().describe("WF-level id of the agent that produced this vote — concatenation\nof the primary agent's id with all fallback ids (see\n`InlineAgentWithFallbacks::full_id`). Same for every slot in the\nsame WF request and deterministic across api processes."),
   agent_id: z.string().describe("Leaf agent id of the slot that produced this vote (matches the\n`agent_id` on the corresponding\n[`super::super::super::super::agent::completions::response::unary::AgentCompletion`]).\nWhen fallbacks fired, this is the fallback's id rather than the\nprimary's."),
+  completion_index: z.number().int().min(0).max(18446744073709552000).nullable().describe("Index correlating this vote with its completion — equals the\n`index` on the corresponding\n[`vector::completions::response::streaming::AgentCompletionChunk`](super::streaming::AgentCompletionChunk)\nwrapper. Populated by the API; `None` only in hand-built values.").meta({ omitempty: true }).optional(),
   flat_swarm_index: z.number().int().min(0).max(18446744073709552000).describe("Flattened index accounting for agent counts in the swarm."),
   prompt_id: z.string().describe("Content hash of the request messages (for caching/deduplication)."),
   responses_ids: z.array(z.string()).describe("Content hashes of each response option in the request."),

@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.agents.logs.list.RequestMessageUserPart",
+  "description": "One content part of a user request message. Its `id` addresses the\nstored content the same way a response part's `id` does — pass it\nto `agents logs read id <n>`.",
+  "type": "object",
+  "properties": {
+    "delivered_at": {
+      "type": "string"
+    },
+    "id": {
+      "description": "`logs.messages.\"index\"` for this row.",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "type": {
+      "$ref": "cli.command.agents.logs.list.RequestMessageUserPartType"
+    }
+  }
+}

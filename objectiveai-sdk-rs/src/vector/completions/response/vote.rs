@@ -66,9 +66,12 @@ pub struct Vote {
     #[arbitrary(with = crate::arbitrary_util::arbitrary_rust_decimal)]
     pub weight: rust_decimal::Decimal,
 
-    // --- Internal ---
-    /// Internal index for correlating with completions. Not serialized.
-    #[serde(skip)]
+    /// Index correlating this vote with its completion — equals the
+    /// `index` on the corresponding
+    /// [`vector::completions::response::streaming::AgentCompletionChunk`](super::streaming::AgentCompletionChunk)
+    /// wrapper. Populated by the API; `None` only in hand-built values.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[schemars(extend("omitempty" = true))]
     #[arbitrary(with = crate::arbitrary_util::arbitrary_option_u64)]
     pub completion_index: Option<u64>,
 }

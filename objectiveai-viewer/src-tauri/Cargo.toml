@@ -1,6 +1,6 @@
 [package]
 name = "objectiveai-viewer"
-version = "2.2.9"
+version = "2.2.10"
 edition = "2024"
 
 [features]
@@ -11,24 +11,18 @@ edition = "2024"
 default = []
 
 [dependencies]
-axum = "0.8.8"
+clap = { version = "4", features = ["derive"] }
 dirs = "6.0.0"
 dotenv = "0.15.0"
 envconfig = "0.11.1"
 futures = "0.3.32"
-hex = "0.4.3"
 mime_guess = "2.0.5"
-objectiveai-sdk = { version = "2.2.9", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "mcp", "viewer", "lockfile"] }
-reqwest = { version = "0.12.28", default-features = false, features = ["charset", "http2", "rustls-tls", "json", "stream"] }
+open = "5.3.2"
+objectiveai-sdk = { version = "2.2.10", path = "../../objectiveai-sdk-rs", default-features = false, features = ["cli", "cli-executor", "mcp", "lockfile"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = { version = "1.0.149", features = ["preserve_order"] }
-sha2 = "0.10.9"
-subtle = "2.6.1"
 tauri = { version = "2.10.3", features = [] }
 tokio = { version = "1.50.0", features = ["full"] }
 
 [build-dependencies]
 tauri-build = { version = "2.5.6", features = [] }
-
-[dev-dependencies]
-tower = { version = "0.5", features = ["util"] }

@@ -1,7 +1,0 @@
-{
-  "title": "cli.command.viewer.config.get.Path",
-  "type": "string",
-  "enum": [
-    "viewer/config/get"
-  ]
-}

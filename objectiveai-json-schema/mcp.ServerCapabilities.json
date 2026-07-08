@@ -1,0 +1,92 @@
+{
+  "title": "mcp.ServerCapabilities",
+  "description": "Capabilities that an MCP server may support.",
+  "type": "object",
+  "properties": {
+    "completions": {
+      "description": "Completions support. Presence indicates the server supports completions.",
+      "anyOf": [
+        {
+          "$ref": "mcp.CompletionsCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "experimental": {
+      "description": "Non-standard experimental capabilities.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "logging": {
+      "description": "Logging support. Presence indicates the server supports sending log messages.",
+      "anyOf": [
+        {
+          "$ref": "mcp.LoggingCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "prompts": {
+      "description": "Prompt template capabilities.",
+      "anyOf": [
+        {
+          "$ref": "mcp.PromptsCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "resources": {
+      "description": "Resource capabilities.",
+      "anyOf": [
+        {
+          "$ref": "mcp.ResourcesCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "tasks": {
+      "description": "Task capabilities.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "tools": {
+      "description": "Tool capabilities.",
+      "anyOf": [
+        {
+          "$ref": "mcp.ToolsCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

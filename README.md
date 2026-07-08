@@ -466,7 +466,6 @@ objectiveai plugins install filesystem
 | `binaries` | object | Map of `<os>_<arch>` → release-asset filename. Supported keys: `linux_x86_64`, `linux_aarch64`, `windows_x86_64`, `windows_aarch64`, `macos_x86_64`, `macos_aarch64`. Declare only platforms you ship. |
 | `viewer_zip` | string | Release-asset filename for the UI bundle (a zip with `index.html` at root). Mutually exclusive with `viewer_url`. |
 | `viewer_url` | string | Remote URL loaded as the iframe `src` verbatim. Must be `https://` or `http://localhost`. Mutually exclusive with `viewer_zip`. |
-| `viewer_routes` | array | HTTP routes the viewer's embedded axum server exposes on behalf of the plugin. |
 | `mobile_ready` | bool | Opt-in for iOS/Android viewer builds. Defaults to false. |
 
 Example:

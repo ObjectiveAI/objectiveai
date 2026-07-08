@@ -3,7 +3,7 @@ import cn from "classnames";
 import * as ScrollArea from "@radix-ui/react-scroll-area";
 import { LogoMark, Wordmark } from "../shared/Logo";
 
-export function Shell({ children, statusBar, banner, networkPanel, sidebar, detailPanel, entryCount }: { children: ReactNode; statusBar?: ReactNode; banner?: ReactNode; networkPanel?: ReactNode; sidebar?: ReactNode; detailPanel?: ReactNode; entryCount?: number }) {
+export function Shell({ children, banner, sidebar, detailPanel, entryCount }: { children: ReactNode; banner?: ReactNode; sidebar?: ReactNode; detailPanel?: ReactNode; entryCount?: number }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const userScrolledUp = useRef(false);
   const [showJumpToBottom, setShowJumpToBottom] = useState(false);
@@ -156,8 +156,6 @@ export function Shell({ children, statusBar, banner, networkPanel, sidebar, deta
           </aside>
         )}
       </div>
-      {networkPanel}
-      {statusBar}
     </div>
   );
 }

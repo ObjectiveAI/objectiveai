@@ -1,0 +1,164 @@
+{
+  "title": "cli.websocket_agents_instances_listener.AssistantResponsePart",
+  "description": "Mirror of `logs.list.AssistantResponsePart`: each variant keeps its\nlist fields with `id` replaced by the opened content — `arguments`\nfor a tool call, `text` for refusal / reasoning, the typed payload\nfor content parts.",
+  "anyOf": [
+    {
+      "title": "ToolCall",
+      "description": "A tool call. `arguments` is the call's full current accumulated\nstring (full-value, not a fragment).",
+      "type": "object",
+      "properties": {
+        "arguments": {
+          "type": "string"
+        },
+        "delivered_at": {
+          "type": "string"
+        },
+        "function_name": {
+          "type": "string"
+        },
+        "tool_call_id": {
+          "description": "The wire tool-call id this row carries.",
+          "type": "string"
+        },
+        "tool_call_index": {
+          "description": "The tool call's wire index within the assistant message's\n`tool_calls[]`.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "tool_call"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Refusal",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "refusal"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Reasoning",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "reasoning"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Text",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "text": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "text"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Image",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "image": {
+          "$ref": "agent.completions.message.ImageUrl"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "image"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Audio",
+      "type": "object",
+      "properties": {
+        "audio": {
+          "$ref": "agent.completions.message.InputAudio"
+        },
+        "delivered_at": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "audio"
+          ]
+        }
+      }
+    },
+    {
+      "title": "Video",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "video"
+          ]
+        },
+        "video": {
+          "$ref": "agent.completions.message.VideoUrl"
+        }
+      }
+    },
+    {
+      "title": "File",
+      "type": "object",
+      "properties": {
+        "delivered_at": {
+          "type": "string"
+        },
+        "file": {
+          "$ref": "agent.completions.message.File"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "file"
+          ]
+        }
+      }
+    }
+  ]
+}

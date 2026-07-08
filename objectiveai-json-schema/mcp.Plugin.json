@@ -1,0 +1,19 @@
+{
+  "title": "mcp.Plugin",
+  "description": "A plugin-hosted MCP server's identity — the four coordinates that name\na plugin's MCP (mirrors `McpKind::Plugin`).",
+  "type": "object",
+  "properties": {
+    "mcp": {
+      "type": "string"
+    },
+    "name": {
+      "type": "string"
+    },
+    "owner": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    }
+  }
+}

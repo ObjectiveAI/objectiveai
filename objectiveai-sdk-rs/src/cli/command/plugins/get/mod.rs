@@ -48,8 +48,6 @@ pub struct ResponseManifest {
     #[schemars(extend("omitempty" = true))]
     pub viewer_url: Option<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub viewer_routes: Vec<ResponseViewerRoute>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub mcp_servers: Vec<ResponseMcpServer>,
 }
 
@@ -67,25 +65,6 @@ impl ResponseManifest {
             self.version.replace('.', "-")
         )
     }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[schemars(rename = "cli.command.plugins.get.ResponseViewerRoute")]
-pub struct ResponseViewerRoute {
-    pub path: String,
-    pub method: ResponseHttpMethod,
-    pub r#type: String,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(rename_all = "UPPERCASE")]
-#[schemars(rename = "cli.command.plugins.get.ResponseHttpMethod")]
-pub enum ResponseHttpMethod {
-    Get,
-    Post,
-    Put,
-    Patch,
-    Delete,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -190,5 +169,15 @@ impl crate::cli::command::CommandResponse for ResponseManifest {
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `plugins get`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}

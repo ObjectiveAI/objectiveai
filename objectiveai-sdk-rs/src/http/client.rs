@@ -25,8 +25,6 @@ use tokio_tungstenite::tungstenite;
 ///     None, // x_github_authorization
 ///     None, // x_openrouter_authorization
 ///     None, // x_mcp_authorization
-///     None, // x_viewer_signature
-///     None, // x_viewer_address
 /// );
 /// ```
 #[derive(Debug, Clone)]
@@ -50,10 +48,6 @@ pub struct HttpClient {
     /// Values for the `X-MCP-AUTHORIZATION` header (JSON-encoded).
     pub x_mcp_authorization:
         Option<Arc<std::collections::HashMap<String, String>>>,
-    /// Value for the `X-VIEWER-SIGNATURE` header.
-    pub x_viewer_signature: Option<Arc<String>>,
-    /// Value for the `X-VIEWER-ADDRESS` header.
-    pub x_viewer_address: Option<Arc<String>>,
     /// Value for the `X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY` header.
     pub agent_instance_hierarchy: Option<Arc<String>>,
     /// Value for the `Mcp-Session-Id` header — propagated through to
@@ -76,8 +70,6 @@ impl HttpClient {
     /// * `x_github_authorization` - Optional X-GITHUB-AUTHORIZATION header value
     /// * `x_openrouter_authorization` - Optional X-OPENROUTER-AUTHORIZATION header value
     /// * `x_mcp_authorization` - Optional X-MCP-AUTHORIZATION header value (HashMap)
-    /// * `x_viewer_signature` - Optional X-VIEWER-SIGNATURE header value
-    /// * `x_viewer_address` - Optional X-VIEWER-ADDRESS header value
     /// * `agent_instance_hierarchy` - Optional X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY header value
     /// * `mcp_session_id` - Optional Mcp-Session-Id header value
     pub fn new(
@@ -90,8 +82,6 @@ impl HttpClient {
         x_github_authorization: Option<impl Into<String>>,
         x_openrouter_authorization: Option<impl Into<String>>,
         x_mcp_authorization: Option<std::collections::HashMap<String, String>>,
-        x_viewer_signature: Option<impl Into<String>>,
-        x_viewer_address: Option<impl Into<String>>,
         agent_instance_hierarchy: Option<impl Into<String>>,
         mcp_session_id: Option<impl Into<String>>,
     ) -> Self {
@@ -189,30 +179,6 @@ impl HttpClient {
                     }
                 },
             ),
-            x_viewer_signature: x_viewer_signature
-                .map(|v| Arc::new(v.into()))
-                .or_else(|| {
-                    #[cfg(feature = "env")]
-                    {
-                        env("VIEWER_SIGNATURE").map(Arc::new)
-                    }
-                    #[cfg(not(feature = "env"))]
-                    {
-                        None
-                    }
-                }),
-            x_viewer_address: x_viewer_address
-                .map(|v| Arc::new(v.into()))
-                .or_else(|| {
-                    #[cfg(feature = "env")]
-                    {
-                        env("VIEWER_ADDRESS").map(Arc::new)
-                    }
-                    #[cfg(not(feature = "env"))]
-                    {
-                        None
-                    }
-                }),
             agent_instance_hierarchy: agent_instance_hierarchy.map(|v| Arc::new(v.into())).or_else(|| {
                 #[cfg(feature = "env")]
                 {
@@ -279,12 +245,6 @@ impl HttpClient {
             if let Ok(json) = serde_json::to_string(headers.as_ref()) {
                 request = request.header("X-MCP-AUTHORIZATION", json);
             }
-        }
-        if let Some(sig) = &self.x_viewer_signature {
-            request = request.header("X-VIEWER-SIGNATURE", sig.as_str());
-        }
-        if let Some(addr) = &self.x_viewer_address {
-            request = request.header("X-VIEWER-ADDRESS", addr.as_str());
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             request = request.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());
@@ -606,12 +566,6 @@ impl HttpClient {
             if let Ok(json) = serde_json::to_string(headers.as_ref()) {
                 req = req.header("X-MCP-AUTHORIZATION", json);
             }
-        }
-        if let Some(sig) = &self.x_viewer_signature {
-            req = req.header("X-VIEWER-SIGNATURE", sig.as_str());
-        }
-        if let Some(addr) = &self.x_viewer_address {
-            req = req.header("X-VIEWER-ADDRESS", addr.as_str());
         }
         if let Some(id) = &self.agent_instance_hierarchy {
             req = req.header("X-OBJECTIVEAI-AGENT-INSTANCE-HIERARCHY", id.as_str());

@@ -16,8 +16,31 @@ use crate::error::Error;
 type ItemStream = Pin<Box<dyn Stream<Item = Result<ResponseItem, Error>> + Send>>;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Error> {
-    let default_parent = ctx.config.agent_instance_hierarchy.clone();
+    // `all` and targets are mutually exclusive. Clap enforces this on
+    // the argv path; requests arriving through the JSON front door
+    // (`--request`, /execute) are validated here.
+    let all = request.all == Some(true);
+    if all && !request.targets.is_empty() {
+        return Err(Error::Instance(
+            "`all` is mutually exclusive with `targets`".to_string(),
+        ));
+    }
     let db = ctx.db_client().await?.clone();
+    if all {
+        let stream = async_stream::stream! {
+            match crate::db::instances::list_all(&db).await {
+                Ok(items) => {
+                    for item in items {
+                        yield Ok(item);
+                    }
+                }
+                Err(e) => yield Err(Error::from(e)),
+            }
+        };
+        return Ok(Box::pin(stream));
+    }
+
+    let default_parent = ctx.config.agent_instance_hierarchy.clone();
     let stream = async_stream::stream! {
         // Resolve + query every target concurrently. GROUPED/ABSENT tags
         // resolve to None and contribute nothing.

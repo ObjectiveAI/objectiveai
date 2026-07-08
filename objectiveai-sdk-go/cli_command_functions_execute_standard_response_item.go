@@ -12,11 +12,15 @@ type CliCommandFunctionsExecuteStandardResponseItemID string
 func (CliCommandFunctionsExecuteStandardResponseItemID) SchemaVariantTitle() string { return "Id" }
 
 type CliCommandFunctionsExecuteStandardResponseItem struct {
+	AgentInstanceHierarchy *CliCommandFunctionsExecuteStandardAgentInstanceHierarchy 
 	Chunk *FunctionsExecutionsResponseStreamingFunctionExecutionChunk 
 	ID *CliCommandFunctionsExecuteStandardResponseItemID `variantTitle:"Id"`
 }
 
 func (v CliCommandFunctionsExecuteStandardResponseItem) MarshalJSON() ([]byte, error) {
+	if v.AgentInstanceHierarchy != nil {
+		return json.Marshal(v.AgentInstanceHierarchy)
+	}
 	if v.Chunk != nil {
 		return json.Marshal(v.Chunk)
 	}
@@ -27,6 +31,17 @@ func (v CliCommandFunctionsExecuteStandardResponseItem) MarshalJSON() ([]byte, e
 }
 
 func (v *CliCommandFunctionsExecuteStandardResponseItem) UnmarshalJSON(data []byte) error {
+	{
+		var try CliCommandFunctionsExecuteStandardAgentInstanceHierarchy
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandFunctionsExecuteStandardResponseItem{}
+			candidate.AgentInstanceHierarchy = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	{
 		var try FunctionsExecutionsResponseStreamingFunctionExecutionChunk
 		if err := json.Unmarshal(data, &try); err == nil {
@@ -54,6 +69,7 @@ func (v *CliCommandFunctionsExecuteStandardResponseItem) UnmarshalJSON(data []by
 
 func (v CliCommandFunctionsExecuteStandardResponseItem) Validate() error {
 	count := 0
+	if v.AgentInstanceHierarchy != nil { count++ }
 	if v.Chunk != nil { count++ }
 	if v.ID != nil { count++ }
 	if count != 1 {

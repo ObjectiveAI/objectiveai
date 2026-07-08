@@ -78,6 +78,12 @@ struct EnvConfigBuilder {
     plugin_repository: Option<String>,
     #[envconfig(from = "OBJECTIVEAI_PLUGIN_VERSION")]
     plugin_version: Option<String>,
+    #[envconfig(from = "DAEMON_ADDRESS")]
+    daemon_address: Option<String>,
+    #[envconfig(from = "DAEMON_PORT")]
+    daemon_port: Option<u16>,
+    #[envconfig(from = "DAEMON_SECRET")]
+    daemon_secret: Option<String>,
 }
 
 impl EnvConfigBuilder {
@@ -102,6 +108,9 @@ impl EnvConfigBuilder {
             plugin_owner: self.plugin_owner,
             plugin_repository: self.plugin_repository,
             plugin_version: self.plugin_version,
+            daemon_address: self.daemon_address,
+            daemon_port: self.daemon_port,
+            daemon_secret: self.daemon_secret,
         }
     }
 }
@@ -123,6 +132,9 @@ pub struct ConfigBuilder {
     pub plugin_owner: Option<String>,
     pub plugin_repository: Option<String>,
     pub plugin_version: Option<String>,
+    pub daemon_address: Option<String>,
+    pub daemon_port: Option<u16>,
+    pub daemon_secret: Option<String>,
 }
 
 impl Envconfig for ConfigBuilder {
@@ -162,6 +174,11 @@ impl ConfigBuilder {
             plugin_owner: self.plugin_owner,
             plugin_repository: self.plugin_repository,
             plugin_version: self.plugin_version,
+            daemon_address: self
+                .daemon_address
+                .unwrap_or_else(|| "127.0.0.1".to_string()),
+            daemon_port: self.daemon_port.unwrap_or(0),
+            daemon_secret: self.daemon_secret,
         }
     }
 }
@@ -204,6 +221,17 @@ pub struct Config {
     pub plugin_owner: Option<String>,
     pub plugin_repository: Option<String>,
     pub plugin_version: Option<String>,
+    /// Bind address for the resident daemon's broadcast WebSocket
+    /// server (`DAEMON_ADDRESS`); default `127.0.0.1`.
+    pub daemon_address: String,
+    /// Bind port for the resident daemon's broadcast WebSocket server
+    /// (`DAEMON_PORT`); default `0` (OS-assigned).
+    pub daemon_port: u16,
+    /// Optional shared secret for the daemon's WebSocket server
+    /// (`DAEMON_SECRET`). When set, every connection's first-message
+    /// auth preamble must carry a valid `sha256=<hex(SHA256(secret))>`
+    /// signature; when `None`, the server is open.
+    pub daemon_secret: Option<String>,
 }
 
 /// What [`run`] yields, mirroring the two SDK root dispatch entry
@@ -321,25 +349,187 @@ pub fn run(
         objectiveai_sdk::cli::command::ParseError::FromArgs(e) => Error::FromArgs(e),
     })?;
 
+    // Producer tee: before executing, ensure the resident daemon is up
+    // (idempotent — no respawn if already running) and open a feed of
+    // this run's request + stream items into its broadcast socket. Wholly
+    // best-effort: any failure yields `None` and the command runs
+    // unaffected. The daemon foreground itself is skipped (see
+    // `should_tee`).
+    let feed = start_tee(&ctx, &request).await;
+
+    // Decouple broadcast writes from stream yielding: the executor
+    // sends each PRE-transform item into an UNBOUNDED channel (a send
+    // never blocks, never drops), and a spawned writer task drains it
+    // onto the producer socket. `run` owns the writer's lifecycle: the
+    // stream it returns awaits the writer's completion after the
+    // command finishes, so a program exit can never truncate in-flight
+    // socket writes.
+    let (tee_tx, tee_writer) = match feed {
+        Some(mut feed) => {
+            let (tx, mut rx) =
+                tokio::sync::mpsc::unbounded_channel::<serde_json::Value>();
+            let writer = tokio::spawn(async move {
+                while let Some(value) = rx.recv().await {
+                    if feed.write(&value).await.is_err() {
+                        // Daemon gone: stop consuming; remaining sends
+                        // fail and the executor's tee goes quiet.
+                        break;
+                    }
+                }
+                // `feed` drops here → socket closes → the daemon reads
+                // EOF and broadcasts the run's terminator.
+            });
+            (Some(tx), Some(writer))
+        }
+        None => (None, None),
+    };
+
     // Drive the request through the in-process executor, picking the
     // SDK root dispatch entry by whether the request carries an output
-    // transform. The executor applies the transform / token / timeout
-    // adapters; `execute_transform` additionally sets the transform on
-    // the leaf request and yields the post-transform JSON, whereas
-    // `execute` yields the typed root items.
+    // transform. The executor tees the PRE-transform items to the
+    // broadcast and applies the transform / token / timeout adapters;
+    // `execute_transform` additionally sets the transform on the leaf
+    // request and yields the post-transform JSON, whereas `execute`
+    // yields the typed root items.
     let transform = request.request_base().transform();
-    let executor = crate::executor::CliCommandExecutor::new(ctx);
+    let executor = crate::executor::CliCommandExecutor::new(ctx, tee_tx);
     match transform {
         Some(transform) => {
             let stream =
                 objectiveai_sdk::cli::command::execute_transform(&executor, request, transform, None)
-                    .await?;
-            Ok(RunStream::ExecuteTransform(stream))
+                    .await;
+            drop(executor);
+            match stream {
+                Ok(stream) => Ok(RunStream::ExecuteTransform(await_tee_completion(
+                    stream, tee_writer,
+                ))),
+                Err(e) => {
+                    settle_tee(tee_writer).await;
+                    Err(e)
+                }
+            }
         }
         None => {
-            let stream = objectiveai_sdk::cli::command::execute(&executor, request, None).await?;
-            Ok(RunStream::Execute(stream))
+            let stream =
+                objectiveai_sdk::cli::command::execute(&executor, request, None).await;
+            drop(executor);
+            match stream {
+                Ok(stream) => {
+                    Ok(RunStream::Execute(await_tee_completion(stream, tee_writer)))
+                }
+                Err(e) => {
+                    settle_tee(tee_writer).await;
+                    Err(e)
+                }
+            }
         }
     }
     })
+}
+
+/// Whether this run should be teed into the daemon broadcast socket.
+/// Everything is teed EXCEPT the resident daemon's own foreground process
+/// (`daemon spawn --foreground`): its socket isn't bound and its lock
+/// isn't published yet when the tee runs, so teeing it would
+/// deadlock / fork-bomb daemon startup. Every real command — including the
+/// `daemon spawn` launcher, `daemon kill`, and `kill_all` — is teed.
+fn should_tee(request: &objectiveai_sdk::cli::command::Request) -> bool {
+    use objectiveai_sdk::cli::command::{Request, daemon};
+    !matches!(
+        request,
+        Request::Daemon(daemon::Request::Spawn(r))
+            if r.dangerous_advanced.as_ref().and_then(|a| a.foreground) == Some(true)
+    )
+}
+
+/// The producer's agent/plugin context object — exactly the fields the
+/// `ListenerRequest<T>` wrapper carries. `None`s are omitted.
+fn tee_context(config: &Config) -> serde_json::Value {
+    let mut map = serde_json::Map::new();
+    map.insert(
+        "agent_instance_hierarchy".to_string(),
+        serde_json::Value::String(config.agent_instance_hierarchy.clone()),
+    );
+    for (key, value) in [
+        ("agent_id", &config.agent_id),
+        ("agent_full_id", &config.agent_full_id),
+        ("agent_remote", &config.agent_remote),
+        ("response_id", &config.response_id),
+        ("response_ids", &config.response_ids),
+        ("plugin_owner", &config.plugin_owner),
+        ("plugin_repository", &config.plugin_repository),
+        ("plugin_version", &config.plugin_version),
+    ] {
+        if let Some(val) = value {
+            map.insert(key.to_string(), serde_json::Value::String(val.clone()));
+        }
+    }
+    serde_json::Value::Object(map)
+}
+
+/// Ensure the daemon is up and open a feed, writing the producer context
+/// then the request. Best-effort: returns `None` (no teeing) on any
+/// failure or for a non-teed request.
+async fn start_tee(
+    ctx: &Context,
+    request: &objectiveai_sdk::cli::command::Request,
+) -> Option<crate::websockets::daemon_stream::FeedWriter> {
+    if !should_tee(request) {
+        return None;
+    }
+    // Idempotent: `spawn` returns immediately if the daemon already holds
+    // its lock; otherwise it spawns it once and waits for readiness. The
+    // returned lock content is the daemon's published `ws://` URL —
+    // record it on the ctx so later handlers (notably `viewer spawn`)
+    // can hand it to daemon WebSocket consumers.
+    if let Ok(url) = crate::command::daemon::spawn::spawn(ctx).await {
+        ctx.set_daemon_address(url);
+    }
+    let mut feed =
+        crate::websockets::daemon_stream::connect_feed(&ctx.filesystem.state_dir())
+            .await
+            .ok()?;
+    feed.write(&tee_context(&ctx.config)).await.ok()?;
+    let request_json = serde_json::to_value(request).ok()?;
+    feed.write(&request_json).await.ok()?;
+    Some(feed)
+}
+
+/// Wrap the command stream so that, after it completes, the run
+/// AWAITS the broadcast writer task before ending — the consumer
+/// (main.rs stdout drain, the daemon's `/execute` drain) cannot
+/// finish until every queued socket write has landed, so process
+/// exit never truncates the broadcast. The inner stream (which holds
+/// the executor's tee sender) is dropped first, closing the channel
+/// so the writer drains out and exits.
+fn await_tee_completion<T>(
+    stream: Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>,
+    writer: Option<tokio::task::JoinHandle<()>>,
+) -> Pin<Box<dyn Stream<Item = Result<T, Error>> + Send>>
+where
+    T: Send + 'static,
+{
+    let Some(writer) = writer else {
+        return stream;
+    };
+    Box::pin(async_stream::stream! {
+        use futures::StreamExt;
+        let mut inner = stream;
+        while let Some(item) = inner.next().await {
+            yield item;
+        }
+        // Drop the inner stream first: it owns the tee sender, and the
+        // writer only finishes once every sender is gone.
+        drop(inner);
+        let _ = writer.await;
+    })
+}
+
+/// Early-error path: the run failed before producing a stream. Drop
+/// nothing extra (the executor and its sender are already gone at the
+/// call sites) — just wait for the writer to flush and exit.
+async fn settle_tee(writer: Option<tokio::task::JoinHandle<()>>) {
+    if let Some(writer) = writer {
+        let _ = writer.await;
+    }
 }

@@ -100,6 +100,11 @@ pub enum Response {
     Video(VideoUrl),
     #[schemars(title = "File")]
     File(File),
+    /// A logged failure (`objectiveai.errors`) — the CLI's user-facing
+    /// error value: a structured object for API response errors, a
+    /// plain string otherwise.
+    #[schemars(title = "Error")]
+    Error { error: serde_json::Value },
 }
 
 #[derive(clap::Args)]
@@ -192,5 +197,15 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
 
 pub mod request_schema;
 
-
 pub mod response_schema;
+
+/// One `/listen` broadcast run of `agents logs open`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}

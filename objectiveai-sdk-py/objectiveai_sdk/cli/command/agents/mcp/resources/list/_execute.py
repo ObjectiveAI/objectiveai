@@ -9,9 +9,28 @@ from objectiveai_sdk.cli.command.cli_stream import CliStream
 from objectiveai_sdk.cli.command.executor import CommandExecutor
 from objectiveai_sdk.cli.error import Error as CliError
 from objectiveai_sdk.json_value import JsonValue
+from objectiveai_sdk.mcp.resource.list_resources_result import ListResourcesResult
 
 # Resolve forward references before building the union adapters below.
 ensure_rebuilt()
+
+
+_execute_adapter = TypeAdapter(
+    Annotated[Union[CliError, ListResourcesResult], Field(union_mode="left_to_right")]
+)
+
+
+async def execute(executor: CommandExecutor, request: Request) -> Union[CliError, ListResourcesResult]:
+    """`agents mcp resources list execute` — unary; first stream item, rest discarded."""
+    wire = request.model_dump(mode="json", by_alias=True, exclude_none=True)
+    wire.pop("jq", None)
+    wire.pop("python", None)
+    wire["path_type"] = "agents/mcp/resources/list"
+    stream = CliStream(executor.execute(wire), _execute_adapter)
+    first = await stream.first()
+    if first is None:
+        raise RuntimeError("agents mcp resources list: cli produced no output before the end marker")
+    return first
 
 
 _execute_transform_adapter = TypeAdapter(

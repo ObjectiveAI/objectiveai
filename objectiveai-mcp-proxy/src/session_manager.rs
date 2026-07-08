@@ -11,6 +11,17 @@
 //! All per-session dispatch (list, call, read) lives on [`Session`]
 //! itself; this file only packs the opened connections into a [`Session`]
 //! under their response id and looks sessions back up.
+//!
+//! **The pending-initialization gate.** `initialize`'s fresh-connect
+//! path dials every upstream before registering the session, and client
+//! requests (`tools/list`, `tools/call`, `resources/*`, `servers/list`)
+//! can arrive INSIDE that window — notably from an upstream server that
+//! calls back into the proxy while it is itself being connected. Rather
+//! than 404ing, those requests use [`SessionManager::get_or_wait`]: a
+//! miss on a response id whose initial connect is in flight parks until
+//! the initializer finishes (success or failure), then resolves against
+//! the final state. Ids that are neither registered nor initializing
+//! still miss immediately.
 
 use std::sync::Arc;
 
@@ -24,6 +35,12 @@ use crate::session::Session;
 #[derive(Debug, Default)]
 pub struct SessionManager {
     sessions: DashMap<String, Arc<Session>>,
+    /// Response ids whose initial connect is in flight. The receiver
+    /// resolves (sender dropped) when the initializer finishes —
+    /// success or failure alike; the entry is removed by the
+    /// [`InitGuard`]'s `Drop`, so it can never outlive its
+    /// initializer.
+    pending: Arc<DashMap<String, tokio::sync::watch::Receiver<()>>>,
 }
 
 impl SessionManager {
@@ -47,6 +64,57 @@ impl SessionManager {
         self.sessions.get(response_id).map(|e| e.value().clone())
     }
 
+    /// Mark `response_id`'s initial connect as in flight. Client-request
+    /// lookups via [`Self::get_or_wait`] park until the returned
+    /// [`InitGuard`] drops — which the initializer does on EVERY exit
+    /// path (registered, connect failure, ban teardown, panic), since
+    /// release lives in `Drop`.
+    pub fn begin_initializing(&self, response_id: &str) -> InitGuard {
+        let (tx, rx) = tokio::sync::watch::channel(());
+        self.pending.insert(response_id.to_string(), rx);
+        InitGuard {
+            pending: Arc::clone(&self.pending),
+            response_id: response_id.to_string(),
+            _tx: tx,
+        }
+    }
+
+    /// The in-flight marker for `response_id`, if its initial connect is
+    /// currently running. Clone-out — no guard held across awaits (same
+    /// discipline as [`Self::get`]).
+    pub fn initializing(
+        &self,
+        response_id: &str,
+    ) -> Option<tokio::sync::watch::Receiver<()>> {
+        self.pending.get(response_id).map(|e| e.value().clone())
+    }
+
+    /// [`Self::get`], but a miss on a response id whose initial connect
+    /// is in flight WAITS for the initializer to finish and resolves
+    /// against the final state: `Some` when the connect registered the
+    /// session, `None` when it failed (or the id was never
+    /// initializing). Boundedness is inherited from the initializer —
+    /// the guard drops when `initialize` returns, which is itself
+    /// bounded by the per-upstream connect/probe timeouts.
+    pub async fn get_or_wait(&self, response_id: &str) -> Option<Arc<Session>> {
+        loop {
+            if let Some(session) = self.get(response_id) {
+                return Some(session);
+            }
+            let Some(mut rx) = self.initializing(response_id) else {
+                // Close the get→pending gap: an initializer may have
+                // registered + released between our two probes.
+                return self.get(response_id);
+            };
+            // Sender dropped (Err) ⇒ the initializer finished; drain
+            // any intermediate change notifications until then.
+            while rx.changed().await.is_ok() {}
+            // Re-probe: session present on success. On failure the
+            // pending entry is gone too, so the next miss exits via
+            // the else branch above.
+        }
+    }
+
     /// Remove a session from the registry by response id. Returns
     /// `Some(_)` if a session was present, `None` if the id was unknown.
     ///
@@ -58,6 +126,25 @@ impl SessionManager {
     /// inner state and closes the upstream HTTP session.
     pub fn remove(&self, response_id: &str) -> Option<Arc<Session>> {
         self.sessions.remove(response_id).map(|(_, session)| session)
+    }
+}
+
+/// The initializer's hold on a response id's pending-initialization
+/// marker — see [`SessionManager::begin_initializing`]. Dropping it
+/// removes the marker and wakes every [`SessionManager::get_or_wait`]
+/// parked on the id.
+pub struct InitGuard {
+    pending: Arc<DashMap<String, tokio::sync::watch::Receiver<()>>>,
+    response_id: String,
+    /// Held only so its drop closes the watch channel.
+    _tx: tokio::sync::watch::Sender<()>,
+}
+
+impl Drop for InitGuard {
+    fn drop(&mut self) {
+        // Remove-then-close: a waiter that re-probes after waking must
+        // not find the stale marker.
+        self.pending.remove(&self.response_id);
     }
 }
 
@@ -170,6 +257,62 @@ fn build_prefix_map(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn get_or_wait_immediate_hit_and_miss() {
+        let manager = SessionManager::new();
+        manager.add("known".to_string(), Vec::new());
+        assert!(manager.get_or_wait("known").await.is_some());
+        // Neither registered nor initializing: misses without waiting.
+        assert!(manager.get_or_wait("unknown").await.is_none());
+    }
+
+    #[tokio::test]
+    async fn get_or_wait_parks_until_the_initializer_registers() {
+        let manager = Arc::new(SessionManager::new());
+        let guard = manager.begin_initializing("r1");
+
+        let waiter = {
+            let manager = Arc::clone(&manager);
+            tokio::spawn(async move { manager.get_or_wait("r1").await })
+        };
+        // Let the waiter park on the pending marker.
+        tokio::task::yield_now().await;
+        assert!(!waiter.is_finished());
+
+        manager.add("r1".to_string(), Vec::new());
+        drop(guard);
+        let session = waiter.await.expect("waiter task");
+        assert!(session.is_some());
+    }
+
+    #[tokio::test]
+    async fn get_or_wait_resolves_none_when_the_connect_fails() {
+        let manager = Arc::new(SessionManager::new());
+        let guard = manager.begin_initializing("r1");
+
+        let waiter = {
+            let manager = Arc::clone(&manager);
+            tokio::spawn(async move { manager.get_or_wait("r1").await })
+        };
+        tokio::task::yield_now().await;
+        assert!(!waiter.is_finished());
+
+        // The initializer bails without registering (connect failure /
+        // early return): the guard's Drop releases the waiters.
+        drop(guard);
+        assert!(waiter.await.expect("waiter task").is_none());
+    }
+
+    #[tokio::test]
+    async fn initializing_marker_lives_exactly_as_long_as_the_guard() {
+        let manager = SessionManager::new();
+        assert!(manager.initializing("r1").is_none());
+        let guard = manager.begin_initializing("r1");
+        assert!(manager.initializing("r1").is_some());
+        drop(guard);
+        assert!(manager.initializing("r1").is_none());
+    }
 
     #[test]
     fn parse_key_env_round_trip() {

@@ -7,10 +7,98 @@
       "task_path": [
         0.0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "choose A or B"
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "A"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "B"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`J`",
+            "`S`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -225,6 +313,69 @@
         },
         {
           "index": 1.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`K`",
+            "`H`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -268,6 +419,69 @@
         },
         {
           "index": 2.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`S`",
+            "`T`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -398,6 +612,69 @@
         },
         {
           "index": 3.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`H`",
+            "`I`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -441,6 +718,69 @@
         },
         {
           "index": 4.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`T`",
+            "`H`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -598,6 +938,69 @@
         },
         {
           "index": 5.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`Q`",
+            "`G`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -832,6 +1235,69 @@
         },
         {
           "index": 6.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`H`",
+            "`P`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -977,6 +1443,69 @@
         },
         {
           "index": 7.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`N`",
+            "`G`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -1020,6 +1549,69 @@
         },
         {
           "index": 8.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`J`",
+            "`K`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -1100,6 +1692,69 @@
         },
         {
           "index": 9.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`L`",
+            "`I`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -1477,6 +2132,69 @@
         },
         {
           "index": 10.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`Q`",
+            "`D`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -1520,6 +2238,69 @@
         },
         {
           "index": 11.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`F`",
+            "`S`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -1761,6 +2542,69 @@
         },
         {
           "index": 12.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`B`",
+            "`C`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -2175,6 +3019,69 @@
         },
         {
           "index": 13.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`C`",
+            "`E`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -2588,6 +3495,69 @@
         },
         {
           "index": 14.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`E`",
+            "`D`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -2705,6 +3675,69 @@
         },
         {
           "index": 15.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`K`",
+            "`O`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -2901,6 +3934,69 @@
         },
         {
           "index": 16.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`E`",
+            "`B`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3218,6 +4314,69 @@
         },
         {
           "index": 17.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`N`",
+            "`S`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3486,6 +4645,69 @@
         },
         {
           "index": 18.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`J`",
+            "`I`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3740,6 +4962,69 @@
         },
         {
           "index": 19.0,
+          "agent_inline": {
+            "id": "4GFqBSqtBivHEOdQB9f0lD",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "client_objectiveai_mcp": {
+              "tools": [
+                {
+                  "owner": "testorg",
+                  "name": "tool0",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool1",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool2",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool3",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool4",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool5",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool6",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool7",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool8",
+                  "version": "1.0.0"
+                },
+                {
+                  "owner": "testorg",
+                  "name": "tool9",
+                  "version": "1.0.0"
+                }
+              ]
+            }
+          },
+          "request_choice_keys": [
+            "`J`",
+            "`C`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3796,7 +5081,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 19.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3812,7 +5098,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 18.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3828,7 +5115,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 17.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3844,7 +5132,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 4.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3860,7 +5149,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 16.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3876,7 +5166,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 3.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3892,7 +5183,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 2.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3908,7 +5200,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 9.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3924,7 +5217,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 6.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3940,7 +5234,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 12.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3956,7 +5251,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 13.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3972,7 +5268,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 5.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -3988,7 +5285,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 15.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4004,7 +5302,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 0.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4020,7 +5319,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 8.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4036,7 +5336,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 14.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4052,7 +5353,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 11.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4068,7 +5370,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 1.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4084,7 +5387,8 @@
             1.0,
             0.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 10.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -4100,7 +5404,8 @@
             0.0,
             1.0
           ],
-          "weight": 1.0
+          "weight": 1.0,
+          "completion_index": 7.0
         }
       ],
       "scores": [

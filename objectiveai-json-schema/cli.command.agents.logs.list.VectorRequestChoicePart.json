@@ -1,0 +1,19 @@
+{
+  "title": "cli.command.agents.logs.list.VectorRequestChoicePart",
+  "description": "One content part of a vector-completion request choice. `id`\naddresses the stored content via `agents logs read id <n>`.",
+  "type": "object",
+  "properties": {
+    "delivered_at": {
+      "type": "string"
+    },
+    "id": {
+      "description": "`logs.messages.\"index\"` for this row.",
+      "type": "integer",
+      "minimum": -9223372036854775808,
+      "maximum": 9223372036854775807
+    },
+    "type": {
+      "$ref": "cli.command.agents.logs.list.VectorRequestChoicePartType"
+    }
+  }
+}

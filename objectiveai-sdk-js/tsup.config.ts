@@ -2,7 +2,7 @@ import { defineConfig, Options } from "tsup";
 import path from "path";
 // Base configuration shared between formats
 const baseConfig: Options = {
-  entry: ["src/index.ts", "src/viewer/index.ts"],
+  entry: ["src/index.ts"],
   dts: true,
   outDir: "dist",
   treeshake: true,

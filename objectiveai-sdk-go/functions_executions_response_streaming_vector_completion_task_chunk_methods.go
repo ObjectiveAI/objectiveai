@@ -33,5 +33,14 @@ func (v *FunctionsExecutionsResponseStreamingVectorCompletionTaskChunk) Push(oth
 		v.Usage = other.Usage
 	}
 
+	// request_messages / request_choices: first chunk wins (ride only
+	// the task's first chunk; never overwritten)
+	if v.RequestMessages == nil {
+		v.RequestMessages = other.RequestMessages
+	}
+	if v.RequestChoices == nil {
+		v.RequestChoices = other.RequestChoices
+	}
+
 	// id, created, object, ensemble, index, task_index, task_path are immutable
 }

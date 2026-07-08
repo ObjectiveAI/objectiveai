@@ -630,6 +630,24 @@ where
             }
         }
 
+        // Per-agent voting keys in RESPONSE order, keyed by agent id
+        // (== the chunk's `agent_id`). `pfx_indices` is `(key,
+        // response_index)` in shuffled order, so invert it into choice
+        // order: `keys[response_index] = key`.
+        let request_choice_keys_by_agent: HashMap<String, Vec<String>> =
+            vector_pfx_indices
+                .iter()
+                .map(|(agent_id, pfx_indices)| {
+                    let mut keys = vec![String::new(); request_responses_len];
+                    for (key, idx) in pfx_indices {
+                        if *idx < keys.len() {
+                            keys[*idx] = key.clone();
+                        }
+                    }
+                    (agent_id.clone(), keys)
+                })
+                .collect();
+
         // Determine the output mode
         let output_mode = agent.inner.base().output_mode();
 
@@ -739,6 +757,8 @@ where
                     completions: vec![
                         objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                             index: completion_index,
+                            agent_inline: None,
+                            request_choice_keys: None,
                             inner,
                         },
                     ],
@@ -782,11 +802,36 @@ where
                 }
             };
 
+            // The resolved inline WF definition and this agent's voting
+            // keys ride ONLY the completion's first outbound chunk —
+            // stamped once, `None` after.
+            let mut agent_inline_pending = Some(agent.inner.inline().clone());
+            let mut choice_keys_pending = true;
             while let Some(item) = stream.next().await {
                 match item {
                     agent::completions::StreamItem::Chunk(chunk) => {
-                        // Yield immediately
-                        yield wrap_agent_chunk(indexer.get(flat_swarm_index), chunk.clone());
+                        // Yield immediately, stamping the inline
+                        // definition and voting keys onto the first
+                        // chunk only.
+                        let mut wrapped = wrap_agent_chunk(indexer.get(flat_swarm_index), chunk.clone());
+                        if let Some(first) = wrapped.completions.first_mut() {
+                            if let Some(agent_inline) = agent_inline_pending.take() {
+                                first.agent_inline = Some(agent_inline);
+                            }
+                            if choice_keys_pending {
+                                choice_keys_pending = false;
+                                // Keys for the agent that actually
+                                // produced this chunk (primary or, on
+                                // fallback, the fallback agent).
+                                if let Some(keys) = request_choice_keys_by_agent
+                                    .get(&first.inner.agent_id)
+                                {
+                                    first.request_choice_keys =
+                                        Some(keys.clone());
+                                }
+                            }
+                        }
+                        yield wrapped;
                         // Also aggregate for vote extraction
                         match &mut aggregate {
                             Some(agg) => agg.push(&chunk),
@@ -1137,6 +1182,8 @@ where
             completions: vec![
                 objectiveai_sdk::vector::completions::response::streaming::AgentCompletionChunk {
                     index: completion_index,
+                    agent_inline: None,
+                    request_choice_keys: None,
                     inner: objectiveai_sdk::agent::completions::response::streaming::AgentCompletionChunk {
                         error: Some(objectiveai_sdk::error::ResponseError::from(&error)),
                         upstream,

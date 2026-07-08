@@ -11,6 +11,18 @@
       "description": "Leaf agent id of the slot that produced this completion. See\n[`super::streaming::AgentCompletionChunk::agent_id`].",
       "type": "string"
     },
+    "agent_inline": {
+      "description": "The resolved inline WF definition for this agent, carried from\nthe completion's first streaming chunk.",
+      "anyOf": [
+        {
+          "$ref": "agent.InlineAgentWithFallbacks"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
     "agent_instance_hierarchy": {
       "description": "Full agent instance hierarchy for this completion's slot. See\n[`super::streaming::AgentCompletionChunk::agent_instance_hierarchy`].",
       "type": "string"
@@ -84,6 +96,13 @@
     "object": {
       "description": "The object type (always \"agent.completion\").",
       "$ref": "agent.completions.response.unary.Object"
+    },
+    "request_choice_keys": {
+      "description": "This agent's prefix-tree voting key for each response choice, in\nthe SAME order as the request's `responses`, carried from the\ncompletion's first streaming chunk.",
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
     },
     "upstream": {
       "description": "Upstream provider",

@@ -1,0 +1,19 @@
+{
+  "title": "mcp.TasksToolsCapability",
+  "description": "Task capabilities for tool requests.",
+  "type": "object",
+  "properties": {
+    "call": {
+      "description": "Present if tools/call supports task creation.",
+      "anyOf": [
+        {
+          "$ref": "mcp.TasksToolsCallCapability"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    }
+  }
+}

@@ -7,10 +7,44 @@
       "task_path": [
         0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Query: best answer. Rank by relevance."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Answer 1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Answer 2"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+            "upstream": "mock",
+            "output_mode": "tool_call"
+          },
+          "request_choice_keys": [
+            "`A`",
+            "`Q`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -63,6 +97,16 @@
         },
         {
           "index": 1,
+          "agent_inline": {
+            "id": "4QSADkWSPB34Fj2Vr3oFwM",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "top_logprobs": 10
+          },
+          "request_choice_keys": [
+            "`F`",
+            "`J`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -261,7 +305,8 @@
             0.0,
             1.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 0
         },
         {
           "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -277,7 +322,8 @@
             0.603724273978778,
             0.3962757260212223
           ],
-          "weight": 0.6
+          "weight": 0.6,
+          "completion_index": 1
         }
       ],
       "scores": [
@@ -306,10 +352,44 @@
       "task_path": [
         1
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Query: best answer. Rank by accuracy."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Answer 1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Answer 2"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+            "upstream": "mock",
+            "output_mode": "tool_call"
+          },
+          "request_choice_keys": [
+            "`J`",
+            "`F`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -353,6 +433,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -405,6 +486,16 @@
         },
         {
           "index": 2,
+          "agent_inline": {
+            "id": "4QSADkWSPB34Fj2Vr3oFwM",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "top_logprobs": 10
+          },
+          "request_choice_keys": [
+            "`D`",
+            "`J`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -602,7 +693,8 @@
             1.0,
             0.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 1
         },
         {
           "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -618,7 +710,8 @@
             0.457470954983486,
             0.542529045016515
           ],
-          "weight": 0.6
+          "weight": 0.6,
+          "completion_index": 2
         }
       ],
       "scores": [
@@ -647,10 +740,44 @@
       "task_path": [
         3
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Query: best answer. Rank by helpfulness."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Answer 1"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Answer 2"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "0Lp0y7y2LyM1VsV2TScyKZ",
+            "upstream": "mock",
+            "output_mode": "tool_call"
+          },
+          "request_choice_keys": [
+            "`Q`",
+            "`E`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -694,6 +821,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "0Lp0y7y2LyM1VsV2TScyKZ",
@@ -746,6 +874,16 @@
         },
         {
           "index": 2,
+          "agent_inline": {
+            "id": "4QSADkWSPB34Fj2Vr3oFwM",
+            "upstream": "mock",
+            "output_mode": "json_schema",
+            "top_logprobs": 10
+          },
+          "request_choice_keys": [
+            "`T`",
+            "`D`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -957,7 +1095,8 @@
             1.0,
             0.0
           ],
-          "weight": 0.4
+          "weight": 0.4,
+          "completion_index": 1
         },
         {
           "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -973,7 +1112,8 @@
             0.496504904453548,
             0.503495095546452
           ],
-          "weight": 0.6
+          "weight": 0.6,
+          "completion_index": 2
         }
       ],
       "scores": [

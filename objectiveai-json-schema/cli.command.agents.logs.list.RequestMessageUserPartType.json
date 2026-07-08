@@ -1,0 +1,12 @@
+{
+  "title": "cli.command.agents.logs.list.RequestMessageUserPartType",
+  "description": "Type tag for one `RequestMessageUser` part — the kind of the\nunderlying `request_message_user_content_*` row.",
+  "type": "string",
+  "enum": [
+    "text",
+    "image",
+    "audio",
+    "video",
+    "file"
+  ]
+}

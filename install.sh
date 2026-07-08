@@ -43,7 +43,7 @@
 set -euo pipefail
 
 # Release version this installer pulls. Kept in lockstep by version.sh.
-VERSION="2.2.9"
+VERSION="2.2.10"
 REPO="ObjectiveAI/objectiveai"
 
 # ── Parse arguments ───────────────────────────────────────────────────
@@ -322,18 +322,41 @@ fi
 case "$PLATFORM" in
   windows)
     BIN_DIR_WIN="$(cygpath -w "$BIN_DIR" 2>/dev/null || echo "$BIN_DIR")"
-    CURRENT_PATH=$(powershell.exe -NoProfile -Command "[Environment]::GetEnvironmentVariable('Path', 'User')" 2>/dev/null | tr -d '\r' || true)
-    NEED_PREPEND=""
-    if ! echo "$CURRENT_PATH" | grep -qiF "$BIN_DIR_WIN"; then
-      NEED_PREPEND="$BIN_DIR_WIN;"
-    fi
-    if [ -n "$NEED_PREPEND" ]; then
-      powershell.exe -NoProfile -Command \
-        "[Environment]::SetEnvironmentVariable('Path', '$NEED_PREPEND' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')" 2>/dev/null
-      echo "Added $NEED_PREPEND to user PATH (restart cmd/PowerShell to use it)."
-    else
-      echo "PATH already contains $BIN_DIR_WIN"
-    fi
+    # One PowerShell round-trip: read the RAW user Path straight from
+    # the registry (no %VAR% expansion, no truncation), prepend the bin
+    # dir only when absent, and drop exact-duplicate entries while
+    # we're in there. The previous bash-side `echo | grep` check
+    # aborted intermittently under MSYS and failed OPEN, appending a
+    # fresh duplicate on every install until the value outgrew the
+    # 2047-char limit some Windows contexts truncate at.
+    PATH_RESULT="$(OBJECTIVEAI_BIN_DIR_WIN="$BIN_DIR_WIN" powershell.exe -NoProfile -Command '
+      $bin = $env:OBJECTIVEAI_BIN_DIR_WIN
+      $key = Get-Item HKCU:\Environment
+      $raw = $key.GetValue("Path", "", "DoNotExpandEnvironmentNames")
+      $kind = try { $key.GetValueKind("Path") } catch { "ExpandString" }
+      $parts = $raw -split ";" | Where-Object { $_ }
+      $seen = New-Object System.Collections.Generic.HashSet[string]([StringComparer]::OrdinalIgnoreCase)
+      $deduped = @(foreach ($p in $parts) { if ($seen.Add($p)) { $p } })
+      if ($seen.Contains($bin)) {
+        $out = $deduped -join ";"
+        if ($out -ne $raw) {
+          [Microsoft.Win32.Registry]::SetValue("HKEY_CURRENT_USER\Environment", "Path", $out, $kind)
+          Write-Output "deduped"
+        } else {
+          Write-Output "present"
+        }
+      } else {
+        $out = (@($bin) + $deduped) -join ";"
+        [Microsoft.Win32.Registry]::SetValue("HKEY_CURRENT_USER\Environment", "Path", $out, $kind)
+        Write-Output "added"
+      }
+    ' 2>/dev/null | tr -d '\r' || true)"
+    case "$PATH_RESULT" in
+      added)   echo "Added $BIN_DIR_WIN to user PATH (restart cmd/PowerShell to use it)." ;;
+      deduped) echo "PATH already contains $BIN_DIR_WIN (removed stale duplicate entries)." ;;
+      present) echo "PATH already contains $BIN_DIR_WIN" ;;
+      *)       echo "WARNING: could not update the user PATH; add $BIN_DIR_WIN manually." >&2 ;;
+    esac
     # Also wire up Git Bash / MSYS via ~/.bashrc.
     [ -f "$HOME/.bashrc" ] && add_to_path "$HOME/.bashrc"
     ;;

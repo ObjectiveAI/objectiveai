@@ -10,10 +10,7 @@ Don't guess the manifest fields. The CLI ships the live JSON Schema:
 
     objectiveai schemas filesystem plugins Manifest get
 
-Read all of it before writing anything to disk. For the optional
-`viewer_routes` field, also fetch:
-
-    objectiveai schemas filesystem plugins ViewerRoute get
+Read all of it before writing anything to disk.
 
 ## 2. Write the manifest
 
@@ -88,19 +85,13 @@ viewer's `plugin://` URI handler serves files out of that directory;
 the iframe loads `plugin://localhost/<name>/index.html`. No hot
 reload — rebuild + restart the viewer to see changes.
 
-### `viewer_routes`
+### Receiving data
 
-Either viewer source can declare `viewer_routes` — HTTP endpoints on
-the viewer's embedded axum server that emit postMessage events into
-your plugin's iframe. See the `ViewerRoute` schema (fetched in step
-1) for the exact field shape. A typical entry:
-
-    { "path": "/say", "method": "POST", "type": "say_request" }
-
-…registers `/plugin/<name>/say` (POST). Hits on it deliver an
-`inbound` event with `sub_type: "say_request"` to the iframe; the
-plugin code subscribes via `listen("say_request", handler)` from
-`@objectiveai/sdk`.
+The viewer feeds plugin iframes from the CLI daemon's broadcast
+stream: when a `plugins/run` targeting your plugin executes anywhere
+on the machine, the run's request and stream items arrive in your
+iframe as `inbound` events with `sub_type: "plugins_run"`. Subscribe
+via `listen("plugins_run", handler)` from `@objectiveai/sdk`.
 
 ## 5. Restart the viewer
 

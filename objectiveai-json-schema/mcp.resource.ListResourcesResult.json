@@ -1,0 +1,39 @@
+{
+  "title": "mcp.resource.ListResourcesResult",
+  "description": "The server's response to a `resources/list` request.",
+  "type": "object",
+  "properties": {
+    "_meta": {
+      "description": "Extension metadata.",
+      "anyOf": [
+        {
+          "type": "object",
+          "additionalProperties": true
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "nextCursor": {
+      "description": "An opaque cursor for fetching the next page.",
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "omitempty": true
+    },
+    "resources": {
+      "description": "The list of resources available on the server.",
+      "type": "array",
+      "items": {
+        "$ref": "mcp.resource.Resource"
+      }
+    }
+  }
+}

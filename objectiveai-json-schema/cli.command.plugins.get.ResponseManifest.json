@@ -24,12 +24,6 @@
     "version": {
       "type": "string"
     },
-    "viewer_routes": {
-      "type": "array",
-      "items": {
-        "$ref": "cli.command.plugins.get.ResponseViewerRoute"
-      }
-    },
     "viewer_url": {
       "anyOf": [
         {

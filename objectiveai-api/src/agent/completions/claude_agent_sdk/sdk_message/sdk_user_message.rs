@@ -121,7 +121,9 @@ impl SDKUserMessage {
                 messages.push(tool_response_chunk(
                     message_index,
                     tool_call_id.clone(),
-                    serde_json::to_string(tool_use_result).unwrap_or_default(),
+                    objectiveai_sdk::agent::completions::message::RichContent::Text(
+                        serde_json::to_string(tool_use_result).unwrap_or_default(),
+                    ),
                 ));
             }
         }
@@ -154,14 +156,14 @@ impl SDKUserMessage {
 fn tool_response_chunk(
     index: u64,
     tool_call_id: String,
-    content: String,
+    content: objectiveai_sdk::agent::completions::message::RichContent,
 ) -> objectiveai_sdk::agent::completions::response::streaming::MessageChunk {
     objectiveai_sdk::agent::completions::response::streaming::MessageChunk::Tool(
         objectiveai_sdk::agent::completions::response::ToolResponse {
             role: Default::default(),
             index,
             inner: objectiveai_sdk::agent::completions::message::ToolMessage {
-                content: objectiveai_sdk::agent::completions::message::RichContent::Text(content),
+                content,
                 tool_call_id,
                 metadata: None,
             },
@@ -170,23 +172,167 @@ fn tool_response_chunk(
     )
 }
 
-/// Renders a `tool_result` block's content to plain text — text blocks
-/// concatenated in order; non-text blocks are skipped. `None` → empty string.
+/// Renders a `tool_result` block's content to [`RichContent`],
+/// PRESERVING every block kind the Claude Agent SDK can deliver —
+/// text, images, documents, search results, and tool references —
+/// rather than the old text-only collapse that silently dropped an
+/// agent's tool-returned media (images especially) before it reached
+/// the log writer. Emits `Text` for a bare string or an all-text
+/// block list; otherwise `Parts`. `None` → empty text.
 fn render_tool_result_content(
     content: Option<&super::super::content_block_param::ToolResultBlockParamContent>,
+) -> objectiveai_sdk::agent::completions::message::RichContent {
+    use super::super::content_block_param::ToolResultBlockParamContent;
+    use objectiveai_sdk::agent::completions::message::RichContent;
+    match content {
+        None => RichContent::Text(String::new()),
+        Some(ToolResultBlockParamContent::String(s)) => {
+            RichContent::Text(s.clone())
+        }
+        Some(ToolResultBlockParamContent::Blocks(blocks)) => {
+            let parts: Vec<_> = blocks
+                .iter()
+                .filter_map(tool_result_block_to_part)
+                .collect();
+            // Collapse an all-text (or empty) result back to a plain
+            // Text carrier; keep Parts when any media rode along.
+            if parts.iter().all(|p| {
+                matches!(
+                    p,
+                    objectiveai_sdk::agent::completions::message::RichContentPart::Text { .. }
+                )
+            }) {
+                let text = parts
+                    .iter()
+                    .filter_map(|p| match p {
+                        objectiveai_sdk::agent::completions::message::RichContentPart::Text {
+                            text,
+                        } => Some(text.as_str()),
+                        _ => None,
+                    })
+                    .collect::<String>();
+                RichContent::Text(text)
+            } else {
+                RichContent::Parts(parts)
+            }
+        }
+    }
+}
+
+/// Map one Claude Agent SDK tool-result content block to a
+/// [`RichContentPart`]. Every variant is preserved: images become
+/// `ImageUrl` (base64 → data URL, or the remote url); documents
+/// become `File` (URL/base64 PDF) or `Text` (plain-text / inlined
+/// content-block docs); search results flatten to `Text` (title +
+/// body); tool references render as a `[tool: name]` marker.
+fn tool_result_block_to_part(
+    block: &super::super::content_block_param::ToolResultContentBlockParam,
+) -> Option<objectiveai_sdk::agent::completions::message::RichContentPart> {
+    use super::super::content_block_param::{
+        DocumentSource, ImageSource, ToolResultContentBlockParam,
+    };
+    use objectiveai_sdk::agent::completions::message::{
+        File, ImageUrl, RichContentPart,
+    };
+    let text_part = |text: String| RichContentPart::Text { text };
+    match block {
+        ToolResultContentBlockParam::Text(t) => {
+            Some(text_part(t.text.clone()))
+        }
+        ToolResultContentBlockParam::Image(img) => {
+            let url = match &img.source {
+                ImageSource::Base64(b64) => {
+                    format!(
+                        "data:{};base64,{}",
+                        image_media_type(&b64.media_type),
+                        b64.data,
+                    )
+                }
+                ImageSource::URL(u) => u.url.clone(),
+            };
+            Some(RichContentPart::ImageUrl {
+                image_url: ImageUrl { url, detail: None },
+            })
+        }
+        ToolResultContentBlockParam::Document(doc) => match &doc.source {
+            DocumentSource::URLPDF(u) => Some(RichContentPart::File {
+                file: File {
+                    file_data: None,
+                    file_id: None,
+                    file_url: Some(u.url.clone()),
+                    filename: doc.title.clone(),
+                },
+            }),
+            DocumentSource::Base64PDF(b64) => Some(RichContentPart::File {
+                file: File {
+                    file_data: Some(b64.data.clone()),
+                    file_id: None,
+                    file_url: None,
+                    filename: doc.title.clone(),
+                },
+            }),
+            DocumentSource::PlainText(pt) => Some(text_part(pt.data.clone())),
+            DocumentSource::ContentBlock(cb) => {
+                Some(text_part(content_block_source_text(&cb.content)))
+            }
+        },
+        ToolResultContentBlockParam::SearchResult(sr) => {
+            // A genuine representation of how the model receives a
+            // search result: the `<search_result>` element carrying
+            // its source and title, wrapping the body.
+            let body = sr
+                .content
+                .iter()
+                .map(|t| t.text.as_str())
+                .collect::<Vec<_>>()
+                .join("\n");
+            Some(text_part(format!(
+                "<search_result source=\"{}\" title=\"{}\">\n{}\n</search_result>",
+                sr.source, sr.title, body,
+            )))
+        }
+        ToolResultContentBlockParam::ToolReference(tr) => {
+            // As the model receives a referenced tool: a self-closing
+            // `<tool_reference>` naming it.
+            Some(text_part(format!(
+                "<tool_reference name=\"{}\" />",
+                tr.tool_name,
+            )))
+        }
+    }
+}
+
+/// The `image/<subtype>` MIME string for a base64 image source's
+/// media type (for the data URL).
+fn image_media_type(
+    media_type: &super::super::content_block_param::Base64ImageSourceMediaType,
+) -> &'static str {
+    use super::super::content_block_param::Base64ImageSourceMediaType as MT;
+    match media_type {
+        MT::ImageJpeg => "image/jpeg",
+        MT::ImagePng => "image/png",
+        MT::ImageGif => "image/gif",
+        MT::ImageWebp => "image/webp",
+    }
+}
+
+/// Flatten a document `ContentBlock` source's data to text (its text
+/// blocks joined; inlined images are noted as markers).
+fn content_block_source_text(
+    data: &super::super::content_block_param::ContentBlockSourceData,
 ) -> String {
     use super::super::content_block_param::{
-        ToolResultBlockParamContent, ToolResultContentBlockParam,
+        ContentBlockSourceContent, ContentBlockSourceData,
     };
-    match content {
-        None => String::new(),
-        Some(ToolResultBlockParamContent::String(s)) => s.clone(),
-        Some(ToolResultBlockParamContent::Blocks(blocks)) => blocks
+    match data {
+        ContentBlockSourceData::String(s) => s.clone(),
+        ContentBlockSourceData::Blocks(blocks) => blocks
             .iter()
-            .filter_map(|b| match b {
-                ToolResultContentBlockParam::Text(t) => Some(t.text.as_str()),
-                _ => None,
+            .map(|b| match b {
+                ContentBlockSourceContent::Text(t) => t.text.clone(),
+                ContentBlockSourceContent::Image(_) => "[image]".to_string(),
             })
-            .collect::<String>(),
+            .collect::<Vec<_>>()
+            .join("\n"),
     }
 }

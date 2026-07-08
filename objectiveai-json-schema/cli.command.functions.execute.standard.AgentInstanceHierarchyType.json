@@ -1,0 +1,8 @@
+{
+  "title": "cli.command.functions.execute.standard.AgentInstanceHierarchyType",
+  "description": "Single-variant discriminator for [`AgentInstanceHierarchy`]'s\n`type` field. Always `\"agent_instance_hierarchy\"` on the wire.",
+  "type": "string",
+  "enum": [
+    "agent_instance_hierarchy"
+  ]
+}

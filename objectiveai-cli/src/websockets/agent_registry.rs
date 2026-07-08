@@ -59,8 +59,18 @@ impl AgentInstanceRegistry {
     /// historic-spawn initial lock), so the mid-stream `observe` of
     /// the same hierarchy dedupes and the claim is released on drop
     /// with the rest.
+    /// The AIH of a held per-instance claim, if any — the spawn
+    /// error-logging eligibility check (an AIH lock is held) and its
+    /// AIH source before the first chunk mints identity. A spawn holds
+    /// at most one claim until `observe` runs, and `observe`'s AIH IS
+    /// the identity — so "any key" is exact.
+    pub fn aih(&self) -> Option<&str> {
+        self.open.keys().next().map(String::as_str)
+    }
+
     pub fn preseed(&mut self, hier: String, claim: AgentLock) {
         self.attempted.insert(hier.clone());
+        self.announce_active(&hier);
         self.open.insert(hier, claim);
     }
 
@@ -86,7 +96,25 @@ impl AgentInstanceRegistry {
             crate::command::agents::locks::try_acquire(&self.agent_locks, &dir, &key).await
         {
             self.open.insert(hier.to_string(), claim);
+            self.announce_active(hier);
         }
+    }
+
+    /// Best-effort, detached: tell the resident daemon this process just
+    /// acquired `hier`'s instance lock, so its `/agents/instances/list` endpoint flips the
+    /// agent active and starts watching the lock for release. Fire-and-
+    /// forget — never blocks the acquire path, and a dead/absent daemon is
+    /// a silent no-op. The daemon dedupes by AIH, so a re-announce (e.g. a
+    /// child that inherited the lock) is harmless.
+    fn announce_active(&self, hier: &str) {
+        if tokio::runtime::Handle::try_current().is_err() {
+            return;
+        }
+        let state_dir = self.state_dir.clone();
+        let hier = hier.to_string();
+        tokio::spawn(async move {
+            super::websocket_agents::announce_active(&state_dir, &hier).await;
+        });
     }
 
     /// Release `hier`'s claim immediately — another process can then

@@ -62,3 +62,14 @@ pub async fn execute_transform<E: crate::cli::command::CommandExecutor>(
     request.base.set_transform(transform);
     executor.execute_one(request, agent_arguments).await
 }
+
+/// One `/listen` broadcast run of `db config address get response_schema`: the actual
+/// [`Request`], the producer's
+/// [`AgentArguments`](crate::cli::command::AgentArguments), and the
+/// unary response future. See [`crate::cli::websocket_listener`].
+#[cfg(feature = "cli-listener")]
+pub struct ListenerExecution {
+    pub request: Request,
+    pub agent_arguments: crate::cli::command::AgentArguments,
+    pub response: crate::cli::websocket_listener::UnaryResponse<Response>,
+}

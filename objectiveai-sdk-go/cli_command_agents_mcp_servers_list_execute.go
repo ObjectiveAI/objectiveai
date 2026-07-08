@@ -7,6 +7,29 @@ import (
 	"fmt"
 )
 
+// AgentsMcpServersListExecute — `agents mcp servers list execute` (unary); the first stream item, rest discarded.
+func AgentsMcpServersListExecute(ctx context.Context, executor CommandExecutor, request CliCommandAgentsMcpServersListRequest) (*McpListServersResult, error) {
+	wire, err := cliWire(request)
+	if err != nil {
+		return nil, err
+	}
+	delete(wire, "jq")
+	delete(wire, "python")
+	wire["path_type"] = "agents/mcp/servers/list"
+	raw, err := executor.Execute(ctx, wire)
+	if err != nil {
+		return nil, err
+	}
+	first, err := NewCliStream[McpListServersResult](raw).First()
+	if err != nil {
+		return nil, err
+	}
+	if first == nil {
+		return nil, fmt.Errorf("agents mcp servers list: cli produced no output before the end marker")
+	}
+	return first, nil
+}
+
 // AgentsMcpServersListExecuteTransform — `agents mcp servers list execute_transform` (unary); the first stream item, rest discarded.
 func AgentsMcpServersListExecuteTransform(ctx context.Context, executor CommandExecutor, request CliCommandAgentsMcpServersListRequest, transform map[string]string) (*JsonValue, error) {
 	wire, err := cliWire(request)

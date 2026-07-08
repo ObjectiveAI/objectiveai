@@ -1,14 +1,18 @@
 //! Look up the agent definition + latest continuation that
 //! belong to a given `agent_instance_hierarchy`.
 //!
-//! Two sources, one round-trip:
+//! Sources, in order:
 //!
-//! - **agent definition** — extracted from
-//!   `objectiveai.agent_completion_requests.body.agent` (the request blob
-//!   is a serialized `AgentCompletionCreateParams`). The request
-//!   row is PK'd by `response_id`, which is the trailing suffix of
-//!   the AIH after the final `-`
-//!   (`{ctx lineage}/{agent_full_id}-{response_id}`).
+//! - **agent definition** — read from `objectiveai.agent_refs`, the
+//!   definition-source registry keyed by the full AIH (EITHER the
+//!   `RemotePath` the WF was fetched from OR the inline spec —
+//!   blindly upserted at spawn-by-spec lock acquisition and by the
+//!   log writer whenever a chunk carries `agent_inline`). When the
+//!   registry has no row — agents whose last activity predates the
+//!   table — the MIGRATION FALLBACK extracts the definition from
+//!   the most recent `agent_completion_requests` blob, keyed by the
+//!   `response_id` suffix embedded in the AIH. Any post-table run
+//!   repopulates the registry, so the fallback decays naturally.
 //! - **latest continuation** — read straight from the
 //!   `agent_continuations` table keyed by the full AIH. The
 //!   chunk-yielder loops (`agents spawn` + `functions execute`)
@@ -38,9 +42,70 @@ pub struct SessionLookup {
 }
 
 /// Resolve the session for `agent_instance_hierarchy`.
-/// `Ok(None)` means there's no logged request for that
-/// hierarchy's embedded `response_id` (no prior session).
+/// `Ok(None)` means neither the `agent_refs` registry nor the
+/// legacy request-blob fallback holds a definition for that
+/// hierarchy (no prior session recorded).
 pub async fn lookup_session(
+    pool: &Pool,
+    agent_instance_hierarchy: &str,
+) -> Result<Option<SessionLookup>, Error> {
+    // One row per AIH in `agent_refs` (remote XOR inline, CHECK-
+    // enforced); LEFT JOIN the continuation keyed by the same AIH. A
+    // NULL `continuation` column means there's no row in
+    // `agent_continuations` yet for this AIH.
+    let row = sqlx::query(
+        "SELECT refs.remote AS remote, refs.inline AS inline, \
+                cont.continuation AS continuation \
+         FROM objectiveai.agent_refs refs \
+         LEFT JOIN objectiveai.agent_continuations cont \
+           ON cont.agent_instance_hierarchy = refs.agent_instance_hierarchy \
+         WHERE refs.agent_instance_hierarchy = $1",
+    )
+    .bind(agent_instance_hierarchy)
+    .fetch_optional(&**pool)
+    .await?;
+
+    let Some(row) = row else {
+        // Migration fallback: pre-`agent_refs` agents resolve from
+        // their most recent request blob.
+        return lookup_session_from_request_blob(pool, agent_instance_hierarchy)
+            .await;
+    };
+
+    let remote: Option<String> = row.try_get("remote")?;
+    let inline: Option<serde_json::Value> = row.try_get("inline")?;
+    let continuation: Option<String> = row.try_get("continuation")?;
+
+    // Both variants round-trip through the request-side untagged
+    // union: a remote is its wire string, an inline spec its object.
+    // The log writer stores the VALIDATED `InlineAgentWithFallbacks`
+    // (which serializes its computed `id`s alongside the flattened
+    // base); deserializing into the base type simply ignores those
+    // extra fields.
+    let agent_value = match (remote, inline) {
+        (Some(remote), _) => serde_json::Value::String(remote),
+        (None, Some(inline)) => inline,
+        (None, None) => {
+            return Err(Error::InvalidData(format!(
+                "agent_refs row for {agent_instance_hierarchy} has neither \
+                 remote nor inline",
+            )));
+        }
+    };
+    let agent: InlineAgentBaseWithFallbacksOrRemoteCommitOptional =
+        serde_json::from_value(agent_value)?;
+
+    Ok(Some(SessionLookup { agent, continuation }))
+}
+
+/// The pre-`agent_refs` resolution, kept as a migration fallback:
+/// extract the definition from
+/// `objectiveai.agent_completion_requests.body.agent` (the request
+/// blob is a serialized `AgentCompletionCreateParams`). The request
+/// row is PK'd by `response_id` — the trailing suffix of the AIH
+/// after the final `-`
+/// (`{ctx lineage}/{agent_full_id}-{response_id}`).
+async fn lookup_session_from_request_blob(
     pool: &Pool,
     agent_instance_hierarchy: &str,
 ) -> Result<Option<SessionLookup>, Error> {
@@ -51,11 +116,6 @@ pub async fn lookup_session(
         return Ok(None);
     };
 
-    // LEFT JOIN `agent_continuations` onto the request row. The
-    // request row is PK'd by `response_id`; the continuation row is
-    // PK'd by the full AIH. Both keys are bound separately. A NULL
-    // `continuation` column means there's no row in
-    // `agent_continuations` yet for this AIH.
     let row = sqlx::query(
         "SELECT req.body AS request_body, cont.continuation AS continuation \
          FROM objectiveai.agent_completion_requests req \

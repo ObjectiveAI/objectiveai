@@ -1,22 +1,30 @@
-//! Plugin glue: dynamic axum route registration, Tauri commands the
-//! React shell calls to discover installed plugins, and the custom
-//! `plugin://` URI scheme handler that serves plugin UI bundles out
-//! of `<plugins_dir>/<name>/viewer/`.
+//! Plugin glue: Tauri commands the React shell calls to discover
+//! installed plugins, and the custom `plugin://` URI scheme handler
+//! that serves plugin UI bundles out of `<plugins_dir>/<name>/viewer/`.
 //!
-//! Plugin discovery goes through the cli binary: [`list_all_plugins`]
-//! drives the SDK's typed `plugins list` leaf over a
-//! [`BinaryExecutor`], the same executor `cli_run` uses.
+//! Plugin discovery goes through the daemon: [`list_all_plugins`]
+//! drives the SDK's typed `plugins list` leaf over the
+//! [`WebSocketExecutor`] — the one piece of daemon traffic still
+//! initiated from Rust (everything else is JS-native; plugin
+//! cli-executions run through the host bridge's own JS
+//! `WebSocketExecutor`, and `plugins/run` delivery to plugin tabs
+//! comes later).
 
-use axum::Json;
-use axum::http::StatusCode;
 use futures::StreamExt;
-use objectiveai_sdk::cli::command::binary::BinaryExecutor;
+use objectiveai_sdk::cli::command::websocket::WebSocketExecutor;
 use objectiveai_sdk::cli::command::plugins::list as plugins_list;
-use objectiveai_sdk::cli::command::plugins::list::{
-    ResponseHttpMethod, ResponseItem as PluginManifest, ResponseViewerRoute,
-};
+use objectiveai_sdk::cli::command::plugins::list::ResponseItem as PluginManifest;
 
-use objectiveai_sdk::viewer::{Event, EventSender};
+/// Per-call identity for shell-initiated cli runs: instance
+/// hierarchy `"Viewer"`, every other field `None` so the daemon
+/// clears rather than inherits it — nothing leaks from the daemon's
+/// own environment into a viewer-initiated run.
+pub(crate) fn viewer_agent_arguments() -> objectiveai_sdk::cli::command::AgentArguments {
+    objectiveai_sdk::cli::command::AgentArguments {
+        agent_instance_hierarchy: Some("Viewer".to_string()),
+        ..Default::default()
+    }
+}
 
 /// `<objectiveai_dir>/bin/plugins` — the root the `plugin://` URI
 /// scheme serves assets from (plugins are machine-wide, shared by
@@ -32,14 +40,14 @@ pub(crate) fn plugins_dir(objectiveai_dir: &std::path::Path) -> std::path::PathB
 /// purpose: a missing binary or a malformed line is logged to stderr
 /// and yields an empty/partial list rather than failing viewer
 /// startup — a viewer with zero plugin tabs is still a working viewer.
-pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginManifest> {
+pub(crate) async fn list_all_plugins(executor: &WebSocketExecutor) -> Vec<PluginManifest> {
     let request = plugins_list::Request {
         path_type: plugins_list::Path::PluginsList,
         offset: None,
         limit: None,
         base: Default::default(),
     };
-    let agent_arguments = crate::cli_command::viewer_agent_arguments();
+    let agent_arguments = viewer_agent_arguments();
     let mut stream = match plugins_list::execute(executor, request, Some(&agent_arguments)).await {
         Ok(stream) => stream,
         Err(e) => {
@@ -55,47 +63,6 @@ pub(crate) async fn list_all_plugins(executor: &BinaryExecutor) -> Vec<PluginMan
         }
     }
     plugins
-}
-
-/// Register one plugin viewer route on the given axum router. The
-/// route lands at `/plugin/<plugin>/<route.path>`; a hit emits an
-/// `Event::Plugin` carrying the manifest-declared `type` tag and the
-/// request body. Body-less requests (GET, or POST with no body) yield
-/// `Value::Null` as the request value.
-pub(crate) fn register_plugin_route(
-    app: axum::Router,
-    tx: EventSender,
-    plugin: String,
-    route: ResponseViewerRoute,
-) -> axum::Router {
-    let full_path = format!("/plugin/{plugin}{}", route.path);
-    let r#type = route.r#type.clone();
-    let method = route.method;
-    let plugin_for_handler = plugin.clone();
-
-    let handler = move |body: Option<Json<serde_json::Value>>| {
-        let tx = tx.clone();
-        let plugin = plugin_for_handler.clone();
-        let sub_type = r#type.clone();
-        async move {
-            let value = body.map(|Json(v)| v).unwrap_or(serde_json::Value::Null);
-            let _ = tx.send(Event::Inbound {
-                destination: plugin,
-                sub_type,
-                value,
-            });
-            StatusCode::OK
-        }
-    };
-
-    let method_router = match method {
-        ResponseHttpMethod::Get => axum::routing::get(handler),
-        ResponseHttpMethod::Post => axum::routing::post(handler),
-        ResponseHttpMethod::Put => axum::routing::put(handler),
-        ResponseHttpMethod::Patch => axum::routing::patch(handler),
-        ResponseHttpMethod::Delete => axum::routing::delete(handler),
-    };
-    app.route(&full_path, method_router)
 }
 
 /// Percent-encode characters in a plugin name that would change the
@@ -127,8 +94,12 @@ pub(crate) struct PluginsDir(pub(crate) std::path::PathBuf);
 /// just renders the URL.
 #[derive(serde::Serialize, Clone, Debug)]
 pub(crate) struct ViewerPluginInfo {
+    /// Plugin owner (GitHub `<owner>` segment).
+    pub owner: String,
     /// Plugin name (== repository name == tab label).
     pub name: String,
+    /// Plugin version.
+    pub version: String,
     /// Iframe `src=` to load. For on-disk-bundle plugins this is the
     /// `plugin://localhost/<owner>/<name>/<version>/index.html` URL
     /// served by [`serve_plugin_asset`]; for `viewer_url` plugins this
@@ -141,11 +112,12 @@ pub(crate) struct ViewerPluginInfo {
 /// `viewer_url`, or an extracted on-disk bundle (an `index.html` under
 /// `<plugins_dir>/<owner>/<name>/<version>/viewer/`). The get response
 /// no longer carries `viewer_zip`, so bundle presence is read from
-/// disk. Plugins with only `viewer_routes` and no viewer source still
-/// have their axum routes registered at startup but don't get a tab.
+/// disk. Plugins without a viewer source don't get a tab (and, with no
+/// tab, daemon-stream `plugins/run` frames for them have nowhere to
+/// route on the JS side).
 #[tauri::command]
 pub(crate) async fn list_plugins_with_viewer(
-    executor: tauri::State<'_, BinaryExecutor>,
+    executor: tauri::State<'_, WebSocketExecutor>,
     plugins_dir: tauri::State<'_, PluginsDir>,
 ) -> Result<Vec<ViewerPluginInfo>, String> {
     let plugins = list_all_plugins(executor.inner()).await;
@@ -157,7 +129,9 @@ pub(crate) async fn list_plugins_with_viewer(
             // bundle on disk at the plugin's version folder.
             if let Some(url) = p.viewer_url.as_deref() {
                 return Some(ViewerPluginInfo {
+                    owner: p.owner,
                     name: p.name,
+                    version: p.version,
                     iframe_src: url.to_string(),
                 });
             }
@@ -177,7 +151,9 @@ pub(crate) async fn list_plugins_with_viewer(
                 percent_encode_plugin_name(&p.version),
             );
             Some(ViewerPluginInfo {
+                owner: p.owner,
                 name: p.name,
+                version: p.version,
                 iframe_src,
             })
         })

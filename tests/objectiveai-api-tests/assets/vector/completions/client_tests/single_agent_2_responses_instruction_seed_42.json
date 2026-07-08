@@ -3,6 +3,15 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "425mMcWqssOpPRrsDrjB0B",
+        "upstream": "mock",
+        "output_mode": "instruction"
+      },
+      "request_choice_keys": [
+        "`Q`",
+        "`O`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -45,6 +54,7 @@
     },
     {
       "index": 1,
+      "request_choice_keys": [],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "425mMcWqssOpPRrsDrjB0B",

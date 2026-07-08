@@ -3095,6 +3095,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "is-docker"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "928bae27f42bc99b60d9ac7334e3a21d10ad8f1835a4e12ec3ec0464765ed1b3"
+dependencies = [
+ "once_cell",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3103,6 +3112,16 @@ dependencies = [
  "hermit-abi",
  "libc",
  "windows-sys 0.61.2",
+]
+
+[[package]]
+name = "is-wsl"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "173609498df190136aa7dea1a91db051746d339e18476eed5ca40521f02d7aa5"
+dependencies = [
+ "is-docker",
+ "once_cell",
 ]
 
 [[package]]
@@ -4118,7 +4137,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-api"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "ahash 0.8.12",
  "async-stream",
@@ -4184,7 +4203,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-cli"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "async-stream",
  "axum",
@@ -4200,6 +4219,7 @@ dependencies = [
  "futures",
  "git2",
  "hashbrown 0.15.5",
+ "hex",
  "humantime",
  "indexmap 2.14.0",
  "insta",
@@ -4217,6 +4237,7 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "reqwest-eventsource",
+ "rust_decimal",
  "schemars 1.2.1",
  "semver",
  "serde",
@@ -4225,6 +4246,7 @@ dependencies = [
  "sha2",
  "sqlx",
  "sqlx-postgres",
+ "subtle",
  "sysinfo",
  "tar",
  "tempfile",
@@ -4264,7 +4286,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-db"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "clap",
  "objectiveai-sdk",
@@ -4274,7 +4296,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-json-schema-builder"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "objectiveai-sdk",
  "schemars 1.2.1",
@@ -4283,7 +4305,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -4306,7 +4328,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-laboratory"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -4335,7 +4357,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-mcp-proxy"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "anyhow",
  "axum",
@@ -4360,7 +4382,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -4410,7 +4432,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-cffi"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4422,11 +4444,11 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-macros"
-version = "2.2.9"
+version = "2.2.10"
 
 [[package]]
 name = "objectiveai-sdk-rs-pyo3"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "arbitrary",
  "objectiveai-sdk",
@@ -4440,7 +4462,7 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-sdk-wasm-js"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
  "arbitrary",
  "getrandom 0.4.2",
@@ -4463,25 +4485,21 @@ dependencies = [
 
 [[package]]
 name = "objectiveai-viewer"
-version = "2.2.9"
+version = "2.2.10"
 dependencies = [
- "axum",
+ "clap",
  "dirs",
  "dotenv",
  "envconfig",
  "futures",
- "hex",
  "mime_guess",
  "objectiveai-sdk",
- "reqwest 0.12.28",
+ "open",
  "serde",
  "serde_json",
- "sha2",
- "subtle",
  "tauri",
  "tauri-build",
  "tokio",
- "tower",
 ]
 
 [[package]]
@@ -4495,6 +4513,16 @@ name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "384b8ab6d37215f3c5301a95a4accb5d64aa607f1fcb26a11b5303878451b4fe"
+
+[[package]]
+name = "open"
+version = "5.3.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd8d3b65c44123a56e0133d2cd06ce4361bd3ca99d41198b2f25e3c3db9b8b4a"
+dependencies = [
+ "is-wsl",
+ "libc",
+]
 
 [[package]]
 name = "openssl-probe"

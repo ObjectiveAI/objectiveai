@@ -3,6 +3,16 @@
   "completions": [
     {
       "index": 0,
+      "agent_inline": {
+        "id": "4wXv5UufT9xfKYKsCLpBXT",
+        "upstream": "mock",
+        "output_mode": "json_schema"
+      },
+      "request_choice_keys": [
+        "`L`",
+        "`O`",
+        "`B`"
+      ],
       "id": "",
       "agent_instance_hierarchy": "",
       "agent_id": "4wXv5UufT9xfKYKsCLpBXT",
@@ -61,7 +71,8 @@
         0.0,
         1.0
       ],
-      "weight": 1.0
+      "weight": 1.0,
+      "completion_index": 0
     }
   ],
   "scores": [

@@ -7,10 +7,51 @@
       "task_path": [
         0
       ],
+      "request_messages": [
+        {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "Rank these items."
+            }
+          ]
+        }
+      ],
+      "request_choices": [
+        [
+          {
+            "type": "text",
+            "text": "Apple"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Banana"
+          }
+        ],
+        [
+          {
+            "type": "text",
+            "text": "Cherry"
+          }
+        ]
+      ],
       "id": "",
       "completions": [
         {
           "index": 0,
+          "agent_inline": {
+            "id": "425mMcWqssOpPRrsDrjB0B",
+            "upstream": "mock",
+            "output_mode": "instruction"
+          },
+          "request_choice_keys": [
+            "`G`",
+            "`I`",
+            "`E`"
+          ],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -53,6 +94,7 @@
         },
         {
           "index": 1,
+          "request_choice_keys": [],
           "id": "",
           "agent_instance_hierarchy": "",
           "agent_id": "425mMcWqssOpPRrsDrjB0B",

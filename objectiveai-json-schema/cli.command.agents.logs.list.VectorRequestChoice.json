@@ -1,0 +1,17 @@
+{
+  "title": "cli.command.agents.logs.list.VectorRequestChoice",
+  "description": "One choice in a `VectorRequestChoices` block: this agent's inline\nvoting `key` for the choice plus the choice's content parts (in\nrequest order). The key is returned inline — no `read id` needed.",
+  "type": "object",
+  "properties": {
+    "key": {
+      "description": "The prefix-tree voting key this agent assigned to the choice.",
+      "type": "string"
+    },
+    "parts": {
+      "type": "array",
+      "items": {
+        "$ref": "cli.command.agents.logs.list.VectorRequestChoicePart"
+      }
+    }
+  }
+}

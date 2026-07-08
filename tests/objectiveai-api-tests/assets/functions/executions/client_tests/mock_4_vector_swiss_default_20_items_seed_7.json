@@ -15,10 +15,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item0"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item1"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item2"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item3"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item4"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item5"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item6"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item7"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item8"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item9"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`N`",
+                "`L`",
+                "`T`",
+                "`O`",
+                "`D`",
+                "`B`",
+                "`P`",
+                "`J`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -62,6 +152,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -191,10 +282,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item10"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item11"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item12"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item13"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item14"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item15"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item16"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item17"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item18"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item19"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`Q`",
+                "`G`",
+                "`H`",
+                "`S`",
+                "`O`",
+                "`M`",
+                "`K`",
+                "`D`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -238,6 +419,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -367,10 +549,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item0"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item1"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item2"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item3"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item4"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item5"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item6"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item7"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item8"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item9"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`N`",
+                "`L`",
+                "`T`",
+                "`O`",
+                "`D`",
+                "`B`",
+                "`P`",
+                "`J`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -414,6 +686,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -543,10 +816,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item10"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item11"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item12"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item13"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item14"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item15"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item16"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item17"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item18"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item19"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`Q`",
+                "`G`",
+                "`H`",
+                "`S`",
+                "`O`",
+                "`M`",
+                "`K`",
+                "`D`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -590,6 +953,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -719,10 +1083,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item0"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item1"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item2"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item3"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item4"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item5"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item6"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item7"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item8"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item9"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`A`",
+                "`N`",
+                "`L`",
+                "`T`",
+                "`O`",
+                "`D`",
+                "`B`",
+                "`P`",
+                "`J`",
+                "`E`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -766,6 +1220,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -895,10 +1350,100 @@
           "task_path": [
             0
           ],
+          "request_messages": [
+            {
+              "role": "user",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Rank these items."
+                }
+              ]
+            }
+          ],
+          "request_choices": [
+            [
+              {
+                "type": "text",
+                "text": "Item10"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item11"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item12"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item13"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item14"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item15"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item16"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item17"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item18"
+              }
+            ],
+            [
+              {
+                "type": "text",
+                "text": "Item19"
+              }
+            ]
+          ],
           "id": "",
           "completions": [
             {
               "index": 0,
+              "agent_inline": {
+                "id": "425mMcWqssOpPRrsDrjB0B",
+                "upstream": "mock",
+                "output_mode": "instruction"
+              },
+              "request_choice_keys": [
+                "`J`",
+                "`Q`",
+                "`G`",
+                "`H`",
+                "`S`",
+                "`O`",
+                "`M`",
+                "`K`",
+                "`D`",
+                "`I`"
+              ],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",
@@ -942,6 +1487,7 @@
             },
             {
               "index": 1,
+              "request_choice_keys": [],
               "id": "",
               "agent_instance_hierarchy": "",
               "agent_id": "425mMcWqssOpPRrsDrjB0B",

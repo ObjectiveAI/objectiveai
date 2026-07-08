@@ -248,6 +248,34 @@ func (v CliCommandAgentsLogsOpenResponseFile) MarshalJSON() ([]byte, error) {
 }
 func (CliCommandAgentsLogsOpenResponseFile) SchemaVariantTitle() string { return "File" }
 
+// A logged failure (`objectiveai.errors`) — the CLI's user-facing
+// error value: a structured object for API response errors, a
+// plain string otherwise.
+type CliCommandAgentsLogsOpenResponseError struct {
+	Error JsonValue `json:"error"`
+	Type string `json:"type" validate:"oneof=error"`
+}
+
+func (v *CliCommandAgentsLogsOpenResponseError) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"error", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsOpenResponseError: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsOpenResponseError
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsOpenResponseError(alias)
+	return nil
+}
+func (CliCommandAgentsLogsOpenResponseError) SchemaVariantTitle() string { return "Error" }
+
 // Resolved payload for one `logs.messages."index"`. Tagged by
 // `type`, snake_case discriminant. The MCP projection in
 // [`CommandResponse::into_mcp`] hands media variants over as
@@ -267,6 +295,10 @@ type CliCommandAgentsLogsOpenResponse struct {
 	Audio *CliCommandAgentsLogsOpenResponseAudio `outerObject:"true"`
 	Video *CliCommandAgentsLogsOpenResponseVideo `outerObject:"true"`
 	File *CliCommandAgentsLogsOpenResponseFile `outerObject:"true"`
+	// A logged failure (`objectiveai.errors`) — the CLI's user-facing
+	// error value: a structured object for API response errors, a
+	// plain string otherwise.
+	Error *CliCommandAgentsLogsOpenResponseError `outerObject:"true"`
 }
 
 func (v CliCommandAgentsLogsOpenResponse) MarshalJSON() ([]byte, error) {
@@ -293,6 +325,9 @@ func (v CliCommandAgentsLogsOpenResponse) MarshalJSON() ([]byte, error) {
 	}
 	if v.File != nil {
 		return json.Marshal(v.File)
+	}
+	if v.Error != nil {
+		return json.Marshal(v.Error)
 	}
 	return []byte("null"), nil
 }
@@ -386,6 +421,17 @@ func (v *CliCommandAgentsLogsOpenResponse) UnmarshalJSON(data []byte) error {
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsLogsOpenResponseError
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsOpenResponse{}
+			candidate.Error = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsLogsOpenResponse")
 }
 
@@ -399,6 +445,7 @@ func (v CliCommandAgentsLogsOpenResponse) Validate() error {
 	if v.Audio != nil { count++ }
 	if v.Video != nil { count++ }
 	if v.File != nil { count++ }
+	if v.Error != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsLogsOpenResponse: exactly one variant must be set, got %d", count)
 	}

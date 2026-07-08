@@ -1,6 +1,6 @@
 {
   "name": "@objectiveai/sdk",
-  "version": "2.2.9",
+  "version": "2.2.10",
   "description": "SDK for the ObjectiveAI API.",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
@@ -10,7 +10,7 @@
   },
   "type": "module",
   "scripts": {
-    "build": "shx rm -rf dist && node ./scripts/install-zod.cjs && node ./scripts/install-command-execute.cjs && node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
+    "build": "shx rm -rf dist && node ./scripts/install-zod.cjs && node ./scripts/install-command-execute.cjs && node ./scripts/install-listener-execution.cjs && node ./scripts/install-wasm.cjs && tsup && shx rm -f dist/*.d.mts && shx rm -f dist/*.d.cts",
     "test": "node tests/test-cjs.cjs && node tests/test-esm.mjs && tsc --noEmit && vitest run",
     "start": "node dist/index.js"
   },
@@ -59,11 +59,6 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./viewer": {
-      "types": "./dist/viewer/index.d.ts",
-      "import": "./dist/viewer/index.js",
-      "require": "./dist/viewer/index.cjs"
     }
   },
   "files": [

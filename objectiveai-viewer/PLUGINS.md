@@ -8,7 +8,7 @@ When the viewer starts up, it reads the persisted manifests in `<plugins_dir>/*.
 
 Clicking a plugin tab mounts a sandboxed `<iframe>` pointed at the plugin's UI bundle, served by the host through a custom `plugin://` URI scheme. Each iframe is allow-listed to talk back to the host via a postMessage bridge.
 
-A plugin can also (or alternatively) declare `viewer_routes` — HTTP endpoints the host's embedded axum server registers on the plugin's behalf. Anything that POSTs to one of those routes triggers an event to the plugin's iframe.
+The viewer's data path is JS-native: the main viewer's frontend connects to the CLI daemon directly over native WebSockets (`/listen` and `/execute`); the Rust side holds no daemon stream and only hands the frontend the daemon address + auth signature via the `websocket_config` Tauri command. Plugins never see those credentials — their only channel is the postMessage bridge with the host window. A plugin's iframe receives the responses to requests it runs through the plugin executor, plus every `plugins/run` run targeting it (forwarded from the host's broadcast connection).
 
 ## The viewer bundle
 
@@ -26,91 +26,49 @@ Path-traversal defense: any `..` segment in a request to `plugin://` is rejected
 
 MIME types are guessed by `mime_guess::from_path(...).first_or_octet_stream()`. No charset is appended — include `<meta charset="utf-8">` in your `index.html`.
 
-## viewer_routes
+## The plugin-event envelope
 
-Declare HTTP routes the host registers on your behalf:
-
-```json
-{
-  "viewer_routes": [
-    { "path": "/echo",   "method": "POST", "type": "echo_request" },
-    { "path": "/status", "method": "GET",  "type": "status_request" }
-  ]
-}
-```
-
-| Field | Meaning |
-|---|---|
-| `path` | Must start with `/`. The host prepends `/plugin/<repository>` before registering. So your `/echo` lands at `/plugin/<your-repo>/echo` on the viewer's axum server. |
-| `method` | `GET` / `POST` / `PUT` / `PATCH` / `DELETE`. |
-| `type` | Free-form string. Forwarded to your iframe as the event's `type` field so you can switch on it. |
-
-A hit on a plugin route doesn't return data to the HTTP caller (returns 200 OK). Instead it emits an event the plugin's iframe listens for.
-
-## The event envelope
-
-Every Tauri event the viewer emits — built-in or plugin — uses this shape:
+Every message the host posts into a plugin's iframe uses this shape:
 
 ```json
 {
-  "destination": "<repo or 'objectiveai'>",
-  "type":        "<snake_case kind>",
-  "value":       <original payload>
+  "kind":  "plugin-event",
+  "type":  "<cli_command | inbound>",
+  "id":    "<invocation id — cli_command only>",
+  "value": <payload>
 }
 ```
 
-The Tauri **channel name equals `destination`**. Built-in events fire on channel `"objectiveai"`; plugin events fire on channel `<repository>`. The repository name `objectiveai` is reserved at install time so plugin channels can never collide with built-in events.
+`type` is `cli_command` (one response line from a plugin-executor invocation THIS plugin started, carrying the invocation `id` the plugin minted — concurrent invocations demux by it — and terminated by a synthetic `{"type":"end"}` line) or `inbound` (host data for the plugin).
 
-Built-in `type` values: `agent_completions`, `functions_executions`, `functions_inventions_recursive`, `laboratories_executions`. Their `value` is the raw POST body the matching axum route received.
-
-Plugin `type` values: whatever you declared in `viewer_routes[i].type`. Plugin `value` is the JSON body of the HTTP request (or `null` for body-less GETs).
-
-The Rust definition lives in [`objectiveai-viewer/src-tauri/src/events.rs`](src-tauri/src/events.rs).
+Each `inbound` event's `value` is one standard broadcast-envelope frame of a `plugins/run` run targeting this plugin — the request (`{…context, id, value: <Request>}`), then `{id, value: <item>}` per response item, then the terminator (`{id, end: true}`) — with a host-minted per-run `id`. The host's daemon-listener wrapper watches the full broadcast and forwards each `plugins/run` run to its target plugin's tab; the SDK's `ViewerPluginListener` consumes this contract.
 
 ## The TypeScript SDK
 
-Plugin UIs use [`@objectiveai/viewer-sdk`](../objectiveai-viewer-sdk/) (workspace package; npm publication pending). One function:
+Plugin UIs use `@objectiveai/sdk`. To run commands, use the `ViewerPluginExecutor` with the generated execute functions — it posts `cli-execute` messages to the host bridge and consumes the `cli_command` responses streamed back to this plugin. To receive the plugin's own `plugins/run` runs, use the `ViewerPluginListener` — an async-iterable of `{id, request, agentArguments, response}` runs (the `id` is host-minted per run; `response` streams the run's items). Both are plugin-only and throw outside an iframe; in the main viewer, use `WebSocketExecutor`/`WebSocketListener` (the daemon is directly reachable there).
 
-```ts
-import { listen } from "@objectiveai/viewer-sdk";
-
-// Listen for events the host emits to your plugin. `type` matches the
-// `type` field of an incoming event (the manifest-declared value of your
-// viewer_routes entry).
-const unlisten = listen<{ to: string }>("echo_request", (value) => {
-  // value is event.value — the raw POST body
-  console.log("got request:", value.to);
-});
-
-// Later, when the iframe is being torn down:
-unlisten();
-```
-
-The SDK detects context:
-
-- **Production** (inside the host viewer's iframe): `window.parent !== window`, so the SDK subscribes to `postMessage` from `window.parent` and dispatches matching `plugin-event` messages to your handler.
-- **Dev** (your plugin running in its own standalone Tauri shell): `window.parent === window`, so the SDK falls through to `@tauri-apps/api`'s `listen`. You get the same surface; only the transport differs.
-
-Plugin authors can develop their plugin as a normal Tauri app locally (their `src-tauri` backend can emit events themselves for development), then ship the built `dist/` as `<repo>-viewer.zip`. The SDK shim is the only thing they need to use to make their plugin work in both contexts.
+`ViewerPluginExecutor` detects context by `window.parent !== window` — inside the host viewer's iframe it talks postMessage with the host; anywhere else it throws (there is no host to serve the request). Plugin authors develop against the real host and ship the built `dist/` as `<repo>-viewer.zip`.
 
 ## The postMessage bridge
 
 ```
-plugin iframe                    host React shell                Rust backend
-─────────────                    ────────────────                ────────────
-listen("echo_request", h)
+plugin iframe                    host React shell                 CLI daemon
+─────────────                    ────────────────                 ──────────
+executor.execute(request)
+        │ postMessage
+        │ {kind:"cli-execute",    resolve iframe identity,   ──►  /execute
+        │  id, request}           run via JS WebSocketExecutor    (native WS)
         ▲
-        │ postMessage                                            Tauri emit
-        │ {kind:"plugin-event",   forward to matching iframe ◄── channel=destination
-        │  type, value}           per-plugin tauriListen          payload=Event
+        │ postMessage
+        │ {kind:"plugin-event",   every response line + the  ◄──  JSONL lines
+        │  type:"cli_command",    synthetic {"type":"end"}
+        │  id, value}             marker, back to THAT iframe
 ```
 
 The bridge lives in [`objectiveai-viewer/src/plugin-bridge.ts`](src/plugin-bridge.ts). Its responsibilities:
 
-- Track which iframe corresponds to which plugin (`registerIframe` / `unregisterIframe`).
-- Subscribe per-plugin to the `<repository>` Tauri channel; forward each event to that plugin's iframe (and only that iframe — cross-plugin event leakage isn't possible).
-
-The bridge is event-forwarding only. There is no inbound channel: iframes don't call into the host. If a plugin needs to talk to a remote backend it does so directly via `fetch`.
+- Track which iframe corresponds to which plugin coordinates (`registerIframe` / `unregisterIframe`).
+- Carry executions: iframes post `cli-execute` (a typed `cli::command::Request`) messages with a self-minted invocation `id`; the bridge resolves the originating iframe via `MessageEvent.source` (a plugin never claims an identity itself; unknown windows and id-less messages are dropped), runs the request through the host's own JS-native `WebSocketExecutor` — daemon address + signature from the Rust `websocket_config` command, fetched once — and posts every line + the end marker back into that iframe only. Failures surface as one in-band `{"type":"error",…}` line, then the end marker.
 
 ## `mobile_ready`
 
@@ -127,18 +85,18 @@ The CLI fixture at [`objectiveai-cli/test-fixtures/hello-plugin/`](../objectivea
 <title>my-plugin</title>
 <p>Waiting for events…</p>
 <script type="module">
-  // The host posts `{kind: "plugin-event", type, value}` messages
-  // into this iframe whenever one of our manifest-declared
-  // viewer_routes is hit. @objectiveai/viewer-sdk is a thin wrapper
-  // around this protocol; you can also use postMessage directly:
+  // The host posts `{kind: "plugin-event", type, id, value}`
+  // messages into this iframe — today that's the `cli_command`
+  // responses to requests this plugin runs through the plugin
+  // executor.
+  // @objectiveai/sdk's ViewerPluginExecutor wraps this protocol;
+  // you can also use postMessage directly:
   window.addEventListener("message", (e) => {
     if (e.data?.kind !== "plugin-event") return;
-    if (e.data.type === "echo_request") {
-      document.querySelector("p").textContent =
-        `Got: ${JSON.stringify(e.data.value)}`;
-    }
+    document.querySelector("p").textContent =
+      `Got: ${JSON.stringify(e.data.value)}`;
   });
 </script>
 ```
 
-Zip it as `<repo>-viewer.zip`, set `viewer_zip` in your manifest, install. The viewer's tab will render this HTML and react to POSTs at `/plugin/<repo>/echo`.
+Zip it as `<repo>-viewer.zip`, set `viewer_zip` in your manifest, install. The viewer's tab will render this HTML and react whenever `objectiveai plugins run` targets this plugin.

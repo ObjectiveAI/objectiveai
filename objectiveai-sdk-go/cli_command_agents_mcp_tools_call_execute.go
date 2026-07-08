@@ -7,6 +7,29 @@ import (
 	"fmt"
 )
 
+// AgentsMcpToolsCallExecute — `agents mcp tools call execute` (unary); the first stream item, rest discarded.
+func AgentsMcpToolsCallExecute(ctx context.Context, executor CommandExecutor, request CliCommandAgentsMcpToolsCallRequest) (*McpToolCallToolResult, error) {
+	wire, err := cliWire(request)
+	if err != nil {
+		return nil, err
+	}
+	delete(wire, "jq")
+	delete(wire, "python")
+	wire["path_type"] = "agents/mcp/tools/call"
+	raw, err := executor.Execute(ctx, wire)
+	if err != nil {
+		return nil, err
+	}
+	first, err := NewCliStream[McpToolCallToolResult](raw).First()
+	if err != nil {
+		return nil, err
+	}
+	if first == nil {
+		return nil, fmt.Errorf("agents mcp tools call: cli produced no output before the end marker")
+	}
+	return first, nil
+}
+
 // AgentsMcpToolsCallExecuteTransform — `agents mcp tools call execute_transform` (unary); the first stream item, rest discarded.
 func AgentsMcpToolsCallExecuteTransform(ctx context.Context, executor CommandExecutor, request CliCommandAgentsMcpToolsCallRequest, transform map[string]string) (*JsonValue, error) {
 	wire, err := cliWire(request)
