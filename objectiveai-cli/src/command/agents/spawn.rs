@@ -237,9 +237,11 @@ async fn execute_streaming(
 
     // Initial lock + params assembly. Acquire the agent's whole lock FAMILY
     // (all-or-nothing, NON-BLOCKING) so that while it's live none of its tags
-    // can be relocated (`tags apply`) or have labs detached (`laboratories
-    // detach`): a GROUPED tag locks every tag in its group; a bound tag / AIH
-    // locks the AIH plus every tag bound to it. A held member means the agent
+    // can be relocated (`tags apply`): a GROUPED tag locks every tag in its
+    // group; a bound tag / AIH locks the AIH plus every tag bound to it.
+    // (Laboratory attach/detach is deliberately NOT lock-guarded — it works
+    // at any time; each restart pass re-resolves and dials whatever is
+    // attached at that moment.) A held member means the agent
     // (or another spawn of the tag) is already live → error. When the parent
     // `agents message` transferred the family into this process, the lockfile
     // adopts each claim lazily on this first acquire, so they re-acquire

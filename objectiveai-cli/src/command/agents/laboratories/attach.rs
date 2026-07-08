@@ -1,6 +1,7 @@
-//! `agents laboratories attach` — acquire the target's lock(s), insert
-//! the `(target, laboratory_id)` row, release. Errors if the laboratory
-//! is already attached to the target.
+//! `agents laboratories attach` — insert the `(target, laboratory_id)`
+//! row. Errors if the laboratory is already attached to the target.
+//! NO LOCKING: attaching works at any time, active agents included —
+//! the spawn picks the change up at its next pass boundary.
 
 use objectiveai_sdk::cli::command::agents::laboratories::attach::{Request, Response};
 
@@ -8,12 +9,10 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let (target, claims) = super::lock_target(ctx, &request.selector).await?;
+    let target = super::resolve_target(ctx, &request.selector).await?;
     let pool = ctx.db_client().await?.clone();
-    let result =
-        crate::db::laboratory_attachments::attach(&pool, &target, &request.laboratory_id).await;
-    super::release_all(claims);
-    let inserted = result?;
+    let inserted =
+        crate::db::laboratory_attachments::attach(&pool, &target, &request.laboratory_id).await?;
     if !inserted {
         return Err(Error::LaboratoryAlreadyAttached {
             laboratory_id: request.laboratory_id,

@@ -1,6 +1,7 @@
-//! `agents laboratories detach` — acquire the target's lock(s), delete
-//! the `(target, laboratory_id)` row, release. Errors if the laboratory
-//! was not attached to the target.
+//! `agents laboratories detach` — delete the `(target, laboratory_id)`
+//! row. Errors if the laboratory was not attached to the target.
+//! NO LOCKING: detaching works at any time, active agents included —
+//! the spawn picks the change up at its next pass boundary.
 
 use objectiveai_sdk::cli::command::agents::laboratories::detach::{Request, Response};
 
@@ -8,12 +9,10 @@ use crate::context::Context;
 use crate::error::Error;
 
 pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error> {
-    let (target, claims) = super::lock_target(ctx, &request.selector).await?;
+    let target = super::resolve_target(ctx, &request.selector).await?;
     let pool = ctx.db_client().await?.clone();
-    let result =
-        crate::db::laboratory_attachments::detach(&pool, &target, &request.laboratory_id).await;
-    super::release_all(claims);
-    let deleted = result?;
+    let deleted =
+        crate::db::laboratory_attachments::detach(&pool, &target, &request.laboratory_id).await?;
     if !deleted {
         return Err(Error::LaboratoryNotAttached {
             laboratory_id: request.laboratory_id,

@@ -7,7 +7,6 @@ use futures::{Stream, StreamExt};
 use objectiveai_sdk::cli::command::agents::laboratories::{Request, ResponseItem};
 use objectiveai_sdk::cli::command::agents::selector::AgentSelector;
 
-use crate::command::agents::locks;
 use crate::context::Context;
 use crate::db::laboratory_attachments::Target;
 use crate::error::Error;
@@ -66,25 +65,22 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<ItemStream, Erro
     Ok(stream)
 }
 
-/// Resolve the agent target to its DB key AND acquire the lock(s) that
-/// guard mutation for it. Shared by `attach` + `detach`.
+/// Resolve the agent target to its DB key. Shared by `attach` +
+/// `detach`.
 ///
-/// - **Instance** (PAIH + `--agent-instance`) → the AIH lock; keyed on
-///   the AIH.
-/// - **Tag, GROUPED** → the tag lock; keyed on the tag.
-/// - **Tag, BOUND** → the tag lock AND the bound AIH lock (tag order
-///   first, for deadlock-freedom); keyed on the **tag**.
+/// NO LOCKING — attachments may be changed at ANY time, active agents
+/// included. A change never affects an agent mid-completion: the spawn
+/// re-resolves attachments at every restart-pass boundary (each pass
+/// dials whatever is attached NOW), so the change takes shape once the
+/// agent finishes its current pass and wakes/respawns.
+///
+/// - **Instance** (PAIH + `--agent-instance`) → keyed on the AIH.
+/// - **Tag** (GROUPED or BOUND) → keyed on the tag, which must exist.
 /// - **Ref** (a direct agent spec) → error (no tag/AIH to key on).
-///
-/// Locks are taken with `try_acquire`, so a live owner ⇒ an "active"
-/// error. On any error the partial claims are released here. On success
-/// the caller MUST [`release_all`] after its DB op — an [`locks::AgentLock`]
-/// does not release on drop of its lockfile claim implicitly via this path.
-pub(super) async fn lock_target(
+pub(super) async fn resolve_target(
     ctx: &Context,
     selector: &AgentSelector,
-) -> Result<(Target, Vec<locks::AgentLock>), Error> {
-    let state_dir = ctx.filesystem.state_dir();
+) -> Result<Target, Error> {
     match selector {
         AgentSelector::Ref { .. } => Err(Error::LaboratoryRefTarget),
         AgentSelector::Instance {
@@ -94,62 +90,19 @@ pub(super) async fn lock_target(
             let parent = parent_agent_instance_hierarchy
                 .as_deref()
                 .unwrap_or(&ctx.config.agent_instance_hierarchy);
-            let aih = format!("{parent}/{agent_instance}");
-            let (dir, key) = locks::agent_instance_lock(&state_dir, &aih);
-            let claim = locks::try_acquire(ctx.agent_locks(), &dir, &key)
-                .await
-                .ok_or(Error::AgentInstanceActive {
-                    agent_instance_hierarchy: aih.clone(),
-                })?;
-            Ok((Target::Aih(aih), vec![claim]))
+            Ok(Target::Aih(format!("{parent}/{agent_instance}")))
         }
         AgentSelector::Tag { agent_tag } => {
-            let (tdir, tkey) = locks::agent_tag_lock(&state_dir, agent_tag);
-            let tag_claim = locks::try_acquire(ctx.agent_locks(), &tdir, &tkey)
-                .await
-                .ok_or_else(|| Error::AgentTagActive {
-                    tag: agent_tag.clone(),
-                })?;
             let pool = ctx.db_client().await?;
-            match crate::db::tags::lookup(pool, agent_tag).await {
-                Ok(crate::db::tags::LookupState::Absent) => {
-                    let _ = tag_claim.release();
+            match crate::db::tags::lookup(pool, agent_tag).await? {
+                crate::db::tags::LookupState::Absent => {
                     Err(Error::TagNotFound(agent_tag.clone()))
                 }
-                Ok(crate::db::tags::LookupState::Grouped { .. }) => {
-                    Ok((Target::Tag(agent_tag.clone()), vec![tag_claim]))
-                }
-                Ok(crate::db::tags::LookupState::Bound {
-                    agent_instance_hierarchy,
-                }) => {
-                    let (idir, ikey) =
-                        locks::agent_instance_lock(&state_dir, &agent_instance_hierarchy);
-                    match locks::try_acquire(ctx.agent_locks(), &idir, &ikey).await {
-                        Some(aih_claim) => Ok((
-                            Target::Tag(agent_tag.clone()),
-                            vec![tag_claim, aih_claim],
-                        )),
-                        None => {
-                            let _ = tag_claim.release();
-                            Err(Error::AgentInstanceActive {
-                                agent_instance_hierarchy,
-                            })
-                        }
-                    }
-                }
-                Err(e) => {
-                    let _ = tag_claim.release();
-                    Err(e.into())
+                crate::db::tags::LookupState::Grouped { .. }
+                | crate::db::tags::LookupState::Bound { .. } => {
+                    Ok(Target::Tag(agent_tag.clone()))
                 }
             }
         }
-    }
-}
-
-/// Release every claim (best-effort). Call after the DB op on both the
-/// success and error paths — claims do not release on drop.
-pub(super) fn release_all(claims: Vec<locks::AgentLock>) {
-    for claim in claims {
-        let _ = claim.release();
     }
 }

@@ -1,9 +1,10 @@
 //! E2E: `agents laboratories attach / detach / list`.
 //!
-//! No agent spawn needed — these just record/read attachments and take
-//! the target's lock. We attach laboratory ids to instance and tag
-//! targets, list them back (created_at order), detach, and exercise the
-//! error variants (duplicate, not-attached, ref-target).
+//! No agent spawn needed — these just record/read attachments (no
+//! locking: attach/detach work at any time, active agents included).
+//! We attach laboratory ids to instance and tag targets, list them
+//! back (created_at order), detach, and exercise the error variants
+//! (duplicate, not-attached, ref-target).
 
 mod cli_test_util;
 
@@ -193,8 +194,8 @@ async fn ref_target_is_rejected() {
     .await;
 }
 
-/// Attach to a GROUPED tag target (exercises the tag-lock path), list,
-/// detach.
+/// Attach to a GROUPED tag target (exercises the tag-resolution
+/// path), list, detach.
 #[tokio::test(flavor = "multi_thread")]
 async fn attach_to_tag() {
     let _base = cli_test_util::test_base_dir();
