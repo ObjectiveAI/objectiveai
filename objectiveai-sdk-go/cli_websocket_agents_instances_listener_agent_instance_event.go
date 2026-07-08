@@ -7,34 +7,295 @@ import (
 	"fmt"
 )
 
-// One conversation row (snapshot replay or live). Replaces any
-// prior row with the same identity.
-type CliWebsocketAgentsInstancesListenerAgentInstanceEventRow struct {
-	Row CliWebsocketAgentsInstancesListenerConversationRow `json:"row"`
-	Type string `json:"type" validate:"oneof=row"`
+// One part of a `RequestMessageUser` block. `row_index` = message
+// index, `row_sub_index` = part index.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Part CliWebsocketAgentsInstancesListenerRequestMessageUserPart `json:"part"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	RowSubIndex *int64 `json:"row_sub_index,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=request_message_user_part"`
 }
 
-func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventRow) UnmarshalJSON(data []byte) error {
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart) UnmarshalJSON(data []byte) error {
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"row", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "part", "response_id", "row_index", "type"} {
 		if _, ok := raw[key]; !ok {
-			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventRow: missing required field %q", key)
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart: missing required field %q", key)
 		}
 	}
-	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventRow
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart
 	var alias Alias
 	if err := json.Unmarshal(data, &alias); err != nil {
 		return err
 	}
-	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventRow(alias)
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart(alias)
 	return nil
 }
-func (CliWebsocketAgentsInstancesListenerAgentInstanceEventRow) SchemaVariantTitle() string { return "Row" }
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart) SchemaVariantTitle() string { return "RequestMessageUserPart" }
 
-// The snapshot is complete; every following `Row` is live.
+// One part of a `RequestMessageAssistant` block.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Part CliWebsocketAgentsInstancesListenerAssistantResponsePart `json:"part"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	RowSubIndex *int64 `json:"row_sub_index,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=request_message_assistant_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "part", "response_id", "row_index", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart) SchemaVariantTitle() string { return "RequestMessageAssistantPart" }
+
+// One part of a `RequestMessageTool` block.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Part CliWebsocketAgentsInstancesListenerToolResponsePart `json:"part"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	RowSubIndex *int64 `json:"row_sub_index,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// The wire tool-call id the block answers (block boundary).
+	ToolCallID string `json:"tool_call_id"`
+	Type string `json:"type" validate:"oneof=request_message_tool_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "part", "response_id", "row_index", "tool_call_id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart) SchemaVariantTitle() string { return "RequestMessageToolPart" }
+
+// One part of one choice of a `VectorRequestChoices` block.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// The choice's index within the request (`row_index`).
+	ChoiceIndex int64 `json:"choice_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// This agent's inline voting key for the choice.
+	Key string `json:"key"`
+	Part CliWebsocketAgentsInstancesListenerVectorRequestChoicePart `json:"part"`
+	// The part's index within the choice (`row_sub_index`).
+	PartIndex int64 `json:"part_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	ResponseID string `json:"response_id"`
+	Type string `json:"type" validate:"oneof=vector_request_choice_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "choice_index", "key", "part", "part_index", "response_id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart) SchemaVariantTitle() string { return "VectorRequestChoicePart" }
+
+// A complete `VectorResponseVote` block (single-row).
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	ResponseID string `json:"response_id"`
+	Type string `json:"type" validate:"oneof=vector_response_vote"`
+	Vote []float64 `json:"vote" validate:"dive,min=-3.4028234663852886e+38,max=3.4028234663852886e+38"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "response_id", "type", "vote"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote) SchemaVariantTitle() string { return "VectorResponseVote" }
+
+// One part of a `ClientNotification` block. `row_index` = the
+// consumed `message_queue_contents.id`.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// Idempotency token, if the row was enqueued with `--key`.
+	Key *string `json:"key,omitempty"`
+	// `message_queue.id` of the consumed parent queue row —
+	// one block per parent row.
+	MessageQueueID int64 `json:"message_queue_id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	Part CliWebsocketAgentsInstancesListenerClientNotificationPart `json:"part"`
+	// `message_queue.enqueued_at` of the parent row.
+	QueuedAt string `json:"queued_at"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// AIH of the enqueuer (block boundary, with
+	// `message_queue_id`).
+	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
+	Type string `json:"type" validate:"oneof=client_notification_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "message_queue_id", "part", "queued_at", "response_id", "row_index", "sender_agent_instance_hierarchy", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart) SchemaVariantTitle() string { return "ClientNotificationPart" }
+
+// One part of an `AssistantResponse` block.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Part CliWebsocketAgentsInstancesListenerAssistantResponsePart `json:"part"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	RowSubIndex *int64 `json:"row_sub_index,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	Type string `json:"type" validate:"oneof=assistant_response_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "part", "response_id", "row_index", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart) SchemaVariantTitle() string { return "AssistantResponsePart" }
+
+// One part of a `ToolResponse` block.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	Part CliWebsocketAgentsInstancesListenerToolResponsePart `json:"part"`
+	ResponseID string `json:"response_id"`
+	RowIndex int64 `json:"row_index" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	RowSubIndex *int64 `json:"row_sub_index,omitempty" validate:"omitempty,min=-9223372036854775808,max=9223372036854775807"`
+	// The wire tool-call id the block answers (block boundary).
+	ToolCallID string `json:"tool_call_id"`
+	Type string `json:"type" validate:"oneof=tool_response_part"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "part", "response_id", "row_index", "tool_call_id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart) SchemaVariantTitle() string { return "ToolResponsePart" }
+
+// A complete `Error` block. Errors are IMMUTABLE and single-shot
+// — never updated, so they carry no replace-at identity;
+// consumers dedupe the snapshot/live seam by value equality.
+type CliWebsocketAgentsInstancesListenerAgentInstanceEventError struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	DeliveredAt string `json:"delivered_at"`
+	Error JsonValue `json:"error"`
+	ResponseID *string `json:"response_id,omitempty"`
+	Type string `json:"type" validate:"oneof=error"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventError) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "error", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerAgentInstanceEventError: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerAgentInstanceEventError
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerAgentInstanceEventError(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerAgentInstanceEventError) SchemaVariantTitle() string { return "Error" }
+
+// The snapshot is complete; every following event is live.
 type CliWebsocketAgentsInstancesListenerAgentInstanceEventLive struct {
 	Type string `json:"type" validate:"oneof=live"`
 }
@@ -63,9 +324,7 @@ func (CliWebsocketAgentsInstancesListenerAgentInstanceEventLive) SchemaVariantTi
 // `/agents/instances/list` tracks (lock-driven `active` flag,
 // bound tags, counters). A FULL-VALUE upsert: sent once on
 // connect with the current state, then re-sent whenever it
-// changes (activation; deactivation — on stream end OR holder
-// kill; a tag apply/move/removal). Replaces any prior value;
-// structurally independent of the conversation rows.
+// changes. Structurally independent of the conversation events.
 type CliWebsocketAgentsInstancesListenerAgentInstanceEventAgent struct {
 	Agent CliWebsocketAgentsInstancesListenerAgentRecord `json:"agent"`
 	Type string `json:"type" validate:"oneof=agent"`
@@ -91,39 +350,83 @@ func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEventAgent) UnmarshalJS
 }
 func (CliWebsocketAgentsInstancesListenerAgentInstanceEventAgent) SchemaVariantTitle() string { return "Agent" }
 
-// One event on the `/agents/instances/{*aih}` stream. Two structurally
-// independent concerns ride it:
+// One event on the `/agents/instances/{*aih}` stream. The
+// conversation events carry ONE mirrored part each, addressed by
+// their block's boundary fields (exactly the fields `ResponseItem`
+// keeps at block level) plus the row's DB identity — `row_index` /
+// `row_sub_index` are `objectiveai.messages`' values, an OPAQUE
+// replace-at + ordering key: a re-sent identity replaces the prior
+// part, both within the snapshot/live seam and across streaming
+// updates of one part. Single-row blocks (`vote` / `error`) ship
+// complete.
 //
-// - **The conversation**: the DB snapshot replays as `Row` events (in
-//   `objectiveai.messages."index"` order), one `Live` marks the
-//   snapshot complete, then live `Row` events follow as the
-//   conversation occurs.
-// - **The agent's status**: `Agent` carries this agent's list record
-//   (active flag + tags + counters), once at connect and on every
-//   change.
+// The DB snapshot replays first (in `objectiveai.messages."index"`
+// order), one `Live` marks the snapshot complete, then live events
+// follow as the conversation occurs. `Agent` events (the status
+// record) are structurally independent and can arrive at any time.
 //
-// Extensibility contract: future variants WILL be added (e.g.
-// client-message delivery notifications) — consumers must skip events
-// they cannot parse.
+// Extensibility contract: future variants WILL be added — consumers
+// must skip events they cannot parse.
 type CliWebsocketAgentsInstancesListenerAgentInstanceEvent struct {
-	// One conversation row (snapshot replay or live). Replaces any
-	// prior row with the same identity.
-	Row *CliWebsocketAgentsInstancesListenerAgentInstanceEventRow `outerObject:"true"`
-	// The snapshot is complete; every following `Row` is live.
+	// One part of a `RequestMessageUser` block. `row_index` = message
+	// index, `row_sub_index` = part index.
+	RequestMessageUserPart *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart `outerObject:"true"`
+	// One part of a `RequestMessageAssistant` block.
+	RequestMessageAssistantPart *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart `outerObject:"true"`
+	// One part of a `RequestMessageTool` block.
+	RequestMessageToolPart *CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart `outerObject:"true"`
+	// One part of one choice of a `VectorRequestChoices` block.
+	VectorRequestChoicePart *CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart `outerObject:"true"`
+	// A complete `VectorResponseVote` block (single-row).
+	VectorResponseVote *CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote `outerObject:"true"`
+	// One part of a `ClientNotification` block. `row_index` = the
+	// consumed `message_queue_contents.id`.
+	ClientNotificationPart *CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart `outerObject:"true"`
+	// One part of an `AssistantResponse` block.
+	AssistantResponsePart *CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart `outerObject:"true"`
+	// One part of a `ToolResponse` block.
+	ToolResponsePart *CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart `outerObject:"true"`
+	// A complete `Error` block. Errors are IMMUTABLE and single-shot
+	// — never updated, so they carry no replace-at identity;
+	// consumers dedupe the snapshot/live seam by value equality.
+	Error *CliWebsocketAgentsInstancesListenerAgentInstanceEventError `outerObject:"true"`
+	// The snapshot is complete; every following event is live.
 	Live *CliWebsocketAgentsInstancesListenerAgentInstanceEventLive `outerObject:"true"`
 	// This agent's list record — the same shape
 	// `/agents/instances/list` tracks (lock-driven `active` flag,
 	// bound tags, counters). A FULL-VALUE upsert: sent once on
 	// connect with the current state, then re-sent whenever it
-	// changes (activation; deactivation — on stream end OR holder
-	// kill; a tag apply/move/removal). Replaces any prior value;
-	// structurally independent of the conversation rows.
+	// changes. Structurally independent of the conversation events.
 	Agent *CliWebsocketAgentsInstancesListenerAgentInstanceEventAgent `outerObject:"true"`
 }
 
 func (v CliWebsocketAgentsInstancesListenerAgentInstanceEvent) MarshalJSON() ([]byte, error) {
-	if v.Row != nil {
-		return json.Marshal(v.Row)
+	if v.RequestMessageUserPart != nil {
+		return json.Marshal(v.RequestMessageUserPart)
+	}
+	if v.RequestMessageAssistantPart != nil {
+		return json.Marshal(v.RequestMessageAssistantPart)
+	}
+	if v.RequestMessageToolPart != nil {
+		return json.Marshal(v.RequestMessageToolPart)
+	}
+	if v.VectorRequestChoicePart != nil {
+		return json.Marshal(v.VectorRequestChoicePart)
+	}
+	if v.VectorResponseVote != nil {
+		return json.Marshal(v.VectorResponseVote)
+	}
+	if v.ClientNotificationPart != nil {
+		return json.Marshal(v.ClientNotificationPart)
+	}
+	if v.AssistantResponsePart != nil {
+		return json.Marshal(v.AssistantResponsePart)
+	}
+	if v.ToolResponsePart != nil {
+		return json.Marshal(v.ToolResponsePart)
+	}
+	if v.Error != nil {
+		return json.Marshal(v.Error)
 	}
 	if v.Live != nil {
 		return json.Marshal(v.Live)
@@ -136,10 +439,98 @@ func (v CliWebsocketAgentsInstancesListenerAgentInstanceEvent) MarshalJSON() ([]
 
 func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEvent) UnmarshalJSON(data []byte) error {
 	{
-		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventRow
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageUserPart
 		if err := json.Unmarshal(data, &try); err == nil {
 			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
-			candidate.Row = &try
+			candidate.RequestMessageUserPart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageAssistantPart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.RequestMessageAssistantPart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventRequestMessageToolPart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.RequestMessageToolPart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorRequestChoicePart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.VectorRequestChoicePart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventVectorResponseVote
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.VectorResponseVote = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventClientNotificationPart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.ClientNotificationPart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventAssistantResponsePart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.AssistantResponsePart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventToolResponsePart
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.ToolResponsePart = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
+	{
+		var try CliWebsocketAgentsInstancesListenerAgentInstanceEventError
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerAgentInstanceEvent{}
+			candidate.Error = &try
 			if candidate.Validate() == nil {
 				*v = candidate
 				return nil
@@ -173,7 +564,15 @@ func (v *CliWebsocketAgentsInstancesListenerAgentInstanceEvent) UnmarshalJSON(da
 
 func (v CliWebsocketAgentsInstancesListenerAgentInstanceEvent) Validate() error {
 	count := 0
-	if v.Row != nil { count++ }
+	if v.RequestMessageUserPart != nil { count++ }
+	if v.RequestMessageAssistantPart != nil { count++ }
+	if v.RequestMessageToolPart != nil { count++ }
+	if v.VectorRequestChoicePart != nil { count++ }
+	if v.VectorResponseVote != nil { count++ }
+	if v.ClientNotificationPart != nil { count++ }
+	if v.AssistantResponsePart != nil { count++ }
+	if v.ToolResponsePart != nil { count++ }
+	if v.Error != nil { count++ }
 	if v.Live != nil { count++ }
 	if v.Agent != nil { count++ }
 	if count != 1 {

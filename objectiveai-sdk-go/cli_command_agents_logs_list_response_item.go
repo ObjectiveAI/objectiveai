@@ -261,6 +261,47 @@ func (v *CliCommandAgentsLogsListResponseItemToolResponse) UnmarshalJSON(data []
 }
 func (CliCommandAgentsLogsListResponseItemToolResponse) SchemaVariantTitle() string { return "ToolResponse" }
 
+// One logged failure (`objectiveai.errors`) — a spawn-path error
+// persisted into the agent's history. Always a single row: the
+// failing attempt dies at its first raised error, so there is
+// nothing to coalesce. The value is returned inline (like the
+// vote) — no `read id` needed — but the row is still
+// id-addressable like every other event.
+type CliCommandAgentsLogsListResponseItemError struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	DeliveredAt string `json:"delivered_at"`
+	// The CLI's user-facing error value — a structured object for
+	// API response errors, a plain string otherwise.
+	Error JsonValue `json:"error"`
+	// `logs.messages."index"` for this row.
+	ID int64 `json:"id" validate:"min=-9223372036854775808,max=9223372036854775807"`
+	// The response the failure belongs to when one existed;
+	// `None` for post-lock pre-stream failures (the only kind
+	// allowed a NULL response_id).
+	ResponseID *string `json:"response_id,omitempty"`
+	Type string `json:"type" validate:"oneof=error"`
+}
+
+func (v *CliCommandAgentsLogsListResponseItemError) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "error", "id", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliCommandAgentsLogsListResponseItemError: missing required field %q", key)
+		}
+	}
+	type Alias CliCommandAgentsLogsListResponseItemError
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliCommandAgentsLogsListResponseItemError(alias)
+	return nil
+}
+func (CliCommandAgentsLogsListResponseItemError) SchemaVariantTitle() string { return "Error" }
+
 // One yielded item. Three single-row request blobs +
 // three multi-row blocks. Every variant carries `response_id`.
 // `sender_agent_instance_hierarchy` appears only on the four
@@ -309,6 +350,13 @@ type CliCommandAgentsLogsListResponseItem struct {
 	// `response_id`), so two responses in the same turn yield two
 	// blocks.
 	ToolResponse *CliCommandAgentsLogsListResponseItemToolResponse `outerObject:"true"`
+	// One logged failure (`objectiveai.errors`) — a spawn-path error
+	// persisted into the agent's history. Always a single row: the
+	// failing attempt dies at its first raised error, so there is
+	// nothing to coalesce. The value is returned inline (like the
+	// vote) — no `read id` needed — but the row is still
+	// id-addressable like every other event.
+	Error *CliCommandAgentsLogsListResponseItemError `outerObject:"true"`
 }
 
 func (v CliCommandAgentsLogsListResponseItem) MarshalJSON() ([]byte, error) {
@@ -335,6 +383,9 @@ func (v CliCommandAgentsLogsListResponseItem) MarshalJSON() ([]byte, error) {
 	}
 	if v.ToolResponse != nil {
 		return json.Marshal(v.ToolResponse)
+	}
+	if v.Error != nil {
+		return json.Marshal(v.Error)
 	}
 	return []byte("null"), nil
 }
@@ -428,6 +479,17 @@ func (v *CliCommandAgentsLogsListResponseItem) UnmarshalJSON(data []byte) error 
 			}
 		}
 	}
+	{
+		var try CliCommandAgentsLogsListResponseItemError
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliCommandAgentsLogsListResponseItem{}
+			candidate.Error = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliCommandAgentsLogsListResponseItem")
 }
 
@@ -441,6 +503,7 @@ func (v CliCommandAgentsLogsListResponseItem) Validate() error {
 	if v.ClientNotification != nil { count++ }
 	if v.AssistantResponse != nil { count++ }
 	if v.ToolResponse != nil { count++ }
+	if v.Error != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliCommandAgentsLogsListResponseItem: exactly one variant must be set, got %d", count)
 	}

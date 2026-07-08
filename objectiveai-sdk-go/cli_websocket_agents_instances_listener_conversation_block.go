@@ -10,7 +10,7 @@ import (
 // A `user`-role message from the request/task input.
 type CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageUser struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
+	Parts []CliWebsocketAgentsInstancesListenerRequestMessageUserPart `json:"parts"`
 	ResponseID string `json:"response_id"`
 	Type string `json:"type" validate:"oneof=request_message_user"`
 }
@@ -38,7 +38,7 @@ func (CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageUser) Sc
 // An `assistant`-role message from the request/task input.
 type CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageAssistant struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
+	Parts []CliWebsocketAgentsInstancesListenerAssistantResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
 	Type string `json:"type" validate:"oneof=request_message_assistant"`
 }
@@ -63,10 +63,11 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageAssis
 }
 func (CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageAssistant) SchemaVariantTitle() string { return "RequestMessageAssistant" }
 
-// A `tool`-role message from the request/task input.
+// A `tool`-role message from the request/task input, answering a
+// prior tool call.
 type CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageTool struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
+	Parts []CliWebsocketAgentsInstancesListenerToolResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
 	// The wire tool-call id this request message answers.
 	ToolCallID string `json:"tool_call_id"`
@@ -96,7 +97,7 @@ func (CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageTool) Sc
 // The response choices a vector-completion task voted over.
 type CliWebsocketAgentsInstancesListenerConversationBlockVectorRequestChoices struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Choices []CliWebsocketAgentsInstancesListenerConversationChoice `json:"choices"`
+	Choices []CliWebsocketAgentsInstancesListenerVectorRequestChoice `json:"choices"`
 	ResponseID string `json:"response_id"`
 	Type string `json:"type" validate:"oneof=vector_request_choices"`
 }
@@ -121,7 +122,8 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlockVectorRequestChoice
 }
 func (CliWebsocketAgentsInstancesListenerConversationBlockVectorRequestChoices) SchemaVariantTitle() string { return "VectorRequestChoices" }
 
-// The closer for a vector task: this agent's own vote.
+// The closer for a vector task: this agent's own vote (its score
+// for each choice, in choice order).
 type CliWebsocketAgentsInstancesListenerConversationBlockVectorResponseVote struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
 	ResponseID string `json:"response_id"`
@@ -152,11 +154,15 @@ func (CliWebsocketAgentsInstancesListenerConversationBlockVectorResponseVote) Sc
 // Consumed message-queue notifications from one parent queue row.
 type CliWebsocketAgentsInstancesListenerConversationBlockClientNotification struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// Idempotency token, if the row was enqueued with `--key`.
 	Key *string `json:"key,omitempty"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
-	QueuedAt *string `json:"queued_at,omitempty"`
+	Parts []CliWebsocketAgentsInstancesListenerClientNotificationPart `json:"parts"`
+	// `message_queue.enqueued_at` of the consumed parent queue
+	// row — one block = one parent row.
+	QueuedAt string `json:"queued_at"`
 	ResponseID string `json:"response_id"`
-	SenderAgentInstanceHierarchy *string `json:"sender_agent_instance_hierarchy,omitempty"`
+	// AIH of the enqueuer.
+	SenderAgentInstanceHierarchy string `json:"sender_agent_instance_hierarchy"`
 	Type string `json:"type" validate:"oneof=client_notification"`
 }
 
@@ -165,7 +171,7 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlockClientNotification)
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
 	}
-	for _, key := range []string{"agent_instance_hierarchy", "parts", "response_id", "type"} {
+	for _, key := range []string{"agent_instance_hierarchy", "parts", "queued_at", "response_id", "sender_agent_instance_hierarchy", "type"} {
 		if _, ok := raw[key]; !ok {
 			return fmt.Errorf("CliWebsocketAgentsInstancesListenerConversationBlockClientNotification: missing required field %q", key)
 		}
@@ -183,7 +189,7 @@ func (CliWebsocketAgentsInstancesListenerConversationBlockClientNotification) Sc
 // The agent's own assistant output.
 type CliWebsocketAgentsInstancesListenerConversationBlockAssistantResponse struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
+	Parts []CliWebsocketAgentsInstancesListenerAssistantResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
 	Type string `json:"type" validate:"oneof=assistant_response"`
 }
@@ -208,10 +214,10 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlockAssistantResponse) 
 }
 func (CliWebsocketAgentsInstancesListenerConversationBlockAssistantResponse) SchemaVariantTitle() string { return "AssistantResponse" }
 
-// One tool call's response.
+// One tool call's response — one block per `tool_call_id`.
 type CliWebsocketAgentsInstancesListenerConversationBlockToolResponse struct {
 	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
-	Parts []CliWebsocketAgentsInstancesListenerConversationRow `json:"parts"`
+	Parts []CliWebsocketAgentsInstancesListenerToolResponsePart `json:"parts"`
 	ResponseID string `json:"response_id"`
 	// The wire tool-call id this response answers.
 	ToolCallID string `json:"tool_call_id"`
@@ -238,28 +244,72 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlockToolResponse) Unmar
 }
 func (CliWebsocketAgentsInstancesListenerConversationBlockToolResponse) SchemaVariantTitle() string { return "ToolResponse" }
 
-// One materialized conversation block — the mirror of
-// `agents logs list`'s `ResponseItem` with content-inlined parts.
-// Produced by the listener's incremental coalescer; blocks appear in
-// conversation order (snapshot `"index"` order, then live write
-// order).
+// One logged failure, value inline — an error is a single row,
+// never a parts-carrying container (the failing attempt dies at
+// its first raised error), so each error row is its own block.
+type CliWebsocketAgentsInstancesListenerConversationBlockError struct {
+	AgentInstanceHierarchy string `json:"agent_instance_hierarchy"`
+	// RFC3339 — when the failure was logged.
+	DeliveredAt string `json:"delivered_at"`
+	// The CLI's user-facing error value — a structured object for
+	// API response errors, a plain string otherwise.
+	Error JsonValue `json:"error"`
+	// The response the failure belongs to when one existed;
+	// `None` for post-lock pre-stream failures.
+	ResponseID *string `json:"response_id,omitempty"`
+	Type string `json:"type" validate:"oneof=error"`
+}
+
+func (v *CliWebsocketAgentsInstancesListenerConversationBlockError) UnmarshalJSON(data []byte) error {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+	for _, key := range []string{"agent_instance_hierarchy", "delivered_at", "error", "type"} {
+		if _, ok := raw[key]; !ok {
+			return fmt.Errorf("CliWebsocketAgentsInstancesListenerConversationBlockError: missing required field %q", key)
+		}
+	}
+	type Alias CliWebsocketAgentsInstancesListenerConversationBlockError
+	var alias Alias
+	if err := json.Unmarshal(data, &alias); err != nil {
+		return err
+	}
+	*v = CliWebsocketAgentsInstancesListenerConversationBlockError(alias)
+	return nil
+}
+func (CliWebsocketAgentsInstancesListenerConversationBlockError) SchemaVariantTitle() string { return "Error" }
+
+// One materialized conversation block — **the mirror of
+// `agents logs list`'s `ResponseItem`**, variant-for-variant and
+// field-for-field, with parts carrying opened content instead of
+// `read id` addresses; plus the additional `Error` block (a logged
+// failure — the list gains the same variant). Produced by the
+// listener's incremental coalescer; blocks appear in conversation
+// order with `read_all`'s exact boundary rule.
 type CliWebsocketAgentsInstancesListenerConversationBlock struct {
 	// A `user`-role message from the request/task input.
 	RequestMessageUser *CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageUser `outerObject:"true"`
 	// An `assistant`-role message from the request/task input.
 	RequestMessageAssistant *CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageAssistant `outerObject:"true"`
-	// A `tool`-role message from the request/task input.
+	// A `tool`-role message from the request/task input, answering a
+	// prior tool call.
 	RequestMessageTool *CliWebsocketAgentsInstancesListenerConversationBlockRequestMessageTool `outerObject:"true"`
 	// The response choices a vector-completion task voted over.
 	VectorRequestChoices *CliWebsocketAgentsInstancesListenerConversationBlockVectorRequestChoices `outerObject:"true"`
-	// The closer for a vector task: this agent's own vote.
+	// The closer for a vector task: this agent's own vote (its score
+	// for each choice, in choice order).
 	VectorResponseVote *CliWebsocketAgentsInstancesListenerConversationBlockVectorResponseVote `outerObject:"true"`
 	// Consumed message-queue notifications from one parent queue row.
 	ClientNotification *CliWebsocketAgentsInstancesListenerConversationBlockClientNotification `outerObject:"true"`
 	// The agent's own assistant output.
 	AssistantResponse *CliWebsocketAgentsInstancesListenerConversationBlockAssistantResponse `outerObject:"true"`
-	// One tool call's response.
+	// One tool call's response — one block per `tool_call_id`.
 	ToolResponse *CliWebsocketAgentsInstancesListenerConversationBlockToolResponse `outerObject:"true"`
+	// One logged failure, value inline — an error is a single row,
+	// never a parts-carrying container (the failing attempt dies at
+	// its first raised error), so each error row is its own block.
+	Error *CliWebsocketAgentsInstancesListenerConversationBlockError `outerObject:"true"`
 }
 
 func (v CliWebsocketAgentsInstancesListenerConversationBlock) MarshalJSON() ([]byte, error) {
@@ -286,6 +336,9 @@ func (v CliWebsocketAgentsInstancesListenerConversationBlock) MarshalJSON() ([]b
 	}
 	if v.ToolResponse != nil {
 		return json.Marshal(v.ToolResponse)
+	}
+	if v.Error != nil {
+		return json.Marshal(v.Error)
 	}
 	return []byte("null"), nil
 }
@@ -379,6 +432,17 @@ func (v *CliWebsocketAgentsInstancesListenerConversationBlock) UnmarshalJSON(dat
 			}
 		}
 	}
+	{
+		var try CliWebsocketAgentsInstancesListenerConversationBlockError
+		if err := json.Unmarshal(data, &try); err == nil {
+			candidate := CliWebsocketAgentsInstancesListenerConversationBlock{}
+			candidate.Error = &try
+			if candidate.Validate() == nil {
+				*v = candidate
+				return nil
+			}
+		}
+	}
 	return fmt.Errorf("data did not match any variant of CliWebsocketAgentsInstancesListenerConversationBlock")
 }
 
@@ -392,6 +456,7 @@ func (v CliWebsocketAgentsInstancesListenerConversationBlock) Validate() error {
 	if v.ClientNotification != nil { count++ }
 	if v.AssistantResponse != nil { count++ }
 	if v.ToolResponse != nil { count++ }
+	if v.Error != nil { count++ }
 	if count != 1 {
 		return fmt.Errorf("CliWebsocketAgentsInstancesListenerConversationBlock: exactly one variant must be set, got %d", count)
 	}
