@@ -1,6 +1,6 @@
 {
   "name": "@objectiveai/sdk",
-  "version": "2.2.9",
+  "version": "2.2.10",
   "description": "SDK for the ObjectiveAI API.",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
