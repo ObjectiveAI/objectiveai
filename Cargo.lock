@@ -4487,6 +4487,7 @@ dependencies = [
 name = "objectiveai-viewer"
 version = "2.2.9"
 dependencies = [
+ "clap",
  "dirs",
  "dotenv",
  "envconfig",
