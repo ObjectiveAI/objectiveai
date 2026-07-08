@@ -61,11 +61,16 @@ pub async fn execute(ctx: &Context, request: Request) -> Result<Response, Error>
     // Resolve the db handle before taking the lock so an error there can't
     // skip the explicit release below.
     let pool = ctx.db_client().await?;
-    // Laboratories travel with the tag when it's relocated, so a tag may not be
-    // moved while an agent holding it is live. Take the tag lock NON-BLOCKING
-    // (`try_acquire`): a held lock means a live process owns that tag, and the
-    // apply is rejected. Released right after the write — this command isn't an
-    // active agent, it just needs exclusivity for the relocation itself.
+    // A tag binding is load-bearing identity: relocating it rewrites which
+    // agent the tag names — message-queue routing, spawn identity resolution,
+    // and the lock FAMILY a spawn acquires all key on it — so a tag may not
+    // be moved while an agent holding it is live. (Contrast laboratory
+    // attach/detach, which is deliberately lock-free: attachments are rows
+    // the spawn re-resolves every pass; a rebind has no such absorption
+    // point.) Take the tag lock NON-BLOCKING (`try_acquire`): a held lock
+    // means a live process owns that tag, and the apply is rejected.
+    // Released right after the write — this command isn't an active agent,
+    // it just needs exclusivity for the relocation itself.
     let state_dir = ctx.filesystem.state_dir();
     let (lock_dir, lock_key) =
         crate::command::agents::locks::agent_tag_lock(&state_dir, &request.name);
