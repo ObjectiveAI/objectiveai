@@ -76,6 +76,63 @@ fn open_url(url: String) -> Result<(), String> {
     open::that_detached(&url).map_err(|e| e.to_string())
 }
 
+/// The deterministic-within-one-process window label for an AIH —
+/// labels must be alphanumeric/`-`/`_` and AIHs contain `/`, so the
+/// label is a hash; create-or-focus keys on it.
+fn agent_window_label(agent_instance_hierarchy: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut hasher = std::collections::hash_map::DefaultHasher::new();
+    agent_instance_hierarchy.hash(&mut hasher);
+    format!("agent-{:016x}", hasher.finish())
+}
+
+/// Percent-encode one URL query component (RFC 3986 unreserved set
+/// passes through; everything else — `/`, `&`, `#`, spaces, UTF-8
+/// bytes — encodes).
+fn encode_query_component(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        match byte {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'-' | b'_' | b'.' | b'~' => {
+                out.push(byte as char);
+            }
+            _ => out.push_str(&format!("%{byte:02X}")),
+        }
+    }
+    out
+}
+
+/// Create — or focus, when already open — the agent conversation
+/// window for one AIH: the `agent.html` entry (the popup UI as a full
+/// window; no tabs, no footer), scoped by the `aih` query parameter.
+fn open_agent_window_impl(
+    app: &tauri::AppHandle,
+    agent_instance_hierarchy: &str,
+) -> tauri::Result<()> {
+    use tauri::Manager;
+    let label = agent_window_label(agent_instance_hierarchy);
+    if let Some(existing) = app.get_webview_window(&label) {
+        let _ = existing.set_focus();
+        return Ok(());
+    }
+    let url = format!(
+        "agent.html?aih={}",
+        encode_query_component(agent_instance_hierarchy),
+    );
+    tauri::WebviewWindowBuilder::new(app, &label, tauri::WebviewUrl::App(url.into()))
+        .title(agent_instance_hierarchy)
+        .inner_size(1024.0, 768.0)
+        .build()?;
+    Ok(())
+}
+
+/// Open (or focus) the agent conversation window for `aih` — the tree's
+/// explicit `open` chip calls this instead of an in-page popup.
+#[tauri::command]
+fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), String> {
+    open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
+}
+
 #[derive(Envconfig)]
 struct EnvConfigBuilder {
     #[envconfig(from = "DAEMON_ADDRESS")]
@@ -144,6 +201,7 @@ impl ConfigBuilder {
             objectiveai_state: self
                 .objectiveai_state
                 .unwrap_or_else(|| "default".to_string()),
+            agent_instance_hierarchy: None,
         }
     }
 }
@@ -165,6 +223,12 @@ pub struct Config {
     pub objectiveai_dir: PathBuf,
     /// State name (`OBJECTIVEAI_STATE`); default `"default"`.
     pub objectiveai_state: String,
+    /// `--agent-instance-hierarchy`: open ONLY the agent conversation
+    /// window for this AIH (the main window never opens, and the
+    /// per-state viewer singleton lock is NOT taken — a scoped debug
+    /// instance, not THE viewer). Set by `main.rs` from clap, not the
+    /// environment.
+    pub agent_instance_hierarchy: Option<String>,
 }
 
 /// The one Rust-side WebSocket executor: `list_plugins_with_viewer`
@@ -204,6 +268,7 @@ pub fn serve(
     agents_dir: AgentsDir,
     plugins_dir: PathBuf,
     exiter_tx: Option<tokio::sync::oneshot::Sender<Exiter>>,
+    agent_window: Option<String>,
 ) -> i32 {
     // `viewer_ready`'s readiness marker. Nothing consumes the
     // notification today (the JS frontend talks to the daemon
@@ -225,6 +290,7 @@ pub fn serve(
         websocket_config,
         open_agent_remote,
         open_url,
+        open_agent_window,
         crate::plugins::list_plugins_with_viewer,
     ]);
     builder
@@ -232,6 +298,24 @@ pub fn serve(
             if let Some(tx) = exiter_tx {
                 let exit_handle = tauri_app.handle().clone();
                 tx.send(Box::new(move |code| exit_handle.exit(code))).ok();
+            }
+            // Windows are created HERE, not in tauri.conf.json —
+            // `--agent-instance-hierarchy` opens ONLY that agent's
+            // conversation window; otherwise the main window opens.
+            match &agent_window {
+                Some(aih) => {
+                    open_agent_window_impl(tauri_app.handle(), aih)?;
+                }
+                None => {
+                    tauri::WebviewWindowBuilder::new(
+                        tauri_app,
+                        "main",
+                        tauri::WebviewUrl::App("index.html".into()),
+                    )
+                    .title("ObjectiveAI Viewer")
+                    .inner_size(1024.0, 768.0)
+                    .build()?;
+                }
             }
             Ok(())
         })
@@ -266,10 +350,13 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
     // listener), so the content is a plain readiness marker, not a
     // URL. The claim is held until process death (LockClaim leaks on
     // drop by design) and the kernel releases it on any exit, crash
-    // included.
-    if objectiveai_sdk::lockfile::try_acquire(&lock_dir, "viewer", "ready")
-        .await
-        .is_none()
+    // included. An `--agent-instance-hierarchy` instance is a SCOPED
+    // debug window, not THE viewer — it takes no lock and coexists
+    // with a running main viewer.
+    if config.agent_instance_hierarchy.is_none()
+        && objectiveai_sdk::lockfile::try_acquire(&lock_dir, "viewer", "ready")
+            .await
+            .is_none()
     {
         return Err(std::io::Error::other(
             "another objectiveai-viewer instance already holds the viewer lock for this state",
@@ -300,5 +387,6 @@ pub async fn run(config: Config) -> std::io::Result<i32> {
         agents_dir,
         plugins_dir,
         None,
+        config.agent_instance_hierarchy.clone(),
     ))
 }

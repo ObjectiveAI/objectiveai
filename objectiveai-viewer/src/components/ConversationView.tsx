@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useState } from "react";
 import cn from "classnames";
 import type { DaemonConnection } from "../lib/daemon";
 import {
@@ -25,120 +25,48 @@ import { Markdown } from "./Markdown";
  * inside one [`ToolSection`], call arguments as pretty JSON. Media
  * renders for real: images, audio, video, file downloads.
  */
-export function ConversationModal({
+/**
+ * One agent's WHOLE conversation, fullscreen-fill — the content of the
+ * old popup as a standalone view (the agent conversation WINDOW's
+ * body; no tabs, no footer). Owns its own `/agents/instances/{*aih}`
+ * connection via [`useAgentInstance`]: blocks are the `agents logs
+ * list` `ResponseItem` mirror with content INLINE. Role-run
+ * presentation: consecutive same-role blocks share ONE [`KindLabel`]
+ * badge; reasoning and tool exchanges are collapsed-by-default
+ * DISCLOSURES — a tool call pairs with its response block by
+ * `tool_call_id` inside one [`ToolSection`]. Media renders for real.
+ */
+export function ConversationView({
   connection,
   hierarchy,
-  onClose,
 }: {
   connection: DaemonConnection | null;
   hierarchy: string;
-  onClose: () => void;
 }) {
   const { blocks, live } = useAgentInstance(connection, hierarchy);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => {
-      window.removeEventListener("keydown", handler);
-    };
-  }, [onClose]);
-
   return (
     <div
-      data-conversation-backdrop
-      onClick={onClose}
+      data-conversation-view
       className={cn(
-        // Absolute within the main pane's relative root — the popup
-        // is CONSTRAINED to the tab's content area (like plugin
-        // panes) and never eclipses the tab bar or status bar.
-        "absolute",
-        "inset-0",
-        "z-50",
-        "bg-ground/80",
-        "backdrop-blur-sm",
+        "h-full",
+        "overflow-auto",
+        // column-reverse: the browser NATIVELY pins scrollTop=0 to the
+        // bottom — opens at the newest rows and stays pinned through
+        // content growth with zero JS, and a user scrolling up is off
+        // the pin until they return. The DOM renders newest-first to
+        // match.
+        "flex",
+        "flex-col-reverse",
+        "[overflow-anchor:none]",
+        "px-4",
+        "py-3",
+        "gap-3",
+        "font-mono",
+        "text-[11px]",
+        "text-[#c3bfbb]",
       )}
     >
-      <div
-        data-conversation-modal
-        onClick={(e) => {
-          e.stopPropagation();
-        }}
-        className={cn(
-          "absolute",
-          "inset-4",
-          "flex",
-          "flex-col",
-          "overflow-hidden",
-          "rounded-md",
-          "border",
-          "border-copper-mid",
-          "bg-ground",
-          "shadow-[0_0_16px_rgba(217,119,6,0.25)]",
-          "font-mono",
-        )}
-      >
-        <header
-          className={cn(
-            "flex",
-            "items-center",
-            "gap-3",
-            "px-4",
-            "py-2.5",
-            "border-b",
-            "border-copper-mid/50",
-            "shrink-0",
-          )}
-        >
-          <span className={cn("text-[11px]", "text-info-mid", "truncate")}>
-            {hierarchy}
-          </span>
-          <button
-            type="button"
-            data-conversation-close
-            onClick={onClose}
-            aria-label="Close conversation"
-            className={cn(
-              "ml-auto",
-              "px-2",
-              "py-0.5",
-              "rounded-sm",
-              "text-copper-mid",
-              "hover:text-copper-bright",
-              "cursor-pointer",
-              "text-sm",
-              "leading-none",
-            )}
-          >
-            {"✕"}
-          </button>
-        </header>
-        <div
-          className={cn(
-            "flex-1",
-            "overflow-auto",
-            // column-reverse: the browser NATIVELY pins scrollTop=0
-            // to the bottom — opens at the newest rows and stays
-            // pinned through content growth with zero JS, and a user
-            // scrolling up is off the pin until they return. The DOM
-            // renders newest-first to match.
-            "flex",
-            "flex-col-reverse",
-            "[overflow-anchor:none]",
-            "px-4",
-            "py-3",
-            "gap-3",
-            "text-[11px]",
-            "text-[#c3bfbb]",
-          )}
-        >
-          <ConversationBody blocks={blocks} live={live} />
-        </div>
-      </div>
+      <ConversationBody blocks={blocks} live={live} />
     </div>
   );
 }

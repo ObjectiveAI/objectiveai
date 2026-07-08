@@ -2,7 +2,6 @@ import { useLayoutEffect, useRef, useState } from "react";
 import cn from "classnames";
 import { tauriInvoke } from "../lib/tauri";
 import type { DaemonConnection } from "../lib/daemon";
-import { ConversationModal } from "./ConversationModal";
 import { LoadingDots } from "./LoadingDots";
 import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
@@ -45,7 +44,6 @@ export function HierarchyTree({
   connection: DaemonConnection | null;
   agents: AgentStatus[];
 }) {
-  const [openHierarchy, setOpenHierarchy] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{
     x: number;
@@ -146,20 +144,19 @@ export function HierarchyTree({
             name={name}
             members={members}
             connection={connection}
-            onOpen={setOpenHierarchy}
+            onOpen={openAgentWindow}
           />
         ))}
       </div>
     </div>
-    {openHierarchy !== null && (
-      <ConversationModal
-        connection={connection}
-        hierarchy={openHierarchy}
-        onClose={() => setOpenHierarchy(null)}
-      />
-    )}
     </>
   );
+}
+
+/** Open (or focus) the agent's conversation WINDOW — a real Tauri
+ * window on the `agent.html` entry, created by the Rust shell. */
+function openAgentWindow(hierarchy: string): void {
+  void tauriInvoke("open_agent_window", { aih: hierarchy });
 }
 
 /**
