@@ -197,7 +197,7 @@
             0.0
           ],
           "weight": 0.4,
-          "completion_index": 1
+          "completion_index": 2
         }
       ],
       "scores": [
@@ -418,7 +418,7 @@
             1.0
           ],
           "weight": 0.4,
-          "completion_index": 1
+          "completion_index": 2
         }
       ],
       "scores": [

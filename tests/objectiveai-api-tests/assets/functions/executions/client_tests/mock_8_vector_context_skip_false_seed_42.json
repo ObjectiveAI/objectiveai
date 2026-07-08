@@ -694,7 +694,7 @@
             0.0
           ],
           "weight": 0.4,
-          "completion_index": 2
+          "completion_index": 1
         },
         {
           "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -711,7 +711,7 @@
             0.542529045016515
           ],
           "weight": 0.6,
-          "completion_index": 1
+          "completion_index": 2
         }
       ],
       "scores": [
@@ -1096,7 +1096,7 @@
             0.0
           ],
           "weight": 0.4,
-          "completion_index": 2
+          "completion_index": 1
         },
         {
           "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -1113,7 +1113,7 @@
             0.503495095546452
           ],
           "weight": 0.6,
-          "completion_index": 1
+          "completion_index": 2
         }
       ],
       "scores": [

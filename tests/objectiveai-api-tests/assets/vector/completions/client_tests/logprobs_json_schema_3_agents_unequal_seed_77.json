@@ -683,7 +683,7 @@
         0.4075011445169131
       ],
       "weight": 0.3333333333333335,
-      "completion_index": 0
+      "completion_index": 2
     },
     {
       "agent_full_id": "4QSADkWSPB34Fj2Vr3oFwM",
@@ -725,7 +725,7 @@
         0.1112002056881818
       ],
       "weight": 0.3333333333333335,
-      "completion_index": 2
+      "completion_index": 0
     }
   ],
   "scores": [

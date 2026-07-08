@@ -5082,7 +5082,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 0.0
+          "completion_index": 19.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5099,7 +5099,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 1.0
+          "completion_index": 18.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5116,7 +5116,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 2.0
+          "completion_index": 17.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5133,7 +5133,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 3.0
+          "completion_index": 4.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5150,7 +5150,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 4.0
+          "completion_index": 16.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5167,7 +5167,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 5.0
+          "completion_index": 3.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5184,7 +5184,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 6.0
+          "completion_index": 2.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5201,7 +5201,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 7.0
+          "completion_index": 9.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5218,7 +5218,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 8.0
+          "completion_index": 6.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5235,7 +5235,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 9.0
+          "completion_index": 12.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5252,7 +5252,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 10.0
+          "completion_index": 13.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5269,7 +5269,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 11.0
+          "completion_index": 5.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5286,7 +5286,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 12.0
+          "completion_index": 15.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5303,7 +5303,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 13.0
+          "completion_index": 0.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5320,7 +5320,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 14.0
+          "completion_index": 8.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5337,7 +5337,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 15.0
+          "completion_index": 14.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5354,7 +5354,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 16.0
+          "completion_index": 11.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5371,7 +5371,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 17.0
+          "completion_index": 1.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5388,7 +5388,7 @@
             0.0
           ],
           "weight": 1.0,
-          "completion_index": 18.0
+          "completion_index": 10.0
         },
         {
           "agent_full_id": "4GFqBSqtBivHEOdQB9f0lD",
@@ -5405,7 +5405,7 @@
             1.0
           ],
           "weight": 1.0,
-          "completion_index": 19.0
+          "completion_index": 7.0
         }
       ],
       "scores": [
