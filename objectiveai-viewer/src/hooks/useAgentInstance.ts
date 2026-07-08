@@ -16,7 +16,6 @@ import {
   WebSocketAgentsInstancesListener,
   type CliWebsocketAgentsInstancesListenerAgentRecord,
   type CliWebsocketAgentsInstancesListenerConversationBlock,
-  type CliWebsocketAgentsInstancesListenerConversationRow,
 } from "@objectiveai/sdk";
 import type { DaemonConnection } from "../lib/daemon";
 import { reportError } from "../lib/errors";
@@ -24,8 +23,6 @@ import { reportError } from "../lib/errors";
 export type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
 export type ConversationBlock =
   CliWebsocketAgentsInstancesListenerConversationBlock;
-export type ConversationRow =
-  CliWebsocketAgentsInstancesListenerConversationRow;
 
 export interface AgentInstanceView {
   /** The agent's status record — `null` until the first status frame

@@ -1,19 +1,21 @@
 /**
- * Shared per-kind rendering for conversation rows — the inlined
- * content of the daemon's `/agents/instances/{*aih}` stream. Used by
- * the hierarchy tree's latest-item box (last row only) and the
- * conversation popup (every row): one place decides how each content
- * permutation displays and what its indicator label says. Tool calls
- * surface the tool NAME in the label and their arguments as formatted
- * JSON; text-ish kinds render as markdown; media kinds render as
- * URL/format/filename lines.
+ * Shared per-kind rendering for conversation content — the mirror
+ * blocks of the daemon's `/agents/instances/{*aih}` stream (the
+ * `agents logs list` `ResponseItem` family with content inlined).
+ * Used by the hierarchy tree's latest-item box (last part only) and
+ * the conversation popup (every part): one place decides how each
+ * content permutation displays and what its indicator label says.
  */
 import cn from "classnames";
-import { Markdown } from "./Markdown";
 import type {
-  ConversationBlock,
-  ConversationRow,
-} from "../hooks/useAgentInstance";
+  CliWebsocketAgentsInstancesListenerAssistantResponsePart,
+  CliWebsocketAgentsInstancesListenerPartContent,
+} from "@objectiveai/sdk";
+import { Markdown } from "./Markdown";
+import type { ConversationBlock } from "../hooks/useAgentInstance";
+
+export type PartContent = CliWebsocketAgentsInstancesListenerPartContent;
+export type AssistantPart = CliWebsocketAgentsInstancesListenerAssistantResponsePart;
 
 /** The block-level scope label — the first half of every indicator.
  * Deliberately coarse: request-vs-response is not distinguished
@@ -34,6 +36,8 @@ export function blockScope(block: ConversationBlock): string {
       return "choices";
     case "vector_response_vote":
       return "vote";
+    case "error":
+      return "error";
     default:
       // LOUD on purpose: a new block kind must be handled here, not
       // silently mislabeled.
@@ -45,37 +49,16 @@ export function blockScope(block: ConversationBlock): string {
   }
 }
 
-/** Render one row per content kind, labeled `{scope} · {kind}` — tool
- * calls surface the tool NAME in the label and their arguments as
- * formatted JSON. `body: null` means nothing presentable (heads). */
-export function describeRow(
+/** Render one media content per kind, labeled `{scope} · {kind}`. */
+export function describeContent(
   scope: string,
-  row: ConversationRow | null,
+  content: PartContent,
 ): { label: string; body: React.ReactNode } {
-  if (row === null) {
-    return { label: scope, body: null };
-  }
-  const content = row.content;
   switch (content.type) {
     case "text":
       return {
         label: `${scope} · text`,
         body: <Markdown>{content.text}</Markdown>,
-      };
-    case "reasoning":
-      return {
-        label: `${scope} · reasoning`,
-        body: <Markdown>{content.text}</Markdown>,
-      };
-    case "refusal":
-      return {
-        label: `${scope} · refusal`,
-        body: <Markdown>{content.text}</Markdown>,
-      };
-    case "tool_call":
-      return {
-        label: `tool call · ${content.function_name}`,
-        body: <JsonBody value={content.arguments} />,
       };
     case "image":
       return { label: `${scope} · image`, body: <UrlBody url={content.url} /> };
@@ -91,22 +74,104 @@ export function describeRow(
         content.filename ?? content.file_url ?? content.file_id ?? "[file]";
       return { label: `${scope} · file`, body: <span>{label}</span> };
     }
-    case "vote":
-      return {
-        label: `${scope} · vote`,
-        body: <JsonBody value={content.vote} />,
-      };
-    case "head":
-      // Heads never materialize as parts — defensive only.
-      return { label: scope, body: null };
     default:
       // LOUD on purpose: a new content kind must be handled here, not
       // silently mislabeled.
       throw new Error(
-        `unhandled conversation content kind: ${String(
+        `unhandled part content kind: ${String(
           (content as { type: unknown }).type,
         )}`,
       );
+  }
+}
+
+/** Render one assistant-family part per kind — tool calls surface the
+ * tool NAME in the label and their arguments as formatted JSON. */
+export function describeAssistantPart(
+  scope: string,
+  part: AssistantPart,
+): { label: string; body: React.ReactNode } {
+  switch (part.type) {
+    case "text":
+      return {
+        label: `${scope} · text`,
+        body: <Markdown>{part.text}</Markdown>,
+      };
+    case "reasoning":
+      return {
+        label: `${scope} · reasoning`,
+        body: <Markdown>{part.text}</Markdown>,
+      };
+    case "refusal":
+      return {
+        label: `${scope} · refusal`,
+        body: <Markdown>{part.text}</Markdown>,
+      };
+    case "tool_call":
+      return {
+        label: `tool call · ${part.function_name}`,
+        body: <JsonBody value={part.arguments} />,
+      };
+    case "image":
+      return {
+        label: `${scope} · image`,
+        body: <UrlBody url={part.image.url} />,
+      };
+    case "audio":
+      return {
+        label: `${scope} · audio`,
+        body: <span>[audio · {part.audio.format}]</span>,
+      };
+    case "video":
+      return {
+        label: `${scope} · video`,
+        body: <UrlBody url={part.video.url} />,
+      };
+    case "file": {
+      const label =
+        part.file.filename ?? part.file.file_url ?? part.file.file_id ??
+        "[file]";
+      return { label: `${scope} · file`, body: <span>{label}</span> };
+    }
+    default:
+      throw new Error(
+        `unhandled assistant part kind: ${String(
+          (part as { type: unknown }).type,
+        )}`,
+      );
+  }
+}
+
+/** What a block's LATEST item is (the tree's indicator + body): the
+ * last part, per kind — or the block's own inline value for the
+ * single-row kinds (vote / error). */
+export function describeLastItem(block: ConversationBlock): {
+  label: string;
+  body: React.ReactNode;
+} {
+  const scope = blockScope(block);
+  switch (block.type) {
+    case "vector_response_vote":
+      return { label: scope, body: <JsonBody value={block.vote} /> };
+    case "error":
+      return { label: scope, body: <JsonBody value={block.error} /> };
+    case "assistant_response":
+    case "request_message_assistant": {
+      const part = block.parts[block.parts.length - 1];
+      if (part === undefined) return { label: scope, body: null };
+      return describeAssistantPart(scope, part);
+    }
+    case "vector_request_choices": {
+      const choice = block.choices[block.choices.length - 1];
+      const part = choice?.parts[choice.parts.length - 1];
+      if (part === undefined) return { label: scope, body: null };
+      return describeContent(scope, part.content);
+    }
+    default: {
+      const part = block.parts[block.parts.length - 1];
+      if (part === undefined) return { label: scope, body: null };
+      return describeContent(scope, part.content);
+    }
   }
 }
 
@@ -139,33 +204,4 @@ export function JsonBody({ value }: { value: unknown }) {
 
 export function UrlBody({ url }: { url: string }) {
   return <span className={cn("break-all")}>{url}</span>;
-}
-
-/** The little copper indicator chip naming what an item is. */
-export function KindChip({
-  label,
-  marker,
-}: {
-  label: string;
-  marker?: string;
-}) {
-  return (
-    <span
-      {...(marker !== undefined ? { [marker]: "" } : {})}
-      className={cn(
-        "self-start",
-        "px-1.5",
-        "py-px",
-        "rounded-sm",
-        "border",
-        "border-copper-mid/70",
-        "bg-copper-warm/10",
-        "text-copper-bright",
-        "text-[9px]",
-        "whitespace-nowrap",
-      )}
-    >
-      {label}
-    </span>
-  );
 }

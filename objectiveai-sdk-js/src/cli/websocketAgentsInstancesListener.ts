@@ -6,20 +6,19 @@
  *
  * One connection carries TWO structurally independent concerns:
  *
- * - **The conversation** — the agent's full history replayed from the
- *   DB as keyed FULL-VALUE `row` events (never deltas), one `live`
- *   marker, then rows streaming as they occur (teed straight from the
- *   CLI's log writer, not gated on the DB insert). Rows are folded
- *   into an ordered list of blocks mirroring `agents logs list`'s
- *   `ResponseItem` classes with content INLINED. A re-sent row
- *   identity `(table, response_id, row_index, row_sub_index)` REPLACES
- *   the prior value — per-connection ordering means later = more
- *   complete, and the snapshot/live seam converges by the same rule.
+ * - **The conversation** — typed part events (one per conversation
+ *   row, each naming its block class and carrying its class's boundary
+ *   fields + ONE mirrored part + the DB row identity as an opaque
+ *   replace-at key), replayed from the DB snapshot first, one `live`
+ *   marker, then live as the agent produces them. Events fold into an
+ *   ordered list of {@link ConversationBlock}s — the exact mirror of
+ *   `agents logs list`'s `ResponseItem` family with content INLINED.
+ *   A re-sent identity REPLACES the prior part (later = more
+ *   complete), which also converges the snapshot/live seam.
  * - **The agent's status** — `agent` events carry this agent's list
- *   record (lock-driven active flag, bound tags, counters; the same
- *   shape `/agents/instances/list` tracks), once at connect and on
- *   every change. Held separately; the conversation callback never
- *   fires for it and vice versa.
+ *   record (lock-driven active flag, bound tags, counters), once at
+ *   connect and on every change. Held separately; the conversation
+ *   callback never fires for it and vice versa.
  *
  * Auth is the first-message preamble shared by every daemon WebSocket
  * route. One listener = one connection: the daemon DISCONNECTS lagging
@@ -33,264 +32,247 @@
 import type {
   CliWebsocketAgentsInstancesListenerAgentInstanceEvent,
   CliWebsocketAgentsInstancesListenerAgentRecord,
+  CliWebsocketAgentsInstancesListenerAssistantResponsePart,
+  CliWebsocketAgentsInstancesListenerClientNotificationPart,
   CliWebsocketAgentsInstancesListenerConversationBlock,
-  CliWebsocketAgentsInstancesListenerConversationChoice,
-  CliWebsocketAgentsInstancesListenerConversationRow,
+  CliWebsocketAgentsInstancesListenerRequestMessageUserPart,
+  CliWebsocketAgentsInstancesListenerToolResponsePart,
+  CliWebsocketAgentsInstancesListenerVectorRequestChoice,
+  CliWebsocketAgentsInstancesListenerVectorRequestChoicePart,
 } from "./websocket_agents_instances_listener";
 
 type AgentRecord = CliWebsocketAgentsInstancesListenerAgentRecord;
 type AgentInstanceEvent = CliWebsocketAgentsInstancesListenerAgentInstanceEvent;
 type ConversationBlock = CliWebsocketAgentsInstancesListenerConversationBlock;
-type ConversationChoice = CliWebsocketAgentsInstancesListenerConversationChoice;
-type ConversationRow = CliWebsocketAgentsInstancesListenerConversationRow;
+type AssistantResponsePart = CliWebsocketAgentsInstancesListenerAssistantResponsePart;
+type ClientNotificationPart = CliWebsocketAgentsInstancesListenerClientNotificationPart;
+type RequestMessageUserPart = CliWebsocketAgentsInstancesListenerRequestMessageUserPart;
+type ToolResponsePart = CliWebsocketAgentsInstancesListenerToolResponsePart;
+type VectorRequestChoice = CliWebsocketAgentsInstancesListenerVectorRequestChoice;
+type VectorRequestChoicePart = CliWebsocketAgentsInstancesListenerVectorRequestChoicePart;
 
-/** Coarse block-class for a row's `table` — mirrors the CLI reader's
- * classifier (head kinds map to the class they carry metadata for). */
-type BlockClass =
-  | "client_notification"
-  | "assistant_response"
-  | "tool_response"
-  | "request_message_user"
-  | "request_message_assistant"
-  | "request_message_tool"
-  | "vector_request_choices"
-  | "vector_response_vote";
-
-/** Prefix-ordered classifier: more specific prefixes first (the
- * request_message_* families are mutually exclusive). */
-function blockClass(table: string): BlockClass {
-  if (table.startsWith("message_queue")) return "client_notification";
-  if (table.startsWith("assistant_response")) return "assistant_response";
-  if (table.startsWith("tool_response")) return "tool_response";
-  if (table.startsWith("request_message_user")) return "request_message_user";
-  if (table.startsWith("request_message_assistant")) {
-    return "request_message_assistant";
+/** The conversation part-event variants (everything except `live` /
+ * `agent` / the single-shot `vector_response_vote` and `error`). */
+type PartEvent = Extract<
+  AgentInstanceEvent,
+  {
+    type:
+      | "request_message_user_part"
+      | "request_message_assistant_part"
+      | "request_message_tool_part"
+      | "vector_request_choice_part"
+      | "client_notification_part"
+      | "assistant_response_part"
+      | "tool_response_part";
   }
-  if (table.startsWith("request_message_tool")) return "request_message_tool";
-  if (table.startsWith("request_vector_choice")) return "vector_request_choices";
-  return "vector_response_vote"; // response_vector_vote
-}
+>;
 
-/** The Rust `RowTableKind` declaration order — the deterministic
- * tie-break for parts sharing `(row_index, row_sub_index)` (e.g. a
- * refusal and a reasoning on the same message index). */
-const TABLE_ORDER: readonly string[] = [
-  "message_queue_text",
-  "message_queue_image",
-  "message_queue_audio",
-  "message_queue_video",
-  "message_queue_file",
-  "assistant_response_refusal",
-  "assistant_response_reasoning",
-  "assistant_response_tool_calls",
-  "assistant_response_content_text",
-  "assistant_response_content_image",
-  "assistant_response_content_audio",
-  "assistant_response_content_video",
-  "assistant_response_content_file",
-  "tool_response_content_text",
-  "tool_response_content_image",
-  "tool_response_content_audio",
-  "tool_response_content_video",
-  "tool_response_content_file",
-  "request_message_user_content_text",
-  "request_message_user_content_image",
-  "request_message_user_content_audio",
-  "request_message_user_content_video",
-  "request_message_user_content_file",
-  "request_message_assistant_refusal",
-  "request_message_assistant_reasoning",
-  "request_message_assistant_tool_calls",
-  "request_message_assistant_content_text",
-  "request_message_assistant_content_image",
-  "request_message_assistant_content_audio",
-  "request_message_assistant_content_video",
-  "request_message_assistant_content_file",
-  "request_message_tool_content_text",
-  "request_message_tool_content_image",
-  "request_message_tool_content_audio",
-  "request_message_tool_content_video",
-  "request_message_tool_content_file",
-  "request_vector_choice_content_text",
-  "request_vector_choice_content_image",
-  "request_vector_choice_content_audio",
-  "request_vector_choice_content_video",
-  "request_vector_choice_content_file",
-  "response_vector_vote",
-  "tool_response",
-  "request_message_tool",
-  "request_vector_choice",
-];
-const TABLE_INDEX = new Map(TABLE_ORDER.map((name, index) => [name, index]));
-
-/** A row's replace-at key — identical between the snapshot replay and
- * the live tee (AIH is constant per connection and omitted). */
-function rowIdentity(row: ConversationRow): string {
-  return `${row.table}|${row.response_id}|${row.row_index}|${
-    row.row_sub_index ?? ""
-  }`;
-}
-
-/** One in-progress block. Parts are keyed by identity and sorted by
- * `(row_index, row_sub_index, table order)` at materialize time —
- * arrival-independent, so a late replacement lands in place. */
-type BlockState = {
-  class: BlockClass;
+/** One in-progress multi-part block: its boundary key (canonical
+ * string — equal keys join on adjacency), block-level fields, and its
+ * parts keyed by the row identity for replace-in-place. */
+type OpenBlock = {
+  kind: "open";
+  class: PartEvent["type"];
+  keyString: string;
   agent_instance_hierarchy: string;
   response_id: string;
-  tool_call_id: string | null;
-  sender: string | null;
-  message_queue_id: number | null;
-  queued_at: string | null;
+  tool_call_id: string;
+  sender: string;
+  message_queue_id: number;
+  queued_at: string;
   key: string | null;
-  vote: number[] | null;
-  choiceKeys: Map<number, string>;
-  parts: Map<string, ConversationRow>;
+  parts: Map<
+    string,
+    {
+      rowIndex: number;
+      rowSubIndex: number | null;
+      choiceKey: string;
+      part:
+        | AssistantResponsePart
+        | ClientNotificationPart
+        | RequestMessageUserPart
+        | ToolResponsePart
+        | VectorRequestChoicePart;
+    }
+  >;
 };
 
-function newBlock(cls: BlockClass, row: ConversationRow): BlockState {
+/** A complete single-row block (vote — replaced at identity; error —
+ * immutable, deduped by value). */
+type SingleBlock = {
+  kind: "single";
+  block: ConversationBlock;
+};
+
+type Slot = OpenBlock | SingleBlock;
+
+/** The block boundary as a canonical string — `read_all`'s exact
+ * tuple, typed per class (AIH omitted: constant per connection). */
+function blockKeyString(event: PartEvent): string {
+  switch (event.type) {
+    case "request_message_user_part":
+    case "request_message_assistant_part":
+    case "assistant_response_part":
+    case "vector_request_choice_part":
+      return `${event.type}|${event.response_id}`;
+    case "request_message_tool_part":
+    case "tool_response_part":
+      return `${event.type}|${event.response_id}|${event.tool_call_id}`;
+    case "client_notification_part":
+      return `${event.type}|${event.response_id}|${event.sender_agent_instance_hierarchy}|${event.message_queue_id}`;
+  }
+}
+
+/** A part's replace-at key (identical between snapshot and live). */
+function partIdentity(event: PartEvent): string {
+  const [rowIndex, rowSubIndex] = eventIndices(event);
+  return `${event.type}|${event.response_id}|${rowIndex}|${rowSubIndex ?? ""}`;
+}
+
+function eventIndices(event: PartEvent): [number, number | null] {
+  if (event.type === "vector_request_choice_part") {
+    return [event.choice_index, event.part_index];
+  }
+  if (event.type === "client_notification_part") {
+    return [event.row_index, null];
+  }
+  return [event.row_index, event.row_sub_index ?? null];
+}
+
+function newOpenBlock(event: PartEvent): OpenBlock {
   return {
-    class: cls,
-    agent_instance_hierarchy: row.agent_instance_hierarchy,
-    response_id: row.response_id,
-    tool_call_id: null,
-    sender: null,
-    message_queue_id: null,
-    queued_at: null,
+    kind: "open",
+    class: event.type,
+    keyString: blockKeyString(event),
+    agent_instance_hierarchy: event.agent_instance_hierarchy,
+    response_id: event.response_id,
+    tool_call_id:
+      event.type === "request_message_tool_part" ||
+      event.type === "tool_response_part"
+        ? event.tool_call_id
+        : "",
+    sender:
+      event.type === "client_notification_part"
+        ? event.sender_agent_instance_hierarchy
+        : "",
+    message_queue_id:
+      event.type === "client_notification_part" ? event.message_queue_id : 0,
+    queued_at: event.type === "client_notification_part" ? event.queued_at : "",
     key: null,
-    vote: null,
-    choiceKeys: new Map(),
     parts: new Map(),
   };
 }
 
-/** Does `row` (a NEW identity of `cls`) belong to this block? The CLI
- * reader's boundary tuple, evaluated against the LAST block: `(class,
- * aih, response_id)` + sender/queue-id for notifications +
- * `tool_call_id` for the tool classes. A live tool CONTENT row carries
- * no `tool_call_id` (only its head does) — adjacency stands in, which
- * is exact because the writer emits head then contents consecutively. */
-function accepts(
-  block: BlockState,
-  cls: BlockClass,
-  row: ConversationRow,
-): boolean {
-  if (
-    block.class !== cls ||
-    block.agent_instance_hierarchy !== row.agent_instance_hierarchy ||
-    block.response_id !== row.response_id
-  ) {
-    return false;
+/** Fold one part event into its block: block-level metadata refreshes
+ * (constant per block by construction), the part upserts its slot. */
+function applyToBlock(block: OpenBlock, event: PartEvent): void {
+  const [rowIndex, rowSubIndex] = eventIndices(event);
+  if (event.type === "client_notification_part") {
+    block.queued_at = event.queued_at;
+    block.key = event.key ?? null;
   }
-  if (cls === "client_notification") {
-    return (
-      block.sender === (row.sender_agent_instance_hierarchy ?? null) &&
-      block.message_queue_id === (row.message_queue_id ?? null)
-    );
-  }
-  if (cls === "tool_response" || cls === "request_message_tool") {
-    const rowId = row.tool_call_id ?? null;
-    if (rowId !== null && block.tool_call_id !== null) {
-      return rowId === block.tool_call_id;
-    }
-    return true; // no id on one side: adjacency decides
-  }
-  return true;
-}
-
-/** Fold one row in: metadata always merges; HEAD/vote rows carry no
- * part; everything else upserts its part slot. */
-function applyToBlock(block: BlockState, row: ConversationRow): void {
-  if (row.tool_call_id != null) block.tool_call_id = row.tool_call_id;
-  if (row.choice_key != null) block.choiceKeys.set(row.row_index, row.choice_key);
-  if (row.sender_agent_instance_hierarchy != null) {
-    block.sender = row.sender_agent_instance_hierarchy;
-  }
-  if (row.queued_at != null) block.queued_at = row.queued_at;
-  if (row.message_queue_key != null) block.key = row.message_queue_key;
-  if (row.message_queue_id != null) block.message_queue_id = row.message_queue_id;
-  if (row.content.type === "head") return;
-  if (row.content.type === "vote") {
-    block.vote = row.content.vote;
-    return;
-  }
-  block.parts.set(rowIdentity(row), row);
-}
-
-/** Sorted parts — `(row_index, row_sub_index [null first], table)`. */
-function sortedParts(block: BlockState): ConversationRow[] {
-  return [...block.parts.values()].sort((a, b) => {
-    if (a.row_index !== b.row_index) return a.row_index - b.row_index;
-    const aSub = a.row_sub_index ?? -Infinity;
-    const bSub = b.row_sub_index ?? -Infinity;
-    if (aSub !== bSub) return aSub < bSub ? -1 : 1;
-    return (TABLE_INDEX.get(a.table) ?? 0) - (TABLE_INDEX.get(b.table) ?? 0);
+  block.parts.set(partIdentity(event), {
+    rowIndex,
+    rowSubIndex,
+    choiceKey: event.type === "vector_request_choice_part" ? event.key : "",
+    part: event.part,
   });
 }
 
-/** Materialize — `null` while the block has nothing presentable yet
- * (e.g. a lone head row whose contents are in flight). */
-function toBlock(block: BlockState): ConversationBlock | null {
+/** Sorted part entries — `(row_index, row_sub_index [null first])`. */
+function sortedParts(block: OpenBlock) {
+  return [...block.parts.values()].sort((a, b) => {
+    if (a.rowIndex !== b.rowIndex) return a.rowIndex - b.rowIndex;
+    const aSub = a.rowSubIndex ?? -Infinity;
+    const bSub = b.rowSubIndex ?? -Infinity;
+    return aSub < bSub ? -1 : aSub > bSub ? 1 : 0;
+  });
+}
+
+/** Materialize one open block as its `ResponseItem`-mirror shape. */
+function toBlock(block: OpenBlock): ConversationBlock | null {
+  if (block.parts.size === 0) return null;
   const base = {
     agent_instance_hierarchy: block.agent_instance_hierarchy,
     response_id: block.response_id,
   };
   switch (block.class) {
-    case "request_message_user":
-    case "request_message_assistant":
-    case "assistant_response": {
-      if (block.parts.size === 0) return null;
-      return { type: block.class, ...base, parts: sortedParts(block) };
-    }
-    case "request_message_tool":
-    case "tool_response": {
-      if (block.parts.size === 0) return null;
+    case "request_message_user_part":
       return {
-        type: block.class,
+        type: "request_message_user",
         ...base,
-        tool_call_id: block.tool_call_id ?? "",
-        parts: sortedParts(block),
+        parts: sortedParts(block).map(
+          (entry) => entry.part as RequestMessageUserPart,
+        ),
       };
-    }
-    case "vector_request_choices": {
-      if (block.parts.size === 0) return null;
-      // Parts iterate ordered by (choice index, part index); group
-      // consecutive runs of one choice index.
-      const choices: ConversationChoice[] = [];
-      let current: { index: number; choice: ConversationChoice } | null = null;
-      for (const row of sortedParts(block)) {
-        if (current !== null && current.index === row.row_index) {
-          current.choice.parts.push(row);
+    case "request_message_assistant_part":
+      return {
+        type: "request_message_assistant",
+        ...base,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as AssistantResponsePart,
+        ),
+      };
+    case "assistant_response_part":
+      return {
+        type: "assistant_response",
+        ...base,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as AssistantResponsePart,
+        ),
+      };
+    case "request_message_tool_part":
+      return {
+        type: "request_message_tool",
+        ...base,
+        tool_call_id: block.tool_call_id,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ToolResponsePart,
+        ),
+      };
+    case "tool_response_part":
+      return {
+        type: "tool_response",
+        ...base,
+        tool_call_id: block.tool_call_id,
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ToolResponsePart,
+        ),
+      };
+    case "client_notification_part":
+      return {
+        type: "client_notification",
+        ...base,
+        sender_agent_instance_hierarchy: block.sender,
+        queued_at: block.queued_at,
+        ...(block.key !== null ? { key: block.key } : {}),
+        parts: sortedParts(block).map(
+          (entry) => entry.part as ClientNotificationPart,
+        ),
+      };
+    case "vector_request_choice_part": {
+      // Ordered by (choice index, part index); group consecutive runs
+      // of one choice index.
+      const choices: VectorRequestChoice[] = [];
+      let current: { index: number; choice: VectorRequestChoice } | null =
+        null;
+      for (const entry of sortedParts(block)) {
+        if (current !== null && current.index === entry.rowIndex) {
+          current.choice.key = entry.choiceKey;
+          current.choice.parts.push(entry.part as VectorRequestChoicePart);
         } else {
           if (current !== null) choices.push(current.choice);
           current = {
-            index: row.row_index,
+            index: entry.rowIndex,
             choice: {
-              key: block.choiceKeys.get(row.row_index) ?? "",
-              parts: [row],
+              key: entry.choiceKey,
+              parts: [entry.part as VectorRequestChoicePart],
             },
           };
         }
       }
       if (current !== null) choices.push(current.choice);
       return { type: "vector_request_choices", ...base, choices };
-    }
-    case "vector_response_vote": {
-      if (block.vote === null) return null;
-      return { type: "vector_response_vote", ...base, vote: block.vote };
-    }
-    case "client_notification": {
-      if (block.parts.size === 0) return null;
-      return {
-        type: "client_notification",
-        ...base,
-        ...(block.sender !== null
-          ? { sender_agent_instance_hierarchy: block.sender }
-          : {}),
-        ...(block.queued_at !== null ? { queued_at: block.queued_at } : {}),
-        ...(block.key !== null ? { key: block.key } : {}),
-        parts: sortedParts(block),
-      };
     }
   }
 }
@@ -321,7 +303,7 @@ export interface WebSocketAgentsInstancesListenerOptions {
  *   `ws://127.0.0.1:49152/agents/instances/${aih}`,
  *   { signature, onChange: render, onAgentChange: renderStatus },
  * );
- * listener.conversation(); // ConversationBlock[]
+ * listener.conversation(); // ConversationBlock[] — the logs-list mirror
  * listener.agent();        // AgentRecord | null — active, tags, counters
  * listener.live;           // snapshot replay complete?
  * await listener.subscribe(); // resolves on the next change (either concern)
@@ -330,8 +312,8 @@ export interface WebSocketAgentsInstancesListenerOptions {
 export class WebSocketAgentsInstancesListener {
   #ws: WebSocket;
   #closed = false;
-  #blocks: BlockState[] = [];
-  #rowToBlock = new Map<string, number>();
+  #slots: Slot[] = [];
+  #partToSlot = new Map<string, number>();
   #live = false;
   #agent: AgentRecord | null = null;
   #onChange?: (blocks: ConversationBlock[]) => void;
@@ -418,11 +400,16 @@ export class WebSocketAgentsInstancesListener {
     this.#onClose();
   }
 
-  /** The current conversation, blocks in conversation order. */
+  /** The current conversation, blocks in conversation order — the
+   * `agents logs list` `ResponseItem` mirror, content inlined. */
   conversation(): ConversationBlock[] {
     const out: ConversationBlock[] = [];
-    for (const block of this.#blocks) {
-      const materialized = toBlock(block);
+    for (const slot of this.#slots) {
+      if (slot.kind === "single") {
+        out.push(slot.block);
+        continue;
+      }
+      const materialized = toBlock(slot);
       if (materialized !== null) out.push(materialized);
     }
     return out;
@@ -453,10 +440,6 @@ export class WebSocketAgentsInstancesListener {
     if (typeof (frame as { type?: unknown }).type !== "string") return;
     const event = frame as AgentInstanceEvent;
     switch (event.type) {
-      case "row":
-        this.#applyRow(event.row);
-        this.#onChange?.(this.conversation());
-        break;
       case "live":
         this.#live = true;
         this.#onChange?.(this.conversation());
@@ -465,6 +448,37 @@ export class WebSocketAgentsInstancesListener {
         this.#agent = event.agent;
         this.#onAgentChange?.(event.agent);
         break;
+      case "vector_response_vote":
+        this.#applySingle(`vote|${event.response_id}`, {
+          type: "vector_response_vote",
+          agent_instance_hierarchy: event.agent_instance_hierarchy,
+          response_id: event.response_id,
+          vote: event.vote,
+        });
+        this.#onChange?.(this.conversation());
+        break;
+      case "error":
+        this.#applyError({
+          type: "error",
+          agent_instance_hierarchy: event.agent_instance_hierarchy,
+          ...(event.response_id != null
+            ? { response_id: event.response_id }
+            : {}),
+          error: event.error,
+          delivered_at: event.delivered_at,
+        });
+        this.#onChange?.(this.conversation());
+        break;
+      case "request_message_user_part":
+      case "request_message_assistant_part":
+      case "request_message_tool_part":
+      case "vector_request_choice_part":
+      case "client_notification_part":
+      case "assistant_response_part":
+      case "tool_response_part":
+        this.#applyPart(event);
+        this.#onChange?.(this.conversation());
+        break;
       default:
         // Unknown event kind — skipped (forward compat).
         return;
@@ -472,25 +486,53 @@ export class WebSocketAgentsInstancesListener {
     this.#wake();
   }
 
-  /** Fold one row: a known identity routes straight back to its block
-   * (replace in place — never re-runs boundary logic); a new identity
-   * boundary-tests against the LAST block only, joining it or opening
-   * a new one. Block order = arrival order = conversation order. */
-  #applyRow(row: ConversationRow): void {
-    const identity = rowIdentity(row);
-    let target = this.#rowToBlock.get(identity);
+  /** Fold one part event: a known identity routes straight back to its
+   * slot (replace in place — never re-runs boundary logic); a new
+   * identity joins the LAST slot iff it is an open block with an EQUAL
+   * boundary key, else opens a new block. Block order = arrival order
+   * = conversation order. */
+  #applyPart(event: PartEvent): void {
+    const identity = partIdentity(event);
+    let target = this.#partToSlot.get(identity);
     if (target === undefined) {
-      const cls = blockClass(row.table);
-      const last = this.#blocks[this.#blocks.length - 1];
-      if (last !== undefined && accepts(last, cls, row)) {
-        target = this.#blocks.length - 1;
+      const keyString = blockKeyString(event);
+      const last = this.#slots[this.#slots.length - 1];
+      if (last !== undefined && last.kind === "open" && last.keyString === keyString) {
+        target = this.#slots.length - 1;
       } else {
-        this.#blocks.push(newBlock(cls, row));
-        target = this.#blocks.length - 1;
+        this.#slots.push(newOpenBlock(event));
+        target = this.#slots.length - 1;
       }
-      this.#rowToBlock.set(identity, target);
+      this.#partToSlot.set(identity, target);
     }
-    applyToBlock(this.#blocks[target], row);
+    const slot = this.#slots[target];
+    if (slot.kind !== "open") return; // impossible by class
+    applyToBlock(slot, event);
+  }
+
+  /** Fold one complete single-row block: replace at a known identity,
+   * else append. */
+  #applySingle(identity: string, block: ConversationBlock): void {
+    const target = this.#partToSlot.get(identity);
+    if (target !== undefined) {
+      this.#slots[target] = { kind: "single", block };
+      return;
+    }
+    this.#slots.push({ kind: "single", block });
+    this.#partToSlot.set(identity, this.#slots.length - 1);
+  }
+
+  /** Fold one error block. Errors are IMMUTABLE and carry no
+   * replace-at identity — the snapshot/live seam (the one way the same
+   * error arrives twice) dedupes by VALUE equality. */
+  #applyError(block: ConversationBlock): void {
+    const encoded = JSON.stringify(block);
+    for (const slot of this.#slots) {
+      if (slot.kind === "single" && JSON.stringify(slot.block) === encoded) {
+        return;
+      }
+    }
+    this.#slots.push({ kind: "single", block });
   }
 
   #wake(): void {

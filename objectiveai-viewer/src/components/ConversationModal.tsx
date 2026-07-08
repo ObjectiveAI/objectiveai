@@ -4,26 +4,26 @@ import type { DaemonConnection } from "../lib/daemon";
 import {
   useAgentInstance,
   type ConversationBlock,
-  type ConversationRow,
 } from "../hooks/useAgentInstance";
+import type { AssistantPart, PartContent } from "./conversationContent";
 import { formatAgo } from "../lib/formatAgo";
 import { LoadingDots } from "./LoadingDots";
 import { Markdown } from "./Markdown";
 
 /**
- * The per-agent conversation popup: near-fullscreen panel over a
- * dim backdrop, closable via the X, Escape, or a backdrop click.
+ * The per-agent conversation popup: near-fullscreen panel over a dim
+ * backdrop, closable via the X, Escape, or a backdrop click.
  *
  * Renders the agent's WHOLE conversation from its own
- * `/agents/instances/{*aih}` connection ([`useAgentInstance`]): the
- * DB snapshot replays on connect, then live rows stream in — content
- * INLINE, no per-part fetches. The presentation is role-run based:
- * consecutive blocks of the same role (user / assistant /
- * notification) share ONE [`KindLabel`] badge; reasoning and tool
- * exchanges are assistant-side DISCLOSURES, collapsed by default —
- * a tool call pairs with its response (by `tool_call_id`) inside one
- * [`ToolSection`], call arguments as pretty JSON. Media renders for
- * real: images, audio, video, file downloads.
+ * `/agents/instances/{*aih}` connection ([`useAgentInstance`]) — the
+ * blocks are the `agents logs list` `ResponseItem` mirror with content
+ * INLINE, so no per-part fetches exist. The presentation is role-run
+ * based: consecutive blocks of the same role (user / assistant /
+ * notification / error) share ONE [`KindLabel`] badge; reasoning and
+ * tool exchanges are assistant-side DISCLOSURES, collapsed by default
+ * — a tool call pairs with its response block (by `tool_call_id`)
+ * inside one [`ToolSection`], call arguments as pretty JSON. Media
+ * renders for real: images, audio, video, file downloads.
  */
 export function ConversationModal({
   connection,
@@ -190,8 +190,7 @@ function KindLabel({
   );
 }
 
-/** A tool block (a `tool_response` / `request_message_tool`
- * conversation block) — the response side of a tool exchange. */
+/** A tool block — the response side of a tool exchange. */
 type ToolBlock = Extract<
   ConversationBlock,
   { type: "tool_response" } | { type: "request_message_tool" }
@@ -325,8 +324,8 @@ function ToolSection({
       {response !== null && (
         <div className={cn("flex", "flex-col", "gap-1")}>
           <span className={label}>response</span>
-          {response.parts.map((row, i) => (
-            <MediaView key={i} media={rowToMedia(row)} />
+          {response.parts.map((part, i) => (
+            <MediaView key={i} media={contentToMedia(part.content)} />
           ))}
         </div>
       )}
@@ -344,10 +343,10 @@ function ReasoningPart({ text }: { text: string }) {
 }
 
 /** A coalesced conversation is a sequence of role RUNS: consecutive
- * blocks of the same role (user / assistant / notification) share
- * ONE badge, their content listed in order. Tool sections and
+ * blocks of the same role (user / assistant / notification / error)
+ * share ONE badge, their content listed in order. Tool sections and
  * reasoning are assistant-role blocks (no badge of their own). */
-type BlockRole = "user" | "assistant" | "notification";
+type BlockRole = "user" | "assistant" | "notification" | "error";
 
 interface Block {
   key: string;
@@ -426,11 +425,11 @@ function coalesce(blocks: Block[]): Group[] {
   return groups;
 }
 
-/** Flatten the ordered conversation blocks into role-tagged,
- * badge-less blocks. Tool blocks are consumed into their call's
- * [`ToolSection`] (paired by `tool_call_id`); an orphan tool block —
- * its call outside this stream — renders as a response-only section
- * in place. Request/response assistant shapes are NOT distinguished. */
+/** Flatten the mirror blocks into role-tagged, badge-less display
+ * blocks. Tool blocks are consumed into their call's [`ToolSection`]
+ * (paired by `tool_call_id`); an orphan tool block — its call outside
+ * this stream — renders as a response-only section in place.
+ * Request/response assistant shapes are NOT distinguished. */
 function flattenBlocks(source: readonly ConversationBlock[]): Block[] {
   const toolResponses = pairToolResponses(source);
   const consumed = new Set<ToolBlock>();
@@ -441,9 +440,9 @@ function flattenBlocks(source: readonly ConversationBlock[]): Block[] {
       item.type === "assistant_response" ||
       item.type === "request_message_assistant"
     ) {
-      for (const row of item.parts) {
-        if (row.content.type === "tool_call") {
-          const answer = toolResponses.get(row.content.tool_call_id);
+      for (const part of item.parts) {
+        if (part.type === "tool_call") {
+          const answer = toolResponses.get(part.tool_call_id);
           if (answer !== undefined) consumed.add(answer);
         }
       }
@@ -456,74 +455,39 @@ function flattenBlocks(source: readonly ConversationBlock[]): Block[] {
       case "assistant_response":
       case "request_message_assistant": {
         const at = item.parts[0]?.delivered_at;
-        item.parts.forEach((row, j) => {
+        item.parts.forEach((part, j) => {
           const key = `${base}-${j}`;
-          const content = row.content;
-          if (content.type === "reasoning") {
-            blocks.push({
-              key,
-              role: "assistant",
-              at,
-              node: <ReasoningPart text={content.text} />,
-            });
-          } else if (content.type === "tool_call") {
-            blocks.push({
-              key,
-              role: "assistant",
-              at,
-              node: (
-                <ToolSection
-                  name={content.function_name}
-                  args={content.arguments}
-                  response={toolResponses.get(content.tool_call_id) ?? null}
-                />
-              ),
-            });
-          } else if (content.type === "refusal") {
-            blocks.push({
-              key,
-              role: "assistant",
-              at,
-              node: (
-                <>
-                  <span className={cn("text-info-dim")}>refusal</span>
-                  <MediaView media={{ kind: "text", text: content.text }} />
-                </>
-              ),
-            });
-          } else {
-            blocks.push({
-              key,
-              role: "assistant",
-              at,
-              node: <MediaView media={rowToMedia(row)} />,
-            });
-          }
+          blocks.push({
+            key,
+            role: "assistant",
+            at,
+            node: assistantPartNode(part, toolResponses),
+          });
         });
         break;
       }
       case "request_message_user": {
         const at = item.parts[0]?.delivered_at;
-        item.parts.forEach((row, j) => {
+        item.parts.forEach((part, j) => {
           blocks.push({
             key: `${base}-${j}`,
             role: "user",
             at,
-            node: <MediaView media={rowToMedia(row)} />,
+            node: <MediaView media={contentToMedia(part.content)} />,
           });
         });
         break;
       }
       case "client_notification": {
-        const from = item.sender_agent_instance_hierarchy ?? undefined;
-        const at = item.queued_at ?? item.parts[0]?.delivered_at;
-        item.parts.forEach((row, j) => {
+        const from = item.sender_agent_instance_hierarchy;
+        const at = item.queued_at;
+        item.parts.forEach((part, j) => {
           blocks.push({
             key: `${base}-${j}`,
             role: "notification",
             from,
             at,
-            node: <MediaView media={rowToMedia(row)} />,
+            node: <MediaView media={contentToMedia(part.content)} />,
           });
         });
         break;
@@ -562,8 +526,8 @@ function flattenBlocks(source: readonly ConversationBlock[]): Block[] {
                   >
                     {choice.key}
                   </span>
-                  {choice.parts.map((row, k) => (
-                    <MediaView key={k} media={rowToMedia(row)} />
+                  {choice.parts.map((part, k) => (
+                    <MediaView key={k} media={contentToMedia(part.content)} />
                   ))}
                 </div>
               ))}
@@ -591,9 +555,74 @@ function flattenBlocks(source: readonly ConversationBlock[]): Block[] {
         });
         break;
       }
+      case "error": {
+        // A logged failure — its own role run, value as pretty JSON.
+        blocks.push({
+          key: base,
+          role: "error",
+          at: item.delivered_at,
+          node: (
+            <MediaView
+              media={{
+                kind: "text",
+                text:
+                  typeof item.error === "string"
+                    ? item.error
+                    : JSON.stringify(item.error),
+                json: typeof item.error !== "string",
+              }}
+            />
+          ),
+        });
+        break;
+      }
     }
   });
   return blocks;
+}
+
+/** One assistant-family part as its display node. */
+function assistantPartNode(
+  part: AssistantPart,
+  toolResponses: ReadonlyMap<string, ToolBlock>,
+): React.ReactNode {
+  switch (part.type) {
+    case "reasoning":
+      return <ReasoningPart text={part.text} />;
+    case "tool_call":
+      return (
+        <ToolSection
+          name={part.function_name}
+          args={part.arguments}
+          response={toolResponses.get(part.tool_call_id) ?? null}
+        />
+      );
+    case "refusal":
+      return (
+        <>
+          <span className={cn("text-info-dim")}>refusal</span>
+          <MediaView media={{ kind: "text", text: part.text }} />
+        </>
+      );
+    case "text":
+      return <MediaView media={{ kind: "text", text: part.text }} />;
+    case "image":
+      return <MediaView media={{ kind: "image", url: part.image.url }} />;
+    case "audio":
+      return (
+        <MediaView
+          media={{
+            kind: "audio",
+            data: part.audio.data,
+            format: part.audio.format,
+          }}
+        />
+      );
+    case "video":
+      return <MediaView media={{ kind: "video", url: part.video.url }} />;
+    case "file":
+      return <MediaView media={{ kind: "file", ...part.file }} />;
+  }
 }
 
 /** Pretty-print a JSON text body; unparsable input passes through
@@ -606,8 +635,8 @@ function prettyJson(text: string): string {
   }
 }
 
-/** The normalized media descriptor every inlined row content maps to,
- * so one renderer ([`MediaView`]) serves everything. */
+/** The normalized media descriptor every inlined content maps to, so
+ * one renderer ([`MediaView`]) serves everything. */
 type Media =
   | { kind: "text"; text: string; json?: boolean }
   | { kind: "image"; url: string }
@@ -621,20 +650,11 @@ type Media =
       filename?: string | null;
     };
 
-/** An inlined conversation row's content → [`Media`]. Reasoning /
- * tool-call / refusal / vote rows are handled by their dedicated
- * sections before reaching here; mapping them anyway keeps this
- * total. */
-function rowToMedia(row: ConversationRow): Media {
-  const content = row.content;
+/** An inlined `PartContent` → [`Media`]. */
+function contentToMedia(content: PartContent): Media {
   switch (content.type) {
     case "text":
       return { kind: "text", text: content.text };
-    case "reasoning":
-    case "refusal":
-      return { kind: "text", text: content.text };
-    case "tool_call":
-      return { kind: "text", text: content.arguments, json: true };
     case "image":
       return { kind: "image", url: content.url };
     case "audio":
@@ -649,20 +669,11 @@ function rowToMedia(row: ConversationRow): Media {
         file_url: content.file_url,
         filename: content.filename,
       };
-    case "vote":
-      return {
-        kind: "text",
-        text: JSON.stringify(content.vote),
-        json: true,
-      };
-    case "head":
-      // Heads never materialize as parts — defensive only.
-      return { kind: "text", text: "" };
     default:
       // LOUD on purpose: a new content kind must be handled here, not
       // silently mislabeled.
       throw new Error(
-        `unhandled conversation content kind: ${String(
+        `unhandled part content kind: ${String(
           (content as { type: unknown }).type,
         )}`,
       );

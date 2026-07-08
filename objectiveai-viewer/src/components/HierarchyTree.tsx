@@ -4,12 +4,11 @@ import { tauriInvoke } from "../lib/tauri";
 import type { DaemonConnection } from "../lib/daemon";
 import { ConversationModal } from "./ConversationModal";
 import { LoadingDots } from "./LoadingDots";
-import { blockScope, describeRow } from "./conversationContent";
+import { describeLastItem } from "./conversationContent";
 import type { AgentStatus } from "../hooks/useAgentsInstancesList";
 import {
   useAgentInstance,
   type ConversationBlock,
-  type ConversationRow,
 } from "../hooks/useAgentInstance";
 import {
   useAgentDefinition,
@@ -353,58 +352,58 @@ function AgentNode({
           "text-info-mid",
         )}
       >
-        {/* Header row: the instance chip left, the EXPLICIT opener
-            right — the chip is the only way to open the conversation
-            (no whole-box click). */}
-        <div
+        {/* The EXPLICIT opener, on its own line above the instance
+            chip — the only way to open the conversation (no whole-box
+            click). */}
+        <button
+          type="button"
+          data-open-agent
+          onClick={() => onOpen(hierarchy)}
+          aria-label={`Open ${hierarchy} conversation`}
           className={cn(
-            "flex",
-            "flex-row",
-            "items-center",
-            "gap-3",
-            "self-stretch",
+            "self-end",
+            // A corner TAB: pulled up/right through the box padding so
+            // its border merges 1px with the box's top-right border —
+            // rounded only where it matches the box corner (tr) and
+            // where it faces the content (bl).
+            "-mt-[7px]",
+            "-mr-[11px]",
+            "rounded-tr-sm",
+            "rounded-bl-sm",
+            "rounded-tl-none",
+            "rounded-br-none",
+            "px-1.5",
+            "py-px",
+            "border",
+            "border-copper-mid",
+            "bg-copper-warm/10",
+            "text-copper-bright",
+            "text-[11px]",
+            "hover:border-copper-hot",
+            "hover:text-copper-hot",
+            "cursor-pointer",
           )}
         >
-          {agent === null ? (
-            <LoadingDots marker="data-tags-loading" />
-          ) : (
+          open ↗
+        </button>
+        {agent === null ? (
+          <LoadingDots marker="data-tags-loading" />
+        ) : (
+          <>
             <BadgeRow badge="instance">
               <span data-tag-aih className={cn("text-[#c3bfbb]")}>
                 {name}
               </span>
             </BadgeRow>
-          )}
-          <button
-            type="button"
-            data-open-agent
-            onClick={() => onOpen(hierarchy)}
-            aria-label={`Open ${hierarchy} conversation`}
-            className={cn(
-              "ml-auto",
-              "px-1.5",
-              "py-px",
-              "rounded-sm",
-              "border",
-              "border-copper-mid/70",
-              "bg-copper-warm/10",
-              "text-copper-bright",
-              "text-[11px]",
-              "hover:border-copper-hot",
-              "hover:text-copper-hot",
-              "cursor-pointer",
-            )}
-          >
-            open ↗
-          </button>
-        </div>
-        {agent !== null &&
-          agent.tags.map((tag) => (
-            <BadgeRow key={tag} badge="tag">
-              <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
-                {tag}
-              </span>
-            </BadgeRow>
-          ))}
+            {agent.tags.map((tag) => (
+              <BadgeRow key={tag} badge="tag">
+                <span data-tag={tag} className={cn("text-[#c3bfbb]")}>
+                  {tag}
+                </span>
+              </BadgeRow>
+            ))}
+          </>
+        )}
         <AgentDefinitionView hierarchy={hierarchy} />
         {(status.active || lastActiveAt !== null) && (
           <span
@@ -436,51 +435,6 @@ function AgentNode({
       </div>
       {lastBlock !== null && <LastItemView block={lastBlock} />}
     </div>
-  );
-}
-
-/** What the latest conversation item IS (the indicator at the top of
- * the message box) plus how to render its body — the block's most
- * recent part, via the shared per-kind renderers. */
-function describeLastItem(block: ConversationBlock): {
-  label: string;
-  body: React.ReactNode;
-} {
-  const lastPart = (rows: ConversationRow[]): ConversationRow | null =>
-    rows.length > 0 ? rows[rows.length - 1] : null;
-  const scope = blockScope(block);
-  switch (block.type) {
-    case "vector_response_vote":
-      // The vote is the block's own payload, not a part.
-      return { label: scope, body: <VoteBody vote={block.vote} /> };
-    case "vector_request_choices": {
-      const lastChoice =
-        block.choices.length > 0
-          ? block.choices[block.choices.length - 1]
-          : null;
-      return describeRow(
-        scope,
-        lastChoice === null ? null : lastPart(lastChoice.parts),
-      );
-    }
-    default:
-      return describeRow(scope, lastPart(block.parts));
-  }
-}
-
-/** The vote array, pretty-printed. */
-function VoteBody({ vote }: { vote: number[] }) {
-  return (
-    <pre
-      className={cn(
-        "text-[9px]",
-        "whitespace-pre-wrap",
-        "break-words",
-        "leading-snug",
-      )}
-    >
-      {JSON.stringify(vote, null, 2)}
-    </pre>
   );
 }
 
