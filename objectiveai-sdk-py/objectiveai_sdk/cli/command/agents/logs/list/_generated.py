@@ -7,7 +7,7 @@ from .path import Path  # noqa: F401
 from .request import Request  # noqa: F401
 from .request_message_user_part import RequestMessageUserPart  # noqa: F401
 from .request_message_user_part_type import RequestMessageUserPartType  # noqa: F401
-from .response_item import ResponseItem, ResponseItemAssistantResponse, ResponseItemClientNotification, ResponseItemRequestMessageAssistant, ResponseItemRequestMessageTool, ResponseItemRequestMessageUser, ResponseItemToolResponse, ResponseItemVectorRequestChoices, ResponseItemVectorResponseVote  # noqa: F401
+from .response_item import ResponseItem, ResponseItemAssistantResponse, ResponseItemClientNotification, ResponseItemError, ResponseItemRequestMessageAssistant, ResponseItemRequestMessageTool, ResponseItemRequestMessageUser, ResponseItemToolResponse, ResponseItemVectorRequestChoices, ResponseItemVectorResponseVote  # noqa: F401
 from .target import Target, TargetDirect, TargetMe, TargetTag  # noqa: F401
 from .tool_response_part import ToolResponsePart  # noqa: F401
 from .tool_response_part_type import ToolResponsePartType  # noqa: F401
