@@ -241,8 +241,18 @@ pub fn run(
 
         // Finalize the LogWriter (consumes; drops the sender;
         // awaits the listener). By the time this returns: the
-        // queue is empty AND no work is in flight.
-        let finalize_outcome = log_writer.finalize().await;
+        // queue is empty AND no work is in flight. A mid-stream
+        // failure rides in — post-drain, the writer logs it as an
+        // `error` row for every nested agent completion that never
+        // finished (no usage yet); cleanly-finished completions get
+        // nothing.
+        let finalize_outcome = log_writer
+            .finalize_with_stream_error(
+                stream_err
+                    .as_ref()
+                    .map(|e| Error::Instance(e.clone()).output_message()),
+            )
+            .await;
 
         // Surface errors. Stream errors take precedence (upstream
         // cause); writer errors are a downstream symptom.

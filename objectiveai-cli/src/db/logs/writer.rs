@@ -56,6 +56,7 @@
 use std::collections::{HashMap, HashSet};
 use std::future::Future;
 use std::marker::PhantomData;
+use std::sync::{Arc, Mutex as StdMutex};
 use std::pin::Pin;
 
 use objectiveai_sdk::agent::completions::request::AgentCompletionCreateParams;
@@ -226,6 +227,9 @@ pub struct LogWriter<C> {
     /// [`LogWriter::written_once`] (sync peek) and
     /// [`LogWriter::wait_written_once`] (async wait).
     written_rx: watch::Receiver<bool>,
+    /// Mid-stream failure handoff slot shared with the listener —
+    /// see [`finalize_with_stream_error`](Self::finalize_with_stream_error).
+    stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -285,6 +289,23 @@ impl<C> LogWriter<C> {
             )),
         }
     }
+
+    /// [`finalize`](Self::finalize), carrying the caller's mid-stream
+    /// failure. When `error` is `Some`, the listener — AFTER draining
+    /// every queued chunk (so error rows land last, never out of
+    /// order) — logs it as an `error` row for every nested agent
+    /// completion that has NOT finished (no `usage` yet) and does not
+    /// carry its own in-band error. Completions that finished cleanly
+    /// get nothing: they started and ended with no errors.
+    pub async fn finalize_with_stream_error(
+        self,
+        error: Option<serde_json::Value>,
+    ) -> Result<(), crate::error::Error> {
+        if let (Some(value), Ok(mut slot)) = (error, self.stream_error.lock()) {
+            *slot = Some(value);
+        }
+        self.finalize().await
+    }
 }
 
 /// All the per-stream state the listener task owns. Was previously
@@ -337,8 +358,21 @@ struct LogWriterState<C> {
     frame_mapper: super::tee::FrameMapper,
     /// `(aih, response_id)` pairs whose in-band completion error has
     /// already been persisted — the cumulative accumulator re-yields
-    /// the error item every tick once set.
+    /// the error item every tick once set. Also consulted by the
+    /// post-drain mid-stream failure sweep.
     logged_errors: HashSet<(String, String)>,
+    /// Per-tier walker over the folded chunk's nested agent
+    /// completions — the mid-stream failure sweep's enumeration.
+    statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+    /// The chunk's own TOP-LEVEL in-band error (a function execution
+    /// failing on the wire without a transport error). `None`-returning
+    /// for the agent tier — spawn's `note_error` owns that tier's
+    /// stream errors.
+    chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
+    /// Mid-stream failure handoff: the caller's stream error, set by
+    /// [`LogWriter::finalize_with_stream_error`] BEFORE the EOF signal,
+    /// consumed by the listener's post-drain sweep.
+    stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
     _chunk: PhantomData<fn() -> C>,
 }
 
@@ -354,6 +388,9 @@ impl<C> LogWriterState<C> {
         >,
         request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
         tee: Option<super::tee::ConversationTee>,
+        statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+        chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
+        stream_error: Arc<StdMutex<Option<serde_json::Value>>>,
     ) -> Self {
         Self {
             pool,
@@ -370,6 +407,9 @@ impl<C> LogWriterState<C> {
             tee,
             frame_mapper: super::tee::FrameMapper::default(),
             logged_errors: HashSet::new(),
+            statuses_fn,
+            chunk_error_fn,
+            stream_error,
             _chunk: PhantomData,
         }
     }
@@ -723,10 +763,61 @@ where
             }
         }
     }
-    // EOF (sender dropped via finalize): write the complete response
-    // blob exactly once from the cumulative aggregate. Skipped when no
-    // chunk ever arrived (primary_id still unset).
+    // EOF (sender dropped via finalize): every queued chunk is drained.
     if let Some(acc) = accumulated {
+        // Mid-stream failure sweep: the caller's stream error (set via
+        // `finalize_with_stream_error` before EOF) — or the execution's
+        // own TOP-LEVEL in-band error — is logged for every nested
+        // agent completion that neither finished (no usage yet) nor
+        // carries its own in-band error (already persisted). Runs
+        // strictly post-drain, so error rows land AFTER every
+        // conversation row.
+        let sweep_error = state
+            .stream_error
+            .lock()
+            .ok()
+            .and_then(|mut slot| slot.take())
+            .or_else(|| {
+                (state.chunk_error_fn)(&acc).map(|e| {
+                    serde_json::to_value(e).unwrap_or_else(|_| e.to_string().into())
+                })
+            });
+        if let Some(value) = sweep_error {
+            let ts = now_secs() as i64;
+            for status in (state.statuses_fn)(&acc) {
+                if status.finished || status.errored {
+                    continue;
+                }
+                let key = (
+                    status.agent_instance_hierarchy.to_string(),
+                    status.response_id.to_string(),
+                );
+                if state.logged_errors.contains(&key) {
+                    continue;
+                }
+                // Persist first, then tee — same order as everywhere.
+                super::errors::insert_error(
+                    &state.pool,
+                    status.agent_instance_hierarchy,
+                    Some(status.response_id),
+                    &value,
+                    ts,
+                )
+                .await?;
+                if let Some(tee) = &state.tee {
+                    tee.send(super::tee::error_frame(
+                        key.0.clone(),
+                        Some(key.1.clone()),
+                        value.clone(),
+                        ts,
+                    ));
+                }
+                state.logged_errors.insert(key);
+            }
+        }
+        // Write the complete response blob exactly once from the
+        // cumulative aggregate. (Both skipped when no chunk ever
+        // arrived — `accumulated` still `None`.)
         state.write_response_blob(&acc).await?;
     }
     Ok(())
@@ -750,6 +841,8 @@ fn spawn_writer<C>(
     >,
     request_agent_ref: Option<crate::db::agent_refs::AgentRefValue>,
     tee: Option<super::tee::ConversationTee>,
+    statuses_fn: for<'a> fn(&'a C) -> super::rows::CompletionStatuses<'a>,
+    chunk_error_fn: for<'a> fn(&'a C) -> Option<&'a objectiveai_sdk::error::ResponseError>,
 ) -> (LogWriter<C>, oneshot::Receiver<String>)
 where
     C: WriterChunk
@@ -765,6 +858,8 @@ where
     let (tx, rx) = mpsc::unbounded_channel();
     let (ready_tx, ready_rx) = oneshot::channel();
     let (written_tx, written_rx) = watch::channel(false);
+    let stream_error: Arc<StdMutex<Option<serde_json::Value>>> =
+        Arc::new(StdMutex::new(None));
     let state = LogWriterState::new(
         pool,
         tier,
@@ -774,6 +869,9 @@ where
         request_messages,
         request_agent_ref,
         tee,
+        statuses_fn,
+        chunk_error_fn,
+        stream_error.clone(),
     );
     let handle = tokio::spawn(listener_loop(rx, state, ready_tx, written_tx));
     (
@@ -781,6 +879,7 @@ where
             tx,
             handle,
             written_rx,
+            stream_error,
             _chunk: PhantomData,
         },
         ready_rx,
@@ -817,6 +916,10 @@ pub fn write_agent_completion(
         request_messages,
         request_agent_ref,
         tee,
+        super::rows::agent_completion_statuses,
+        // Agent tier: spawn's `note_error` owns stream errors; the
+        // chunk's own in-band error is logged via `WriterItem::Error`.
+        |_| None,
     ))
 }
 
@@ -839,6 +942,9 @@ pub fn write_vector_completion(
         None,
         None,
         tee,
+        super::rows::vector_completion_statuses,
+        // VectorCompletionChunk carries no top-level error field.
+        |_| None,
     ))
 }
 
@@ -861,5 +967,7 @@ pub fn write_function_execution(
         None,
         None,
         tee,
+        super::rows::function_execution_statuses,
+        |chunk| chunk.error.as_ref(),
     ))
 }

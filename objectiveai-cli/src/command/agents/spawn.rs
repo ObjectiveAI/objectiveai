@@ -647,18 +647,12 @@ pub(crate) fn run_multi_pass(
                         }
                         .await;
                         if let Err(e) = upsert {
-                            // First chunk has landed — the AIH is
-                            // known and the error is loggable.
-                            note_error(
-                                &ctx,
-                                &conversation_tee,
-                                Some(&hier),
-                                last_response_id.as_deref(),
-                                &e,
-                            )
-                            .await;
-                            Err(e)?;
-                            unreachable!("Err(e)? diverges");
+                            // Fold into the consolidated raise: it
+                            // runs AFTER `log_writer.finalize()`, so
+                            // the error row lands after every queued
+                            // conversation row — never out of order.
+                            stream_err = Some(format!("agent_refs upsert: {e}"));
+                            break;
                         }
                     }
                     identity = Some((hier, full_id));

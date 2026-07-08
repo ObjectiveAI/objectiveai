@@ -94,6 +94,67 @@ pub fn function_execution_chunk_rows<'a>(
     Box::new(task_iter.chain(reasoning_iter))
 }
 
+/// One nested agent completion's liveness, borrowed from the folded
+/// cumulative chunk. `finished` = usage arrived (present only on a
+/// completion's final chunk); `errored` = the completion carries its
+/// own in-band error (already persisted via [`WriterItem::Error`]).
+/// The mid-stream failure sweep logs the stream error for every
+/// completion that is neither.
+pub struct CompletionStatus<'a> {
+    pub agent_instance_hierarchy: &'a str,
+    pub response_id: &'a str,
+    pub finished: bool,
+    pub errored: bool,
+}
+
+/// Boxed iterator of [`CompletionStatus`]es.
+pub type CompletionStatuses<'a> = Box<dyn Iterator<Item = CompletionStatus<'a>> + Send + 'a>;
+
+/// Status of the one completion an agent chunk IS.
+pub fn agent_completion_statuses<'a>(
+    chunk: &'a AgentCompletionChunk,
+) -> CompletionStatuses<'a> {
+    Box::new(std::iter::once(CompletionStatus {
+        agent_instance_hierarchy: chunk.agent_instance_hierarchy.as_str(),
+        response_id: chunk.id.as_str(),
+        finished: chunk.usage.is_some(),
+        errored: chunk.error.is_some(),
+    }))
+}
+
+/// Statuses of every embedded per-agent completion in a vector chunk.
+pub fn vector_completion_statuses<'a>(
+    chunk: &'a VectorCompletionChunk,
+) -> CompletionStatuses<'a> {
+    Box::new(
+        chunk
+            .completions
+            .iter()
+            .flat_map(|c| agent_completion_statuses(&c.inner)),
+    )
+}
+
+/// Statuses of every nested agent completion in a function chunk —
+/// recursive (function tasks chain back in), reasoning summaries
+/// included. Mirrors [`function_execution_chunk_rows`]'s traversal.
+pub fn function_execution_statuses<'a>(
+    chunk: &'a FunctionExecutionChunk,
+) -> CompletionStatuses<'a> {
+    let tasks = chunk.tasks.iter().flat_map(|task| match task {
+        TaskChunk::FunctionExecution(wrapper) => {
+            function_execution_statuses(&wrapper.inner)
+        }
+        TaskChunk::VectorCompletion(wrapper) => {
+            vector_completion_statuses(&wrapper.inner)
+        }
+    });
+    let reasoning = chunk
+        .reasoning
+        .iter()
+        .flat_map(|r| agent_completion_statuses(&r.inner));
+    Box::new(tasks.chain(reasoning))
+}
+
 // ---- internal helpers -------------------------------------------------
 
 fn task_chunk_rows<'a>(task: &'a TaskChunk) -> WriterItems<'a> {
