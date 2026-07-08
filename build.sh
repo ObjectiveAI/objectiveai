@@ -56,8 +56,14 @@
 # These fixtures ride phase 1, so --no-zip already excludes them;
 # --no-test-integration only matters on a run that IS building the zip.
 #
+# Pass --skip-viewer to leave the Tauri viewer out of an otherwise-normal
+# build: phase 1 skips objectiveai-viewer/build.sh and packaging stages a
+# zip WITHOUT objectiveai-viewer (an install then keeps whatever viewer
+# binary it already has). Errors under --no-zip — the viewer is only ever
+# built as part of the zip phase, so there is nothing to skip there.
+#
 # Usage:
-#   bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]
+#   bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration] [--skip-viewer]
 
 set -euo pipefail
 
@@ -71,17 +77,27 @@ RELEASE=0
 NO_ZIP=0
 NO_SDK=0
 NO_TEST_INTEGRATION=0
-USAGE="Usage: bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration]"
+SKIP_VIEWER=0
+USAGE="Usage: bash build.sh [--release] [--no-zip] [--no-sdk] [--no-test-integration] [--skip-viewer]"
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --release) RELEASE=1; shift ;;
     --no-zip)  NO_ZIP=1; shift ;;
     --no-sdk)  NO_SDK=1; shift ;;
     --no-test-integration) NO_TEST_INTEGRATION=1; shift ;;
+    --skip-viewer) SKIP_VIEWER=1; shift ;;
     -h|--help) echo "$USAGE"; exit 0 ;;
     *) echo "unknown argument: $1" >&2; echo "$USAGE" >&2; exit 1 ;;
   esac
 done
+
+# --skip-viewer only makes sense when the viewer would otherwise be built,
+# and the viewer is only ever built as part of the zip phase.
+if [ "$SKIP_VIEWER" = "1" ] && [ "$NO_ZIP" = "1" ]; then
+  echo "--skip-viewer conflicts with --no-zip: the viewer is not built when the zip phase is skipped — nothing to skip" >&2
+  exit 1
+fi
+VIEWER_PID=""
 if [ "$RELEASE" = "1" ]; then
   export OBJECTIVEAI_BUILD_RELEASE=1
   echo "Build profile: release"
@@ -269,7 +285,7 @@ if [ "$NO_ZIP" != "1" ]; then
   #   • building both zip + SDK: DEFER the viewer until after phase 4's
   #     sdk-js build, so it embeds the freshly-built SDK rather than racing
   #     the dist that phase 4 is regenerating.
-  if [ "$NO_SDK" = "1" ]; then
+  if [ "$NO_SDK" = "1" ] && [ "$SKIP_VIEWER" != "1" ]; then
     bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
     VIEWER_PID=$!
   fi
@@ -318,7 +334,7 @@ if [ "$NO_SDK" != "1" ]; then
 
   # Deferred viewer (building both zip + SDK): the fresh sdk-js dist now
   # exists, so the viewer embeds the new SDK. Runs concurrently with py/go.
-  if [ "$NO_ZIP" != "1" ]; then
+  if [ "$NO_ZIP" != "1" ] && [ "$SKIP_VIEWER" != "1" ]; then
     bash "$REPO_ROOT/objectiveai-viewer/build.sh" $PROFILE_FLAG &
     VIEWER_PID=$!
   fi
@@ -436,11 +452,15 @@ package_host_zip() {
 
   # The viewer comes from its `tauri build` (objectiveai-viewer/build.sh),
   # which places it in objectiveai-viewer/embed/<profile>/ — NOT target/.
-  src="$REPO_ROOT/objectiveai-viewer/embed/$profile/objectiveai-viewer$ext"
-  if [ ! -f "$src" ]; then
-    echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
+  # Under --skip-viewer the zip simply ships without it (an install keeps
+  # whatever viewer binary it already has).
+  if [ "$SKIP_VIEWER" != "1" ]; then
+    src="$REPO_ROOT/objectiveai-viewer/embed/$profile/objectiveai-viewer$ext"
+    if [ ! -f "$src" ]; then
+      echo "package: missing $src (run objectiveai-viewer/build.sh)" >&2; rm -rf "$stage"; return 1
+    fi
+    cp "$src" "$stage/objectiveai-viewer$ext"
   fi
-  cp "$src" "$stage/objectiveai-viewer$ext"
 
   local r
   for r in objectiveai-claude-agent-sdk-runner objectiveai-codex-sdk-runner; do

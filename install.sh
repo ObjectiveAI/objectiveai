@@ -13,6 +13,9 @@
 #                             (debug) and install those instead of
 #                             downloading a release zip.
 #   --from-source-release     Same, but build in release mode.
+#   --skip-viewer             (only with --from-source[-release]) Build and
+#                             stage everything EXCEPT the Tauri viewer; the
+#                             previously-installed viewer binary is kept.
 #
 # Zip resolution, in order:
 #   1. ./<asset>            (current working directory)
@@ -52,6 +55,7 @@ NO_EXPORT_PATH=0
 DIR_ARG=""
 FROM_SOURCE=0
 FROM_SOURCE_RELEASE=0
+SKIP_VIEWER=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --no-export-path)
@@ -65,6 +69,10 @@ while [ "$#" -gt 0 ]; do
     --from-source-release)
       FROM_SOURCE=1
       FROM_SOURCE_RELEASE=1
+      shift
+      ;;
+    --skip-viewer)
+      SKIP_VIEWER=1
       shift
       ;;
     --objectiveai-dir)
@@ -90,6 +98,13 @@ while [ "$#" -gt 0 ]; do
       ;;
   esac
 done
+
+# --skip-viewer only exists for source builds — a release zip always
+# carries the viewer, so there is nothing to skip on the download path.
+if [ "$SKIP_VIEWER" = "1" ] && [ "$FROM_SOURCE" != "1" ]; then
+  echo "--skip-viewer requires --from-source (or --from-source-release)" >&2
+  exit 1
+fi
 
 # --objectiveai-dir wins, then $OBJECTIVEAI_DIR, then the default.
 INSTALL_DIR="${DIR_ARG:-${OBJECTIVEAI_DIR:-$HOME/.objectiveai}}"
@@ -167,6 +182,9 @@ if [ "$FROM_SOURCE" = "1" ]; then
   BUILD_ARGS=(--no-sdk)
   if [ "$FROM_SOURCE_RELEASE" = "1" ]; then
     BUILD_ARGS+=(--release)
+  fi
+  if [ "$SKIP_VIEWER" = "1" ]; then
+    BUILD_ARGS+=(--skip-viewer)
   fi
   echo "Building from source: bash build.sh ${BUILD_ARGS[*]}"
   bash "$SCRIPT_DIR/build.sh" "${BUILD_ARGS[@]}"
