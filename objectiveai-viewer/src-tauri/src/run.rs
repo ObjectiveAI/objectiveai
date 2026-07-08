@@ -121,8 +121,14 @@ fn open_agent_window_impl(
 
 /// Open (or focus) the agent conversation window for `aih` — the tree's
 /// explicit `open` chip calls this instead of an in-page popup.
+///
+/// ASYNC on purpose: a sync command runs on the MAIN thread, and
+/// webview creation on Windows contends with that same event loop —
+/// the window shell appears but the page never initializes (a white
+/// window). An async command runs off the main thread, so the
+/// creation dispatches cleanly.
 #[tauri::command]
-fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), String> {
+async fn open_agent_window(app: tauri::AppHandle, aih: String) -> Result<(), String> {
     open_agent_window_impl(&app, &aih).map_err(|e| e.to_string())
 }
 
