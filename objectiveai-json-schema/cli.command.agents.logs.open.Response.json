@@ -146,6 +146,20 @@
           ]
         }
       }
+    },
+    {
+      "title": "Error",
+      "description": "A logged failure (`objectiveai.errors`) — the CLI's user-facing\nerror value: a structured object for API response errors, a\nplain string otherwise.",
+      "type": "object",
+      "properties": {
+        "error": {},
+        "type": {
+          "type": "string",
+          "enum": [
+            "error"
+          ]
+        }
+      }
     }
   ]
 }

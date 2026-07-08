@@ -230,6 +230,46 @@
           ]
         }
       }
+    },
+    {
+      "title": "Error",
+      "description": "One logged failure (`objectiveai.errors`) — a spawn-path error\npersisted into the agent's history. Always a single row: the\nfailing attempt dies at its first raised error, so there is\nnothing to coalesce. The value is returned inline (like the\nvote) — no `read id` needed — but the row is still\nid-addressable like every other event.",
+      "type": "object",
+      "properties": {
+        "agent_instance_hierarchy": {
+          "type": "string"
+        },
+        "delivered_at": {
+          "type": "string"
+        },
+        "error": {
+          "description": "The CLI's user-facing error value — a structured object for\nAPI response errors, a plain string otherwise."
+        },
+        "id": {
+          "description": "`logs.messages.\"index\"` for this row.",
+          "type": "integer",
+          "minimum": -9223372036854775808,
+          "maximum": 9223372036854775807
+        },
+        "response_id": {
+          "description": "The response the failure belongs to when one existed;\n`None` for post-lock pre-stream failures (the only kind\nallowed a NULL response_id).",
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "omitempty": true
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "error"
+          ]
+        }
+      }
     }
   ]
 }
