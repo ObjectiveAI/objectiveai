@@ -660,7 +660,7 @@ mod tests {
                 WriterItem::Usage { agent_instance_hierarchy, total_tokens } => {
                     Some((agent_instance_hierarchy, total_tokens))
                 }
-                WriterItem::Row(_) => None,
+                WriterItem::Row(_) | WriterItem::Error { .. } => None,
             })
             .collect()
     }

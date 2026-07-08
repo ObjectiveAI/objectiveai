@@ -377,6 +377,7 @@ pub enum ResponseItem {
     VectorResponseVote {
         agent_instance_hierarchy: String,
         response_id: String,
+        #[serde(deserialize_with = "crate::serde_util::vec_decimal")]
         #[schemars(with = "Vec<f64>")]
         vote: Vec<rust_decimal::Decimal>,
     },
